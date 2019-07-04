@@ -32,9 +32,6 @@
 --let $rpl_server_count= 3
 --source include/group_replication.inc
 
---let $debug_save_count= `SELECT @@GLOBAL.group_replication_recovery_retry_count`
---let $debug_save_rec_int= `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval`
-
 --let $recovery_user= recovery_user
 --let $recovery_password= recovery_password
 --let $recovery_bad_password= recovery_bad_password
@@ -100,6 +97,12 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
 set session sql_log_bin=1;
 
+--let $debug_save_count= `SELECT @@GLOBAL.group_replication_recovery_retry_count`
+--let $debug_save_rec_int= `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval`
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
+
 --disable_warnings
 CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_bad_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
@@ -114,19 +117,11 @@ CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_bad_pa
 --source include/assert.inc
 
 --echo # Start recovery and wait to verify the member is in recovery
-
-SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
---echo # Wake up recovery
-
-SET DEBUG_SYNC= 'RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
-SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
-
 --echo # The member should error out as it can't connect
-
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
@@ -134,34 +129,22 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --echo # Set MASTER_USER to an empty user name, watching it fail
 --echo #
 
-SET @debug_save= @@GLOBAL.DEBUG;
-
 --source include/stop_group_replication.inc
 
 CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '' FOR CHANNEL 'group_replication_recovery';
 
-#--echo # Set the retry count to try only once.
-#--eval SET GLOBAL group_replication_recovery_retry_count= 1;
-
 --echo # Start recovery and wait to verify the member is in recovery
-
-SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
---echo # Wake up recovery
-
-SET DEBUG_SYNC= 'RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
-
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
 --echo # Verify that the show slave status shows specific IO_error
 let $show_statement= SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
-let $field= Last_IO_Error;
-let $condition= 'Fatal error: Invalid (empty) username when attempting to connect to the master server. Connection attempt terminated.';
+let $field= Last_IO_Errno;
+let $condition= = '1045';
 --source include/wait_show_condition.inc
 
 --source include/stop_group_replication.inc
@@ -170,29 +153,20 @@ let $condition= 'Fatal error: Invalid (empty) username when attempting to connec
 --echo # Set MASTER_USER to non existing user, watching it fail
 --echo #
 
-SET @debug_save= @@GLOBAL.DEBUG;
-
 CHANGE MASTER TO MASTER_USER= 'parveez', MASTER_PASSWORD= 'me' FOR CHANNEL 'group_replication_recovery';
 
 --echo # Start recovery and wait to verify the member is in recovery
-
-SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
---echo # Wake up recovery
-
-SET DEBUG_SYNC= 'RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
-
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
 --echo # Verify that show slave status shows specific IO_ERROR
 let $show_statement= SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
 let $field= Last_IO_Errno;
-let $condition= '1045';
+let $condition= = '1045';
 --source include/wait_show_condition.inc
 
 --source include/stop_group_replication.inc
@@ -201,7 +175,6 @@ let $condition= '1045';
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
-
 --echo #
 --echo # Clean up
 --echo #
@@ -209,6 +182,7 @@ let $condition= '1045';
 --eval DROP USER "$recovery_user"
 --connection server3
 SET DEBUG_SYNC='RESET';
+SET @@GLOBAL.DEBUG = @debug_save;
 --eval SET GLOBAL group_replication_recovery_retry_count= $debug_save_count
 --eval SET GLOBAL group_replication_recovery_reconnect_interval= $debug_save_rec_int
 

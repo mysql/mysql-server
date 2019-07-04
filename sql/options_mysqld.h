@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@ enum options_mysqld {
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
   OPT_SSL_CIPHER,
+  OPT_TLS_CIPHERSUITES,
   OPT_TLS_VERSION,
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
@@ -102,7 +103,9 @@ enum options_mysqld {
   OPT_KEYRING_MIGRATION_SOCKET,
   OPT_KEYRING_MIGRATION_PORT,
   OPT_LOG_SLAVE_UPDATES,
-  OPT_SLAVE_PRESERVE_COMMIT_ORDER
+  OPT_SLAVE_PRESERVE_COMMIT_ORDER,
+  OPT_LOG_SLOW_EXTRA,
+  OPT_NAMED_PIPE_FULL_ACCESS_GROUP
 };
 
 #endif  // OPTIONS_MYSQLD_INCLUDED

@@ -82,7 +82,7 @@ static PSI_memory_info pfs_info[] = {
      PSI_DOCUMENT_ME},
     {&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0, 0,
      PSI_DOCUMENT_ME},
-    {&mem_key_clone, "clone data", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_clone, "clone", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_bg_recalc_pool_t, "dict_stats_bg_recalc_pool_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0, 0,

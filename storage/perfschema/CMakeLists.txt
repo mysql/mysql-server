@@ -248,6 +248,7 @@ table_file_instances.cc
 table_md_locks.cc
 table_data_locks.cc
 table_data_lock_waits.cc
+table_keyring_keys.cc
 table_mems_global_by_event_name.cc
 table_mems_by_account_by_event_name.cc
 table_mems_by_host_by_event_name.cc

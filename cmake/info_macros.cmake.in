@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -139,8 +139,7 @@ MACRO(CREATE_INFO_BIN)
     FILE(APPEND ${INFO_BIN} "Build was done for ${CMAKE_SYSTEM} using ${CMAKE_SYSTEM_PROCESSOR}\n")
   ENDIF()
 
-  # ${CMAKE_VERSION} doesn't work in 2.6.0, use the separate components.
-  FILE(APPEND ${INFO_BIN} "Build was done using cmake ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION} \n\n")
+  FILE(APPEND ${INFO_BIN} "Build was done using cmake ${CMAKE_VERSION}\n\n")
 
   IF (WIN32)
     FILE(APPEND ${INFO_BIN} "===== Compiler / generator used: =====\n")

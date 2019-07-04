@@ -315,4 +315,10 @@ std::string get_tmp_dir(const std::string &name) {
   return std::string(res);
 }
 
+int mkdir_wrapper(const std::string &dir, perm_mode mode) {
+  auto res = ::mkdir(dir.c_str(), mode);
+  if (res != 0) return errno;
+  return 0;
+}
+
 }  // namespace mysql_harness

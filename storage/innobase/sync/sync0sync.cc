@@ -54,6 +54,7 @@ mysql_pfs_key_t autoinc_persisted_mutex_key;
 #ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 mysql_pfs_key_t buffer_block_mutex_key;
 #endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+mysql_pfs_key_t buf_pool_chunks_mutex_key;
 mysql_pfs_key_t buf_pool_flush_state_mutex_key;
 mysql_pfs_key_t buf_pool_LRU_list_mutex_key;
 mysql_pfs_key_t buf_pool_free_list_mutex_key;
@@ -89,6 +90,7 @@ mysql_pfs_key_t log_sn_lock_key;
 mysql_pfs_key_t log_sys_arch_mutex_key;
 mysql_pfs_key_t page_sys_arch_mutex_key;
 mysql_pfs_key_t page_sys_arch_oper_mutex_key;
+mysql_pfs_key_t page_sys_arch_client_mutex_key;
 mysql_pfs_key_t mutex_list_mutex_key;
 mysql_pfs_key_t recalc_pool_mutex_key;
 mysql_pfs_key_t page_cleaner_mutex_key;
@@ -167,7 +169,7 @@ mysql_pfs_key_t trx_purge_latch_key;
 even if their corresponding performance schema define is set. And this
 PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
 would be excluded from instrumentation.*/
-mysql_pfs_key_t PFS_NOT_INSTRUMENTED(ULINT32_UNDEFINED);
+mysql_pfs_key_t PFS_NOT_INSTRUMENTED(UINT32_UNDEFINED);
 
 /** For monitoring active mutexes */
 MutexMonitor *mutex_monitor;

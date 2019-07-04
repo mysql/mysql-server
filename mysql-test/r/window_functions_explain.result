@@ -16641,6 +16641,10 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t`"

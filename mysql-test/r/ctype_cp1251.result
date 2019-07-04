@@ -387,8 +387,8 @@ FE	FE	FE	D18E	FE
 FF	FF	FF	D18F	FF	
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
 set global LC_TIME_NAMES=convert((-8388608) using cp1251);
 ERROR HY000: Unknown locale: '-8388608'
@@ -1209,11 +1209,11 @@ select hex(concat(@a1:=1));
 hex(concat(@a1:=1))
 31
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 create table t1 as select concat(@a2:=2) as c1, @a3:=3 as c2;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select hex(c1) from t1;
 hex(c1)
 32
@@ -1243,11 +1243,11 @@ select hex(concat(@a1:=sqrt(1)));
 hex(concat(@a1:=sqrt(1)))
 31
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 create table t1 as select concat(@a2:=sqrt(1)) as c1, @a3:=sqrt(1) as c2;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select hex(c1) from t1;
 hex(c1)
 31
@@ -1277,11 +1277,11 @@ select hex(concat(@a1:=1.1));
 hex(concat(@a1:=1.1))
 312E31
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 create table t1 as select concat(@a2:=1.1) as c1, @a3:=1.1 as c2;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select hex(c1) from t1;
 hex(c1)
 312E31
@@ -3305,22 +3305,16 @@ inet6_aton(inet_ntoa('1'))
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
-Warnings:
-Warning	1411	Incorrect string value: 'inet_ntoa('1')' for function inet6_ntoa
 #
 # Bug#14040277 UNINITIALIZED VALUE REFERENCED IN STR_TO_IPV6
 #
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
-Warnings:
-Warning	1411	Incorrect string value: 'soundex('a')' for function inet6_aton
 #
 # Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
 #
 do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using cp1251)));
-Warnings:
-Warning	1411	Incorrect string value: 'convert(_ascii'a:' using cp1251)' for function inet6_aton
 #
 # End of 5.6 tests
 #

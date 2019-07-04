@@ -70,22 +70,29 @@ class METADATA_API ClusterMetadata : public MetaData {
                   int connection_attempts, std::chrono::milliseconds ttl,
                   const mysqlrouter::SSLOptions &ssl_options);
 
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit ClusterMetadata(const ClusterMetadata &) = delete;
+  ClusterMetadata &operator=(const ClusterMetadata &) = delete;
+
   /** @brief Destructor
    *
    * Disconnect and release the connection to the metadata node.
    */
-  virtual ~ClusterMetadata();
+  ~ClusterMetadata() override;
 
   /** @brief Returns replicasets defined in the metadata server
    *
    * Returns relation as a std::map between replicaset name and object
    * of the replicasets defined in the metadata and GR status tables.
    *
-   * @param cluster_name the name of the cluster to query
+   * @param cluster_name            the name of the cluster to query
+   * @param group_replication_id    id of the replication group
    * @return Map of replicaset ID, server list pairs.
    * @throws metadata_cache::metadata_error
    */
-  ReplicaSetsByName fetch_instances(const std::string &cluster_name)
+  ReplicaSetsByName fetch_instances(const std::string &cluster_name,
+                                    const std::string &group_replication_id)
       override;  // throws metadata_cache::metadata_error
 
 #if 0  // not used so far
@@ -126,7 +133,7 @@ class METADATA_API ClusterMetadata : public MetaData {
    * replicasets that belong to the desired cluster.
    */
   ReplicaSetsByName fetch_instances_from_metadata_server(
-      const std::string &cluster_name);
+      const std::string &cluster_name, const std::string &group_replication_id);
 
   /** Query the GR performance_schema tables for live information about a
    * replicaset.

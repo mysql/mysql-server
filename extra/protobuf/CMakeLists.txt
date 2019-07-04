@@ -20,227 +20,53 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# This cmake file builds protoc, the protobuf compiler.
-# We also build libprotobuf.a and libprotobuf-lite.a, the protobuf runtime
-# support libraries.
+# The files in protobuf-3.6.1/ are almost unmodified versions of google
+# source files taken from protobuf-cpp-3.6.1.tar.gz archive.
+# Changes:
+# - remove directories and files
+#    protobuf-3.6.1/benchmarks/
+#    protobuf-3.6.1/conformance/
+#    protobuf-3.6.1/editors/
+#    protobuf-3.6.1/examples/
+#    protobuf-3.6.1/objectivec/
+#    protobuf-3.6.1/third_party/
+#    protobuf-3.6.1/python/
+#    protobuf-3.6.1/util/
+#    protobuf-3.6.1/ar-lib
+#    protobuf-3.6.1/test-driver
+# - disable configuration check of cmake's mimimum version
+# - disable configuration zlib check
+# - disable installation script
+# - fix minor compilation issues on SunPro 5.14.0
+# - fix minor issues to satisfy UBSAN
 
-# The files in protobuf-2.6.1/ are unmodified versions of google source files.
-# To save some space and time, we have remove directories which are not
-# needed by MySQL:
-#   protobuf-2.6.1/gtest/
-#   protobuf-2.6.1/java/
-#   protobuf-2.6.1/python/
-#   protobuf-2.6.1/m4/
-#   protobuf-2.6.1/vsprojects/
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
-SET(PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4018 /wd4005 /wd4244 /wd4267 /wd4065")
-IF(WIN32_CLANG)
-  SET(PROTOBUF_MSVC_DISABLED_WARNINGS "-Wno-sign-compare")
-ENDIF()
-
-# Turn off some warning flags when compiling protobuf
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ignored-qualifiers")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
-    HAVE_MISLEADING_INDENTATION)
-  IF(HAVE_MISLEADING_INDENTATION)
-    STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-misleading-indentation")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-  IF(HAVE_UNUSED_TYPEDEFS)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-  IF(HAVE_MAYBE_UNINITIALIZED)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
-  IF(HAVE_UNUSED_BUT_SET)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-parameter")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wenum-compare-switch" HAVE_ENUM_COMPARE_SWITCH)
-  IF(HAVE_ENUM_COMPARE_SWITCH)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-enum-compare-switch")
-  ENDIF()
-ENDIF()
-
-# protoc built with clang -fsanitize=undefined dumps core
-IF (HAVE_UBSAN)
-  STRING(REPLACE "-fsanitize=undefined" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-ENDIF()
-
-ADD_DEFINITIONS(-DHAVE_ZLIB)
-IF(CMAKE_USE_PTHREADS_INIT)
-  ADD_DEFINITIONS(-DHAVE_PTHREAD)
-ENDIF()
-
-INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR}/protobuf-2.6.1/src
-)
-
-SET(PROTO_SRC_DIR
-  "${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-2.6.1/src")
-
-SET(LIBPROTOBUF_LITE_SOURCES
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/atomicops_internals_x86_gcc.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/atomicops_internals_x86_msvc.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/common.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/once.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/hash.h
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/map_util.h
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/shared_ptr.h
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/stringprintf.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/stringprintf.h
-  ${PROTO_SRC_DIR}/google/protobuf/extension_set.cc
-  ${PROTO_SRC_DIR}/google/protobuf/generated_message_util.cc
-  ${PROTO_SRC_DIR}/google/protobuf/message_lite.cc
-  ${PROTO_SRC_DIR}/google/protobuf/repeated_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/wire_format_lite.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/coded_stream.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/coded_stream_inl.h
-  ${PROTO_SRC_DIR}/google/protobuf/io/zero_copy_stream.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/zero_copy_stream_impl_lite.cc
-)
-
+# Inhibit warning messages
 IF(MSVC)
-  ADD_COMPILE_FLAGS(${LIBPROTOBUF_LITE_SOURCES} COMPILE_FLAGS ${PROTOBUF_MSVC_DISABLED_WARNINGS})
-ENDIF(MSVC)
-
-ADD_CONVENIENCE_LIBRARY(protobuf-lite ${LIBPROTOBUF_LITE_SOURCES})
-SET_PROPERTY(TARGET protobuf-lite PROPERTY EXCLUDE_FROM_ALL TRUE)
-
-
-SET(LIBPROTOBUF_SOURCES
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/strutil.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/strutil.h
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/substitute.cc
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/substitute.h
-  ${PROTO_SRC_DIR}/google/protobuf/stubs/structurally_valid.cc
-  ${PROTO_SRC_DIR}/google/protobuf/descriptor.cc
-  ${PROTO_SRC_DIR}/google/protobuf/descriptor.pb.cc
-  ${PROTO_SRC_DIR}/google/protobuf/descriptor_database.cc
-  ${PROTO_SRC_DIR}/google/protobuf/dynamic_message.cc
-  ${PROTO_SRC_DIR}/google/protobuf/extension_set_heavy.cc
-  ${PROTO_SRC_DIR}/google/protobuf/generated_message_reflection.cc
-  ${PROTO_SRC_DIR}/google/protobuf/message.cc
-  ${PROTO_SRC_DIR}/google/protobuf/reflection_ops.cc
-  ${PROTO_SRC_DIR}/google/protobuf/service.cc
-  ${PROTO_SRC_DIR}/google/protobuf/text_format.cc
-  ${PROTO_SRC_DIR}/google/protobuf/unknown_field_set.cc
-  ${PROTO_SRC_DIR}/google/protobuf/wire_format.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/gzip_stream.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/printer.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/strtod.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/tokenizer.cc
-  ${PROTO_SRC_DIR}/google/protobuf/io/zero_copy_stream_impl.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/importer.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/parser.cc
-)
-
-IF(MSVC)
-  ADD_COMPILE_FLAGS(${LIBPROTOBUF_SOURCES} COMPILE_FLAGS ${PROTOBUF_MSVC_DISABLED_WARNINGS})
-ENDIF(MSVC)
-
-ADD_CONVENIENCE_LIBRARY(protobuf
-  ${LIBPROTOBUF_SOURCES} ${LIBPROTOBUF_LITE_SOURCES})
-SET_PROPERTY(TARGET protobuf PROPERTY EXCLUDE_FROM_ALL TRUE)
-TARGET_LINK_LIBRARIES(protobuf
-  ${CMAKE_THREAD_LIBS_INIT} ${ZLIB_LIBRARY} ${LIBRT})
-
-SET(LIBPROTOC_SOURCES
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/code_generator.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/command_line_interface.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/plugin.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/plugin.pb.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/subprocess.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/subprocess.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/zip_writer.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/zip_writer.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_enum.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_enum.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_enum_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_enum_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_extension.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_extension.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_file.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_file.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_generator.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_helpers.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_helpers.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_message.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_message.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_message_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_message_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_options.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_primitive_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_primitive_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_service.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_service.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_string_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/cpp/cpp_string_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_context.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_context.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_enum.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_enum.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_enum_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_enum_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_extension.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_extension.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_file.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_file.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_generator.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_generator_factory.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_generator_factory.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_helpers.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_helpers.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_lazy_message_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_lazy_message_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_message.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_message.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_message_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_message_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_name_resolver.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_name_resolver.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_primitive_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_primitive_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_shared_code_generator.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_shared_code_generator.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_service.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_service.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_string_field.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_string_field.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_doc_comment.cc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_doc_comment.h
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/python/python_generator.cc
-)
-
-IF(MSVC)
-  ADD_COMPILE_FLAGS(${LIBPROTOC_SOURCES} COMPILE_FLAGS ${PROTOBUF_MSVC_DISABLED_WARNINGS})
-ENDIF(MSVC)
-
-ADD_CONVENIENCE_LIBRARY(protoclib ${LIBPROTOC_SOURCES})
-SET_PROPERTY(TARGET protoclib PROPERTY EXCLUDE_FROM_ALL TRUE)
-
-MYSQL_ADD_EXECUTABLE(protoc
-  ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc
-  SKIP_INSTALL EXCLUDE_FROM_ALL)
-# Build fails with 'devenv' unless we include it in the default build
-IF(WIN32)
-  SET_PROPERTY(TARGET protoc PROPERTY EXCLUDE_FROM_DEFAULT_BUILD FALSE)
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4005")
+ELSE()
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-sign-compare")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-function")
 ENDIF()
-TARGET_LINK_LIBRARIES(protoc protobuf protoclib protobuf)
+
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-inconsistent-missing-override")
+ENDIF()
+
+# For gcc9
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-copy" HAVE_DEPRECATED_COPY)
+IF(HAVE_DEPRECATED_COPY)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-copy")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wextra-semi" HAVE_EXTRA_SEMI)
+IF(HAVE_EXTRA_SEMI)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-extra-semi")
+ENDIF()
+
+SET(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
+SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+SET(protobuf_MSVC_STATIC_RUNTIME OFF CACHE INTERNAL "")
+SET(protobuf_WITH_ZLIB ON CACHE INTERNAL "")
+SET(ZLIB_LIBRARIES ${ZLIB_LIBRARY})
+ADD_SUBDIRECTORY(protobuf-3.6.1/cmake)

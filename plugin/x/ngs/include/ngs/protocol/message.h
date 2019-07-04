@@ -26,7 +26,7 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_
 
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 
@@ -57,7 +57,7 @@ class Message_request {
  private:
   void free_msg() {
     if (m_is_owned) {
-      if (m_message) ngs::free_object(m_message);
+      if (m_message) free_object(m_message);
       m_is_owned = false;
     }
   }

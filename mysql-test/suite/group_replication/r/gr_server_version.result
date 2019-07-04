@@ -1,0 +1,79 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+include/start_slave.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server2]
+CREATE TABLE t1(a INT PRIMARY KEY);
+[connection server2]
+include/sync_slave_sql_with_master.inc
+[connection server3]
+# Adding debug point 'gr_fixed_server_version' to @@GLOBAL.debug
+DROP TABLE t1;
+[connection server2]
+include/sync_slave_sql_with_master.inc
+[connection server4]
+include/start_group_replication.inc
+[connection server2]
+[connection server3]
+[connection server4]
+include/assert.inc [server2 original_server_version must be equal to its own server version]
+include/assert.inc [server3 original_server_version must be equal to server2]
+include/assert.inc [server4 original_server_version must be equal to server2]
+include/assert.inc [server2 immediate_server_version must be equal its own server version]
+include/assert.inc [server3 immediate_server_version must be equal its own server version]
+include/assert.inc [server4 immediate_server_version must be equal its own server version]
+include/assert.inc [server3 immediate_server_version in the applier relay log must be equal to server2 ISV]
+[connection server2]
+[connection server3]
+[connection server4]
+include/assert.inc [server3 original_server_version must be equal to 777777]
+include/assert.inc [server2 original_server_version must be equal to server3]
+include/assert.inc [server4 original_server_version must be equal to server3]
+include/assert.inc [server2 immediate_server_version must be equal to its own server version]
+include/assert.inc [server3 immediate_server_version must be equal to 777777]
+include/assert.inc [server4 immediate_server_version must be equal to its own server version]
+[connection server2]
+[connection server3]
+[connection server4]
+include/assert.inc [server2 original_server_version must be equal to its own server_version]
+include/assert.inc [server3 original_server_version must be equal to its own server_version]
+include/assert.inc [server4 original_server_version must be equal to its own server_version]
+include/assert.inc [server2 immediate_server_version must be equal to its own server_version]
+include/assert.inc [server3 immediate_server_version must be equal to its own server_version]
+include/assert.inc [server4 immediate_server_version must be equal to its own server_version]
+[connection server1]
+# Adding debug point 'fixed_server_version' to @@GLOBAL.debug
+CREATE TABLE t2 (a INT PRIMARY KEY);
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[connection server2]
+include/sync_slave_sql_with_master.inc
+[connection server2]
+include/sync_slave_sql_with_master.inc
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server4]
+include/assert.inc [server1 original_server_version must be equal to 888888]
+include/assert.inc [server2 original_server_version must be equal to server1]
+include/assert.inc [server3 original_server_version must be equal to server1]
+include/assert.inc [server4 original_server_version must be equal to server1]
+include/assert.inc [server1 immediate_server_version must be equal to 888888]
+include/assert.inc [server2 immediate_server_version must be equal to its own server version]
+include/assert.inc [server3 immediate_server_version must be equal to 777777]
+include/assert.inc [server4 immediate_server_version must be equal to its own server version]
+[connection server1]
+# Removing debug point 'fixed_server_version' from @@GLOBAL.debug
+[connection server3]
+# Removing debug point 'gr_fixed_server_version' from @@GLOBAL.debug
+[connection server2]
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+RESET SLAVE FOR CHANNEL 'channel_1';
+include/group_replication_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';

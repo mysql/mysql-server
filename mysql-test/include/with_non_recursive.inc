@@ -804,12 +804,6 @@ with
 
 drop table sales_days;
 
---echo # Tmp table cannot be MyISAM
-set global internal_tmp_disk_storage_engine=myisam;
---error ER_SWITCH_TMP_ENGINE
-with qn as (select 1) select * from qn;
-set global internal_tmp_disk_storage_engine=default;
-
 --echo # Special parser command not allowed to users.
 --error ER_PARSE_ERROR
 parse_cte ( select 1 ) ;

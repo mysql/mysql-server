@@ -176,3 +176,4 @@ drop table test.c2;
 drop table test.c1;
 drop table test.p1;
 drop table test.`rows`;
+--remove_file $NDB_TOOLS_OUTPUT

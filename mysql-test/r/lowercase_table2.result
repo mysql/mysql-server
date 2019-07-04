@@ -351,3 +351,24 @@ constraint_name
 T2_ibfk_1
 ALTER TABLE T3 DROP FOREIGN KEY t2_ibfk_1;
 DROP TABLE T3, t1;
+#
+# BUG#28351038 - MYSQL WORKBENCH ERROR GETTING DDL FOR OBJECT ON TABLES
+# WITH AN UPPERCASE LETTER.
+#
+CREATE TABLE `T1` (
+`id` INT NOT NULL AUTO_INCREMENT,
+`creation_utc` DATETIME NOT NULL,
+PRIMARY KEY (`id`));
+CREATE TRIGGER `test`.`test_table_t1_before_insert` BEFORE INSERT ON `T1`
+FOR EACH ROW
+BEGIN
+SET NEW.creation_utc = UTC_TIMESTAMP();
+END
+$$
+# The SHOW CREATE TRIGGER command fails without the fix.
+SHOW CREATE TRIGGER `test`.`test_table_t1_before_insert`;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+test_table_t1_before_insert	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `test_table_t1_before_insert` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
+SET NEW.creation_utc = UTC_TIMESTAMP();
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+DROP TABLE `T1`;

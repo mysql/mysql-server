@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,6 +48,11 @@ class zInserter : private BaseInserter {
   /** Write all the BLOBs of the clustered index record.
   @return DB_SUCCESS on success, error code on failure. */
   dberr_t write();
+
+  /** Write one blob field data.
+  @param[in]	blob_j	the blob field number
+  @return DB_SUCCESS on success, error code on failure. */
+  dberr_t write_one_blob(size_t blob_j);
 
   /** Cleanup after completing the write of compressed BLOB.
   @param[in]	validate	if true, validate all the
@@ -177,11 +182,6 @@ class zInserter : private BaseInserter {
   void add_to_blob_dir(const blob_page_info_t &page_info) {
     m_dir.add(page_info);
   }
-
-  /** Write one blob field data.
-  @param[in]	blob_j	the blob field number
-  @return DB_SUCCESS on success, error code on failure. */
-  dberr_t write_one_blob(size_t blob_j);
 
   mem_heap_t *m_heap;
   z_stream m_stream;

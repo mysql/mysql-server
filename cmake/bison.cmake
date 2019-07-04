@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,17 +27,37 @@ IF(NOT BISON_EXECUTABLE)
   MESSAGE(WARNING "Bison executable not found in PATH")
 ELSEIF(BISON_EXECUTABLE AND NOT BISON_USABLE)
   # Check version as well
-  EXEC_PROGRAM(${BISON_EXECUTABLE} ARGS --version OUTPUT_VARIABLE BISON_VERSION_STR)
-   # Get first line in case it's multiline
-   STRING(REGEX REPLACE "([^\n]+).*" "\\1" FIRST_LINE "${BISON_VERSION_STR}")
-   # get version information
-   STRING(REGEX REPLACE ".* ([0-9]+)\\.([0-9]+)" "\\1" BISON_VERSION_MAJOR "${FIRST_LINE}")
-   STRING(REGEX REPLACE ".* ([0-9]+)\\.([0-9]+)" "\\2" BISON_VERSION_MINOR "${FIRST_LINE}")
-   IF (BISON_VERSION_MAJOR LESS 2)
-     MESSAGE(WARNING "Bison version is old. please update to version 2")
-   ELSE()
-     SET(BISON_USABLE 1 CACHE INTERNAL "Bison version 2 or higher")
-   ENDIF()
+  EXEC_PROGRAM(${BISON_EXECUTABLE} ARGS --version OUTPUT_VARIABLE BISON_OUTPUT)
+  # get version information
+  STRING(REGEX REPLACE
+    "^bison \\(GNU Bison\\) ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1"
+    BISON_VERSION "${BISON_OUTPUT}")
+  MESSAGE(STATUS
+    "Found Bison: ${BISON_EXECUTABLE} (found version is ${BISON_VERSION})")
+  IF (BISON_VERSION VERSION_LESS "2.1")
+    MESSAGE(WARNING "Bison version ${BISON_VERSION} is old. \
+      Please update to version 2.1 or higher")
+  ELSE()
+    SET(BISON_USABLE 1 CACHE INTERNAL "Bison version 2 or higher")
+    IF(BISON_VERSION VERSION_LESS "2.4")
+      # Don't use --warnings since unsupported
+      SET(BISON_FLAGS_WARNINGS "" CACHE INTERNAL "BISON 2.x flags")
+    ELSEIF(BISON_VERSION VERSION_LESS "3.0")
+      # Enable all warnings
+      SET(BISON_FLAGS_WARNINGS
+        "--warnings=all"
+	CACHE INTERNAL "BISON 2.x flags")
+    ELSE()
+      # TODO: replace with "--warnings=all"
+      # For the backward compatibility with 2.x, suppress warnings:
+      # * no-yacc: for --yacc
+      # * no-empty-rule: for empty rules without %empty
+      # * no-precedence: for useless precedence or/and associativity rules
+      SET(BISON_FLAGS_WARNINGS
+        "--warnings=all,no-yacc,no-empty-rule,no-precedence"
+	CACHE INTERNAL "BISON 3.x flags")
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 
@@ -61,6 +81,7 @@ MACRO (RUN_BISON input_yy output_cc output_h name_prefix)
       COMMAND ${BISON_EXECUTABLE}
        --name-prefix=${name_prefix}
        --yacc
+       ${BISON_FLAGS_WARNINGS}
        --output=${output_cc}
        --defines=${output_h}
         ${input_yy}

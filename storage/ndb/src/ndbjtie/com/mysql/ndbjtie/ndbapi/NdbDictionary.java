@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ public class NdbDictionary extends Wrapper
                 StateBuilding = 2,
                 StateDropping = 3,
                 StateOnline = 4,
-                StateBackup = 5,
+                ObsoleteStateBackup = 5,
                 StateBroken = 9;
         }
         public interface /*_enum_*/ Store

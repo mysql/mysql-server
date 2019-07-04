@@ -370,3 +370,27 @@ DROP TABLE t1;
 SET @a:='11';
 DO GREATEST(RIGHT(@a,1),1);
 DO LEAST(RIGHT(@a,1),1);
+
+-- echo #
+-- echo # Bug#29275835 ASSERTION FAILED:
+-- echo #     !UNSIGNED_FLAG || (UNSIGNED_FLAG && ARGS[I]->UNSIGNED_FLAG)
+-- echo #
+
+SET sql_mode='';
+
+CREATE TABLE t0017 (
+  c0002 bigint(20) NOT NULL
+);
+
+INSERT INTO t0017 (c0002)
+VALUES (0);
+
+SELECT greatest(18446744073709551615, NULL)
+FROM t0017;
+
+SELECT
+count(greatest(18446744073709551615, NULL))
+FROM t0017;
+
+DROP TABLE t0017;
+SET sql_mode = default;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,7 @@
 
 namespace xpl {
 
-RWLock::RWLock(PSI_rwlock_key key MY_ATTRIBUTE((unused))) {
-  mysql_rwlock_init(key, &m_rwlock);
-}
+RWLock::RWLock(PSI_rwlock_key key) { mysql_rwlock_init(key, &m_rwlock); }
 
 RWLock::~RWLock() { mysql_rwlock_destroy(&m_rwlock); }
 

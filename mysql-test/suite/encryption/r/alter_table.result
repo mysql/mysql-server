@@ -1,0 +1,2848 @@
+#
+# WL#12261 Control (enforce and disable) table encryption
+#
+# Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+# This test run ALTER TABLE in different configurations,
+#
+# - Setting table_encryption_privilege_check to true/false.
+# - Setting default_table_encryption to true/false.
+# - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+# - Test SHOW CREATE TABLE
+# - Test INFORMATION_SCHEMA.TABLES.CREATE_OPTIONS
+# - Check for warnings generated.
+#
+# See comments in alter_table.inc for more details.
+`````````````````````````````````````````````````````````
+# Test using user tablespace 'ts1'
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=OFF and default per-db encryption OFF
+# [ALTER TABLE] Case 1 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 2 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# Moving encrypted tablespace to unencrypted tablespace is rejected.
+# [ALTER TABLE] Case 3 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	ENCRYPTION='y'
+t3	
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 4 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=OFF and default per-db encryption ON
+# [ALTER TABLE] Case 5 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 6 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# Moving encrypted tablespace to unencrypted tablespace is rejected.
+# [ALTER TABLE] Case 7 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 8 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=ON and default per-db encryption OFF
+# [ALTER TABLE] Case 9 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# Request to create encrypted table to unencrypted database is rejected.
+# [ALTER TABLE] Case 10 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 11 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+# Grant TABLE_ENCRYPTION_ADMIN if requested.
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+# REVOKE TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# Moving encrypted tablespace to unencrypted tablespace is rejected.
+# [ALTER TABLE] Case 12 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	ENCRYPTION='y'
+t3	
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 13 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=ON and default per-db encryption ON
+# [ALTER TABLE] Case 14 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 15 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 16 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# Moving encrypted tablespace to unencrypted tablespace is rejected.
+# [ALTER TABLE] Case 17 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+# Grant TABLE_ENCRYPTION_ADMIN if requested.
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='y'
+# Cleanup
+# REVOKE TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+# [ALTER TABLE] Case 18 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+DROP TABLESPACE ts1;
+`````````````````````````````````````````````````````````
+# Using 'innodb_system' tablespace
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=OFF and default per-db encryption OFF
+# [ALTER TABLE] Case 19 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 20 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	
+t3	ENCRYPTION='y'
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 21 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	ENCRYPTION='y'
+t3	
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 22 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=OFF and default per-db encryption ON
+# [ALTER TABLE] Case 23 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 24 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 25 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 26 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=ON and default per-db encryption OFF
+# [ALTER TABLE] Case 27 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Request to create encrypted table to unencrypted database is rejected.
+# [ALTER TABLE] Case 28 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 29 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+# Grant TABLE_ENCRYPTION_ADMIN if requested.
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	
+t3	ENCRYPTION='y'
+t4	
+# Cleanup
+# REVOKE TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 30 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	ENCRYPTION='y'
+t3	
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 31 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=ON and default per-db encryption ON
+# [ALTER TABLE] Case 32 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 33 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Request to create unencrypted table under database with default
+# encryption=ON is rejected.
+# [ALTER TABLE] Case 34 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 35 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+# Grant TABLE_ENCRYPTION_ADMIN if requested.
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='y'
+# Cleanup
+# REVOKE TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Creating a encrypted table is rejected in system tablespace
+# [ALTER TABLE] Case 36 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Test using 'innodb_file_per_table'
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=OFF and default per-db encryption OFF
+# [ALTER TABLE] Case 37 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 38 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 39 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 40 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=OFF and default per-db encryption ON
+# [ALTER TABLE] Case 41 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 42 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 43 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 44 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=ON and default per-db encryption OFF
+# [ALTER TABLE] Case 45 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Request to create encrypted table to database with default
+# encryption=OFF is rejected.
+# [ALTER TABLE] Case 46 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 47 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+# Grant TABLE_ENCRYPTION_ADMIN if requested.
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+# REVOKE TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 48 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+t2	
+t3	
+t4	
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 49 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='n';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# table_encryption_privilege_check=ON and default per-db encryption ON
+# [ALTER TABLE] Case 50 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 51 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+`````````````````````````````````````````````````````````
+# Request to create unencrypted table to database with default
+# encryption=ON is rejected.
+# [ALTER TABLE] Case 52 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tsA` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 53 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+# Grant TABLE_ENCRYPTION_ADMIN if requested.
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='n'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='n'
+t2	ENCRYPTION='n'
+t3	ENCRYPTION='n'
+t4	ENCRYPTION='n'
+# Cleanup
+# REVOKE TABLE_ENCRYPTION_ADMIN from user.
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# [ALTER TABLE] Case 54 )
+`````````````````````````````````````````````````````````
+CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='y';
+CREATE TABLE db1.t1 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t2 (f1 int) ENCRYPTION='y';
+CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=true;
+# Run ALTER TABLE and check for errors/warnings
+ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
+SET GLOBAL table_encryption_privilege_check=false;
+# Verify the ENCRYPTION clause value.
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `f1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='db1';
+TABLE_NAME	CREATE_OPTIONS
+t1	ENCRYPTION='y'
+t2	ENCRYPTION='y'
+t3	ENCRYPTION='y'
+t4	ENCRYPTION='y'
+# Cleanup
+DROP DATABASE db1;
+DROP TABLESPACE tsA;
+# Cleanup
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

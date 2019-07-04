@@ -33,7 +33,26 @@
 #include <utility>
 #include <vector>
 
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+
+/**
+ Error code for the pipeline's processing of incoming packets.
+ */
+enum class Gcs_pipeline_incoming_result {
+  // Successful, and returned a packet.
+  OK_PACKET,
+  /*
+   Successful, but produces no packet.
+   E.g. the incoming packet is a fragment, so it was buffered until all
+   fragments arrive and we reassemble the original message.
+   */
+  OK_NO_PACKET,
+  // Unsuccessful.
+  ERROR
+};
 
 /**
  This is a stage in the pipeline that processes messages when they are
@@ -63,7 +82,6 @@ class Gcs_message_stage {
  public:
   enum class stage_status : unsigned int { apply, skip, abort };
 
- private:
   /**
    Check if the apply operation which affects outgoing packets should be
    executed (i.e. applied), skipped or aborted.
@@ -76,12 +94,17 @@ class Gcs_message_stage {
    For example, if a packet's length is less than a pre-defined threshold the
    packet is not compressed.
 
-   @param packet The packet to which the transformation should be applied.
+   @param original_payload_size The size of the packet to which the
+   transformation should be applied.
    @return a status specifying whether the transformation should be executed,
            skipped or aborted
    */
-  virtual stage_status skip_apply(const Gcs_packet &packet) const = 0;
+  virtual stage_status skip_apply(
+      uint64_t const &original_payload_size) const = 0;
 
+  virtual std::unique_ptr<Gcs_stage_metadata> get_stage_header() = 0;
+
+ protected:
   /**
    Check if the revert operation which affects incoming packets should be
    executed (i.e. applied), skipped or aborted.
@@ -94,120 +117,39 @@ class Gcs_message_stage {
    For example, if the packet length is greater than the maximum allowed
    compressed information an error is returned.
 
-   @param packet the packet upon which the transformation should be applied
+   @param packet The packet upon which the transformation should be applied
    @return a status specifying whether the transformation should be executed,
    skipped or aborted
    */
   virtual stage_status skip_revert(const Gcs_packet &packet) const = 0;
 
   /**
-   Calculate or estimate the new payload length that will be produced after
-   applying some transformation to the original payload.
+   Implements the logic of this stage's transformation to the packet, and
+   returns a set of one, or more, transformed packets.
 
-   This is used to allocate enough memory to accommodate the transformed
-   payload. For example, it is used to allocate a buffer where the compressed
-   payload will be stored.
-
-   @param packet The packet upon which the transformation should be applied
-   @return the length of the new packet
+   @param[in] The packet upon which the transformation should be applied
+   @retval {true, _} If there was an error applying the transformation
+   @retval {false, P} If the transformation was successful, and produced the
+   set of transformed packets P
    */
-  virtual unsigned long long calculate_payload_length(
-      Gcs_packet &packet) const = 0;
+  virtual std::pair<bool, std::vector<Gcs_packet>> apply_transformation(
+      Gcs_packet &&packet) = 0;
 
   /**
-   Apply some transformation to the old payload and stores the result into a
-   new buffer.
+   Implements the logic to revert this stage's transformation to the packet,
+   and returns one, or none, transformed packet.
 
-   For example, it compresses the old payload and stores the compressed result
-   into the new buffer.
-
-   @param [in] version Protocol version of outgoing packet
-   @param [out] new_payload_ptr Pointer to the new payload buffer
-   @param [in] new_payload_length Calculated or estimated length of the new
-   payload
-   @param [in] old_payload_ptr Pointer to the old payload buffer
-   @param [in] old_payload_length Length of the old payload
-   @return a pair where the first element indicates whether the tranformation
-   should be aborted and the second the length of the resulting payload
+   @param[in] The packet upon which the transformation should be reverted
+   @retval {ERROR, _} If there was an error reverting the transformation
+   @retval {OK_NO_PACKET, _} If the transformation was reverted, but produced
+   no packet
+   @retval {OK_PACKET, P} If the transformation was reverted, and produced the
+   packet P
    */
-  virtual std::pair<bool, unsigned long long> transform_payload_apply(
-      unsigned int version, unsigned char *new_payload_ptr,
-      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-      unsigned long long old_payload_length) = 0;
-
-  /**
-   Apply some transformation to the old payload and stores the result into a
-   new buffer.
-
-   For example, it uncompresses the old payload and stores the uncompressed
-   result into the new buffer.
-
-   @param [in] version Protocol version of incoming packet
-   @param [out] new_payload_ptr Pointer to the new payload buffer
-   @param [in] new_payload_length Calculated or estimated length of the new
-   payload
-   @param [in] old_payload_ptr Pointer to the old payload buffer
-   @param [in] old_payload_length Length of the old payload
-   @return a pair where the first element indicates whether the tranformation
-   should be aborted and the second the length of the transformed payload
-   */
-  virtual std::pair<bool, unsigned long long> transform_payload_revert(
-      unsigned int version, unsigned char *new_payload_ptr,
-      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-      unsigned long long old_payload_length) = 0;
+  virtual std::pair<Gcs_pipeline_incoming_result, Gcs_packet>
+  revert_transformation(Gcs_packet &&packet) = 0;
 
  public:
-  /**
-   The offset of the header length within the stage header.
-   */
-  static const unsigned short WIRE_HD_LEN_OFFSET = 0;
-
-  /**
-   On-the-wire field size for the stage type code.
-   */
-  static const unsigned short WIRE_HD_LEN_SIZE = 2;
-
-  /**
-   The offset of the stage type code within the stage header.
-   */
-  static const unsigned short WIRE_HD_TYPE_OFFSET = WIRE_HD_LEN_SIZE;
-
-  /**
-   On-the-wire field size for the stage type code.
-   */
-  static const unsigned short WIRE_HD_TYPE_SIZE = 4;
-
-  /**
-   The offset of the payload length within the stage header.
-   */
-  static const unsigned short WIRE_HD_PAYLOAD_LEN_OFFSET =
-      WIRE_HD_TYPE_OFFSET + WIRE_HD_TYPE_SIZE;
-
-  /**
-   On-the-wire field size for the stage payload length.
-   */
-  static const unsigned short WIRE_HD_PAYLOAD_LEN_SIZE = 8;
-
-  /**
-   The type codes for the existing stages.
-
-   NOTE: values from this enum must fit into WIRE_HD_TYPE_SIZE bytes storage.
-   */
-  enum class stage_code : unsigned int {
-    // this type should not be used anywhere.
-    ST_UNKNOWN = 0,
-
-    // this type represents the compression stage
-    ST_LZ4 = 1,
-
-    /**
-     No valid type codes can appear after this one. If a type code is to
-     be added, this value needs to be incremented and the lowest type code
-     available be assigned to the new stage.
-     */
-    ST_MAX_STAGES = 2
-  };
-
   explicit Gcs_message_stage() : m_is_enabled(true) {}
 
   explicit Gcs_message_stage(bool enabled) : m_is_enabled(enabled) {}
@@ -218,28 +160,53 @@ class Gcs_message_stage {
    Return the unique stage code.
    @return the stage code.
    */
-  virtual stage_code get_stage_code() const = 0;
+  virtual Stage_code get_stage_code() const = 0;
 
   /**
-   Apply this stage transformation to the outgoing message.
+   Apply some transformation to the outgoing packet, and return a set of one,
+   or more, transformed packets.
 
-   @param p the packet to which the transformation should be applied.
-   @return false on success, true otherwise.
+   @param[in] The packet upon which the transformation should be applied
+   @retval {true, _} If there was an error applying the transformation
+   @retval {false, P} If the transformation was successful, and produced the
+   set of transformed packets P
    */
-  virtual bool apply(Gcs_packet &p);
+  std::pair<bool, std::vector<Gcs_packet>> apply(Gcs_packet &&packet);
 
   /**
-   Revert the stage transformation on the incoming message.
+   Revert some transformation from the incoming packet, and return one, or
+   none, transformed packet.
 
-   @param p the packat to which the transformation should be applied.
-   @return false on success, true otherwise.
+   @param[in] The packet upon which the transformation should be reverted
+   @retval {ERROR, _} If there was an error reverting the transformation
+   @retval {OK_NO_PACKET, _} If the transformation was reverted, but produced
+   no packet
+   @retval {OK_PACKET, P} If the transformation was reverted, and produced the
+   packet P
    */
-  virtual bool revert(Gcs_packet &p);
+  std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert(
+      Gcs_packet &&packet);
 
   /**
    Return whether the message stage is enabled or not.
    */
   bool is_enabled() const { return m_is_enabled; }
+
+  /**
+   Update the list of members in the group as this may be required by some
+   stages in the communication pipeline. By default though, the call is simply
+   ignored.
+
+   @param me The local member identifier.
+   @param xcom_nodes List of members in the group.
+   @return If there is an error, true is returned. Otherwise, false is returned.
+   */
+  virtual bool update_members_information(const Gcs_member_identifier &,
+                                          const Gcs_xcom_nodes &) {
+    return false;
+  }
+
+  virtual Gcs_xcom_synode_set get_snapshot() const { return {}; }
 
   /**
    Enable or disable the message stage.
@@ -248,22 +215,7 @@ class Gcs_message_stage {
    */
   void set_enabled(bool is_enabled) { m_is_enabled = is_enabled; }
 
- private:
-  /**
-   Replace the current buffer with the result of the new and updated
-   buffer.
-
-   @param packet The packet that contains the buffer with the old information.
-   @param new_buffer The buffer with the new information.
-   @param new_capacity The new buffer capacity.
-   @param new_packet_length The new packet length.
-   @param dyn_header_length The dynamic header length that will be added or
-                            removed from the total amount.
-   */
-  void swap_buffer(Gcs_packet &packet, unsigned char *new_buffer,
-                   unsigned long long new_capacity,
-                   unsigned long long new_packet_length, int dyn_header_length);
-
+ protected:
   /**
    Encode the fixed part of the associated dynamic header information into
    the header buffer.
@@ -287,14 +239,6 @@ class Gcs_message_stage {
   void decode(const unsigned char *header, unsigned short *header_length,
               unsigned long long *old_payload_length);
 
-  /**
-   Calculate the fixed length of the dynamic header information generated by a
-   stage.
-
-   @return the length of the dynamic header
-   */
-  unsigned short calculate_dyn_header_length() const;
-
  private:
   /**
    Whether the message stage is enabled or disabled.
@@ -306,14 +250,12 @@ class Gcs_message_stage {
  Definitions of structures that store the possible message stages and their
  handlers.
  */
-using pipeline_version_number = unsigned int;
-using Gcs_outgoing_stages = std::vector<Gcs_message_stage::stage_code>;
+using Gcs_stages_list = std::vector<Stage_code>;
 using Gcs_map_type_handler =
-    std::map<Gcs_message_stage::stage_code, std::unique_ptr<Gcs_message_stage>>;
-using Gcs_map_version_stages =
-    std::map<pipeline_version_number, Gcs_outgoing_stages>;
+    std::map<Stage_code, std::unique_ptr<Gcs_message_stage>>;
+using Gcs_map_version_stages = std::map<Gcs_protocol_version, Gcs_stages_list>;
 using Gcs_pair_version_stages =
-    std::pair<const pipeline_version_number, Gcs_outgoing_stages>;
+    std::pair<const Gcs_protocol_version, Gcs_stages_list>;
 
 /**
  This is the pipeline that an outgoing or incoming message has to go through
@@ -443,25 +385,13 @@ class Gcs_message_pipeline {
   /**
    The pipeline version in use.
    */
-  std::atomic<pipeline_version_number> m_pipeline_version;
+  std::atomic<Gcs_protocol_version> m_pipeline_version;
 
  public:
-  /**
-   Minimum version used by a member whenever it wants to guarantee that a
-   message will be received by any other member.
-   */
-  static const unsigned int MINIMUM_PROTOCOL_VERSION{1};
-
-  /**
-   Default version used by a member whenever it starts up and that must be
-   incremented whenever there is any change in the pipeline stages.
-   */
-  static const unsigned int DEFAULT_PROTOCOL_VERSION{1};
-
   explicit Gcs_message_pipeline()
       : m_handlers(),
         m_pipelines(),
-        m_pipeline_version(DEFAULT_PROTOCOL_VERSION) {}
+        m_pipeline_version(Gcs_protocol_version::HIGHEST_KNOWN) {}
 
   Gcs_message_pipeline(Gcs_message_pipeline &p) = delete;
 
@@ -474,25 +404,48 @@ class Gcs_message_pipeline {
   virtual ~Gcs_message_pipeline() {}
 
   /**
-    This member function SHALL be called by the message sender. It makes the
-    message go through the pipeline of stages before it is actually handed
-    over to the group communication engine.
+   This member function SHALL be called by the message sender. It makes the
+   message go through the pipeline of stages before it is actually handed
+   over to the group communication engine.
 
-    @param[in] hd Header to send.
-    @param[in] p the Packet to send.
-    @return false on success, true otherwise.
+   Note that the fragmentation layer may produce more than one packet.
+
+   @param[in] msg_data Message data to send.
+   @param[in] cargo The cargo type of the message to send
+   @retval {true, _} If there was an error in the pipeline
+   @retval {false, P} If the pipeline was successful, and produced the
+   set of transformed packets P
    */
-  bool outgoing(Gcs_internal_message_header &hd, Gcs_packet &p) const;
+  std::pair<bool, std::vector<Gcs_packet>> process_outgoing(
+      Gcs_message_data const &msg_data, Cargo_type cargo) const;
 
   /**
-    This member function SHALL be called by the receiver thread to process the
-    message through the stages it was processed when it was sent. This reverts
-    the effect on the receiving end.
+   This member function SHALL be called by the receiver thread to process the
+   packet through the stages it was processed when it was sent. This reverts
+   the effect on the receiving end.
 
-    @param p the packet to process.
-    @return false on sucess, true otherwise.
+   @param packet The packet to process.
+   @retval {ERROR, _} If there was an error in the pipeline
+   @retval {OK_NO_PACKET, _} If the pipeline was successful, but produced no
+   packet
+   @retval {OK_PACKET, P} If the pipeline was successful, and produced the
+   packet P
    */
-  bool incoming(Gcs_packet &p) const;
+  std::pair<Gcs_pipeline_incoming_result, Gcs_packet> process_incoming(
+      Gcs_packet &&packet) const;
+
+  /**
+   Update the list of members in the group as this may be required by some
+   stages in the communication pipeline. By default though, the call is simply
+   ignored.
+
+   @param me The local member identifier.
+   @param xcom_nodes List of members in the group.
+   */
+  void update_members_information(const Gcs_member_identifier &,
+                                  const Gcs_xcom_nodes &) const;
+
+  Gcs_xcom_synode_set get_snapshot() const;
 
   /**
    Register a stage to be used by the pipeline.
@@ -504,7 +457,7 @@ class Gcs_message_pipeline {
     std::unique_ptr<T> stage(new T(args...));
 
     if (stage != nullptr) {
-      Gcs_message_stage::stage_code code = stage->get_stage_code();
+      Stage_code code = stage->get_stage_code();
       Gcs_message_stage *ptr = retrieve_stage(code);
       if (ptr == nullptr) {
         m_handlers.insert(
@@ -519,7 +472,7 @@ class Gcs_message_pipeline {
    @param code Stage code
    @return whether a stage is registered or not.
    */
-  bool contains_stage(Gcs_message_stage::stage_code code) const {
+  bool contains_stage(Stage_code code) const {
     return retrieve_stage(code) != nullptr;
   }
 
@@ -530,7 +483,7 @@ class Gcs_message_pipeline {
    @param code Stage code
    @return a reference to a stage
    */
-  const Gcs_message_stage &get_stage(Gcs_message_stage::stage_code code) const {
+  Gcs_message_stage &get_stage(Stage_code code) const {
     Gcs_message_stage *ptr = retrieve_stage(code);
     assert(ptr != nullptr);
     return *ptr;
@@ -538,6 +491,13 @@ class Gcs_message_pipeline {
 
   /**
    Register the stages per version that form the different pipelines.
+
+   This method must be called after registering all the desired stages using @c
+   register_stage.
+
+   This method must only be called on an unregistered pipeline.
+   If you want to reuse the pipeline, new calls to this method must be preceded
+   by calls to @c cleanup and @c register_stage.
 
    @param stages Initialization list that contains a mapping between a
                  version and the associated pipeline stages.
@@ -552,7 +512,7 @@ class Gcs_message_pipeline {
    @param pipeline_version Pipeline version
    @return whether a pipeline version is registered or not.
    */
-  bool contains_pipeline(pipeline_version_number pipeline_version) const {
+  bool contains_pipeline(Gcs_protocol_version pipeline_version) const {
     return retrieve_pipeline(pipeline_version) != nullptr;
   }
 
@@ -563,9 +523,9 @@ class Gcs_message_pipeline {
    @param pipeline_version Pipeline version
    @return a reference to a pipeline
    */
-  const Gcs_outgoing_stages &get_pipeline(
-      pipeline_version_number pipeline_version) const {
-    const Gcs_outgoing_stages *ptr = retrieve_pipeline(pipeline_version);
+  const Gcs_stages_list &get_pipeline(
+      Gcs_protocol_version pipeline_version) const {
+    const Gcs_stages_list *ptr = retrieve_pipeline(pipeline_version);
     assert(ptr != nullptr);
     return *ptr;
   }
@@ -581,36 +541,103 @@ class Gcs_message_pipeline {
    @param pipeline_version Pipeline version.
    @return false if successfully set, true otherwise
    */
-  bool set_version(pipeline_version_number pipeline_version);
+  bool set_version(Gcs_protocol_version pipeline_version);
 
   /**
    Return the pipeline version in use.
    */
-  pipeline_version_number get_version() const;
+  Gcs_protocol_version get_version() const;
 
  private:
-  /*
+  /**
    Retrieve the stages associated with a pipeline version.
 
    @param pipeline_version Pipeline version
    */
-  const Gcs_outgoing_stages *retrieve_pipeline(
-      pipeline_version_number pipeline_version) const;
+  const Gcs_stages_list *retrieve_pipeline(
+      Gcs_protocol_version pipeline_version) const;
 
-  /*
+  /**
    This member function SHALL retrive the associated stage if there is any,
    otherwise a null pointer is returned.
 
    @param stage_code unique stage code
    */
-  Gcs_message_stage *retrieve_stage(
-      Gcs_message_stage::stage_code stage_code) const;
+  Gcs_message_stage *retrieve_stage(Stage_code stage_code) const;
 
-  /*
+  /**
    This member function SHALL retrive the current stage type code of a packet.
 
    @param p the packet to process.
    */
   Gcs_message_stage *retrieve_stage(const Gcs_packet &p) const;
+
+  /**
+   Find out which stages should be applied to an outgoing message.
+
+   @param pipeline_version The pipeline version to use
+   @param original_payload_size The size of the outgoing message
+   @retval {true, _} If there was an error
+   @retval {false, S} If successful, and the message should go through the
+   sequence of stages S
+   */
+  std::pair<bool, std::vector<Stage_code>> get_stages_to_apply(
+      Gcs_protocol_version const &pipeline_version,
+      uint64_t const &original_payload_size) const;
+
+  /**
+   Create a packet for a message with size @c original_payload_size and type
+   @c cargo, that will go through the stages @c stages_to_apply from pipeline
+   version @c current_version.
+
+   @param cargo The message type
+   @param current_version The pipeline version
+   @param original_payload_size The payload size
+   @param stages_to_apply The stages that will be applied to the packet
+   @retval {true, _} If there was an error creating the packet
+   @retval {false, P} If successful, and created packet P
+   */
+  std::pair<bool, Gcs_packet> create_packet(
+      Cargo_type const &cargo, Gcs_protocol_version const &current_version,
+      uint64_t const &original_payload_size,
+      std::vector<Stage_code> const &stages_to_apply) const;
+
+  /**
+   Apply the given stages to the given outgoing packet.
+
+   @param packet The packet to transform
+   @param stages The stages to apply
+   @retval {true, _} If there was an error applying the stages
+   @retval {false, P} If the stages were successfully applied, and produced
+   the set of transformed packets P
+   */
+  std::pair<bool, std::vector<Gcs_packet>> apply_stages(
+      Gcs_packet &&packet, std::vector<Stage_code> const &stages) const;
+
+  /**
+   Apply the given stage to the given outgoing packet.
+
+   @param packet The packet to transform
+   @param stage The stage to apply
+   @retval {true, _} If there was an error applying the stage
+   @retval {false, P} If the stage was successfully applied, and produced the
+   set of transformed packets P
+   */
+  std::pair<bool, std::vector<Gcs_packet>> apply_stage(
+      std::vector<Gcs_packet> &&packets, Gcs_message_stage &stage) const;
+
+  /**
+   Revert the given stage to the given incoming packet.
+
+   @param packet The packet to transform
+   @param stage The stage to revert
+   @retval {ERROR, _} If there was an error in the stage
+   @retval {OK_NO_PACKET, _} If the stage was successfully reverted, but
+   produced no packet
+   @retval {OK_PACKET, P} If the stage was successfully reverted, and produced
+   the packet P
+   */
+  std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert_stage(
+      Gcs_packet &&packet, Stage_code const &stage_code) const;
 };
 #endif

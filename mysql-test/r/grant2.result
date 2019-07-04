@@ -1,6 +1,8 @@
 SET NAMES binary;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+SET GLOBAL partial_revokes= OFF;
 drop database if exists mysqltest;
 drop database if exists mysqltest_1;
 delete from mysql.user where user like 'mysqltest\_%';
@@ -119,9 +121,9 @@ create database mysqltest_1;
 create user mysqltest_1@localhost;
 grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
 set sql_log_off = 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 set sql_log_bin = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 delete from mysql.user where user like 'mysqltest\_1';
 delete from mysql.db where user like 'mysqltest\_1';
 drop database mysqltest_1;
@@ -135,7 +137,7 @@ create user 'mysqltest_1';
 ERROR HY000: Operation CREATE USER failed for 'mysqltest_1'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 create user 'mysqltest_3' identified with 'caching_sha2_password' as 'fffffffffffffffffffffffffffffffffffffffff';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR HY000: The password hash doesn't have the expected format.
 grant select on *.* to 'mysqltest_2';
 grant insert on test.* to 'mysqltest_2';
 grant update on test.t1 to 'mysqltest_2';

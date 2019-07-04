@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,6 @@
   An example of 2) is:
 
     (SELECT * FROM t1 ORDER BY a LIMIT 10) ORDER BY b LIMIT 5
-
-  UNION's  were introduced by Monty and Sinisa <sinisa@mysql.com>
 */
 
 #include "sql/sql_union.h"
@@ -62,6 +60,7 @@
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h"  // PT_with_clause
 #include "sql/query_options.h"
 #include "sql/set_var.h"
 #include "sql/sql_base.h"  // fill_record
@@ -78,12 +77,12 @@
 #include "sql/window.h"  // Window
 #include "template_utils.h"
 
-bool Query_result_union::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
   unit = u;
   return false;
 }
 
-bool Query_result_union::send_data(List<Item> &values) {
+bool Query_result_union::send_data(THD *thd, List<Item> &values) {
   if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL))
     return true; /* purecov: inspected */
 
@@ -97,9 +96,7 @@ bool Query_result_union::send_data(List<Item> &values) {
   // create_ondisk_from_heap will generate error if needed
   if (!table->file->is_ignorable_error(error)) {
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo,
-                                &tmp_table_param.recinfo, error, true,
-                                &is_duplicate))
+    if (create_ondisk_from_heap(thd, table, error, true, &is_duplicate))
       return true; /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field) table->file->ha_index_init(0, false);
@@ -108,7 +105,7 @@ bool Query_result_union::send_data(List<Item> &values) {
   return false;
 }
 
-bool Query_result_union::send_eof() { return false; }
+bool Query_result_union::send_eof(THD *) { return false; }
 
 bool Query_result_union::flush() { return false; }
 
@@ -181,13 +178,9 @@ bool Query_result_union::create_result_table(
   tables of JOIN - exec_tmp_table_[1 | 2].
 */
 
-void Query_result_union::cleanup() {
-  if (table == NULL) return;
-  table->file->extra(HA_EXTRA_RESET_STATE);
-  if (table->hash_field) table->file->ha_index_or_rnd_end();
-  table->file->ha_delete_all_rows();
-  free_io_cache(table);
-  filesort_free_buffers(table, 0);
+bool Query_result_union::reset() {
+  m_rows_in_table = 0;
+  return table ? table->empty_result_table() : false;
 }
 
 /**
@@ -225,9 +218,8 @@ class Query_result_union_direct final : public Query_result_union {
   ha_rows limit;
 
  public:
-  Query_result_union_direct(THD *thd, Query_result *result,
-                            SELECT_LEX *last_select_lex)
-      : Query_result_union(thd),
+  Query_result_union_direct(Query_result *result, SELECT_LEX *last_select_lex)
+      : Query_result_union(),
         result(result),
         last_select_lex(last_select_lex),
         optimized(false),
@@ -236,69 +228,64 @@ class Query_result_union_direct final : public Query_result_union {
         current_found_rows(0) {
     unit = last_select_lex->master_unit();
   }
-  bool change_query_result(Query_result *new_result) override;
+  bool change_query_result(THD *thd, Query_result *new_result) override;
   uint field_count(List<Item> &) const override {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return 0;           /* purecov: inspected */
   }
-  bool postponed_prepare(List<Item> &types) override;
-  bool send_result_set_metadata(List<Item> &list, uint flags) override;
-  bool send_data(List<Item> &items) override;
+  bool postponed_prepare(THD *thd, List<Item> &types) override;
+  bool send_result_set_metadata(THD *thd, List<Item> &list,
+                                uint flags) override;
+  bool send_data(THD *thd, List<Item> &items) override;
   bool optimize() override {
     if (optimized) return false;
     optimized = true;
 
     return result->optimize();
   }
-  bool start_execution() override {
+  bool start_execution(THD *thd) override {
     if (execution_started) return false;
     execution_started = true;
-    return result->start_execution();
+    return result->start_execution(thd);
   }
-  void send_error(uint errcode, const char *err) override {
-    result->send_error(errcode, err); /* purecov: inspected */
+  void send_error(THD *thd, uint errcode, const char *err) override {
+    result->send_error(thd, errcode, err); /* purecov: inspected */
   }
-  bool send_eof() override;
+  bool send_eof(THD *thd) override;
   bool flush() override { return false; }
   bool check_simple_select() const override {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return false;       /* purecov: inspected */
   }
-  void abort_result_set() override {
-    result->abort_result_set(); /* purecov: inspected */
+  void abort_result_set(THD *thd) override {
+    result->abort_result_set(thd); /* purecov: inspected */
   }
-  void cleanup() override {}
-  void set_thd(THD *) {
-    /*
-      Only called for top-level Query_results, usually Query_result_send,
-      and for the results of subquery engines
-      (select_<something>_subselect).
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
+  void cleanup(THD *) override {}
 };
 
 /**
   Replace the current query result with new_result and prepare it.
 
+  @param thd        Thread handle
   @param new_result New query result
 
   @returns false if success, true if error
 */
-bool Query_result_union_direct::change_query_result(Query_result *new_result) {
+bool Query_result_union_direct::change_query_result(THD *thd,
+                                                    Query_result *new_result) {
   result = new_result;
-  return result->prepare(unit->types, unit);
+  return result->prepare(thd, unit->types, unit);
 }
 
-bool Query_result_union_direct::postponed_prepare(List<Item> &types) {
+bool Query_result_union_direct::postponed_prepare(THD *thd, List<Item> &types) {
   if (result == NULL) return false;
 
-  return result->prepare(types, unit);
+  return result->prepare(thd, types, unit);
 }
 
-bool Query_result_union_direct::send_result_set_metadata(List<Item> &,
+bool Query_result_union_direct::send_result_set_metadata(THD *thd, List<Item> &,
                                                          uint flags) {
   if (result_set_metadata_sent) return false;
   result_set_metadata_sent = true;
@@ -308,17 +295,17 @@ bool Query_result_union_direct::send_result_set_metadata(List<Item> &,
     be variables in prepared statements or stored programs, so they
     must be reevaluated for each execution.
    */
-  offset = unit->global_parameters()->get_offset();
-  limit = unit->global_parameters()->get_limit();
+  offset = unit->global_parameters()->get_offset(thd);
+  limit = unit->global_parameters()->get_limit(thd);
   if (limit + offset >= limit)
     limit += offset;
   else
     limit = HA_POS_ERROR; /* purecov: inspected */
 
-  return result->send_result_set_metadata(unit->types, flags);
+  return result->send_result_set_metadata(thd, unit->types, flags);
 }
 
-bool Query_result_union_direct::send_data(List<Item> &items) {
+bool Query_result_union_direct::send_data(THD *thd, List<Item> &items) {
   if (limit == 0) return false;
   limit--;
   if (offset) {
@@ -329,26 +316,26 @@ bool Query_result_union_direct::send_data(List<Item> &items) {
   if (fill_record(thd, table, table->field, items, NULL, NULL))
     return true; /* purecov: inspected */
 
-  return result->send_data(unit->item_list);
+  return result->send_data(thd, unit->item_list);
 }
 
-bool Query_result_union_direct::send_eof() {
+bool Query_result_union_direct::send_eof(THD *thd) {
   /*
     Accumulate the found_rows count for the current query block into the UNION.
     Number of rows returned from a query block is always non-negative.
   */
-  ulonglong offset = thd->lex->current_select()->get_offset();
+  ulonglong offset = thd->lex->current_select()->get_offset(thd);
   current_found_rows +=
       thd->current_found_rows > offset ? thd->current_found_rows - offset : 0;
 
-  if (unit->thd->lex->current_select() == last_select_lex) {
+  if (thd->lex->current_select() == last_select_lex) {
     /*
       If SQL_CALC_FOUND_ROWS is not enabled, adjust the current_found_rows
       according to the global limit and offset defined.
     */
     if (!(unit->first_select()->active_options() & OPTION_FOUND_ROWS)) {
-      ha_rows global_limit = unit->global_parameters()->get_limit();
-      ha_rows global_offset = unit->global_parameters()->get_offset();
+      ha_rows global_limit = unit->global_parameters()->get_limit(thd);
+      ha_rows global_offset = unit->global_parameters()->get_offset(thd);
 
       if (global_limit != HA_POS_ERROR) {
         if (global_offset != HA_POS_ERROR) global_limit += global_offset;
@@ -365,7 +352,7 @@ bool Query_result_union_direct::send_eof() {
     optimized = false;
     execution_started = false;
 
-    return result->send_eof();
+    return result->send_eof(thd);
   } else
     return false;
 }
@@ -414,7 +401,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   for (ORDER *order = fake_select_lex->order_list.first; order;
        order = order->next) {
     (*order->item)
-        ->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
+        ->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                (uchar *)&fake_select_lex->context);
   }
   fake_select_lex->set_query_result(query_result());
@@ -455,14 +442,14 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   fake_select_lex. If a recursive query expression, this also creates the
   materialized temporary table.
 
-  @param thd_arg       Thread handler
+  @param thd           Thread handler
   @param sel_result    Result object where the unit's output should go.
   @param added_options These options will be added to the query blocks.
   @param removed_options Options that cannot be used for this query
 
   @returns false if success, true if error
  */
-bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
+bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
                               ulonglong added_options,
                               ulonglong removed_options) {
   DBUG_ENTER("SELECT_LEX_UNIT::prepare");
@@ -478,7 +465,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
 
   set_query_result(sel_result);
 
-  thd_arg->lex->set_current_select(first_select());
+  thd->lex->set_current_select(first_select());
 
   // Save fake_select_lex in case we don't need it for anything but
   // global parameters.
@@ -490,15 +477,15 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
 
   // Create query result object for use by underlying query blocks
   if (!simple_query_expression) {
-    if (is_union() && !union_needs_tmp_table()) {
-      if (!(tmp_result = union_result = new (*THR_MALLOC)
-                Query_result_union_direct(thd, sel_result, last_select)))
+    if (is_union() && !union_needs_tmp_table(thd->lex)) {
+      if (!(tmp_result = union_result = new (thd->mem_root)
+                Query_result_union_direct(sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL) fake_select_lex = NULL;
       instantiate_tmp_table = false;
     } else {
       if (!(tmp_result = union_result =
-                new (*THR_MALLOC) Query_result_union(thd)))
+                new (thd->mem_root) Query_result_union()))
         goto err; /* purecov: inspected */
       instantiate_tmp_table = true;
     }
@@ -542,7 +529,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     */
     added_options &= ~OPTION_SETUP_TABLES_DONE;
 
-    thd_arg->lex->set_current_select(sl);
+    thd->lex->set_current_select(sl);
 
     if (sl == first_recursive) {
       // create_result_table() depends on current_select()
@@ -551,16 +538,16 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
         All next query blocks will read the temporary table, which we must
         thus create now:
       */
-      if (derived_table->setup_materialized_derived_tmp_table(thd_arg))
+      if (derived_table->setup_materialized_derived_tmp_table(thd))
         goto err; /* purecov: inspected */
-      thd_arg->lex->set_current_select(sl);
+      thd->lex->set_current_select(sl);
     }
 
     if (sl->recursive_reference)  // Make tmp table known to query block:
-      derived_table->common_table_expr()->substitute_recursive_reference(
-          thd_arg, sl);
+      derived_table->common_table_expr()->substitute_recursive_reference(thd,
+                                                                         sl);
 
-    if (sl->prepare(thd_arg)) goto err;
+    if (sl->prepare(thd)) goto err;
 
     /*
       Use items list of underlaid select for derived tables to preserve
@@ -585,7 +572,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
                          Item_ref::OUTER_REF));
         if (!item_tmp->fixed) item_tmp = item_tmp->real_item();
 
-        auto holder = new Item_type_holder(thd_arg, item_tmp);
+        auto holder = new Item_type_holder(thd, item_tmp);
         if (!holder) goto err; /* purecov: inspected */
         if (is_recursive()) {
           holder->maybe_null = true;  // Always nullable, per SQL standard.
@@ -595,7 +582,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
             case this is the only nonrecursive query block join_types() won't
             be called so we need an explicit call:
           */
-          holder->join_types(thd_arg, item_tmp);
+          holder->join_types(thd, item_tmp);
         }
         types.push_back(holder);
       }
@@ -619,8 +606,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
         List_iterator_fast<Item> tp(types);
         Item *type, *item_tmp;
         while ((type = tp++, item_tmp = it++)) {
-          if (((Item_type_holder *)type)->join_types(thd_arg, item_tmp))
-            goto err;
+          if (((Item_type_holder *)type)->join_types(thd, item_tmp)) goto err;
         }
       }
     }
@@ -636,7 +622,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
 
   if (is_recursive()) {
     // This had to wait until all query blocks are prepared:
-    if (check_materialized_derived_query_blocks(thd_arg))
+    if (check_materialized_derived_query_blocks(thd))
       goto err; /* purecov: inspected */
   }
 
@@ -644,7 +630,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     If the query is using Query_result_union_direct, we have postponed
     preparation of the underlying Query_result until column types are known.
   */
-  if (union_result != NULL && union_result->postponed_prepare(types)) goto err;
+  if (union_result != NULL && union_result->postponed_prepare(thd, types))
+    goto err;
 
   if (!simple_query_expression) {
     /*
@@ -666,14 +653,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     }
     ulonglong create_options =
         first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
-    /*
-      Force the temporary table to be a MyISAM table if we're going to use
-      fulltext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading
-      from it (this should be removed when fulltext search is moved
-      out of MyISAM).
-    */
-    if (fake_select_lex && fake_select_lex->ftfunc_list->elements)
-      create_options |= TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(
             thd, &types, union_distinct != nullptr, create_options, "", false,
@@ -701,9 +680,9 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       table->reset_item_list(&item_list);
     }
     if (fake_select_lex != NULL) {
-      thd_arg->lex->set_current_select(fake_select_lex);
+      thd->lex->set_current_select(fake_select_lex);
 
-      if (prepare_fake_select_lex(thd_arg)) goto err;
+      if (prepare_fake_select_lex(thd)) goto err;
     }
   }
 
@@ -713,7 +692,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   DBUG_RETURN(false);
 
 err:
-  (void)cleanup(false);
+  (void)cleanup(thd, false);
   DBUG_RETURN(true);
 }
 
@@ -747,12 +726,26 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
       2. If GROUP BY clause is optimized away because it was a constant then
          query produces at most one row.
     */
-    if (query_result())
+    if (query_result()) {
       query_result()->estimated_rowcount +=
           sl->is_implicitly_grouped() || sl->join->group_optimized_away
               ? 1
               : sl->join->best_rowcount;
+      query_result()->estimated_cost += sl->join->best_read;
+    }
   }
+  if ((uncacheable & UNCACHEABLE_DEPENDENT) && query_result() &&
+      query_result()->estimated_rowcount <= 1) {
+    /*
+      This depends on outer references, so optimization cannot assume that all
+      executions will always produce the same row. So, increase the counter to
+      prevent that this table is replaced with a constant.
+      Not testing all bits of "uncacheable", as if derived table sets user
+      vars (UNCACHEABLE_SIDEEFFECT) the logic above doesn't apply.
+    */
+    query_result()->estimated_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
+  }
+
   if (fake_select_lex) {
     thd->lex->set_current_select(fake_select_lex);
 
@@ -784,19 +777,20 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
 /**
   Explain query starting from this unit.
 
-  @param ethd  THD of explaining thread
+  @param explain_thd thread handle for the connection doing explain
+  @param query_thd   thread handle for the connection being explained
 
   @return false if success, true if error
 */
 
-bool SELECT_LEX_UNIT::explain(THD *ethd) {
+bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
   DBUG_ENTER("SELECT_LEX_UNIT::explain");
 
 #ifndef DBUG_OFF
-  SELECT_LEX *lex_select_save = thd->lex->current_select();
+  SELECT_LEX *lex_select_save = query_thd->lex->current_select();
 #endif
-  Explain_format *fmt = ethd->lex->explain_format;
-  const bool other = (thd != ethd);
+  Explain_format *fmt = explain_thd->lex->explain_format;
+  const bool other = (query_thd != explain_thd);
   bool ret = false;
 
   DBUG_ASSERT(other || is_optimized() || outer_select()->is_empty_query() ||
@@ -808,21 +802,61 @@ bool SELECT_LEX_UNIT::explain(THD *ethd) {
 
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
     if (fmt->begin_context(CTX_QUERY_SPEC)) DBUG_RETURN(true);
-    if (explain_query_specification(ethd, sl, CTX_JOIN) ||
+    if (explain_query_specification(explain_thd, query_thd, sl, CTX_JOIN) ||
         fmt->end_context(CTX_QUERY_SPEC))
       DBUG_RETURN(true);
   }
 
   if (fake_select_lex != NULL) {
     // Don't save result as it's needed only for consequent exec.
-    ret = explain_query_specification(ethd, fake_select_lex, CTX_UNION_RESULT);
+    ret = explain_query_specification(explain_thd, query_thd, fake_select_lex,
+                                      CTX_UNION_RESULT);
   }
-  if (!other) DBUG_ASSERT(thd->lex->current_select() == lex_select_save);
+  if (!other)
+    DBUG_ASSERT(current_thd->lex->current_select() == lex_select_save);
 
   if (ret) DBUG_RETURN(true);
   fmt->end_context(CTX_UNION);
 
   DBUG_RETURN(false);
+}
+
+/**
+   Empties all correlated CTEs defined in the unit's WITH clause.
+*/
+bool SELECT_LEX_UNIT::clear_corr_ctes() {
+  if (!m_with_clause) return false;
+  for (auto el : m_with_clause->m_list->elements()) {
+    Common_table_expr &cte = el->m_postparse;
+    bool reset_tables = false;
+    for (auto tl : cte.references) {
+      if (tl->table &&
+          tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
+        reset_tables = true;
+        if (tl->derived_unit()->query_result()->reset()) return true;
+      }
+      /*
+        This loop has found all non-recursive clones; one writer and N
+        readers.
+      */
+    }
+    if (!reset_tables) continue;
+    for (auto tl : cte.tmp_tables) {
+      if (tl->is_derived()) continue;  // handled above
+      if (tl->table->empty_result_table()) return true;
+      // This loop has found all recursive clones (only readers).
+    }
+    /*
+      Doing delete_all_rows on all clones is good as it makes every
+      'file' up to date. Setting materialized=false on all is also important
+      or the writer would skip materialization, see loop at start of
+      TABLE_LIST::materialize_derived()).
+      There is one "recursive table" which we don't find here: it's the
+      UNION DISTINCT tmp table. It's reset in unit::execute() of the unit
+      which is the body of the CTE.
+    */
+  }
+  return false;
 }
 
 /**
@@ -967,7 +1001,12 @@ class Recursive_executor {
       DBUG_ASSERT(tl && tl->table &&
                   // returns rows in insertion order:
                   tl->table->s->primary_key == MAX_KEY);
-      if (open_tmp_table(tl->table)) return true; /* purecov: inspected */
+      /*
+        Instantiate in engine; it may already be, if this is a correlated
+        recursive CTE which we're re-materializing.
+      */
+      if (!tl->table->is_created() && open_tmp_table(tl->table))
+        return true; /* purecov: inspected */
     }
     unit->got_all_recursive_rows = false;
     table = table_arg;
@@ -1096,7 +1135,7 @@ class Recursive_executor {
 
 bool SELECT_LEX_UNIT::execute(THD *thd) {
   DBUG_ENTER("SELECT_LEX_UNIT::exec");
-  DBUG_ASSERT(!is_simple() && is_optimized());
+  DBUG_ASSERT(is_optimized());
 
   if (is_executed() && !uncacheable) DBUG_RETURN(false);
 
@@ -1108,6 +1147,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   Change_current_select save_select(thd);
 
   if (is_executed()) {
+    if (clear_corr_ctes()) return true;
     for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
       if (sl->join->is_executed()) {
         thd->lex->set_current_select(sl);
@@ -1117,6 +1157,15 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
         thd->lex->set_current_select(fake_select_lex);
         fake_select_lex->join->reset();
       }
+    }
+    if (table && table->is_created())  // reset UNION tmp table
+    {
+      if (union_result->reset()) DBUG_RETURN(true); /* purecov: inspected */
+      table->file->info(HA_STATUS_VARIABLE);
+      if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
+        DBUG_RETURN(true);    /* purecov: inspected */
+      if (table->hash_field)  // Prepare for duplicate elimination
+        table->file->ha_index_init(0, false);
     }
   }
 
@@ -1129,14 +1178,16 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
     if (item->assigned()) {
       item->assigned(false);  // Prepare for re-execution of this unit
       item->reset();
-      if (table->is_created()) {
-        table->file->ha_delete_all_rows();
-        table->file->info(HA_STATUS_VARIABLE);
-      }
     }
-    // re-enable indexes for next subquery execution
-    if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
-      DBUG_RETURN(true); /* purecov: inspected */
+  }
+
+  if (is_simple()) {  // one single SELECT, shorter path
+    thd->lex->set_current_select(first_select());
+    set_limit(thd, first_select());
+    JOIN *join = first_select()->join;
+    DBUG_ASSERT(join && join->is_optimized());
+    join->exec();
+    DBUG_RETURN(join->error);
   }
 
   Recursive_executor recursive_executor(this, thd);
@@ -1167,7 +1218,8 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
 
       if (status) DBUG_RETURN(true);
 
-      if (union_result->flush()) DBUG_RETURN(true); /* purecov: inspected */
+      if (union_result && union_result->flush())
+        DBUG_RETURN(true); /* purecov: inspected */
     }
 
     if (fake_select_lex != NULL) {
@@ -1191,7 +1243,6 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   } while (recursive_executor.more_iterations());
 
   if (fake_select_lex) {
-    fake_select_lex->table_list.empty();
     int error = table->file->info(HA_STATUS_VARIABLE);
     if (error) {
       table->file->print_error(error, MYF(0)); /* purecov: inspected */
@@ -1212,7 +1263,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   @return false if previous execution was successful, and true otherwise
 */
 
-bool SELECT_LEX_UNIT::cleanup(bool full) {
+bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
   DBUG_ENTER("SELECT_LEX_UNIT::cleanup");
 
   DBUG_ASSERT(thd == current_thd);
@@ -1223,21 +1274,19 @@ bool SELECT_LEX_UNIT::cleanup(bool full) {
 
   bool error = false;
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select())
-    error |= sl->cleanup(full);
+    error |= sl->cleanup(thd, full);
 
   if (fake_select_lex) {
-    /*
-      Normally done at end of evaluation, but not if there was an
-      error:
-    */
-    fake_select_lex->table_list.empty();
-    fake_select_lex->recursive_reference = nullptr;
-    error |= fake_select_lex->cleanup(full);
+    if (full) {
+      fake_select_lex->table_list.empty();
+      fake_select_lex->recursive_reference = nullptr;
+    }
+    error |= fake_select_lex->cleanup(thd, full);
   }
 
   // fake_select_lex's table depends on Temp_table_param inside union_result
   if (full && union_result) {
-    union_result->cleanup();
+    union_result->cleanup(thd);
     destroy(union_result);
     union_result = NULL;  // Safety
     if (table) free_tmp_table(thd, table);
@@ -1294,6 +1343,7 @@ void SELECT_LEX_UNIT::reinit_exec_mechanism() {
   Change the query result object used to return the final result of
   the unit, replacing occurences of old_result with new_result.
 
+  @param thd        Thread handle
   @param new_result New query result object
   @param old_result Old query result object
 
@@ -1302,10 +1352,11 @@ void SELECT_LEX_UNIT::reinit_exec_mechanism() {
 */
 
 bool SELECT_LEX_UNIT::change_query_result(
-    Query_result_interceptor *new_result,
+    THD *thd, Query_result_interceptor *new_result,
     Query_result_interceptor *old_result) {
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
-    if (sl->query_result() && sl->change_query_result(new_result, old_result))
+    if (sl->query_result() &&
+        sl->change_query_result(thd, new_result, old_result))
       return true; /* purecov: inspected */
   }
   set_query_result(new_result);
@@ -1365,6 +1416,65 @@ bool SELECT_LEX_UNIT::mixed_union_operators() const {
 }
 
 /**
+  Fix used tables information for a subquery after query transformations.
+  Most actions here involve re-resolving information for conditions
+  and items belonging to the subquery.
+  Notice that the usage information from underlying expressions is not
+  propagated to the subquery's predicate/table, as it belongs to inner layers
+  of the query operator structure.
+  However, when underlying expressions contain outer references into
+  a select_lex on this level, the relevant information must be updated
+  when these expressions are resolved.
+*/
+void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
+                                        SELECT_LEX *removed_select)
+
+{
+  /*
+    Go through all query specification objects of the subquery and re-resolve
+    all relevant expressions belonging to them.
+    Item_ident::fix_after_pullout() will update used_tables for the Item_ident
+    and also for its containing subqueries.
+  */
+  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
+    if (sel->where_cond())
+      sel->where_cond()->fix_after_pullout(parent_select, removed_select);
+
+    if (sel->having_cond())
+      sel->having_cond()->fix_after_pullout(parent_select, removed_select);
+
+    List_iterator<Item> li(sel->item_list);
+    Item *item;
+    while ((item = li++))
+      item->fix_after_pullout(parent_select, removed_select);
+
+    /*
+      No need to call fix_after_pullout() for outer-join conditions, as these
+      cannot have outer references.
+    */
+
+    /* Re-resolve ORDER BY and GROUP BY fields */
+
+    for (ORDER *order = sel->order_list.first; order; order = order->next)
+      (*order->item)->fix_after_pullout(parent_select, removed_select);
+
+    for (ORDER *group = sel->group_list.first; group; group = group->next)
+      (*group->item)->fix_after_pullout(parent_select, removed_select);
+  }
+}
+
+bool SELECT_LEX_UNIT::walk(Item_processor processor, enum_walk walk,
+                           uchar *arg) {
+  for (auto select = first_select(); select != nullptr;
+       select = select->next_select()) {
+    if (select->walk(processor, walk, arg)) return true;
+  }
+  if (fake_select_lex && fake_select_lex->walk(processor, walk, arg))
+    return true;
+  return false;
+}
+
+/**
    Closes (and, if last reference, drops) temporary tables created to
    materialize derived tables, schema tables and CTEs.
 
@@ -1397,7 +1507,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list) {
   @return false if previous execution was successful, and true otherwise
 */
 
-bool SELECT_LEX::cleanup(bool full) {
+bool SELECT_LEX::cleanup(THD *thd, bool full) {
   DBUG_ENTER("SELECT_LEX::cleanup()");
 
   bool error = false;
@@ -1411,15 +1521,12 @@ bool SELECT_LEX::cleanup(bool full) {
       join->cleanup();
   }
 
-  THD *const thd = master_unit()->thd;
-
   if (full) destroy_materialized(thd, get_table_list());
 
   for (SELECT_LEX_UNIT *lex_unit = first_inner_unit(); lex_unit;
        lex_unit = lex_unit->next_unit()) {
-    error |= lex_unit->cleanup(full);
+    error |= lex_unit->cleanup(thd, full);
   }
-  inner_refs_list.empty();
 
   if (full && m_windows.elements > 0) {
     List_iterator<Window> li(m_windows);

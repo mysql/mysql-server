@@ -28,6 +28,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_thread_local.h"
+#include "storage/myisam/myisamdef.h"
 #include "storage/myisammrg/myrg_def.h"
 
 static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,

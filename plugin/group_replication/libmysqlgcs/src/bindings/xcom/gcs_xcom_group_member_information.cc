@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,17 +30,19 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_proxy.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 
 Gcs_xcom_node_address::Gcs_xcom_node_address(std::string member_address)
     : m_member_address(member_address), m_member_ip(), m_member_port(0) {
-  std::size_t idx = member_address.find(":");
+  char address[IP_MAX_SIZE];
+  xcom_port port;
 
-  if (idx != std::string::npos) {
-    m_member_ip.append(m_member_address, 0, idx);
-    std::string sport;
-    sport.append(m_member_address, idx + 1, m_member_address.size() - idx);
-    m_member_port = static_cast<xcom_port>(strtoul(sport.c_str(), NULL, 0));
+  int error = get_ip_and_port(const_cast<char *>(member_address.c_str()),
+                              address, &port);
+  if (!error) {
+    m_member_ip.append(address);
+    m_member_port = port;
   }
 }
 
@@ -56,6 +58,10 @@ std::string *Gcs_xcom_node_address::get_member_representation() const {
   return new std::string(m_member_address);
 }
 
+bool Gcs_xcom_node_address::is_valid() const {
+  return !m_member_ip.empty() && m_member_port != 0;
+}
+
 Gcs_xcom_node_address::~Gcs_xcom_node_address() {}
 
 Gcs_xcom_node_information::Gcs_xcom_node_information(
@@ -65,7 +71,9 @@ Gcs_xcom_node_information::Gcs_xcom_node_information(
       m_node_no(VOID_NODE_NO),
       m_alive(alive),
       m_member(false),
-      m_suspicion_creation_timestamp(0) {}
+      m_suspicion_creation_timestamp(0),
+      m_lost_messages(false),
+      m_max_synode(null_synode) {}
 
 Gcs_xcom_node_information::Gcs_xcom_node_information(
     const std::string &member_id, const Gcs_xcom_uuid &uuid,
@@ -75,7 +83,9 @@ Gcs_xcom_node_information::Gcs_xcom_node_information(
       m_node_no(node_no),
       m_alive(alive),
       m_member(false),
-      m_suspicion_creation_timestamp(0) {}
+      m_suspicion_creation_timestamp(0),
+      m_lost_messages(false),
+      m_max_synode(null_synode) {}
 
 void Gcs_xcom_node_information::set_suspicion_creation_timestamp(uint64_t ts) {
   m_suspicion_creation_timestamp = ts;
@@ -115,9 +125,53 @@ bool Gcs_xcom_node_information::is_member() const { return m_member; }
 
 void Gcs_xcom_node_information::set_member(bool m) { m_member = m; }
 
+std::pair<bool, node_address *> Gcs_xcom_node_information::make_xcom_identity(
+    Gcs_xcom_proxy &xcom_proxy) const {
+  bool constexpr kError = true;
+  bool constexpr kSuccess = false;
+
+  bool error_code = kError;
+  node_address *xcom_identity = nullptr;
+
+  /* Get our unique XCom identifier to pass it along to XCom. */
+  // Address.
+  const std::string &address_str = get_member_id().get_member_id();
+  char *address[] = {const_cast<char *>(address_str.c_str())};
+  // Incarnation.
+  bool error_creating_blob;
+  blob incarnation_blob;
+  std::tie(error_creating_blob, incarnation_blob) =
+      get_member_uuid().make_xcom_blob();
+
+  if (!error_creating_blob) {
+    blob incarnation[] = {incarnation_blob};
+    xcom_identity = xcom_proxy.new_node_address_uuid(1, address, incarnation);
+    std::free(incarnation_blob.data.data_val);
+    error_code = kSuccess;
+  }
+
+  return {error_code, xcom_identity};
+}
+
 bool Gcs_xcom_node_information::has_timed_out(uint64_t now_ts,
                                               uint64_t timeout) {
   return (m_suspicion_creation_timestamp + timeout) < now_ts;
+}
+
+bool Gcs_xcom_node_information::has_lost_messages() const {
+  return m_lost_messages;
+}
+
+void Gcs_xcom_node_information::set_lost_messages(bool lost_msgs) {
+  m_lost_messages = lost_msgs;
+}
+
+synode_no Gcs_xcom_node_information::get_max_synode() const {
+  return m_max_synode;
+}
+
+void Gcs_xcom_node_information::set_max_synode(synode_no synode) {
+  m_max_synode = synode;
 }
 
 Gcs_xcom_uuid Gcs_xcom_uuid::create_uuid() {
@@ -179,6 +233,25 @@ bool Gcs_xcom_uuid::decode(const uchar *buffer, const unsigned int size) {
                              static_cast<size_t>(size));
 
   return true;
+}
+
+std::pair<bool, blob> Gcs_xcom_uuid::make_xcom_blob() const {
+  bool constexpr kError = true;
+  bool constexpr kSuccess = false;
+  bool error_code = kError;
+
+  blob incarnation;
+  incarnation.data.data_len = actual_value.size();
+  incarnation.data.data_val =
+      reinterpret_cast<char *>(std::malloc(incarnation.data.data_len));
+  if (incarnation.data.data_val == nullptr) goto end;
+
+  encode(reinterpret_cast<uchar **>(&incarnation.data.data_val),
+         &incarnation.data.data_len);
+  error_code = kSuccess;
+
+end:
+  return {error_code, incarnation};
 }
 
 Gcs_xcom_nodes::Gcs_xcom_nodes()

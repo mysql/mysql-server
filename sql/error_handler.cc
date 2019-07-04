@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"  // EE_*
+#include "sql/create_field.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/mdl.h"
@@ -103,6 +104,7 @@ bool Ignore_error_handler::handle_condition(
     case ER_NO_PARTITION_FOR_GIVEN_VALUE:
     case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
     case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
+    case ER_CHECK_CONSTRAINT_VIOLATED:
       (*level) = Sql_condition::SL_WARNING;
       break;
     default:
@@ -351,6 +353,11 @@ bool Functional_index_error_handler::handle_condition(
         return report_error(m_thd, m_force_error_code, *level);
       }
       return false;
+    }
+    case ER_GENERATED_COLUMN_ROW_VALUE: {
+      my_error(ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED, MYF(0),
+               m_functional_index_name.c_str());
+      return true;
     }
     default: {
       // Do nothing

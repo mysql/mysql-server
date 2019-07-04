@@ -1867,7 +1867,7 @@ EXPLAIN SELECT a FROM t1 WHERE a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	1	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '' AS `a` from `test`.`t1` where ('' = 0)
+Note	1003	/* select#1 */ select '' AS `a` from `test`.`t1` where 1
 SELECT a FROM t1 WHERE a=0;
 a
 
@@ -1903,3 +1903,51 @@ CHARACTER SET utf8mb4)
 BEGIN
 END;
 ERROR HY000: Too long enumeration/set value for column exhausting_charset.
+#
+# Bug#28777704, Bug#28769996,  Field_enum::cmp() hit ASSERT_COLUMN_MARKED_FOR_READ
+#
+set session optimizer_switch="derived_merge=off";
+set session internal_tmp_mem_storage_engine=temptable;
+show function status;
+select ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE
+from INFORMATION_SCHEMA.ROUTINES
+where ROUTINE_TYPE = 'FUNCTION'
+  order by  ROUTINE_SCHEMA, ROUTINE_NAME;
+set session internal_tmp_mem_storage_engine=default;
+set session optimizer_switch="derived_merge=default";
+CREATE TABLE grants (
+USER char(32),
+HOST char(60),
+PRIV char(32),
+WITH_GRANT_OPTION enum('N','Y'),
+PRIMARY KEY (WITH_GRANT_OPTION,`USER`,`HOST`, `PRIV`)
+) engine innodb;
+insert into grants values ('mysql.session','localhost','PERSIST_RO_VARIABLES_ADMIN','N');
+insert into grants values ('mysql.session','localhost','SESSION_VARIABLES_ADMIN','N');
+insert into grants values ('mysql.session','localhost','SYSTEM_VARIABLES_ADMIN','N');
+insert into grants values ('root','localhost','AXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','BXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','CXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','DXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','EXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','FXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','GXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','HXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','IXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','JXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','KXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','LXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','MXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','XA_RECOVER_ADMIN','Y');
+analyze table grants;
+Table	Op	Msg_type	Msg_text
+test.grants	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM grants WHERE priv = 'XA_RECOVER_ADMIN';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	grants	NULL	range	PRIMARY	PRIMARY	497	NULL	2	100.00	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`grants` where (`test`.`grants`.`PRIV` = 'XA_RECOVER_ADMIN')
+SELECT COUNT(*) FROM grants WHERE priv = 'XA_RECOVER_ADMIN';
+COUNT(*)
+1
+drop table grants;

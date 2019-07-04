@@ -334,6 +334,43 @@ class Pipeline_stats_member_collector {
   void increment_transactions_applied_during_recovery();
 
   /**
+    @returns transactions waiting to be applied during recovery.
+  */
+  uint64 get_transactions_waiting_apply_during_recovery();
+
+  /**
+    Increment delivered transactions during recovery counter value.
+  */
+  void increment_transactions_delivered_during_recovery();
+
+  /**
+    Increment certified transactions during recovery counter value.
+  */
+  void increment_transactions_certified_during_recovery();
+
+  /**
+    Increment negatively certified transactions during recovery counter value.
+  */
+  void increment_transactions_certified_negatively_during_recovery();
+
+  /**
+    @returns transactions waiting to be certified during recovery.
+  */
+  uint64 get_transactions_waiting_certification_during_recovery();
+
+  /**
+    Compute the transactions applied during last flow-control tick
+    while the member is in recovery.
+  */
+  void compute_transactions_deltas_during_recovery();
+
+  /**
+    @returns transactions applied during last flow-control tick
+             while the member is in recovery.
+  */
+  uint64 get_delta_transactions_applied_during_recovery();
+
+  /**
     @returns transactions waiting to be applied.
   */
   int32 get_transactions_waiting_apply();
@@ -365,18 +402,19 @@ class Pipeline_stats_member_collector {
   */
   void set_send_transaction_identifiers();
 
-  /**
-    @returns recovery transactions applied
-  */
-  uint64 get_transactions_applied_during_recovery();
-
  private:
   std::atomic<int32> m_transactions_waiting_apply;
   std::atomic<int64> m_transactions_certified;
   std::atomic<int64> m_transactions_applied;
   std::atomic<int64> m_transactions_local;
   std::atomic<int64> m_transactions_local_rollback;
+  /* Includes both positively and negatively certified. */
+  std::atomic<uint64> m_transactions_certified_during_recovery;
+  std::atomic<uint64> m_transactions_certified_negatively_during_recovery;
   std::atomic<uint64> m_transactions_applied_during_recovery;
+  uint64 m_previous_transactions_applied_during_recovery;
+  std::atomic<uint64> m_delta_transactions_applied_during_recovery;
+  std::atomic<uint64> m_transactions_delivered_during_recovery;
 
   bool send_transaction_identifiers;
   mysql_mutex_t m_transactions_waiting_apply_lock;
@@ -398,11 +436,6 @@ class Pipeline_member_stats {
     Constructor.
   */
   Pipeline_member_stats(Pipeline_stats_member_message &msg);
-
-  /**
-    Destructor.
-  */
-  virtual ~Pipeline_member_stats();
 
   /**
     Updates member statistics with a new message from the network

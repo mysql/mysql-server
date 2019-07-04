@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
 
 #include "sql/dd/impl/system_registry.h"
 
-#include "sql/dd/impl/system_views/character_sets.h"  // Character_sets
+#include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
+#include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
 #include "sql/dd/impl/system_views/collations.h"           // Collations
 #include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
@@ -44,16 +45,18 @@
 #include "sql/dd/impl/system_views/schemata.h"             // Schemata
 #include "sql/dd/impl/system_views/st_geometry_columns.h"  // st_geometry_columns
 #include "sql/dd/impl/system_views/st_spatial_reference_systems.h"  // St_spatial...
-#include "sql/dd/impl/system_views/statistics.h"          // Statistics
-#include "sql/dd/impl/system_views/table_constraints.h"   // Table_constraints
-#include "sql/dd/impl/system_views/tables.h"              // Tables
-#include "sql/dd/impl/system_views/triggers.h"            // Triggers
-#include "sql/dd/impl/system_views/view_routine_usage.h"  // View_routine_usage
-#include "sql/dd/impl/system_views/view_table_usage.h"    // View_table_usage
-#include "sql/dd/impl/system_views/views.h"               // Views
+#include "sql/dd/impl/system_views/st_units_of_measure.h"  // St_units_of_measure
+#include "sql/dd/impl/system_views/statistics.h"           // Statistics
+#include "sql/dd/impl/system_views/table_constraints.h"    // Table_constraints
+#include "sql/dd/impl/system_views/tables.h"               // Tables
+#include "sql/dd/impl/system_views/triggers.h"             // Triggers
+#include "sql/dd/impl/system_views/view_routine_usage.h"   // View_routine_usage
+#include "sql/dd/impl/system_views/view_table_usage.h"     // View_table_usage
+#include "sql/dd/impl/system_views/views.h"                // Views
 
 #include "sql/dd/impl/tables/catalogs.h"              // Catalog
 #include "sql/dd/impl/tables/character_sets.h"        // Character_sets
+#include "sql/dd/impl/tables/check_constraints.h"     // Check_constraints
 #include "sql/dd/impl/tables/collations.h"            // Collations
 #include "sql/dd/impl/tables/column_statistics.h"     // Column_statistics
 #include "sql/dd/impl/tables/column_type_elements.h"  // Column_type_elements
@@ -153,6 +156,7 @@ void System_tables::add_remaining_dd_tables() {
 
   register_table<Catalogs>(core);
   register_table<Character_sets>(core);
+  register_table<Check_constraints>(core);
   register_table<Collations>(core);
   register_table<dd::tables::Column_statistics>(core);
   register_table<Column_type_elements>(core);
@@ -232,6 +236,7 @@ void System_views::init() {
   dd::System_views::Types is = dd::System_views::Types::INFORMATION_SCHEMA;
 
   register_view<dd::system_views::Character_sets>(is);
+  register_view<dd::system_views::Check_constraints>(is);
   register_view<dd::system_views::Collations>(is);
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);
@@ -253,6 +258,7 @@ void System_views::init() {
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);
   register_view<dd::system_views::St_spatial_reference_systems>(is);
+  register_view<dd::system_views::St_units_of_measure>(is);
   register_view<dd::system_views::St_geometry_columns>(is);
   register_view<dd::system_views::Statistics>(is);
   register_view<dd::system_views::Table_constraints>(is);

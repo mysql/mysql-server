@@ -48,9 +48,10 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2015 (aka 14.0) which has version nr 1900.
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1900)
-  MESSAGE(FATAL_ERROR "Visual Studio 2015 or newer is required!")
+# We require at least Visual Studio 2017 (aka 15.8) which has version nr 1910.
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1915)
+  MESSAGE(FATAL_ERROR
+    "Visual Studio 2017 update 15.8 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -80,6 +81,13 @@ ADD_DEFINITIONS(-DNOMINMAX)
 IF(WITH_MSCRT_DEBUG)
   ADD_DEFINITIONS(-DMY_MSCRT_DEBUG)
   ADD_DEFINITIONS(-D_CRTDBG_MAP_ALLOC)
+ENDIF()
+
+IF(WIN32_CLANG)
+  # RapidJSON doesn't understand the Win32/Clang combination.
+  ADD_DEFINITIONS(-DRAPIDJSON_HAS_CXX11_RVALUE_REFS=1)
+  ADD_DEFINITIONS(-DRAPIDJSON_HAS_CXX11_NOEXCEPT=1)
+  ADD_DEFINITIONS(-DRAPIDJSON_HAS_CXX11_RANGE_FOR=1)
 ENDIF()
   
 OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
@@ -137,6 +145,15 @@ IF(MSVC)
     ENDIF()
     SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
+
+  # Turn on c++14 mode explicitly so that using c++17 features is disabled.
+  FOREACH(flag
+          CMAKE_CXX_FLAGS_MINSIZEREL
+          CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
+          CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
+    SET("${flag}" "${${flag}} /std:c++14")
+  ENDFOREACH()
+
   FOREACH(type EXE SHARED MODULE)
     FOREACH(config DEBUG RELWITHDEBINFO RELEASE MINSIZEREL)
       SET(flag "CMAKE_${type}_LINKER_FLAGS_${config}")
@@ -151,8 +168,23 @@ IF(MSVC)
   ENDIF()
 
   #TODO: update the code and remove the disabled warnings
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
+
+  # The compiler encountered a deprecated declaration.
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
+
+  # 'var' : conversion from 'size_t' to 'type', possible loss of data
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4267")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4267")
+
+  # 'conversion' conversion from 'type1' to 'type2', possible loss of data
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4244")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
+
+  # Enable stricter standards conformance when using Visual Studio
+  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
+  ENDIF()
 ENDIF()
 
 # Always link with socket library

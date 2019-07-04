@@ -1,95 +1,226 @@
---source include/is_local_machine.inc
 --source include/xplugin_create_user.inc
 
 --echo Preamble
 --source include/xplugin_preamble.inc
-
 --source include/restart_mysqld.inc
 
-SHOW VARIABLES LIKE 'mysqlx_connect_timeout';
-show status like 'Mysqlx_conn%';
 
+## Show that Mysqlx_connection_timeout works
+#
+# 1. Wait until user is disconnected
 --write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
--->peerdisc 4000 800
+-->import wait_until_disconnect.macro
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
+
+echo # 1. Wait until user is disconnected;
+-->callmacro Wait_until_disconnect
+
 EOF
 
+
+## Constant message exchange doesn't prolong mysqlx_connection_timeout
+#
+# 1. Connect to X Plugin (without authentication)
+# 2. Show that user is in prepareation state (CapSet works)
+# 3. Make message exchange and ignore all connection error
+# 4. Show that after the exchange user was in middle of it disconnected
+#
 --write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp
+-->import wait_until_disconnect.macro
+-->import connection.macro
+
+echo # 1. Connect to X Plugin;
 -->newsession idle_session	-
--->measure
--->sleep 2
+-->callmacro Verify_its_xprotocol_connection
+
 -->noquery_result
+echo # 2. Show that its valid X Protocol connection;
 Mysqlx.Connection.CapabilitiesGet {
 }
 -->recvtype Mysqlx.Connection.Capabilities
+
+echo # 3. Generate long message flow, ignore all disconnect errors;
+echo #;
+echo # lets wait 30 seconds, for the disconnection;
+-->quiet
+-->repeat 30
+echo send/receive;
+expecterror 0, CR_SERVER_GONE_ERROR;
+Mysqlx.Connection.CapabilitiesGet {
+}
+expecterror 0, CR_SERVER_GONE_ERROR;
+-->recv
+-->sleep 1
+-->endrepeat
+-->noquiet
 -->query_result
 
-# lets give maximum tolerance for disconnecting
-# this is going to be verified at endmesasure !
--->peerdisc 2000 2000
+expecterror CR_SERVER_GONE_ERROR;
+Mysqlx.Connection.CapabilitiesGet {
+}
 
-# 4000 sum of peerdisc and sleep
--->endmeasure 4000 800
+echo # 4. Show that user is/was disconnected;
+expecterror CR_SERVER_GONE_ERROR;
+-->recv
+-->closesession abort
+
 EOF
+
+
+## Show that Mysqlx_connection_timeout is deactivate after auth
+#
+# 1. Connect to X Plugin and show that its valid connection
+# 2. Wait longer than Mysqlx_connection_timeout
+# 3. Show that connection is still valid
 
 --write_file $MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp
--->sleep 3
+echo # 1. Show that new connection is valid
 -->stmtadmin ping
 -->recvresult
--->sleep 3
+
+echo # 2. sleep 12 which is much longer than mysqlx_connection_timeout
+-->sleep 12
+echo # 3. Show that connection is still there, mysqlx_connection_timeout was deactivated
+-->stmtadmin ping
+-->recvresult
+
+EOF
+
+## Show that after specific kind of "reset" connection is not considered for mysqlx-connection-timeout
+#
+# 1. Connect to X Plugin and show that its a valid connection
+# 2. Trigger reset
+# 3. Wait longer than Mysqlx_connection_timeout
+# 4. Show that connection was not released, by authenticated and executing query
+--write_file $MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp
+-->import mysqlx_session.macro
+
+echo # 1. Connect to X Plugin and show that its a valid connection;
+-->echo Afert the %SESSION_CLOSE_SCENARIO% connection isn't considered a target for release
+-->stmtadmin ping
+-->recvresult
+
+echo # 2. Trigger reset;
+-->callmacro %SESSION_CLOSE_SCENARIO%
+-->recvok
+
+echo # 3. Wait longer than Mysqlx_connection_timeout;
+-->sleep 6
+
+echo # 4. Show that connection was not released, by authenticated and executing query;
+-->login x_root
 -->stmtadmin ping
 -->recvresult
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp
--->sleep 6
--->stmtadmin ping
--->recvresult
-##Afert the Mysqlx.Reset connection isn't considered a target for release
-Mysqlx.Session.Reset {
-}
--->recv
--->sleep 5
--->login x_root
--->stmtadmin ping
--->recvresult
-##Afert the Mysqlx.Reset connection isn't considered a target for release
-Mysqlx.Session.Reset {
-}
--->recv
--->login x_root
-EOF
+
+--let $assert_status_name= Mysqlx_connection_accept_errors
+--let $assert_status_value= 0
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connection_errors
+--let $assert_status_value= 0
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_accepted
+--let $assert_status_value= 0
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_closed
+--let $assert_status_value= 0
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_rejected
+--let $assert_status_value= 0
+--source include/assert_status.inc
 
 SET GLOBAL mysqlx_connect_timeout = 4;
-show status like 'Mysqlx_conn%';
 
---echo Disconnect user on idle connection after timeout
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1
+--let $assert_variable_name= mysqlx_connect_timeout
+--let $assert_variable_value= 4
+--source include/assert_variable.inc
 
---echo Disconnect user without session after timeout
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp 2>&1
+--echo
+--echo ## Disconnect user on idle connection after timeout
+--echo #
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1;
 
---echo Inactivity timer disabled after session setup (commands executed after 1s should be processed)
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --file=$MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp 2>&1
+--echo
+--echo ## Disconnect user without session after timeout
+--echo #
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp 2>&1;
 
---echo Disconnect user on idle connection after new timeout
---remove_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
---write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
--->peerdisc 2000
-EOF
+--echo
+--echo ## Inactivity timer disabled after session setup (commands executed after 1s should be processed)
+--echo #
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp 2>&1;
+
+
+--let $assert_status_name= Mysqlx_connection_accept_errors
+--let $assert_status_value= 0
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connection_errors
+--let $assert_status_value= 2
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_accepted
+--let $assert_status_value= 4
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_closed
+--let $assert_status_value= 4
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_rejected
+--let $assert_status_value= 0
+--source include/assert_status.inc
 
 SET GLOBAL mysqlx_connect_timeout = 2;
-show status like 'Mysqlx_conn%';
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1
+
+--let $assert_variable_name= mysqlx_connect_timeout
+--let $assert_variable_value= 2
+--source include/assert_variable.inc
+
+
+--echo
+--echo ## Disconnect user on idle connection after new timeout
+--echo #
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1;
 
 SET GLOBAL mysqlx_connect_timeout = 4;
---echo Inactivity timer restarted with Session.Reset Message
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --file=$MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp 2>&1
+--let $assert_variable_name= mysqlx_connect_timeout
+--let $assert_variable_value= 4
+--source include/assert_variable.inc
 
---sleep 1
+--echo
+--echo ## Inactivity timer restarted with Session.Reset message
+--echo #
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1
+  -v%SESSION_CLOSE_SCENARIO%=Session_reset
+  --file=$MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp 2>&1;
+
+--let $assert_status_name= Mysqlx_connection_accept_errors
+--let $assert_status_value= 0
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connection_errors
+--let $assert_status_value= 3
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_accepted
+--let $assert_status_value= 6
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_closed
+--let $assert_status_value= 6
+--source include/assert_status.inc
+--let $assert_status_name= Mysqlx_connections_rejected
+--let $assert_status_value= 0
+--source include/assert_status.inc
+
 
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
-show status like 'Mysqlx_conn%';
 --remove_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp

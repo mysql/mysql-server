@@ -43,18 +43,67 @@ namespace server_mock {
  **/
 class QueriesJsonReader : public StatementReaderBase {
  public:
-  /** @brief Constructor.
+  enum class HandshakeState { INIT, GREETED, AUTH_SWITCHED, DONE };
+
+  /**
+   * Constructor.
    *
    * @param filename Path to the json file with definitins
    *         of the expected SQL statements and responses
    **/
   QueriesJsonReader(const std::string &filename);
 
-  /** @brief Returns the data about the next statement from the
-   *         json file. If there is no more statements it returns
-   *         empty statement.
+  /**
+   * handle handshake's init state.
+   *
+   * @param payload payload of the current client packet
+   * @param next_state next state of the handshake handler
+   *
+   * @return response to send to client
+   */
+  HandshakeResponse handle_handshake_init(const std::vector<uint8_t> &payload,
+                                          HandshakeState &next_state);
+
+  /**
+   * handle handshake's greeted state.
+   *
+   * @param payload payload of the current client packet
+   * @param next_state next state of the handshake handler
+   *
+   * @return response to send to client
+   */
+  HandshakeResponse handle_handshake_greeted(
+      const std::vector<uint8_t> &payload, HandshakeState &next_state);
+
+  /**
+   * handle handshake's auth_switched state.
+   *
+   * @param payload payload of the current client packet
+   * @param next_state next state of the handshake handler
+   *
+   * @return response to send to client
+   */
+  HandshakeResponse handle_handshake_auth_switched(
+      const std::vector<uint8_t> &payload, HandshakeState &next_state);
+
+  /**
+   * handle the handshake payload received from the client.
+   *
+   * @param payload payload of the client's current handshake packet
+   * @returns response to send to client
+   */
+  HandshakeResponse handle_handshake(
+      const std::vector<uint8_t> &payload) override;
+
+  /**
+   * Returns the data about the next statement from the
+   * json file.
+   *
+   * @param statement statement-text of the current clients
+   *COM_QUERY/StmtExecute
+   * @returns response to send to client
    **/
-  StatementAndResponse handle_statement(const std::string &statement) override;
+  StatementResponse handle_statement(const std::string &statement) override;
 
   /** @brief Returns the default execution time in microseconds. If
    *         no default execution time is provided in json file, then
@@ -62,7 +111,7 @@ class QueriesJsonReader : public StatementReaderBase {
    **/
   std::chrono::microseconds get_default_exec_time() override;
 
-  virtual ~QueriesJsonReader();
+  ~QueriesJsonReader() override;
 
  private:
   // This is to avoid including RapidJSON headers here, which would cause
@@ -70,6 +119,8 @@ class QueriesJsonReader : public StatementReaderBase {
   // better suppres only for single implementation file).
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
+
+  HandshakeState handshake_state_{HandshakeState::INIT};
 };
 
 }  // namespace server_mock

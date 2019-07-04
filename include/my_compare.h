@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,12 +135,5 @@ extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *, uint,
                            bool);
 extern "C" int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b,
                           uint key_length, uint nextflag, uint *diff_pos);
-
-/*
-  Inside an in-memory data record, memory pointers to pieces of the
-  record (like BLOBs) are stored in their native byte order and in
-  this amount of bytes.
-*/
-#define portable_sizeof_char_ptr 8
 
 #endif /* _my_compare_h */

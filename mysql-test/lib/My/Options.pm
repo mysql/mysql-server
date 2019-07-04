@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,16 +39,20 @@ sub compare ($$) {
   my $l1 = shift;
   my $l2 = shift;
 
-  my @l1 = @$l1;
-  my @l2 = @$l2;
+  my @l1 = sort @$l1;
+  my @l2 = sort @$l2;
 
   return -1 if @l1 < @l2;
   return 1  if @l1 > @l2;
 
   # Same length
   while (@l1) {
-    my $e1  = shift @l1;
-    my $e2  = shift @l2;
+    my $e1 = shift @l1;
+    my $e2 = shift @l2;
+
+    $e1 =~ s/_/-/g;
+    $e2 =~ s/_/-/g;
+
     my $cmp = ($e1 cmp $e2);
     return $cmp if $cmp != 0;
   }
@@ -57,17 +61,17 @@ sub compare ($$) {
   return 0;
 }
 
-sub _split_option {
+sub split_option {
   my ($option) = @_;
 
-  if ($option =~ /^--(.*)=(.*)$/) {
+  if ($option =~ /^--(.*?)=(.*)$/) {
     return ($1, $2);
   } elsif ($option =~ /^--(.*)$/) {
     return ($1, undef);
   } elsif ($option =~ /^\$(.*)$/) {
     # $VAR
     return ($1, undef);
-  } elsif ($option =~ /^(.*)=(.*)$/) {
+  } elsif ($option =~ /^(.*?)=(.*)$/) {
     return ($1, $2);
   }
 
@@ -94,14 +98,14 @@ sub diff {
 
   my %from;
   foreach my $from (@$from_opts) {
-    my ($opt, $value) = _split_option($from);
+    my ($opt, $value) = split_option($from);
     next unless defined($opt);
     $from{$opt} = $value;
   }
 
   my %to;
   foreach my $to (@$to_opts) {
-    my ($opt, $value) = _split_option($to);
+    my ($opt, $value) = split_option($to);
     next unless defined($opt);
     $to{$opt} = $value;
   }
@@ -133,11 +137,36 @@ sub diff {
 
 sub is_set {
   my ($opts, $set_opts) = @_;
+  my $temp_opt1;
+  my $temp_opt2;
 
   foreach my $opt (@$opts) {
-    my ($opt_name1, $value1) = _split_option($opt);
+    if ($opt =~ /^(\s*)--initialize(\s*)=(\s*)/) {
+      $temp_opt1 = $opt;
+      $temp_opt1 =~ s/--initialize(\s*)=(\s*)//;
+    } elsif ($opt =~ /^(\s*)--initialize(\s*)/) {
+      next;
+    }
+    my $opt_name1;
+    my $value1;
+    if ($temp_opt1) {
+      ($opt_name1, $value1) = split_option($temp_opt1);
+    } else {
+      ($opt_name1, $value1) = split_option($opt);
+    }
     foreach my $set_opt (@$set_opts) {
-      my ($opt_name2, $value2) = _split_option($set_opt);
+      if ($set_opt =~ /^(\s*)--initialize(\s)*=(\s*)/) {
+        $temp_opt2 = $set_opt;
+        $temp_opt2 =~ s/--initialize(\s)*=(\s*)//;
+      }
+
+      my $opt_name2;
+      my $value2;
+      if ($temp_opt2) {
+        ($opt_name2, $value2) = split_option($temp_opt2);
+      } else {
+        ($opt_name2, $value2) = split_option($set_opt);
+      }
       return 1 if (option_equals($opt_name1, $opt_name2));
     }
   }
@@ -150,7 +179,7 @@ sub toSQL {
   my @sql;
 
   foreach my $option (@options) {
-    my ($sql_name, $value) = _split_option($option);
+    my ($sql_name, $value) = split_option($option);
     $sql_name =~ s/-/_/g;
     push(@sql, "SET GLOBAL $sql_name=$value");
   }

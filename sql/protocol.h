@@ -27,7 +27,6 @@
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql_com.h"               // mysql_enum_shutdown_level
 #include "mysql_time.h"              // MYSQL_TIME
-#include "sql/my_decimal.h"          // my_decimal
 #include "sql_string.h"              // String
 #include "violite.h"                 /* SSL && enum_vio_type */
 #ifdef HAVE_OPENSSL
@@ -45,6 +44,7 @@ class THD;
 
 #include "mysql/com_data.h"
 
+class my_decimal;
 class Send_field;
 class Proto_field;
 class Item_param;
@@ -122,9 +122,9 @@ class Protocol {
   */
   enum { SEND_NUM_ROWS = 1, SEND_DEFAULTS = 2, SEND_EOF = 4 };
 
-  virtual enum enum_protocol_type type() = 0;
+  virtual enum enum_protocol_type type() const = 0;
 
-  virtual enum enum_vio_type connection_type() = 0;
+  virtual enum enum_vio_type connection_type() const = 0;
 
   /* Data sending functions */
   virtual bool store_null() = 0;
@@ -194,7 +194,7 @@ class Protocol {
       true    if the connection is still alive
       false   otherwise
    */
-  virtual bool connection_alive() = 0;
+  virtual bool connection_alive() const = 0;
 
   /**
     Result set sending functions
@@ -215,10 +215,10 @@ class Protocol {
                              | end_row(...)
         ... same for each row, until all rows are sent ...
                              | send_ok/eof/error(...)
-   However, a protocol implementation might use different schema. For
-   example, Protocol_callback ignores start/end_row when metadata is being
-   sent.
- */
+    However, a protocol implementation might use different schema. For
+    example, Protocol_callback ignores start/end_row when metadata is being
+    sent.
+   */
 
   virtual void start_row() = 0;
   virtual bool end_row() = 0;

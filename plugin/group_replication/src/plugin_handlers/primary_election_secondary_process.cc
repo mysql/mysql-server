@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_secondary_process.h"
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 
@@ -50,6 +51,10 @@ Primary_election_secondary_process::Primary_election_secondary_process()
 Primary_election_secondary_process::~Primary_election_secondary_process() {
   mysql_mutex_destroy(&election_lock);
   mysql_cond_destroy(&election_cond);
+}
+
+void Primary_election_secondary_process::set_stop_wait_timeout(ulong timeout) {
+  stop_wait_timeout = timeout;
 }
 
 int Primary_election_secondary_process::launch_secondary_election_process(
@@ -152,6 +157,9 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
     if (!election_process_aborted && !server_shutdown_status) {
       abort_plugin_process(
           "Cannot enable the super read only mode on a secondary member.");
+      error = 1;
+      election_process_aborted = 1;
+      goto end;
     }
   }
 
@@ -226,7 +234,7 @@ end:
     group_events_observation_manager->after_primary_election(
         primary_uuid, true, election_mode, error); /* purecov: inspected */
     kill_transactions_and_leave_on_election_error(
-        err_msg); /* purecov: inspected */
+        err_msg, stop_wait_timeout); /* purecov: inspected */
   }
 
   stage_handler->end_stage();
@@ -369,8 +377,8 @@ int Primary_election_secondary_process::before_message_handling(
   Plugin_gcs_message::enum_cargo_type message_type = message.get_cargo_type();
 
   if (message_type == Plugin_gcs_message::CT_SINGLE_PRIMARY_MESSAGE) {
-    const Single_primary_message single_primary_message =
-        (const Single_primary_message &)message;
+    const Single_primary_message &single_primary_message =
+        down_cast<const Single_primary_message &>(message);
     Single_primary_message::Single_primary_message_type
         single_primary_msg_type =
             single_primary_message.get_single_primary_message_type();

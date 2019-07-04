@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,19 +30,22 @@
 #include <NdbOut.hpp>
 #include "atrt.hpp"
 
+#include <util/File.hpp>
 #include <FileLogHandler.hpp>
 #include <SysLogHandler.hpp>
 
 #include <NdbSleep.h>
-#include "my_alloc.h" // MEM_ROOT
+#include "my_alloc.h"  // MEM_ROOT
+#include <vector>
 
 #define PATH_SEPARATOR DIR_SEPARATOR
+#define TESTCASE_RETRIES_THRESHOLD_WARNING 5
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
-static const char *g_gather_progname = "atrt-gather-result.sh";
-static const char *g_analyze_progname = "atrt-analyze-result.sh";
-static const char *g_setup_progname = "atrt-setup.sh";
+static const char *g_gather_progname = 0;
+static const char *g_analyze_progname = 0;
+static const char *g_setup_progname = 0;
 
 static const char *g_log_filename = 0;
 static const char *g_test_case_filename = 0;
@@ -70,6 +73,8 @@ int g_default_ports = 0;
 int g_mt = 0;
 int g_mt_rr = 0;
 int g_restart = 0;
+int g_default_max_retries = 0;
+static int g_default_force_cluster_restart = 0;
 
 const char *g_cwd = 0;
 const char *g_basedir = 0;
@@ -110,9 +115,12 @@ static struct {
 #endif
                   {true, 0, 0}};
 
+static BaseString get_atrt_path(const char *arg);
+
 const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
                                "lib", "lib/mysql", 0};
 static bool find_binaries();
+static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
 static struct my_option g_options[] = {
@@ -174,6 +182,17 @@ static struct my_option g_options[] = {
     {"mt", 256, "Use ndbmtd (0 = never, 1 = round-robin, 2 = only)",
      (uchar **)&g_mt, (uchar **)&g_mt, 0, GET_INT, REQUIRED_ARG, g_mt, 0, 0, 0,
      0, 0},
+    {"default-max-retries", 256,
+     "default number of retries after a test case fails (can be overwritten in "
+     "the test suite file)",
+     (uchar **)&g_default_max_retries, (uchar **)&g_default_max_retries, 0,
+     GET_INT, REQUIRED_ARG, g_default_max_retries, 0, 0, 0, 0, 0},
+    {"default-force-cluster-restart", 0,
+     "Force cluster to restart for each testrun (can be overwritten in test "
+     "suite file)",
+     (uchar **)&g_default_force_cluster_restart,
+     (uchar **)&g_default_force_cluster_restart, 0, GET_BOOL, NO_ARG,
+     g_default_force_cluster_restart, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
@@ -189,7 +208,7 @@ int main(int argc, char **argv) {
   bool restart = true;
   int lineno = 1;
   int test_no = 1;
-  int return_code = 1;
+  int return_code = TESTSUITE_SUCCESS;
 
   g_logger.setCategory(progname);
   g_logger.enable(Logger::LL_ALL);
@@ -205,6 +224,7 @@ int main(int argc, char **argv) {
   MEM_ROOT alloc = MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};
   if (!parse_args(argc, argv, &alloc)) {
     g_logger.critical("Failed to parse arguments");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -212,7 +232,19 @@ int main(int argc, char **argv) {
 
   if (!find_binaries()) {
     g_logger.critical("Failed to find required binaries for execution");
+    return_code = ATRT_FAILURE;
     goto end;
+  }
+
+  {
+    BaseString atrt_path = get_atrt_path(argv[0]);
+    assert(atrt_path != "");
+
+    if (!find_scripts(atrt_path.c_str())) {
+      g_logger.critical("Failed to find required atrt scripts for execution");
+      return_code = ATRT_FAILURE;
+      goto end;
+    }
   }
 
   g_config.m_config_type = atrt_config::CNF;
@@ -222,6 +254,7 @@ int main(int argc, char **argv) {
 
     if (!find_config_ini_files()) {
       g_logger.critical("Failed to find required config.ini files");
+      return_code = ATRT_FAILURE;
       goto end;
     }
   }
@@ -230,22 +263,26 @@ int main(int argc, char **argv) {
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host)) {
     g_logger.critical("Failed to setup configuration");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
   if (!g_config.m_processes.size()) {
     g_logger.critical("Error: No processes defined in cluster configuration");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
   if (!configure(g_config, g_do_setup)) {
     g_logger.critical("Failed to configure");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
   g_logger.info("Setting up directories...");
   if (!setup_directories(g_config, g_do_setup)) {
     g_logger.critical("Failed to set up directories");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -253,6 +290,7 @@ int main(int argc, char **argv) {
     g_logger.info("Setting up files...");
     if (!setup_files(g_config, g_do_setup, g_do_sshx)) {
       g_logger.critical("Failed to set up files");
+      return_code = ATRT_FAILURE;
       goto end;
     }
   }
@@ -261,17 +299,18 @@ int main(int argc, char **argv) {
     g_logger.info("Deploying files...");
     if (!deploy(g_do_deploy, g_config)) {
       g_logger.critical("Failed to deploy");
+      return_code = ATRT_FAILURE;
       goto end;
     }
   }
 
   if (g_do_quit) {
-    return_code = 0;
     goto end;
   }
 
   if (!setup_hosts(g_config)) {
     g_logger.critical("Failed to setup hosts");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -279,6 +318,7 @@ int main(int argc, char **argv) {
     g_logger.info("Starting xterm-ssh");
     if (!sshx(g_config, g_do_sshx)) {
       g_logger.critical("Failed to start xterm-ssh");
+      return_code = ATRT_FAILURE;
       goto end;
     }
 
@@ -286,18 +326,19 @@ int main(int argc, char **argv) {
     while (true) {
       if (!do_command(g_config)) {
         g_logger.critical("Failed to do ssh command");
+        return_code = ATRT_FAILURE;
         goto end;
       }
 
       NdbSleep_SecSleep(1);
     }
-    return_code = 0;
     goto end;
   }
 
   g_logger.info("Connecting to hosts...");
   if (!connect_hosts(g_config)) {
     g_logger.critical("Failed to connect to CPCD on hosts");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -306,12 +347,14 @@ int main(int argc, char **argv) {
     g_logger.info("Starting server processes: %x", g_do_start);
     if (!start(g_config, g_do_start)) {
       g_logger.critical("Failed to start server processes");
+      return_code = ATRT_FAILURE;
       goto end;
     }
 
     g_logger.info("Setting up database...");
     if (!setup_db(g_config)) {
       g_logger.critical("Failed to setup database");
+      return_code = ATRT_FAILURE;
       goto end;
     }
 
@@ -319,12 +362,12 @@ int main(int argc, char **argv) {
     while (true) {
       if (!do_command(g_config)) {
         g_logger.info("Exiting");
+        return_code = ATRT_FAILURE;
         goto end;
       }
 
       NdbSleep_SecSleep(1);
     }
-    return_code = 0;
     goto end;
   }
 #endif
@@ -334,77 +377,6 @@ int main(int argc, char **argv) {
    */
   g_logger.debug("Entering main loop");
   while (!feof(g_test_case_file)) {
-    /**
-     * Do we need to restart ndb
-     */
-    if (restart) {
-      restart = false;
-      g_logger.info("(Re)starting server processes...");
-
-      if (!stop_processes(g_config, ~0)) {
-        g_logger.critical("Failed to stop all processes");
-        goto end;
-      }
-
-      g_logger.info("Waiting for all processes to stop...");
-      if (!wait_for_processes_to_stop(g_config, ~0)) {
-        g_logger.critical("Fail to stop all processes");
-        goto end;
-      }
-
-      if (!setup_directories(g_config, 2)) {
-        g_logger.critical("Failed to setup directories");
-        goto end;
-      }
-
-      if (!setup_files(g_config, 2, 1)) {
-        g_logger.critical("Failed to setup files");
-        goto end;
-      }
-
-      if (!setup_hosts(g_config)) {
-        g_logger.critical("Failed to setup hosts");
-        goto end;
-      }
-
-      g_logger.debug("Setup complete, starting servers");
-      if (!start(g_config, p_ndb | p_servers)) {
-        g_logger.critical("Failed to start server processes");
-        g_logger.info("Gathering logs and saving them as test %u", test_no);
-
-        int tmp;
-        if (!gather_result(g_config, &tmp)) {
-          g_logger.critical("Failed to gather results");
-          goto cleanup;
-        }
-
-        if (g_report_file != 0) {
-          fprintf(g_report_file, "%s ; %d ; %d ; %d\n", "start servers",
-                  test_no, ERR_FAILED_TO_START, 0);
-          fflush(g_report_file);
-        }
-
-        BaseString resdir;
-        resdir.assfmt("result.%d", test_no);
-        remove_dir(resdir.c_str(), true);
-
-        if (rename("result", resdir.c_str()) != 0) {
-          g_logger.critical("Failed to rename %s as %s", "result",
-                            resdir.c_str());
-          goto cleanup;
-        }
-        goto cleanup;
-      }
-
-      if (!setup_db(g_config)) {
-        g_logger.critical("Failed to setup database");
-        goto cleanup;
-      }
-
-      g_logger.info("All servers start completed");
-    }
-
-    // const int start_line = lineno;
     atrt_testcase test_case;
     const int num_element_lines =
         read_test_case(g_test_case_file, test_case, lineno);
@@ -415,80 +387,206 @@ int main(int argc, char **argv) {
     if (num_element_lines < 0) {
       g_logger.critical("Corrupt testcase at line %d (error %d)", lineno,
                         num_element_lines);
+      return_code = ATRT_FAILURE;
       goto cleanup;
     }
     g_logger.info("#%d - %s", test_no, test_case.m_name.c_str());
 
-    // Assign processes to programs
-    if (!setup_test_case(g_config, test_case)) {
-      g_logger.critical("Failed to setup test case");
-      goto cleanup;
-    }
-
-    if (!start_processes(g_config, p_clients)) {
-      g_logger.critical("Failed to start client processes");
-      goto cleanup;
-    }
-
     int result = 0;
+    time_t elapsed = 0;
+    int testruns = 0;
+    bool retry_test = false;
 
-    const time_t start = time(0);
-    time_t now = start;
     do {
-      if (!update_status(g_config, atrt_process::AP_ALL)) {
-        g_logger.critical("Failed to get updated status for all processes");
+      testruns++;
+      /**
+      * Do we need to restart ndb
+      */
+      if (restart || test_case.m_force_cluster_restart) {
+        if (test_case.m_force_cluster_restart) {
+          g_logger.info(
+              "(Re)starting all NDB Cluster processes as required by "
+              "testcase %s",
+              test_case.m_name.c_str());
+        }
+
+        restart = false;
+        g_logger.info("(Re)starting server processes...");
+
+        if (!stop_processes(g_config, ~0)) {
+          g_logger.critical("Failed to stop all processes");
+          return_code = ATRT_FAILURE;
+          goto end;
+        }
+
+        g_logger.info("Waiting for all processes to stop...");
+        if (!wait_for_processes_to_stop(g_config, ~0)) {
+          g_logger.critical("Fail to stop all processes");
+          return_code = ATRT_FAILURE;
+          goto end;
+        }
+
+        if (!setup_directories(g_config, 2)) {
+          g_logger.critical("Failed to setup directories");
+          return_code = ATRT_FAILURE;
+          goto end;
+        }
+
+        if (!setup_files(g_config, 2, 1)) {
+          g_logger.critical("Failed to setup files");
+          return_code = ATRT_FAILURE;
+          goto end;
+        }
+
+        if (!setup_hosts(g_config)) {
+          g_logger.critical("Failed to setup hosts");
+          return_code = ATRT_FAILURE;
+          goto end;
+        }
+
+        g_logger.debug("Setup complete, starting servers");
+        if (!start(g_config, p_ndb | p_servers)) {
+          g_logger.critical("Failed to start server processes");
+          g_logger.info("Gathering logs and saving them as test %u", test_no);
+
+          int tmp;
+          if (!gather_result(g_config, &tmp)) {
+            g_logger.critical("Failed to gather results");
+            return_code = ATRT_FAILURE;
+            goto cleanup;
+          }
+
+          if (g_report_file != 0) {
+            fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "start servers",
+                    test_no, ERR_FAILED_TO_START, 0, 0);
+            fflush(g_report_file);
+          }
+
+          BaseString resdir;
+          resdir.assfmt("result.%d", test_no);
+          remove_dir(resdir.c_str(), true);
+
+          if (rename("result", resdir.c_str()) != 0) {
+            g_logger.critical("Failed to rename %s as %s", "result",
+                              resdir.c_str());
+            return_code = ATRT_FAILURE;
+            goto cleanup;
+          }
+          goto cleanup;
+        }
+
+        if (!setup_db(g_config)) {
+          g_logger.critical("Failed to setup database");
+          return_code = ATRT_FAILURE;
+          goto cleanup;
+        }
+
+        g_logger.info("All servers start completed");
+      }
+
+      // Assign processes to programs
+      if (!setup_test_case(g_config, test_case)) {
+        g_logger.critical("Failed to setup test case");
+        return_code = ATRT_FAILURE;
         goto cleanup;
       }
 
-      if ((result = check_ndb_or_servers_failures(g_config))) {
-        break;
+      if (!start_processes(g_config, p_clients)) {
+        g_logger.critical("Failed to start client processes");
+        return_code = ATRT_FAILURE;
+        goto cleanup;
       }
 
-      if (!is_client_running(g_config)) {
-        break;
+      const time_t start = time(0);
+      time_t now = start;
+      do {
+        if (!update_status(g_config, atrt_process::AP_ALL)) {
+          g_logger.critical("Failed to get updated status for all processes");
+          return_code = ATRT_FAILURE;
+          goto cleanup;
+        }
+
+        if ((result = check_ndb_or_servers_failures(g_config))) {
+          break;
+        }
+
+        if (!is_client_running(g_config)) {
+          break;
+        }
+
+        if (!do_command(g_config)) {
+          result = ERR_COMMAND_FAILED;
+          g_logger.critical("Failure on client command execution");
+          break;
+        }
+
+        now = time(0);
+        if (now > (start + test_case.m_max_time)) {
+          g_logger.debug("Timed out");
+          result = ERR_MAX_TIME_ELAPSED;
+          g_logger.info("Timeout '%s' after %ld seconds",
+                        test_case.m_name.c_str(), test_case.m_max_time);
+          break;
+        }
+        NdbSleep_SecSleep(1);
+      } while (true);
+
+      elapsed = time(0) - start;
+      if (!stop_processes(g_config, p_clients)) {
+        g_logger.critical("Failed to stop client processes");
+        return_code = ATRT_FAILURE;
+        goto cleanup;
       }
 
-      if (!do_command(g_config)) {
-        result = ERR_COMMAND_FAILED;
-        g_logger.critical("Failure on client command execution");
-        break;
+      if (!wait_for_processes_to_stop(g_config, p_clients)) {
+        g_logger.critical("Failed to stop client processes");
+        return_code = ATRT_FAILURE;
+        goto cleanup;
       }
 
-      now = time(0);
-      if (now > (start + test_case.m_max_time)) {
-        g_logger.debug("Timed out");
-        result = ERR_MAX_TIME_ELAPSED;
-        g_logger.info("Timeout '%s' after %ld seconds",
-                      test_case.m_name.c_str(), test_case.m_max_time);
-        break;
+      int tmp, *rp = result ? &tmp : &result;
+      if (!gather_result(g_config, rp)) {
+        g_logger.critical("Failed to gather result after test run");
+        return_code = ATRT_FAILURE;
+        goto end;
       }
-      NdbSleep_SecSleep(1);
-    } while (true);
 
-    const time_t elapsed = time(0) - start;
+      const char *test_status;
+      switch (result) {
+        case ErrorCodes::ERR_OK:
+          test_status = "OK";
+          break;
+        case ErrorCodes::ERR_TEST_SKIPPED:
+          test_status = "SKIPPED";
+          break;
+        default:
+          test_status = "FAILED";
+          break;
+      }
+      g_logger.info("#%d %s(%d)", test_no, test_status, result);
 
-    if (!stop_processes(g_config, p_clients)) {
-      g_logger.critical("Failed to stop client processes");
-      goto cleanup;
+      const bool failed = (result != ErrorCodes::ERR_OK &&
+                           result != ErrorCodes::ERR_TEST_SKIPPED);
+
+      restart = failed;
+
+      retry_test = failed && testruns <= test_case.m_max_retries;
+      if (retry_test) {
+        g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
+                      test_case.m_name.c_str(), testruns,
+                      test_case.m_max_retries);
+        reset_config(g_config);
+      }
+    } while (retry_test);
+
+    if (result != ErrorCodes::ERR_OK &&
+        result != ErrorCodes::ERR_TEST_SKIPPED) {
+      return_code = TESTSUITE_FAILURES;
     }
-
-    if (!wait_for_processes_to_stop(g_config, p_clients)) {
-      g_logger.critical("Failed to stop client processes");
-      goto cleanup;
-    }
-
-    int tmp, *rp = result ? &tmp : &result;
-    if (!gather_result(g_config, rp)) {
-      g_logger.critical("Failed to gather result after test run");
-      goto end;
-    }
-
-    g_logger.info("#%d %s(%d)", test_no, (result == 0 ? "OK" : "FAILED"),
-                  result);
 
     if (g_report_file != 0) {
-      fprintf(g_report_file, "%s ; %d ; %d ; %ld\n", test_case.m_name.c_str(),
-              test_no, result, elapsed);
+      fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
+              test_case.m_name.c_str(), test_no, result, elapsed, testruns);
       fflush(g_report_file);
     }
 
@@ -506,6 +604,7 @@ int main(int argc, char **argv) {
       if (rename("result", resdir.c_str()) != 0) {
         g_logger.critical("Failed to rename %s as %s", "result",
                           resdir.c_str());
+        return_code = ATRT_FAILURE;
         goto end;
       }
     } else {
@@ -519,13 +618,8 @@ int main(int argc, char **argv) {
     if (reset_config(g_config)) {
       restart = true;
     }
-
-    if (result != 0) {
-      restart = true;
-    }
     test_no++;
   }
-  return_code = 0;
 
 cleanup:
   g_logger.info("Stopping all processes");
@@ -534,9 +628,9 @@ cleanup:
 
 end:
   g_logger.info("Finishing, result: %d", return_code);
-  if (return_code != 0 && g_report_file != 0) {
-    fprintf(g_report_file, "%s ; %d ; %d ; %d\n", "critical error", test_no,
-            ERR_FAILED_TO_START, 0);
+  if (return_code == ATRT_FAILURE && g_report_file != 0) {
+    fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "critical error",
+            test_no, ERR_FAILED_TO_START, 0, 0);
     fflush(g_report_file);
   }
   if (g_report_file != 0) {
@@ -978,22 +1072,24 @@ bool wait_ndb(atrt_config &config, int goal) {
   return cnt == config.m_clusters.size();
 }
 
-bool start_process(atrt_process &proc) {
+bool start_process(atrt_process &proc, bool run_setup) {
   if (proc.m_proc.m_id != -1) {
     g_logger.critical("starting already started process: %u",
                       (unsigned)proc.m_index);
     return false;
   }
 
-  BaseString tmp = g_setup_progname;
-  tmp.appfmt(" %s %s/ %s", proc.m_host->m_hostname.c_str(),
-             proc.m_proc.m_cwd.c_str(), proc.m_proc.m_cwd.c_str());
+  if (run_setup) {
+    BaseString tmp = g_setup_progname;
+    tmp.appfmt(" %s %s/ %s", proc.m_host->m_hostname.c_str(),
+               proc.m_proc.m_cwd.c_str(), proc.m_proc.m_cwd.c_str());
 
-  g_logger.debug("system(%s)", tmp.c_str());
-  const int r1 = sh(tmp.c_str());
-  if (r1 != 0) {
-    g_logger.critical("Failed to setup process");
-    return false;
+    g_logger.debug("system(%s)", tmp.c_str());
+    const int r1 = sh(tmp.c_str());
+    if (r1 != 0) {
+      g_logger.critical("Failed to setup process");
+      return false;
+    }
   }
 
   /**
@@ -1184,7 +1280,8 @@ int check_ndb_or_servers_failures(atrt_config &config) {
   const int types = p_ndb | p_servers;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    bool skip = IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
+    bool skip =
+        proc.m_atrt_stopped || IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
     bool isRunning = proc.m_proc.m_status == "running";
     if ((types & proc.m_type) != 0 && !isRunning && !skip) {
       g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
@@ -1387,6 +1484,29 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
     tc.m_name.assign(mt);
     used_elements++;
   }
+
+  tc.m_force_cluster_restart = g_default_force_cluster_restart;
+  if (p.get("force-cluster-restart", &str)) {
+    tc.m_force_cluster_restart = (strcmp(str, "yes") == 0);
+    used_elements++;
+  }
+
+  tc.m_max_retries = g_default_max_retries;
+  if (p.get("max-retries", &mt)) {
+    tc.m_max_retries = atoi(mt);
+    used_elements++;
+  }
+
+  if (tc.m_max_retries < 0) {
+    g_logger.error("No of retries must not be less than zero for test '%s'",
+                   tc.m_name.c_str());
+    return -4;
+  }
+
+  if (tc.m_max_retries > TESTCASE_RETRIES_THRESHOLD_WARNING)
+    g_logger.warning(
+        "No of retries should be less than or equal to %d for test '%s'",
+        TESTCASE_RETRIES_THRESHOLD_WARNING, tc.m_name.c_str());
 
   if (used_elements != elements) {
     g_logger.critical(
@@ -1683,6 +1803,31 @@ static bool find_binaries() {
   return ok;
 }
 
+bool find_scripts(const char *atrt_path) {
+  g_logger.info("Locating scripts...");
+
+  struct script_path {
+    const char *name;
+    const char **path;
+  };
+  std::vector<struct script_path> scripts = {
+      {"atrt-gather-result.sh", &g_gather_progname},
+      {"atrt-analyze-result.sh", &g_analyze_progname},
+      {"atrt-setup.sh", &g_setup_progname}};
+
+  for (auto &script : scripts) {
+    BaseString script_full_path;
+    script_full_path.assfmt("%s/%s", atrt_path, script.name);
+    if (!File_class::exists(script_full_path.c_str())) {
+      g_logger.critical("atrt script %s could not be found in %s", script.name,
+                        atrt_path);
+      return false;
+    }
+    *script.path = strdup(script_full_path.c_str());
+  }
+  return true;
+}
+
 static bool find_config_ini_files() {
   g_logger.info("Locating config.ini files...");
 
@@ -1704,6 +1849,21 @@ static bool find_config_ini_files() {
   }
 
   return found;
+}
+
+BaseString get_atrt_path(const char *arg) {
+  char *fullPath = realpath(arg, nullptr);
+  if (fullPath == nullptr) return {};
+
+  BaseString path;
+  char *last_folder_sep = strrchr(fullPath, '/');
+  if (last_folder_sep != nullptr) {
+    *last_folder_sep = '\0';
+    path.assign(fullPath);
+  }
+
+  free(fullPath);
+  return path;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;

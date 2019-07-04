@@ -93,6 +93,10 @@ enum class Axis_direction : std::uint8_t {
 /// Superclass for all spatial reference systems.
 class Spatial_reference_system {
  public:
+  Spatial_reference_system() = default;
+  Spatial_reference_system(const Spatial_reference_system &) = default;
+  Spatial_reference_system(Spatial_reference_system &&) = default;
+
   virtual ~Spatial_reference_system() {}
 
   /**
@@ -126,6 +130,12 @@ class Spatial_reference_system {
    */
   virtual double angular_unit() const = 0;
 
+  /**
+   * Retrieve how long the unit of the spatial reference system is in meters.
+   *
+   * @return Conversion factor
+   */
+  virtual double linear_unit() const = 0;
   /**
     Retrieve the prime meridian relative to Greenwich.
 
@@ -258,6 +268,7 @@ class Geographic_srs : public Spatial_reference_system {
 
   double inverse_flattening() const { return m_inverse_flattening; }
 
+  double linear_unit() const override { return 1.0; }
   double angular_unit() const override { return m_angular_unit; }
 
   double prime_meridian() const override { return m_prime_meridian; }
@@ -328,6 +339,7 @@ class Projected_srs : public Spatial_reference_system {
     return m_axes[axis];
   }
 
+  double linear_unit() const override { return m_linear_unit; }
   double angular_unit() const override {
     return m_geographic_srs.angular_unit();
   }

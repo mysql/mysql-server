@@ -1544,20 +1544,13 @@ WHERE t1.a NOT IN (
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 16384;
 
-# Test both disk-based engines:
-set @saved_engine=@@internal_tmp_disk_storage_engine;
-set global internal_tmp_disk_storage_engine = 'myisam';
+# Test disk-based engine:
 
 # Subq-materialization can be used and gives correct result:
 eval EXPLAIN $query;
 eval $query;
 
-set global internal_tmp_disk_storage_engine = 'innodb';
-eval EXPLAIN $query;
-eval $query;
-
 DROP TABLE t1;
-set global internal_tmp_disk_storage_engine = @saved_engine;
 set @@max_heap_table_size= @save_heap_size;
 
 --echo #

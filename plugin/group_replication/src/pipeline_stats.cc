@@ -25,6 +25,7 @@
 #include <time.h>
 
 #include <mysql/components/services/log_builtins.h>
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin/group_replication/include/plugin.h"
@@ -338,7 +339,12 @@ Pipeline_stats_member_collector::Pipeline_stats_member_collector()
       m_transactions_applied(0),
       m_transactions_local(0),
       m_transactions_local_rollback(0),
+      m_transactions_certified_during_recovery(0),
+      m_transactions_certified_negatively_during_recovery(0),
       m_transactions_applied_during_recovery(0),
+      m_previous_transactions_applied_during_recovery(0),
+      m_delta_transactions_applied_during_recovery(0),
+      m_transactions_delivered_during_recovery(0),
       send_transaction_identifiers(false) {
   mysql_mutex_init(key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
                    &m_transactions_waiting_apply_lock, MY_MUTEX_INIT_FAST);
@@ -403,13 +409,66 @@ void Pipeline_stats_member_collector::set_send_transaction_identifiers() {
 }
 
 void Pipeline_stats_member_collector::
+    increment_transactions_certified_during_recovery() {
+  ++m_transactions_certified_during_recovery;
+}
+
+void Pipeline_stats_member_collector::
+    increment_transactions_certified_negatively_during_recovery() {
+  ++m_transactions_certified_negatively_during_recovery;
+}
+
+void Pipeline_stats_member_collector::
     increment_transactions_applied_during_recovery() {
   ++m_transactions_applied_during_recovery;
 }
 
-uint64
-Pipeline_stats_member_collector::get_transactions_applied_during_recovery() {
-  return m_transactions_applied_during_recovery.load();
+void Pipeline_stats_member_collector::
+    compute_transactions_deltas_during_recovery() {
+  m_delta_transactions_applied_during_recovery.store(
+      m_transactions_applied_during_recovery.load() -
+      m_previous_transactions_applied_during_recovery);
+  m_previous_transactions_applied_during_recovery =
+      m_transactions_applied_during_recovery.load();
+}
+
+uint64 Pipeline_stats_member_collector::
+    get_delta_transactions_applied_during_recovery() {
+  return m_delta_transactions_applied_during_recovery.load();
+}
+
+uint64 Pipeline_stats_member_collector::
+    get_transactions_waiting_apply_during_recovery() {
+  uint64 transactions_delivered_during_recovery =
+      m_transactions_delivered_during_recovery.load();
+  uint64 transactions_applied_during_recovery =
+      m_transactions_applied_during_recovery.load();
+  uint64 transactions_certified_negatively_during_recovery =
+      m_transactions_certified_negatively_during_recovery.load();
+
+  /* view change transactions were applied */
+  if ((transactions_applied_during_recovery +
+       transactions_certified_negatively_during_recovery) >
+      transactions_delivered_during_recovery) {
+    return 0;
+  }
+
+  return transactions_delivered_during_recovery -
+         transactions_applied_during_recovery -
+         transactions_certified_negatively_during_recovery;
+}
+
+void Pipeline_stats_member_collector::
+    increment_transactions_delivered_during_recovery() {
+  ++m_transactions_delivered_during_recovery;
+}
+
+uint64 Pipeline_stats_member_collector::
+    get_transactions_waiting_certification_during_recovery() {
+  DBUG_ASSERT(m_transactions_delivered_during_recovery.load() >=
+              m_transactions_certified_during_recovery.load());
+  return m_transactions_delivered_during_recovery.load() -
+         m_transactions_certified_during_recovery.load();
 }
 
 void Pipeline_stats_member_collector::send_stats_member_message(
@@ -500,8 +559,6 @@ Pipeline_member_stats::Pipeline_member_stats(Pipeline_stats_member_message &msg)
       m_transactions_local_rollback(msg.get_transactions_local_rollback()),
       m_flow_control_mode(msg.get_flow_control_mode()),
       m_stamp(0) {}
-
-Pipeline_member_stats::~Pipeline_member_stats() {}
 
 void Pipeline_member_stats::update_member_stats(
     Pipeline_stats_member_message &msg, uint64 stamp) {
@@ -821,6 +878,13 @@ void Flow_control_module::flow_control_step(
 
     default:
       DBUG_ASSERT(0);
+  }
+
+  // compute applier rate during recovery
+  if (local_member_info->get_recovery_status() ==
+      Group_member_info::MEMBER_IN_RECOVERY) {
+    applier_module->get_pipeline_stats_member_collector()
+        ->compute_transactions_deltas_during_recovery();
   }
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1758,7 +1758,7 @@ dberr_t fts_lock_all_aux_tables(THD *thd, dict_table_t *table) {
 tables.
 @param[in]	flags2	Table flags2
 @return extracted flags2 for FTS aux tables */
-static inline ulint fts_get_table_flags2_for_aux_tables(ulint flags2) {
+static inline uint32_t fts_get_table_flags2_for_aux_tables(uint32_t flags2) {
   /* Extract the file_per_table flag & temporary file flag
   from the main FTS table flags2 */
   return ((flags2 & DICT_TF2_USE_FILE_PER_TABLE) |
@@ -5788,7 +5788,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
     /* Could be obsolete common tables. */
     if (native_strncasecmp(ptr, "ADDED", len) == 0 ||
         native_strncasecmp(ptr, "STOPWORDS", len) == 0) {
-      table->type = FTS_OBSELETED_TABLE;
+      table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
 
@@ -5820,7 +5820,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Other FT index specific table(s). */
     if (native_strncasecmp(ptr, "DOC_ID", len) == 0) {
-      table->type = FTS_OBSELETED_TABLE;
+      table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
   }

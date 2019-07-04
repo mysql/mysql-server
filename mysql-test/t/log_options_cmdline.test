@@ -159,7 +159,7 @@ SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
 # Verify that log_error_services is reset to default with a message
 # in the error log
 --let SEARCH_FILE= $LOG_FILE9
---let SEARCH_PATTERN= \[Note\].*Cannot set services "abcd" requested in --log-error-services, using defaults
+--let SEARCH_PATTERN= \[Warning\].*Cannot set services "abcd" requested in --log-error-services, using defaults
 --source include/search_pattern.inc
 
 # 4.2 Provide 'log_sink_json' to --log-error-services without
@@ -173,7 +173,7 @@ SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
 --source include/restart_mysqld.inc
 
 --let SEARCH_FILE= $LOG_FILE10
---let SEARCH_PATTERN= \[Note\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults
+--let SEARCH_PATTERN= \[Warning\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults
 --source include/search_pattern.inc
 
 # 4.3 Install the json writer component and provide its service
@@ -391,6 +391,40 @@ SELECT @@global.log_error_suppression_list;
 --let SEARCH_PATTERN= log_error_suppression_list: Could not add suppression rule for code .invalid.
 --source include/search_pattern.inc
 
+
+# WL#11875: Verify that we restore PERSISTed log settings at start-up
+#           before flushing buffered events
+# --------------------------------------------------------------
+
+
+INSTALL COMPONENT "file://component_log_sink_json";
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+
+--let LOG_FILE19= $MYSQLTEST_VARDIR/tmp/test19.err
+--let LOG_FILE19j= $MYSQLTEST_VARDIR/tmp/test19.err.00.json
+
+SET PERSIST dragnet.log_error_filter_rules="IF EXISTS msg THEN drop.";
+
+--let $log_services="log_filter_dragnet;log_sink_json"
+--let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE19"
+
+--replace_result $LOG_FILE19 LOG_FILE19
+--source include/restart_mysqld.inc
+
+--echo # JSON error log content - begin
+--cat_file $LOG_FILE19j
+--echo # JSON error log content - end
+
+RESET PERSIST `dragnet.log_error_filter_rules`;
+
+SET GLOBAL log_error_services= DEFAULT;
+
+UNINSTALL COMPONENT "file://component_log_sink_json";
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+
 ##===============================================================##
 #           Validate error logs for the above cases               #
 ##===============================================================##
@@ -406,12 +440,11 @@ SELECT @@global.log_error_suppression_list;
    # Entries matching the below patterns are logged before the
    # option '--log-error-verbosity' is processed. Hence, they
    # need to be ignored during verbosity checks.
-   my @ignore_patterns=
-   ("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Changed limits",
-    "\\[Note\\] \\[[^]]*\\] \\[[^]]*\\] Running in sandbox",
-    "\\[Note\\] \\[[^]]*\\] \\[[^]]*\\] Basedir set to");
+   my @ignore_patterns=();
 
-   my $ignore_regex= "(". join('|', @ignore_patterns). ")";
+   my $ignore_regex= scalar(@ignore_patterns)?
+                     "(". join('|', @ignore_patterns). ")":
+                     "";
    # --------
    # TEST 1.1
    # --------
@@ -421,7 +454,7 @@ SELECT @@global.log_error_suppression_list;
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     next if $line =~ /$ignore_regex/;
+     next if $ignore_regex and $line =~ /$ignore_regex/;
 
      if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
        # '[Warning] Changed limits' is shown in-spite of verbosity being 1
@@ -447,7 +480,7 @@ SELECT @@global.log_error_suppression_list;
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     next if $line =~ /$ignore_regex/;
+     next if $ignore_regex and $line =~ /$ignore_regex/;
 
      if ($line =~ /\[Note\]/) {
        $result_note=1;
@@ -503,7 +536,7 @@ SELECT @@global.log_error_suppression_list;
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     next if $line =~ /$ignore_regex/;
+     next if $ignore_regex and $line =~ /$ignore_regex/;
 
      if ($line =~ /\[Note\]/) {
        print;
@@ -526,10 +559,11 @@ SELECT @@global.log_error_suppression_list;
      }
    else {
      if ($verbosity_adjust_message_logged) {
-       print "[ PASS ] Error log does not contain NOTE's or WARNING's with --log-error-verbosity=-1 (adjusted to 1) during initialization\n";
+       print "[ FAIL ] Error log does contain a warning that log_error_verbosity is adjusted to 1 from -1\n";
        }
      else {
-       print "[ FAIL ] Error log does not contain a warning that log_error_verbosity is adjusted to 1 from -1";
+       # WL#11875 FR1: ("log-filtering applies to early, buffered logging")
+       print "[ PASS ] Error log does not contain NOTE's or WARNING's with --log-error-verbosity=-1 (adjusted to 1) during initialization\n";
        }
      }
 
@@ -542,7 +576,7 @@ SELECT @@global.log_error_suppression_list;
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     next if $line =~ /$ignore_regex/;
+     next if $ignore_regex and $line =~ /$ignore_regex/;
 
      if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
        print;
@@ -566,7 +600,7 @@ SELECT @@global.log_error_suppression_list;
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     next if $line =~ /$ignore_regex/;
+     next if $ignore_regex and $line =~ /$ignore_regex/;
 
      if ($line =~ /\[Note\]/) {
        print;
@@ -657,7 +691,13 @@ SELECT @@global.log_error_suppression_list;
      print "[ PASS ] Error log successfully parsed as a json document\n";
      for my $item( @$parsed_json ){
         if ( $item->{'msg'} =~ /Access denied for user \'unknown_user\'/) {
-          print "[ PASS ] Expected entry found in the json error log:-" . $item->{'msg'} . "\n";
+          print "[ PASS ] Expected entry found in the json error log: " . $item->{'msg'} . "\n";
+        }
+        # WL#11875 FR1: ("loaded logging components used for buffered logging")
+        # WL#11875 FR2: ("all key/value pairs saved in early, buffered logging")
+        if ( $item->{'err_symbol'} =~ /ER_STARTING_AS/ &&
+             exists($item->{'buffered'})) {
+          print "[ PASS ] Expected entry found in the json error log: " . $item->{'err_symbol'} . "\n";
         }
      }
    }
@@ -752,6 +792,8 @@ EOF
 --remove_file $LOG_FILE16
 --remove_file $LOG_FILE17
 --remove_file $LOG_FILE18
+--remove_file $LOG_FILE19
+--remove_file $LOG_FILE19j
 
 # Restart server after this test since it enables binary 
 # logging and may affect further tests

@@ -388,7 +388,7 @@ ulint os_event::wait_time_low(ulint time_in_usec,
     abstime.tv_nsec = tv.tv_usec * 1000;
   } else {
     abstime.tv_nsec = 999999999;
-    abstime.tv_sec = (time_t)ULINT_MAX;
+    abstime.tv_sec = std::numeric_limits<time_t>::max();
   }
 
   ut_a(abstime.tv_nsec <= 999999999);
@@ -449,7 +449,17 @@ os_event_t os_event_create(const char *name) /*!< in: the name of the
                                              event, if NULL the event
                                              is created without a name */
 {
-  return (UT_NEW_NOKEY(os_event(name)));
+  os_event_t ret = (UT_NEW_NOKEY(os_event(name)));
+/**
+ On SuSE Linux we get spurious EBUSY from pthread_mutex_destroy()
+ unless we grab and release the mutex here. Current OS version:
+ openSUSE Leap 15.0
+ Linux xxx 4.12.14-lp150.12.25-default #1 SMP
+ Thu Nov 1 06:14:23 UTC 2018 (3fcf457) x86_64 x86_64 x86_64 GNU/Linux */
+#if defined(LINUX_SUSE)
+  os_event_reset(ret);
+#endif
+  return ret;
 }
 
 /**

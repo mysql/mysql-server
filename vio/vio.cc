@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,6 +142,8 @@ Vio &Vio::operator=(Vio &&vio) {
   read_pos = vio.read_pos;
   read_end = vio.read_end;
 
+  is_blocking_flag = vio.is_blocking_flag;
+
 #ifdef USE_PPOLL_IN_VIO
   thread_id = vio.thread_id;
   signal_mask = vio.signal_mask;
@@ -174,6 +176,9 @@ Vio &Vio::operator=(Vio &&vio) {
   has_data = vio.has_data;
   io_wait = vio.io_wait;
   connect = vio.connect;
+
+  is_blocking = vio.is_blocking;
+  set_blocking = vio.set_blocking;
 
 #ifdef _WIN32
   overlapped = vio.overlapped;
@@ -228,6 +233,10 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
   vio->localhost = flags & VIO_LOCALHOST;
   vio->type = type;
 
+#ifdef HAVE_SETNS
+  vio->network_namespace[0] = '\0';
+#endif
+
 #ifdef _WIN32
   if (type == VIO_TYPE_NAMEDPIPE) {
     vio->viodelete = vio_delete;
@@ -243,6 +252,9 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->io_wait = no_io_wait;
     vio->is_connected = vio_is_connected_pipe;
     vio->has_data = has_no_data;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->is_blocking_flag = true;
     return false;
   }
   if (type == VIO_TYPE_SHARED_MEMORY) {
@@ -259,6 +271,9 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->io_wait = no_io_wait;
     vio->is_connected = vio_is_connected_shared_memory;
     vio->has_data = has_no_data;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->is_blocking_flag = true;
     return false;
   }
 #endif /* _WIN32 */
@@ -278,6 +293,10 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->is_connected = vio_is_connected;
     vio->has_data = vio_ssl_has_data;
     vio->timeout = vio_socket_timeout;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->set_blocking_flag = vio_set_blocking_flag;
+    vio->is_blocking_flag = true;
     return false;
   }
 #endif /* HAVE_OPENSSL */
@@ -295,6 +314,10 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
   vio->is_connected = vio_is_connected;
   vio->timeout = vio_socket_timeout;
   vio->has_data = vio->read_buffer ? vio_buff_has_data : has_no_data;
+  vio->is_blocking = vio_is_blocking;
+  vio->set_blocking = vio_set_blocking;
+  vio->set_blocking_flag = vio_set_blocking_flag;
+  vio->is_blocking_flag = true;
 
   return false;
 }
@@ -367,8 +390,15 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
       if (vio->inactive == false) vio->vioshutdown(vio);
     }
 #ifdef HAVE_KQUEUE
-    else
+    else {
+      /*
+      Must set the fd to -1, otherwise the destructor would
+      close it again possibly closing socket or file opened
+      by other threads concurrently.
+      */
       close(vio->kq_fd);
+      vio->kq_fd = -1;
+    }
 #endif
     /*
       Overwrite existing Vio structure
@@ -540,15 +570,14 @@ struct vio_string {
   Indexed by enum_vio_type.
   If you add more, please update audit_log.cc
 */
-static const vio_string vio_type_names[] = {
-    {"", 0},
-    {C_STRING_WITH_LEN("TCP/IP")},
-    {C_STRING_WITH_LEN("Socket")},
-    {C_STRING_WITH_LEN("Named Pipe")},
-    {C_STRING_WITH_LEN("SSL/TLS")},
-    {C_STRING_WITH_LEN("Shared Memory")},
-    {C_STRING_WITH_LEN("Internal")},
-    {C_STRING_WITH_LEN("Plugin")}};
+static const vio_string vio_type_names[] = {{"", 0},
+                                            {STRING_WITH_LEN("TCP/IP")},
+                                            {STRING_WITH_LEN("Socket")},
+                                            {STRING_WITH_LEN("Named Pipe")},
+                                            {STRING_WITH_LEN("SSL/TLS")},
+                                            {STRING_WITH_LEN("Shared Memory")},
+                                            {STRING_WITH_LEN("Internal")},
+                                            {STRING_WITH_LEN("Plugin")}};
 
 void get_vio_type_name(enum enum_vio_type vio_type, const char **str,
                        int *len) {

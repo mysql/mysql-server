@@ -57,4 +57,11 @@
   by GCS.
 */
 #define GCS_DEBUG_TRACE_FILE "GCS_DEBUG_TRACE"
+
+/*
+  Version from which group_replication_consistency system variable
+  is supported.
+*/
+#define TRANSACTION_WITH_GUARANTEES_VERSION 0x080014
+
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

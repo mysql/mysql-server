@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/12/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -83,7 +83,7 @@ SUPER
 privilege\&. Format and content of this information is subject to change\&.
 .sp
 This includes information about the Event Scheduler\&. See
-Section\ \&23.4.5, \(lqEvent Scheduler Status\(rq\&.
+Section\ \&24.4.5, \(lqEvent Scheduler Status\(rq\&.
 .RE
 .sp
 .RS 4
@@ -124,7 +124,8 @@ Display the server status variables and their values\&.
 .\}
 flush\-hosts
 .sp
-Flush all information in the host cache\&.
+Flush all information in the host cache\&. See
+Section\ \&8.12.4.2, \(lqDNS Lookup Optimization and the Host Cache\(rq\&.
 .RE
 .sp
 .RS 4
@@ -587,7 +588,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -747,6 +748,9 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -766,6 +770,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -794,6 +801,9 @@ also reads the
 and
 [mysqladmin_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -885,6 +895,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -924,6 +937,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1010,6 +1026,9 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1277,9 +1296,25 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -1387,7 +1422,7 @@ The maximum number of seconds to wait for server shutdown\&. The default value i
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

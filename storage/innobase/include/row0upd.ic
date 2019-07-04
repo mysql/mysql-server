@@ -91,11 +91,11 @@ upd_field_t *upd_get_nth_field(
 /** Sets an index field number to be updated by an update vector field. */
 UNIV_INLINE
 void upd_field_set_field_no(
-    upd_field_t *upd_field, /*!< in: update vector field */
-    ulint field_no,         /*!< in: field number in a clustered
-                            index */
-    dict_index_t *index,    /*!< in: index */
-    trx_t *trx)             /*!< in: transaction */
+    upd_field_t *upd_field,    /*!< in: update vector field */
+    ulint field_no,            /*!< in: field number in a clustered
+                               index */
+    const dict_index_t *index, /*!< in: index */
+    trx_t *trx)                /*!< in: transaction */
 {
   upd_field->field_no = field_no;
   upd_field->orig_len = 0;
@@ -117,7 +117,7 @@ void upd_field_set_field_no(
 @param[in]	index		index */
 UNIV_INLINE
 void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
-                              dict_index_t *index) {
+                              const dict_index_t *index) {
   upd_field->field_no = field_no;
   upd_field->orig_len = 0;
 

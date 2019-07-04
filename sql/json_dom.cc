@@ -106,7 +106,11 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
     Json_object_ptr right_object(down_cast<Json_object *>(right.release()));
     if (left_object->consume(std::move(right_object)))
       return nullptr; /* purecov: inspected */
+#ifdef __SUNPRO_CC
     return std::move(left_object);
+#else
+    return left_object;
+#endif
   }
 
   Json_array_ptr left_array = wrap_in_array(std::move(left));
@@ -114,11 +118,16 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
   if (left_array == nullptr || right_array == nullptr ||
       left_array->consume(std::move(right_array)))
     return nullptr; /* purecov: inspected */
+
+#ifdef __SUNPRO_CC
   return std::move(left_array);
+#else
+  return left_array;
+#endif
 }
 #endif  // ifdef MYSQL_SERVER
 
-void *Json_dom::operator new(size_t size, const std::nothrow_t &) throw() {
+void *Json_dom::operator new(size_t size, const std::nothrow_t &) noexcept {
   /*
     Call my_malloc() with the MY_WME flag to make sure that it will
     write an error message if the memory could not be allocated.
@@ -132,7 +141,7 @@ void *Json_dom::operator new(size_t size, const std::nothrow_t &) throw() {
       size, MYF(MY_WME));
 }
 
-void Json_dom::operator delete(void *ptr) throw() { my_free(ptr); }
+void Json_dom::operator delete(void *ptr) noexcept { my_free(ptr); }
 
 /*
   This operator is included in order to silence warnings on some
@@ -142,7 +151,7 @@ void Json_dom::operator delete(void *ptr) throw() { my_free(ptr); }
   cluttering the test coverage reports.
 */
 /* purecov: begin inspected */
-void Json_dom::operator delete(void *ptr, const std::nothrow_t &)throw() {
+void Json_dom::operator delete(void *ptr, const std::nothrow_t &)noexcept {
   operator delete(ptr);
 }
   /* purecov: end */
@@ -186,7 +195,6 @@ static bool add_if_missing(Json_dom *candidate, Json_dom_vector *duplicates,
   }
   return false;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Check if a seek operation performed by find_child_doms()
@@ -194,12 +202,10 @@ static bool add_if_missing(Json_dom *candidate, Json_dom_vector *duplicates,
 
   @return true if only one result is needed and a result has been found
 */
-#ifdef MYSQL_SERVER
 static inline bool is_seek_done(const Json_dom_vector *hits,
                                 bool only_need_one) {
   return only_need_one && hits->size() > 0;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Find the child Json_dom objects identified by the given path.
@@ -223,7 +229,6 @@ static inline bool is_seek_done(const Json_dom_vector *hits,
   @param[in,out] result the vector of qualifying children
   @return false on success, true on error
 */
-#ifdef MYSQL_SERVER
 static bool find_child_doms(Json_dom *dom,
                             const Json_path_iterator &current_leg,
                             const Json_path_iterator &last_leg, bool auto_wrap,
@@ -719,7 +724,6 @@ Json_dom_ptr Json_dom::parse(const THD *thd, const json_binary::Value &v) {
     return nullptr; /* purecov: inspected */
   return dom;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /// Get string data as std::string from a json_binary::Value.
 static std::string get_string_data(const json_binary::Value &v) {
@@ -740,7 +744,6 @@ static std::string get_string_data(const json_binary::Value &v) {
   @return a DOM template for the top-level the binary value, or NULL
   if an error is detected.
 */
-#ifdef MYSQL_SERVER
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
   switch (v.type()) {
     case json_binary::Value::OBJECT:
@@ -958,16 +961,27 @@ bool Json_object::consume(Json_object_ptr other) {
   return false;
 }
 
-Json_dom *Json_object::get(const std::string &key) const {
-  const Json_object_map::const_iterator iter = m_map.find(key);
+template <typename Key>
+static Json_dom *json_object_get(const Json_dom *object MY_ATTRIBUTE((unused)),
+                                 const Json_object_map &map, const Key &key) {
+  const Json_object_map::const_iterator iter = map.find(key);
 
-  if (iter != m_map.end()) {
-    DBUG_ASSERT(iter->second->parent() == this);
+  if (iter != map.end()) {
+    DBUG_ASSERT(iter->second->parent() == object);
     return iter->second.get();
   }
 
   return nullptr;
 }
+
+Json_dom *Json_object::get(const std::string &key) const {
+  return json_object_get(this, m_map, key);
+}
+
+Json_dom *Json_object::get(const MYSQL_LEX_CSTRING &key) const {
+  return json_object_get(this, m_map, key);
+}
+
 #endif  // ifdef MYSQL_SERVER
 
 bool Json_object::remove(const std::string &key) {
@@ -1001,7 +1015,11 @@ Json_dom_ptr Json_object::clone() const {
       return nullptr; /* purecov: inspected */
   }
 
+#ifdef __SUNPRO_CC
   return std::move(o);
+#else
+  return o;
+#endif
 }
 
 bool Json_object::merge_patch(Json_object_ptr patch) {
@@ -1058,14 +1076,30 @@ bool Json_object::merge_patch(Json_object_ptr patch) {
   Otherwise, key1 is not less than key2.
 
   @param key1 the first key to compare
+  @param length1 the length of the first key
   @param key2 the second key to compare
+  @param length2 the length of the second key
   @return true if key1 is considered less than key2, false otherwise
 */
+static bool json_key_less(const char *key1, size_t length1, const char *key2,
+                          size_t length2) {
+  if (length1 != length2) return length1 < length2;
+  return memcmp(key1, key2, length1) < 0;
+}
+
 bool Json_key_comparator::operator()(const std::string &key1,
                                      const std::string &key2) const {
-  if (key1.length() != key2.length()) return key1.length() < key2.length();
+  return json_key_less(key1.data(), key1.length(), key2.data(), key2.length());
+}
 
-  return memcmp(key1.data(), key2.data(), key1.length()) < 0;
+bool Json_key_comparator::operator()(const MYSQL_LEX_CSTRING &key1,
+                                     const std::string &key2) const {
+  return json_key_less(key1.str, key1.length, key2.data(), key2.length());
+}
+
+bool Json_key_comparator::operator()(const std::string &key1,
+                                     const MYSQL_LEX_CSTRING &key2) const {
+  return json_key_less(key1.data(), key1.length(), key2.str, key2.length);
 }
 
 Json_array::Json_array()
@@ -1131,7 +1165,23 @@ Json_dom_ptr Json_array::clone() const {
     if (vv->append_clone(child.get())) return nullptr; /* purecov: inspected */
   }
 
+#ifdef __SUNPRO_CC
   return std::move(vv);
+#else
+  return vv;
+#endif
+}
+
+/**
+  Reserve space in a string buffer. If reallocation is needed,
+  increase the size of the buffer exponentially.
+
+  @param buffer the string buffer
+  @param needed the number of bytes needed
+  @return true on error, false on success
+*/
+static bool reserve(String *buffer, size_t needed) {
+  return buffer->reserve(needed, buffer->length());
 }
 
 /**
@@ -1207,7 +1257,7 @@ static bool escape_character(char c, String *buf) {
   @retval true on error
 */
 bool double_quote(const char *cptr, size_t length, String *buf) {
-  if (buf->reserve(length + 2, buf->length()) || buf->append('"'))
+  if (reserve(buf, length + 2) || buf->append('"'))
     return true; /* purecov: inspected */
 
   const char *const end = cptr + length;
@@ -1311,7 +1361,7 @@ Json_dom_ptr Json_datetime::clone() const {
 
 #ifdef MYSQL_SERVER
 void Json_datetime::to_packed(char *dest) const {
-  longlong packed = TIME_to_longlong_packed(&m_t);
+  longlong packed = TIME_to_longlong_packed(m_t);
   int8store(dest, packed);
 }
 #endif  // ifdef MYSQL_SERVER
@@ -1326,41 +1376,36 @@ Json_dom_ptr Json_opaque::clone() const {
 }
 
 Json_wrapper_object_iterator::Json_wrapper_object_iterator(
-    const Json_object *obj)
-    : m_is_dom(true),
-      m_iter(obj->begin()),
-      m_end(obj->end()),
-      m_element_count(-1) {}
-
-Json_wrapper_object_iterator::Json_wrapper_object_iterator(
-    const json_binary::Value *value)
-    : m_is_dom(false), m_element_count(value->element_count()), m_value(value) {
-  m_curr_element = 0;
-}
-
-bool Json_wrapper_object_iterator::empty() const {
-  return m_is_dom ? (m_iter == m_end) : (m_curr_element >= m_element_count);
-}
-
-void Json_wrapper_object_iterator::next() {
-  if (m_is_dom) {
-    m_iter++;
+    const Json_wrapper &wrapper, bool begin) {
+  DBUG_ASSERT(wrapper.type() == enum_json_type::J_OBJECT);
+  if (wrapper.is_dom()) {
+    m_binary_value = nullptr;
+    auto object = down_cast<const Json_object *>(wrapper.get_dom());
+    m_iter = begin ? object->begin() : object->end();
   } else {
-    ++m_curr_element;
+    m_binary_value = &wrapper.get_binary_value();
+    m_current_element_index = begin ? 0 : m_binary_value->element_count();
   }
 }
 
-std::pair<const std::string, Json_wrapper> Json_wrapper_object_iterator::elt()
-    const {
-  if (m_is_dom) {
-    Json_wrapper wr(m_iter->second.get());
+void Json_wrapper_object_iterator::initialize_current_member() {
+  if (is_dom()) {
+    m_current_member.first = {m_iter->first.c_str(), m_iter->first.length()};
+    // The previous member is either empty or an alias, so there is nothing that
+    // needs destruction. Just construct a new wrapper in its place.
+    new (&m_current_member.second) Json_wrapper(m_iter->second.get());
     // DOM possibly owned by object and we don't want to make a clone
-    wr.set_alias();
-    return std::make_pair(m_iter->first, wr);
+    m_current_member.second.set_alias();
+  } else {
+    DBUG_ASSERT(m_current_element_index < m_binary_value->element_count());
+    json_binary::Value key = m_binary_value->key(m_current_element_index);
+    m_current_member.first = {key.get_data(), key.get_data_length()};
+    // There is no DOM to destruct in the previous member when iterating over a
+    // binary value, so just construct a new wrapper in its place.
+    new (&m_current_member.second)
+        Json_wrapper(m_binary_value->element(m_current_element_index));
   }
-
-  return std::make_pair(get_string_data(m_value->key(m_curr_element)),
-                        Json_wrapper(m_value->element(m_curr_element)));
+  m_current_member_initialized = true;
 }
 
 Json_wrapper::Json_wrapper(Json_dom *dom_value)
@@ -1403,12 +1448,12 @@ Json_wrapper::~Json_wrapper() {
   }
 }
 
+#ifdef MYSQL_SERVER
 /**
   Common implementation of move-assignment and copy-assignment for
   Json_wrapper. If @a from is an rvalue, its contents are moved into
   @a to, otherwise the contents are copied over.
 */
-#ifdef MYSQL_SERVER
 template <typename T>
 static Json_wrapper &assign_json_wrapper(T &&from, Json_wrapper *to) {
   if (&from == to) {
@@ -1508,6 +1553,20 @@ static bool newline_and_indent(String *buffer, size_t level) {
 }
 
 /**
+  Append a comma to separate elements in JSON arrays and objects.
+
+  @param buffer the string buffer
+  @param pretty true if pretty printing is enabled
+  @return true on error, false on success
+*/
+static bool append_comma(String *buffer, bool pretty) {
+  // Append a comma followed by a blank space. If pretty printing is
+  // enabled, a newline will be added in front of the next element, so
+  // the blank space can be omitted.
+  return buffer->append(',') || (!pretty && buffer->append(' '));
+}
+
+/**
   Helper function which does all the heavy lifting for
   Json_wrapper::to_string(). It processes the Json_wrapper
   recursively. The depth parameter keeps track of the current nesting
@@ -1533,14 +1592,14 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_TIMESTAMP: {
       // Make sure the buffer has space for the datetime and the quotes.
-      if (buffer->reserve(MAX_DATE_STRING_REP_LENGTH + 2))
+      if (reserve(buffer, MAX_DATE_STRING_REP_LENGTH + 2))
         return true; /* purecov: inspected */
       MYSQL_TIME t;
       wr.get_datetime(&t);
       if (single_quote(buffer, json_quoted))
         return true; /* purecov: inspected */
       char *ptr = const_cast<char *>(buffer->ptr()) + buffer->length();
-      const int size = my_TIME_to_str(&t, ptr, 6);
+      const int size = my_TIME_to_str(t, ptr, 6);
       buffer->length(buffer->length() + size);
       if (single_quote(buffer, json_quoted))
         return true; /* purecov: inspected */
@@ -1553,7 +1612,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 
       size_t array_len = wr.length();
       for (uint32 i = 0; i < array_len; ++i) {
-        if (i > 0 && buffer->append(pretty ? "," : ", "))
+        if (i > 0 && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
 
         if (pretty && newline_and_indent(buffer, depth))
@@ -1571,12 +1630,13 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_BOOLEAN:
-      if (buffer->append(wr.get_boolean() ? "true" : "false"))
+      if (wr.get_boolean() ? buffer->append(STRING_WITH_LEN("true"))
+                           : buffer->append(STRING_WITH_LEN("false")))
         return true; /* purecov: inspected */
       break;
     case enum_json_type::J_DECIMAL: {
       int length = DECIMAL_MAX_STR_LENGTH + 1;
-      if (buffer->reserve(length)) return true; /* purecov: inspected */
+      if (reserve(buffer, length)) return true;
       char *ptr = const_cast<char *>(buffer->ptr()) + buffer->length();
       my_decimal m;
       if (wr.get_decimal_data(&m) || decimal2string(&m, ptr, &length, 0, 0, 0))
@@ -1585,7 +1645,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_DOUBLE: {
-      if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
+      if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true; /* purecov: inspected */
       double d = wr.get_double();
       const char *start = buffer->ptr() + buffer->length();
@@ -1602,7 +1662,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       */
       if (std::none_of(start, start + len,
                        [](char c) { return c == '.' || c == 'e'; }) &&
-          buffer->append(STRING_WITH_LEN(".0")))
+          (buffer->append('.') || buffer->append('0')))
         return true; /* purecov: inspected */
       break;
     }
@@ -1612,7 +1672,8 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_NULL:
-      if (buffer->append("null")) return true; /* purecov: inspected */
+      if (buffer->append(STRING_WITH_LEN("null")))
+        return true; /* purecov: inspected */
       break;
     case enum_json_type::J_OBJECT: {
       if (check_json_depth(++depth)) return true;
@@ -1620,9 +1681,8 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (buffer->append('{')) return true; /* purecov: inspected */
 
       bool first = true;
-      for (Json_wrapper_object_iterator iter = wr.object_iterator();
-           !iter.empty(); iter.next()) {
-        if (!first && buffer->append(pretty ? "," : ", "))
+      for (const auto &iter : Json_object_wrapper(wr)) {
+        if (!first && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
 
         first = false;
@@ -1630,13 +1690,11 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         if (pretty && newline_and_indent(buffer, depth))
           return true; /* purecov: inspected */
 
-        const std::string &key = iter.elt().first;
-        const char *key_data = key.c_str();
-        size_t key_length = key.length();
-        if (print_string(buffer, true, key_data, key_length) ||
-            buffer->append(": ") ||
-            wrapper_to_string(iter.elt().second, buffer, true, pretty,
-                              func_name, depth))
+        const MYSQL_LEX_CSTRING &key = iter.first;
+        if (print_string(buffer, true, key.str, key.length) ||
+            buffer->append(':') || buffer->append(' ') ||
+            wrapper_to_string(iter.second, buffer, true, pretty, func_name,
+                              depth))
           return true; /* purecov: inspected */
       }
 
@@ -1650,7 +1708,6 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     case enum_json_type::J_OPAQUE: {
       if (wr.get_data_length() > base64_encode_max_arg_length()) {
         /* purecov: begin inspected */
-        buffer->append("\"<data too long to decode - unexpected error>\"");
         my_error(ER_INTERNAL_ERROR, MYF(0),
                  "JSON: could not decode opaque data");
         return true;
@@ -1662,7 +1719,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 
       // base64:typeXX:<binary data>
       StringBuffer<STRING_BUFFER_USUAL_SIZE> base64_buffer;
-      if (base64_buffer.append("base64:type") ||
+      if (base64_buffer.append(STRING_WITH_LEN("base64:type")) ||
           base64_buffer.append_ulonglong(wr.field_type()) ||
           base64_buffer.append(':') || base64_buffer.reserve(needed) ||
           base64_encode(wr.get_data(), wr.get_data_length(),
@@ -1783,19 +1840,8 @@ enum_field_types Json_wrapper::field_type() const {
   return m_value.field_type();
 }
 
-Json_wrapper_object_iterator Json_wrapper::object_iterator() const {
-  DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
-
-  if (m_is_dom) {
-    const Json_object *o = down_cast<const Json_object *>(m_dom_value);
-    return Json_wrapper_object_iterator(o);
-  }
-
-  return Json_wrapper_object_iterator(&m_value);
-}
-
 #ifdef MYSQL_SERVER
-Json_wrapper Json_wrapper::lookup(const std::string &key) const {
+Json_wrapper Json_wrapper::lookup(const MYSQL_LEX_CSTRING &key) const {
   DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
   if (m_is_dom) {
     const Json_object *object = down_cast<const Json_object *>(m_dom_value);
@@ -1804,7 +1850,7 @@ Json_wrapper Json_wrapper::lookup(const std::string &key) const {
     return wr;
   }
 
-  return Json_wrapper(m_value.lookup(key));
+  return Json_wrapper(m_value.lookup(key.str, key.length));
 }
 #endif  // ifdef MYSQL_SERVER
 
@@ -1875,27 +1921,10 @@ ulonglong Json_wrapper::get_uint() const {
 }
 
 void Json_wrapper::get_datetime(MYSQL_TIME *t) const {
-  enum_field_types ftyp = MYSQL_TYPE_NULL;
-
-  switch (type()) {
-    case enum_json_type::J_DATE:
-      ftyp = MYSQL_TYPE_DATE;
-      break;
-    case enum_json_type::J_DATETIME:
-    case enum_json_type::J_TIMESTAMP:
-      ftyp = MYSQL_TYPE_DATETIME;
-      break;
-    case enum_json_type::J_TIME:
-      ftyp = MYSQL_TYPE_TIME;
-      break;
-    default:
-      DBUG_ASSERT(false); /* purecov: inspected */
-  }
-
   if (m_is_dom) {
     *t = *down_cast<Json_datetime *>(m_dom_value)->value();
   } else {
-    Json_datetime::from_packed(m_value.get_data(), ftyp, t);
+    Json_datetime::from_packed(m_value.get_data(), m_value.field_type(), t);
   }
 }
 
@@ -2252,6 +2281,7 @@ static int compare_numbers(T val1, T val2) {
   return (val1 < val2) ? -1 : ((val1 == val2) ? 0 : 1);
 }
 
+#ifdef MYSQL_SERVER
 /**
   Compare a decimal value to a double by converting the double to a
   decimal.
@@ -2261,7 +2291,6 @@ static int compare_numbers(T val1, T val2) {
           0 if a is equal to b,
           1 if a is greater than b
 */
-#ifdef MYSQL_SERVER
 static int compare_json_decimal_double(const my_decimal &a, double b) {
   /*
     First check the sign of the two values. If they differ, the
@@ -2537,27 +2566,26 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
           Otherwise, compare each key/value pair in the two objects.
           Return on the first difference that is found.
         */
-        Json_wrapper_object_iterator it1 = object_iterator();
-        Json_wrapper_object_iterator it2 = other.object_iterator();
-        while (!it1.empty()) {
-          const std::pair<const std::string, Json_wrapper> elt1 = it1.elt();
-          const std::pair<const std::string, Json_wrapper> elt2 = it2.elt();
+        Json_object_wrapper this_object(*this);
+        Json_object_wrapper other_object(other);
+        Json_object_wrapper::const_iterator it1 = this_object.begin();
+        Json_object_wrapper::const_iterator it2 = other_object.begin();
+        for (; it1 != this_object.end(); ++it1, ++it2) {
+          const MYSQL_LEX_CSTRING &key1 = it1->first;
+          const MYSQL_LEX_CSTRING &key2 = it2->first;
 
           // Compare the keys of the two members.
-          cmp = compare_json_strings(elt1.first.data(), elt1.first.size(),
-                                     elt2.first.data(), elt2.first.size());
+          cmp = compare_json_strings(key1.str, key1.length, key2.str,
+                                     key2.length);
           if (cmp != 0) return cmp;
 
           // Compare the values of the two members.
-          cmp = elt1.second.compare(elt2.second);
+          cmp = it1->second.compare(it2->second);
           if (cmp != 0) return cmp;
-
-          it1.next();
-          it2.next();
         }
 
-        DBUG_ASSERT(it1.empty());
-        DBUG_ASSERT(it2.empty());
+        DBUG_ASSERT(it1 == this_object.end());
+        DBUG_ASSERT(it2 == other_object.end());
 
         // No differences found. The two objects must be equal.
         return 0;
@@ -2655,8 +2683,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
         get_datetime(&val_a);
         MYSQL_TIME val_b;
         other.get_datetime(&val_b);
-        return compare_numbers(TIME_to_longlong_packed(&val_a),
-                               TIME_to_longlong_packed(&val_b));
+        return compare_numbers(TIME_to_longlong_packed(val_a),
+                               TIME_to_longlong_packed(val_b));
       }
     case enum_json_type::J_TIME:
     case enum_json_type::J_DATE:
@@ -2667,8 +2695,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
         get_datetime(&val_a);
         MYSQL_TIME val_b;
         other.get_datetime(&val_b);
-        return compare_numbers(TIME_to_longlong_packed(&val_a),
-                               TIME_to_longlong_packed(&val_b));
+        return compare_numbers(TIME_to_longlong_packed(val_a),
+                               TIME_to_longlong_packed(val_b));
       }
     case enum_json_type::J_OPAQUE:
       /*
@@ -2740,7 +2768,7 @@ longlong Json_wrapper::coerce_int(const char *msgnam, bool *err,
       */
       const char *start = get_data();
       size_t length = get_data_length();
-      char *end = const_cast<char *>(start + length);
+      const char *end = start + length;
       const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
 
       int error;
@@ -2815,7 +2843,7 @@ double Json_wrapper::coerce_real(const char *msgnam, bool *err,
       */
       const char *start = get_data();
       size_t length = get_data_length();
-      char *end = const_cast<char *>(start) + length;
+      const char *end = start + length;
       const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
 
       int error;
@@ -3345,7 +3373,7 @@ size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const {
   return key.pos();
 }
 
-ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) {
+ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) const {
   Wrapper_hash_key hash_key(hash_val);
   switch (type()) {
     case enum_json_type::J_NULL:
@@ -3374,12 +3402,11 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) {
       break;
     case enum_json_type::J_OBJECT: {
       hash_key.add_character(JSON_KEY_OBJECT);
-      for (Json_wrapper_object_iterator it(object_iterator()); !it.empty();
-           it.next()) {
-        std::pair<const std::string, Json_wrapper> pair = it.elt();
-        hash_key.add_string(pair.first.c_str(), pair.first.length());
+      for (const auto &it : Json_object_wrapper(*this)) {
+        const MYSQL_LEX_CSTRING &key = it.first;
+        hash_key.add_string(key.str, key.length);
         ulonglong t = hash_key.get_crc();
-        hash_key.add_integer(pair.second.make_hash_key(&t));
+        hash_key.add_integer(it.second.make_hash_key(&t));
       }
       break;
     }

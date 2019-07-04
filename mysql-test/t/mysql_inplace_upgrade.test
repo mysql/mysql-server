@@ -1,0 +1,109 @@
+--source include/no_valgrind_without_big.inc
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+--echo ###########################################################################
+--echo # Test check and repair
+--echo ###########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_upgrade_test_1.log
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 (a INT) ENGINE=MYISAM;
+--remove_file $MYSQLD_DATADIR/db1/t1.MYI
+--write_file $MYSQLD_DATADIR/db1/t1.MYI
+EOF
+
+--replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD MYSQLD
+--let $restart_parameters = restart: --upgrade=FORCE --debug="+d,force_fix_user_schemas" --log-error=$MYSQLD_LOG
+--let $wait_counter=10000
+--source include/restart_mysqld.inc
+
+--let SEARCH_FILE= $MYSQLD_LOG
+
+--let SEARCH_PATTERN= Table 'db1.t1' requires repair.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Table 'db1.t1' repair failed.
+--source include/search_pattern.inc
+
+--remove_file $MYSQLD_LOG
+
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+--let $restart_parameters = restart:
+--remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+
+--echo ###########################################################################
+--echo # Stop the default mtr server
+--echo ###########################################################################
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 300
+--source include/wait_until_disconnected.inc
+
+--echo ###########################################################################
+--echo # Setup 8.0 data dir
+--echo ###########################################################################
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data_80011
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80011.zip $MYSQL_TMP_DIR/data_80011.zip
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_80011.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data_80011.zip -d $MYSQL_TMP_DIR
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_upgrade_test.log
+--replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD MYSQLD
+
+--echo ###########################################################################
+--echo # Abort server startup if upgrade is pending
+--echo ###########################################################################
+
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --upgrade=MINIMAL --log-error=$MYSQLD_LOG --debug="+d,simulate_mysql_upgrade_skip_pending"
+
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Server upgrade started with version \\d+, but server upgrade of version \\d+ is still pending\.
+--source include/search_pattern.inc
+--remove_file $MYSQLD_LOG
+
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --debug="+d,simulate_mysql_upgrade_skip_pending"
+
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Server upgrade started with version \\d+, but server upgrade of version \\d+ is still pending\.
+--source include/search_pattern.inc
+--remove_file $MYSQLD_LOG
+
+--echo ###########################################################################
+--echo # Test default upgrade option
+--echo ###########################################################################
+
+--let HELP_OUTPUT= $MYSQLTEST_VARDIR/log/mysql_upgrade_help.log
+--error 1
+--exec $MYSQLD --upgrade --help --verbose > $HELP_OUTPUT 2>&1
+--let SEARCH_FILE= $HELP_OUTPUT
+--let SEARCH_PATTERN= upgrade\\s+AUTO
+--source include/search_pattern.inc
+--let SEARCH_PATTERN = option \'--upgrade\' requires an argument\.
+--source include/search_pattern.inc
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/data_80011.zip
+
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+--source include/force_restart.inc

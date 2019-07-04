@@ -70,7 +70,7 @@ drop PROCEDURE populate_t1;
 drop PROCEDURE populate_t2;
 #
 SET GLOBAL innodb_fast_shutdown=0;
---let $shutdown_server_timeout= 180
+--let $shutdown_server_timeout=180
 --source include/restart_mysqld.inc
 
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;

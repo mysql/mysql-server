@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,8 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
         ADD_EVENTS(add_synode_event(pma->synode););
 
         xcom_receive_data(pma->synode, detector_node_set(site),
-                          app->body.app_u_u.data.data_len, copy);
+                          app->body.app_u_u.data.data_len,
+                          cache_get_last_removed(), copy);
       } else {
         G_TRACE("Data message was not delivered.");
       }

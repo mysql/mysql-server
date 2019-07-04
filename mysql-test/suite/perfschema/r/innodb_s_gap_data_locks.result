@@ -16,6 +16,7 @@ order by object_name, lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
 test	t1_s_gap	RECORD	S,GAP	GRANTED	30
 test	t1_s_gap	TABLE	IS	GRANTED	NULL
+test	t2_s_gap	RECORD	X	GRANTED	supremum pseudo-record
 test	t2_s_gap	TABLE	IX	GRANTED	NULL
 start transaction;
 insert into t1_s_gap values (25);
@@ -29,6 +30,7 @@ test	t1_s_gap	RECORD	S,GAP	GRANTED	30
 test	t1_s_gap	RECORD	X,GAP,INSERT_INTENTION	WAITING	30
 test	t1_s_gap	TABLE	IS	GRANTED	NULL
 test	t1_s_gap	TABLE	IX	GRANTED	NULL
+test	t2_s_gap	RECORD	X	GRANTED	supremum pseudo-record
 test	t2_s_gap	TABLE	IX	GRANTED	NULL
 commit;
 commit;

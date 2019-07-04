@@ -69,7 +69,7 @@ INSERT INTO t1 VALUES(1);
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%waiting on another member step%"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= stage/group_rpl/Multi-primary Switch: waiting on another member step completion
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting on another member step completion"
 --source include/assert.inc

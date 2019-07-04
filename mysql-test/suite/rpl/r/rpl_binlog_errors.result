@@ -14,9 +14,9 @@ RESET MASTER;
 FLUSH LOGS;
 # assert: must show two binlogs
 show binary logs;
-Log_name	File_size
-master-bin.000001	#
-master-bin.000002	#
+Log_name	File_size	Encrypted
+master-bin.000001	#	#
+master-bin.000002	#	#
 ###################### TEST #2
 RESET MASTER;
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
@@ -36,9 +36,9 @@ RESET MASTER;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug_46166.data' INTO TABLE t2;
 # assert: must show three binlog
 show binary logs;
-Log_name	File_size
-master-bin.000001	#
-master-bin.000002	#
+Log_name	File_size	Encrypted
+master-bin.000001	#	#
+master-bin.000002	#	#
 DELETE FROM t2;
 RESET MASTER;
 ###################### TEST #4
@@ -144,7 +144,7 @@ include/rpl_restart_server.inc [server_number=1]
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @xxx = REPEAT('xxx', 1000);
 SET @yyy = REPEAT('yyy', 1000);
-DELETE FROM t4 WHERE a IN (@xxx, @yyy) OR 1;
+DELETE FROM t4 WHERE a IN (@xxx, @yyy) or a != '1';
 ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
 
 include/rpl_restart_server.inc [server_number=1]
@@ -152,7 +152,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 set @aaa = repeat('aaa',1000);
 set @bbb = repeat('bbb',1000);
 set @ccc = repeat('ccc',1000);
-DELETE FROM t2 WHERE a IN (@aaa, @bbb, @ccc) OR 1;
+DELETE FROM t2 WHERE a IN (@aaa, @bbb, @ccc) or a <> '1';
 ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
 
 # INFO: Count(*) After Offending DELETEs

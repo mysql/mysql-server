@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -172,7 +172,7 @@ void rec_set_instant_flag_new(rec_t *rec, bool flag);
 /** The following function tells if a new-style record is a node pointer.
  @return true if node pointer */
 UNIV_INLINE
-ibool rec_get_node_ptr_flag(const rec_t *rec) /*!< in: physical record */
+bool rec_get_node_ptr_flag(const rec_t *rec) /*!< in: physical record */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** The following function is used to get the order number of an old-style
@@ -532,7 +532,8 @@ rec_t *rec_copy_prefix_to_buf(
     byte **buf,                /*!< in/out: memory buffer
                                for the copied prefix,
                                or NULL */
-    ulint *buf_size);          /*!< in/out: buffer size */
+    size_t *buf_size           /*!< in/out: buffer size */
+);
 /** Compute a hash value of a prefix of a leaf page record.
 @param[in]	rec		leaf page record
 @param[in]	offsets		rec_get_offsets(rec)
@@ -590,9 +591,9 @@ ulint rec_get_converted_size_comp(
  @return size */
 UNIV_INLINE
 ulint rec_get_converted_size(
-    dict_index_t *index,    /*!< in: record descriptor */
-    const dtuple_t *dtuple, /*!< in: data tuple */
-    ulint n_ext)            /*!< in: number of externally stored columns */
+    const dict_index_t *index, /*!< in: record descriptor */
+    const dtuple_t *dtuple,    /*!< in: data tuple */
+    ulint n_ext)               /*!< in: number of externally stored columns */
     MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /** Copies the first n fields of a physical record to a data tuple.

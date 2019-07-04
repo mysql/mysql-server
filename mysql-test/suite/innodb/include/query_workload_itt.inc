@@ -162,7 +162,7 @@ select b, count(a), sum(a), avg(a), std(a), min(a),
 #
 # choose innodb to create tmp table
 --disable_warnings
-select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_mem_storage_engine';
 --enable_warnings
 
 #

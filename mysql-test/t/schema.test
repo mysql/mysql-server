@@ -710,7 +710,7 @@ DROP SCHEMA broken;
 
 --echo # but drop succeeds (with warning) when adding IF EXISTS
 --echo # Suppress output since it is not stable across platforms
---disable_warnings ONCE
+--disable_warnings ER_SCHEMA_DIR_MISSING ONCE
 DROP SCHEMA IF EXISTS broken;
 
 --echo # Create and drop schema again to make sure nothing is left behind

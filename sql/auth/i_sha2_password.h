@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -71,9 +71,11 @@ const size_t DEFAULT_STORED_DIGEST_ROUNDS = ROUNDS_DEFAULT;
 const size_t MAX_STORED_DIGEST_ROUNDS = ROUNDS_MAX;
 /* Maximum password length */
 const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH = MAX_PLAINTEXT_LENGTH;
+/* Maximum supported passwords */
+const unsigned int MAX_PASSWORDS = 2;
 
 typedef struct sha2_cache_entry {
-  unsigned char digest_buffer[CACHING_SHA2_DIGEST_LENGTH];
+  unsigned char digest_buffer[MAX_PASSWORDS][CACHING_SHA2_DIGEST_LENGTH];
 } sha2_cache_entry;
 
 /**
@@ -114,13 +116,14 @@ class Caching_sha2_password {
       unsigned int fast_digest_rounds = DEFAULT_FAST_DIGEST_ROUNDS,
       Digest_info digest_type = Digest_info::SHA256_DIGEST);
   ~Caching_sha2_password();
-  bool authenticate(const std::string &authorization_id,
-                    const std::string &serialized_string,
-                    const std::string &plaintext_password);
-  bool fast_authenticate(const std::string &authorization_id,
-                         const unsigned char *random,
-                         unsigned int random_length,
-                         const unsigned char *scramble);
+  std::pair<bool, bool> authenticate(const std::string &authorization_id,
+                                     const std::string *serialized_string,
+                                     const std::string &plaintext_password);
+  std::pair<bool, bool> fast_authenticate(const std::string &authorization_id,
+                                          const unsigned char *random,
+                                          unsigned int random_length,
+                                          const unsigned char *scramble,
+                                          bool check_second);
   void remove_cached_entry(const std::string authorization_id);
   bool deserialize(const std::string &serialized_string,
                    Digest_info &digest_type, std::string &salt,
@@ -129,7 +132,7 @@ class Caching_sha2_password {
                  const std::string &salt, const std::string &digest,
                  size_t iterations);
   bool generate_fast_digest(const std::string &plaintext_password,
-                            sha2_cache_entry &digest);
+                            sha2_cache_entry &digest, unsigned int loc);
   bool generate_sha2_multi_hash(const std::string &src,
                                 const std::string &random, std::string *digest,
                                 unsigned int iterations);

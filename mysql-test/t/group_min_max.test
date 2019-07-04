@@ -175,6 +175,7 @@ analyze table t3;
 
 # plans
 explain select a1, min(a2) from t1 group by a1;
+explain format=tree select a1, min(a2) from t1 group by a1;  # Also tests printing of PrecomputedAggregateIterator.
 explain select a1, max(a2) from t1 group by a1;
 explain select a1, min(a2), max(a2) from t1 group by a1;
 explain select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
@@ -473,6 +474,7 @@ select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') grou
 
 # plans
 explain select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 explain select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;

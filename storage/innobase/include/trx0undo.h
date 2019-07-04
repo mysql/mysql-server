@@ -283,9 +283,9 @@ class Truncate;
 }  // namespace undo
 
 /** Truncate UNDO tablespace, reinitialize header and rseg.
-@param[in]	undo_trunc	UNDO tablespace handler
+@param[in]  marked_space  UNDO tablespace to truncate
 @return true if success else false. */
-bool trx_undo_truncate_tablespace(undo::Truncate *undo_trunc);
+bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space);
 
 #endif /* !UNIV_HOTBACKUP */
 /** Parses the redo log entry of an undo log page initialization.

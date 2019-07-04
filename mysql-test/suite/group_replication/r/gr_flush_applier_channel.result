@@ -14,19 +14,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Try flush applier channel with Group Replication working.
 #
 FLUSH RELAY LOGS FOR CHANNEL "group_replication_applier";
-ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
 #
-# There are still only two relay logs of Group Replication
-# applier channel after trying to flush it.
+# There is a new relay log of Group Replication applier channel after
+# trying to flush it.
 #
 #
 # Try flush applier channel with Group Replication stopped.
 #
 include/stop_group_replication.inc
-FLUSH RELAY LOGS FOR CHANNEL "group_replication_applier";
-ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
+FLUSH LOCAL RELAY LOGS FOR CHANNEL "group_replication_applier";
 #
-# There are still only two relay logs of Group Replication
-# applier channel after trying to flush it.
+# There is a new relay log of Group Replication applier channel after
+# trying to flush it.
 #
 include/group_replication_end.inc

@@ -5,7 +5,8 @@
 # BUG#11762867
 # - show that system started with InitialLogFileGroup automatically allocated
 #   extra reserved memory for use by the undo buffer
-select reserved, (used>reserved) from ndbinfo.resources
+set @undo_buffer_pages = 20 * 32; # 20M / 32k pages
+select (reserved > @undo_buffer_pages), (used>reserved) from ndbinfo.resources
   where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
 
@@ -27,5 +28,8 @@ insert into t1 values
 drop table t1;
 alter tablespace ts1 drop datafile 'data1.dat';
 drop tablespace ts1;
-drop logfile group initial_lg1 engine = ndb;
 
+# NOTE: Logfile group initial_lg1 is not dropped here since doing so leads
+#       to check-testcase complaining about the removal of undofile1.log
+#       and undofile2.log. These files are detected at the start due to
+#       the creation of the initial logfile group

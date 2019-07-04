@@ -1,0 +1,222 @@
+# This test upgrades schema from 5.7, 8.0 to 8.0.15 where we
+# introduce serveral ENCRYPTION control capabilities in MySQL
+# (WL#12261). Specifically this test upgrades from,
+#
+#   a) 5.7.25 where, we support file-per-tablespace
+#      encryption and not general tablespace encryption. We upgrade from
+#      FRM to DD.
+#   b) 8.0.12 where, we support file-per-tablespace
+#      encryption and not general tablespace encryption. We upgrade from
+#      DD to DD.
+#   c) 8.0.13 where, we support file-per-tablespace
+#      encryption and general tablespace encryption. We upgrade from
+#      DD to DD.
+#
+# The schema used is during upgrade is as described in
+# upgrade_schema.test placed in respective *.zip file. The expectation
+# is that the encryption clause for tables and tablespaces are
+# stored as designed by wl12261 after the upgrade is completed.. The
+# results are verified by querying the mysql.tables.options and
+# mysql.tablespaces.options.
+########################################################################
+# Stop the running server.
+########################################################################
+########################################################################
+# Unzip a 5.7.25 datadir with bug data, start the server against it
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Restart the server against the unzipped datadir.
+########################################################################
+SET DEBUG='+d,skip_dd_table_access_check';
+SELECT schema_id, t.name, t.options, t.tablespace_id
+FROM mysql.tables t JOIN mysql.schemata sch
+ON t.schema_id = sch.id WHERE sch.name LIKE 'db1' ORDER BY t.name;
+schema_id	name	options	tablespace_id
+3	c1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	c2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	c3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	h1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	h2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	h3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	i1	avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	i2	avg_row_length=0;encrypt_type=y;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	i3	avg_row_length=0;encrypt_type=n;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	i4	avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+3	i_part1	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+3	i_part2	avg_row_length=0;encrypt_type=y;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+3	i_part3	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+3	i_part4	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+3	i_ts1	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
+3	i_ts2	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
+3	i_ts3	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
+SELECT id, name, options FROM mysql.tablespaces
+WHERE name LIKE 'ts%' OR name LIKE '%db1%';
+id	name	options
+26	ts0	encryption=N;
+27	ts1	encryption=N;
+28	db1/i1	encryption=N;
+29	db1/i2	encryption=Y;
+30	db1/i3	encryption=N;
+31	db1/i4	encryption=N;
+32	db1/i_part1#P#p0	encryption=N;
+33	db1/i_part1#P#p1	encryption=N;
+34	db1/i_part1#P#p2	encryption=N;
+35	db1/i_part2#P#p0	encryption=Y;
+36	db1/i_part2#P#p1	encryption=Y;
+37	db1/i_part2#P#p2	encryption=Y;
+38	db1/i_part3#P#p0	encryption=N;
+39	db1/i_part3#P#p1	encryption=N;
+40	db1/i_part3#P#p2	encryption=N;
+41	db1/i_part4#P#p0	encryption=N;
+42	db1/i_part4#P#p1	encryption=N;
+43	db1/i_part4#P#p2	encryption=N;
+SET DEBUG='-d,skip_dd_table_access_check';
+Check if upgrade root gets TABLE_ENCRYPTION_ADMIN privilege.
+SHOW GRANTS FOR 'root'@'localhost';
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,RESOURCE_GROUP_ADMIN,SERVICE_CONNECTION_ADMIN,SYSTEM_USER,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+########################################################################
+# Remove copied files and stop the server.
+########################################################################
+########################################################################
+# Unzip a 8.0.12 datadir with bug data, start the server against it
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Restart the server against the unzipped datadir.
+########################################################################
+SET DEBUG='+d,skip_dd_table_access_check';
+SELECT schema_id, t.name, t.options, t.tablespace_id
+FROM mysql.tables t JOIN mysql.schemata sch
+ON t.schema_id = sch.id WHERE sch.name LIKE 'db1' ORDER BY t.name;
+schema_id	name	options	tablespace_id
+7	c1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	c2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	c3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	h1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	h2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	h3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	i1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	NULL
+7	i2	avg_row_length=0;encrypt_type=y;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	i3	avg_row_length=0;encrypt_type=n;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	i4	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	NULL
+7	i_part1	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;encrypt_type=N;	NULL
+7	i_part2	avg_row_length=0;encrypt_type=y;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+7	i_part3	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+7	i_part4	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;encrypt_type=N;	NULL
+7	i_ts1	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	8
+7	i_ts2	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	8
+7	i_ts3	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	8
+SELECT id, name, options FROM mysql.tablespaces
+WHERE name LIKE 'ts%' OR name LIKE '%db1%';
+id	name	options
+7	ts0	encryption=N;
+8	ts1	encryption=N;
+9	db1/i1	encryption=N;
+10	db1/i2	encryption=Y;
+11	db1/i3	encryption=N;
+12	db1/i4	encryption=N;
+13	db1/i_part1#P#p0	encryption=N;
+14	db1/i_part1#P#p1	encryption=N;
+15	db1/i_part1#P#p2	encryption=N;
+16	db1/i_part2#P#p0	encryption=Y;
+17	db1/i_part2#P#p1	encryption=Y;
+18	db1/i_part2#P#p2	encryption=Y;
+19	db1/i_part3#P#p0	encryption=N;
+20	db1/i_part3#P#p1	encryption=N;
+21	db1/i_part3#P#p2	encryption=N;
+22	db1/i_part4#P#p0	encryption=N;
+23	db1/i_part4#P#p1	encryption=N;
+24	db1/i_part4#P#p2	encryption=N;
+SET DEBUG='-d,skip_dd_table_access_check';
+Check if upgrade root gets TABLE_ENCRYPTION_ADMIN privilege.
+SHOW GRANTS FOR 'root'@'localhost';
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+########################################################################
+# Remove copied files and stop the server.
+########################################################################
+########################################################################
+# Unzip a 8.0.13 datadir with bug data, start the server against it
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Restart the server against the unzipped datadir.
+########################################################################
+SET DEBUG='+d,skip_dd_table_access_check';
+SELECT schema_id, t.name, t.options, t.tablespace_id
+FROM mysql.tables t JOIN mysql.schemata sch
+ON t.schema_id = sch.id WHERE sch.name LIKE 'db1' ORDER BY t.name;
+schema_id	name	options	tablespace_id
+7	c1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	c2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	c3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	h1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	h2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	h3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	i1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	NULL
+7	i2	avg_row_length=0;encrypt_type=y;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	i3	avg_row_length=0;encrypt_type=n;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+7	i_part1	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;encrypt_type=N;	NULL
+7	i_part2	avg_row_length=0;encrypt_type=y;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+7	i_part3	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+7	i_ts1	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	8
+7	i_ts2	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	9
+7	i_ts3	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=Y;	10
+7	i_ts4	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;encrypt_type=N;	11
+SELECT id, name, options FROM mysql.tablespaces
+WHERE name LIKE 'ts%' OR name LIKE '%db1%';
+id	name	options
+7	ts0	encryption=N;
+8	ts1	encryption=N;
+9	ts2	encryption=n;
+10	ts3	encryption=y;
+11	ts4	encryption=N;
+12	ts5	encryption=N;
+13	db1/i1	encryption=N;
+14	db1/i2	encryption=Y;
+15	db1/i3	encryption=N;
+16	db1/i_part1#P#p0	encryption=N;
+17	db1/i_part1#P#p1	encryption=N;
+18	db1/i_part1#P#p2	encryption=N;
+19	db1/i_part2#P#p0	encryption=Y;
+20	db1/i_part2#P#p1	encryption=Y;
+21	db1/i_part2#P#p2	encryption=Y;
+22	db1/i_part3#P#p0	encryption=N;
+23	db1/i_part3#P#p1	encryption=N;
+24	db1/i_part3#P#p2	encryption=N;
+SET DEBUG='-d,skip_dd_table_access_check';
+Check if upgrade root gets TABLE_ENCRYPTION_ADMIN privilege.
+SHOW GRANTS FOR 'root'@'localhost';
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+########################################################################
+# Remove copied files and stop the server.
+########################################################################
+########################################################################
+# Cleanup: Restart with default options.
+########################################################################
+# restart
+########################################################################
+# Bug #29447073: UPGRADE FROM 8.0.16 TO TRUNK FAILS WHEN MYSQL TABLESPACE IS ENCRYPTED
+########################################################################
+alter tablespace mysql encryption='Y';
+# restart: --upgrade=FORCE --early-plugin-load=keyring_file=keyring_file.so KEYRING_PLUGIN_OPT
+alter tablespace mysql encryption='N';
+########################################################################
+# Cleanup: Restart with default options.
+########################################################################
+# restart

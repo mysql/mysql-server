@@ -1,0 +1,9 @@
+## Following macros are defined in this file:
+#
+# * Wait_until_disconnect
+#
+
+-->macro Wait_until_disconnect
+-->peerdisc 50000 50000
+-->endmacro
+

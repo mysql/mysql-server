@@ -1,3 +1,12 @@
+## Following macros are defined in this file:
+#
+# * Assert_status_variable
+# * Assert_received_notices
+# * Assert_global_variable
+# * Assert_session_variable
+# * Assert_user_variable
+#
+
 
 -->macro Assert_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->stmtsql SHOW STATUS LIKE '%VARIABLE_NAME%';
@@ -8,11 +17,13 @@
 
 
 -->macro Assert_received_notices
+-->received Mysqlx.Notice.ServerHello	%MYSQLXTEST_NO_OF_SERVER_HELLOS%
 -->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%
+-->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 -->received Mysqlx.Notice.Frame	%MYSQLXTEST_NO_OF_OTHER%
 -->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_WARNINGS%
+-->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_SERVER_HELLOS%
 -->callmacro Assert_status_variable	Mysqlx_notice_other_sent	%MYSQLXTEST_NO_OF_OTHER%
--->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 -->endmacro
 
 
@@ -25,6 +36,7 @@
 -->noquiet
 -->endmacro
 
+
 -->macro Assert_session_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->quiet
 -->stmtsql SELECT @@%VARIABLE_NAME% as Value;
@@ -33,3 +45,14 @@
 -->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
 -->noquiet
 -->endmacro
+
+
+-->macro Assert_user_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->quiet
+-->stmtsql SELECT @%VARIABLE_NAME% as Value;
+-->recvtovar %VARIABLE_VALUE% Value
+-->echo Verify [User variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->noquiet
+-->endmacro
+

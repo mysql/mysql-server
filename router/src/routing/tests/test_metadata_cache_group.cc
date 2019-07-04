@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <stdexcept>
+
 #include "dest_metadata_cache.h"
 #include "router_test_helpers.h"
 #include "routing_mocks.h"
@@ -71,13 +73,16 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover, bool(const std::string &, int));
-  MOCK_METHOD9(cache_init,
-               void(const std::vector<mysql_harness::TCPAddress> &,
-                    const std::string &, const std::string &,
-                    std::chrono::milliseconds, const mysqlrouter::SSLOptions &,
-                    const std::string &, int, int, size_t));
+  MOCK_METHOD10(cache_init,
+                void(const std::string &,
+                     const std::vector<mysql_harness::TCPAddress> &,
+                     const std::string &, const std::string &,
+                     std::chrono::milliseconds, const mysqlrouter::SSLOptions &,
+                     const std::string &, int, int, size_t));
+  MOCK_METHOD0(cache_start, void());
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
+  bool is_initialized() noexcept override { return true; }
 
  public:
   void fill_instance_vector(const InstanceVector &iv) { instance_vector_ = iv; }
@@ -788,10 +793,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+
+  dest_mc_group.start(nullptr);
 
   // new metadata - no primary
   fill_instance_vector({
@@ -834,10 +837,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+
+  dest_mc_group.start(nullptr);
 
   // new metadata - no primary
   fill_instance_vector({
@@ -883,10 +884,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // new metadata - no primary
   fill_instance_vector({
@@ -932,10 +931,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
 
@@ -984,10 +981,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
   bool callback_called{false};
@@ -1027,10 +1022,8 @@ TEST_F(DestMetadataCacheTest,
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // new empty metadata
   fill_instance_vector({});
@@ -1076,10 +1069,8 @@ TEST_F(DestMetadataCacheTest,
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // new empty metadata
   fill_instance_vector({});
@@ -1193,7 +1184,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryWrongMode) {
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
           &metadata_cache_api_, &routing_sock_ops_),
-      std::runtime_error, "mode 'read-only' is not valid for 'role=primary'");
+      std::runtime_error, "mode 'read-only' is not valid for 'role=PRIMARY'");
 }
 
 TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
@@ -1205,7 +1196,7 @@ TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
           &metadata_cache_api_, &routing_sock_ops_),
       std::runtime_error,
-      "mode 'read-write' is not valid for 'role=secondary'");
+      "mode 'read-write' is not valid for 'role=SECONDARY'");
 }
 
 TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
@@ -1218,7 +1209,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
           &metadata_cache_api_, &routing_sock_ops_),
       std::runtime_error,
-      "mode 'read-write' is not valid for 'role=primary_and_secondary'");
+      "mode 'read-write' is not valid for 'role=PRIMARY_AND_SECONDARY'");
 }
 
 /*****************************************/
@@ -1298,7 +1289,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupDisconnectOnPromotedToPrimary) {
         Protocol::Type::kClassicProtocol));
   }
 
-  // ivalid option
+  // invalid option
   {
     mysqlrouter::URI uri(
         "metadata-cache://test/"
@@ -1351,7 +1342,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheDisconnectOnMetadataUnavailable) {
         Protocol::Type::kClassicProtocol));
   }
 
-  // ivalid option
+  // invalid option
   {
     mysqlrouter::URI uri(
         "metadata-cache://test/"

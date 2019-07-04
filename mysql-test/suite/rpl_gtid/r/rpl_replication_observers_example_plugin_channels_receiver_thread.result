@@ -19,3 +19,4 @@ RESET SLAVE ALL;
 DROP TABLE t1;
 include/uninstall_replication_observers_example.inc
 DROP TABLE t1;
+include/stop_dump_threads.inc

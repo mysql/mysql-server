@@ -6,12 +6,12 @@ GRANT SELECT ON db_datadict.* TO testuser1@localhost;
 SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'information_schema' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name,constraint_name COLLATE utf8_general_ci;
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'information_schema' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name,constraint_name COLLATE utf8_general_ci;
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
 # Switch to connection default and close connection testuser1
 DROP USER testuser1@localhost;
 DROP DATABASE db_datadict;

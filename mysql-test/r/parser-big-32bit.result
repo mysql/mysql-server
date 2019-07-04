@@ -6,7 +6,7 @@ SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 67108864
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SET @@global.max_allowed_packet=16999424;
 CREATE TABLE t1 (a INT UNSIGNED, b INT UNSIGNED, PRIMARY KEY (a, b))
 ENGINE=INNODB;

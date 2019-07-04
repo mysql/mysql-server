@@ -91,7 +91,7 @@ insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
 # from originally inserted)
 #
 set time_zone='MET';
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t2 (select * from t1);
 SELECT * FROM t1 ORDER BY n;
 --source include/sync_slave_sql_with_master.inc

@@ -621,7 +621,6 @@ disconnect con1;
 --connect(con1, localhost, u1, abc)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
---enable_warnings
 SET PASSWORD = 'def';
 --disable_warnings
 connection default;

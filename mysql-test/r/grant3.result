@@ -1,6 +1,8 @@
 SET NAMES binary;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+SET GLOBAL partial_revokes= OFF;
 drop table if exists t1;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
@@ -187,4 +189,5 @@ DROP USER 'user2'@'%';
 DROP DATABASE temp;
 set GLOBAL sql_mode= @orig_sql_mode_global;
 set SESSION sql_mode= @orig_sql_mode_session;
+SET GLOBAL partial_revokes = @orig_partial_revokes;
 End of 5.0 tests

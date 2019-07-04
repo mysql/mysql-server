@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class TapEventListener : public TestEventListener {
   virtual void OnTestStart(const TestInfo &test_info);
   virtual void OnTestPartResult(const TestPartResult &test_part_result);
   virtual void OnTestEnd(const TestInfo &test_info);
-  virtual void OnTestCaseEnd(const TestCase & /*test_case*/){};
+  virtual void OnTestCaseEnd(const TestCase & /*test_case*/) {}
   virtual void OnEnvironmentsTearDownStart(const UnitTest &unit_test);
   virtual void OnEnvironmentsTearDownEnd(const UnitTest & /*unit_test*/) {}
   virtual void OnTestIterationEnd(const UnitTest &unit_test, int iteration);

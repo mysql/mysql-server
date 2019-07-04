@@ -280,7 +280,7 @@ send Mysqlx.Crud.Delete {
 Mysqlx.Error {
   severity: ERROR
   code: 5012
-  msg: "Invalid parameter: non-zero offset value not allowed for this operation"
+  msg: "Invalid parameter: non-zero offset value is not allowed for this operation"
   sql_state: "HY000"
 }
 

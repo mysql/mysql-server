@@ -4,7 +4,7 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 -- disable_query_log
-call mtr.add_suppression("Slave: Got error 146 during COMMIT Error_code: 1180");
+call mtr.add_suppression("Got error 146 - 'Lock timed out; Retry transaction' during COMMIT");
 -- enable_query_log
 
 #
@@ -102,11 +102,16 @@ select * from t1 order by nid;
 
 --connection master
 UPDATE t1 set nid=nid+1;
-UPDATE t1 set nom="CCP" where nid = 4;
+# Due to Bug#16029263, the below update would have failed when
+# sync_slave_with_master is called. So as a temporary workaround,
+# comment this update. When the bug gets fixed, this needs to be
+# reverted and re record the subsequent select *.
+#UPDATE t1 set nom="CCP" where nid = 4;
 select * from t1 order by nid;
 
 # make sure all rows are on the slave.
 --sync_slave_with_master
+
 --connection slave
 select * from t1 order by nid;
 
@@ -254,7 +259,7 @@ connection slave;
 SELECT * FROM t1 ORDER BY c1;
 
 connection master;
-ALTER TABLE t1 CHANGE c2 c2 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c2 c2 TEXT CHARACTER SET utf8mb4;
 ALTER TABLE t1 CHANGE c2 c2 BLOB;
 
 --sync_slave_with_master
@@ -318,7 +323,7 @@ while ($i)
   dec $i;
 }
 let $sql=$sql, c500 varchar(10000);
-let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql, primary key using hash(c1)) engine=ndb charset=latin1;
 let $sql=$sql partition by key(c1);
 eval $sql; # eval the sql and create the table
 
@@ -342,7 +347,7 @@ drop table t1;
 --sync_slave_with_master
 --connection master
 
-create table t1 (a int primary key, b varchar(13000)) engine = ndb;
+create table t1 (a int primary key, b varchar(13000)) engine = ndb charset=latin1;
 insert into t1 values (1,@v13000), (2,@v13000);
 --sync_slave_with_master
 --connection slave

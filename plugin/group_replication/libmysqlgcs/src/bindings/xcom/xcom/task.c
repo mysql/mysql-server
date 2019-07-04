@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1198,25 +1198,6 @@ void task_loop() {
   task_sys_deinit();
 }
 
-static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
-                         socklen_t *sock_size, xcom_port port) {
-  /* Get address of server */
-  struct addrinfo *addr = 0;
-
-  checked_getaddrinfo(server, 0, 0, &addr);
-
-  if (!addr) return 0;
-  /* Copy first address */
-  memcpy(sock_addr, addr->ai_addr, addr->ai_addrlen);
-  *sock_size = (socklen_t)addr->ai_addrlen;
-  sock_addr->sin_port = htons(port);
-
-  /* Clean up allocated memory by getaddrinfo */
-  freeaddrinfo(addr);
-
-  return 1;
-}
-
 #if TASK_DBUG_ON
 static void print_sockaddr(struct sockaddr *a) {
   u_int i;
@@ -1234,94 +1215,120 @@ static void print_sockaddr(struct sockaddr *a) {
 #endif
 
 int connect_tcp(char *server, xcom_port port, int *ret) {
+  int v4_reachable = 0;
+
   DECL_ENV
   int fd;
-  struct sockaddr sock_addr;
+  struct sockaddr_storage sock_addr;
+  struct addrinfo *addr, *from_ns;
   socklen_t sock_size;
+  result sock;
   END_ENV;
   TASK_BEGIN;
+
   DBGOUT(FN; STREXP(server); NDBG(port, d));
+
+  ep->addr = NULL;
+  ep->from_ns = NULL;
+  ep->sock_size = sizeof(struct sockaddr_storage);
+
+  checked_getaddrinfo_port(server, port, NULL, &ep->from_ns);
+
+  if (ep->from_ns == NULL) {
+    TASK_FAIL;
+  }
+
+  ep->addr = does_node_have_v4_address(ep->from_ns);
+
   /* Create socket */
-  if ((ep->fd = xcom_checked_socket(AF_INET, SOCK_STREAM, 0).val) < 0) {
+  if ((ep->fd =
+           xcom_checked_socket(ep->addr->ai_family, SOCK_STREAM, IPPROTO_TCP)
+               .val) < 0) {
     DBGOUT(FN; NDBG(ep->fd, d));
+    if (ep->from_ns) freeaddrinfo(ep->from_ns);
     TASK_FAIL;
   }
   /* Make it non-blocking */
   unblock_fd(ep->fd);
-  /* Get address of server */
-  /* OHKFIX Move this before call to xcom_checked_socket and use addrinfo fields
-   * as params to socket call */
-  if (!init_sockaddr(server, (struct sockaddr_in *)&ep->sock_addr,
-                     &ep->sock_size, port)) {
-    DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
-    TASK_FAIL;
-  }
+
 #if TASK_DBUG_ON
   DBGOUT(FN; print_sockaddr(&ep->sock_addr));
 #endif
   /* Connect socket to address */
   {
-    result sock = {0, 0};
     SET_OS_ERR(0);
-    sock.val = connect(ep->fd, &ep->sock_addr, ep->sock_size);
-    sock.funerr = to_errno(GET_OS_ERR);
-    if (sock.val < 0) {
-      if (hard_connect_err(sock.funerr)) {
-        task_dump_err(sock.funerr);
+    ep->sock.val = connect(ep->fd, ep->addr->ai_addr, ep->addr->ai_addrlen);
+    ep->sock.funerr = to_errno(GET_OS_ERR);
+
+    if (ep->sock.val < 0) {
+      if (hard_connect_err(ep->sock.funerr)) {
+        task_dump_err(ep->sock.funerr);
         MAY_DBG(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
 #if TASK_DBUG_ON
         DBGOUT(FN; print_sockaddr(&ep->sock_addr));
 #endif
         DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
         close_socket(&ep->fd);
-        TASK_FAIL;
-      }
-    }
-  /* Wait until connect has finished */
-  retry:
-    timed_wait_io(stack, ep->fd, 'w', 10.0);
-    TASK_YIELD;
-    /* See if we timed out here. If we did, connect may or may not be active.
-           If closing fails with EINPROGRESS, we need to retry the select.
-           If close does not fail, we know that connect has indeed failed, and
-       we
-           exit from here and return -1 as socket fd */
-    if (stack->interrupt) {
-      result shut = {0, 0};
-      stack->interrupt = 0;
-
-      /* Try to close socket on timeout */
-      shut = shut_close_socket(&ep->fd);
-      DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
-      task_dump_err(shut.funerr);
-      if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
-        goto retry; /* Connect is still active */
-      TASK_FAIL;    /* Connect has failed */
-    }
-
-    {
-      int peer = 0;
-      /* Sanity check before return */
-      SET_OS_ERR(0);
-      sock.val = peer = getpeername(ep->fd, &ep->sock_addr, &ep->sock_size);
-      sock.funerr = to_errno(GET_OS_ERR);
-      if (peer >= 0) {
-        TASK_RETURN(ep->fd);
-      } else {
-        /* Something is wrong */
-        socklen_t errlen = sizeof(sock.funerr);
-
-        getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (void *)&sock.funerr, &errlen);
-        if (sock.funerr == 0) {
-          sock.funerr = to_errno(SOCK_ECONNREFUSED);
-        }
-
-        shut_close_socket(&ep->fd);
-        if (sock.funerr == 0) sock.funerr = to_errno(SOCK_ECONNREFUSED);
+        if (ep->from_ns) freeaddrinfo(ep->from_ns);
         TASK_FAIL;
       }
     }
   }
+
+/* Wait until connect has finished */
+retry:
+  timed_wait_io(stack, ep->fd, 'w', 10.0);
+  TASK_YIELD;
+  /* See if we timed out here. If we did, connect may or may not be active.
+         If closing fails with EINPROGRESS, we need to retry the select.
+         If close does not fail, we know that connect has indeed failed, and
+     we
+         exit from here and return -1 as socket fd */
+  if (stack->interrupt) {
+    result shut = {0, 0};
+    stack->interrupt = 0;
+
+    /* Try to close socket on timeout */
+    shut = shut_close_socket(&ep->fd);
+    DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
+    task_dump_err(shut.funerr);
+    if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
+      goto retry; /* Connect is still active */
+    if (ep->from_ns) freeaddrinfo(ep->from_ns);
+    TASK_FAIL; /* Connect has failed */
+  }
+
+  {
+    int peer = 0;
+    /* Sanity check before return */
+    SET_OS_ERR(0);
+    ep->sock.val = peer =
+        getpeername(ep->fd, (struct sockaddr *)&ep->sock_addr, &ep->sock_size);
+    ep->sock.funerr = to_errno(GET_OS_ERR);
+    if (peer >= 0) {
+      if (ep->from_ns) freeaddrinfo(ep->from_ns);
+      TASK_RETURN(ep->fd);
+    } else {
+      /* Something is wrong */
+      socklen_t errlen = sizeof(ep->sock.funerr);
+
+      getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (void *)&ep->sock.funerr,
+                 &errlen);
+      if (ep->sock.funerr == 0) {
+        ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
+      }
+
+      shut_close_socket(&ep->fd);
+      if (ep->sock.funerr == 0) ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
+      if (ep->from_ns) freeaddrinfo(ep->from_ns);
+      TASK_FAIL;
+    }
+
+    shut_close_socket(&ep->fd);
+    if (ep->sock.funerr == 0) ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
+    TASK_FAIL;
+  }
+
   FINALLY
   TASK_END;
 }
@@ -1342,9 +1349,53 @@ result set_nodelay(int fd) {
 static result create_server_socket() {
   result fd = {0, 0};
   /* Create socket */
-  if ((fd = xcom_checked_socket(PF_INET, SOCK_STREAM, 0)).val < 0) {
+  if ((fd = xcom_checked_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)).val < 0) {
     G_MESSAGE(
-        "Unable to create socket "
+        "Unable to create socket v6"
+        "(socket=%d, errno=%d)!",
+        fd.val, to_errno(GET_OS_ERR));
+    return fd;
+  }
+  {
+    int reuse = 1;
+    SET_OS_ERR(0);
+    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (void *)&reuse,
+                   sizeof(reuse)) < 0) {
+      fd.funerr = to_errno(GET_OS_ERR);
+      G_MESSAGE(
+          "Unable to set socket options "
+          "(socket=%d, errno=%d)!",
+          fd.val, to_errno(GET_OS_ERR));
+      close_socket(&fd.val);
+      return fd;
+    }
+    /*
+     This code sets the acceptor socket as dual-stacked. What happens is that
+     we expose the XCom server socket as V6 only, and it will accept V4
+     requests. V4 requests are then represented as IPV4-mapped addresses.
+    */
+    int mode = 0;
+    SET_OS_ERR(0);
+    if (setsockopt(fd.val, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&mode,
+                   sizeof(mode)) < 0) {
+      fd.funerr = to_errno(GET_OS_ERR);
+      G_MESSAGE(
+          "Unable to set socket options "
+          "(socket=%d, errno=%d)!",
+          fd.val, to_errno(GET_OS_ERR));
+      close_socket(&fd.val);
+      return fd;
+    }
+  }
+  return fd;
+}
+
+static result create_server_socket_v4() {
+  result fd = {0, 0};
+  /* Create socket */
+  if ((fd = xcom_checked_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)).val < 0) {
+    G_MESSAGE(
+        "Unable to create socket v4"
         "(socket=%d, errno=%d)!",
         fd.val, to_errno(GET_OS_ERR));
     return fd;
@@ -1366,28 +1417,86 @@ static result create_server_socket() {
   return fd;
 }
 
-static void init_server_addr(struct sockaddr_in *sock_addr, xcom_port port) {
-  memset(sock_addr, 0, sizeof(*sock_addr));
-  sock_addr->sin_family = PF_INET;
-  sock_addr->sin_port = htons(port);
+/**
+ * @brief Initializes a sockaddr prepared to be used in bind()
+ *
+ * @param sock_addr struct sockaddr out parameter. You will need to free it
+ *                  after being used.
+ * @param sock_len socklen_t out parameter. It will contain the length of
+ *                 sock_addr
+ * @param port the port to bind.
+ */
+static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
+                             xcom_port port, int family) {
+  struct addrinfo *address_info = NULL, hints, *address_info_loop;
+  memset(&hints, 0, sizeof(hints));
+
+  hints.ai_flags = AI_PASSIVE;
+  hints.ai_protocol = IPPROTO_TCP;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;  // TCP stream sockets
+  checked_getaddrinfo_port(NULL, port, &hints, &address_info);
+
+  address_info_loop = address_info;
+  while (address_info_loop) {
+    if (address_info_loop->ai_family == family) {
+      if (*sock_addr == NULL) {
+        *sock_addr = (struct sockaddr *)malloc(address_info_loop->ai_addrlen);
+      }
+      memcpy(*sock_addr, address_info_loop->ai_addr,
+             address_info_loop->ai_addrlen);
+
+      *sock_len = address_info_loop->ai_addrlen;
+
+      break;
+    }
+    address_info_loop = address_info_loop->ai_next;
+  }
+
+  if (address_info) freeaddrinfo(address_info);
 }
 
 result announce_tcp(xcom_port port) {
   result fd;
-  struct sockaddr_in sock_addr;
+  struct sockaddr *sock_addr = NULL;
+  socklen_t sock_addr_len;
+  int server_socket_v6_ok = 0;
 
+  // Try and create a V6 server socket. It should succeed if the OS
+  // supports IPv6, and fail otherwise.
   fd = create_server_socket();
   if (fd.val < 0) {
-    return fd;
+    // If the OS does not support IPv6, we fall back to IPv4.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+  } else {
+    server_socket_v6_ok = 1;
   }
-  init_server_addr(&sock_addr, port);
-  if (bind(fd.val, (struct sockaddr *)&sock_addr, sizeof(sock_addr)) < 0) {
-    int err = to_errno(GET_OS_ERR);
-    G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "0.0.0.0", port,
-              fd.val, err);
-    goto err;
+  init_server_addr(&sock_addr, &sock_addr_len, port,
+                   server_socket_v6_ok ? AF_INET6 : AF_INET);
+  if (sock_addr == NULL || (bind(fd.val, sock_addr, sock_addr_len) < 0)) {
+    // If we fail to bind to the desired address, we fall back to an
+    // IPv4 socket.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+
+    free(sock_addr);
+    sock_addr = NULL;
+    init_server_addr(&sock_addr, &sock_addr_len, port, AF_INET);
+    if (bind(fd.val, sock_addr, sock_addr_len) < 0) {
+      int err = to_errno(GET_OS_ERR);
+      G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "INADDR_ANY",
+                port, fd.val, err);
+      goto err;
+    }
   }
-  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "0.0.0.0", port, fd.val);
+
+  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "INADDR_ANY", port,
+          fd.val);
   if (listen(fd.val, 32) < 0) {
     int err = to_errno(GET_OS_ERR);
     G_MESSAGE(
@@ -1395,6 +1504,145 @@ result announce_tcp(xcom_port port) {
         "(socket=%d, errno=%d)!",
         fd.val, err);
     goto err;
+  }
+  G_DEBUG(
+      "Successfully set listen backlog to 32 "
+      "(socket=%d)!",
+      fd.val);
+  /* Make socket non-blocking */
+  unblock_fd(fd.val);
+  if (fd.val < 0) {
+    int err = to_errno(GET_OS_ERR);
+    G_MESSAGE("Unable to unblock socket (socket=%d, errno=%d)!", fd.val, err);
+  } else {
+    G_DEBUG("Successfully unblocked socket (socket=%d)!", fd.val);
+  }
+
+  free(sock_addr);
+  return fd;
+
+err:
+  fd.funerr = to_errno(GET_OS_ERR);
+  task_dump_err(fd.funerr);
+  close_socket(&fd.val);
+
+  free(sock_addr);
+
+  return fd;
+}
+
+/* init_local_server_addr binds the sock_addr to the loopback address on any
+ * available socket.
+ *
+ * announce_tcp_local_server does exactly the same thing as announce_tcp, but it
+ * initializes its socket with init_local_server_addr.
+ *
+ * These are used by the local_server and the XCom queue. They will use a local
+ * TCP connection to signal that the queue has work to be consumed.
+ */
+static void init_local_server_addr_v6(struct sockaddr_in6 *sock_addr) {
+  memset(sock_addr, 0, sizeof(*sock_addr));
+  sock_addr->sin6_family = AF_INET6;
+  sock_addr->sin6_addr = in6addr_loopback;
+  sock_addr->sin6_port = 0;
+}
+
+static void init_local_server_addr_v4(struct sockaddr_in *sock_addr) {
+  memset(sock_addr, 0, sizeof(*sock_addr));
+  sock_addr->sin_family = AF_INET;
+  sock_addr->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  sock_addr->sin_port = 0;
+}
+
+result announce_tcp_local_server() {
+  result fd;
+  struct sockaddr_in6 sock_addr;
+  struct sockaddr_in6 bound_addr;
+  struct sockaddr_in sock_addr_v4;
+  struct sockaddr_in bound_addr_v4;
+  int bind_v6 = 0;
+
+  int error_code = 0;
+  xcom_port port = 0;
+  socklen_t bound_addr_len = 0;
+
+  // Try to create an IPv6 server socket. It should succeed if the
+  // OS supports IPv6, and fail otherwise.
+  fd = create_server_socket();
+  if (fd.val < 0) {
+    // If the OS does *not* support IPv6, we fall back to IPv4.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+  } else {
+    bind_v6 = 1;
+  }
+
+  int bind_result = 0;
+  if (bind_v6) {
+    init_local_server_addr_v6(&sock_addr);
+    bind_result =
+        bind(fd.val, (struct sockaddr *)&sock_addr, sizeof(sock_addr));
+  }
+
+  if (bind_result < 0 || !bind_v6) {
+    if (bind_result < 0) {
+      fd = create_server_socket_v4();
+    }
+    // If we fail to bind to the desired address,
+    // we fall back to an IPv4 socket.
+    init_local_server_addr_v4(&sock_addr_v4);
+    bind_result =
+        bind(fd.val, (struct sockaddr *)&sock_addr_v4, sizeof(sock_addr_v4));
+
+    if (bind_result < 0) {
+      /* purecov: begin inspected */
+      int err = to_errno(GET_OS_ERR);
+      G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "0.0.0.0",
+                port, fd.val, err);
+      goto err;
+      /* purecov: end */
+    } else {
+      bind_v6 = 0;
+    }
+  }
+
+  if (bind_v6) {
+    bound_addr_len = sizeof(bound_addr);
+    error_code =
+        getsockname(fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+  } else {
+    bound_addr_len = sizeof(bound_addr_v4);
+    error_code =
+        getsockname(fd.val, (struct sockaddr *)&bound_addr_v4, &bound_addr_len);
+  }
+  if (error_code != 0) {
+    /* purecov: begin inspected */
+    G_MESSAGE(
+        "Unable to retrieve the tcp port announce_tcp_local_server bound to "
+        "(socket=%d, error_code=%d)!",
+        fd.val, error_code);
+    goto err;
+    /* purecov: end */
+  }
+
+  if (bind_v6) {
+    port = ntohs(bound_addr.sin6_port);
+  } else {
+    port = ntohs(bound_addr_v4.sin_port);
+  }
+
+  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "0.0.0.0", port, fd.val);
+  if (listen(fd.val, 32) < 0) {
+    /* purecov: begin inspected */
+    int err = to_errno(GET_OS_ERR);
+    G_MESSAGE(
+        "Unable to listen backlog to 32. "
+        "(socket=%d, errno=%d)!",
+        fd.val, err);
+    goto err;
+    /* purecov: end */
   }
   G_DEBUG(
       "Successfully set listen backlog to 32 "
@@ -1416,23 +1664,25 @@ err:
   close_socket(&fd.val);
   return fd;
 }
-
 int accept_tcp(int fd, int *ret) {
-  struct sockaddr sock_addr;
+  struct sockaddr_storage sock_addr;
   DECL_ENV
   int connection;
   END_ENV;
   TASK_BEGIN;
   /* Wait for connection attempt */
+
   wait_io(stack, fd, 'r');
   TASK_YIELD;
   /* Spin on benign error code */
   {
-    socklen_t size = sizeof sock_addr;
+    socklen_t size = sizeof(struct sockaddr_storage);
+
     result res = {0, 0};
     do {
       SET_OS_ERR(0);
-      res.val = ep->connection = (int)accept(fd, (void *)&sock_addr, &size);
+      res.val = ep->connection =
+          (int)accept(fd, (struct sockaddr *)&sock_addr, &size);
       res.funerr = to_errno(GET_OS_ERR);
     } while (res.val < 0 && from_errno(res.funerr) == SOCK_EINTR);
 

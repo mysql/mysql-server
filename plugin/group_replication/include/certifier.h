@@ -196,6 +196,12 @@ class Certifier : public Certifier_interface {
   virtual ~Certifier();
 
   /**
+    Key used to store errors in the certification info
+    on View_change_log_event.
+  */
+  static const std::string CERTIFICATION_INFO_ERROR_NAME;
+
+  /**
     Initialize certifier.
 
     @param gtid_assignment_block_size the group gtid assignment block size
@@ -293,10 +299,9 @@ class Certifier : public Certifier_interface {
     @note if concurrent access is introduce to these variables,
     locking is needed in this method
 
-    @param cert_info              certification info retrieved from recovery
-    procedure
+    @param[in] cert_info  certification info retrieved from recovery procedure
 
-    @retval  > 0  Error during setting certfication info.
+    @retval  > 0  Error during setting certification info.
     @retval  = 0  Everything went fine.
   */
   virtual int set_certification_info(

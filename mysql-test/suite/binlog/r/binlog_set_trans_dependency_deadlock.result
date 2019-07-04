@@ -1,0 +1,34 @@
+#
+# Bug 92108: Deadlock by concurrent SHOW BINLOGS,
+# performance_schema.session_variables query, and binlog purge
+#
+RESET MASTER;
+FLUSH LOGS;
+connect con1,localhost,root,,;
+SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";
+PURGE BINARY LOGS BEFORE '2038-01-19';
+connect con2,localhost,root,,;
+SET DEBUG_SYNC="materialize_session_variable_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking';;
+connect con3,localhost,root,,;
+SET DEBUG_SYNC="show_binlogs_after_lock_log_before_lock_index SIGNAL show_ready WAIT_FOR finish_show";
+SHOW BINARY LOGS;
+connection default;
+SET DEBUG_SYNC="now WAIT_FOR purge_ready";
+SET DEBUG_SYNC="now WAIT_FOR pfs_ready";
+SET DEBUG_SYNC="now WAIT_FOR show_ready";
+SET DEBUG_SYNC="now SIGNAL finish_purge";
+SET DEBUG_SYNC="now SIGNAL finish_pfs";
+SET DEBUG_SYNC="now SIGNAL finish_show";
+connection con1;
+Warnings:
+Warning	1868	file binlog.000002 was not purged because it is the active log file.
+disconnect con1;
+connection con2;
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_transaction_dependency_tracking	COMMIT_ORDER
+disconnect con2;
+connection con3;
+disconnect con3;
+connection default;
+SET DEBUG_SYNC= 'RESET';

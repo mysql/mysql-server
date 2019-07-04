@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/partition_index_impl.h"
 
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -34,7 +35,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
-#include "sql/dd/impl/properties_impl.h"          // Properties_impl
 #include "sql/dd/impl/raw/raw_record.h"           // Raw_record
 #include "sql/dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "sql/dd/impl/tables/index_partitions.h"  // Index_partitions
@@ -60,21 +60,25 @@ class Partition;
 class Sdi_rcontext;
 class Sdi_wcontext;
 
+static const std::set<String_type> default_valid_se_private_data_keys = {
+    // InnoDB keys:
+    "id", "root", "space_id", "table_id", "trx_id"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Partition_index_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Partition_index_impl::Partition_index_impl()
-    : m_options(new Properties_impl()),
-      m_se_private_data(new Properties_impl()),
+    : m_options(),
+      m_se_private_data(default_valid_se_private_data_keys),
       m_partition(NULL),
       m_index(NULL),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
 Partition_index_impl::Partition_index_impl(Partition_impl *partition,
                                            Index *index)
-    : m_options(new Properties_impl()),
-      m_se_private_data(new Properties_impl()),
+    : m_options(),
+      m_se_private_data(default_valid_se_private_data_keys),
       m_partition(partition),
       m_index(index),
       m_tablespace_id(INVALID_OBJECT_ID) {}
@@ -92,39 +96,6 @@ Partition &Partition_index_impl::partition() { return *m_partition; }
 const Index &Partition_index_impl::index() const { return *m_index; }
 
 Index &Partition_index_impl::index() { return *m_index; }
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Partition_index_impl::set_options_raw(const String_type &options_raw) {
-  Properties *properties = Properties_impl::parse_properties(options_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_options.reset(properties);
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Partition_index_impl::set_se_private_data_raw(
-    const String_type &se_private_data_raw) {
-  Properties *properties =
-      Properties_impl::parse_properties(se_private_data_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_se_private_data.reset(properties);
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void Partition_index_impl::set_se_private_data(
-    const Properties &se_private_data) {
-  m_se_private_data->assign(se_private_data);
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -158,10 +129,9 @@ bool Partition_index_impl::restore_attributes(const Raw_record &r) {
 
   m_tablespace_id = r.read_ref_id(Index_partitions::FIELD_TABLESPACE_ID);
 
-  set_options_raw(r.read_str(Index_partitions::FIELD_OPTIONS, ""));
+  set_options(r.read_str(Index_partitions::FIELD_OPTIONS, ""));
 
-  set_se_private_data_raw(
-      r.read_str(Index_partitions::FIELD_SE_PRIVATE_DATA, ""));
+  set_se_private_data(r.read_str(Index_partitions::FIELD_SE_PRIVATE_DATA, ""));
 
   return false;
 }
@@ -171,9 +141,8 @@ bool Partition_index_impl::restore_attributes(const Raw_record &r) {
 bool Partition_index_impl::store_attributes(Raw_record *r) {
   return r->store(Index_partitions::FIELD_PARTITION_ID, m_partition->id()) ||
          r->store(Index_partitions::FIELD_INDEX_ID, m_index->id()) ||
-         r->store(Index_partitions::FIELD_OPTIONS, *m_options) ||
-         r->store(Index_partitions::FIELD_SE_PRIVATE_DATA,
-                  *m_se_private_data) ||
+         r->store(Index_partitions::FIELD_OPTIONS, m_options) ||
+         r->store(Index_partitions::FIELD_SE_PRIVATE_DATA, m_se_private_data) ||
          r->store_ref_id(Index_partitions::FIELD_TABLESPACE_ID,
                          m_tablespace_id);
 }
@@ -212,8 +181,8 @@ void Partition_index_impl::debug_print(String_type &outb) const {
   ss << "PARTITION INDEX OBJECT: { "
      << "m_partition: {OID: " << m_partition->id() << "}; "
      << "m_index: {OID: " << m_index->id() << "}; "
-     << "m_options " << m_options->raw_string() << "; "
-     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
+     << "m_options " << m_options.raw_string() << "; "
+     << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_tablespace {OID: " << m_tablespace_id << "}";
 
   ss << " }";
@@ -258,9 +227,8 @@ Partition_index_impl *Partition_index_impl::clone(
 Partition_index_impl::Partition_index_impl(const Partition_index_impl &src,
                                            Partition_impl *parent, Index *index)
     : Weak_object(src),
-      m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
-      m_se_private_data(Properties_impl::parse_properties(
-          src.m_se_private_data->raw_string())),
+      m_options(src.m_options),
+      m_se_private_data(src.m_se_private_data),
       m_partition(parent),
       m_index(index),
       m_tablespace_id(src.m_tablespace_id) {}

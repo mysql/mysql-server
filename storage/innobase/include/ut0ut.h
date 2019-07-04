@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iterator>
 #include <ostream>
 #include <sstream>
+#include <type_traits>
 
 #include "db0err.h"
 
@@ -261,11 +262,25 @@ struct ut_strcmp_functor {
   }
 };
 
+namespace ut {
+/** The current value of @@innodb_spin_wait_pause_multiplier. Determines
+how many PAUSE instructions to emit for each requested unit of delay
+when calling `ut_delay(delay)`. The default value of 50 causes `delay*50` PAUSES
+which was equivalent to `delay` microseconds on 100 MHz Pentium + Visual C++.
+Useful on processors which have "non-standard" duration of a single PAUSE
+instruction - one can compensate for longer PAUSES by setting the
+spin_wait_pause_multiplier to a smaller value on such machine */
+extern ulong spin_wait_pause_multiplier;
+}  // namespace ut
+
 /** Runs an idle loop on CPU. The argument gives the desired delay
  in microseconds on 100 MHz Pentium + Visual C++.
+ The actual duration depends on a product of `delay` and the current value of
+ @@innodb_spin_wait_pause_multiplier.
+ @param[in]   delay   delay in microseconds on 100 MHz Pentium, assuming
+                      spin_wait_pause_multiplier is 50 (default).
  @return dummy value */
-ulint ut_delay(
-    ulint delay); /*!< in: delay in microseconds on 100 MHz Pentium */
+ulint ut_delay(ulint delay);
 
 /* Forward declaration of transaction handle */
 struct trx_t;
@@ -330,6 +345,119 @@ void ut_vsnprintf(char *str,       /*!< out: string */
 const char *ut_strerr(dberr_t num); /*!< in: error number */
 
 namespace ib {
+
+#ifdef UNIV_DEBUG
+/** Finds the first format specifier in `fmt` format string
+@param[in]   fmt  The format string
+@return Either the longest suffix of `fmt` which starts with format specifier,
+or `nullptr` if could not find any format specifier inside `fmt`.
+*/
+static inline const char *get_first_format(const char *fmt) {
+  const char *pos = strchr(fmt, '%');
+  if (pos != nullptr && pos[1] == '%') {
+    return (get_first_format(pos + 2));
+  }
+  return (pos);
+}
+
+/** Verifies that the `fmt` format string does not require any arguments
+@param[in]   fmt  The format string
+@return true if and only if there is no format specifier inside `fmt` which
+requires passing an argument */
+static inline bool verify_fmt_match(const char *fmt) {
+  return (get_first_format(fmt) == nullptr);
+}
+
+/** Verifies that the `fmt` format string contains format specifiers which match
+the type and order of the arguments
+@param[in]  fmt   The format string
+@param[in]  head  The first argument
+@param[in]  tail  Others (perhaps none) arguments
+@return true if and only if the format specifiers found in `fmt` correspond to
+types of head, tail...
+*/
+template <typename Head, typename... Tail>
+static bool verify_fmt_match(const char *fmt, Head &&head, Tail &&... tail) {
+  using H =
+      typename std::remove_cv<typename std::remove_reference<Head>::type>::type;
+  const char *pos = get_first_format(fmt);
+  if (pos == nullptr) {
+    return (false);
+  }
+  /* We currently only handle :
+  %[-0-9.*]*(d|ld|lld|u|lu|llu|zu|zx|zd|s|x|i|f|c|X|p|lx|llx|lf)
+  Feel free to extend the parser, if you need something more, as the parser is
+  not intended to be any stricter than real printf-format parser, and if it does
+  not handle something, it is only to keep the code simpler. */
+  const std::string skipable("-+ #0123456789.*");
+
+  pos++;
+  while (*pos != '\0' && skipable.find_first_of(*pos) != std::string::npos) {
+    pos++;
+  }
+  if (*pos == '\0') {
+    return (false);
+  }
+  bool is_ok = true;
+  if (pos[0] == 'l') {
+    if (pos[1] == 'l') {
+      if (pos[2] == 'd') {
+        is_ok = std::is_same<H, long long int>::value;
+      } else if (pos[2] == 'u' || pos[2] == 'x') {
+        is_ok = std::is_same<H, unsigned long long int>::value;
+      } else {
+        is_ok = false;
+      }
+    } else if (pos[1] == 'd') {
+      is_ok = std::is_same<H, long int>::value;
+    } else if (pos[1] == 'u') {
+      is_ok = std::is_same<H, unsigned long int>::value;
+    } else if (pos[1] == 'x') {
+      is_ok = std::is_same<H, unsigned long int>::value;
+    } else if (pos[1] == 'f') {
+      is_ok = std::is_same<H, double>::value;
+    } else {
+      is_ok = false;
+    }
+  } else if (pos[0] == 'd') {
+    is_ok = std::is_same<H, int>::value;
+  } else if (pos[0] == 'u') {
+    is_ok = std::is_same<H, unsigned int>::value;
+  } else if (pos[0] == 'x') {
+    is_ok = std::is_same<H, unsigned int>::value;
+  } else if (pos[0] == 'X') {
+    is_ok = std::is_same<H, unsigned int>::value;
+  } else if (pos[0] == 'i') {
+    is_ok = std::is_same<H, int>::value;
+  } else if (pos[0] == 'f') {
+    is_ok = std::is_same<H, float>::value;
+  } else if (pos[0] == 'c') {
+    is_ok = std::is_same<H, char>::value;
+  } else if (pos[0] == 'p') {
+    is_ok = std::is_pointer<H>::value;
+  } else if (pos[0] == 's') {
+    is_ok = (std::is_same<H, char *>::value ||
+             std::is_same<H, char const *>::value ||
+             (std::is_array<H>::value &&
+              std::is_same<typename std::remove_cv<
+                               typename std::remove_extent<H>::type>::type,
+                           char>::value));
+  } else if (pos[0] == 'z') {
+    if (pos[1] == 'u') {
+      is_ok = std::is_same<H, size_t>::value;
+    } else if (pos[1] == 'x') {
+      is_ok = std::is_same<H, size_t>::value;
+    } else if (pos[1] == 'd') {
+      is_ok = std::is_same<H, ssize_t>::value;
+    } else {
+      is_ok = false;
+    }
+  } else {
+    is_ok = false;
+  }
+  return (is_ok && verify_fmt_match(pos + 1, std::forward<Tail>(tail)...));
+}
+#endif /* UNIV_DEBUG */
 
 /** This is a wrapper class, used to print any unsigned integer type
 in hexadecimal format.  The main purpose of this data type is to
@@ -430,7 +558,14 @@ class logger {
 
     int ret;
     char buf[LOG_BUFF_MAX];
-
+#ifdef UNIV_DEBUG
+    if (get_first_format(fmt) != nullptr) {
+      if (!verify_fmt_match(fmt, std::forward<Args>(args)...)) {
+        fprintf(stderr, "The format '%s' does not match arguments\n", fmt);
+        ut_error;
+      }
+    }
+#endif
     ret = snprintf(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
 
     std::string str;
@@ -570,7 +705,7 @@ class fatal : public logger {
   @param[in]	args		Variable length argument list */
   template <class... Args>
   explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL, err) {
-    m_oss << "[FATAL]";
+    m_oss << "[FATAL] ";
 
     m_oss << msg(err, std::forward<Args>(args)...);
   }

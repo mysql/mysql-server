@@ -101,7 +101,7 @@ class Item_proc_string : public Item_proc {
   }
   double val_real() override {
     int err_not_used;
-    char *end_not_used;
+    const char *end_not_used;
     const CHARSET_INFO *cs = str_value.charset();
     return my_strntod(cs, (char *)str_value.ptr(), str_value.length(),
                       &end_not_used, &err_not_used);

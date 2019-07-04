@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 # binaries
 usr/bin/mysql_client_test
 usr/bin/mysqltest
+usr/bin/mysqltest_safe_process
 usr/bin/mysqlxtest
 # plugins
 usr/lib/mysql/plugin/auth.so
@@ -40,6 +41,8 @@ usr/lib/mysql/plugin/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/component_test_pfs_notification.so
 usr/lib/mysql/plugin/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/component_test_udf_registration.so
+usr/lib/mysql/plugin/component_test_host_application_signal.so
+usr/lib/mysql/plugin/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/component_udf_reg_int_func.so
@@ -85,6 +88,7 @@ usr/lib/mysql/plugin/libtest_sql_stmt.so
 usr/lib/mysql/plugin/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/libtest_sql_views_triggers.so
+usr/lib/mysql/plugin/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/libtest_x_sessions_deinit.so
 usr/lib/mysql/plugin/libtest_x_sessions_init.so
 usr/lib/mysql/plugin/qa_auth_client.so
@@ -96,7 +100,9 @@ usr/lib/mysql/plugin/test_udf_services.so
 usr/lib/mysql/plugin/udf_example.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/test_services_plugin_registry.so
+usr/lib/mysql/plugin/test_services_host_application_signal.so
 usr/lib/mysql/plugin/component_mysqlx_global_reset.so
+usr/lib/mysql/plugin/component_test_audit_api_message.so
 @DEB_INSTALL_DEBUG_TEST_PLUGINS@
 # test suite
 usr/lib/mysql-test/*

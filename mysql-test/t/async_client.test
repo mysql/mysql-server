@@ -1,0 +1,168 @@
+--source include/have_ssl.inc
+--source include/have_openssl.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#11381: Add asynchronous support into the mysql protocol
+--echo #
+
+--echo # case1: default connection with default authentication plugin
+CREATE DATABASE wl11381;
+CREATE USER caching_sha2@localhost IDENTIFIED BY 'caching';
+GRANT ALL ON *.* TO caching_sha2@localhost;
+
+--enable_async_client
+
+--echo # connect as caching_sha2
+connect(caching_con1,localhost,caching_sha2,caching,wl11381,,,SSL);
+SELECT USER(), DATABASE();
+
+USE wl11381;
+CREATE TABLE t1(i INT, j VARCHAR(2048));
+INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
+SELECT * FROM t1;
+
+--echo # case2: request a large packet
+SET GLOBAL max_allowed_packet=4*1024;
+SELECT SPACE(@@global.max_allowed_packet);
+SET GLOBAL max_allowed_packet=default;
+
+connection default;
+disconnect caching_con1;
+
+--echo # connect with wrong password
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(caching_con2,localhost,caching_sha2,caching1,wl11381,,,SSL);
+
+--echo # check for timeout
+connect(caching_con3,localhost,caching_sha2,caching,wl11381,,,SSL);
+SELECT USER();
+SET @@SESSION.wait_timeout = 2;
+SELECT SLEEP(10);
+
+--echo # Check that ssl_con has not disconnected
+SELECT 1;
+
+connection default;
+disconnect caching_con3;
+
+--disable_async_client
+--echo # lock the account
+ALTER USER caching_sha2@localhost ACCOUNT LOCK;
+--enable_async_client
+
+--echo # account is locked so connect should fail
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error 3118
+connect(caching_con3,localhost,caching_sha2,caching,wl11381,,,SSL);
+
+connection default;
+--disable_async_client
+--echo # lock the account
+ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
+--enable_async_client
+
+--echo # account is unlocked so connect should pass
+connect(caching_con3,localhost,caching_sha2,caching,wl11381,,,SSL);
+SELECT "connect succeeded after account is unlocked";
+
+connection default;
+disconnect caching_con3;
+
+--disable_async_client
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--let $restart_parameters=restart: --ssl=off --loose-caching_sha2_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--source include/restart_mysqld.inc
+--enable_async_client
+
+--echo # connect as caching_sha2 with SSL disabled
+connect(caching_con4,localhost,caching_sha2,caching,wl11381,,,);
+SELECT USER();
+
+connection default;
+disconnect caching_con4;
+
+# default connection on windows is a NAMED_PIPE, on this type of connection
+# async operations are not allowed, so disable it.
+--disable_async_client
+--echo # change to empty password
+ALTER USER caching_sha2@localhost IDENTIFIED BY '';
+--enable_async_client
+
+--echo # connect as caching_sha2 with SSL disabled and empty password
+connect(caching_con5,localhost,caching_sha2,,wl11381,,,);
+SELECT USER();
+
+connection default;
+disconnect caching_con5;
+
+--disable_async_client
+--echo # case3: authenticate user with sha256_password
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
+--let $restart_parameters=restart: --default-authentication-plugin=sha256_password
+--source include/restart_mysqld.inc
+--enable_async_client
+
+--echo # connect as sha256 
+connect(sha256_con1,localhost,sha256,auth_string,,,,SSL,sha256_password);
+SELECT USER();
+
+connection default;
+disconnect sha256_con1;
+
+--disable_async_client
+--echo # change to empty password
+ALTER USER sha256@localhost IDENTIFIED BY '';
+--enable_async_client
+
+--echo # connect with empty password
+connect(sha256_con2,localhost,sha256,,,,,SSL,sha256_password);
+SELECT USER();
+
+connection default;
+disconnect sha256_con2;
+
+--disable_async_client
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--let $restart_parameters=restart: --default-authentication-plugin=sha256_password --ssl=off --loose-sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--source include/restart_mysqld.inc
+--enable_async_client
+
+--echo # connect with wrong password and SSL disabled
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR, CR_AUTH_PLUGIN_ERR
+connect(sha256_con3,localhost,sha256,auth_string,,,,,sha256_password);
+
+--disable_async_client
+--echo # case4: authenticate user with mysql_native_password
+CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'native';
+--let $restart_parameters=restart: --default-authentication-plugin=mysql_native_password
+--source include/restart_mysqld.inc
+--enable_async_client
+
+--echo # connect as native_user
+connect(native_con1,localhost,native_user,native,,,,,mysql_native_password);
+SELECT USER();
+
+connection default;
+disconnect native_con1;
+
+--disable_async_client
+--echo # Change to empty password
+ALTER USER native_user@localhost IDENTIFIED BY '';
+--enable_async_client
+
+--echo # connect as native_user with empty password
+connect(native_con2,localhost,native_user,,,,,,mysql_native_password);
+SELECT USER();
+
+connection default;
+disconnect native_con2;
+
+#cleanup
+--disable_async_client
+DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
+DROP DATABASE wl11381;

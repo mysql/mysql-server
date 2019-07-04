@@ -1,3 +1,6 @@
+# ER_STACK_OVERRUN_NEED_MORE does not currenly work well with TSan
+--source include/not_tsan.inc
+
 #
 # BUG#10308: purge log with subselect
 # Bug#28553: mysqld crash in "purge master log before(select time from information_schema)"

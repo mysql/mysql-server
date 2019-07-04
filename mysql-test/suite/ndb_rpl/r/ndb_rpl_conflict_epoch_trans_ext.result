@@ -1041,7 +1041,7 @@ select @primary_ok:=
 @epoch_trans2_diff_epoch)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH_TRANS has stable results independent of
 epoch boundaries: 
 select * from test.t1 order by a;
@@ -1076,7 +1076,7 @@ select @secondary_ok:=
 @epoch_trans2_diff_epoch)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH_TRANS has stable results independent of
 epoch boundaries: 
 select * from test.t1 order by a;
@@ -1197,7 +1197,7 @@ select @primary_ok:=
 @epoch2_trans)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Restart SECONDARY Slave
 START SLAVE;
 Sync PRIMARY -> SECONDARY
@@ -1212,7 +1212,7 @@ select @secondary_ok:=
 @epoch2_trans)
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 STABILISE
 drop table mysql.ndb_replication;
 drop table test.t1;

@@ -1,0 +1,117 @@
+## Following macros are defined in this file:
+#
+# * Test_assert_user_variable
+# * Test_reset_variables
+# * Test_prepare_and_execute_proc_arg0
+# * Test_prepare_and_execute_proc_arg1
+# * Test_prepare_and_execute_proc_arg2
+#
+
+
+-->macro Test_assert_user_variable %VAR_NAME% %IGNORE%
+callmacro Assert_user_variable	%VAR_NAME%	-1;
+-->endmacro
+
+
+-->macro Test_reset_variables
+noquery_result;
+echo [Reseting test variables];
+SET @res=-1;
+SET @min_val=-1;
+SET @max_val=-1;
+SET @in_val=5;
+query_result;
+-->endmacro
+
+
+-->macro_varg Test_prepare_and_execute_proc_arg0 %PROC_NAME%
+quiet;
+noquery_result;
+echo [Prepare and execute %PROC_NAME%];
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: 'CALL xtest.%PROC_NAME%'
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+noquiet;
+query_result;
+%VAR_ARGS%
+-->recvresult
+-->endmacro
+
+
+-->macro_varg Test_prepare_and_execute_proc_arg1 %PROC_NAME% %OUT_PARAM1%
+quiet;
+noquery_result;
+echo [Prepare and execute %PROC_NAME%];
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: 'CALL xtest.%PROC_NAME%'
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "%OUT_PARAM1%"
+      }
+    }
+  }
+}
+noquiet;
+query_result;
+%VAR_ARGS%
+-->recvresult
+-->endmacro
+
+
+-->macro_varg Test_prepare_and_execute_proc_arg2 %PROC_NAME% %OUT_PARAM1% %OUT_PARAM2%
+quiet;
+noquery_result;
+echo [Prepare and execute %PROC_NAME%];
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: 'CALL xtest.%PROC_NAME%'
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "%OUT_PARAM1%"
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "%OUT_PARAM2%"
+      }
+    }
+  }
+}
+noquiet;
+query_result;
+%VAR_ARGS%
+-->recvresult
+-->endmacro

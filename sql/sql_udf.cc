@@ -22,18 +22,6 @@
 
 /* This implements 'user defined functions' */
 
-/*
-   Known bugs:
-
-   Memory for functions is never freed!
-   Shared libraries are not closed before mysqld exits;
-     - This is because we can't be sure if some threads are using
-       a function.
-
-   The bugs only affect applications that create and free a lot of
-   dynamic functions, so this shouldn't be a real problem.
-*/
-
 #include "sql/sql_udf.h"
 
 #include "my_config.h"

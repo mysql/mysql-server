@@ -1,0 +1,254 @@
+#
+# Bug #28799261 IODKU UNNECESSARILY GAP-LOCKS SECONDARY INDEXES
+# AFTER DUPLICATE IS ALREADY FOUND
+#
+CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 1: Serialized transactions (trx1, trx2)
+INSERT INTO t1 VALUES (1, 1, 1);
+SELECT * FROM t1;
+a	b	c
+1	1	1
+# Transaction trx1
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Transaction trx2
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Result:
+SELECT * FROM t1;
+a	b	c
+1	1	1
+2	2	4
+# Cleanup
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 2: Serialized transactions (trx2, trx1)
+INSERT INTO t1 VALUES (1, 1, 1);
+SELECT * FROM t1;
+a	b	c
+1	1	1
+# Transaction trx2
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Transaction trx1
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Result:
+SELECT * FROM t1;
+a	b	c
+1	1	2
+2	3	3
+# Cleanup
+DROP TABLE t1;
+#
+# Bug #11758237 INSERT ON DUPLICATE KEY UPDATE SOMETIMES
+# WRITES BINLOG POSITION INCORRECT
+#
+CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 3: Interleaved transactions (trx1 conflicts on index b)
+INSERT INTO t1 VALUES (1, 1, 1);
+SELECT * FROM t1;
+a	b	c
+1	1	1
+# Connection default:
+# Transaction trx1:
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+SELECT * FROM t1;
+a	b	c
+1	1	2
+# Connection other:
+INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+# Connection default:
+INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+SELECT * FROM t1;
+a	b	c
+1	1	2
+2	3	4
+COMMIT;
+# Connection other:
+# Connection default:
+# Result:
+SELECT * FROM t1;
+a	b	c
+1	1	2
+2	3	3
+# Cleanup
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 4: Serialized transactions (trx1, trx2)
+INSERT INTO t1 VALUES (1, 1, 1);
+SELECT * FROM t1;
+a	b	c
+1	1	1
+# Transaction trx1
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Transaction trx2
+START TRANSACTION;
+INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Result:
+SELECT * FROM t1;
+a	b	c
+1	1	2
+2	2	4
+# Cleanup
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 5: Serialized transactions (trx2, trx1)
+INSERT INTO t1 VALUES (1, 1, 1);
+SELECT * FROM t1;
+a	b	c
+1	1	1
+# Transaction trx2
+START TRANSACTION;
+INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Transaction trx1
+START TRANSACTION;
+INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Result:
+SELECT * FROM t1;
+a	b	c
+1	1	2
+3	2	3
+# Cleanup
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 6: Interleaved transactions (trx1 conflicts on index a)
+INSERT INTO t1 VALUES (1, 1, 1);
+SELECT * FROM t1;
+a	b	c
+1	1	1
+# Connection default:
+# Transaction trx1:
+START TRANSACTION;
+INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+SELECT * FROM t1;
+a	b	c
+1	1	2
+# Connection other:
+START TRANSACTION;
+SET innodb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+# Connection default:
+INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+COMMIT;
+# Result:
+SELECT * FROM t1;
+a	b	c
+1	1	2
+3	2	4
+# Cleanup
+DROP TABLE t1;
+CREATE TABLE t1(f1 INT PRIMARY KEY,
+f2 INT, f3 INT, UNIQUE KEY(f2))ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  UNIQUE KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(f1, f2, f3) VALUES(1, 10, 100);
+SELECT * FROM t1;
+f1	f2	f3
+1	10	100
+# Connection other:
+START TRANSACTION;
+INSERT INTO t1 VALUES(2, 10, 200) ON DUPLICATE KEY UPDATE f3 = 120;
+# Connection default
+START TRANSACTION;
+SET innodb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES(2, 20, 300) ON DUPLICATE KEY UPDATE f3 = 500;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+# Connection other:
+COMMIT;
+# Connection default
+# Verify Results:
+SELECT * FROM t1;
+f1	f2	f3
+1	10	120
+DROP TABLE t1;
+CREATE TABLE t1(f1 INT AUTO_INCREMENT PRIMARY KEY, f2 INT, f3 INT,
+UNIQUE KEY(f2),UNIQUE KEY(f3))ENGINE=INNODB;
+INSERT INTO t1(f2,f3) VALUES(10, 100);
+INSERT INTO t1(f2,f3) VALUES(20, 200);
+UPDATE t1 SET f2=30,f3=100 WHERE f2 = 20;
+ERROR 23000: Duplicate entry '100' for key 'f3'
+SELECT * FROM t1;
+f1	f2	f3
+1	10	100
+2	20	200
+COMMIT;
+DROP TABLE t1;

@@ -42,6 +42,7 @@
 #include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
+#include "sql/field.h"
 #include "sql/key.h"  // key_copy
 #include "sql/log.h"
 #include "sql/mysqld.h"
@@ -1787,10 +1788,7 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
   TABLE_SHARE *share = table_arg->s;
   uint options = share->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
-  if (ha_create_info->encrypt_type.length > 0) {
-    set_my_errno(HA_WRONG_CREATE_OPTION);
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-  }
+
   for (i = 0; i < share->keys; i++) {
     if (table_arg->key_info[i].flags & HA_USES_PARSER) {
       create_flags |= HA_CREATE_RELIES_ON_SQL_LAYER;

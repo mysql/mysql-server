@@ -27,24 +27,28 @@ INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
 
+IF(EXISTS "/etc/SuSE-release")
+  SET(LINUX_SUSE 1)
+ENDIF()
+
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
 
-# We require at least GCC 4.8.3 or Clang 3.4.
+# We require at least GCC 5.3 or Clang 3.4.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_COMPILER_IS_GNUCC)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE GCC_VERSION)
     # -dumpversion may output only MAJOR.MINOR rather than MAJOR.MINOR.PATCH
-    IF(GCC_VERSION VERSION_LESS 4.8.3)
+    IF(GCC_VERSION VERSION_LESS 5.3)
       SET(WARNING_LEVEL WARNING)
-      IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8.3)
+      IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3)
         SET(WARNING_LEVEL FATAL_ERROR)
       ENDIF()
       MESSAGE(${WARNING_LEVEL}
-        "GCC 4.8.3 or newer is required (-dumpversion says ${GCC_VERSION})")
+        "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CHECK_C_SOURCE_RUNS("
@@ -70,7 +74,11 @@ ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
 # Not supported with Sanitizers
-IF(NOT WITH_ASAN AND NOT WITH_MSAN AND NOT WITH_UBSAN AND NOT WITH_TSAN)
+IF(NOT WITH_ASAN AND
+   NOT WITH_LSAN AND
+   NOT WITH_MSAN AND
+   NOT WITH_TSAN AND
+   NOT WITH_UBSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
 ENDIF()
 

@@ -3,6 +3,9 @@
 
 -- source include/not_threadpool.inc
 
+# X plugin might increase counter 'threads_connected' below
+source include/xplugin_wait_for_interfaces.inc;
+
 --disable_warnings
 SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE '%offline_mode%';
 --enable_warnings

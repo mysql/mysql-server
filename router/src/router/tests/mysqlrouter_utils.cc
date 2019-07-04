@@ -31,6 +31,7 @@
 
 #include <cstdlib>
 
+#include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"
 
 using std::string;

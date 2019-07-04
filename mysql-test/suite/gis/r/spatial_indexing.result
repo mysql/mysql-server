@@ -1,6 +1,5 @@
 #Creating the spatial Geometry object
 USE test;
-DROP TABLE IF EXISTS gis_point_with_spatial_index;
 CREATE TABLE gis_point_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
 NOT NULL SRID 0,spatial index (g) ) engine=myisam;
 select count(g) from gis_point_with_spatial_index where ST_AsText(g) like "%100 10%";
@@ -8,8 +7,7 @@ count(g)
 0
 select ST_AsText(g) from gis_point_with_spatial_index where ST_AsText(g) like "%100 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_point_with_spatial_index;
-DROP TABLE IF EXISTS gis_line_with_spatial_index;
+DROP TABLE gis_point_with_spatial_index;
 CREATE TABLE gis_line_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_line_with_spatial_index where ST_AsText(g) like "%100 10%";
@@ -17,8 +15,7 @@ count(g)
 0
 select ST_AsText(g) from gis_line_with_spatial_index where ST_AsText(g) like "%100 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_line_with_spatial_index;
-DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
+DROP TABLE gis_line_with_spatial_index;
 CREATE TABLE gis_polygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_polygon_with_spatial_index where ST_AsText(g) like "%10 10%";
@@ -26,8 +23,7 @@ count(g)
 0
 select ST_AsText(g) from gis_polygon_with_spatial_index where ST_AsText(g) like "%10 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
-DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
+DROP TABLE gis_polygon_with_spatial_index;
 CREATE TABLE gis_multipoint_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_multipoint_with_spatial_index where ST_AsText(g) like "%10 10%";
@@ -35,8 +31,7 @@ count(g)
 0
 select ST_AsText(g) from gis_multipoint_with_spatial_index where ST_AsText(g) like "%10 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
-DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
+DROP TABLE gis_multipoint_with_spatial_index;
 CREATE TABLE gis_multiline_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_multiline_with_spatial_index where ST_AsText(g) like "%10 0%";
@@ -44,8 +39,7 @@ count(g)
 0
 select ST_AsText(g) from gis_multiline_with_spatial_index where ST_AsText(g) like "%10 0%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
-DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
+DROP TABLE gis_multiline_with_spatial_index;
 CREATE TABLE gis_multipolygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_multipolygon_with_spatial_index where ST_AsText(g) like "%10 10%";
@@ -58,8 +52,7 @@ count(g)
 0
 select ST_AsText(g) from gis_multipolygon_with_spatial_index where ST_AsText(g) like "%84 0%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
-DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
+DROP TABLE gis_multipolygon_with_spatial_index;
 CREATE TABLE gis_geometrycollection_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_geometrycollection_with_spatial_index where ST_AsText(g) like "%10 10%";
@@ -67,8 +60,7 @@ count(g)
 0
 select ST_AsText(g) from gis_geometrycollection_with_spatial_index where ST_AsText(g) like "%10 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
-DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
+DROP TABLE gis_geometrycollection_with_spatial_index;
 CREATE TABLE gis_geometry_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY 
 NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_geometry_with_spatial_index where ST_AsText(g) like "%10 10%";
@@ -76,8 +68,7 @@ count(g)
 0
 select ST_AsText(g) from gis_geometry_with_spatial_index where ST_AsText(g) like "%10 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
+DROP TABLE gis_geometry_with_spatial_index;
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
 NOT NULL SRID 0,spatial index (g) ) engine=myisam;
 select count(g) from gis_point_and_int_with_spatial_index where ST_AsText(g) like "%100 10%";
@@ -85,7 +76,7 @@ count(g)
 0
 select ST_AsText(g) from gis_point_and_int_with_spatial_index where ST_AsText(g) like "%100 10%";
 ST_AsText(g)
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
+DROP TABLE gis_point_and_int_with_spatial_index;
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
@@ -111,7 +102,7 @@ select ST_AsText(g) from gis_point_and_int_with_spatial_index  where a like "%3%
 ST_AsText(g)
 POINT(100 20)
 POINT(100 20)
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
+DROP TABLE gis_point_and_int_with_spatial_index;
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
 NOT NULL SRID 0, a int,  index (a) ) engine=myisam;
 #INSERT valid entries to Point class
@@ -134,8 +125,7 @@ COUNT(g)
 SELECT COUNT(a) FROM gis_point_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%point%";
 COUNT(a)
 4
-DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index ;
-DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
+DROP TABLE gis_point_and_int_with_spatial_index ;
 CREATE TABLE gis_linestring_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
@@ -162,8 +152,7 @@ CREATE SPATIAL INDEX g ON gis_linestring_and_int_with_spatial_index (g) ;
 SELECT COUNT(g) FROM gis_linestring_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%2%";
 COUNT(g)
 2
-DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
-DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
+DROP TABLE gis_linestring_and_int_with_spatial_index ;
 CREATE TABLE gis_multilinestring_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g MULTILINESTRING 
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
@@ -187,8 +176,7 @@ CREATE SPATIAL INDEX g ON gis_multilinestring_and_int_with_spatial_index (g) ;
 SELECT COUNT(g) FROM gis_multilinestring_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%48%";
 COUNT(g)
 3
-DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
-DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
+DROP TABLE gis_multilinestring_and_int_with_spatial_index ;
 CREATE TABLE gis_polygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g POLYGON
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
@@ -213,8 +201,7 @@ CREATE SPATIAL INDEX g ON gis_polygon_and_int_with_spatial_index (g) ;
 SELECT COUNT(g) FROM gis_polygon_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%48%";
 COUNT(g)
 0
-DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
-DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
+DROP TABLE gis_polygon_and_int_with_spatial_index ;
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g multiPOLYGON
 NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
@@ -239,7 +226,7 @@ CREATE SPATIAL INDEX g ON gis_multipolygon_and_int_with_spatial_index (g) ;
 SELECT COUNT(g) FROM gis_multipolygon_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%18%";
 COUNT(g)
 4
-DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
+DROP TABLE gis_multipolygon_and_int_with_spatial_index ;
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON PRIMARY KEY, a int) engine=myisam;
 ERROR HY000: Spatial indexes can't be primary or unique indexes.
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON, a int,  unique index (g) ) engine=myisam;
@@ -276,7 +263,7 @@ CREATE SPATIAL INDEX g ON gis_multipolygon_and_int_with_spatial_index (g) ;
 SELECT COUNT(g) FROM gis_multipolygon_and_int_with_spatial_index  WHERE ST_AsText(g) LIKE "%18%";
 COUNT(g)
 4
-DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
+DROP TABLE gis_multipolygon_and_int_with_spatial_index ;
 #
 # Bug #21087676 FORBID BUILDING NON-SPATIAL INDEX ON GEOMETRY COLUMNS
 #

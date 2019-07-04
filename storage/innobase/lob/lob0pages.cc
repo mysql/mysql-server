@@ -147,10 +147,10 @@ buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
 
   page_no_t hint = FIL_NULL;
 
-  m_block = alloc_lob_page(m_index, alloc_mtr, hint, is_bulk);
-
   /* For testing purposes, pretend that the LOB page allocation failed.*/
-  DBUG_EXECUTE_IF("innodb_lob_data_page_alloc_failed", m_block = nullptr;);
+  DBUG_EXECUTE_IF("innodb_lob_data_page_alloc_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, alloc_mtr, hint, is_bulk);
 
   if (m_block == nullptr) {
     return (m_block);
@@ -219,4 +219,4 @@ ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
   DBUG_RETURN(copy_len);
 }
 
-};  // namespace lob
+}  // namespace lob

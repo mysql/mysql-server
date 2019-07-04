@@ -1,22 +1,22 @@
 # Collection for valgrind platform on weekly-trunk
 # Run all suites with big-test and debug-server option
 # Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --timer --big-test --non-parallel-test --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30
+perl mysql-test-run.pl --timer --big-test --non-parallel-test --debug-server --force  --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30
 
 
 # Run all non default suites with big-test
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=nist-debug-big  --vardir=var-nist-debug-big --suite=nist
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server  --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server  --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server  --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server  --comment=nist-debug-big  --vardir=var-nist-debug-big --suite=nist
 
 
 # Engine independent tests
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto  --comment=eits-tests-myisam-engine-debug-big --vardir=var-stmt-eits-tests-myisam-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=eits-tests-innodb-engine-debug-big --vardir=var-stmt-eits-tests-innodb-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --mysqld=--default-storage-engine=innodb --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server   --comment=eits-tests-myisam-engine-debug-big --vardir=var-stmt-eits-tests-myisam-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=eits-tests-innodb-engine-debug-big --vardir=var-stmt-eits-tests-innodb-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --mysqld=--default-storage-engine=innodb --no-skip
 
 # Memcached tests
-perl mysql-test-run.pl --timer --force --big-test --debug-server --comment=memcached-debug --vardir=var-debug-memcached --parallel=auto --suite=memcached
+perl mysql-test-run.pl --timer --force --big-test --debug-server --comment=memcached-debug --vardir=var-debug-memcached  --suite=memcached
 
 # Group Replication
 perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-valgrind --vardir=var-group_replication-valgrind --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360

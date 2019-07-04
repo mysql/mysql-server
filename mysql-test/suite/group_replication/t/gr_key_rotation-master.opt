@@ -1,0 +1,1 @@
+$KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key1

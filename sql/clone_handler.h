@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,19 @@ Clone handler interface to access clone plugin
 #include <string>
 
 #include "my_io.h"
+#include "mysql.h"
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class THD;
 struct Mysql_clone;
+struct MYSQL_SOCKET;
+
+/**
+  Number of PSI_statement_info instruments
+  for clone statements.
+*/
+
+#define CLONE_PSI_STATEMENT_COUNT 5
 
 /**
   Clone plugin handler to convenient way to. Takes
@@ -58,15 +67,22 @@ class Clone_handler {
 
   /** Clone handler interface for remote clone client.
   @param[in]	thd		server thread handle
+  @param[in]	remote_host	remote host IP address
+  @param[in]	remote_port	remote server port
+  @param[in]	remote_user	remote user name
+  @param[in]	remote_passwd	remote user's password
   @param[in]	data_dir	cloned data directory
+  @param[in]	ssl_mode	remote connection ssl mode
   @return error code */
-  int clone_remote_client(THD *thd, const char *data_dir);
+  int clone_remote_client(THD *thd, const char *remote_host, uint remote_port,
+                          const char *remote_user, const char *remote_passwd,
+                          const char *data_dir, enum mysql_ssl_mode ssl_mode);
 
   /** Clone handler interface for remote clone server.
   @param[in]	thd	server thread handle
   @param[in]	socket	network socket to remote client
   @return error code */
-  int clone_remote_server(THD *thd, my_socket socket);
+  int clone_remote_server(THD *thd, MYSQL_SOCKET socket);
 
  private:
   /** Validate clone data directory and convert to os format

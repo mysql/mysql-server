@@ -186,7 +186,7 @@ set @old_os = @@session.optimizer_switch;
 set optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	b	9	NULL	#	#	Using where with pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)); Using filesort
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	b	9	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)); Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
@@ -913,8 +913,8 @@ explain
 SELECT STRAIGHT_JOIN count(*) FROM 
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using where with pushed condition (`test`.`t1`.`a` is not null)
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using where with pushed condition isnull(`test`.`t2`.`uq`)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using pushed condition (`test`.`t1`.`a` is not null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using pushed condition isnull(`test`.`t2`.`uq`)
 Warnings:
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and isnull(`test`.`t2`.`uq`))
 SELECT STRAIGHT_JOIN count(*) FROM 
@@ -1044,7 +1044,7 @@ unique key uk2(b)
 # Create table t2 with a fk mapped to t1(a)
 create table t2(
 a int,
-foreign key fk1(a) references t1(a)
+constraint fk1 foreign key (a) references t1(a)
 )engine=ndb;
 # desc t1 to show the implicit pk
 desc t1;

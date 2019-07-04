@@ -1,0 +1,119 @@
+####################################################
+# Tests related to object identifier lengths
+####################################################
+
+# Connect to all MySQL Servers
+--source connect.inc
+
+--echo # ####################################################################
+--echo # Bug11753491: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64
+--echo #              CHARACTER TABLE NAME
+--echo # ####################################################################
+--error ER_TOO_LONG_IDENT
+create table abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(
+  id int primary key
+) engine=ndb;
+show warnings;
+
+
+--echo # ############################################################
+--echo # Bug19550973: CREATE/DROP DATABASE STATEMENT SEGFAULTS IF
+--echo #              IDENTIFIER LENGTH IS >=64
+--echo # ############################################################
+
+# Suppress error log messages triggered by failure to distribute in
+# the below tests
+-- disable_query_log ONCE
+call mtr.add_suppression("Failed to distribute");
+
+--echo #
+--echo # 1. Testing schema identifier with length 63
+--echo # NOTE! ndb_schema identifier length limit is currently 63
+--echo #
+CREATE DATABASE
+  abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+
+--echo # Create and drop table to test the long database name
+CREATE TABLE
+  abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1 (
+  a int
+) ENGINE=NDB;
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1;
+DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+
+--echo #
+--echo # 2. Testing schema identifier with length 64
+--echo # NOTE! MySQL Server allows 64, but ndb_schema limit is currently 63
+--echo #
+CREATE DATABASE
+  abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+
+--echo # Verify database existence
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+--echo # Create non NDB table
+CREATE TABLE t1 (
+  a int
+);
+--echo # Create NDB table should fail
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t2 (
+  a int
+) ENGINE=NDB;
+show warnings;
+
+--echo #
+--echo # 3. Databases with identifier length = 64 won't be replicated to other
+--echo # MySQL Servers. Verify that the above created dabatase is not present
+--echo # in the other Server
+--echo #
+--connection mysqld2
+--error ER_BAD_DB_ERROR
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+--connection mysqld1
+
+--echo #
+--echo # 4. Testing alter database
+--echo #
+ALTER DATABASE
+  abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123
+  character set=utf8mb4;
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (
+  a int
+) ENGINE=NDB;
+
+--echo #
+--echo # 4.1 Renaming table to too long database name should fail
+--echo #
+--error ER_TOO_LONG_IDENT
+ALTER TABLE db1.t1
+  RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
+# replace win slashes since not using default database
+--replace_regex /[\\]/\//
+SHOW WARNINGS;
+
+--echo #
+--echo # 4.2 Renaming table to too long table name should fail
+--echo #
+--error ER_TOO_LONG_IDENT
+ALTER TABLE db1.t1
+  RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+# replace win slashes since not using default database
+--replace_regex /[\\]/\//
+SHOW WARNINGS;
+
+DROP DATABASE db1;
+DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+
+--echo # Checking that database doesn't exists
+--error ER_BAD_DB_ERROR
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+
+--echo #
+--echo # 5. Testing schema identifier with length 65, should fail
+--echo # NOTE! The MySQL Server limit is 64 and thus it rejects length 65
+--echo #
+--error ER_TOO_LONG_IDENT
+CREATE DATABASE
+  abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234;

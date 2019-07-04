@@ -1,6 +1,7 @@
 -- source include/have_binlog_format_row.inc
 -- source include/have_ndb.inc
 -- source include/master-slave.inc
+CALL mtr.add_suppression("Slave: .*Duplicate column name");
 
 connection slave;
 --source suite/ndb/include/turn_off_ndb_read_backup.inc

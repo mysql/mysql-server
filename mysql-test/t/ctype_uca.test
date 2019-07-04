@@ -549,31 +549,11 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 --echo #                 ABOUT LDML DEFINITION PROBLEMS
 --echo #
 
-
-# Creating a temporary file for Index.xml
---copy_file $MYSQL_CHARSETSDIR/Index.xml $MYSQLTEST_VARDIR/temp.xml
---remove_file $MYSQL_CHARSETSDIR/Index.xml
-
-# Adding an unknown collation with invalid grammer rules.
-# Please make sure the id is not used by any existing collations.
---write_file $MYSQL_CHARSETSDIR/Index.xml
-<?xml version='1.0' encoding="utf-8"?>
-<charsets max-id="99">
-<charset name="utf8">
-  <family>Unicode</family>
-  <description>UTF-8 Unicode</description>
-  <alias>utf-8</alias>
-  <collation name="utf8_test"            id="999">
-    <rules>
-      <reset>A</reset>
-    </rules>
-  </collation>
-</charset>
-</charsets>
-EOF
-
-# Restart the server
--- source include/restart_mysqld.inc
+--echo #
+--echo # Restart the server with a collation with invalid grammar rules.
+--let $restart_parameters=restart:--character-sets-dir=$MYSQL_TEST_DIR/std_data/bug16204175/
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--source include/restart_mysqld.inc
 
 --echo # Check whether the new collation is loaded after restart
 SHOW COLLATION LIKE 'utf8_test';
@@ -587,10 +567,11 @@ CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8_test);
 call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 
 # Cleanup
---remove_file $MYSQL_CHARSETSDIR/Index.xml
---copy_file $MYSQLTEST_VARDIR/temp.xml $MYSQL_CHARSETSDIR/Index.xml
---remove_file $MYSQLTEST_VARDIR/temp.xml
--- source include/restart_mysqld.inc
+--echo #
+--echo # Restart server with original character sets dir:
+--let $restart_parameters=restart:--character-sets-dir=$MYSQL_CHARSETSDIR
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+--source include/restart_mysqld.inc
 
 --echo #
 --echo # End of 5.6 tests
@@ -618,3 +599,28 @@ SELECT SQL_BIG_RESULT DISTINCT f1 FROM t1;
 
 DROP TABLE t1;
 SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug #27578340: INCONSISTENT RESULTS FOR SELECTS FROM TABLE WITH CHAR(N) COLUMN
+--echo #                AND NO_PAD COLLATION
+--echo #
+CREATE TABLE t1 (
+    f1 CHAR(20) COLLATE utf8mb4_0900_ai_ci  # A NO PAD collation.
+);
+INSERT INTO t1 VALUES ('ABC  ');
+INSERT INTO t1 VALUES ('XYZ');
+INSERT INTO t1 VALUES ('XYZ ');
+INSERT INTO t1 VALUES ('ABC ');
+
+--echo #
+--echo # We should get the same results with and without an index.
+--echo # The former should match both XYZ values, the latter should match nothing.
+--echo # This is because CHAR conceptually never stores trailing spaces (in MySQL).
+--echo #
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CREATE INDEX f1_index ON t1 ( f1 );
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+
+DROP TABLE t1;

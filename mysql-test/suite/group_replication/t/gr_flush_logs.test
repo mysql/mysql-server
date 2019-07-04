@@ -49,45 +49,176 @@
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
---connection server1
+################################################################################
+# Save current binlog, applier log and recovery log index number to be used with
+# `assert_logs_rotated.inc`
+################################################################################
+--write_file $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc PROCEDURE
+  if ($server_number == '')
+  {
+    --die !!!ERROR IN TEST: you must set $server_number
+  }
+
+  --let $old_include_silent = $include_silent
+  --let $include_silent = 1
+
+  --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*binary-log*
+  --source include/rpl_log_file_max_number.inc
+  --let MAX_BINLOG_FILE_BEFORE_FLUSH = $log_file_max_number
+
+  --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_applier*
+  --source include/rpl_log_file_max_number.inc
+  --let MAX_APPLIER_LOG_FILE_BEFORE_FLUSH = $log_file_max_number
+
+  --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_recovery*
+  --source include/rpl_log_file_max_number.inc
+  --let MAX_RECOVERY_LOG_FILE_BEFORE_FLUSH = $log_file_max_number
+
+  --let RESULT_FILE = $MYSQLTEST_VARDIR/tmp/save_current_log_info_$server_number.inc
+
+  --perl SCRIPT
+    my $max_binlog_file = $ENV{'MAX_BINLOG_FILE_BEFORE_FLUSH'};
+    my $max_applier_log_file = $ENV{'MAX_APPLIER_LOG_FILE_BEFORE_FLUSH'};
+    my $max_recovery_log_file = $ENV{'MAX_RECOVERY_LOG_FILE_BEFORE_FLUSH'};
+    my $out = $ENV{'RESULT_FILE'};
+
+    unlink $out;
+    open OUT, "> $out" or die("Unable to open $out: $!\n");
+    print OUT "--let \$max_binlog_file_before_flush = " . $max_binlog_file . "\n";
+    print OUT "--let \$max_applier_log_file_before_flush = " . $max_applier_log_file . "\n";
+    print OUT "--let \$max_recovery_log_file_before_flush = " . $max_recovery_log_file . "\n";
+    close OUT;
+  #END OF
+  SCRIPT
+  --let $include_silent = $old_include_silent
+#END OF
+PROCEDURE
+
+################################################################################
+# Load information stored with `save_current_log_info` and match it to current
+# index number in binary log, applier log and recovery log.
+################################################################################
+--write_file $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc PROCEDURE
+  if ($server_number == '')
+  {
+    --die !!!ERROR IN TEST: you must set $server_number
+  }
+  if ($must_rotate_binlog == '')
+  {
+    --die !!!ERROR IN TEST: you must set $must_rotate_binlog
+  }
+  if ($must_rotate_applier_log == '')
+  {
+    --die !!!ERROR IN TEST: you must set $must_rotate_applier_log
+  }
+  if ($must_rotate_recovery_log == '')
+  {
+    --die !!!ERROR IN TEST: you must set $must_rotate_recovery_log
+  }
+
+  --let $old_include_silent = $include_silent
+  --let $include_silent = 1
+
+  --source $MYSQLTEST_VARDIR/tmp/save_current_log_info_$server_number.inc
+
+  --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*binary-log*
+  --let $include_silent = 1
+  --source include/rpl_log_file_max_number.inc
+  --let $max_binlog_file_after_flush = $log_file_max_number
+  --let $assert_text = Binary log WAS flushed and rotated
+  --let $operator = <
+  if ($must_rotate_binlog == 'no')
+  {
+    --let $assert_text = Binary log WAS NOT flushed nor rotated
+    --let $operator = =
+  }
+  --let $assert_cond = $max_binlog_file_before_flush $operator $max_binlog_file_after_flush
+  --let $include_silent = 0
+  --source include/assert.inc
+
+  --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_applier*
+  --let $include_silent = 1
+  --source include/rpl_log_file_max_number.inc
+  --let $max_applier_log_file_after_flush = $log_file_max_number
+  --let $assert_text = Applier relay log WAS flushed and rotated
+  --let $operator = <
+  if ($must_rotate_applier_log == 'no')
+  {
+    --let $assert_text = Applier relay log WAS NOT flushed nor rotated
+    --let $operator = =
+  }
+  --let $assert_cond = $max_applier_log_file_before_flush $operator $max_applier_log_file_after_flush
+  --let $include_silent = 0
+  --source include/assert.inc
+
+  --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.$server_number/data/*group_replication_recovery*
+  --let $include_silent = 1
+  --source include/rpl_log_file_max_number.inc
+  --let $max_recovery_log_file_after_flush = $log_file_max_number
+  --let $assert_text = Recovery relay log WAS flushed and rotated
+  --let $operator = <
+  if ($must_rotate_recovery_log == 'no')
+  {
+    --let $assert_text = Recovery relay log WAS NOT flushed nor rotated
+    --let $operator = =
+  }
+  --let $assert_cond = $max_recovery_log_file_before_flush $operator $max_recovery_log_file_after_flush
+  --let $include_silent = 0
+  --source include/assert.inc
+
+  --remove_file $MYSQLTEST_VARDIR/tmp/save_current_log_info_$server_number.inc
+  --error 1
+  --file_exists $MYSQLTEST_VARDIR/tmp/save_current_log_info_$server_number.inc
+  --let $include_silent = $old_include_silent
+#END OF
+PROCEDURE
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
 CREATE TABLE t1 (i INT PRIMARY KEY) engine= innodb;
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
 --echo # Test if support 'flush error logs' statement.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush error logs;
 
 --file_exists $MYSQLTEST_VARDIR/tmp/master_log.err
 
 --echo # Make sure binary logs was not flushed after execute 'flush error logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
-
 --echo # Make sure applier logs was not flushed after execute 'flush error logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush error logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush error logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
 --echo # Make sure applier logs was not flushed after execute 'flush error logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
 --echo # Make sure binary logs was not flushed after execute 'flush error logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
 
 --source include/rpl_sync.inc
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
 INSERT INTO t1 VALUES(1);
 --source include/rpl_sync.inc
@@ -95,7 +226,8 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 2 from t1
 --source include/wait_condition.inc
 
@@ -103,43 +235,50 @@ INSERT INTO t1 VALUES(2);
 --source include/diff_tables.inc
 
 
---connection server1
---echo # Test if support 'flush relay logs' statement.
-flush relay logs;
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--echo # Test if support 'flush local relay logs' statement.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
 
---echo # Make sure binary logs was not flushed after execute 'flush relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+flush local relay logs;
 
---echo # Make sure applier logs was not flushed after execute 'flush relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure binary logs was not flushed after execute 'flush local relay logs' statement.
+--echo # Make sure applier logs was flushed after execute 'flush local relay logs' statement.
+--echo # Make sure recovery logs was flushed after execute 'flush local relay logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = yes
+--let $must_rotate_recovery_log = yes
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
---echo # Make sure recovery logs was not flushed after execute 'flush relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
---echo # Make sure applier logs was not flushed after execute 'flush relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
---echo # Make sure binary logs was not flushed after execute 'flush relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush local relay logs' statement.
+--echo # Make sure applier logs was flushed after execute 'flush local relay logs' statement.
+--echo # Make sure binary logs was not flushed after execute 'flush local relay logs' statement.
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES(3);
 --source include/rpl_sync.inc
 
 INSERT INTO t1 VALUES(4);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 4 from t1
 --source include/wait_condition.inc
 
@@ -148,87 +287,100 @@ INSERT INTO t1 VALUES(4);
 
 # Test 'flush slow logs' statement.
 --echo # Test if support 'flush slow logs' statement.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush slow logs;
 
 --echo # Make sure binary logs was not flushed after execute 'flush slow logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
-
 --echo # Make sure applier logs was not flushed after execute 'flush slow logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush slow logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush slow logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
 --echo # Make sure applier logs was not flushed after execute 'flush slow logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
 --echo # Make sure binary logs was not flushed after execute 'flush slow logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 
 # Testing if the replication is working fine between the members.
 
 --source include/rpl_sync.inc
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES(5);
 --source include/rpl_sync.inc
 
 INSERT INTO t1 VALUES(6);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 6 from t1
 --source include/wait_condition.inc
 
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 # Test 'flush general logs' statement.
 --echo # Test if support 'flush general logs' statement.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush general logs;
 
 --echo # Make sure binary logs was not flushed after execute 'flush general logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
-
 --echo # Make sure applier logs was not flushed after execute 'flush general logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush general logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush general logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
 --echo # Make sure applier logs was not flushed after execute 'flush general logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
 --echo # Make sure binary logs was not flushed after execute 'flush general logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES(7);
 --source include/rpl_sync.inc
 
 INSERT INTO t1 VALUES(8);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 8 from t1
 --source include/wait_condition.inc
 
@@ -237,66 +389,72 @@ INSERT INTO t1 VALUES(8);
 
 # Test 'flush engine logs' statement.
 --echo # Test if support 'flush engine logs' statement.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush engine logs;
 
 --echo # Make sure binary logs was not flushed after execute 'flush engine logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
-
 --echo # Make sure applier logs was not flushed after execute 'flush engine logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush engine logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush engine logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
 --echo # Make sure applier logs was not flushed after execute 'flush engine logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
 --echo # Make sure binary logs was not flushed after execute 'flush engine logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES(9);
 --source include/rpl_sync.inc
 
 INSERT INTO t1 VALUES(10);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 10 from t1
 --source include/wait_condition.inc
 
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 # Test 'flush binary logs' statement.
---echo # Make sure the 'server1-bin.000002' file does not
---echo # exist before execute 'flush binary logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
-
---connection server2
---echo # Make sure the 'server1-bin.000002' file does not
---echo # exist before execute 'flush binary logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
-
---connection server1
 --echo # Test if support 'flush binary logs' statement.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush binary logs;
 
 --echo # Make sure binary logs is flushed after execute 'flush binary logs' statement.
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+--echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
+--echo # Make sure recovery logs was not flushed after execute 'flush binary logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = yes
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --echo # Test if it supports 'show binary logs' statement and verify that it shows the correct data
 
@@ -310,145 +468,166 @@ flush binary logs;
 --let $assert_cond= "$binlog2" = "server-binary-log.000002"
 --source include/assert.inc
 
---echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
-
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush binary logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
 --echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
 --echo # Make sure binary logs was not flushed after execute 'flush binary logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES(11);
 --source include/rpl_sync.inc
 
 INSERT INTO t1 VALUES(12);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 12 from t1
 --source include/wait_condition.inc
 
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
 --echo # Test if support to combine all kinds of logs into one statement.
-flush error logs, relay logs;
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
+flush local error logs, relay logs;
 
 --file_exists $MYSQLTEST_VARDIR/tmp/master_log.err
 
---echo # Make sure binary logs was not flushed after execute 'flush error logs, relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000003
-
---echo # Make sure applier logs was not flushed after execute 'flush error logs, relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure binary logs was not flushed after execute 'flush local error logs, relay logs' statement.
+--echo # Make sure applier logs was flushed after execute 'flush local error logs, relay logs' statement.
+--echo # Make sure recovery logs was flushed after execute 'flush local error logs, relay logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = yes
+--let $must_rotate_recovery_log = yes
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
---echo # Make sure recovery logs was not flushed after execute 'flush error logs, relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
---echo # Make sure applier logs was not flushed after execute 'flush error logs, relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
---echo # Make sure binary logs was not flushed after execute 'flush error logs, relay logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush local error logs, relay logs' statement.
+--echo # Make sure applier logs was flushed after execute 'flush local error logs, relay logs' statement.
+--echo # Make sure binary logs was not flushed after execute 'flush local error logs, relay logs' statement.
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
 
 --source include/rpl_sync.inc
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES(13);
 --source include/rpl_sync.inc
 
 INSERT INTO t1 VALUES(14);
 --source include/rpl_sync.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 --let $wait_condition= select count(*) = 14 from t1
 --source include/wait_condition.inc
 
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc
 
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 # Test 'flush logs' statement
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
 --echo # Test if 'flush logs' statement works fine and flush all the logs.
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush logs;
 
 --file_exists $MYSQLTEST_VARDIR/tmp/master_log.err
 
 --echo # Check 'server1-bin.000003' is created after execute 'flush logs' statement.
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000003
-
---echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure applier logs was flushed after execute 'flush logs' statement.
+--echo # Make sure recovery logs was flushed after execute 'flush logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = yes
+--let $must_rotate_applier_log = yes
+--let $must_rotate_recovery_log = yes
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
 
 --echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
-
 --echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
-
 --echo # Make sure binary logs was not flushed after execute 'flush logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+--let $server_number = 2
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --echo # Checking the "flush logs" behavior executed from the server2 side
 
---connection server2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+--let $server_number = 1
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--let $server_number = 2
+--source $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+
 flush logs;
 
 --echo # Check 'server2-bin.000002' is created after execute 'flush logs' statement.
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
-
---echo # Check 'group_replication_applier.000002 is not created after execute 'flush logs' statement on server2.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+--echo # Make sure applier logs was flushed after execute 'flush logs' statement.
+--echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
+--let $server_number = 2
+--let $must_rotate_binlog = yes
+--let $must_rotate_applier_log = yes
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 --source include/rpl_sync.inc
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
---echo # Check 'server1-bin.000004' is not created after execute 'flush logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000004
-
---echo # Check 'group_replication_applier.000002' is not created after execute 'flush logs' statement.
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+--echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
+--echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
+--echo # Make sure binary logs was not flushed after execute 'flush logs' statement.
+--let $server_number = 1
+--let $must_rotate_binlog = no
+--let $must_rotate_applier_log = no
+--let $must_rotate_recovery_log = no
+--source $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 
 # Testing if the replication is working fine between the members.
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 
 INSERT INTO t1 VALUES(15);
 
@@ -463,6 +642,9 @@ INSERT INTO t1 VALUES(16);
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc
 
---connection server1
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
 DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/save_current_log_info.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/assert_logs_rotated.inc
 --source include/group_replication_end.inc

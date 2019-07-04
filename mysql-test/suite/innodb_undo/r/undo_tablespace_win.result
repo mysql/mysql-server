@@ -1,0 +1,32 @@
+#
+# InnoDB supports CREATE/ALTER/DROP UNDO TABLESPACE
+#
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart
+#
+# Try CREATE UNDO TABLESPACE commands that respond differently on Windows
+#
+# Cannot embed a newline character into windows file name
+CREATE UNDO TABLESPACE undo_99 ADD DATAFILE 'undo_\n_99.ibu';
+ERROR HY000: Failed to create UNDO TABLESPACE undo_99
+SHOW WARNINGS;
+Level	Code	Message
+Error	1528	Failed to create UNDO TABLESPACE undo_99
+Error	1030	Got error 168 - 'Unknown (generic) error from engine' from storage engine
+# Cannot embed a CR character into windows file name
+CREATE UNDO TABLESPACE undo_99 ADD DATAFILE 'undo_\r_99.ibu';
+ERROR HY000: Failed to create UNDO TABLESPACE undo_99
+SHOW WARNINGS;
+Level	Code	Message
+Error	1528	Failed to create UNDO TABLESPACE undo_99
+Error	1030	Got error 168 - 'Unknown (generic) error from engine' from storage engine
+# Cannot embed a tab character into a windows file name
+CREATE UNDO TABLESPACE undo_99 ADD DATAFILE 'undo_\t_99.ibu';
+ERROR HY000: Failed to create UNDO TABLESPACE undo_99
+SHOW WARNINGS;
+Level	Code	Message
+Error	1528	Failed to create UNDO TABLESPACE undo_99
+Error	1030	Got error 168 - 'Unknown (generic) error from engine' from storage engine
+#
+# Cleanup
+#

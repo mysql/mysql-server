@@ -226,14 +226,7 @@ struct PoolManager {
 
       if (ptr == 0 && (index / n_pools) > 2) {
         if (!add_pool(n_pools)) {
-          ib::error() << "Failed to allocate"
-                         " memory for a pool of size "
-                      << m_size
-                      << " bytes. Will"
-                         " wait for "
-                      << delay
-                      << " seconds for a thread to"
-                         " free a resource";
+          ib::error(ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT, m_size, delay);
 
           /* There is nothing much we can do
           except crash and burn, however lets
@@ -284,7 +277,7 @@ struct PoolManager {
 
         m_pools.push_back(pool);
 
-        ib::info() << "Number of pools: " << m_pools.size();
+        ib::info(ER_IB_MSG_NUM_POOLS, m_pools.size());
 
         added = true;
       }

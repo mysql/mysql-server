@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,18 +96,6 @@ enum thr_lock_type {
 enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
 
 struct Lock_descriptor {
-  /*
-    These constructors are no longer needed when we go to C++14, where
-    aggregate initialization is allowed on classes that have default
-    member initializers.
-  */
-  Lock_descriptor() {}
-
-  explicit Lock_descriptor(thr_lock_type type_arg) : type(type_arg) {}
-
-  Lock_descriptor(thr_lock_type type_arg, thr_locked_row_action action_arg)
-      : type(type_arg), action(action_arg) {}
-
   thr_lock_type type{TL_UNLOCK};
   thr_locked_row_action action{THR_DEFAULT};
 };

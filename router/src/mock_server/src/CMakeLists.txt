@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,21 +25,19 @@
 # (server mock dependency) from mysql_server_mock_schema.js
 ################################################################################
 
-# build JSON schema embedder
-ADD_EXECUTABLE(json_schema_embedder json_schema_embedder.cc)
-
-# generate mysql_server_mock_schema.cc, which embeds mysql_server_mock_schema.js
-# as a c-string. Server mock build will trigger this as its dependency [_HERE_]
-ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc
+ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc mysql_server_mock_schema.h
                    COMMAND json_schema_embedder
                      ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.js
-                     ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_mock_schema.cc)
+                     mysql_server_mock_schema.cc
+                     mysql_server_mock_schema.h
+                     "SqlQueryJsonSchema"
+                   DEPENDS json_schema_embedder)
 
 
 SET(common_libraries)
 SET(math_libraries)
 IF(WIN32)
-  LIST(APPEND common_libraries Ws2_32.lib)
+  LIST(APPEND common_libraries ws2_32)
 ELSEIF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   LIST(APPEND common_libraries -lnsl -lsocket -lpthread)
   LIST(APPEND math_libraries -lm)
@@ -55,6 +53,9 @@ SET(DUKTAPE_SRCS
   ${DUKTAPE_SOURCE_DIR}/src/duktape.c
   ${DUKTAPE_SOURCE_DIR}/extras/logging/duk_logging.c
   ${DUKTAPE_SOURCE_DIR}/extras/module-node/duk_module_node.c)
+
+SET(MOCK_SERVER_HTTP_CLIENT_SRCS
+    mock_server_rest_client.cc)
 
 CHECK_CXX_COMPILER_FLAG("-Werror" HAVE_ERROR)
 IF(HAVE_ERROR)
@@ -104,6 +105,10 @@ SET_TARGET_PROPERTIES(duktape PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 
 IF(WIN32)
+  # LNK4049: locally defined symbol 'symbol' imported
+  # LNK4217: locally defined symbol 'symbol' imported in function 'function'
+  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " /ignore:4049 /ignore:4217")
+
   ADD_CUSTOM_COMMAND(TARGET duktape POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/duktape.dll"
@@ -137,6 +142,7 @@ TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/router/include
   ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include/
+  ${CMAKE_CURRENT_BINARY_DIR}
   )
 
 add_harness_plugin(rest_mock_server
@@ -150,6 +156,17 @@ TARGET_INCLUDE_DIRECTORIES(rest_mock_server PUBLIC
 ADD_EXECUTABLE(mysql_server_mock
   main.cc
   )
+
+ADD_LIBRARY(mock_server_rest_client ${MOCK_SERVER_HTTP_CLIENT_SRCS})
+TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
+    ${PROJECT_SOURCE_DIR}/src/mock_server/include/
+    ${PROJECT_SOURCE_DIR}/src/http/include/
+    )
+
+# add all targets to the build-all target
+ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
+        mysql_server_mock mock_server_rest_client)
+
 
 TARGET_LINK_LIBRARIES(mysql_server_mock ${common_libraries} harness-library)
 SET_TARGET_PROPERTIES(mysql_server_mock PROPERTIES

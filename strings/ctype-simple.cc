@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -275,11 +275,11 @@ size_t my_snprintf_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *to,
 }
 
 void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key, size_t len,
-                         ulong *nr1, ulong *nr2) {
+                         uint64 *nr1, uint64 *nr2) {
   const uchar *sort_order = cs->sort_order;
   const uchar *end;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -290,9 +290,9 @@ void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key, size_t len,
   tmp1 = *nr1;
   tmp2 = *nr2;
 
-  for (; key < (uchar *)end; key++) {
+  for (; key < end; key++) {
     tmp1 ^=
-        (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)sort_order[(uint)*key])) +
+        (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)sort_order[(uint)*key])) +
         (tmp1 << 8);
     tmp2 += 3;
   }
@@ -302,7 +302,7 @@ void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key, size_t len,
 }
 
 long my_strntol_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
-                     int base, char **endptr, int *err) {
+                     int base, const char **endptr, int *err) {
   int negative;
   uint32 cutoff;
   uint cutlim;
@@ -360,7 +360,7 @@ long my_strntol_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
   if (s == save) goto noconv;
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != nullptr) *endptr = s;
 
   if (negative) {
     if (i > (uint32)INT_MIN32) overflow = 1;
@@ -376,12 +376,12 @@ long my_strntol_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
 noconv:
   err[0] = EDOM;
-  if (endptr != NULL) *endptr = (char *)nptr;
+  if (endptr != nullptr) *endptr = nptr;
   return 0L;
 }
 
 ulong my_strntoul_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
-                       int base, char **endptr, int *err) {
+                       int base, const char **endptr, int *err) {
   int negative;
   uint32 cutoff;
   uint cutlim;
@@ -438,7 +438,7 @@ ulong my_strntoul_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
   if (s == save) goto noconv;
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != nullptr) *endptr = s;
 
   if (overflow) {
     err[0] = ERANGE;
@@ -449,12 +449,12 @@ ulong my_strntoul_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
 noconv:
   err[0] = EDOM;
-  if (endptr != NULL) *endptr = (char *)nptr;
+  if (endptr != nullptr) *endptr = nptr;
   return 0L;
 }
 
 longlong my_strntoll_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
-                          int base, char **endptr, int *err) {
+                          int base, const char **endptr, int *err) {
   int negative;
   ulonglong cutoff;
   uint cutlim;
@@ -512,7 +512,7 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
   if (s == save) goto noconv;
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != nullptr) *endptr = s;
 
   if (negative) {
     if (i > (ulonglong)LLONG_MIN) overflow = 1;
@@ -528,12 +528,12 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
 noconv:
   err[0] = EDOM;
-  if (endptr != NULL) *endptr = (char *)nptr;
+  if (endptr != nullptr) *endptr = nptr;
   return 0L;
 }
 
 ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
-                            int base, char **endptr, int *err) {
+                            int base, const char **endptr, int *err) {
   int negative;
   ulonglong cutoff;
   uint cutlim;
@@ -592,7 +592,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
   if (s == save) goto noconv;
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != nullptr) *endptr = s;
 
   if (overflow) {
     err[0] = ERANGE;
@@ -603,7 +603,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
 
 noconv:
   err[0] = EDOM;
-  if (endptr != NULL) *endptr = (char *)nptr;
+  if (endptr != nullptr) *endptr = nptr;
   return 0L;
 }
 
@@ -630,7 +630,7 @@ noconv:
 */
 
 double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *str,
-                       size_t length, char **end, int *err) {
+                       size_t length, const char **end, int *err) {
   if (length == INT_MAX32) length = 65535; /* Should be big enough */
   *end = str + length;
   return my_strtod(str, end, err);
@@ -1124,7 +1124,7 @@ static bool my_coll_init_simple(
 }  // extern "C"
 
 longlong my_strtoll10_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           const char *nptr, char **endptr, int *error) {
+                           const char *nptr, const char **endptr, int *error) {
   return my_strtoll10(nptr, endptr, error);
 }
 
@@ -1221,7 +1221,8 @@ static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
 
 ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                  const char *str, size_t length,
-                                 int unsigned_flag, char **endptr, int *error) {
+                                 int unsigned_flag, const char **endptr,
+                                 int *error) {
   const char *dot, *end9, *beg, *end = str + length;
   ulonglong ull;
   ulong ul;
@@ -1248,7 +1249,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   if (str >= end) /* Small number without dots and expanents */
   {
-    *endptr = (char *)str;
+    *endptr = str;
     if (negative) {
       if (unsigned_flag) {
         *error = ul ? MY_ERRNO_ERANGE : 0;
@@ -1376,7 +1377,7 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
   }
 
 ret_sign:
-  *endptr = (char *)str;
+  *endptr = str;
 
   if (!unsigned_flag) {
     if (negative) {
@@ -1407,17 +1408,17 @@ ret_sign:
   return ull;
 
 ret_zero:
-  *endptr = (char *)str;
+  *endptr = str;
   *error = 0;
   return 0;
 
 ret_edom:
-  *endptr = (char *)str;
+  *endptr = str;
   *error = MY_ERRNO_EDOM;
   return 0;
 
 ret_too_big:
-  *endptr = (char *)str;
+  *endptr = str;
   *error = MY_ERRNO_ERANGE;
   return unsigned_flag ? ULLONG_MAX
                        : negative ? (ulonglong)LLONG_MIN : (ulonglong)LLONG_MAX;

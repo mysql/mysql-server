@@ -356,7 +356,7 @@ drop table t1;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -382,7 +382,7 @@ create database mysqldump_test_db character set latin2 collate latin2_bin;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET latin2 COLLATE latin2_bin */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET latin2 COLLATE latin2_bin */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `mysqldump_test_db`;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1282,7 +1282,7 @@ INSERT INTO t1 VALUES (1),(2),(3);
 
 /*!40000 DROP DATABASE IF EXISTS `test`*/;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2204,7 +2204,7 @@ update t1 set a = 4 where a=3;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2330,7 +2330,7 @@ DELIMITER ;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2475,7 +2475,7 @@ set sql_mode='';
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2626,7 +2626,7 @@ set global time_zone='Europe/Moscow';
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2663,7 +2663,7 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2799,7 +2799,7 @@ a	b	c
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -2924,7 +2924,7 @@ SET SQL_MODE = @old_sql_mode;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
@@ -3195,7 +3195,7 @@ insert into t1 values (0815);
 
 /*!40000 DROP DATABASE IF EXISTS `mysqldump_test_db`*/;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `mysqldump_test_db`;
 DROP TABLE IF EXISTS `t1`;
@@ -3256,7 +3256,7 @@ create database mysqldump_views;
 use mysqldump_views;
 create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_tables.basetable;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_tables` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_tables` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `mysqldump_tables`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -3268,7 +3268,7 @@ CREATE TABLE `basetable` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_views` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_views` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `mysqldump_views`;
 SET @saved_cs_client     = @@character_set_client;
@@ -3906,12 +3906,12 @@ second	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	E
 show create event ee1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 ee1		UTC	CREATE DEFINER=`root`@`localhost` EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-create event ee2 on schedule at '2018-12-31 21:01:23' do set @a=5;
+create event ee2 on schedule at '2029-12-31 21:01:23' do set @a=5;
 create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 second	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-second	ee2	root@localhost	UTC	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+second	ee2	root@localhost	UTC	ONE TIME	2029-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 second	ee3	root@localhost	UTC	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database second;
 create database third;
@@ -3919,7 +3919,7 @@ use third;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 third	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-third	ee2	root@localhost	UTC	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+third	ee2	root@localhost	UTC	ONE TIME	2029-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 third	ee3	root@localhost	UTC	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database third;
 set time_zone = 'SYSTEM';
@@ -3951,7 +3951,7 @@ insert into t1 values (0815);
 
 /*!40000 DROP DATABASE IF EXISTS `mysqldump_test_db`*/;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `mysqldump_test_db`;
 DROP TABLE IF EXISTS `t1`;
@@ -4757,7 +4757,7 @@ INSERT INTO t1 (a) VALUES (1),(2),(3);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `test`;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -5304,6 +5304,7 @@ CREATE TABLE IF NOT EXISTS `slave_master_info` (
   `Tls_version` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
   `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
   `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
+  `Network_namespace` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information';
 /*!40101 SET character_set_client = @saved_cs_client */;

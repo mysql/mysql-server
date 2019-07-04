@@ -1,0 +1,31 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+CREATE TABLE t1 (i INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+SET GLOBAL debug = '+d,wait_in_the_middle_of_trx,deferred_flush_relay_log';
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+[connection server2]
+include/rpl_log_file_max_number.inc
+FLUSH RELAY LOGS;
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_broadcasted_rotate_end";
+include/rpl_log_file_max_number.inc
+include/assert.inc ['FLUSH RELAY LOGS' rotated properly]
+include/assert_grep.inc [No 'BEGIN|INSERT|COMMIT' in relay log]
+[connection server1]
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+[connection server2]
+SET DEBUG_SYNC = "reset";
+SET GLOBAL debug = '-d,wait_in_the_middle_of_trx,deferred_flush_relay_log';
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

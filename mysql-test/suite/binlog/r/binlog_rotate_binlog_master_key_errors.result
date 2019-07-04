@@ -1,0 +1,352 @@
+CREATE TABLE t1 (c1 INT);
+include/assert.inc [the first encrypted binary log is encrypted using first master key]
+# Part 1: fail_to_set_old_master_key_seqno_on_keyring
+# Adding debug point 'fail_to_set_old_master_key_seqno_on_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files.
+# Removing debug point 'fail_to_set_old_master_key_seqno_on_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 1]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 2]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 2]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 2]
+# Part 2: fail_to_decrypt_file_password
+# Adding debug point 'fail_to_decrypt_file_password' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './binlog.000002': failed to decrypt the file password. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_decrypt_file_password' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 3]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 4]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 4]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 4]
+# Part 3: fail_to_reset_file_stream
+# Adding debug point 'fail_to_reset_file_stream' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './binlog.000004': failed to reset the file out stream. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_reset_file_stream' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 5]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 6]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 6]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 6]
+# Part 4: fail_to_encrypt_file_password
+# Adding debug point 'fail_to_encrypt_file_password' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './binlog.000006': failed to encrypt the file password with current encryption key. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_encrypt_file_password' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 7]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 8]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 8]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 8]
+# Part 5: fail_to_write_reencrypted_header
+# Adding debug point 'fail_to_write_reencrypted_header' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './binlog.000008': failed to write the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_write_reencrypted_header' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 9]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 10]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 10]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 10]
+# Part 6: fail_to_flush_reencrypted_header
+# Adding debug point 'fail_to_flush_reencrypted_header' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './binlog.000010': failed to flush the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_flush_reencrypted_header' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 11]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 12]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 12]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 12]
+# Part 7: fail_to_sync_reencrypted_header
+# Adding debug point 'fail_to_sync_reencrypted_header' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to re-encrypt log file './binlog.000012': failed to synchronize the new reencrypted file header. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_sync_reencrypted_header' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 13]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 14]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 14]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 14]
+# Part 8: fail_to_open_log_file
+# Adding debug point 'fail_to_open_log_file' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to open log file './binlog.000014'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_open_log_file' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 15]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 16]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 16]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 16]
+# Part 9: fail_to_open_index_file
+# Adding debug point 'fail_to_open_index_file' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: I/O error reading index file './binlog.index'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_open_index_file' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 17]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 18]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 18]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 18]
+# Part 10: fail_to_rotate_binary_log
+# Adding debug point 'fail_to_rotate_binary_log' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to rotate one or more binary or relay log files. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_rotate_binary_log' from @@GLOBAL.debug
+FLUSH BINARY LOGS;
+include/assert.inc [the before binary log is encrypted using current master key with key id: 19]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 20]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 20]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 20]
+# Part 11: fail_to_fetch_key_from_keyring
+# Adding debug point 'fail_to_fetch_key_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files.
+# Removing debug point 'fail_to_fetch_key_from_keyring' from @@GLOBAL.debug
+FLUSH BINARY LOGS;
+include/assert.inc [the before binary log is encrypted using current master key with key id: 20]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 21]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 21]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 21]
+# Part 12: fail_to_set_new_master_key_seqno_on_keyring
+# Adding debug point 'fail_to_set_new_master_key_seqno_on_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files.
+# Removing debug point 'fail_to_set_new_master_key_seqno_on_keyring' from @@GLOBAL.debug
+# Adding debug point 'fail_to_remove_old_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to remove key, please check if keyring plugin is loaded.
+# Removing debug point 'fail_to_remove_old_master_key_seqno_from_keyring' from @@GLOBAL.debug
+# Adding debug point 'failed_to_fetch_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to fetch key from keyring, please check if keyring plugin is loaded.
+# Removing debug point 'failed_to_fetch_master_key_seqno_from_keyring' from @@GLOBAL.debug
+# Adding debug point 'failed_to_fetch_old_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to fetch key from keyring, please check if keyring plugin is loaded.
+# Removing debug point 'failed_to_fetch_old_master_key_seqno_from_keyring' from @@GLOBAL.debug
+FLUSH BINARY LOGS;
+include/assert.inc [the before binary log is encrypted using current master key with key id: 21]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 22]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 22]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 22]
+#
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when generating key on keyring.
+#
+# Part 13: fail_to_generate_key_on_keyring
+# Adding debug point 'fail_to_generate_key_on_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files.
+# Removing debug point 'fail_to_generate_key_on_keyring' from @@GLOBAL.debug
+# Adding debug point 'fail_to_remove_new_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to remove key, please check if keyring plugin is loaded.
+# Removing debug point 'fail_to_remove_new_master_key_seqno_from_keyring' from @@GLOBAL.debug
+# Adding debug point 'failed_to_fetch_new_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to fetch key from keyring, please check if keyring plugin is loaded.
+# Removing debug point 'failed_to_fetch_new_master_key_seqno_from_keyring' from @@GLOBAL.debug
+FLUSH BINARY LOGS;
+include/assert.inc [the before binary log is encrypted using current master key with key id: 22]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 23]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 23]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 23]
+# Part 14: fail_to_remove_master_key_from_keyring
+# Adding debug point 'fail_to_remove_master_key_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files.
+# Removing debug point 'fail_to_remove_master_key_from_keyring' from @@GLOBAL.debug
+FLUSH BINARY LOGS;
+include/assert.inc [the before binary log is encrypted using current master key with key id: 24]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 25]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 25]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 25]
+# Part 15: fail_to_get_purged_seqno_from_keyring
+# Adding debug point 'fail_to_get_purged_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3784	Failed to fetch key from keyring, please check if keyring plugin is loaded.
+Warning	3810	Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_get_purged_seqno_from_keyring' from @@GLOBAL.debug
+FLUSH BINARY LOGS;
+include/assert.inc [the before binary log is encrypted using current master key with key id: 26]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 27]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 27]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 27]
+# Part 16: fail_to_get_key_from_keyring
+# Adding debug point 'fail_to_get_key_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3784	Failed to fetch key from keyring, please check if keyring plugin is loaded.
+Warning	3810	Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_get_key_from_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 28]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 29]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 29]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 29]
+# Part 17: fail_to_remove_unused_key_from_keyring
+# Adding debug point 'fail_to_remove_unused_key_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3792	Failed to remove key, please check if keyring plugin is loaded.
+Warning	3810	Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_remove_unused_key_from_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 30]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 31]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 31]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 31]
+# Part 18: fail_to_remove_last_purged_seqno_from_keyring
+# Adding debug point 'fail_to_remove_last_purged_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3792	Failed to remove key, please check if keyring plugin is loaded.
+Warning	3810	Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_remove_last_purged_seqno_from_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 32]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 33]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 33]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 33]
+# Part 19: fail_to_remove_old_master_key_seqno_from_keyring
+# Adding debug point 'fail_to_remove_old_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3792	Failed to remove key, please check if keyring plugin is loaded.
+Warning	3811	Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_remove_old_master_key_seqno_from_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 34]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 35]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 35]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 35]
+# Part 20: fail_to_remove_new_master_key_seqno_from_keyring
+# Adding debug point 'fail_to_remove_new_master_key_seqno_from_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3792	Failed to remove key, please check if keyring plugin is loaded.
+Warning	3811	Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_remove_new_master_key_seqno_from_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 36]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 37]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 37]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 37]
+# Part 21: fail_to_set_last_purged_master_key_seqno_on_keyring
+# Adding debug point 'fail_to_set_last_purged_master_key_seqno_on_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+Warnings:
+Error	3791	Failed to store key, please check if keyring plugin is loaded.
+Warning	3810	Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution.
+# Removing debug point 'fail_to_set_last_purged_master_key_seqno_on_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 38]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 39]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 39]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 39]
+# Part 22: fail_to_set_master_key_seqno_on_keyring
+# Adding debug point 'fail_to_set_master_key_seqno_on_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files.
+# Removing debug point 'fail_to_set_master_key_seqno_on_keyring' from @@GLOBAL.debug
+# Adding debug point 'fail_to_set_master_key_seqno_on_keyring' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: Failed to store key, please check if keyring plugin is loaded.
+# Removing debug point 'fail_to_set_master_key_seqno_on_keyring' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 39]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 41]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 41]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 41]
+# Part 23: fail_to_read_index_file
+# Adding debug point 'fail_to_read_index_file' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR HY000: I/O error reading index file './binlog.index'. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key.
+# Removing debug point 'fail_to_read_index_file' from @@GLOBAL.debug
+include/assert.inc [the before binary log is encrypted using current master key with key id: 42]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+include/assert.inc [the after binary log is encrypted using rotated master key with key id: 43]
+include/assert.inc [the before binary log is re-encrypted using rotated master key with key id: 43]
+include/assert.inc [the first encrypted binary log is re-encrypted using rotated master key with key id: 43]
+DROP TABLE t1;

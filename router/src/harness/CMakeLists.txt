@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -56,29 +56,74 @@ IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_SUBDIRECTORY(shared)
 ENDIF()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/compile_flags.cmake)
 INCLUDE(GenerateExportHeader)
 
 SET(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
 SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
                         ${SSL_INCLUDE_DIRS})
 
+# Generate dynamic_state_schema.cc
+# With *one* common custom command, generating dynamic_state_schema.[cc|h]
+# we had spurious build failures on Windows:
+# CustomBuild: Failed to open output file 'dynamic_state_schema.cc':
+# Permission denied
+# Seems like Visual Studio wants to generate dynamic_state_schema.cc
+# at least twice, once for the static library, once for the dynamic one.
+# If both generation jobs run simultaneously, one of them may fail.
+# The solution is to have separate commands, for the STATIC and SHARED targets.
+FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
+  SET(SUBDIR src_${SHARED_OR_STATIC})
+  SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
+    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.h
+    )
+  SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
+    ${GENERATED_SOURCES_${SHARED_OR_STATIC}} PARENT_SCOPE)
+  SET_SOURCE_FILES_PROPERTIES(${GENERATED_SOURCES_${SHARED_OR_STATIC}}
+    PROPERTIES GENERATED TRUE)
+  FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR})
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${GENERATED_SOURCES_${SHARED_OR_STATIC}}
+    COMMAND json_schema_embedder
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamic_state_schema.js
+    dynamic_state_schema.cc
+    dynamic_state_schema.h
+    "StateFileJsonSchema"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}
+    COMMENT "Generating sources for ${SHARED_OR_STATIC} harness library"
+    DEPENDS json_schema_embedder)
+ENDFUNCTION()
+
+ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
+ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
+
 SET(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
+  src/dynamic_state.cc
   src/loader_config.cc
-  src/common.cc  src/filesystem.cc
+  src/common.cc
+  src/filesystem.cc
+  src/string_utils.cc
   src/arg_handler.cc
+  src/builtin_plugins.cc
   src/dim.cc
   src/hostname_validator.cc
   src/mysql_router_thread.cc
   src/process_launcher.cc
+  src/logging/consolelog_plugin.cc
+  src/logging/filelog_plugin.cc
   src/logging/handler.cc
   src/logging/logger.cc
+  src/logging/logger_plugin.cc
   src/logging/logging.cc
   src/logging/registry.cc
   src/random_generator.cc
   src/socket_operations.cc
   src/tcp_address.cc
+  src/tty.cc
+  src/vt100.cc
+  src/vt100_filter.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
   src/keyring/keyring_file.cc
@@ -97,21 +142,27 @@ SET(harness_source ${harness_source} ${MY_AES_IMPL})
 
 IF(WIN32)
   LIST(APPEND harness_source
-    src/filesystem-windows.cc src/utilities-windows.cc src/loader-windows.cc)
+    src/filesystem-windows.cc
+    src/utilities-windows.cc
+    src/loader-windows.cc
+    src/logging/eventlog_plugin.cc)
 ELSE()
   LIST(APPEND harness_source
-    src/filesystem-posix.cc src/utilities-posix.cc src/loader-posix.cc)
+    src/filesystem-posix.cc
+    src/utilities-posix.cc
+    src/loader-posix.cc
+    src/logging/syslog_plugin.cc)
 ENDIF()
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql/harness
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${MySQLRouter_BINARY_DIR}/include
   ${MY_SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/mysys_ssl/)
 
 IF(WIN32)
-  SET(WINSOCK_LIBRARIES Ws2_32.lib)
+  SET(WINSOCK_LIBRARIES ws2_32)
 ENDIF()
 SET(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
                      ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES})
@@ -120,21 +171,22 @@ CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plug
   ESCAPE_QUOTES @ONLY)
 
 # create harness library - static version
-ADD_LIBRARY(harness-archive STATIC ${harness_source})
+ADD_LIBRARY(harness-archive STATIC
+  ${harness_source} ${GENERATED_SOURCES_STATIC})
 TARGET_LINK_LIBRARIES(harness-archive ${common_libraries})
-TARGET_INCLUDE_DIRECTORIES(harness-archive PUBLIC include)
+TARGET_INCLUDE_DIRECTORIES(harness-archive PUBLIC
+  include ${CMAKE_CURRENT_BINARY_DIR}/src_STATIC)
 IF(WIN32)
   SET_TARGET_PROPERTIES(harness-archive PROPERTIES
     COMPILE_FLAGS -DHARNESS_STATIC_DEFINE)
 ENDIF()
-IF(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(PUBLIC harness-archive "-pthread")
-ENDIF()
 
 # create harness library - dynamic version
-ADD_LIBRARY(harness-library SHARED ${harness_source})
+ADD_LIBRARY(harness-library SHARED
+  ${harness_source} ${GENERATED_SOURCES_SHARED})
 TARGET_LINK_LIBRARIES(harness-library ${common_libraries})
-TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC include)
+TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC
+  include ${CMAKE_CURRENT_BINARY_DIR}/src_SHARED)
 
 generate_export_header(harness-library
   BASE_NAME HARNESS

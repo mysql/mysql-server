@@ -1,0 +1,72 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+--source include/have_ssl.inc
+--source include/have_tlsv13.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#12361: TLSv1.3 support
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Failed to set up SSL because of");
+call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
+--enable_query_log
+
+# We let our server restart attempts write to the file $error_log.
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+--error 0,1
+--remove_file $error_log
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PORT= `SELECT @@port`;
+
+--echo Default TLS connection
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Default TLS cipher
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo Setting TLS version TLSv1.3 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting TLS version TLSv1.2 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting TLS version TLSv1, TLSv1.1, TLSv1.2 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1,TLSv1.2 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting invalid TLS version value from the client
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=FOO -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting invalid TLSv1.3 ciphersuites value from the client
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --tls-ciphersuites=FOO -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo Setting server's TLSv1.3 and client's TLSv1.2, connection should fail
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--tls-version=TLSv1.3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 --tls-ciphersuites="" -e "SHOW STATUS like 'Ssl_version'"
+
+--echo # restart server using restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

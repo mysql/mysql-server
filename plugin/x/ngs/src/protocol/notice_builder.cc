@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,25 +24,29 @@
 
 #include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-using namespace ngs;
+namespace ngs {
 
-void Notice_builder::encode_frame(Output_buffer *out_buffer, uint32 type,
-                                  const std::string &data, int scope) {
+void Notice_builder::encode_frame(Page_output_stream *out_buffer, uint32 type,
+                                  const bool is_local,
+                                  const std::string &data) {
   start_message(out_buffer, Mysqlx::ServerMessages::NOTICE);
 
   // 1) Type
   encode_uint32(type);
   // 2) Scope
-  encode_int32(scope);
+  if (is_local)
+    encode_int32(Mysqlx::Notice::Frame_Scope_LOCAL);
+  else
+    skip_field();
   // 3) Payload
   encode_string(data.c_str(), data.length());
 
   end_message();
 }
 
-void Notice_builder::encode_rows_affected(Output_buffer *out_buffer,
+void Notice_builder::encode_rows_affected(Page_output_stream *out_buffer,
                                           uint64 value) {
   int32 param = Mysqlx::Notice::SessionStateChanged::ROWS_AFFECTED;
   int32 type = Mysqlx::Datatypes::Scalar_Type_V_UINT;
@@ -88,3 +92,5 @@ void Notice_builder::encode_rows_affected(Output_buffer *out_buffer,
 
   end_message();
 }
+
+}  // namespace ngs

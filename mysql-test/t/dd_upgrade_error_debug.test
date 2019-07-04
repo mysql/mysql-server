@@ -1,0 +1,137 @@
+--echo ########################################################################
+--echo #
+--echo # This test contains regression tests for bugs related to upgrade which
+--echo # require a debug server.
+--echo #
+--echo ########################################################################
+
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_case_sensitive_file_system.inc
+
+--echo ########################################################################
+--echo # Stop the running server.
+--echo ########################################################################
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 300
+--source include/wait_until_disconnected.inc
+
+--echo ########################################################################
+--echo # Unzip a 8.0.11 datadir with bug data, start the server against it
+--echo ########################################################################
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir.
+--echo ########################################################################
+# The datadir is created by buildling the appropriate server version, creating
+# a table test.users needed for the test case, and then zipping the entire
+# data/ directory.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/bugdata_80011.zip $MYSQL_TMP_DIR/bugdata_80011.zip
+--file_exists $MYSQL_TMP_DIR/bugdata_80011.zip
+--exec unzip -qo $MYSQL_TMP_DIR/bugdata_80011.zip -d $MYSQL_TMP_DIR
+let $BUGDATA_80011_DATADIR = $MYSQL_TMP_DIR/bugdata_80011;
+
+--echo ########################################################################
+--echo # Restart the server against the unzipped datadir.
+--echo ########################################################################
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_1.log;
+--exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+--source include/mysql_upgrade_cleanup.inc
+
+--echo # Bug #28554157: TABLES UPGRADED FROM 8.0.11 ALGORITHM=INSTANT
+--echo # DOESN'T WORK UNLESS YOU REBUILD IT
+
+SET DEBUG='+d,skip_dd_table_access_check';
+--echo # List options for indexes in users table. Should show flags=32
+--echo # since this table was created in 8.0.11
+SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
+       mysql.indexes.options
+FROM mysql.tables, mysql.indexes, mysql.schemata
+WHERE mysql.tables.name = 'users' AND
+      mysql.schemata.name = 'test' AND
+      mysql.indexes.table_id = mysql.tables.id AND
+      mysql.schemata.id = mysql.tables.schema_id;
+
+--echo # The following statement must go through and not fall back to
+--echo # COPY-algorithm
+ALTER TABLE users ADD COLUMN active integer DEFAULT 1 NOT NULL, ALGORITHM =INSTANT;
+--echo # List options for indexes in users table after alter. Should show
+--echo # flags=32
+SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
+       mysql.indexes.options
+FROM mysql.tables, mysql.indexes, mysql.schemata
+WHERE mysql.tables.name = 'users' AND
+      mysql.schemata.name = 'test' AND
+      mysql.indexes.table_id = mysql.tables.id AND
+      mysql.schemata.id = mysql.tables.schema_id;
+
+--echo # Rebuild table
+ALTER TABLE users ENGINE = INNODB;
+--echo # Index options should now be 0
+SELECT mysql.schemata.name, mysql.tables.name, mysql.indexes.name,
+       mysql.indexes.options
+FROM mysql.tables, mysql.indexes, mysql.schemata
+WHERE mysql.tables.name = 'users' AND
+      mysql.schemata.name = 'test' AND
+      mysql.indexes.table_id = mysql.tables.id AND
+      mysql.schemata.id = mysql.tables.schema_id;
+
+--echo ########################################################################
+--echo # Remove copied files and stop the server.
+--echo ########################################################################
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/bugdata_80011.zip
+--force-rmdir $MYSQL_TMP_DIR/bugdata_80011
+
+--echo ########################################################################
+--echo # Bug#27960500: Upgrade fails due to FTS tables with 0 timestamps
+--echo ########################################################################
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir.
+--echo ########################################################################
+# The datadir is created by buildling 8.0.11, creating
+# a table with an FTS index, and then zipping the entire
+# data/ directory.
+--let $BUGDATA_80011_DATADIR = $MYSQL_TMP_DIR/data_80011_fts
+--exec unzip -qo $MYSQLTEST_VARDIR/std_data/upgrade/data_80011_fts.zip -d $MYSQL_TMP_DIR
+
+--echo ########################################################################
+--echo # Restart the server against the unzipped datadir.
+--echo ########################################################################
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_2.log
+--exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+--source include/mysql_upgrade_cleanup.inc
+
+--echo ########################################################################
+--echo # Also create a new FTS table on this version.
+--echo ########################################################################
+CREATE TABLE t2 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
+
+--echo ########################################################################
+--echo # 0 timestamps for FTS entries?
+--echo ########################################################################
+SET debug='+d,skip_dd_table_access_check';
+let $assert_cond = "[SELECT COUNT(name) FROM mysql.tables WHERE created = 0 OR last_altered = 0]" = 0;
+--let $assert_text = No entries with 0 timestamps.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # Remove copied files and stop the server.
+--echo ########################################################################
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+--force-rmdir $BUGDATA_80011_DATADIR
+
+--echo ########################################################################
+--echo # Cleanup: Restart with default options.
+--echo ########################################################################
+let $restart_parameters =;
+--source include/start_mysqld.inc

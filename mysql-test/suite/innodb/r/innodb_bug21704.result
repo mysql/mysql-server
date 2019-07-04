@@ -82,8 +82,8 @@ INNER JOIN INFORMATION_SCHEMA.INNODB_FOREIGN f
 ON c.ID=f.ID
 WHERE FOR_NAME LIKE 'test/t%';
 FOR_NAME	REF_NAME	N_COLS	TYPE	FOR_COL_NAME	REF_COL_NAME	POS
-test/t2	test/t1	1	0	z	e	1
-test/t3	test/t3	1	0	g	f	1
+test/t2	test/t1	1	48	z	e	1
+test/t3	test/t3	1	48	g	f	1
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;

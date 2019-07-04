@@ -119,8 +119,8 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 --connection con1
 --reap
 --connection con2
-# InnoDB does not support ALTER TABLESPACE
---error ER_CHECK_NOT_IMPLEMENTED
+# InnoDB does not support ALTER TABLESPACE  ADD DATAFILE
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection default
 DROP TABLESPACE ts1;
@@ -181,7 +181,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con2';
 --reap
 --connection con2
 # InnoDB does not support ALTER TABLESPACE
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection default
 DROP TABLESPACE ts1;
@@ -315,7 +315,7 @@ LET $wait_condition=
 --reap
 --connection con5
 # InnoDB does not support ALTER TABLESPACE
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection default
 DROP TABLE t1;
@@ -543,13 +543,13 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con3';
 --echo # Reap the connections, reset DEBUG_SYNC and drop objects.
 
 --connection con1
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection con2
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection con3
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection default
 DROP TABLE t1;
@@ -644,7 +644,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 
 --connection con1
 # InnoDB does not support ALTER TABLESPACE
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection default
 DROP TABLE t1;
@@ -898,7 +898,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 
 --connection con1
 # InnoDB does not support ALTER TABLESPACE
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
   SIGNAL got_lock_con1
@@ -1106,7 +1106,7 @@ SELECT event_name, object_name, object_type, operation
 --reap
 --connection con2
 # InnoDB does not support ALTER TABLESPACE
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 --reap
 --connection default
 DROP TABLESPACE ts1;

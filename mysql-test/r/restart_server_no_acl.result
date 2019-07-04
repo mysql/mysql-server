@@ -1,0 +1,18 @@
+#
+# WL#12971: Make MySQL stop if it can't source the privilege tables
+#
+# Shut the test server down
+# Restart the server against DDIR
+now we drop mysql.user into the new ddir
+DROP TABLE mysql.user;
+# shut server down
+# Server is down
+# try starting the server on a database not having mysql.user: must fail.
+#
+# Cleanup
+#
+# delete mysqld log
+# delete bootstrap file
+# delete datadir
+# Restart the server
+# End of 8.0 tests

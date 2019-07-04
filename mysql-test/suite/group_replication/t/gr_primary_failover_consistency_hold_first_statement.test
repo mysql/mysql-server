@@ -1,0 +1,165 @@
+###############################################################################
+#
+# A group of statements that belong to the same transaction shall run the
+# hook only on the first statement, preventing multiple calls to plugin on same
+# transaction
+#
+# Test:
+#   0. This test requires two servers
+#   1. Bootstrap group on server 1 and create table t1
+#   2. Join server2 to group and lock tables t1
+#   3. Execute transaction on primary server
+#   4. Server2 will certify transaction but won't apply due lock tables
+#   5. Start a transaction on secondary that will be elected as primary
+#   6. Execute group_replication_set_as_primary to appoint server2 as
+#      primary
+#   7. Validate that primary election is executing
+#   8. Transaction started previous to primary election, it will not block
+#      due hook only run once by transaction.
+#   9. A write will fail due SUPER_READ_ONLY=1 until primary election
+#      finishes
+#  10. A start of a transaction to a new primary will be put on hold
+#      until all backlog's are applied
+#  11. Validate statement is on hold
+#  12. UNLOCK tables to allow backlog to be applied
+#  12. Reap with success execution of set as primary server2
+#  13. Reap with success start of transaction and execute some statements
+#  14. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap group on server 1 and create table t1
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+--echo
+--echo # 2. Join server2 to group and lock tables t1
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+LOCK TABLES t1 READ;
+
+--echo
+--echo # 3. Execute transaction on primary server
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo # 4. Server2 will certify transaction but won't apply due lock tables
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked = 1 AND count_transactions_remote_in_applier_queue = 1
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Start a transaction on secondary that will be elected as primary
+
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+BEGIN;
+
+--echo
+--echo # 6. Execute group_replication_set_as_primary to appoint server2 as
+--echo #    primary
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $member2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$member2_uuid")
+
+--echo
+--echo # 7. Validate that primary election is executing
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch: executing Primary election%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 8. Transaction started previous to primary election, it will not block
+--echo #    due hook only run once by transaction.
+
+SELECT  * FROM t1;
+
+--echo
+--echo # 9. A write will fail due SUPER_READ_ONLY=1 until primary election
+--echo #    finishes
+
+--error ER_OPTION_PREVENTS_STATEMENT
+INSERT INTO t1 VALUES (2);
+
+COMMIT;
+
+--echo
+--echo # 10. A start of a transaction to a new primary will be put on hold
+--echo #     until all backlog's are applied
+
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+--send_eval  BEGIN;
+
+--echo
+--echo # 11. Validate statement is on hold
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Executing hook on transaction begin.' AND INFO='BEGIN'
+--source include/wait_condition.inc
+
+--echo
+--echo # 12. UNLOCK tables to allow backlog to be applied
+
+UNLOCK TABLES;
+
+--echo
+--echo # 12. Reap with success execution of set as primary server2
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $member2_uuid MEMBER2_UUID
+--reap
+
+--echo
+--echo # 13. Reap with success start of transaction and execute some statements
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--reap
+
+SELECT * FROM t1;
+
+COMMIT;
+
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+--echo
+--echo # 14. Cleanup
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

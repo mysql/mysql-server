@@ -1,162 +1,73 @@
 #Execute mysql_upgrade with different options
--- source include/big_test.inc
-#Memory checks will be done by ASAN builds, valgrind timeout on this test.
---source include/not_valgrind.inc
--- source include/mysql_upgrade_preparation.inc
 
 #
 # Test the --upgrade-system-tables option
 #
 --replace_result $MYSQLTEST_VARDIR var
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force --upgrade-system-tables
 
---echo #
---echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
---echo #
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/ 
 --exec $MYSQL_UPGRADE -uroot --password= --skip-verbose --force 2>&1
-
---echo #
---echo # Bug#11827359 60223: MYSQL_UPGRADE PROBLEM WITH OPTION
---echo #                     SKIP-WRITE-BINLOG
---echo #
-
-let $MYSQLD_DATADIR= `select @@datadir`;
-
---echo # Droping the previously created mysql_upgrade_info file..
---remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
 --echo # Running mysql_upgrade with --skip-write-binlog..
 --replace_result $MYSQLTEST_VARDIR var
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --skip-write-binlog
-
-# mysql_upgrade must have created mysql_upgrade_info file,
-# so the following command should never fail.
---remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
 --echo # Running mysql_upgrade with --write-binlog..
 --replace_result $MYSQLTEST_VARDIR var
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --write-binlog
 
 --echo # Running mysql_upgrade with --max-allowed-packet=4096..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --max-allowed-packet=4096 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --max-allowed-packet=2147483648..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --max-allowed-packet=2147483648 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --max-allowed-packet=4095..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --max-allowed-packet=4095 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --max-allowed-packet=1000..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --max-allowed-packet=1000 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --max-allowed-packet=2147483649..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --max-allowed-packet=2147483649 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --max-allowed-packet=21474836480..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --max-allowed-packet=2147484652 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --net-buffer-length=4096..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --net-buffer-length=4096 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --net-buffer-length=16777216..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --net-buffer-length=16777216 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --net-buffer-length=4095..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --net-buffer-length=4095 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --net-buffer-length=1024..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --net-buffer-length=1024 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --net-buffer-length=16777217..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --net-buffer-length=16777217 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --net-buffer-length=167772160..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --net-buffer-length=167772160 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --bind-address..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --bind-address=127.0.0.1 --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with -C option..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE -C --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --compress..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --compress --skip-verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --verbose..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --verbose --force 2>&1
 
 --echo # Running mysql_upgrade with --protocol..
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --protocol=TCP --skip-verbose --force 2>&1
 
 --echo # Test positional arguments
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --force --skip-verbose not_used_positional_argument 2>&1
 
 --echo #
@@ -183,5 +94,3 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 --error 1
 --exec $MYSQL_UPGRADE --protocol=AAA --force 2>&1
-
---source include/mysql_upgrade_cleanup.inc

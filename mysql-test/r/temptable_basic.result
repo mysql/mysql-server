@@ -429,4 +429,19 @@ DROP TABLE t_blob;
 DROP TABLE t_json;
 DROP TABLE t_point;
 DROP TABLE t_geom;
+CREATE TABLE t_pk (
+pk INT NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t_pk VALUES
+(1),
+(2),
+(3);
+SELECT COUNT(t_pk.pk) FROM t_pk
+WHERE 1 IN (SELECT 1 FROM t_pk AS SQ2_alias1
+WHERE 1 IN (SELECT 1 FROM t_pk AS C_SQ1_alias1)
+);
+COUNT(t_pk.pk)
+3
+DROP TABLE t_pk;
 SET @@internal_tmp_mem_storage_engine = default;

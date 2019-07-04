@@ -112,14 +112,14 @@ roll_ptr_t row_get_rec_roll_ptr(
  unavailable and ext != NULL */
 UNIV_INLINE
 dtuple_t *row_build_index_entry(
-    const dtuple_t *row,  /*!< in: row which should be
-                          inserted or purged */
-    const row_ext_t *ext, /*!< in: externally stored column
-                          prefixes, or NULL */
-    dict_index_t *index,  /*!< in: index on the table */
-    mem_heap_t *heap)     /*!< in: memory heap from which
-                          the memory for the index entry
-                          is allocated */
+    const dtuple_t *row,       /*!< in: row which should be
+                               inserted or purged */
+    const row_ext_t *ext,      /*!< in: externally stored column
+                               prefixes, or NULL */
+    const dict_index_t *index, /*!< in: index on the table */
+    mem_heap_t *heap)          /*!< in: memory heap from which
+                               the memory for the index entry
+                               is allocated */
 {
   dtuple_t *entry;
 

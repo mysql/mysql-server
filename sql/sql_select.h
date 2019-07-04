@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <functional>
 
-#include "binary_log_types.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -52,7 +51,6 @@
 #include "sql/sql_opt_exec_shared.h"  // join_type
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 
 class Item_func;
 class JOIN_TAB;
@@ -80,6 +78,8 @@ class Sql_cmd_select : public Sql_cmd_dml {
   virtual bool accept(THD *thd, Select_lex_visitor *visitor) override {
     return thd->lex->unit->accept(visitor);
   }
+
+  const MYSQL_LEX_STRING *eligible_secondary_storage_engine() const override;
 
  protected:
   virtual bool precheck(THD *thd) override;
@@ -885,8 +885,17 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
-int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
-                  Item *conds, bool *select_count);
+
+enum aggregate_evaluated {
+  AGGR_COMPLETE,  // All aggregates were evaluated
+  AGGR_REGULAR,   // Aggregates not fully evaluated, regular execution required
+  AGGR_DELAYED,   // Aggregates not fully evaluated, execute with ha_records()
+  AGGR_EMPTY      // Source tables empty, aggregates are NULL or 0 (for COUNT)
+};
+
+bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
+                               List<Item> &all_fields, Item *conds,
+                               aggregate_evaluated *decision);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
@@ -905,7 +914,7 @@ class store_key {
         Key segments are always packed with a 2 byte length prefix.
         See mi_rkey for details.
       */
-      to_field = new (*THR_MALLOC) Field_varstring(
+      to_field = new (thd->mem_root) Field_varstring(
           ptr, length, 2, null, 1, Field::NONE, field_arg->field_name,
           field_arg->table->s, field_arg->charset());
       to_field->init(field_arg->table);
@@ -1042,7 +1051,6 @@ class store_key_item : public store_key {
 
 class store_key_hash_item : public store_key_item {
  protected:
-  Item *item;
   ulonglong *hash;
 
  public:
@@ -1087,7 +1095,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
 
-void free_underlaid_joins(SELECT_LEX *select);
+void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
 void calc_used_field_length(TABLE *table, bool keep_current_rowid,
                             uint *p_used_fields, uint *p_used_fieldlength,

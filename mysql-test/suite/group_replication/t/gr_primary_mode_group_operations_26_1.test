@@ -87,7 +87,7 @@ set session sql_log_bin=1;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: checking%"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= stage/group_rpl/Single-primary Switch: checking group pre-conditions
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Single-primary Switch: checking group pre-conditions"
 --source include/assert.inc

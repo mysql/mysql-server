@@ -1,6 +1,11 @@
 #
 # Fips support in OS without fips enabled openssl.
 #
+#
+# Bug #27809371: CLIENTS DO NOT EXIT FOR INVALID --SSL-FIPS-MODE SETTINGS
+#
+##Test: Start the MySQL clients with SSL FIPS mode ON, MySQL clients will abort.
+Failed to set ssl related options.
 ##Test: Set the variable SSL FIPS mode to ON, since OS doesn't support it. operation will throw error.
 Variable_name	Value
 ssl_fips_mode	OFF

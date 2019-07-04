@@ -25,7 +25,7 @@ affected rows: 5
 1
 affected rows: 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # expected result 1 roundtrips
 # 0 - info call
 # 0 - read the rows 
@@ -39,7 +39,7 @@ affected rows: 0
 1
 affected rows: 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # expected result 1 roundtrips
 # 0 - info call
 # 0 - read the rows 
@@ -53,7 +53,7 @@ affected rows: 0
 1
 affected rows: 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select count(*) as "0(was deleted)" from t1 where a in (1,7, 90, 100, 130);
 0(was deleted)
 0

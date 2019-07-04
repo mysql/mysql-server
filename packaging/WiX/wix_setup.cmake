@@ -20,11 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(MSVC_VERSION LESS 1910)
-  SET(WIX_REQUIRED_VERSION "V3.10")
-ELSE()
-  SET(WIX_REQUIRED_VERSION "V3.11")
-ENDIF()
+SET(WIX_REQUIRED_VERSION "V3.11")
 
 # Need an extra indirection to access ENV(ProgramFiles(x86))
 SET(MYENV "ProgramFiles(x86)")
@@ -46,9 +42,6 @@ MACRO(FIND_WIX_PATH VERSION)
 ENDMACRO()
 
 FIND_WIX_PATH(${WIX_REQUIRED_VERSION})
-IF(MSVC_VERSION EQUAL 1900 AND NOT WIX_DIR)
-  FIND_WIX_PATH("V3.11")
-ENDIF()
 
 # Finally, look in environment
 IF(NOT WIX_DIR)

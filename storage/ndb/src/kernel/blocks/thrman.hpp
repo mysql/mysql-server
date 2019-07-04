@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,8 +81,8 @@ private:
   struct MeasurementRecord
   {
     MeasurementRecord()
-    {
-    }
+      : m_first_measure_done(false)
+    {}
 
     /**
      * This represents one measurement and we collect the following
@@ -135,6 +135,10 @@ private:
 
   struct SendThreadMeasurement
   {
+    SendThreadMeasurement()
+      : m_first_measure_done(false)
+    {}
+
     bool m_first_measure_done;
     Uint64 m_elapsed_time;
     Uint64 m_exec_time;

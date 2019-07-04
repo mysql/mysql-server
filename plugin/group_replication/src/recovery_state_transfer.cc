@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,6 +165,7 @@ void Recovery_state_transfer::initialize_group_info() {
   DBUG_ENTER("Recovery_state_transfer::initialize_group_info");
 
   selected_donor = NULL;
+  selected_donor_hostname.clear();
   // Update the group member info
   mysql_mutex_lock(&donor_selection_lock);
   update_group_membership(false);
@@ -339,7 +340,7 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
   while (member_it != group_members->end()) {
     Group_member_info *member = *member_it;
     // is online and it's not me
-    string m_uuid = member->get_uuid();
+    string m_uuid(member->get_uuid());
     bool is_online =
         member->get_recovery_status() == Group_member_info::MEMBER_ONLINE;
     bool not_self = m_uuid.compare(member_uuid);
@@ -470,7 +471,16 @@ int Recovery_state_transfer::initialize_donor_connection() {
 
   donor_connection_interface.purge_logs(false);
 
-  char *hostname = const_cast<char *>(selected_donor->get_hostname().c_str());
+  /*
+    selected_donor->get_hostname(), from Group_member_info, returns
+    a string copy which is only valid in this stack lifespan. Since
+    the below hostname pointer will be passed all the way down to
+    recovery channel lex_mi->host, we need to keep its memory
+    attached to this object, more precisely to
+    selected_donor_hostname class member.
+  */
+  selected_donor_hostname.assign(selected_donor->get_hostname());
+  char *hostname = const_cast<char *>(selected_donor_hostname.c_str());
   uint port = selected_donor->get_port();
 
   error = donor_connection_interface.initialize_channel(
@@ -567,7 +577,7 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
   DBUG_RETURN(error);
 }
 
-int Recovery_state_transfer::terminate_recovery_slave_threads() {
+int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs) {
   DBUG_ENTER("Recovery_state_transfer::terminate_recovery_slave_threads");
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DONOR_CONN_TERMINATION);
@@ -579,8 +589,10 @@ int Recovery_state_transfer::terminate_recovery_slave_threads() {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_STOPPING_GRP_REC); /* purecov: inspected */
   } else {
-    // If there is no repository in place nothing happens
-    error = purge_recovery_slave_threads_repos();
+    if (purge_logs) {
+      // If there is no repository in place nothing happens
+      error = purge_recovery_slave_threads_repos();
+    }
   }
 
   DBUG_RETURN(error);
@@ -603,7 +615,8 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
   DBUG_RETURN(error);
 }
 
-int Recovery_state_transfer::state_transfer(THD *recovery_thd) {
+int Recovery_state_transfer::state_transfer(
+    Plugin_stage_monitor_handler &stage_handler) {
   DBUG_ENTER("Recovery_state_transfer::state_transfer");
 
   int error = 0;
@@ -642,20 +655,16 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd) {
       }
     }
 
-#ifndef _WIN32
-    THD_STAGE_INFO(recovery_thd, stage_connecting_to_master);
-#endif
-
+    stage_handler.set_stage(info_GR_STAGE_recovery_connecting_to_donor.m_key,
+                            __FILE__, __LINE__, 0, 0);
     if (!recovery_aborted) {
       // if the connection to the donor failed, abort recovery
       if ((error = establish_donor_connection())) {
         break;
       }
     }
-
-#ifndef _WIN32
-    THD_STAGE_INFO(recovery_thd, stage_executing);
-#endif
+    stage_handler.set_stage(info_GR_STAGE_recovery_transferring_state.m_key,
+                            __FILE__, __LINE__, 0, 0);
 
     /*
       donor_transfer_finished    -> set by the set_retrieved_cert_info method.
@@ -680,7 +689,8 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd) {
 
   channel_observation_manager->unregister_channel_observer(
       recovery_channel_observer);
-  terminate_recovery_slave_threads();
+  // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
+  terminate_recovery_slave_threads(!error);
   connected_to_donor = false;
 
   DBUG_RETURN(error);

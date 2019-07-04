@@ -25,8 +25,7 @@
 # - Check constraints like duplicate key,default value             #
 # - Alter ADD COLUMN , ADD PRIMARY KEY                             #
 # - Flush Tables, logs command                                     #
-# - Vary innodb_undo_tablespaces,innodb_rollback_segments &        #
-#    innodb_log_files_in_group                                     #
+# - Vary innodb_rollback_segments & innodb_log_files_in_group      #
 # - Verify rseg message from server log                            #
 ####################################################################
 
@@ -37,8 +36,6 @@ call mtr.ADD_suppression(".*New log files created.*");
 --disable_query_log
 let $innodb_file_per_table_orig=`SELECT @@innodb_file_per_table`;
 --enable_query_log
-
-SELECT @@global.innodb_undo_tablespaces;
 
 # Create procedure to perform 
 # 1. Create temp table with row types , INDEX , sufficent data types
@@ -453,9 +450,9 @@ disconnect con2;
 
 connection default;
 #
-## trying with VALUES innodb_undo_tablespaces, innodb_rollback_segments ,innodb_log_files_in_group
+## trying with VALUES innodb_rollback_segments ,innodb_log_files_in_group
 ##
-let $restart_parameters = restart: --innodb_undo_tablespaces=5 --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
 --source include/restart_mysqld.inc
 
 # Create two client for concurrent execution
@@ -508,7 +505,7 @@ disconnect con2;
 
 connection default;
 # innodb_rollback_segments > non redo rsegment
-let $restart_parameters = restart: --innodb_undo_tablespaces=3 --innodb_rollback_segments=30 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_rollback_segments=30 --innodb_log_files_in_group=4;
 --source include/restart_mysqld.inc
 
 connect (con1,localhost,root,,);

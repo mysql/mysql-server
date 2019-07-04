@@ -26,8 +26,11 @@
 
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 #include <vector>
+
+#include "plugin/x/tests/driver/processor/variable_names.h"
 
 Connection_manager::Connection_manager(const Connection_options &co,
                                        Variable_container *variables,
@@ -36,39 +39,39 @@ Connection_manager::Connection_manager(const Connection_options &co,
       m_variables(variables),
       m_console(console) {
   m_variables->make_special_variable(
-      "%OPTION_CLIENT_USER%",
+      k_variable_option_user,
       new Variable_dynamic_string(m_default_connection_options.user));
 
   m_variables->make_special_variable(
-      "%OPTION_CLIENT_PASSWORD%",
+      k_variable_option_pass,
       new Variable_dynamic_string(m_default_connection_options.password));
 
   m_variables->make_special_variable(
-      "%OPTION_CLIENT_HOST%",
+      k_variable_option_host,
       new Variable_dynamic_string(m_default_connection_options.host));
 
   m_variables->make_special_variable(
-      "%OPTION_CLIENT_SOCKET%",
+      k_variable_option_socket,
       new Variable_dynamic_string(m_default_connection_options.socket));
 
   m_variables->make_special_variable(
-      "%OPTION_CLIENT_SCHEMA%",
+      k_variable_option_schema,
       new Variable_dynamic_string(m_default_connection_options.schema));
 
   m_variables->make_special_variable(
-      "%OPTION_CLIENT_PORT%",
+      k_variable_option_port,
       new Variable_dynamic_int(m_default_connection_options.port));
 
   m_variables->make_special_variable(
-      "%OPTION_SSL_MODE%",
+      k_variable_option_ssl_mode,
       new Variable_dynamic_string(m_default_connection_options.ssl_mode));
 
   m_variables->make_special_variable(
-      "%OPTION_SSL_CIPHER%",
+      k_variable_option_ssl_cipher,
       new Variable_dynamic_string(m_default_connection_options.ssl_cipher));
 
   m_variables->make_special_variable(
-      "%OPTION_TLS_VERSION%",
+      k_variable_option_tls_version,
       new Variable_dynamic_string(m_default_connection_options.allowed_tls));
 
   m_active_holder.reset(new Session_holder(xcl::create_session(), m_console,
@@ -327,8 +330,9 @@ uint64_t Connection_manager::active_session_messages_received(
 
 void Connection_manager::setup_variables(xcl::XSession *session) {
   auto &connection = session->get_protocol().get_connection();
-  m_variables->set("%ACTIVE_CLIENT_ID%", std::to_string(session->client_id()));
+  m_variables->set(k_variable_active_client_id,
+                   std::to_string(session->client_id()));
 
-  m_variables->set("%ACTIVE_SOCKET_ID%",
+  m_variables->set(k_variable_active_socket_id,
                    std::to_string(connection.get_socket_fd()));
 }

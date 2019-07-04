@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,16 +24,12 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 )
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
 ## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
+MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc ${CMAKE_SOURCE_DIR}/sql/net_ns.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
@@ -41,16 +37,19 @@ ENDIF(UNIX)
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
-  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base)
 ENDIF()
 
 SET(MYSQLTEST_SRC
-  mysqltest/mysqltest_expected_error.cc
+  mysqltest/error_names.cc
+  mysqltest/expected_errors.cc
+  mysqltest/expected_warnings.cc
+  mysqltest/secondary_engine.cc
+  mysqltest/utils.cc
 )
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+TARGET_LINK_LIBRARIES(mysqltest mysqlclient)
 ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
 ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
@@ -75,7 +74,6 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
-  ${CMAKE_SOURCE_DIR}/sql/sql_time.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
@@ -86,15 +84,16 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_cipher.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
 ADD_DEPENDENCIES(mysqlbinlog_lib GenError)
-ADD_COMPILE_FLAGS(
-  mysqlbinlog.cc
-  ${MYSQLBINLOG_LIB_SOURCES}
-  COMPILE_FLAGS
-  "-I${CMAKE_SOURCE_DIR}/sql" "-DDISABLE_PSI_MUTEX"
-)
+
+TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
+TARGET_COMPILE_DEFINITIONS(mysqlbinlog_lib PRIVATE DISABLE_PSI_MUTEX)
+TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
+TARGET_INCLUDE_DIRECTORIES(mysqlbinlog_lib PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
@@ -114,7 +113,6 @@ TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
 TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
-SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)

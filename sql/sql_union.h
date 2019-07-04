@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,24 +44,27 @@ class Query_result_union : public Query_result_interceptor {
  public:
   TABLE *table;
 
-  Query_result_union(THD *thd)
-      : Query_result_interceptor(thd), m_rows_in_table(0), table(0) {}
-  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  Query_result_union()
+      : Query_result_interceptor(), m_rows_in_table(0), table(0) {}
+  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
     Do prepare() if preparation has been postponed until column type
     information is computed (used by Query_result_union_direct).
 
+    @param thd   Thread handle
     @param types Column types
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(List<Item> &types MY_ATTRIBUTE((unused))) {
+  virtual bool postponed_prepare(THD *thd MY_ATTRIBUTE((unused)),
+                                 List<Item> &types MY_ATTRIBUTE((unused))) {
     return false;
   }
-  bool send_data(List<Item> &items) override;
-  bool send_eof() override;
+  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_eof(THD *thd) override;
   virtual bool flush();
-  void cleanup() override;
+  void cleanup(THD *) override { (void)reset(); }
+  bool reset() override;
   bool create_result_table(THD *thd, List<Item> *column_types, bool is_distinct,
                            ulonglong options, const char *alias,
                            bool bit_fields_as_long, bool create_table);

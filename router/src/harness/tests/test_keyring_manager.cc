@@ -32,6 +32,7 @@
 
 #include <fstream>
 #include <set>
+#include <stdexcept>
 
 #ifndef _WIN32
 #include <sys/stat.h>

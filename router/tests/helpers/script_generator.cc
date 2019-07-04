@@ -24,6 +24,7 @@
 
 #include <sys/stat.h>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 
 #include "script_generator.h"

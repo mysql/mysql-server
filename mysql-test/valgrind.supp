@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -577,169 +577,6 @@
    fun:buf_buddy_relocate
 }
 
-#
-# Bug#56666 is fixed by WL#6407
-# Also, as part of WL#6407, call to shutdown_performance_schema()
-# is uncommented in sql/mysqld.cc. As this call was commented out
-# for long time, there are still some leaks which needs to be
-# addressed by pfs.
-{
-   missing shutdown_performance_schema 1b
-   Memcheck:Leak
-   fun:memalign
-   fun:posix_memalign
-   fun:_Z10pfs_mallocmi
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 2
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_alloc_new
-   fun:lf_hash_insert
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 2-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_alloc_new
-   fun:lf_hash_insert
-}
-
-#
-# Note that initialize_bucket() is reccursive,
-# can't provide more stack context.
-#
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3a
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3a-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3b
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3b-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 4
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_pinbox_get_pins
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 4-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_pinbox_get_pins
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 5
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_insert
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 5-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_insert
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 6
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_delete
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 6-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_delete
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 7
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_search
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 7-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_search
-}
-
 {
    Bug 59874 Valgrind warning in InnoDB compression code
    Memcheck:Cond
@@ -1274,6 +1111,7 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:lh_insert
    fun:int_thread_set_item
@@ -1294,23 +1132,21 @@
 {
    OpenSSL GR suppress leak 4
    Memcheck:Leak
-   match-leak-kinds: reachable
+   match-leak-kinds: all
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:lh_new
-   fun:int_thread_get
-   fun:int_thread_set_item
+   obj:*
+   obj:*
    fun:ERR_get_state
    fun:ERR_put_error
    fun:PEM_read_bio
    fun:PEM_X509_INFO_read_bio
    fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
+   obj:*
    fun:X509_STORE_load_locations
-   obj:*
-   obj:*
-   obj:*
-   obj:*
+   ...
 }
 
 {
@@ -1384,6 +1220,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1473,6 +1310,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_new
   fun:int_thread_get
@@ -1528,6 +1366,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:ERR_get_state
   fun:ERR_put_error
@@ -1606,23 +1445,20 @@
 {
   TPL leak 15
   Memcheck:Leak
-  match-leak-kinds: reachable
+  match-leak-kinds: all
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
-  fun:int_thread_set_item
+  obj:*
   fun:ERR_get_state
   fun:ERR_put_error
   fun:PEM_read_bio
   fun:PEM_X509_INFO_read_bio
   fun:X509_load_cert_crl_file
-  fun:by_file_ctrl
+  obj:*
   fun:X509_STORE_load_locations
-  obj:*
-  obj:*
-  obj:*
-  obj:*
-  obj:*
+  ...
 }
 
 {
@@ -1648,6 +1484,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1670,6 +1507,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1739,6 +1577,26 @@
   obj:*
   fun:_ZL17plugin_initializeP13st_plugin_int
   ...
+}
+
+{
+  TPL leak 22
+  Memcheck:Leak
+  match-leak-kinds: possible
+  fun:malloc
+  ...
+  fun:CRYPTO_malloc
+  fun:lh_new
+  fun:int_thread_get
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  fun:ENGINE_load_builtin_engines
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
 }
 
 # Workarounds for
@@ -1912,6 +1770,7 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:ERR_get_state
    fun:ERR_put_error
@@ -2031,7 +1890,7 @@
    fun:*dl_close_worker*
    fun:*dl_close*
    fun:*dl_catch_error*
-   fun:*libc_dlclose*
+   ...
    fun:*free_mem*
    fun:*libc_freeres*
    fun:*vgnU_freeres*
@@ -2072,4 +1931,130 @@
    ...
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
+}
+{
+   SIGSTOP_and_SIGCONT in gr tests
+   Memcheck:Cond
+   fun:signal_hand
+   fun:pfs_spawn_thread
+   fun:start_thread
+   fun:clone
+}
+{
+   Mysqlx: OpenSSL cert file still possible.
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:CRYPTO_malloc
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:*
+   fun:X509_STORE_load_locations
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+}
+
+# Suppress all issues related to libcrypto library
+{
+   Conditional jump or move in BN_bin2bn
+   Memcheck:Cond
+   fun:BN_bin2bn
+   ...
+}
+{
+   Conditional jump or move in BN_ucmp
+   Memcheck:Cond
+   fun:BN_ucmp
+   ...
+}
+{
+   Conditional jump or move in libcrypto
+   Memcheck:Cond
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Conditional jump or move in BN_mod_exp_mont
+   Memcheck:Cond
+   fun:BN_mod_exp_mont
+   ...
+}
+{
+   Use of uninitialised value of size 8 in libcrypto
+   Memcheck:Value8
+   obj:/usr/lib64/libcrypto.so.*
+   ...
+}
+{
+   Conditional jump or move in BN_mod_mul_montgomery
+   Memcheck:Cond
+   fun:BN_mod_mul_montgomery
+   fun:BN_mod_exp_mont
+   ...
+}
+{
+   Conditional jump or move in bn_bn2binpad
+   Memcheck:Cond
+   fun:bn_bn2binpad
+   ...
+}
+{
+   Conditional jump or move in BN_from_montgomery
+   Memcheck:Cond
+   fun:BN_from_montgomery
+   ...
+}
+{
+   Use of uninitialised value of size 8 in libcrypto
+   Memcheck:Value8
+   obj:/usr/lib64/libcrypto.so.*
+   fun:BN_from_montgomery
+   fun:BN_mod_exp_mont
+   obj:*
+   ...
+}
+{
+   Use of uninitialised value of size 8 in BN_from_montgomery/BN_mod_exp_mont
+   Memcheck:Value8
+   fun:BN_from_montgomery
+   fun:BN_mod_exp_mont
+   obj:*
+   ...
+}
+{
+   Conditional jump or move in BN_num_bits_word
+   Memcheck:Cond
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   ...
+}
+{
+   Use of uninitialised value of size 8 in BN_num_bits_word
+   Memcheck:Value8
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   fun:BN_bn2bin
+   ...
+}
+{
+   Syscall param socketcall.sendto(msg) points to uninitialised byte(s)
+   Memcheck:Param
+   socketcall.sendto(msg)
+   fun:send
+   fun:*
+   ...
+}
+{
+   Conditional jump or move in RSA_eay_public_encrypt
+   Memcheck:Cond
+   fun:RSA_eay_public_encrypt
+   fun:*
+   ...
 }

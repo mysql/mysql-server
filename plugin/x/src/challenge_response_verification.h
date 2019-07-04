@@ -46,8 +46,6 @@ class Challenge_response_verification
 
   const std::string &get_salt() const override { return k_salt; }
 
-  virtual ~Challenge_response_verification() = default;
-
  protected:
   const std::string k_salt;
   ngs::SHA256_password_cache_interface *m_sha256_password_cache;

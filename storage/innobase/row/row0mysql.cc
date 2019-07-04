@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,6 +67,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0mysql.h"
+#include "row0pread.h"
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
@@ -74,6 +75,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
+#include "ut0mpmcbq.h"
 #include "ut0new.h"
 
 #include "current_thd.h"
@@ -659,7 +661,7 @@ handle_new_error:
         trx_rollback_to_savepoint(trx, NULL);
         break;
       }
-      /* fall through */
+    /* fall through */
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:
@@ -781,11 +783,11 @@ row_prebuilt_t *row_create_prebuilt(
 
   ref_len = dict_index_get_n_unique(clust_index);
 
-  /* Maximum size of the buffer needed for conversion of INTs from
-  little endian format to big endian format in an index. An index
-  can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
-  Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
-  Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
+/* Maximum size of the buffer needed for conversion of INTs from
+little endian format to big endian format in an index. An index
+can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
+Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
 #define MAX_SRCH_KEY_VAL_BUFFER 2 * (8 * MAX_REF_PARTS)
 
 #define PREBUILT_HEAP_INITIAL_SIZE                                          \
@@ -1575,7 +1577,6 @@ run_again:
       goto run_again;
     }
 
-    node->duplicate = NULL;
     trx->op_info = "";
 
     if (blob_heap != NULL) {
@@ -1584,8 +1585,6 @@ run_again:
 
     return (err);
   }
-
-  node->duplicate = NULL;
 
   if (dict_table_has_fts_index(table)) {
     doc_id_t doc_id;
@@ -1873,6 +1872,54 @@ class ib_dec_counter {
   }
 };
 
+/** Do an in-place update in the intrinsic table.  The update should not
+modify any of the keys and it should not change the size of any fields.
+@param[in]	node	the update node.
+@return DB_SUCCESS on success, an error code on failure. */
+static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
+  mtr_t mtr;
+  dict_table_t *table = node->table;
+  mem_heap_t *heap = node->heap;
+  dtuple_t *entry = node->row;
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  ulint *offsets = offsets_;
+
+  ut_ad(table->is_intrinsic());
+  rec_offs_init(offsets_);
+  mtr_start(&mtr);
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+  btr_pcur_t pcur;
+
+  dict_index_t *index = table->first_index();
+
+  entry = row_build_index_entry(node->row, node->ext, index, heap);
+
+  btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_LEAF, &pcur, &mtr);
+
+  rec_t *rec = btr_pcur_get_rec(&pcur);
+
+  ut_ad(!page_rec_is_infimum(rec));
+  ut_ad(!page_rec_is_supremum(rec));
+
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+  ut_ad(!cmp_dtuple_rec(entry, rec, index, offsets));
+  ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(index->table)));
+  ut_ad(btr_pcur_get_block(&pcur)->made_dirty_with_no_latch);
+
+  bool size_changes =
+      row_upd_changes_field_size_or_external(index, offsets, node->update);
+
+  if (size_changes) {
+    return (DB_FAIL);
+  }
+
+  row_upd_rec_in_place(rec, index, offsets, node->update, NULL);
+  mtr_commit(&mtr);
+
+  return (DB_SUCCESS);
+}
+
 typedef std::vector<btr_pcur_t, ut_allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
@@ -1889,7 +1936,7 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
                                                  bool restore_delete) {
   mtr_t mtr;
   dict_table_t *table = node->table;
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = node->heap;
   dberr_t err = DB_SUCCESS;
   dtuple_t *entry;
 
@@ -1980,8 +2027,6 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
 
   mtr_commit(&mtr);
 
-  mem_heap_free(heap);
-
   return (err);
 }
 
@@ -1995,7 +2040,7 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
                                                  que_thr_t *thr) {
   dberr_t err = DB_SUCCESS;
   dict_table_t *table = node->table;
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = node->heap;
   dtuple_t *entry;
   dfield_t *trx_id_field;
 
@@ -2066,9 +2111,6 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
     }
   }
 
-  if (heap != NULL) {
-    mem_heap_free(heap);
-  }
   return (err);
 }
 
@@ -2097,7 +2139,7 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
   /* Step-1: Select the appropriate cursor that will help build
   the original row and updated row. */
   node = prebuilt->upd_node;
-  if (prebuilt->pcur->btr_cur.index == clust_index) {
+  if (prebuilt->pcur->m_btr_cur.index == clust_index) {
     btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
   } else {
     btr_pcur_copy_stored_position(node->pcur, prebuilt->clust_pcur);
@@ -2109,6 +2151,32 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
   /* Internal table is created by optimiser. So there
   should not be any virtual columns. */
   row_upd_store_row(prebuilt->trx, node, NULL, NULL);
+
+  if (!node->is_delete) {
+    /* UPDATE operation */
+
+    bool key_changed = false;
+
+    dict_table_t *table = prebuilt->table;
+
+    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes); index != NULL;
+         index = UT_LIST_GET_NEXT(indexes, index)) {
+      key_changed = row_upd_changes_ord_field_binary(
+          index, node->update, thr, node->upd_row, node->upd_ext);
+
+      if (key_changed) {
+        break;
+      }
+    }
+
+    if (!key_changed) {
+      err = row_update_inplace_for_intrinsic(node);
+
+      if (err == DB_SUCCESS) {
+        return (err);
+      }
+    }
+  }
 
   /* Step-2: Execute DELETE operation. */
   err = row_delete_for_mysql_using_cursor(node, delete_entries, false);
@@ -2206,13 +2274,13 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
 
   clust_index = table->first_index();
 
-  if (prebuilt->pcur->btr_cur.index == clust_index) {
+  if (prebuilt->pcur->m_btr_cur.index == clust_index) {
     btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
   } else {
     btr_pcur_copy_stored_position(node->pcur, prebuilt->clust_pcur);
   }
 
-  ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
+  ut_a(node->pcur->m_rel_pos == BTR_PCUR_ON);
 
   /* MySQL seems to call rnd_pos before updating each row it
   has cached: we can get the correct cursor position from
@@ -2683,7 +2751,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
     initialized and we don't need to write DDL logs too.
     This can only happen for CREATE TABLE. */
     if (log_ddl != nullptr) {
-      log_ddl->write_remove_cache_log(trx, table);
+      err = log_ddl->write_remove_cache_log(trx, table);
     }
 
     mem_heap_free(heap);
@@ -2729,11 +2797,16 @@ error_handling:
     case DB_SUCCESS:
     case DB_IO_NO_PUNCH_HOLE_FS:
       break;
-    case DB_OUT_OF_FILE_SPACE:
-      trx->error_state = DB_SUCCESS;
 
-      ib::warn(ER_IB_MSG_986) << "Cannot create table " << table->name
-                              << " because tablespace full";
+    case DB_OUT_OF_FILE_SPACE:
+    case DB_TOO_MANY_CONCURRENT_TRXS:
+
+      if (err == DB_OUT_OF_FILE_SPACE) {
+        ib::warn(ER_IB_MSG_986) << "Cannot create table " << table->name
+                                << " because the tablespace is full";
+      }
+
+      trx->error_state = DB_SUCCESS;
 
       /* Still do it here so that the table can always be freed */
       if (dd_table_open_on_name_in_mem(table->name.m_name, false)) {
@@ -2751,7 +2824,6 @@ error_handling:
       break;
 
     case DB_UNSUPPORTED:
-    case DB_TOO_MANY_CONCURRENT_TRXS:
     case DB_DUPLICATE_KEY:
     case DB_TABLESPACE_EXISTS:
     default:
@@ -3664,19 +3736,16 @@ dberr_t row_drop_table_from_cache(dict_table_t *table, trx_t *trx) {
   return (DB_SUCCESS);
 }
 
-/** Drop a single-table tablespace as part of dropping or renaming a table.
+/** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
 @param[in]	space_id	Tablespace ID
-@param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
 @return error code or DB_SUCCESS */
-dberr_t row_drop_single_table_tablespace(space_id_t space_id,
-                                         const char *tablename,
-                                         const char *filepath) {
+dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   dberr_t err = DB_SUCCESS;
 
   /* If the tablespace is not in the cache, just delete the file. */
-  if (!fil_space_exists_in_mem(space_id, tablename, true, false, NULL, 0)) {
+  if (!fil_space_exists_in_mem(space_id, nullptr, true, false, NULL, 0)) {
     /* Force a delete of any discarded or temporary files. */
     if (fil_delete_file(filepath)) {
       ib::info(ER_IB_MSG_989) << "Removed datafile " << filepath;
@@ -3964,11 +4033,14 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   if (!table->is_temporary() && !file_per_table) {
     mutex_exit(&dict_sys->mutex);
-    for (dict_index_t *index = table->first_index(); index != NULL;
-         index = index->next()) {
-      log_ddl->write_free_tree_log(trx, index, true);
+    for (dict_index_t *index = table->first_index();
+         err == DB_SUCCESS && index != NULL; index = index->next()) {
+      err = log_ddl->write_free_tree_log(trx, index, true);
     }
     mutex_enter(&dict_sys->mutex);
+    if (err != DB_SUCCESS) {
+      goto funct_exit;
+    }
   }
 
   /* Mark all indexes unavailable in the data dictionary cache
@@ -4057,7 +4129,8 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   }
 
   ut_ad(file_per_table);
-  log_ddl->write_delete_space_log(trx, nullptr, space_id, filepath, true, true);
+  err = log_ddl->write_delete_space_log(trx, nullptr, space_id, filepath, true,
+                                        true);
 
 funct_exit:
 
@@ -4252,7 +4325,13 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-    if ((old_is_tmp || new_is_tmp) && (!table->refresh_fk)) {
+    /* If neither the old table, nor the new table is temporary, then it is a
+    table rename command. */
+    const bool is_rename = (!old_is_tmp && !new_is_tmp);
+
+    /* When table->refresh_fk is true, the foreign keys will be loaded when the
+       table is opened. */
+    if (is_rename || !table->refresh_fk) {
       if (dict_locked) {
         ut_ad(mutex_own(&dict_sys->mutex));
         mutex_exit(&dict_sys->mutex);
@@ -4321,36 +4400,174 @@ funct_exit:
   return (err);
 }
 
-/** Scans an index for either COUNT(*) or CHECK TABLE.
- If CHECK TABLE; Checks that the index contains entries in an ascending order,
- unique constraint is not broken, and calculates the number of index entries
- in the read view of the current transaction.
- @return DB_SUCCESS or other error */
-dberr_t row_scan_index_for_mysql(
-    row_prebuilt_t *prebuilt,  /*!< in: prebuilt struct
-                               in MySQL handle */
-    const dict_index_t *index, /*!< in: index */
-    bool check_keys,           /*!< in: true=check for mis-
-                               ordered or duplicate records,
-                               false=count the rows only */
-    ulint *n_rows)             /*!< out: number of entries
-                               seen in the consistent read */
-{
-  dtuple_t *prev_entry = NULL;
-  ulint matched_fields;
-  byte *buf;
-  dberr_t ret;
-  rec_t *rec;
-  int cmp;
-  ibool contains_null;
-  ulint i;
-  ulint cnt;
-  mem_heap_t *heap = NULL;
-  ulint n_ext;
-  ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets;
-  rec_offs_init(offsets_);
+/** Read the total number of records in a consistent view.
+@param[in,out]  reader   Index scanner
+@param[out]     n_rows   Number of rows seen.
+@return DB_SUCCESS or error code. */
+static dberr_t parallel_select_count_star(Key_reader &reader, ulint *n_rows) {
+  Counter::Shards n_recs;
 
+  Counter::clear(n_recs);
+
+  const buf_block_t *prev_block = nullptr;
+
+  dberr_t err =
+      reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
+                      dict_index_t *index, row_prebuilt_t *prebuilt) {
+        Counter::inc(n_recs, id);
+
+        /* Only check the THD state for the first thread. */
+        if (id == 0 && block != prev_block) {
+          prev_block = block;
+          if (trx_is_interrupted(reader.trx())) {
+            return (DB_INTERRUPTED);
+          }
+        }
+
+        return (DB_SUCCESS);
+      });
+
+  *n_rows = Counter::total(n_recs);
+
+  return (err);
+}
+
+/** Scan the rows in parallel.
+@param[in,out]  reader   Index scanner
+@param[out]     n_rows   Number of rows seen.
+@return DB_SUCCESS or error code. */
+static dberr_t parallel_check_table(Key_reader &reader, ulint *n_rows) {
+  Counter::Shards n_recs{};
+  Counter::Shards n_dups{};
+  Counter::Shards n_corrupt{};
+
+  Counter::clear(n_dups);
+  Counter::clear(n_recs);
+  Counter::clear(n_corrupt);
+
+  using Tuples = std::vector<dtuple_t *, ut_allocator<dtuple_t *>>;
+  using Heaps = std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>>;
+  using Blocks =
+      std::vector<const buf_block_t *, ut_allocator<const buf_block_t *>>;
+
+  dberr_t err;
+
+  Tuples prev_tuples;
+
+  prev_tuples.resize(reader.n_threads());
+
+  Blocks prev_blocks;
+
+  prev_blocks.resize(reader.n_threads());
+
+  Heaps heaps;
+
+  for (size_t i = 0; i < reader.n_threads(); ++i) {
+    heaps.push_back(mem_heap_create(100));
+  }
+
+  /* Check for transaction interrupted every 1000 rows. */
+  size_t counter = 1000;
+
+  const auto index = reader.index();
+
+  err = reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
+                        dict_index_t *index, row_prebuilt_t *prebuilt) {
+
+    Counter::inc(n_recs, id);
+
+    /* Only check the THD state for the first thread. */
+    if (id == 0) {
+      --counter;
+
+      if (counter == 0 && trx_is_interrupted(reader.trx())) {
+        return (DB_INTERRUPTED);
+      }
+
+      counter = 1000;
+    }
+
+    auto heap = heaps[id];
+    auto prev_tuple = prev_tuples[id];
+
+    auto offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+
+    if (prev_tuple != nullptr) {
+      ulint matched_fields = 0;
+
+      auto cmp = cmp_dtuple_rec_with_match(prev_tuple, rec, index, offsets,
+                                           &matched_fields);
+      /* In a unique secondary index we allow equal key values if
+      they contain SQL NULLs */
+
+      bool contains_null = false;
+      for (size_t i = 0; i < dict_index_get_n_ordering_defined_by_user(index);
+           ++i) {
+        if (UNIV_SQL_NULL ==
+            dfield_get_len(dtuple_get_nth_field(prev_tuple, i))) {
+          contains_null = true;
+          break;
+        }
+      }
+
+      if (cmp > 0) {
+        Counter::inc(n_corrupt, id);
+
+        ib::error() << "Index records in a wrong order in " << index->name
+                    << " of table " << index->table->name << ": " << *prev_tuple
+                    << ", " << rec_offsets_print(rec, offsets);
+        /* Continue reading */
+      } else if (dict_index_is_unique(index) && !contains_null &&
+                 matched_fields >=
+                     dict_index_get_n_ordering_defined_by_user(index)) {
+        Counter::inc(n_dups, id);
+
+        ib::error() << "Duplicate key in " << index->name << " of table "
+                    << index->table->name << ": " << *prev_tuple << ", "
+                    << rec_offsets_print(rec, offsets);
+      }
+    }
+
+    if (prev_blocks[id] != block || prev_blocks[id] == nullptr) {
+      mem_heap_empty(heap);
+      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+
+      prev_blocks[id] = block;
+    }
+
+    ulint n_ext;
+
+    prev_tuples[id] = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
+
+    return (DB_SUCCESS);
+  });
+
+  for (auto heap : heaps) {
+    mem_heap_free(heap);
+  }
+
+  if (Counter::total(n_dups) > 0) {
+    ib::error() << "Found " << Counter::total(n_dups) << " duplicate rows in "
+                << index->name;
+
+    err = DB_DUPLICATE_KEY;
+  }
+
+  if (Counter::total(n_corrupt) > 0) {
+    ib::error() << "Found " << Counter::total(n_corrupt)
+                << " rows in the wrong order in " << index->name;
+
+    err = DB_INDEX_CORRUPT;
+  }
+
+  *n_rows = Counter::total(n_recs);
+
+  return (err);
+}
+
+dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
+                                 size_t n_threads, bool check_keys,
+                                 ulint *n_rows) {
   *n_rows = 0;
 
   /* Don't support RTree Leaf level scan */
@@ -4371,13 +4588,47 @@ dberr_t row_scan_index_for_mysql(
     return (DB_SUCCESS);
   }
 
+  DBUG_EXECUTE_IF("ib_disable_parallel_read", goto skip_parallel_read;);
+
+  if (prebuilt->select_lock_type == LOCK_NONE && index->is_clustered() &&
+      (check_keys || prebuilt->trx->mysql_n_tables_locked == 0) &&
+      !prebuilt->ins_sel_stmt && n_threads > 1) {
+    /* No INSERT INTO  ... SELECT  and non-locking selects only. */
+    trx_start_if_not_started_xa(prebuilt->trx, false);
+
+    trx_assign_read_view(prebuilt->trx);
+
+    auto trx = prebuilt->trx;
+
+    Key_reader reader(prebuilt->table, trx, index, prebuilt, n_threads);
+
+    if (!check_keys) {
+      return (parallel_select_count_star(reader, n_rows));
+    }
+
+    return (parallel_check_table(reader, n_rows));
+  }
+
+#ifdef UNIV_DEBUG
+skip_parallel_read:
+#endif /* UNIV_DEBUG */
+
+  bool contains_null;
+  rec_t *rec = nullptr;
+  ulint matched_fields;
+  dtuple_t *prev_entry = nullptr;
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  ulint *offsets;
+
+  rec_offs_init(offsets_);
+
+  ulint cnt = 1000;
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  buf = static_cast<byte *>(ut_malloc_nokey(bufsize));
-  heap = mem_heap_create(100);
+  auto buf = static_cast<byte *>(ut_malloc_nokey(bufsize));
+  auto heap = mem_heap_create(100);
 
-  cnt = 1000;
+  auto ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
 
-  ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
 loop:
   /* Check thd->killed every 1,000 scanned rows */
   if (--cnt == 0) {
@@ -4431,17 +4682,19 @@ loop:
   if (prev_entry != NULL) {
     matched_fields = 0;
 
-    cmp = cmp_dtuple_rec_with_match(prev_entry, rec, index, offsets,
-                                    &matched_fields);
-    contains_null = FALSE;
+    auto cmp = cmp_dtuple_rec_with_match(prev_entry, rec, index, offsets,
+                                         &matched_fields);
+    contains_null = false;
 
     /* In a unique secondary index we allow equal key values if
     they contain SQL NULLs */
 
-    for (i = 0; i < dict_index_get_n_ordering_defined_by_user(index); i++) {
+    const auto n_ordering = dict_index_get_n_ordering_defined_by_user(index);
+
+    for (ulint i = 0; i < n_ordering; ++i) {
       if (UNIV_SQL_NULL ==
           dfield_get_len(dtuple_get_nth_field(prev_entry, i))) {
-        contains_null = TRUE;
+        contains_null = true;
         break;
       }
     }
@@ -4480,6 +4733,8 @@ loop:
     }
 
     mem_heap_empty(heap);
+
+    ulint n_ext = 0;
 
     prev_entry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
 

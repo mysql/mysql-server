@@ -1,0 +1,188 @@
+#
+# Tests for the Performance Schema native function format_bytes()
+#
+
+SELECT format_bytes(NULL);
+format_bytes(NULL)
+NULL
+
+SELECT format_bytes(0);
+format_bytes(0)
+   0 bytes
+
+SELECT format_bytes(1);
+format_bytes(1)
+   1 bytes
+
+SELECT format_bytes(1023);
+format_bytes(1023)
+1023 bytes
+
+SELECT format_bytes(1024);
+format_bytes(1024)
+1.00 KiB
+
+SELECT format_bytes(1025);
+format_bytes(1025)
+1.00 KiB
+
+SELECT format_bytes(1024 * 1024 - 200);
+format_bytes(1024 * 1024 - 200)
+1023.80 KiB
+
+SELECT format_bytes(1024 * 1024 - 1);
+format_bytes(1024 * 1024 - 1)
+1024.00 KiB
+
+SELECT format_bytes(1024 * 1024);
+format_bytes(1024 * 1024)
+1.00 MiB
+
+SELECT format_bytes(1024 * 1024 + 1);
+format_bytes(1024 * 1024 + 1)
+1.00 MiB
+
+SELECT format_bytes(1024 * 1024 + 200);
+format_bytes(1024 * 1024 + 200)
+1.00 MiB
+
+SELECT format_bytes(1024 * 1024 * 1024 - 1);
+format_bytes(1024 * 1024 * 1024 - 1)
+1024.00 MiB
+
+SELECT format_bytes(1024 * 1024 * 1024);
+format_bytes(1024 * 1024 * 1024)
+1.00 GiB
+
+SELECT format_bytes(1024 * 1024 * 1024 + 1);
+format_bytes(1024 * 1024 * 1024 + 1)
+1.00 GiB
+
+SELECT format_bytes(1024 * 1024 * 1024 * 1024 - 1);
+format_bytes(1024 * 1024 * 1024 * 1024 - 1)
+1024.00 GiB
+
+SELECT format_bytes(1024 * 1024 * 1024 * 1024);
+format_bytes(1024 * 1024 * 1024 * 1024)
+1.00 TiB
+
+SELECT format_bytes(1024 * 1024 * 1024 * 1024 + 1);
+format_bytes(1024 * 1024 * 1024 * 1024 + 1)
+1.00 TiB
+
+SELECT format_bytes(1024 * 1024 * 1024 * 1024 * 1024 - 1);
+format_bytes(1024 * 1024 * 1024 * 1024 * 1024 - 1)
+1024.00 TiB
+
+SELECT format_bytes(1024 * 1024 * 1024 * 1024 * 1024);
+format_bytes(1024 * 1024 * 1024 * 1024 * 1024)
+1.00 PiB
+
+SELECT format_bytes(1024 * 1024 * 1024 * 1024 * 1024 + 1);
+format_bytes(1024 * 1024 * 1024 * 1024 * 1024 + 1)
+1.00 PiB
+
+SELECT format_bytes(power(2, 63));
+format_bytes(power(2, 63))
+8.00 EiB
+
+## 1024^6 Eib
+SELECT format_bytes(1152921504606846976-1);
+format_bytes(1152921504606846976-1)
+1.00 EiB
+
+SELECT format_bytes(x'1000000000000000'-1);
+format_bytes(x'1000000000000000'-1)
+1.00 EiB
+
+SELECT format_bytes(1180591620717411434000);
+format_bytes(1180591620717411434000)
+1024.00 EiB
+
+## Negative values are ok
+SELECT format_bytes(1024 * 1024 * -1);
+format_bytes(1024 * 1024 * -1)
+-1.00 MiB
+
+## Force exponent format
+SELECT format_bytes(118059162071741143500099);
+format_bytes(118059162071741143500099)
+1.02e+05 EiB
+
+SELECT format_bytes(-118059162071741143500099);
+format_bytes(-118059162071741143500099)
+-1.02e+05 EiB
+
+SELECT format_bytes(pow(2,400));
+format_bytes(pow(2,400))
+2.24e+102 EiB
+
+## Valid hybrid number
+SELECT format_bytes((pow(2, 63) - 1) * 2 + 1);
+format_bytes((pow(2, 63) - 1) * 2 + 1)
+16.00 EiB
+
+## Bad input
+SELECT format_bytes("foo");
+ERROR 22003: Input value is out of range in 'format_bytes'
+
+## Aggregate functions
+USE test;
+
+CREATE TABLE memory_counts (id VARCHAR(10), bytes BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+INSERT INTO memory_counts VALUES ('Bytes', 512);
+INSERT INTO memory_counts VALUES ('10 KiB', 10 * 1024);
+INSERT INTO memory_counts VALUES ('20 MiB', 20 * pow(1024,2));
+
+SELECT sum(bytes), format_bytes(sum(bytes)) FROM memory_counts;
+sum(bytes)	format_bytes(sum(bytes))
+20982272	20.01 MiB
+
+INSERT INTO memory_counts VALUES ('30 GiB', 30 * pow(1024,3));
+
+SELECT sum(bytes), format_bytes(sum(bytes)) FROM memory_counts;
+sum(bytes)	format_bytes(sum(bytes))
+32233236992	30.02 GiB
+
+INSERT INTO memory_counts VALUES ('40 TiB', 40 * pow(1024,4));
+
+SELECT sum(bytes), format_bytes(sum(bytes)) FROM memory_counts;
+sum(bytes)	format_bytes(sum(bytes))
+44012698348032	40.03 TiB
+
+INSERT INTO memory_counts VALUES ('50 PiB', 50 * pow(1024,5));
+
+SELECT sum(bytes), format_bytes(sum(bytes)) FROM memory_counts;
+sum(bytes)	format_bytes(sum(bytes))
+56339008040479232	50.04 PiB
+
+INSERT INTO memory_counts VALUES ('1 EiB', pow(1024,6));
+
+SELECT id, format_bytes(bytes), bytes FROM memory_counts;
+id	format_bytes(bytes)	bytes
+Bytes	 512 bytes	512
+10 KiB	10.00 KiB	10240
+20 MiB	20.00 MiB	20971520
+30 GiB	30.00 GiB	32212254720
+40 TiB	40.00 TiB	43980465111040
+50 PiB	50.00 PiB	56294995342131200
+1 EiB	1.00 EiB	1152921504606846976
+
+SELECT sum(bytes), format_bytes(sum(bytes)) FROM memory_counts;
+sum(bytes)	format_bytes(sum(bytes))
+1209260512647326208	1.05 EiB
+
+SELECT avg(bytes), format_bytes(avg(bytes)) FROM memory_counts;
+avg(bytes)	format_bytes(avg(bytes))
+172751501806760886.8571	153.43 PiB
+
+SELECT max(bytes), format_bytes(max(bytes)) FROM memory_counts;
+max(bytes)	format_bytes(max(bytes))
+1152921504606846976	1.00 EiB
+
+SELECT min(bytes), format_bytes(min(bytes)) FROM memory_counts;
+min(bytes)	format_bytes(min(bytes))
+512	 512 bytes
+
+DROP TABLE memory_counts;

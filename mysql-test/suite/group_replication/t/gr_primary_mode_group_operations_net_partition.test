@@ -33,6 +33,7 @@ SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
 call mtr.add_suppression("read failed");
+call mtr.add_suppression("\\[GCS\\] Unable to resolve peer address.");
 SET SESSION sql_log_bin=1;
 
 --echo
@@ -131,13 +132,13 @@ UNLOCK TABLES;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
 --echo

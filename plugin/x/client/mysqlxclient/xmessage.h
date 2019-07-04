@@ -25,6 +25,7 @@
 
 #ifdef WIN32
 #pragma warning(push, 0)
+#undef DELETE
 #endif  // WIN32
 
 #include <google/protobuf/dynamic_message.h>
@@ -42,8 +43,10 @@
 #include "protobuf/mysqlx.pb.h"
 #include "protobuf/mysqlx_connection.pb.h"
 #include "protobuf/mysqlx_crud.pb.h"
+#include "protobuf/mysqlx_cursor.pb.h"
 #include "protobuf/mysqlx_expect.pb.h"
 #include "protobuf/mysqlx_notice.pb.h"
+#include "protobuf/mysqlx_prepare.pb.h"
 #include "protobuf/mysqlx_resultset.pb.h"
 #include "protobuf/mysqlx_session.pb.h"
 #include "protobuf/mysqlx_sql.pb.h"
@@ -53,8 +56,10 @@
 #include "protobuf_lite/mysqlx.pb.h"
 #include "protobuf_lite/mysqlx_connection.pb.h"
 #include "protobuf_lite/mysqlx_crud.pb.h"
+#include "protobuf_lite/mysqlx_cursor.pb.h"
 #include "protobuf_lite/mysqlx_expect.pb.h"
 #include "protobuf_lite/mysqlx_notice.pb.h"
+#include "protobuf_lite/mysqlx_prepare.pb.h"
 #include "protobuf_lite/mysqlx_resultset.pb.h"
 #include "protobuf_lite/mysqlx_session.pb.h"
 #include "protobuf_lite/mysqlx_sql.pb.h"

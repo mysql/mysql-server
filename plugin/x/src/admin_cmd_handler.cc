@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 
 namespace xpl {
 
-const char *const Admin_command_handler::MYSQLX_NAMESPACE = "mysqlx";
+const char *const Admin_command_handler::k_mysqlx_namespace = "mysqlx";
 
 namespace details {
 
@@ -119,7 +119,7 @@ ngs::Error_code Admin_command_handler::Command_handler::execute(
   }
 }
 
-Admin_command_handler::Admin_command_handler(Session *session)
+Admin_command_handler::Admin_command_handler(ngs::Session_interface *session)
     : m_session(session) {}
 
 ngs::Error_code Admin_command_handler::execute(const std::string &name_space,
@@ -144,7 +144,7 @@ ngs::Error_code Admin_command_handler::execute(const std::string &name_space,
  */
 ngs::Error_code Admin_command_handler::ping(const std::string & /*name_space*/,
                                             Command_arguments *args) {
-  m_session->update_status<&ngs::Common_status_variables::m_stmt_ping>();
+  m_session->update_status(&ngs::Common_status_variables::m_stmt_ping);
 
   ngs::Error_code error = args->end();
   if (error) return error;
@@ -164,7 +164,7 @@ struct Client_data_ {
 };
 
 void get_client_data(std::vector<Client_data_> *clients_data,
-                     const Session &requesting_session,
+                     const ngs::Session_interface &requesting_session,
                      const ngs::Sql_session_interface &da,
                      ngs::Client_interface *client) {
   // The client object is handled by different thread,
@@ -177,7 +177,7 @@ void get_client_data(std::vector<Client_data_> *clients_data,
 
   if (session) {
     const std::string user =
-        session->state() == ngs::Session_interface::Ready
+        session->state() == ngs::Session_interface::k_ready
             ? session->data_context().get_authenticated_user_name()
             : "";
     if (requesting_session.can_see_user(user)) {
@@ -206,8 +206,7 @@ void get_client_data(std::vector<Client_data_> *clients_data,
  */
 ngs::Error_code Admin_command_handler::list_clients(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session
-      ->update_status<&ngs::Common_status_variables::m_stmt_list_clients>();
+  m_session->update_status(&ngs::Common_status_variables::m_stmt_list_clients);
 
   ngs::Error_code error = args->end();
   if (error) return error;
@@ -250,14 +249,12 @@ ngs::Error_code Admin_command_handler::list_clients(
     if (it->user.empty())
       proto.row_builder().add_null_field();
     else
-      proto.row_builder().add_string_field(it->user.c_str(), it->user.length(),
-                                           nullptr);
+      proto.row_builder().add_string_field(it->user.c_str(), it->user.length());
 
     if (it->host.empty())
       proto.row_builder().add_null_field();
     else
-      proto.row_builder().add_string_field(it->host.c_str(), it->host.length(),
-                                           nullptr);
+      proto.row_builder().add_string_field(it->host.c_str(), it->host.length());
 
     if (!it->has_session)
       proto.row_builder().add_null_field();
@@ -278,7 +275,7 @@ ngs::Error_code Admin_command_handler::list_clients(
  */
 ngs::Error_code Admin_command_handler::kill_client(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session->update_status<&ngs::Common_status_variables::m_stmt_kill_client>();
+  m_session->update_status(&ngs::Common_status_variables::m_stmt_kill_client);
 
   uint64_t cid = 0;
 
@@ -325,8 +322,8 @@ ngs::Error_code create_collection_impl(ngs::Sql_session_interface *da,
  */
 ngs::Error_code Admin_command_handler::create_collection(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session->update_status<
-      &ngs::Common_status_variables::m_stmt_create_collection>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_create_collection);
 
   std::string schema;
   std::string collection;
@@ -354,8 +351,8 @@ ngs::Error_code Admin_command_handler::create_collection(
  */
 ngs::Error_code Admin_command_handler::drop_collection(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session
-      ->update_status<&ngs::Common_status_variables::m_stmt_drop_collection>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_drop_collection);
 
   Query_string_builder qb;
   std::string schema;
@@ -409,8 +406,8 @@ ngs::Error_code Admin_command_handler::drop_collection(
  */
 ngs::Error_code Admin_command_handler::create_collection_index(
     const std::string &name_space, Command_arguments *args) {
-  m_session->update_status<
-      &ngs::Common_status_variables::m_stmt_create_collection_index>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_create_collection_index);
   return Admin_command_index(m_session).create(name_space, args);
 }
 
@@ -422,8 +419,8 @@ ngs::Error_code Admin_command_handler::create_collection_index(
  */
 ngs::Error_code Admin_command_handler::drop_collection_index(
     const std::string &name_space, Command_arguments *args) {
-  m_session->update_status<
-      &ngs::Common_status_variables::m_stmt_drop_collection_index>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_drop_collection_index);
   return Admin_command_index(m_session).drop(name_space, args);
 }
 
@@ -444,8 +441,7 @@ inline bool is_fixed_notice_name(const std::string &notice) {
 inline void add_notice_row(ngs::Protocol_encoder_interface *proto,
                            const std::string &notice, longlong status) {
   proto->start_row();
-  proto->row_builder().add_string_field(notice.c_str(), notice.length(),
-                                        nullptr);
+  proto->row_builder().add_string_field(notice.c_str(), notice.length());
   proto->row_builder().add_longlong_field(status, 0);
   proto->send_row();
 }
@@ -458,8 +454,8 @@ inline void add_notice_row(ngs::Protocol_encoder_interface *proto,
  */
 ngs::Error_code Admin_command_handler::enable_notices(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session
-      ->update_status<&ngs::Common_status_variables::m_stmt_enable_notices>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_enable_notices);
 
   std::vector<std::string> notice_names_to_enable;
   ngs::Error_code error =
@@ -492,8 +488,8 @@ ngs::Error_code Admin_command_handler::enable_notices(
  */
 ngs::Error_code Admin_command_handler::disable_notices(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session
-      ->update_status<&ngs::Common_status_variables::m_stmt_disable_notices>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_disable_notices);
 
   std::vector<std::string> notice_names_to_disable;
   ngs::Error_code error =
@@ -526,8 +522,7 @@ ngs::Error_code Admin_command_handler::disable_notices(
  */
 ngs::Error_code Admin_command_handler::list_notices(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session
-      ->update_status<&ngs::Common_status_variables::m_stmt_list_notices>();
+  m_session->update_status(&ngs::Common_status_variables::m_stmt_list_notices);
   const auto &notice_config = m_session->get_notice_configuration();
 
   ngs::Error_code error = args->end();
@@ -623,8 +618,7 @@ const char *const COUNT_GEN = COUNT_WHEN(
  */
 ngs::Error_code Admin_command_handler::list_objects(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session
-      ->update_status<&ngs::Common_status_variables::m_stmt_list_objects>();
+  m_session->update_status(&ngs::Common_status_variables::m_stmt_list_objects);
 
   static const bool is_table_names_case_sensitive =
       get_system_variable<long>(&m_session->data_context(),
@@ -680,12 +674,11 @@ ngs::Error_code Admin_command_handler::list_objects(
   qb.put(" GROUP BY name ORDER BY name");
 
   log_debug("LIST: %s", qb.get().c_str());
-  Streaming_resultset resultset(&m_session->proto(), nullptr, false);
+  Streaming_resultset<> resultset(m_session, false);
   error = m_session->data_context().execute(qb.get().data(), qb.get().length(),
                                             &resultset);
   if (error) return error;
 
-  m_session->proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -746,8 +739,8 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
  */
 ngs::Error_code Admin_command_handler::ensure_collection(
     const std::string & /*name_space*/, Command_arguments *args) {
-  m_session->update_status<
-      &ngs::Common_status_variables::m_stmt_ensure_collection>();
+  m_session->update_status(
+      &ngs::Common_status_variables::m_stmt_ensure_collection);
   std::string schema;
   std::string collection;
 
@@ -772,6 +765,6 @@ ngs::Error_code Admin_command_handler::ensure_collection(
   return ngs::Success();
 }
 
-const char *const Admin_command_handler::Command_arguments::PLACEHOLDER = "?";
+const char *const Admin_command_handler::Command_arguments::k_placeholder = "?";
 
 }  // namespace xpl

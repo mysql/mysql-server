@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include <NdbGetRUsage.h>
 #include <portlib/ndb_prefetch.h>
 #include <blocks/pgman.hpp>
+#include <Pool.hpp>
 
 #include "mt-asm.h"
 #include "mt-lock.hpp"
@@ -160,7 +161,7 @@ futex_wake(volatile unsigned * addr)
   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
 }
 
-struct MY_ALIGNED(NDB_CL) thr_wait
+struct alignas(NDB_CL) thr_wait
 {
   volatile unsigned m_futex_state;
   enum {
@@ -250,7 +251,7 @@ try_wakeup(struct thr_wait* wait)
 }
 #else
 
-struct MY_ALIGNED(NDB_CL) thr_wait
+struct alignas(NDB_CL) thr_wait
 {
   NdbMutex *m_mutex;
   NdbCondition *m_cond;
@@ -339,7 +340,7 @@ wakeup(struct thr_wait* wait)
  * thr_safe_pool
  */
 template<typename T>
-struct MY_ALIGNED(NDB_CL) thr_safe_pool
+struct alignas(NDB_CL) thr_safe_pool
 {
   thr_safe_pool(const char * name) : m_lock(name), m_free_list(0), m_cnt(0) {
     assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
@@ -927,13 +928,20 @@ struct thr_send_queue
 #endif
 };
 
-struct MY_ALIGNED(NDB_CL) thr_data
+struct alignas(NDB_CL) thr_data
 {
   thr_data() : m_jba_write_lock("jbalock"),
                m_signal_id_counter(0),
                m_send_buffer_pool(0,
                                   THR_SEND_BUFFER_MAX_FREE,
-                                  THR_SEND_BUFFER_ALLOC_SIZE) {
+                                  THR_SEND_BUFFER_ALLOC_SIZE)
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+               ,m_global_variables_ptr_instances(0)
+               ,m_global_variables_uint32_ptr_instances(0)
+               ,m_global_variables_uint32_instances(0)
+               ,m_global_variables_enabled(true)
+#endif
+  {
 
     // Check cacheline allignment
     assert((((UintPtr)this) % NDB_CL) == 0);
@@ -956,8 +964,8 @@ struct MY_ALIGNED(NDB_CL) thr_data
    * surrounding thread-local variables from CPU cache line sharing
    * with this part.
    */
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_jba_write_lock;
-  MY_ALIGNED(NDB_CL) struct thr_job_queue m_jba;
+  alignas(NDB_CL) struct thr_spin_lock m_jba_write_lock;
+  alignas(NDB_CL) struct thr_job_queue m_jba;
   struct thr_job_queue_head m_jba_head;
 
   /*
@@ -967,8 +975,8 @@ struct MY_ALIGNED(NDB_CL) thr_data
    * all the time whereas other neighbour variables are thread-local variables.
    * Avoid false cacheline sharing by require an alignment.
    */
-  MY_ALIGNED(NDB_CL) struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
-  MY_ALIGNED(NDB_CL) struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
+  alignas(NDB_CL) struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
+  alignas(NDB_CL) struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
 
   /**
    * The remainder of the variables in thr_data are thread-local,
@@ -1166,6 +1174,16 @@ struct MY_ALIGNED(NDB_CL) thr_data
 #ifdef ERROR_INSERT
   bool m_delayed_prepare;
 #endif
+
+#if defined (USE_INIT_GLOBAL_VARIABLES)
+  Uint32 m_global_variables_ptr_instances;
+  Uint32 m_global_variables_uint32_ptr_instances;
+  Uint32 m_global_variables_uint32_instances;
+  bool m_global_variables_enabled;
+  void* m_global_variables_ptrs[1024];
+  void* m_global_variables_uint32_ptrs[1024];
+  void* m_global_variables_uint32[1024];
+#endif
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -1223,15 +1241,12 @@ struct thr_repository
    * and also heavily updated.
    * Requiring alignments avoid false cache line sharing.
    */
-  MY_ALIGNED(NDB_CL)
-  struct MY_ALIGNED(NDB_CL) aligned_locks : public thr_spin_lock
-  {
-  } m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
+  thr_aligned_spin_lock m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
 
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_section_lock;
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_mem_manager_lock;
-  MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_job_buffer> m_jb_pool;
-  MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_send_page> m_sb_pool;
+  alignas(NDB_CL) struct thr_spin_lock m_section_lock;
+  alignas(NDB_CL) struct thr_spin_lock m_mem_manager_lock;
+  alignas(NDB_CL) struct thr_safe_pool<thr_job_buffer> m_jb_pool;
+  alignas(NDB_CL) struct thr_safe_pool<thr_send_page> m_sb_pool;
 
   /* m_mm and m_thread_count are globally shared and read only variables */
   Ndbd_mem_manager * m_mm;
@@ -1242,7 +1257,7 @@ struct thr_repository
    * So sharing cache line with these for these read only variables
    * isn't a good idea
    */
-  MY_ALIGNED(NDB_CL) struct thr_data m_thread[MAX_BLOCK_THREADS];
+  alignas(NDB_CL) struct thr_data m_thread[MAX_BLOCK_THREADS];
 
   /* The buffers that are to be sent */
   struct send_buffer
@@ -5463,6 +5478,9 @@ void handle_scheduling_decisions(thr_data *selfptr,
   }
 }
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  void mt_clear_global_variables(thr_data*);
+#endif
 /*
  * Execute at most MAX_SIGNALS signals from one job queue, updating local read
  * state as appropriate.
@@ -5598,6 +5616,9 @@ execute_signals(thr_data *selfptr,
      */
     block->jamBuffer()->markEndOfSigExec();
     sig->m_extra_signals = 0;
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+    mt_clear_global_variables(selfptr);
+#endif
     block->executeFunction_async(gsn, sig);
     extra_signals += sig->m_extra_signals;
   }
@@ -8498,6 +8519,93 @@ mt_get_trp_receive_handle(unsigned instance)
   }
   return 0;
 }
+
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+void
+mt_clear_global_variables(thr_data *selfptr)
+{
+  if (selfptr->m_global_variables_enabled)
+  {
+    for (Uint32 i = 0; i < selfptr->m_global_variables_ptr_instances; i++)
+    {
+      Ptr<void> *tmp = (Ptr<void>*)selfptr->m_global_variables_ptrs[i];
+      tmp->i = RNIL;
+      tmp->p = 0;
+    }
+    for (Uint32 i = 0; i < selfptr->m_global_variables_uint32_ptr_instances; i++)
+    {
+      void **tmp = (void**)selfptr->m_global_variables_uint32_ptrs[i];
+      (*tmp) = 0;
+    }
+    for (Uint32 i = 0; i < selfptr->m_global_variables_uint32_instances; i++)
+    {
+      Uint32 *tmp = (Uint32*)selfptr->m_global_variables_uint32[i];
+      (*tmp) = Uint32(~0);
+    }
+  }
+}
+
+void
+mt_enable_global_variables(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  selfptr->m_global_variables_enabled = true;
+}
+
+void
+mt_disable_global_variables(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  selfptr->m_global_variables_enabled = false;
+}
+
+void
+mt_init_global_variables_ptr_instances(Uint32 self,
+                                       void ** tmp,
+                                       size_t cnt)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (size_t i = 0; i < cnt; i++)
+  {
+    Uint32 inx = selfptr->m_global_variables_ptr_instances;
+    selfptr->m_global_variables_ptrs[inx] = tmp[i];
+    selfptr->m_global_variables_ptr_instances = inx + 1;
+  }
+}
+
+void
+mt_init_global_variables_uint32_ptr_instances(Uint32 self,
+                                              void **tmp,
+                                              size_t cnt)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (size_t i = 0; i < cnt; i++)
+  {
+    Uint32 inx = selfptr->m_global_variables_uint32_ptr_instances;
+    selfptr->m_global_variables_uint32_ptrs[inx] = tmp[i];
+    selfptr->m_global_variables_uint32_ptr_instances = inx + 1;
+  }
+}
+
+void
+mt_init_global_variables_uint32_instances(Uint32 self,
+                                          void **tmp,
+                                          size_t cnt)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (size_t i = 0; i < cnt; i++)
+  {
+    Uint32 inx = selfptr->m_global_variables_uint32_instances;
+    selfptr->m_global_variables_uint32[inx] = tmp[i];
+    selfptr->m_global_variables_uint32_instances = inx + 1;
+  }
+}
+#endif
 
 /**
  * Global data

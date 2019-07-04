@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include <LocalProxy.hpp>
 #include <signaldata/UtilSequence.hpp>
+#include <signaldata/BackupImpl.hpp>
+#include <signaldata/BackupSignalData.hpp>
 
 #define JAM_FILE_ID 478
 
@@ -67,6 +69,86 @@ protected:
   void execEVENT_REP(Signal* );
   void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
   void execRESTORABLE_GCI_REP(Signal*);
+
+  // DEFINE_BACKUP_REQ
+  struct Ss_DEFINE_BACKUP_REQ : SsParallel {
+    DefineBackupReq m_req;
+
+    Ss_DEFINE_BACKUP_REQ() {
+      m_sendREQ = (SsFUNCREQ)&BackupProxy::sendDEFINE_BACKUP_REQ;
+      m_sendCONF = (SsFUNCREP)&BackupProxy::sendDEFINE_BACKUP_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DEFINE_BACKUP_REQ>& pool(LocalProxy* proxy) {
+      return ((BackupProxy*)proxy)->c_ss_DEFINE_BACKUP_REQ;
+    }
+    Uint32 masterRef;
+  };
+  SsPool<Ss_DEFINE_BACKUP_REQ> c_ss_DEFINE_BACKUP_REQ;
+  void execDEFINE_BACKUP_REQ(Signal*);
+  void sendDEFINE_BACKUP_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execDEFINE_BACKUP_CONF(Signal*);
+  void execDEFINE_BACKUP_REF(Signal*);
+  void sendDEFINE_BACKUP_CONF(Signal*, Uint32 ssId);
+
+  // START_BACKUP_REQ
+  struct Ss_START_BACKUP_REQ : SsParallel {
+    StartBackupReq m_req;
+
+    Ss_START_BACKUP_REQ() {
+      m_sendREQ = (SsFUNCREQ)&BackupProxy::sendSTART_BACKUP_REQ;
+      m_sendCONF = (SsFUNCREP)&BackupProxy::sendSTART_BACKUP_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_START_BACKUP_REQ>& pool(LocalProxy* proxy) {
+      return ((BackupProxy*)proxy)->c_ss_START_BACKUP_REQ;
+    }
+    Uint32 masterRef;
+  };
+  SsPool<Ss_START_BACKUP_REQ> c_ss_START_BACKUP_REQ;
+  void execSTART_BACKUP_REQ(Signal*);
+  void sendSTART_BACKUP_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execSTART_BACKUP_CONF(Signal*);
+  void execSTART_BACKUP_REF(Signal*);
+  void sendSTART_BACKUP_CONF(Signal*, Uint32 ssId);
+  // STOP_BACKUP_REQ
+  struct Ss_STOP_BACKUP_REQ : SsParallel {
+    StopBackupReq m_req;
+
+    Ss_STOP_BACKUP_REQ() {
+      m_sendREQ = (SsFUNCREQ)&BackupProxy::sendSTOP_BACKUP_REQ;
+      m_sendCONF = (SsFUNCREP)&BackupProxy::sendSTOP_BACKUP_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_STOP_BACKUP_REQ>& pool(LocalProxy* proxy) {
+      return ((BackupProxy*)proxy)->c_ss_STOP_BACKUP_REQ;
+    }
+    Uint32 masterRef;
+  };
+  SsPool<Ss_STOP_BACKUP_REQ> c_ss_STOP_BACKUP_REQ;
+  void execSTOP_BACKUP_REQ(Signal*);
+  void sendSTOP_BACKUP_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execSTOP_BACKUP_CONF(Signal*);
+  void execSTOP_BACKUP_REF(Signal*);
+  void sendSTOP_BACKUP_CONF(Signal*, Uint32 ssId);
+
+  // ABORT_BACKUP_ORD
+  struct Ss_ABORT_BACKUP_ORD : SsParallel {
+    AbortBackupOrd m_req;
+
+    Ss_ABORT_BACKUP_ORD() {
+      m_sendREQ = (SsFUNCREQ)&BackupProxy::sendABORT_BACKUP_ORD;
+      m_sendCONF = (SsFUNCREP)0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_ABORT_BACKUP_ORD>& pool(LocalProxy* proxy) {
+      return ((BackupProxy*)proxy)->c_ss_ABORT_BACKUP_ORD;
+    }
+    Uint32 masterRef;
+  };
+  SsPool<Ss_ABORT_BACKUP_ORD> c_ss_ABORT_BACKUP_ORD;
+  void execABORT_BACKUP_ORD(Signal*);
+  void sendABORT_BACKUP_ORD(Signal*, Uint32 ssId, SectionHandle*);
 };
 
 

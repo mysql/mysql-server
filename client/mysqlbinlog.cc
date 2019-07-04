@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,6 @@
 */
 
 /*
-
-   TODO: print the catalog (some USE catalog.db ????).
-
    Standalone program to read a MySQL binary log (or relay log).
 
    Should be able to read any file of these categories, even with
@@ -49,6 +46,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"
@@ -1687,7 +1685,7 @@ static my_time_t convert_str_to_timestamp(const char *str) {
     the next existing day, like in mysqld. Maybe this could be changed when
     mysqld is changed too (with its "strict" mode?).
   */
-  return my_system_gmt_sec(&l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
+  return my_system_gmt_sec(l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
 }
 
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
@@ -1826,8 +1824,10 @@ static Exit_status safe_connect() {
     return ERROR_STOP;
   }
 
-  SSL_SET_OPTIONS(mysql);
-
+  if (SSL_SET_OPTIONS(mysql)) {
+    error("%s", SSL_SET_OPTIONS_ERROR);
+    return ERROR_STOP;
+  }
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
@@ -2338,7 +2338,7 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
            rewrite_db(buffer, length);
   }
 
-  void set_multi_binlog_magic() { m_multi_binlog_magic = true; };
+  void set_multi_binlog_magic() { m_multi_binlog_magic = true; }
 
  private:
   bool m_multi_binlog_magic = false;
@@ -2403,7 +2403,7 @@ class Stdin_binlog_istream : public Basic_seekable_istream,
   my_off_t length() override {
     DBUG_ASSERT(0);
     return 0;
-  };
+  }
   /* purecov: end */
 
  private:
@@ -2419,32 +2419,29 @@ class Mysqlbinlog_ifile : public Basic_binlog_ifile {
   using Basic_binlog_ifile::Basic_binlog_ifile;
 
  private:
-  Stdin_binlog_istream m_stdin;
-  IO_CACHE_istream m_iocache;
-
-  Basic_seekable_istream *open_file(const char *file_name) override {
+  std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) override {
     if (file_name && strcmp(file_name, "-") != 0) {
-      if (m_iocache.open(
+      IO_CACHE_istream *iocache = new IO_CACHE_istream;
+      if (iocache->open(
 #ifdef HAVE_PSI_INTERFACE
               PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED,
 #endif
               file_name, MYF(MY_WME | MY_NABP))) {
+        delete iocache;
         return nullptr;
       }
-      return &m_iocache;
+      return std::unique_ptr<Basic_seekable_istream>(iocache);
     } else {
       std::string errmsg;
-      if (m_stdin.open(&errmsg)) {
+      Stdin_binlog_istream *standard_in = new Stdin_binlog_istream;
+      if (standard_in->open(&errmsg)) {
         error("%s", errmsg.c_str());
+        delete standard_in;
         return nullptr;
       }
-      return &m_stdin;
+      return std::unique_ptr<Basic_seekable_istream>(standard_in);
     }
-  }
-
-  void close_file() override {
-    m_stdin.close();
-    m_iocache.close();
   }
 };
 

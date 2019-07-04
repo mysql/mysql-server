@@ -1,0 +1,171 @@
+## Test of session_connect_attrs capability in conjunction with Session.Reset
+
+## Preamble
+--source ../include/have_performance_schema_statements.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+CREATE USER xtest_client@localhost;
+GRANT ALL ON *.* TO xtest_client@localhost;
+
+--write_file $MYSQL_TMP_DIR/session_connect_attrs_with_session_reset.xpl
+-->varlet %TEST_KEY% custom_test_key
+-->import connection_attributes.macro
+-->import connection.macro
+-->import mysqlx_session.macro
+
+-->echo
+-->echo
+-->echo ## I. Check the session_connect_attrs capability with Session.Reset with keep_open=false.
+-->echo #
+-->echo # 1. Set session_connect_attrs capability, then reset session and verify that the connection attributes are not present in the PFS.
+-->echo # 2. Set session_connect_attrs capability, then reset session and set new session_connect_attrs, after that verify that only the later connection attributes are present in the PFS.
+-->echo
+-->echo ## II. Check Session.Reset with different capabilities.
+-->echo #
+-->echo # 1. Set session_connect_attrs capability, then reset session, after that try to set capability of a type different than session_connect_attrs and verify that it fails.
+-->echo # 2. Set session_connect_attrs capability, then reset session, after that try to set session_connect_attrs and other valid capability and verify that it fails and no connection attributes are added to the PFS.
+-->echo # 3. Set session_connect_attrs capability, then reset session, after that try to set capability of a type different than session_connect_attrs and verify that it fails. After that send a session_connect_attrs cabapibility and verify if it succeeded.
+-->echo
+-->echo
+-->echo ## III. Check the session_connect_attrs capability with Session.Reset with keep_open=true.
+-->echo #
+-->echo # 1. Set session_connect_attr capability, then reset session with keep_open=true, verify that session connection attributes are still visible in the PFS.
+
+
+-->echo
+-->echo #
+-->echo # I.1
+-->newsession test_session.I.1	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+-->callmacro Session_reset
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes_not_exist	"%TEST_KEY%"	"someValue"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # I.2
+-->newsession test_session.I.2	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+-->callmacro Session_reset
+-->recvok
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"nextValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"nextValue"
+-->callmacro Check_connect_attributes_not_exist	"%TEST_KEY%"	"someValue"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.1
+-->newsession test_session.II.1	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+-->callmacro Session_reset
+-->recvok
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 0
+        }
+      }
+    }
+  }
+}
+-->recverror ER_X_CAPABILITY_SET_NOT_ALLOWED
+
+-->echo
+-->echo #
+-->echo # II.2
+-->newsession test_session.II.2	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+-->callmacro Session_reset
+-->recvok
+-->varlet %SCALAR1% type: V_STRING v_string { value: "nextValue" }
+-->varlet %SCALAR2% type: V_BOOL v_bool: 1
+-->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
+-->recverror ER_X_CAPABILITY_SET_NOT_ALLOWED
+-->login xtest_client
+-->callmacro Check_connect_attributes_not_exist	"%TEST_KEY%"	"someValue"
+-->callmacro Check_connect_attributes_not_exist	"%TEST_KEY%"	"nextValue"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # II.3
+-->newsession test_session.II.3	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+-->callmacro Session_reset
+-->recvok
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 0
+        }
+      }
+    }
+  }
+}
+-->recverror ER_X_CAPABILITY_SET_NOT_ALLOWED
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"nextValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"nextValue"
+-->closesession
+
+-->echo
+-->echo #
+-->echo # III.1
+-->newsession test_session.III.1	-
+-->callmacro Verify_its_xprotocol_connection
+-->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
+-->recvok
+-->login xtest_client
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+-->callmacro Session_reset_keep_open
+-->recvok
+-->callmacro Check_connect_attributes	"%TEST_KEY%"	"someValue"
+
+EOF
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/session_connect_attrs_with_session_reset.xpl 2>&1;
+
+## Cleanup
+DROP USER xtest_client@localhost;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

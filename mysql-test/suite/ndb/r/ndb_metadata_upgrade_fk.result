@@ -38,3 +38,39 @@ c1	c2
 3	3
 DROP TABLE child;
 DROP TABLE parent;
+Backup from 7.5 restored
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM parent;
+c1
+1
+2
+INSERT INTO parent VALUES (3);
+SELECT * FROM parent;
+c1
+1
+2
+3
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `xc2` (`c2`),
+  CONSTRAINT `FK_10_14` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+INSERT INTO child VALUES (3,3);
+INSERT INTO child VALUES (4,4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `FK_10_14` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION)
+SELECT * FROM child;
+c1	c2
+1	1
+2	2
+3	3
+DROP TABLE child;
+DROP TABLE parent;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,git
@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include <include/mysql/components/services/psi_stage.h>
+#include "mutex_lock.h"
 #include "plugin/group_replication/include/plugin.h"
 
 Plugin_stage_monitor_handler::Plugin_stage_monitor_handler()
@@ -39,7 +40,7 @@ Plugin_stage_monitor_handler::~Plugin_stage_monitor_handler() {
 int Plugin_stage_monitor_handler::terminate_stage_monitor() {
   end_stage();
 
-  Mutex_autolock auto_lock_mutex(&stage_monitor_lock);
+  MUTEX_LOCK(lock, &stage_monitor_lock);
 
   if (!service_running) {
     return 0; /* purecov: inspected */
@@ -48,8 +49,7 @@ int Plugin_stage_monitor_handler::terminate_stage_monitor() {
   service_running = false;
 
   SERVICE_TYPE(registry) *registry = NULL;
-  if (!registry_module ||
-      !(registry = registry_module->get_registry_handle())) {
+  if (!(registry = get_plugin_registry())) {
     DBUG_ASSERT(0); /* purecov: inspected */
     return 1;       /* purecov: inspected */
   }
@@ -59,13 +59,12 @@ int Plugin_stage_monitor_handler::terminate_stage_monitor() {
 }
 
 int Plugin_stage_monitor_handler::initialize_stage_monitor() {
-  Mutex_autolock auto_lock_mutex(&stage_monitor_lock);
+  MUTEX_LOCK(lock, &stage_monitor_lock);
 
   DBUG_ASSERT(!service_running);
 
   SERVICE_TYPE(registry) *registry = NULL;
-  if (!registry_module ||
-      !(registry = registry_module->get_registry_handle())) {
+  if (!(registry = get_plugin_registry())) {
     return 1; /* purecov: inspected */
   }
   if (registry->acquire("psi_stage_v1.performance_schema", &generic_service))
@@ -79,7 +78,7 @@ int Plugin_stage_monitor_handler::initialize_stage_monitor() {
 int Plugin_stage_monitor_handler::set_stage(PSI_stage_key key, const char *file,
                                             int line, ulonglong estimated_work,
                                             ulonglong work_completed) {
-  Mutex_autolock auto_lock_mutex(&stage_monitor_lock);
+  MUTEX_LOCK(lock, &stage_monitor_lock);
 
   if (!service_running || key <= 0) {
     return 0; /* purecov: inspected */
@@ -102,7 +101,7 @@ int Plugin_stage_monitor_handler::set_stage(PSI_stage_key key, const char *file,
 
 void Plugin_stage_monitor_handler::set_estimated_work(
     ulonglong estimated_work) {
-  Mutex_autolock auto_lock_mutex(&stage_monitor_lock);
+  MUTEX_LOCK(lock, &stage_monitor_lock);
 
   if (!service_running) {
     return; /* purecov: inspected */
@@ -114,7 +113,7 @@ void Plugin_stage_monitor_handler::set_estimated_work(
 
 void Plugin_stage_monitor_handler::set_completed_work(
     ulonglong work_completed) {
-  Mutex_autolock auto_lock_mutex(&stage_monitor_lock);
+  MUTEX_LOCK(lock, &stage_monitor_lock);
 
   if (!service_running) {
     return; /* purecov: inspected */
@@ -125,7 +124,7 @@ void Plugin_stage_monitor_handler::set_completed_work(
 }
 
 void Plugin_stage_monitor_handler::end_stage() {
-  Mutex_autolock auto_lock_mutex(&stage_monitor_lock);
+  MUTEX_LOCK(lock, &stage_monitor_lock);
 
   if (!service_running) {
     return; /* purecov: inspected */

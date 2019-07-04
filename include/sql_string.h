@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This file is originally from the mysql distribution. Coded by monty */
-
 /**
   @file include/sql_string.h
+  Our own string classes, used pervasively throughout the executor.
+  See in particular the comment on String before you use anything from here.
 */
 
 #include <string.h>
@@ -39,7 +39,6 @@
 #include "m_string.h"  // LEX_CSTRING
 #include "memory_debugging.h"
 #include "my_alloc.h"
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -172,7 +171,7 @@ class String {
         m_charset(&my_charset_bin),
         m_alloced_length(0),
         m_is_alloced(false) {}
-  String(size_t length_arg)
+  explicit String(size_t length_arg)
       : m_ptr(NULL),
         m_length(0),
         m_charset(&my_charset_bin),
@@ -212,9 +211,9 @@ class String {
         m_is_alloced(str.m_is_alloced) {
     str.m_is_alloced = false;
   }
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
   static void operator delete(void *ptr_arg, size_t size) {
@@ -224,7 +223,7 @@ class String {
   }
 
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
   }
 
   ~String() { mem_free(); }
@@ -261,10 +260,7 @@ class String {
       (void)mem_realloc(m_length);
     return m_ptr;
   }
-  LEX_STRING lex_string() const {
-    LEX_STRING lex_string = {(char *)ptr(), length()};
-    return lex_string;
-  }
+  LEX_STRING lex_string() { return {m_ptr, length()}; }
 
   LEX_CSTRING lex_cstring() const {
     LEX_CSTRING lex_cstring = {ptr(), length()};
@@ -533,41 +529,6 @@ class String {
     return mem_realloc(m_length + space_needed);
   }
   int reserve(size_t space_needed, size_t grow_by);
-  /*
-    The following append operations do NOT check alloced memory
-    q_*** methods writes values of parameters itself
-    qs_*** methods writes string representation of value
-  */
-  void q_append(const char c) { m_ptr[m_length++] = c; }
-  void q_append(const uint32 n) {
-    int4store(m_ptr + m_length, n);
-    m_length += 4;
-  }
-  void q_append(double d) {
-    float8store(m_ptr + m_length, d);
-    m_length += 8;
-  }
-  void q_append(double *d) {
-    float8store(m_ptr + m_length, *d);
-    m_length += 8;
-  }
-  void q_append(const char *data, size_t data_len) {
-    memcpy(m_ptr + m_length, data, data_len);
-    m_length += data_len;
-  }
-
-  void write_at_position(int position, uint32 value) {
-    int4store(m_ptr + position, value);
-  }
-
-  void qs_append(const char *str, size_t len);
-  void qs_append(double d, size_t len);
-  void qs_append(const char c) {
-    m_ptr[m_length] = c;
-    m_length++;
-  }
-  void qs_append(int i);
-  void qs_append(uint i);
 
   /* Inline (general) functions used by the protocol functions */
 
@@ -590,7 +551,7 @@ class String {
     m_length += arg_length;
     return false;
   }
-  void print(String *print);
+  void print(String *print) const;
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s) noexcept;
@@ -669,7 +630,7 @@ inline LEX_CSTRING to_lex_cstring(const char *s) {
   return cstr;
 }
 
-bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
+bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
                      size_t *valid_length, bool *length_error);
 
 bool append_escaped(String *to_str, const String *from_str);

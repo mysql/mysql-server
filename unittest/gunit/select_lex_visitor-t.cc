@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,18 +91,18 @@ class Remembering_visitor : public Select_lex_visitor {
 template <class Item_class>
 class Stack_allocated_item : public Item_class {
  public:
-  Stack_allocated_item(int value) : Item_class(value) {
+  Stack_allocated_item(int value_arg) : Item_class(value_arg) {
     // Undo what Item::Item() does.
     THD *thd = current_thd;
-    thd->free_list = this->next;
-    this->next = NULL;
+    thd->set_item_list(this->next_free);
+    this->next_free = nullptr;
   }
 };
 
 class Mock_item_int : public Stack_allocated_item<Item_int> {
  public:
   Mock_item_int() : Stack_allocated_item<Item_int>(42) {}
-  MOCK_METHOD3(walk, bool(Item_processor, Item::enum_walk, uchar *));
+  MOCK_METHOD3(walk, bool(Item_processor, enum_walk, uchar *));
 };
 
 TEST_F(SelectLexVisitorTest, SelectLex) {

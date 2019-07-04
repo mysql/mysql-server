@@ -29,8 +29,8 @@
 
 #include "my_compiler.h"
 
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 
 namespace mysql_harness {
 
@@ -68,16 +68,16 @@ class PluginFuncEnv;
  * @note There is another enum missing from table below (kNoError),
  * it is internal to MySQL Router, DO NOT USE it in your plugin.
  */
-enum HARNESS_EXPORT ErrorType {
+enum ErrorType {
   // internal to MySQL Router project, DO NOT USE THIS in your plugin
-  kNoError = 0,             // uninitialized error value
+  kNoError = 0,  // uninitialized error value
 
   // API
-  kRuntimeError = 1,        /**< runtime error */
-  kConfigInvalidArgument,   /**< configuration error */
-  kConfigSyntaxError,       /**< configuration syntax error */
-  kUndefinedError,          /**< typically set from plugin's general safeguard
-                                 ('catch (...) {..}' block) */
+  kRuntimeError = 1,      /**< runtime error */
+  kConfigInvalidArgument, /**< configuration error */
+  kConfigSyntaxError,     /**< configuration syntax error */
+  kUndefinedError,        /**< typically set from plugin's general safeguard
+                               ('catch (...) {..}' block) */
 };
 
 /** @brief Returns error to Harness
@@ -98,13 +98,13 @@ enum HARNESS_EXPORT ErrorType {
  * @param fmt format-string of error-msg to get logged
  * It can be NULL, but it's recommended to provide a meaningful message.
  */
-void HARNESS_EXPORT set_error(mysql_harness::PluginFuncEnv* env,
-                    mysql_harness::ErrorType error_type,
-                    const char* fmt, ...) noexcept
+void HARNESS_EXPORT set_error(mysql_harness::PluginFuncEnv *env,
+                              mysql_harness::ErrorType error_type,
+                              const char *fmt, ...) noexcept
 #ifdef __GNUC__
-__attribute__((format(printf, 3, 4)))
+    __attribute__((format(printf, 3, 4)))
 #endif
-  ;
+    ;
 
 /** @brief Checks whether plugin shutdown was requested
  *
@@ -122,7 +122,8 @@ __attribute__((format(printf, 3, 4)))
  * @return "running" flag. If true, `start()` may continue running, if false,
  * `start()` should shut down
  */
-bool HARNESS_EXPORT is_running(const mysql_harness::PluginFuncEnv* env) noexcept;
+bool HARNESS_EXPORT
+is_running(const mysql_harness::PluginFuncEnv *env) noexcept;
 
 /** @brief Blocks until shutdown is requested (or optionally timeout)
  *
@@ -146,7 +147,7 @@ bool HARNESS_EXPORT is_running(const mysql_harness::PluginFuncEnv* env) noexcept
  * @param milliseconds Timeout in milliseconds, 0 = wait forever
  * @return true if stop was requested, false on timeout
  */
-bool HARNESS_EXPORT wait_for_stop(const mysql_harness::PluginFuncEnv* env,
+bool HARNESS_EXPORT wait_for_stop(const mysql_harness::PluginFuncEnv *env,
                                   uint32_t milliseconds) noexcept;
 
 /** @brief Clears "running flag" to induce plugin shutdown
@@ -164,19 +165,20 @@ bool HARNESS_EXPORT wait_for_stop(const mysql_harness::PluginFuncEnv* env,
  * @param env Pointer to PluginFuncEnv object passed to plugin function
  */
 
-void HARNESS_EXPORT clear_running(mysql_harness::PluginFuncEnv* env) noexcept;
+void HARNESS_EXPORT clear_running(mysql_harness::PluginFuncEnv *env) noexcept;
 
 /** @brief Retrieves information from Harness
  *
  * function callable from: `init()`, `deinit()`
  *
- * This function returns an AppInfo object, which provides further plugin environment
- * information.
+ * This function returns an AppInfo object, which provides further plugin
+ * environment information.
  *
  * @param env Pointer to env object passed to plugin function
  * @return Pointer to AppInfo object
  */
-const HARNESS_EXPORT AppInfo* get_app_info(const mysql_harness::PluginFuncEnv* env) noexcept;
+const HARNESS_EXPORT AppInfo *get_app_info(
+    const mysql_harness::PluginFuncEnv *env) noexcept;
 
 /** @brief Retrieves information from Harness
  *
@@ -188,11 +190,10 @@ const HARNESS_EXPORT AppInfo* get_app_info(const mysql_harness::PluginFuncEnv* e
  * @param env Pointer to PluginFuncEnv object passed to plugin function
  * @return Pointer to ConfigSection object
  */
-const HARNESS_EXPORT ConfigSection* get_config_section(const mysql_harness::PluginFuncEnv* env) noexcept;
+const HARNESS_EXPORT ConfigSection *get_config_section(
+    const mysql_harness::PluginFuncEnv *env) noexcept;
 
 /**@}*/
-
-
 
 /**
  * Structure with information about the harness.
@@ -228,7 +229,6 @@ struct AppInfo {
 
   const char *plugin_folder;
 
-
   /**
    * Directory name for log files.
    *
@@ -259,7 +259,6 @@ struct AppInfo {
 
   const char *data_folder;
 
-
   /**
    * Directory name for configuration files.
    *
@@ -270,15 +269,12 @@ struct AppInfo {
 
   const char *config_folder;
 
-
   /**
    * Configuration information.
    */
 
-  const Config* config;
-
+  const Config *config;
 };
-
 
 /**
  * Structure containing information about the plugin.
@@ -316,7 +312,6 @@ struct Plugin {
 
   uint32_t abi_version;
 
-
   /**
    * Architecture descriptor.
    *
@@ -339,15 +334,13 @@ struct Plugin {
    * @see ARCHITECTURE_DESCRIPTOR
    */
 
-  const char* arch_descriptor;
-
+  const char *arch_descriptor;
 
   /**
    * Brief description of plugin, to show in listings.
    */
 
   const char *brief;
-
 
   /**
    * Plugin version.
@@ -383,7 +376,6 @@ struct Plugin {
   size_t requires_length;
   const char **requires;
 
-
   /**
    * Array of names of plugins it conflicts with.
    *
@@ -393,7 +385,6 @@ struct Plugin {
 
   size_t conflicts_length;
   const char **conflicts;
-
 
   /**
    * Module initialization function.
@@ -414,8 +405,7 @@ struct Plugin {
    * due to certain technical limitations)
    */
 
-  void (*init)(PluginFuncEnv* env); // not allowed to throw!
-
+  void (*init)(PluginFuncEnv *env);  // not allowed to throw!
 
   /**
    * Module deinitialization function.
@@ -436,8 +426,7 @@ struct Plugin {
    * due to certain technical limitations)
    */
 
-  void (*deinit)(PluginFuncEnv* env); // not allowed to throw!
-
+  void (*deinit)(PluginFuncEnv *env);  // not allowed to throw!
 
   /**
    * Module thread start function.
@@ -461,8 +450,7 @@ struct Plugin {
    * due to certain technical limitations)
    */
 
-  void (*start)(PluginFuncEnv* env);  // not allowed to throw!
-
+  void (*start)(PluginFuncEnv *env);  // not allowed to throw!
 
   /**
    * Module thread stop (notification) function.
@@ -495,9 +483,8 @@ struct Plugin {
    * due to certain technical limitations)
    */
 
-  void (*stop)(PluginFuncEnv* env); // not allowed to throw!
+  void (*stop)(PluginFuncEnv *env);  // not allowed to throw!
 };
-
 
 /**
  * Current version of the library.
@@ -517,7 +504,9 @@ const uint32_t PLUGIN_ABI_VERSION = 0x0200;
  *
  * @ingroup Loader
  */
-const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HARNESS_ARCH_OS@/@MYSQL_HARNESS_ARCH_COMPILER@/@MYSQL_HARNESS_ARCH_RUNTIME@";
+const char *const ARCHITECTURE_DESCRIPTOR =
+    "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HARNESS_ARCH_OS@/"
+    "@MYSQL_HARNESS_ARCH_COMPILER@/@MYSQL_HARNESS_ARCH_RUNTIME@";
 
 /**
  * Macro to create a version number from a major, minor and patch version.
@@ -525,7 +514,7 @@ const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HAR
  * @ingroup Loader
  */
 #define VERSION_NUMBER(MAJ, MIN, PAT) \
-  ((((MAJ) & 0xFF) << 24) | (((MIN) & 0xFF) << 16) | ((PAT) & 0xFFFF))
+  ((((MAJ)&0xFF) << 24) | (((MIN)&0xFF) << 16) | ((PAT)&0xFFFF))
 
 /**
  * Macros to extract major/minor/patch version from the full version number.
@@ -534,15 +523,14 @@ const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HAR
  */
 #define VERSION_MAJOR(VER) (((VER) >> 24) & 0xFF)
 #define VERSION_MINOR(VER) (((VER) >> 16) & 0xFF)
-#define VERSION_PATCH(VER) ((VER) & 0xFFFF)
+#define VERSION_PATCH(VER) ((VER)&0xFFFF)
 
 /**
  * Macro to create ABI version number from a major and minor version.
  *
  * @ingroup Loader
  */
-#define ABI_VERSION_NUMBER(MAJ, MIN) \
-  ((((MAJ) & 0xFF) << 8) | ((MIN) & 0xFF))
+#define ABI_VERSION_NUMBER(MAJ, MIN) ((((MAJ)&0xFF) << 8) | ((MIN)&0xFF))
 
 /**
  * Macros to extract major/minor version from the full ABI version number.
@@ -550,7 +538,7 @@ const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HAR
  * @ingroup Loader
  */
 #define ABI_VERSION_MAJOR(VER) (((VER) >> 8) & 0xFF)
-#define ABI_VERSION_MINOR(VER) ((VER) & 0xFF)
-}
+#define ABI_VERSION_MINOR(VER) ((VER)&0xFF)
+}  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_PLUGIN_INCLUDED */

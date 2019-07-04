@@ -11,8 +11,10 @@ CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statemen
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
 [ Connection Master ]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @@secondary_engine_cost_threshold = 0;
 [ Connection Slave ]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @@secondary_engine_cost_threshold = 0;
 [ Connection Master ]
 CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(10), j JSON, b BLOB, vb VARBINARY(32)) SECONDARY_ENGINE=MOCK;
 include/sync_slave_sql_with_master.inc
@@ -42,6 +44,18 @@ INSERT INTO t1 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
 ALTER TABLE t1 SECONDARY_LOAD;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+ALTER TABLE t1 SECONDARY_LOAD;
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
@@ -111,13 +125,6 @@ t2	CREATE TABLE `t2` (
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	1
-ALTER TABLE t2 SECONDARY_UNLOAD;
-FLUSH STATUS;
-SELECT * FROM t2;
-pk	vc	j	b	vb
 1	Poodle	{"key": "value"}	Pug	4
 2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
 3	Beagle	[1, 2, 3]	Pitbull	«Í4
@@ -126,6 +133,13 @@ pk	vc	j	b	vb
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
+ALTER TABLE t2 SECONDARY_LOAD;
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 [ Connection Master ]
 FLUSH STATUS;
 SELECT * FROM t2;
@@ -136,6 +150,13 @@ Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+ALTER TABLE t1 SECONDARY_UNLOAD;
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
@@ -166,17 +187,20 @@ include/stop_slave_sql.inc
 [ Connection Master ]
 ALTER TABLE t2 SECONDARY_LOAD;
 [ Connection Slave ]
-START SLAVE SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=13230]
 ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	1
+Secondary_engine_execution_count	0
 [ Connection Master ]
 ALTER TABLE t1 SECONDARY_ENGINE=NULL;
 include/sync_slave_sql_with_master.inc
@@ -271,21 +295,26 @@ include/stop_slave_sql.inc
 [ Connection Master ]
 ALTER TABLE t1 SECONDARY_LOAD;
 [ Connection Slave ]
-START SLAVE SQL_THREAD;
-include/wait_for_slave_sql_error.inc [errno=1286]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	1
+Secondary_engine_execution_count	0
 [ Connection Master ]
 DROP TABLE t1;
 DROP TABLE t2;
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 include/sync_slave_sql_with_master.inc
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 include/rpl_end.inc

@@ -42,6 +42,7 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_prepare.h"      // Ed_connection
 #include "sql/srs_fetcher.h"
+#include "sql/strfunc.h"
 #include "sql/thd_raii.h"  // Disable_autocommit_guard
 #include "sql/transaction.h"
 
@@ -100,7 +101,8 @@ static bool srs_is_used(gis::srid_t srid, THD *thd) {
   query.append(std::to_string(srid));
   query.append(");");
   MYSQL_LEX_STRING query_string;
-  thd->make_lex_string(&query_string, query.c_str(), query.length(), false);
+  lex_string_strmake(thd->mem_root, &query_string, query.c_str(),
+                     query.length());
   return conn.execute_direct(query_string);
 }
 

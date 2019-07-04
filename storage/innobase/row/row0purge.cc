@@ -441,14 +441,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
   }
 
   /* Set the purge node for the call to row_purge_poss_sec(). */
-  pcur.btr_cur.purge_node = node;
+  pcur.m_btr_cur.purge_node = node;
   if (dict_index_is_spatial(index)) {
     rw_lock_sx_lock(dict_index_get_lock(index));
-    pcur.btr_cur.thr = NULL;
+    pcur.m_btr_cur.thr = NULL;
   } else {
     /* Set the query thread, so that ibuf_insert_low() will be
     able to invoke thd_get_trx(). */
-    pcur.btr_cur.thr = static_cast<que_thr_t *>(que_node_get_parent(node));
+    pcur.m_btr_cur.thr = static_cast<que_thr_t *>(que_node_get_parent(node));
   }
 
   search_result = row_search_index_entry(index, entry, mode, &pcur, &mtr);
@@ -1203,25 +1203,25 @@ bool purge_node_t::validate_pcur() {
     return (true);
   }
 
-  if (!pcur.old_stored) {
+  if (!pcur.m_old_stored) {
     return (true);
   }
 
-  dict_index_t *clust_index = pcur.btr_cur.index;
+  dict_index_t *clust_index = pcur.m_btr_cur.index;
 
-  ulint *offsets = rec_get_offsets(pcur.old_rec, clust_index, NULL,
-                                   pcur.old_n_fields, &heap);
+  ulint *offsets = rec_get_offsets(pcur.m_old_rec, clust_index, NULL,
+                                   pcur.m_old_n_fields, &heap);
 
   /* Here we are comparing the purge ref record and the stored initial
   part in persistent cursor. Both cases we store n_uniq fields of the
   cluster index and so it is fine to do the comparison. We note this
   dependency here as pcur and ref belong to different modules. */
-  int st = cmp_dtuple_rec(ref, pcur.old_rec, clust_index, offsets);
+  int st = cmp_dtuple_rec(ref, pcur.m_old_rec, clust_index, offsets);
 
   if (st != 0) {
     ib::error(ER_IB_MSG_1010) << "Purge node pcur validation failed";
     ib::error(ER_IB_MSG_1011) << rec_printer(ref).str();
-    ib::error(ER_IB_MSG_1012) << rec_printer(pcur.old_rec, offsets).str();
+    ib::error(ER_IB_MSG_1012) << rec_printer(pcur.m_old_rec, offsets).str();
     return (false);
   }
 

@@ -86,6 +86,19 @@ class MySQLRoutingContext {
   bool block_client_host(const ClientIpArray &client_ip_array,
                          const std::string &client_ip_str, int server = -1);
 
+  /** @brief Clears error counter (if needed) for particular host
+   *
+   * Resets connection error counter that may eventually lead to blocking host's
+   * IP, if it exceeds a preset threshold.
+   *
+   * @sa block_client_host()
+   *
+   * @param client_ip_array IP address as array[16] of uint8_t
+   * @param client_ip_str IP address as string (for logging purposes)
+   */
+  void clear_error_counter(const ClientIpArray &client_ip_array,
+                           const std::string &client_ip_str);
+
   /** @brief Returns list of blocked client hosts
    *
    * Returns list of the blocked client hosts.

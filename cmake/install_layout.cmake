@@ -1,5 +1,5 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # The purpose of this file is to set the default installation layout.
 #
@@ -79,6 +79,7 @@
 # - INSTALL_MYSQLDATADIR    (data directory)
 # - INSTALL_MYSQLKEYRING    (keyring directory)
 # - INSTALL_SECURE_FILE_PRIVDIR (--secure-file-priv directory)
+# - INSTALL_PARTIAL_REVOKES (--partial-revokes)
 #
 # When changing this page,  _please_ do not forget to update public Wiki
 # http://forge.mysql.com/wiki/CMake#Fine-tuning_installation_paths
@@ -459,3 +460,14 @@ ELSE()
       CACHE INTERNAL "default --secure-file-priv directory" FORCE)
 ENDIF()
 
+#
+# Set DEFAULT_PARTIAL_REVOKES
+# This is used as default value for --partial-revokes
+#
+IF(PARTIAL_REVOKES_DEFAULT)
+  SET(DEFAULT_PARTIAL_REVOKES 1
+      CACHE INTERNAL "default --partial-revokes" FORCE)
+ELSE()
+  SET(DEFAULT_PARTIAL_REVOKES 0
+      CACHE INTERNAL "default --partial-revokes" FORCE)
+ENDIF()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,19 +107,23 @@ table_data_lock_waits::table_data_lock_waits()
   }
 }
 
-table_data_lock_waits::~table_data_lock_waits() {
+void table_data_lock_waits::destroy_iterators() {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
     if (m_iterator[i] != NULL) {
       g_data_lock_inspector[i]->destroy_data_lock_wait_iterator(m_iterator[i]);
+      m_iterator[i] = NULL;
     }
   }
 }
+
+table_data_lock_waits::~table_data_lock_waits() { destroy_iterators(); }
 
 void table_data_lock_waits::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
   m_pk_pos.reset();
   m_container.clear();
+  destroy_iterators();
 }
 
 int table_data_lock_waits::rnd_next(void) {
@@ -159,7 +163,31 @@ int table_data_lock_waits::rnd_next(void) {
       }
 
       m_container.shrink();
-      iterator_done = it->scan(&m_container);
+
+      /*
+        PSI_engine_data_lock_iterator::scan() can return an unbounded number
+        of rows during a scan, depending on the application payload, as some
+        user sessions may have an unbounded number or records locked.
+        This can cause severe memory spike, which in turn can take the server
+        down if not handled properly. Here a select on the table
+        performance_schema.data_lock_waits will fail with an error, instead of
+        taking the server down, if out of memory conditions occur.
+
+        This is a fail safe only, the implementation of
+        PSI_engine_data_lock_iterator::scan() in each storage engine
+        should be constrained to return fewer rows at a time if necessary,
+        by making more calls to scan(), to handle the load gracefully.
+      */
+
+      try {
+        DBUG_EXECUTE_IF("simulate_bad_alloc_exception_2",
+                        throw std::bad_alloc(););
+        iterator_done = it->scan(&m_container);
+      } catch (const std::bad_alloc &) {
+        my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0),
+                 "while scanning data_lock_waits table", "rnd_next");
+        return ER_STD_BAD_ALLOC_ERROR;
+      }
     }
   }
 

@@ -34,7 +34,7 @@
  * release builds.
  */
 #define harness_assert(COND) \
-  if (!(COND)) abort();
+  if (!(COND)) abort()
 
 /** assert(0) idiom with an explicit name
  *
@@ -42,6 +42,6 @@
  * to clarify the intent.
  */
 #define harness_assert_this_should_not_execute() \
-  harness_assert("If execution reached this line, you have a bug" == nullptr);
+  harness_assert("If execution reached this line, you have a bug" == nullptr)
 
 #endif /* MYSQL_HARNESS_HARNESS_ASSERT_INCLUDED */

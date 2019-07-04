@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,7 +208,7 @@ class injector {
       Add a 'write row' entry to the transaction.
     */
     int write_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
-                  record_type record, const uchar *extra_row_info);
+                  record_type record, const unsigned char *extra_row_info);
     int write_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
                   record_type record);
 
@@ -216,7 +216,7 @@ class injector {
       Add a 'delete row' entry to the transaction.
     */
     int delete_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
-                   record_type record, const uchar *extra_row_info);
+                   record_type record, const unsigned char *extra_row_info);
     int delete_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
                    record_type record);
     /*
@@ -224,7 +224,7 @@ class injector {
     */
     int update_row(server_id_type sid, table tbl, MY_BITMAP const *before_cols,
                    MY_BITMAP const *after_cols, record_type before,
-                   record_type after, const uchar *extra_row_info);
+                   record_type after, const unsigned char *extra_row_info);
     int update_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
                    record_type before, record_type after);
 

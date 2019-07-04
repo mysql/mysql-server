@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/dd_schema.h"                           // dd::Schema_MDL_locker
-#include "sql/dd/impl/bootstrap_ctx.h"                  // bootstrap_stage
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"        // bootstrap_stage
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // get(), release(), ...
 #include "sql/dd/impl/cache/storage_adapter.h"          // store(), drop(), ...
 #include "sql/dd/impl/dictionary_impl.h"
@@ -48,6 +48,7 @@
 #include "sql/dd/impl/raw/raw_table.h"             // Raw_table
 #include "sql/dd/impl/sdi.h"                       // dd::sdi::drop_after_update
 #include "sql/dd/impl/tables/character_sets.h"     // create_name_key()
+#include "sql/dd/impl/tables/check_constraints.h"  // check_constraint_exists
 #include "sql/dd/impl/tables/collations.h"         // create_name_key()
 #include "sql/dd/impl/tables/column_statistics.h"  // create_name_key()
 #include "sql/dd/impl/tables/events.h"             // create_name_key()
@@ -220,15 +221,14 @@ class MDL_checker {
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
     if (thd->dd_client()->acquire(event->schema_id(), &schema)) return false;
-
     DBUG_ASSERT(schema);
 
-    char lc_event_name[NAME_LEN + 1];
-    my_stpcpy(lc_event_name, event->name().c_str());
-    my_casedn_str(&my_charset_utf8_tolower_ci, lc_event_name);
-
-    return is_locked(thd, schema->name().c_str(), lc_event_name, MDL_key::EVENT,
-                     lock_type);
+    MDL_key mdl_key;
+    char schema_name_buf[NAME_LEN + 1];
+    dd::Event::create_mdl_key(dd::Object_table_definition_impl::fs_name_case(
+                                  schema->name(), schema_name_buf),
+                              event->name(), &mdl_key);
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
   /**
@@ -257,18 +257,13 @@ class MDL_checker {
 
     DBUG_ASSERT(schema);
 
-    MDL_key::enum_mdl_namespace mdl_namespace = MDL_key::FUNCTION;
-    if (routine->type() == dd::Routine::RT_PROCEDURE)
-      mdl_namespace = MDL_key::PROCEDURE;
-
-    // Routine names are case in-sensitive to MDL's are taken
-    // on lower case names.
-    char lc_routine_name[NAME_LEN + 1];
-    my_stpcpy(lc_routine_name, routine->name().c_str());
-    my_casedn_str(system_charset_info, lc_routine_name);
-
-    return is_locked(thd, schema->name().c_str(), lc_routine_name,
-                     mdl_namespace, lock_type);
+    MDL_key mdl_key;
+    char schema_name_buf[NAME_LEN + 1];
+    dd::Routine::create_mdl_key(routine->type(),
+                                dd::Object_table_definition_impl::fs_name_case(
+                                    schema->name(), schema_name_buf),
+                                routine->name(), &mdl_key);
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
   /**
@@ -555,13 +550,10 @@ class MDL_checker {
                         enum_mdl_type lock_type) {
     if (resource_group == nullptr) return true;
 
-    char lc_name[NAME_CHAR_LEN + 1];
-    my_stpcpy(lc_name, resource_group->name().c_str());
-    lc_name[NAME_CHAR_LEN] = '\0';
-    my_casedn_str(system_charset_info, lc_name);
+    MDL_key mdl_key;
+    dd::Resource_group::create_mdl_key(resource_group->name(), &mdl_key);
 
-    return thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::RESOURCE_GROUPS, "", lc_name, lock_type);
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
   /**
@@ -1877,6 +1869,31 @@ bool Dictionary_client::check_foreign_key_exists(
   return false;
 }
 
+bool Dictionary_client::check_constraint_exists(
+    const Schema &schema, const String_type &check_cons_name, bool *exists) {
+#ifndef DBUG_OFF
+  char schema_name_buf[NAME_LEN + 1];
+  char check_cons_name_buff[NAME_LEN + 1];
+  my_stpcpy(check_cons_name_buff, check_cons_name.c_str());
+  my_casedn_str(system_charset_info, check_cons_name_buff);
+
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::CHECK_CONSTRAINT,
+      dd::Object_table_definition_impl::fs_name_case(schema.name(),
+                                                     schema_name_buf),
+      check_cons_name_buff, MDL_EXCLUSIVE));
+#endif
+
+  // Get info directly from the tables.
+  if (tables::Check_constraints::check_constraint_exists(
+          m_thd, schema.id(), check_cons_name, exists)) {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  return false;
+}
+
 template <typename T>
 bool fetch_raw_record(THD *thd,
                       std::function<bool(Raw_record *)> const &processor) {
@@ -2445,6 +2462,10 @@ bool Dictionary_client::update(T *new_object) {
   // Make sure the object has a valid object id.
   DBUG_ASSERT(new_object->id() != INVALID_OBJECT_ID);
 
+  // Avoid updating DD object that modifies m_registry_uncommitted cache
+  // during attachable read-write transaction.
+  DBUG_ASSERT(!m_thd->is_attachable_rw_transaction_active());
+
   // The new_object instance should not be present in the committed registry.
   Cache_element<typename T::Cache_partition> *element = NULL;
 
@@ -2525,6 +2546,11 @@ bool Dictionary_client::update(T *new_object) {
 template <typename T>
 void Dictionary_client::register_uncommitted_object(T *object) {
   Cache_element<typename T::Cache_partition> *element = nullptr;
+
+  // Avoid registering uncommitted object during attachable read-write
+  // transaction processing.
+  DBUG_ASSERT(!m_thd->is_attachable_rw_transaction_active());
+
 #ifndef DBUG_OFF
   // Make sure we do not sign up a shared object for auto delete.
   m_registry_committed.get(
@@ -2674,6 +2700,10 @@ void Dictionary_client::remove_uncommitted_objects(
       typename T::Cache_partition *uncommitted_object =
           const_cast<typename T::Cache_partition *>(it->second->object());
       DBUG_ASSERT(uncommitted_object != nullptr);
+
+      // Update the DD object in the core registry if applicable.
+      // Currently only for the dd tablespace to allow it to be encrypted.
+      dd::cache::Storage_adapter::instance()->core_update(it->second->object());
 
       // Invalidate the entry in the shared cache (if present).
       invalidate(uncommitted_object);
@@ -2827,10 +2857,16 @@ template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema *, std::vector<String_type> *) const;
 
+template bool Dictionary_client::fetch_schema_component_names<Trigger>(
+    const Schema *, std::vector<String_type> *) const;
+
 template bool Dictionary_client::fetch_global_component_ids<Table>(
     std::vector<Object_id> *) const;
 
 template bool Dictionary_client::fetch_global_component_names<Tablespace>(
+    std::vector<String_type> *) const;
+
+template bool Dictionary_client::fetch_global_component_names<Schema>(
     std::vector<String_type> *) const;
 
 template bool Dictionary_client::fetch_referencing_views_object_id<View_table>(

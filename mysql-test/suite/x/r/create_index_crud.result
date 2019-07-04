@@ -2005,9 +2005,8 @@ table3	CREATE TABLE `table3` (
   UNIQUE KEY `IXLong1` (`$ix_i_r_9BC5A3EB89CA6B17C3272000A817E7A813E3986B`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-RUN CREATE TABLE col_myp337 ( _id INT , doc JSON ) 
 
-0 rows affected
+command ok
 Mysqlx.Sql.StmtExecuteOk {
 }
 

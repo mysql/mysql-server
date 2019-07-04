@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,30 +78,11 @@ class Table;
 #define EXTRA_RECORD 8    /* Reservera plats f|r extra record */
 #define DELAYED_OPEN 4096 /* Open table later */
 /**
-  This flag is used in function get_all_tables() which fills
-  I_S tables with data which are retrieved from frm files and storage engine
-  The flag means that we need to open FRM file only to get necessary data.
+  If set, open_table_from_share() will skip calling get_new_handler() to
+  create a new handler object for the table. Designed to be used when
+  opening a table from inside storage engines.
 */
-#define OPEN_FRM_FILE_ONLY 32768
-/**
-  This flag is used in function get_all_tables() which fills
-  I_S tables with data which are retrieved from frm files and storage engine
-  The flag means that we need to process tables only to get necessary data.
-  Views are not processed.
-*/
-#define OPEN_TABLE_ONLY OPEN_FRM_FILE_ONLY * 2
-/**
-  This flag is used in function get_all_tables() which fills
-  I_S tables with data which are retrieved from frm files and storage engine.
-  The flag means that I_S table uses optimization algorithm.
-*/
-#define OPTIMIZE_I_S_TABLE OPEN_TABLE_ONLY * 2
-/**
-  Avoid dd::Table lookup in open_table_from_share() call.
-  Temporary workaround used by upgrade code until we start
-  reading info from InnoDB SYS tables directly.
-*/
-#define OPEN_NO_DD_TABLE OPTIMIZE_I_S_TABLE * 2
+#define SKIP_NEW_HANDLER 32768
 
 enum find_item_error_report_type {
   REPORT_ALL_ERRORS,
@@ -237,6 +218,17 @@ bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 
 bool check_record(THD *thd, Field **ptr);
+
+/**
+  Invoke check constraints defined on the table.
+
+  @param  thd                   Thread handle.
+  @param  table                 Instance of TABLE.
+
+  @retval  false  If all enforced check constraints are satisfied.
+  @retval  true   Otherwise. THD::is_error() may be "true" in this case.
+*/
+bool invoke_table_check_constraints(THD *thd, const TABLE *table);
 
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
                             TABLE_LIST *last_table, Item **ref,

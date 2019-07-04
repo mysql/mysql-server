@@ -1,2 +1,2 @@
---bootstrap --innodb_page_size=16k
---sql_mode=NO_ENGINE_SUBSTITUTION --innodb_page_size=16k
+--initialize --innodb_page_size=16k
+--sql_mode=NO_ENGINE_SUBSTITUTION

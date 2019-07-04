@@ -932,9 +932,10 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
  performed by executing this query graph like a query subprocedure call.
  The reply about the completion of the rollback will be sent by this
  graph.
- @return own: the query graph */
-static que_t *trx_roll_graph_build(trx_t *trx) /*!< in/out: transaction */
-{
+@param[in,out]	trx			transaction
+@param[in]	partial_rollback	true if partial rollback
+@return	the query graph */
+static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
   mem_heap_t *heap;
   que_fork_t *fork;
   que_thr_t *thr;
@@ -947,20 +948,21 @@ static que_t *trx_roll_graph_build(trx_t *trx) /*!< in/out: transaction */
 
   thr = que_thr_create(fork, heap, NULL);
 
-  thr->child = row_undo_node_create(trx, thr, heap);
+  thr->child = row_undo_node_create(trx, thr, heap, partial_rollback);
 
   return (fork);
 }
 
 /** Starts a rollback operation, creates the UNDO graph that will do the
  actual undo operation.
- @return query graph thread that will perform the UNDO operations. */
-static que_thr_t *trx_rollback_start(
-    trx_t *trx,         /*!< in: transaction */
-    ib_id_t roll_limit) /*!< in: rollback to undo no (for
-                        partial undo), 0 if we are rolling back
-                        the entire transaction */
-{
+@param[in]	trx	transaction
+@param[in]	roll_limit	 rollback to undo no (for
+                                 partial undo), 0 if we are rolling back
+                                 the entire transaction
+@param[in]	partial_rollback true if partial rollback
+@return query graph thread that will perform the UNDO operations. */
+static que_thr_t *trx_rollback_start(trx_t *trx, ib_id_t roll_limit,
+                                     bool partial_rollback) {
   ut_ad(trx_mutex_own(trx));
 
   /* Initialize the rollback field in the transaction */
@@ -977,7 +979,7 @@ static que_thr_t *trx_rollback_start(
 
   /* Build a 'query' graph which will perform the undo operations */
 
-  que_t *roll_graph = trx_roll_graph_build(trx);
+  que_t *roll_graph = trx_roll_graph_build(trx, partial_rollback);
 
   trx->graph = roll_graph;
 
@@ -1042,7 +1044,7 @@ que_thr_t *trx_rollback_step(que_thr_t *thr) /*!< in: query thread */
 
     trx_commit_or_rollback_prepare(trx);
 
-    node->undo_thr = trx_rollback_start(trx, roll_limit);
+    node->undo_thr = trx_rollback_start(trx, roll_limit, node->partial);
 
     trx_mutex_exit(trx);
 

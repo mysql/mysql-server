@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2008 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,15 +33,26 @@ SimpleProperties::Writer::first(){
   return reset();
 }
 
-bool 
-SimpleProperties::Writer::add(Uint16 key, Uint32 value){
-  Uint32 head = Uint32Value;  
+bool
+SimpleProperties::Writer::addKey(Uint16 key, ValueType type, Uint32 data) {
+  Uint32 head = type;
   head <<= 16;
   head += key;
   if(!putWord(htonl(head)))
     return false;
-  
-  return putWord(htonl(value));
+
+  m_value_length = data;
+  m_bytes_written = 0;
+
+  return putWord(htonl(data));
+}
+
+bool
+SimpleProperties::Writer::add(Uint16 key, Uint32 value){
+  Uint32 head = Uint32Value;
+  head <<= 16;
+  head += key;
+  return ( putWord(htonl(head)) && putWord(htonl(value)) );
 }
 
 bool
@@ -69,31 +79,28 @@ SimpleProperties::Writer::add(const char * value, int len){
 }
 
 bool
-SimpleProperties::Writer::add(Uint16 key, const char * value){
-  Uint32 head = StringValue;
-  head <<= 16;
-  head += key;
-  if(!putWord(htonl(head)))
-    return false;
-  Uint32 strLen = Uint32(strlen(value) + 1); // Including NULL-byte
-  if(!putWord(htonl(strLen)))
-    return false;
-
-  return add(value, (int)strLen);
-
-}
-
-bool
-SimpleProperties::Writer::add(Uint16 key, const void* value, int len){
-  Uint32 head = BinaryValue;
-  head <<= 16;
-  head += key;
-  if(!putWord(htonl(head)))
-    return false;
-  if(!putWord(htonl(len)))
+SimpleProperties::Writer::add(ValueType type, Uint16 key,
+                              const void * value, int len){
+  if(! addKey(key, type, len))
     return false;
 
   return add((const char*)value, len);
+}
+
+int
+SimpleProperties::Writer::append(const char * buf, Uint32 buf_size) {
+  if(m_bytes_written < m_value_length) {
+    Uint32 bytesToAdd = m_value_length - m_bytes_written;
+    if(bytesToAdd > buf_size) bytesToAdd = buf_size;
+
+    if(add(buf, bytesToAdd)) {
+      m_bytes_written += bytesToAdd;
+      return bytesToAdd;
+    } else {
+      return -1;
+    }
+  }
+  return 0;
 }
 
 SimpleProperties::Reader::Reader(){
@@ -136,6 +143,11 @@ SimpleProperties::Reader::getValueLen() const {
   return 0;
 }
 
+size_t
+SimpleProperties::Reader::getPaddedLength() const {
+  return m_itemLen * 4;
+}
+
 SimpleProperties::ValueType
 SimpleProperties::Reader::getValueType() const {
   return m_type;
@@ -150,6 +162,31 @@ char *
 SimpleProperties::Reader::getString(char * dst) const {
   if(peekWords((Uint32*)dst, m_itemLen))
     return dst;
+  return 0;
+}
+
+int
+SimpleProperties::Reader::getBuffered(char * buf, Uint32 buf_size) {
+  require(buf_size % 4 == 0);
+
+  Uint32 readWords = m_itemLen;
+  if(readWords) {
+    Uint32 bufSizeInWords = buf_size / 4;
+    if(readWords > bufSizeInWords) readWords = bufSizeInWords;
+
+    if(! peekWords((Uint32*) buf, readWords))
+      return -1;
+
+    step(readWords);
+
+    /* decrement m_itemLen and m_strLen towards zero */
+    m_itemLen -= readWords;
+    if(m_itemLen) {
+      m_strLen -= buf_size;
+      return buf_size;
+    }
+    return m_strLen;
+  }
   return 0;
 }
 
@@ -190,59 +227,59 @@ SimpleProperties::Reader::readValue(){
   }
 }
 
+int findKeyInMapping(Uint16 key,
+                     const SimpleProperties::SP2StructMapping map[],
+                     Uint32 mapSz) {
+  /* Linear search */
+  for(Uint32 i = 0; i<mapSz; i++)
+    if(key == map[i].Key)
+      return i;
+  return -1;
+}
+
 SimpleProperties::UnpackStatus 
-SimpleProperties::unpack(Reader & it, void * dst, 
+SimpleProperties::unpack(Reader & it, void * dst,
 			 const SP2StructMapping _map[], Uint32 mapSz,
-			 bool ignoreMinMax,
-			 bool ignoreUnknownKeys){
+                         IndirectReader * indirectReader, void * extra){
+
+  static const bool ignoreUnknownKeys = true;
+
   do {
     if(!it.valid())
       break;
     
-    bool found = false;
     Uint16 key = it.getKey();
-    for(Uint32 i = 0; i<mapSz; i++){
-      if(key == _map[i].Key){
-	found = true;
-	if(_map[i].Type == InvalidValue)
-	  return Break;
-	if(_map[i].Type != it.getValueType())
-	  return TypeMismatch;
-	
-	char * _dst = (char *)dst;
-	_dst += _map[i].Offset;
-	
-	switch(it.getValueType()){
-	case Uint32Value:{
-	  const Uint32 val = it.getUint32();
-	  if(!ignoreMinMax){
-	    if(val < _map[i].minValue)
-	      return ValueTooLow;
-	    if(val > _map[i].maxValue)
-	      return ValueTooHigh;
-	  }
-	  * ((Uint32 *)_dst) = val;
-	  break;
-        }
-	case BinaryValue:
-        case StringValue:{
-	  unsigned len = it.getValueLen();
-	  if(len < _map[i].minValue)
-	    return ValueTooLow;
-	  if(len > _map[i].maxValue)
-	    return ValueTooHigh;
+    int i = findKeyInMapping(key, _map, mapSz);
+
+    if(i >= 0){
+      if(_map[i].Type == InvalidValue)
+        return Break;
+      if(_map[i].Type != it.getValueType())
+        return TypeMismatch;
+
+      if(_map[i].Length_Offset == SP2StructMapping::ExternalData) {
+        if(indirectReader)
+          indirectReader(it, extra);
+      } else {
+        char * _dst = (char *)dst;
+        _dst += _map[i].Offset;
+          
+        switch(it.getValueType()){
+        case Uint32Value:
+          * ((Uint32 *)_dst) = it.getUint32();
+          break;
+        case BinaryValue:
+        case StringValue:
+          if(_map[i].maxLength && it.getValueLen() > _map[i].maxLength)
+            return ValueTooLong;
           it.getString(_dst);
           break;
-	}
-	default:
-	  abort();
-	}
-	break;
+        default:
+          abort();
+        }
       }
-    }
-    if(!found && !ignoreUnknownKeys)
-      return UnknownKey;
-  } while(it.next());
+    } else if(!ignoreUnknownKeys) return UnknownKey;
+ } while(it.next());
   
   return Eof;
 }
@@ -250,46 +287,42 @@ SimpleProperties::unpack(Reader & it, void * dst,
 SimpleProperties::UnpackStatus 
 SimpleProperties::pack(Writer & it, const void * __src, 
 		       const SP2StructMapping _map[], Uint32 mapSz,
-		       bool ignoreMinMax){
+                       IndirectWriter *indirectWriter, const void * extra) {
+
+  static const bool ignoreMinMax = true;
 
   const char * _src = (const char *)__src;
 
   for(Uint32 i = 0; i<mapSz; i++){
     bool ok = false;
+    Uint16 key = _map[i].Key;
     const char * src = _src + _map[i].Offset;
-    switch(_map[i].Type){
-    case SimpleProperties::InvalidValue:
-      ok = true;
-      break;
-    case SimpleProperties::Uint32Value:{
-      Uint32 val = * ((Uint32*)src);
-      if(!ignoreMinMax){
-	if(val < _map[i].minValue)
-	  return ValueTooLow;
-	if(val > _map[i].maxValue)
-	  return ValueTooHigh;
+    if(_map[i].Length_Offset == SP2StructMapping::ExternalData) {
+      ok = indirectWriter(it, key, extra);
+    } else {
+      switch(_map[i].Type){
+      case SimpleProperties::InvalidValue:
+        ok = true;
+        break;
+      case SimpleProperties::Uint32Value:{
+        Uint32 val = * ((Uint32*)src);
+        ok = it.add(key, val);
       }
-      ok = it.add(_map[i].Key, val);
-    }
-      break;
-    case SimpleProperties::BinaryValue:{
-      const char * src_len = _src + _map[i].Length_Offset;
-      Uint32 len = *((Uint32*)src_len);
-      if(!ignoreMinMax){
-	if(len > _map[i].maxValue)
-	  return ValueTooHigh;
+        break;
+      case SimpleProperties::BinaryValue:{
+        const char * src_len = _src + _map[i].Length_Offset;
+        Uint32 len = *((Uint32*)src_len);
+        if((!ignoreMinMax) && _map[i].maxLength && len > _map[i].maxLength)
+          return ValueTooLong;
+        ok = it.add(key, src, len);
+        break;
       }
-      ok = it.add(_map[i].Key, src, len);
-      break;
-    }
-    case SimpleProperties::StringValue:
-      if(!ignoreMinMax){
-	size_t len = strlen(src);
-	if(len > _map[i].maxValue)
-	  return ValueTooHigh;
+      case SimpleProperties::StringValue:
+        if((!ignoreMinMax) && _map[i].maxLength && strlen(src) > _map[i].maxLength)
+          return ValueTooLong;
+        ok = it.add(key, src);
+        break;
       }
-      ok = it.add(_map[i].Key, src);
-      break;
     }
     if(!ok)
       return OutOfMemory;

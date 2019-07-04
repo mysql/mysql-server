@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,9 @@ public:
     Undefined = 1,
     NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702
+    NotMaster = 702,
+    AllocationFailure = 747,
+    TableNotFound = 4710
   };
   STATIC_CONST( SignalLength = 7 );
   STATIC_CONST( SignalLength2 = SignalLength+1 );
@@ -239,11 +241,11 @@ struct CreateEvntReq {
   }
   Uint32 getRequestFlag() const {
     return BitmaskImpl::getField(1, &m_requestInfo, 16, 16);
-  };
+  }
   void addRequestFlag(Uint32 val) {
     val |= BitmaskImpl::getField(1, &m_requestInfo, 16, 16);
     BitmaskImpl::setField(1, &m_requestInfo, 16, 16, val);
-  };
+  }
   Uint32 getTableId() const {
     return m_tableId;
   }
@@ -424,7 +426,11 @@ struct CreateEvntRef {
     Undefined = 1,
     NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702
+    NotMaster = 702,
+    EventTableNotFound = 723,
+    AlreadyExist = 746,
+    AllocationFailure = 747,
+    TableNotFound = 4710
   };
   union {
     Uint32 m_userRef;             // user block reference

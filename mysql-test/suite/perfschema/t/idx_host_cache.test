@@ -17,7 +17,6 @@ call mtr.add_suppression("192.0.2.4");
 
 CREATE USER 'user4'@'santa.claus.ipv4.example.com';
 GRANT SELECT ON test.* TO 'user4'@'santa.claus.ipv4.example.com';
---enable_warnings
 
 SET global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
 

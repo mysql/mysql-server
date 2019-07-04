@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "sql/item_timefunc.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_alter.h"
+#include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
@@ -49,8 +50,8 @@ using Mysql::Nullable;
 struct Column_parse_context : public Parse_context {
   const bool is_generated;  ///< Owner column is a generated one.
 
-  Column_parse_context(THD *thd, SELECT_LEX *select, bool is_generated)
-      : Parse_context(thd, select), is_generated(is_generated) {}
+  Column_parse_context(THD *thd_arg, SELECT_LEX *select_arg, bool is_generated)
+      : Parse_context(thd_arg, select_arg), is_generated(is_generated) {}
 };
 
 /**
@@ -66,16 +67,51 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
   virtual void apply_type_flags(ulong *) const {}
-  virtual void apply_alter_info_flags(uint *) const {}
+  virtual void apply_alter_info_flags(ulonglong *) const {}
   virtual void apply_comment(LEX_STRING *) const {}
   virtual void apply_default_value(Item **) const {}
-  virtual void apply_gen_default_value(Value_generator **){};
+  virtual void apply_gen_default_value(Value_generator **) {}
   virtual void apply_on_update_value(Item **) const {}
   virtual void apply_srid_modifier(Nullable<gis::srid_t> *) const {}
-  virtual bool apply_collation(const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
-                               bool *has_explicit_collation) const {
-    *has_explicit_collation = false;
+  virtual bool apply_collation(
+      Column_parse_context *, const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
+      bool *has_explicit_collation MY_ATTRIBUTE((unused))) const {
     return false;
+  }
+  virtual bool add_check_constraints(
+      Sql_check_constraint_spec_list *check_const_list MY_ATTRIBUTE((unused))) {
+    return false;
+  }
+
+  /**
+    Check for the [NOT] ENFORCED characteristic.
+
+    @returns true  if the [NOT] ENFORCED follows the CHECK(...) clause,
+             false otherwise.
+  */
+  virtual bool has_constraint_enforcement() const { return false; }
+
+  /**
+    Check if constraint is enforced.
+    Method must be called only when has_constraint_enforcement() is true (i.e
+    when [NOT] ENFORCED follows the CHECK(...) clause).
+
+    @returns true  if constraint is enforced.
+             false otherwise.
+  */
+  virtual bool is_constraint_enforced() const { return false; }
+
+  /**
+    Update the ENFORCED/NOT ENFORCED state of the CHECK constraint.
+
+    @param   enforced     true if ENFORCED, false if NOT ENFORCED.
+
+    @returns false if success, true if error (e.g. if [NOT] ENFORCED follows
+             something other than the CHECK clause.)
+  */
+  virtual bool set_constraint_enforcement(
+      bool enforced MY_ATTRIBUTE((unused))) {
+    return true;  // error
   }
 };
 
@@ -104,6 +140,18 @@ class PT_not_null_column_attr : public PT_column_attr_base {
 };
 
 /**
+  Node for the @SQL{NOT SECONDARY} column attribute
+
+  @ingroup ptn_column_attrs
+*/
+class PT_secondary_column_attr : public PT_column_attr_base {
+ public:
+  void apply_type_flags(unsigned long *type_flags) const override {
+    *type_flags |= NOT_SECONDARY_FLAG;
+  }
+};
+
+/**
   Node for the @SQL{UNIQUE [KEY]} column attribute
 
   @ingroup ptn_column_attrs
@@ -114,7 +162,7 @@ class PT_unique_key_column_attr : public PT_column_attr_base {
     *type_flags |= UNIQUE_FLAG;
   }
 
-  virtual void apply_alter_info_flags(uint *flags) const {
+  virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
 };
@@ -130,9 +178,63 @@ class PT_primary_key_column_attr : public PT_column_attr_base {
     *type_flags |= PRI_KEY_FLAG | NOT_NULL_FLAG;
   }
 
-  virtual void apply_alter_info_flags(uint *flags) const {
+  virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
+};
+
+/**
+  Node for the @SQL{[CONSTRAINT [symbol]] CHECK '(' expr ')'} column attribute.
+
+  @ingroup ptn_column_attrs
+*/
+class PT_check_constraint_column_attr : public PT_column_attr_base {
+  typedef PT_column_attr_base super;
+  Sql_check_constraint_spec col_cc_spec;
+
+ public:
+  explicit PT_check_constraint_column_attr(LEX_STRING &name, Item *expr) {
+    col_cc_spec.name = name;
+    col_cc_spec.check_expr = expr;
+  }
+
+  bool set_constraint_enforcement(bool enforced) override {
+    col_cc_spec.is_enforced = enforced;
+    return false;
+  }
+
+  void apply_alter_info_flags(ulonglong *flags) const override {
+    *flags |= Alter_info::ADD_CHECK_CONSTRAINT;
+  }
+
+  bool add_check_constraints(
+      Sql_check_constraint_spec_list *check_const_list) override {
+    DBUG_ASSERT(check_const_list != nullptr);
+    return (check_const_list->push_back(&col_cc_spec));
+  }
+
+  bool contextualize(Column_parse_context *pc) override {
+    return (super::contextualize(pc) ||
+            col_cc_spec.check_expr->itemize(pc, &col_cc_spec.check_expr));
+  }
+};
+
+/**
+  Node for the @SQL{[NOT] ENFORCED} column attribute.
+
+  @ingroup ptn_column_attrs
+*/
+class PT_constraint_enforcement_attr : public PT_column_attr_base {
+ public:
+  explicit PT_constraint_enforcement_attr(bool enforced)
+      : m_enforced(enforced) {}
+
+  bool has_constraint_enforcement() const override { return true; }
+
+  bool is_constraint_enforced() const override { return m_enforced; }
+
+ private:
+  const bool m_enforced;
 };
 
 /**
@@ -156,22 +258,25 @@ class PT_comment_column_attr : public PT_column_attr_base {
   @ingroup ptn_column_attrs
 */
 class PT_collate_column_attr : public PT_column_attr_base {
-  const CHARSET_INFO *const collation;
-
  public:
-  explicit PT_collate_column_attr(const CHARSET_INFO *collation)
-      : collation(collation) {}
-
-  bool apply_collation(const CHARSET_INFO **to,
-                       bool *has_explicit_collation) const override {
-    *has_explicit_collation = true;
-    if (*to == nullptr) {
-      *to = collation;
-      return false;
-    }
-    *to = merge_charset_and_collation(*to, collation);
-    return *to == nullptr;
+  explicit PT_collate_column_attr(const POS &pos, const CHARSET_INFO *collation)
+      : m_pos(pos), m_collation(collation) {
+    DBUG_ASSERT(m_collation != nullptr);
   }
+
+  bool apply_collation(Column_parse_context *pc, const CHARSET_INFO **to,
+                       bool *has_explicit_collation) const override {
+    if (*has_explicit_collation) {
+      pc->thd->syntax_error_at(m_pos, ER_INVALID_MULTIPLE_CLAUSES, "COLLATE");
+      return true;
+    }
+    *has_explicit_collation = true;
+    return merge_charset_and_collation(*to, m_collation, to);
+  }
+
+ private:
+  const POS m_pos;
+  const CHARSET_INFO *const m_collation;
 };
 
 // Specific to non-generated columns only:
@@ -262,7 +367,7 @@ class PT_serial_default_value_column_attr : public PT_column_attr_base {
   virtual void apply_type_flags(ulong *type_flags) const {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG;
   }
-  virtual void apply_alter_info_flags(uint *flags) const {
+  virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
   virtual bool contextualize(Column_parse_context *pc) {
@@ -722,6 +827,8 @@ class PT_field_def_base : public Parse_tree_node {
   /// Holds the expression to generate default values
   Value_generator *default_val_info;
   Nullable<gis::srid_t> m_srid;
+  // List of column check constraint's specification.
+  Sql_check_constraint_spec_list *check_const_spec_list{nullptr};
 
  protected:
   PT_type *type_node;
@@ -747,6 +854,9 @@ class PT_field_def_base : public Parse_tree_node {
     charset = type_node->get_charset();
     uint_geom_type = type_node->get_uint_geom_type();
     interval_list = type_node->get_interval_list();
+    check_const_spec_list = new (pc->thd->mem_root)
+        Sql_check_constraint_spec_list(pc->thd->mem_root);
+    if (check_const_spec_list == nullptr) return true;  // OOM
     return false;
   }
 
@@ -764,8 +874,9 @@ class PT_field_def_base : public Parse_tree_node {
         attr->apply_gen_default_value(&default_val_info);
         attr->apply_on_update_value(&on_update_value);
         attr->apply_srid_modifier(&m_srid);
-        if (attr->apply_collation(&charset, &has_explicit_collation))
+        if (attr->apply_collation(pc, &charset, &has_explicit_collation))
           return true;
+        if (attr->add_check_constraints(check_const_spec_list)) return true;
       }
     }
     return false;

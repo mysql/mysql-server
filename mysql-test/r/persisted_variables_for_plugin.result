@@ -138,3 +138,27 @@ RESET PERSIST;
 UNINSTALL plugin validate_password;
 Warnings:
 Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+#
+# Bug #28823972: PERSISTED PLUGIN VARIABLE VALUE LOST AFTER
+#                PLUGIN IS REINSTALLED
+#
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+8
+SET @@persist.validate_password_length= 15;
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT @@GLOBAL.validate_password_length;
+@@GLOBAL.validate_password_length
+15
+RESET PERSIST;
+UNINSTALL plugin validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead

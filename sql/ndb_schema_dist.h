@@ -65,7 +65,13 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_USER= 16,
   SOT_RENAME_USER= 17,
   SOT_GRANT= 18,
-  SOT_REVOKE= 19
+  SOT_REVOKE= 19,
+  SOT_CREATE_TABLESPACE= 20,
+  SOT_ALTER_TABLESPACE= 21,
+  SOT_DROP_TABLESPACE= 22,
+  SOT_CREATE_LOGFILE_GROUP= 23,
+  SOT_ALTER_LOGFILE_GROUP= 24,
+  SOT_DROP_LOGFILE_GROUP= 25
 };
 
 /**
@@ -78,7 +84,7 @@ enum SCHEMA_OP_TYPE
 
   The Client primarily communicates with the Coordinator(which is
   in the same MySQL Server) while the Coordinator handles communication
-  with the Participant nodes(in other MySQL Serve)r. When Coordinator
+  with the Participant nodes(in other MySQL Server). When Coordinator
   have got replies from all Participants, by acknowledging the schema
   operation, the Client will be woken up again.
 
@@ -88,7 +94,7 @@ enum SCHEMA_OP_TYPE
      distribution has been initialized properly(by the ndb
      binlog thread)
    - checking that schema distribution of the table and db name
-     is suported by the current mysql.ndb_schema, for example
+     is supported by the current mysql.ndb_schema, for example
      that length of the table or db name fits in the columns of that
      table
    - checking which functionality the other MySQL Server(s) support,
@@ -100,25 +106,32 @@ class Ndb_schema_dist_client {
   class Thd_ndb* const m_thd_ndb;
   struct NDB_SHARE *m_share{nullptr};
   class Prepared_keys {
-    std::vector<std::pair<std::string, std::string>> m_keys;
-  public:
+    using Key = std::pair<std::string, std::string>;
+    std::vector<Key> m_keys;
+   public:
+    const std::vector<Key>& keys() {
+      return m_keys;
+    }
     void add_key(const char* db, const char* tabname);
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
+
+  // Max number of participants supported
+  int m_max_participants{0};
 
   /*
     @brief Generate unique id for distribution of objects which doesn't have
            global id in NDB.
     @return unique id
   */
-  int unique_id();
+  uint32 unique_id() const;
 
   /*
     @brief Generate unique version for distribution of objects which doesn't
            have global id in NDB.
     @return unique version
   */
-  int unique_version() const;
+  uint32 unique_version() const;
 
   int log_schema_op_impl(class Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
@@ -134,7 +147,7 @@ class Ndb_schema_dist_client {
     @return false if schema distribution fails
    */
   bool log_schema_op(const char *query, size_t query_length, const char *db,
-                     const char *table_name, int id, int version,
+                     const char *table_name, uint32 id, uint32 version,
                      SCHEMA_OP_TYPE type,
                      bool log_query_on_participant = true);
 
@@ -180,6 +193,20 @@ class Ndb_schema_dist_client {
                       const char *new_tabname);
 
   /**
+    @brief Check that the prepared identifiers is supported by the schema
+           distribution. For example long identifiers can't be communicated
+           between the MySQL Servers unless the table used for communication
+           have large enough columns.
+    @note This is done separately from @prepare since different error
+          code(or none at all) should be returned for this error.
+    @note Always done early to avoid changing metadata which is
+          hard to rollback at a later stage.
+    @param invalid_identifer The name of the identifier that failed the check
+    @return true if check succeed
+  */
+  bool check_identifier_limits(std::string& invalid_identifier);
+
+  /**
    * @brief Check if given name is the schema distribtution table, special
             handling for that table is required in a few places.
      @param db database name
@@ -218,6 +245,15 @@ class Ndb_schema_dist_client {
   bool acl_notify(const char *query, uint query_length, const char *db);
   bool tablespace_changed(const char *tablespace_name, int id, int version);
   bool logfilegroup_changed(const char *logfilegroup_name, int id, int version);
+
+  bool create_tablespace(const char* tablespace_name, int id, int version);
+  bool alter_tablespace(const char* tablespace_name, int id, int version);
+  bool drop_tablespace(const char* tablespace_name, int id, int version);
+
+  bool create_logfile_group(const char* logfile_group_name, int id,
+                            int version);
+  bool alter_logfile_group(const char* logfile_group_name, int id, int version);
+  bool drop_logfile_group(const char* logfile_group_name, int id, int version);
 };
 
 #endif

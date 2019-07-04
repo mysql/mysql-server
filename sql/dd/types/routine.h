@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,9 @@
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 #include "sql/dd/types/view.h"            // dd::Column::enum_security_type
+
+struct MDL_key;
+struct CHARSET_INFO;
 
 namespace dd {
 
@@ -91,7 +94,7 @@ class Routine : virtual public Entity_object {
   };
 
  public:
-  virtual ~Routine(){};
+  virtual ~Routine() {}
 
  public:
   /////////////////////////////////////////////////////////////////////////
@@ -211,6 +214,11 @@ class Routine : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Routine *clone() const = 0;
+
+  static void create_mdl_key(enum_routine_type type,
+                             const String_type &schema_name,
+                             const String_type &name, MDL_key *key);
+  static const CHARSET_INFO *name_collation();
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -223,8 +223,7 @@ UNIV_INLINE
 ib_bool_t ib_btr_cursor_is_positioned(
     btr_pcur_t *pcur) /*!< in: InnoDB persistent cursor */
 {
-  return (pcur->old_stored && (pcur->pos_state == BTR_PCUR_IS_POSITIONED ||
-                               pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
+  return (pcur->is_positioned());
 }
 
 /** Find table using table name.
@@ -1364,10 +1363,10 @@ ib_err_t ib_execute_update_query_graph(
 
   node = q_proc->node.upd;
 
-  ut_a(pcur->btr_cur.index->is_clustered());
+  ut_a(pcur->m_btr_cur.index->is_clustered());
   btr_pcur_copy_stored_position(node->pcur, pcur);
 
-  ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
+  ut_a(node->pcur->m_rel_pos == BTR_PCUR_ON);
 
   savept = trx_savept_take(trx);
 
@@ -3237,7 +3236,7 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   /* Remove SDI Flag presence from Page 0 */
   mtr.start();
 
-  ulint flags = space->flags & ~FSP_FLAGS_MASK_SDI;
+  uint32_t flags = space->flags & ~FSP_FLAGS_MASK_SDI;
 
   buf_block_t *block =
       buf_page_get(page_id_t(space->id, 0), page_size, RW_SX_LATCH, &mtr);

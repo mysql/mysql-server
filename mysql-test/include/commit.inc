@@ -905,9 +905,9 @@ if ($have_debug)
 }
 
 alter table t3 rename t4;
-call p_verify_status_increment(19, 4, 3, 0);
+call p_verify_status_increment(20, 4, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(23, 4, 5, 0);
+call p_verify_status_increment(24, 4, 5, 0);
 truncate table t3;
 
 if (!$have_debug)

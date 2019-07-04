@@ -34,21 +34,73 @@
 namespace server_mock {
 class DuktapeStatementReader : public StatementReaderBase {
  public:
+  enum class HandshakeState { INIT, GREETED, AUTH_SWITCHED, DONE };
+
   DuktapeStatementReader(const std::string &filename,
                          const std::string &module_prefix,
                          std::map<std::string, std::string> session_data,
                          std::shared_ptr<MockServerGlobalScope> shared_globals);
+  /**
+   * handle handshake's init state.
+   *
+   * @param payload payload of the current client packet
+   * @param next_state next state of the handshake handler
+   *
+   * @return response to send to client
+   */
+  HandshakeResponse handle_handshake_init(const std::vector<uint8_t> &payload,
+                                          HandshakeState &next_state);
 
-  StatementAndResponse handle_statement(const std::string &statement) override;
+  /**
+   * handle handshake's greeted state.
+   *
+   * @param payload payload of the current client packet
+   * @param next_state next state of the handshake handler
+   *
+   * @return response to send to client
+   */
+  HandshakeResponse handle_handshake_greeted(
+      const std::vector<uint8_t> &payload, HandshakeState &next_state);
+
+  /**
+   * handle handshake's auth_switched state.
+   *
+   * @param payload payload of the current client packet
+   * @param next_state next state of the handshake handler
+   *
+   * @return response to send to client
+   */
+  HandshakeResponse handle_handshake_auth_switched(
+      const std::vector<uint8_t> &payload, HandshakeState &next_state);
+
+  /**
+   * handle the handshake payload received from the client.
+   *
+   * @param payload payload of the client's current handshake packet
+   * @returns response to send to client
+   */
+  HandshakeResponse handle_handshake(
+      const std::vector<uint8_t> &payload) override;
+
+  /**
+   * handle the clients statement
+   *
+   * @param statement statement-text of the current clients
+   *COM_QUERY/StmtExecute
+   * @returns response to send to client
+   */
+  StatementResponse handle_statement(const std::string &statement) override;
 
   std::chrono::microseconds get_default_exec_time() override;
 
-  ~DuktapeStatementReader();
+  ~DuktapeStatementReader() override;
 
  private:
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
   std::shared_ptr<MockServerGlobalScope> shared_;
+
+  HandshakeState handshake_state_{HandshakeState::INIT};
 };
 }  // namespace server_mock
 

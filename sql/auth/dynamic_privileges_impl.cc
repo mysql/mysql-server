@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -199,6 +199,17 @@ bool dynamic_privilege_init(void) {
           service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
       ret |=
           service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"));
+      ret |= service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);

@@ -1,2 +1,2 @@
 --table_open_cache_instances=1
---bootstrap --innodb_page_size=16k
+--initialize --innodb_page_size=16k

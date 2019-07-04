@@ -2,6 +2,8 @@
 # Tests for the performance schema histograms.
 # --------------------------------------------
 
+# Returns different results on 32bit release build
+--source include/have_64bit.inc
 --source include/no_protocol.inc
 
 # Setup

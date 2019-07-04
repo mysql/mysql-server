@@ -23,6 +23,7 @@
 */
 
 #include "mysqlrouter/rest_client.h"
+#include "base64.h"
 
 HttpRequest RestClient::request_sync(
     HttpMethod::type method, const std::string &uri,
@@ -40,10 +41,18 @@ HttpRequest RestClient::request_sync(
     out_buf.add(request_body.data(), request_body.size());
   }
 
+  if (!username_.empty()) {
+    std::string crds{username_ + ":" + password_};
+    req.get_output_headers().add(
+        "Authorization", ("Basic " + Base64::encode(std::vector<uint8_t>{
+                                         crds.begin(), crds.end()}))
+                             .c_str());
+  }
+
   // ask the server to close the connection after this request
   req.get_output_headers().add("Connection", "close");
-  req.get_output_headers().add("Host", hostname_.c_str());
-  http_client_.make_request_sync(&req, method, uri);
+  req.get_output_headers().add("Host", http_client_->hostname().c_str());
+  http_client_->make_request_sync(&req, method, uri);
 
   return req;
 }

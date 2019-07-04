@@ -1,5 +1,4 @@
-/* Copyright (C) 2008 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,11 +49,11 @@ public:
     m_stack_size(stack_size),
     m_thread_prio(thread_prio),
     m_thread(NULL){
-  };
+  }
   virtual ~MgmtThread() {
     if (m_thread)
       stop();
-  };
+  }
 
   virtual void run()= 0;
   bool start(){
@@ -75,7 +74,7 @@ public:
     return true;
 
   }
-  bool is_stopped() { return !m_running; };
+  bool is_stopped() { return !m_running; }
 };
 
 #endif

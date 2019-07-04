@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -355,7 +355,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, Item *item) {
   str.length(0);
   if (item != NULL) {
     // QT_TO_SYSTEM_CHARSET because trace must be in UTF8
-    item->print(&str,
+    item->print(current_thd, &str,
                 enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER |
                                 QT_NO_DEFAULT_DB));
     /* needs escaping */

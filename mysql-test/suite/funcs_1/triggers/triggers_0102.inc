@@ -100,7 +100,6 @@ use test;
 	drop trigger trg1_6;
 	--enable_warnings
 	delete from tb3 where f121='Test 3.5.1.1';
-	--enable_warnings
 
 #Section 3.5.1.2
 # Testcase: Ensure that all clauses that should not be supported are disallowed
@@ -471,4 +470,5 @@ let $message= Testcase 3.5.2.1/2/3:;
 	--disable_warnings
 	drop database trig_db1;
 	drop database trig_db2;
+        --enable_warnings
 DROP TABLE test.tb3;

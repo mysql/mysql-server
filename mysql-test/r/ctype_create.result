@@ -4,10 +4,10 @@ USE mysqltest1;
 CREATE DATABASE mysqltest2;
 SHOW CREATE DATABASE mysqltest1;
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET cp1251 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET cp1251 */ /*!80016 DEFAULT ENCRYPTION='N' */
 SHOW CREATE DATABASE mysqltest2;
 Database	Create Database
-mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin5 */
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin5 */ /*!80016 DEFAULT ENCRYPTION='N' */
 CREATE TABLE mysqltest2.t1 (a char(10));
 SHOW CREATE TABLE mysqltest2.t1;
 Table	Create Table
@@ -68,7 +68,7 @@ use mysqltest2;
 ALTER DATABASE DEFAULT CHARACTER SET latin2;
 show create database mysqltest2;
 Database	Create Database
-mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest2;
 ALTER DATABASE DEFAULT CHARACTER SET latin2;
 ERROR 3D000: No database selected

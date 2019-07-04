@@ -419,7 +419,7 @@ select min(a1), max(a1) from t1 where a4 = 0.080;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)`,max(`test`.`t1`.`a1`) AS `max(a1)` from `test`.`t1` where (`test`.`t1`.`a4` = 0.080)
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)`,max(`test`.`t1`.`a1`) AS `max(a1)` from `test`.`t1` where (`test`.`t1`.`a4` = 0.08)
 select min(a1), max(a1) from t1 where a4 = 0.080;
 min(a1)	max(a1)
 BDL	TWU

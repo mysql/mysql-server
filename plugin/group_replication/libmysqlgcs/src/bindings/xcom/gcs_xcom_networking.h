@@ -28,17 +28,77 @@
 #include <vector>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
+
+#ifdef _WIN32
+typedef u_short sa_family_t;
+#endif
+
+/**
+ * @brief Interface to decouple XCom sock_probe implementation to allow
+ * unit testing.
+ */
+class Gcs_sock_probe_interface {
+ public:
+  Gcs_sock_probe_interface() {}
+  virtual ~Gcs_sock_probe_interface() {}
+
+  virtual int init_sock_probe(sock_probe *s) = 0;
+  virtual int number_of_interfaces(sock_probe *s) = 0;
+  virtual void get_sockaddr_address(sock_probe *s, int count,
+                                    struct sockaddr **out) = 0;
+  virtual void get_sockaddr_netmask(sock_probe *s, int count,
+                                    struct sockaddr **out) = 0;
+  virtual char *get_if_name(sock_probe *s, int count) = 0;
+  virtual bool_t is_if_running(sock_probe *s, int count) = 0;
+  virtual void close_sock_probe(sock_probe *s) = 0;
+
+  Gcs_sock_probe_interface(Gcs_sock_probe_interface &) = default;
+  Gcs_sock_probe_interface(Gcs_sock_probe_interface &&) =
+      default;  // move constructor must be explicit because copy is
+  Gcs_sock_probe_interface &operator=(const Gcs_sock_probe_interface &) =
+      default;
+  Gcs_sock_probe_interface &operator=(Gcs_sock_probe_interface &&) =
+      default;  // move assignment must be explicit because move is
+};
+
+/**
+ * @brief Implementation of @class Gcs_sock_probe_interface
+ */
+class Gcs_sock_probe_interface_impl : public Gcs_sock_probe_interface {
+ public:
+  Gcs_sock_probe_interface_impl() : Gcs_sock_probe_interface() {}
+  virtual ~Gcs_sock_probe_interface_impl() {}
+
+  int init_sock_probe(sock_probe *s);
+  int number_of_interfaces(sock_probe *s);
+  void get_sockaddr_address(sock_probe *s, int count, struct sockaddr **out);
+  void get_sockaddr_netmask(sock_probe *s, int count, struct sockaddr **out);
+  char *get_if_name(sock_probe *s, int count);
+  bool_t is_if_running(sock_probe *s, int count);
+  void close_sock_probe(sock_probe *s);
+
+  Gcs_sock_probe_interface_impl(Gcs_sock_probe_interface_impl &) = default;
+  Gcs_sock_probe_interface_impl(Gcs_sock_probe_interface_impl &&) =
+      default;  // move constructor must be explicit because copy is
+  Gcs_sock_probe_interface_impl &operator=(
+      const Gcs_sock_probe_interface_impl &) = default;
+  Gcs_sock_probe_interface_impl &operator=(Gcs_sock_probe_interface_impl &&) =
+      default;  // move assignment must be explicit because move is
+};
 
 /**
   This function gets all network addresses on this host and their
-  subnet masks as a string. IPv4 only. (SOCK_STREAM only)
- @param[out] out maps IP addresses to subnetmasks
- @param filter_out_inactive If set to true, only active interfaces will be added
-                            to out
- @return false on sucess, true otherwise.
+  subnet masks as a string.
+
+  @param[out] out maps IP addresses to subnetmasks
+  @param filter_out_inactive If set to true, only active interfaces will be
+  added to out
+  @return false on success, true otherwise.
  */
-bool get_ipv4_local_addresses(std::map<std::string, int> &out,
-                              bool filter_out_inactive = false);
+bool get_local_addresses(Gcs_sock_probe_interface &sock_probe,
+                         std::map<std::string, int> &out,
+                         bool filter_out_inactive = false);
 
 /**
   This function gets all private network addresses and their
@@ -48,25 +108,38 @@ bool get_ipv4_local_addresses(std::map<std::string, int> &out,
                             to out
  @return false on sucess, true otherwise.
  */
-bool get_ipv4_local_private_addresses(std::map<std::string, int> &out,
-                                      bool filter_out_inactive = false);
+bool get_local_private_addresses(std::map<std::string, int> &out,
+                                 bool filter_out_inactive = false);
 
 /**
- This function translates hostnames to IP addresses.
+ This function translates hostnames to all possible IP addresses.
 
  @param[in] name The hostname to translate.
- @param[out] ip  The IP address after translation.
+ @param[out] ip  The IP addresses after translation.
 
  @return false on success, true otherwise.
  */
-bool resolve_ip_addr_from_hostname(std::string name, std::string &ip);
+bool resolve_all_ip_addr_from_hostname(
+    std::string name, std::vector<std::pair<sa_family_t, std::string>> &ips);
+
+/**
+ This function translates hostname to all possible IP addresses.
+
+ @param[in] name The hostname to translate.
+ @param[out] ip  The IP addresses after translation.
+
+ @return false on success, true otherwise.
+ */
+bool resolve_ip_addr_from_hostname(std::string name,
+                                   std::vector<std::string> &ip);
 
 /**
  Converts an address in string format (X.X.X.X/XX) into network octet format
 
  @param[in]  addr     IP address in X.X.X.X format
  @param[in]  mask     Network mask associated with the address
- @param[out] out_pair
+ @param[out] out_pair IP address and netmask, in binary format (network byte
+                      order)
 
  @return false on success, true otherwise.
  */
@@ -108,17 +181,20 @@ class Gcs_ip_whitelist_entry {
   /**
    Virtual Method that implements value retrieval for this entry.
 
-   The returned value must be an std::pair that contains both the address and
-   the mask in network octet value.
+   The returned value must be a list of std::pairs that contains both the
+   address and the mask in network octet value. This is in list format because
+   in the case of whitelist names, we can have multiple value for the same
+   entry
 
-   @return an std::pair with ip and mask in network octet form
+   @return an std::vector of std::pair with ip and mask in network octet form
    */
-  virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+  virtual std::vector<
+      std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
       *get_value() = 0;
 
   /** Getters */
-  std::string get_addr() const { return m_addr; };
-  std::string get_mask() const { return m_mask; };
+  std::string get_addr() const { return m_addr; }
+  std::string get_mask() const { return m_mask; }
 
  private:
   std::string m_addr;
@@ -149,7 +225,7 @@ class Gcs_ip_whitelist_entry_ip : public Gcs_ip_whitelist_entry {
 
  public:
   bool init_value();
-  std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+  std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
       *get_value();
 
  private:
@@ -164,10 +240,11 @@ class Gcs_ip_whitelist_entry_ip : public Gcs_ip_whitelist_entry {
 class Gcs_ip_whitelist_entry_hostname : public Gcs_ip_whitelist_entry {
  public:
   Gcs_ip_whitelist_entry_hostname(std::string addr, std::string mask);
+  Gcs_ip_whitelist_entry_hostname(std::string addr);
 
  public:
   bool init_value();
-  std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+  std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
       *get_value();
 };
 
@@ -207,8 +284,8 @@ class Gcs_ip_whitelist {
   bool configure(const std::string &the_list);
 
   /**
-   This member function shall be used to validate the list that is used as input
-   to the configure member function.
+   This member function shall be used to validate the list that is used as
+   input to the configure member function.
 
    @param the_list The list with IP addresses. This list is a comma separated
                    list formatted only with IP addresses and/or in the form of
@@ -231,8 +308,8 @@ class Gcs_ip_whitelist {
                    site_def const *xcom_config = nullptr) const;
 
   /**
-   This member function SHALL return true if the IP of the given file descriptor
-   is to be blocked, false otherwise.
+   This member function SHALL return true if the IP of the given file
+   descriptor is to be blocked, false otherwise.
 
    @param fd the file descriptor of the accepted socket to check.
    @param xcom_config the latest XCom configuration.

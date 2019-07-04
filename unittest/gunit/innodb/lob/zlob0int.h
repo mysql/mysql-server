@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,8 +82,7 @@ struct z_index_entry_t {
   @param[in]  node  point to this file list node. */
   void reset(flst_node_t *node) { m_node = node; }
 
-  /** Point to another index entry.
-  @param[in]  node  point to this file list node. */
+  /** Point to another index entry. */
   void reset(const z_index_entry_t &entry) { m_node = entry.m_node; }
 
   /** Initialize an index entry to some sane value. */
@@ -1526,6 +1525,6 @@ struct z_frag_page_t {
   buf_block_t *m_block;
 };
 
-};  // namespace zlob
+}  // namespace zlob
 
 #endif  // _zlob0int_h_

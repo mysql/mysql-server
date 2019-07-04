@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,36 +23,43 @@
 
 /**
   @file sql/filesort.cc
-  Sorts a database.
-*/
+
+  Standard external sort. We read rows into a buffer until there's no more room.
+  At that point, we use it (using the sorting algorithms from STL), and write it
+  to disk (thus the name “filesort”). When there are no more rows, we merge
+  chunks recursively, seven and seven (although we can go all the way up to 15
+  in the final pass if it helps us do one pass less).
+
+  If all the rows fit in a single chunk, the data never hits disk, but remains
+  in RAM.
+ */
 
 #include "sql/filesort.h"
 
 #include <limits.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
-#include <limits>
 #include <memory>
 #include <new>
-#include <type_traits>
 #include <vector>
 
 #include "add_with_saturate.h"
-#include "binary_log_types.h"
 #include "binlog_config.h"
 #include "decimal.h"
+#include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
+#include "map_helpers.h"
+#include "my_basename.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "my_macros.h"
-#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -61,11 +68,11 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "priority_queue.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
 #include "sql/cmp_varlen_keys.h"
-#include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h"
@@ -76,16 +83,16 @@
 #include "sql/item_subselect.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key_spec.h"
-#include "sql/log.h"
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // mysql_tmpdir
 #include "sql/opt_costmodel.h"
-#include "sql/opt_range.h"  // QUICK
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
+#include "sql/pfs_batch_mode.h"
 #include "sql/psi_memory_key.h"
+#include "sql/row_iterator.h"
 #include "sql/sort_param.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
@@ -317,9 +324,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
   in sorted order. This should be done with the functions
   in records.cc.
 
-  Before calling filesort, one must have done
-  table->file->info(HA_STATUS_VARIABLE)
-
   The result set is stored in table->sort.io_cache or
   table->sort.sorted_result, or left in the main filesort buffer.
 
@@ -354,7 +358,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   IO_CACHE chunk_file;  // For saving Merge_chunk structs.
   IO_CACHE *outfile;    // Contains the final, sorted result.
   Sort_param param;
-  Opt_trace_context *const trace = &thd->opt_trace;
   QEP_TAB *const qep_tab = filesort->qep_tab;
   TABLE *const table = qep_tab->table();
   ha_rows max_rows = filesort->limit;
@@ -364,15 +367,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (!(s_length = filesort->sort_order_length()))
     DBUG_RETURN(true); /* purecov: inspected */
-
-  /*
-    We need a nameless wrapper, since we may be inside the "steps" of
-    "join_execution".
-  */
-  Opt_trace_object trace_wrapper(trace);
-  if (qep_tab->join())
-    trace_wrapper.add("sorting_table_in_plan_at_position", qep_tab->idx());
-  trace_filesort_information(trace, filesort->sortorder, s_length);
 
   DBUG_ASSERT(!table->reginfo.join_tab);
   DBUG_ASSERT(qep_tab == table->reginfo.qep_tab);
@@ -389,6 +383,25 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   my_b_clear(&chunk_file);
   error = 1;
 
+  // Make sure the source iterator is initialized before init_for_filesort(),
+  // since table->file (and in particular, ref_length) may not be initialized
+  // before that.
+  DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
+  if (source_iterator->Init()) {
+    DBUG_RETURN(HA_POS_ERROR);
+  }
+
+  /*
+    We need a nameless wrapper, since we may be inside the "steps" of
+    "join_execution".
+  */
+  Opt_trace_context *const trace = &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  if (qep_tab->join())
+    trace_wrapper.add("sorting_table_in_plan_at_position", qep_tab->idx());
+
+  trace_filesort_information(trace, filesort->sortorder, s_length);
+
   param.init_for_filesort(filesort, make_array(filesort->sortorder, s_length),
                           sortlength(thd, filesort->sortorder, s_length), table,
                           thd->variables.max_length_for_sort_data, max_rows,
@@ -404,6 +417,9 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     thd->inc_status_sort_range();
   else
     thd->inc_status_sort_scan();
+
+  if (table->s->tmp_table)
+    table->file->info(HA_STATUS_VARIABLE);  // Get record count
 
   // If number of rows is not known, use as much of sort buffer as possible.
   num_rows_estimate = table->file->estimate_rows_upper_bound();
@@ -604,7 +620,7 @@ err:
 
     my_printf_error(ER_FILSORT_ABORT, "%s: %s", MYF(0), msg, cause);
 
-    if (thd->is_fatal_error) {
+    if (thd->is_fatal_error()) {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .subsys(LOG_SUBSYSTEM_TAG)
@@ -868,9 +884,6 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
   }
 }
 
-static const Item::enum_walk walk_subquery =
-    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
-
 /**
   Read all rows, and write them into a temporary file
   (if we run out of space in the sort buffer).
@@ -943,20 +956,12 @@ static ha_rows read_all_rows(
   Filesort_error_handler error_handler(thd);
 
   DBUG_ENTER("read_all_rows");
-  DBUG_PRINT("info", ("using: %s", (qep_tab->condition()
-                                        ? qep_tab->quick() ? "ranges" : "where"
-                                        : "every row")));
 
   int error = 0;
   TABLE *sort_form = param->sort_form;
   handler *file = sort_form->file;
   *found_rows = 0;
   uchar *ref_pos = &file->ref[0];
-
-  DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
-  if (source_iterator->Init()) {
-    DBUG_RETURN(HA_POS_ERROR);
-  }
 
   // Now modify the read bitmaps, so that we are sure to get the rows
   // that we need for the sort (ie., the fields to sort on) as well as
@@ -988,14 +993,14 @@ static ha_rows read_all_rows(
   // Include fields used by conditions in the read_set.
   if (qep_tab->condition()) {
     Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->condition()->walk(&Item::mark_field_in_map, walk_subquery,
-                               (uchar *)&mf);
+    qep_tab->condition()->walk(&Item::mark_field_in_map,
+                               enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
   }
   // Include fields used by pushed conditions in the read_set.
   if (qep_tab->table()->file->pushed_idx_cond) {
     Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->table()->file->pushed_idx_cond->walk(&Item::mark_field_in_map,
-                                                  walk_subquery, (uchar *)&mf);
+    qep_tab->table()->file->pushed_idx_cond->walk(
+        &Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
   }
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
@@ -1006,6 +1011,8 @@ static ha_rows read_all_rows(
     fs_info->reset();
     fs_info->clear_peak_memory_used();
   }
+
+  PFSBatchMode pfs_batch_mode(qep_tab, /*join=*/nullptr);
   for (;;) {
     DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
     if ((error = source_iterator->Read())) {
@@ -1021,48 +1028,39 @@ static ha_rows read_all_rows(
       goto cleanup;
     }
 
-    bool skip_record;
-    if (!qep_tab->skip_record(thd, &skip_record) && !skip_record) {
-      ++(*found_rows);
-      num_total_records++;
-      if (pq)
-        pq->push(ref_pos);
-      else {
-        bool out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
-        if (out_of_mem) {
-          // Out of room, so flush chunk to disk (if there's anything to flush).
-          if (num_records_this_chunk > 0) {
-            if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
-                           tempfile)) {
-              num_total_records = HA_POS_ERROR;
-              goto cleanup;
-            }
-            num_records_this_chunk = 0;
-            num_written_chunks++;
-            fs_info->reset();
-
-            // Now we should have room for a new row.
-            out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
-          }
-
-          // If we're still out of memory after flushing to disk, give up.
-          if (out_of_mem) {
-            my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
-            LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+    ++(*found_rows);
+    num_total_records++;
+    if (pq)
+      pq->push(ref_pos);
+    else {
+      bool out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
+      if (out_of_mem) {
+        // Out of room, so flush chunk to disk (if there's anything to flush).
+        if (num_records_this_chunk > 0) {
+          if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
+                         tempfile)) {
             num_total_records = HA_POS_ERROR;
             goto cleanup;
           }
+          num_records_this_chunk = 0;
+          num_written_chunks++;
+          fs_info->reset();
+
+          // Now we should have room for a new row.
+          out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
         }
 
-        num_records_this_chunk++;
+        // If we're still out of memory after flushing to disk, give up.
+        if (out_of_mem) {
+          my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+          LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+          num_total_records = HA_POS_ERROR;
+          goto cleanup;
+        }
       }
+
+      num_records_this_chunk++;
     }
-    /*
-      Don't try unlocking the row if skip_record reported an error since in
-      this case the transaction might have been rolled back already.
-    */
-    else if (!thd->is_error())
-      file->unlock_row();
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error()) break;
   }
@@ -1153,7 +1151,8 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
       DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  if (my_b_write(chunk_file, &merge_chunk, sizeof(merge_chunk)))
+  if (my_b_write(chunk_file, pointer_cast<uchar *>(&merge_chunk),
+                 sizeof(merge_chunk)))
     DBUG_RETURN(1); /* purecov: inspected */
 
   DBUG_RETURN(0);
@@ -1635,8 +1634,8 @@ static void register_used_fields(Sort_param *param) {
         if (field->is_virtual_gcol()) table->mark_gcol_in_maps(field);
       }
     } else {  // Item
-      sort_field->item->walk(&Item::mark_field_in_map, walk_subquery,
-                             (uchar *)&mf);
+      sort_field->item->walk(&Item::mark_field_in_map,
+                             enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
     }
   }
 

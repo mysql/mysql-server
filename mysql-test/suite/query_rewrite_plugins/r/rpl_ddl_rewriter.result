@@ -1,0 +1,80 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Install plugin on nmaster.
+#
+INSTALL PLUGIN ddl_rewriter SONAME 'ddl_rewriter.xxx';
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'ddl_rewriter';
+PLUGIN_NAME	PLUGIN_TYPE	PLUGIN_VERSION	PLUGIN_TYPE_VERSION
+ddl_rewriter	AUDIT	1.0	4.1
+include/sync_slave_sql_with_master.inc
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'ddl_rewriter';
+PLUGIN_NAME	PLUGIN_TYPE	PLUGIN_VERSION	PLUGIN_TYPE_VERSION
+#
+# Create tables.
+#
+CREATE SCHEMA mysqltest_ddl_rewriter;
+USE mysqltest_ddl_rewriter;
+CREATE TABLE t1(i int) DATA DIRECTORY = '/tmp';
+Warnings:
+Note	1105	Query 'CREATE TABLE t1(i int) DATA DIRECTORY = '/tmp'' rewritten to 'CREATE TABLE t1(i int) ' by a query rewrite plugin
+CREATE TABLE t2(i int) INDEX DIRECTORY = '/tmp';
+Warnings:
+Note	1105	Query 'CREATE TABLE t2(i int) INDEX DIRECTORY = '/tmp'' rewritten to 'CREATE TABLE t2(i int) ' by a query rewrite plugin
+CREATE TABLE t3(i int) ENCRYPTION = 'n';
+Warnings:
+Note	1105	Query 'CREATE TABLE t3(i int) ENCRYPTION = 'n'' rewritten to 'CREATE TABLE t3(i int) ' by a query rewrite plugin
+#
+# Tables on master.
+#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/sync_slave_sql_with_master.inc
+#
+# Tables on slave.
+#
+USE mysqltest_ddl_rewriter;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# Cleanup and uninstall plugin.
+#
+DROP SCHEMA mysqltest_ddl_rewriter;
+UNINSTALL PLUGIN ddl_rewriter;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,25 +1,33 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -42,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <debug_sync.h>
 #endif /* !UNIV_HOTBACKUP */
 
+#include "arch0arch.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "dict0boot.h"
@@ -369,7 +378,7 @@ void log_files_downgrade(log_t &log) {
 
 static lsn_t log_determine_checkpoint_lsn(log_t &log) {
   const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
-  const lsn_t dict_lsn = log.dict_suggest_checkpoint_lsn;
+  const lsn_t dict_lsn = log.dict_max_allowed_checkpoint_lsn;
 
   ut_a(dict_lsn == 0 || dict_lsn >= log.last_checkpoint_lsn);
 
@@ -457,6 +466,8 @@ void log_files_write_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
 
   log_update_limits(log);
 
+  log.dict_max_allowed_checkpoint_lsn = 0;
+
   log_writer_mutex_exit(log);
 }
 
@@ -466,6 +477,10 @@ static void log_checkpoint(log_t &log) {
   ut_ad(!srv_checkpoint_disabled);
 
   const lsn_t checkpoint_lsn = log_determine_checkpoint_lsn(log);
+
+  if (arch_page_sys != nullptr) {
+    arch_page_sys->flush_at_checkpoint(checkpoint_lsn);
+  }
 
   LOG_SYNC_POINT("log_before_checkpoint_data_flush");
 
@@ -862,6 +877,7 @@ static bool log_consider_checkpoint(log_t &log) {
   }
 
   log_checkpoint(log);
+
   return (true);
 }
 
@@ -1004,8 +1020,6 @@ void log_update_limits(log_t &log) {
     limit_for_start -= margins;
   }
   log.sn_limit_for_start.store(limit_for_start);
-
-  log.dict_suggest_checkpoint_lsn = 0;
 }
 
 bool log_calc_max_ages(log_t &log) {

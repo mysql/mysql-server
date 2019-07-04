@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "sql/dd/impl/types/parameter_impl.h"
 
 #include <stddef.h>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -47,6 +48,8 @@ using dd::tables::Parameters;
 
 namespace dd {
 
+static const std::set<String_type> default_valid_option_keys = {"geom_type"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Parameter_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -67,7 +70,7 @@ Parameter_impl::Parameter_impl()
       m_datetime_precision(0),
       m_datetime_precision_null(true),
       m_elements(),
-      m_options(new Properties_impl()),
+      m_options(default_valid_option_keys),
       m_routine(NULL),
       m_collation_id(INVALID_OBJECT_ID) {}
 
@@ -87,7 +90,7 @@ Parameter_impl::Parameter_impl(Routine_impl *routine)
       m_datetime_precision(0),
       m_datetime_precision_null(true),
       m_elements(),
-      m_options(new Properties_impl()),
+      m_options(default_valid_option_keys),
       m_routine(routine),
       m_collation_id(INVALID_OBJECT_ID) {}
 
@@ -98,18 +101,6 @@ const Routine &Parameter_impl::routine() const { return *m_routine; }
 
 Routine &Parameter_impl::routine() { return *m_routine; }
 /* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Parameter_impl::set_options_raw(const String_type &options_raw) {
-  Properties *properties = Properties_impl::parse_properties(options_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_options.reset(properties);
-  return false;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -194,7 +185,7 @@ bool Parameter_impl::restore_attributes(const Raw_record &r) {
 
   m_collation_id = r.read_ref_id(Parameters::FIELD_COLLATION_ID);
 
-  set_options_raw(r.read_str(Parameters::FIELD_OPTIONS, ""));
+  set_options(r.read_str(Parameters::FIELD_OPTIONS, ""));
 
   return false;
 }
@@ -221,7 +212,7 @@ bool Parameter_impl::store_attributes(Raw_record *r) {
          r->store(Parameters::FIELD_DATETIME_PRECISION, m_datetime_precision,
                   m_datetime_precision_null) ||
          r->store_ref_id(Parameters::FIELD_COLLATION_ID, m_collation_id) ||
-         r->store(Parameters::FIELD_OPTIONS, *m_options);
+         r->store(Parameters::FIELD_OPTIONS, m_options);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -248,7 +239,7 @@ void Parameter_impl::debug_print(String_type &outb) const {
      << "m_datetime_precision: " << m_datetime_precision << "; "
      << "m_datetime_precision_null: " << m_datetime_precision_null << "; "
      << "m_collation_id: {OID: " << m_collation_id << "}; "
-     << "m_options: " << m_options->raw_string() << "; ";
+     << "m_options: " << m_options.raw_string() << "; ";
 
   if (data_type() == enum_column_types::ENUM ||
       data_type() == enum_column_types::SET) {
@@ -303,7 +294,7 @@ Parameter_impl::Parameter_impl(const Parameter_impl &src, Routine_impl *parent)
       m_datetime_precision(src.m_datetime_precision),
       m_datetime_precision_null(src.m_datetime_precision_null),
       m_elements(),
-      m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
+      m_options(src.m_options),
       m_routine(parent),
       m_collation_id(src.m_collation_id) {
   m_elements.deep_copy(src.m_elements, this);

@@ -259,7 +259,8 @@ eval KILL $thread_id;
 # Reap
 --let $rpl_connection_name= con1
 --source include/rpl_connection.inc
---error 2013 # CR_SERVER_LOST
+# CR_SERVER_LOST
+--error 2013
 --reap
 
 --source include/rpl_connection_master.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Check_constraint;
 class Partition;
 class Table_impl;
 class Trigger;
@@ -47,6 +48,7 @@ class Table : virtual public Abstract_table {
   typedef std::vector<Foreign_key_parent *> Foreign_key_parent_collection;
   typedef Collection<Partition *> Partition_collection;
   typedef Collection<Trigger *> Trigger_collection;
+  typedef Collection<Check_constraint *> Check_constraint_collection;
 
   /*
     The type Partition_collection object 'own' the Partition* object. That
@@ -68,7 +70,7 @@ class Table : virtual public Abstract_table {
                              Object_id se_private_id);
 
  public:
-  virtual ~Table(){};
+  virtual ~Table() {}
 
  public:
   enum enum_row_format {
@@ -167,9 +169,8 @@ class Table : virtual public Abstract_table {
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(
-      const String_type &se_private_data_raw) = 0;
-  virtual void set_se_private_data(const Properties &se_private_data) = 0;
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data(const Properties &se_private_data) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_id.
@@ -307,8 +308,7 @@ class Table : virtual public Abstract_table {
   /**
     Copy all the triggers from another dd::Table object.
 
-    @param tab_obj* - Pointer to Table from which the triggers
-                      are copied.
+    @param tab_obj Pointer to Table from which the triggers are copied.
   */
 
   virtual void copy_triggers(const Table *tab_obj) = 0;
@@ -386,6 +386,16 @@ class Table : virtual public Abstract_table {
   */
 
   virtual void drop_all_triggers() = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Check constraint collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Check_constraint *add_check_constraint() = 0;
+
+  virtual const Check_constraint_collection &check_constraints() const = 0;
+
+  virtual Check_constraint_collection *check_constraints() = 0;
 
  public:
   /**

@@ -1,0 +1,238 @@
+# ==== Requirements ====
+#
+# R1. All forms of GRANT should be replicated with the syntax
+#     GRANT ... AS user WITH roles when --partial_revokes is set to ON.
+# R2. The effect of GRANT should be the same on slave as on master.
+# R3. The effect of GRANT should be the same when replaying mysqlbinlog
+#     as on master.
+#
+# ==== Implementation ====
+#
+# 1. Run several forms of GRANT statements on master.
+# 2. Replicate the changes to slave and check that the slave has the same
+#    grants as the master.
+# 3. Delete the users and grants on the slave, run mysqlbinlog on master,
+#    apply the output on slave, and check that the slave has the same grants
+#    as the master.
+#
+# ==== References ====
+#
+# WL#12820: Extend GRANT/REVOKE syntax to cover partial revokes information
+
+#
+# Setup
+#
+
+--source include/master-slave.inc
+
+#
+# Tests
+#
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $datadir= `SELECT @@datadir`
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Case 1: With --partial_revokes
+
+# 1.1 Make sure --partial_revokes is set to ON
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+SET @save_partial_revokes_master = @@global.partial_revokes;
+SET GLOBAL partial_revokes=ON;
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+SET @save_partial_revokes_slave = @@global.partial_revokes;
+SET GLOBAL partial_revokes=ON;
+
+
+# 1.2 Create accounts and perform grants/partial revokes
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+
+CREATE USER foo;
+CREATE ROLE r1, r2;
+GRANT INSERT ON *.* TO r1 WITH GRANT OPTION;
+REVOKE INSERT ON mysql.* FROM r1;
+GRANT SELECT ON *.* TO r2 WITH GRANT OPTION;
+REVOKE SELECT ON mysql.* FROM r2;
+GRANT r1, r2 TO foo;
+ALTER USER foo DEFAULT ROLE ALL;
+CREATE USER u1, u2, u3, u4, u5, u6, u7;
+
+
+# 1.3 Various cases for GRANT ... AS ... 
+GRANT INSERT, SELECT ON *.* TO u1 AS foo WITH ROLE r1, r2;
+GRANT INSERT, SELECT ON *.* TO u2 AS foo WITH ROLE ALL;
+GRANT INSERT, SELECT ON *.* TO u3 AS foo WITH ROLE ALL EXCEPT r1;
+GRANT INSERT, SELECT ON *.* TO u4 AS foo WITH ROLE DEFAULT;
+GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
+GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
+
+--connect(foo_conn, localhost, foo,,,$MASTER_MYPORT)
+
+GRANT INSERT, SELECT ON *.* TO u7;
+
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+--disconnect foo_conn
+
+
+# 1.4 Verify that both - master and slave has consistent grants
+# Sync it with slave
+--sync_slave_with_master
+
+--let $user_number = 1
+while ($user_number <= 7) {
+  --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
+  --source include/rpl_diff.inc
+  --inc $user_number
+}
+
+# 1.5 Stop slave -> drop users -> apply binary log -> start slave -> verify
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+--source include/stop_slave.inc
+
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+RESET MASTER;
+RESET SLAVE;
+
+--exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+--source include/start_slave.inc
+
+# Verification
+--let $user_number = 1
+while ($user_number <= 7) {
+  --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
+  --source include/rpl_diff.inc
+  --inc $user_number
+}
+
+
+# 1.6 Case 1 Cleanup
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+
+# Sync it with slave
+--sync_slave_with_master
+
+# 1.6.1 Restore original value of partial_revokes
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+SET @@global.partial_revokes = @save_partial_revokes_master;
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+SET @@global.partial_revokes = @save_partial_revokes_slave;
+
+# 1.6.2 Reset master and slave - because we need a clean slate
+--source include/rpl_reset.inc
+
+--echo # Case 2: Without --partial_revokes
+
+# 2.1 Make sure --partial_revokes is set to OFF
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+SET @save_partial_revokes_master = @@global.partial_revokes;
+SET GLOBAL partial_revokes=OFF;
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+SET @save_partial_revokes_slave = @@global.partial_revokes;
+SET GLOBAL partial_revokes=OFF;
+
+
+# 2.2 Create accounts and perform grants/partial revokes
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+
+CREATE USER foo;
+CREATE ROLE r1, r2;
+GRANT INSERT ON *.* TO r1 WITH GRANT OPTION;
+GRANT SELECT ON *.* TO r2 WITH GRANT OPTION;
+GRANT r1, r2 TO foo;
+ALTER USER foo DEFAULT ROLE ALL;
+CREATE USER u1, u2, u3, u4, u5, u6, u7;
+
+
+# 2.3 Various cases for GRANT ... AS ... 
+GRANT INSERT, SELECT ON *.* TO u1 AS foo WITH ROLE r1, r2;
+GRANT INSERT, SELECT ON *.* TO u2 AS foo WITH ROLE ALL;
+GRANT INSERT, SELECT ON *.* TO u3 AS foo WITH ROLE ALL EXCEPT r1;
+GRANT INSERT, SELECT ON *.* TO u4 AS foo WITH ROLE DEFAULT;
+GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
+GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
+
+--connect(foo_conn, localhost, foo,,,$MASTER_MYPORT)
+
+GRANT INSERT, SELECT ON *.* TO u7;
+
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+--disconnect foo_conn
+
+# 2.4 Verify that both - master and slave has consistent grants
+# Sync it with slave
+--sync_slave_with_master
+
+--let $user_number = 1
+while ($user_number <= 7) {
+  --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
+  --source include/rpl_diff.inc
+  --inc $user_number
+}
+
+
+# 2.5 Stop slave -> drop users -> apply binary log -> start slave -> verify
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+--source include/stop_slave.inc
+
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+RESET MASTER;
+RESET SLAVE;
+
+--exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+--source include/start_slave.inc
+
+# Verification
+--let $user_number = 1
+while ($user_number <= 7) {
+  --let $rpl_diff_statement = SHOW GRANTS FOR u$user_number
+  --source include/rpl_diff.inc
+  --inc $user_number
+}
+
+# 2.6 Case 2 Cleanup
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+
+# 2.6.1 Restore original value of partial_revokes
+--let $rpl_connection_name = master
+--source include/rpl_connection.inc
+SET @@global.partial_revokes = @save_partial_revokes_master;
+--let $rpl_connection_name = slave
+--source include/rpl_connection.inc
+SET @@global.partial_revokes = @save_partial_revokes_slave;
+
+
+#
+# cleanup
+#
+
+--source include/rpl_end.inc

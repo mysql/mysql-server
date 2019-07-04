@@ -107,8 +107,6 @@ static struct my_option my_connection_options[] = {
     /* End token */
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
-bool find_temporary_password(char **p);
-
 static void usage() {
   print_version();
   fprintf(stdout, ORACLE_WELCOME_COPYRIGHT_NOTICE("2013"));
@@ -559,23 +557,11 @@ static int get_opt_user_password() {
       password = 0;
       mysql_close(con);
     } else {
-      /*
-        No password is provided and we cannot connect with a blank password.
-        Assume there is an ongoing deployment running and attempt to locate
-        the temporary password file.
-      */
-      char *temp_pass;
-      if (find_temporary_password(&temp_pass) == true) {
-        my_free(password);
-        password = temp_pass;
-        using_temporary_password = true;
-      } else {
-        char prompt[128];
-        snprintf(prompt, sizeof(prompt) - 1,
-                 "Enter password for user %s: ", opt_user);
-        // Request password from user
-        password = get_tty_password(prompt);
-      }
+      char prompt[128];
+      snprintf(prompt, sizeof(prompt) - 1,
+               "Enter password for user %s: ", opt_user);
+      // Request password from user
+      password = get_tty_password(prompt);
     }
     init_connection_options(&mysql);
   }  // if !password_provided
@@ -763,63 +749,6 @@ static void reload_privilege_tables() {
     execute_query_with_message((const char *)"FLUSH PRIVILEGES", NULL);
   } else
     fprintf(stdout, "\n ... skipping.\n");
-}
-
-/**
-  Attempt to retrieve a password from the temporary password file
-  '.mysql_secret'.
- @param [out] p A pointer to a password in a newly allocated buffer or null
- @returns true if the password was successfully retrieved.
-*/
-
-bool find_temporary_password(char **p) {
-  const char *root_path = "/root";
-  const char *password_file_name = "/.mysql_secret";
-  *p = NULL;
-  const char *home = getenv("HOME");
-  if (home == NULL) home = root_path;
-
-  size_t home_len = strlen(home);
-  size_t path_len = home_len + strlen(password_file_name) + 1;
-  char *path = (char *)malloc(path_len);
-  memset(path, 0, path_len);
-
-  strcat(path, home);
-  strcat(path, password_file_name);
-  FILE *fp = fopen(path, "r");
-  if (fp == NULL) {
-    free(path);
-    return false;
-  }
-
-  /*
-    The format of the password file is
-    ['#'][bytes]['\n']['password bytes']['\n']|[EOF])
-  */
-  char header[256];
-  char password[64];
-  size_t password_len = 0;
-  /* Read header and skip it */
-  if (fgets(&header[0], sizeof(header), fp) == NULL || header[0] != '#')
-    goto error;
-
-  /* Read password */
-  if (fgets(&password[0], sizeof(password), fp) == NULL) goto error;
-
-  /* Remove terminating newline character if it exists */
-  password_len = strlen(&password[0]);
-  if (password[password_len - 1] == '\n') password[password_len - 1] = '\0';
-
-  *p = my_strdup(PSI_NOT_INSTRUMENTED, &password[0], MYF(MY_FAE));
-  fprintf(stdout, "Connecting to MySQL server using password in '%s'\n", path);
-
-  free(path);
-  return true;
-
-error:
-  fprintf(stdout, "The password file '%s' is corrupt! Skipping.\n", path);
-  if (path) free(path);
-  return false;
 }
 
 int main(int argc, char *argv[]) {

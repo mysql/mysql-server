@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -370,8 +370,9 @@ class Sql_service_command_interface {
     @param [in] timeout        The timeout after which the method should break
 
     @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error when executed or timeout.
+      @retval 0    OK
+      @retval -1   Timeout on the GTID wait
+      @retval 1    Error when executed
   */
   long wait_for_server_gtid_executed(std::string &gtid_executed,
                                      int timeout = 0);

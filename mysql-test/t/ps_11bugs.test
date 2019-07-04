@@ -215,3 +215,36 @@ SELECT LEFT("12345", @@ft_boolean_syntax);
 SET @@sort_buffer_size=DEFAULT;
 
 --echo End of 5.0 tests.
+
+--echo #
+--echo # Bug#29387041: "SET PASSWORD FOR... " in PS throws error 1295
+--echo #
+
+CREATE USER test_user1@'localhost';
+
+# valid user, value password, both prepare and execute should succeed
+PREPARE stmt FROM "SET PASSWORD FOR test_user1@'localhost' = 'SoSecret'";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+# invalid user, should fail
+--error ER_PARSE_ERROR
+SET PASSWORD FOR @'localhost' = 'SoSecret';
+--error ER_PARSE_ERROR
+PREPARE stmt FROM "SET PASSWORD FOR @'localhost' = 'SoSecret'";
+
+# invalid value, should fail
+--error ER_PARSE_ERROR
+SET PASSWORD FOR test_user1@'localhost' = NULL;
+--error ER_PARSE_ERROR
+PREPARE stmt FROM "SET PASSWORD FOR test_user1@'localhost' = NULL";
+
+# user does not exist, prepare should pass, execute should fail
+PREPARE stmt FROM "SET PASSWORD FOR test_user2@'localhost' = 'SoSecret'";
+--error ER_PASSWORD_NO_MATCH
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP USER test_user1@'localhost';
+
+--echo End of 8.0 tests.

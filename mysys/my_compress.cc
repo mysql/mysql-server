@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
 /**
   @file mysys/my_compress.cc
@@ -82,7 +80,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen) {
     return 0; /* Not enough memory */
 
   tmp_complen = (uint)*complen;
-  res = compress((Bytef *)compbuf, &tmp_complen, (Bytef *)packet, (uLong)*len);
+  res = compress(compbuf, &tmp_complen, packet, static_cast<uLong>(*len));
   *complen = tmp_complen;
 
   if (res != Z_OK) {
@@ -129,8 +127,7 @@ bool my_uncompress(uchar *packet, size_t len, size_t *complen) {
     if (!compbuf) DBUG_RETURN(1); /* Not enough memory */
 
     tmp_complen = (uint)*complen;
-    error =
-        uncompress((Bytef *)compbuf, &tmp_complen, (Bytef *)packet, (uLong)len);
+    error = uncompress(compbuf, &tmp_complen, packet, (uLong)len);
     *complen = tmp_complen;
     if (error != Z_OK) { /* Probably wrong packet */
       DBUG_PRINT("error", ("Can't uncompress packet, error: %d", error));

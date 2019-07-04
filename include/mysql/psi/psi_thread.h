@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,16 +41,23 @@
 /**
   @def PSI_THREAD_VERSION_1
   Performance Schema Thread Interface number for version 1.
-  This version is supported.
+  This version is obsolete.
 */
 #define PSI_THREAD_VERSION_1 1
 
 /**
+  @def PSI_THREAD_VERSION_2
+  Performance Schema Thread Interface number for version 2.
+  This version is supported.
+*/
+#define PSI_THREAD_VERSION_2 2
+
+/**
   @def PSI_CURRENT_THREAD_VERSION
   Performance Schema Thread Interface number for the most recent version.
-  The most current version is @c PSI_THREAD_VERSION_1
+  The most current version is @c PSI_THREAD_VERSION_2
 */
-#define PSI_CURRENT_THREAD_VERSION 1
+#define PSI_CURRENT_THREAD_VERSION 2
 
 /** Entry point for the performance schema interface. */
 struct PSI_thread_bootstrap {
@@ -59,6 +66,7 @@ struct PSI_thread_bootstrap {
     Calling this method with an interface version number returns either
     an instance of the ABI for this version, or NULL.
     @sa PSI_THREAD_VERSION_1
+    @sa PSI_THREAD_VERSION_2
     @sa PSI_CURRENT_THREAD_VERSION
   */
   void *(*get_interface)(int version);
@@ -68,10 +76,10 @@ typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 #ifdef HAVE_PSI_THREAD_INTERFACE
 
 /**
-  Performance Schema Thread Interface, version 1.
-  @since PSI_IDLE_VERSION_1
+  Performance Schema Thread Interface, version 2.
+  @since PSI_THREAD_VERSION_2
 */
-struct PSI_thread_service_v1 {
+struct PSI_thread_service_v2 {
   /** @sa register_thread_v1_t. */
   register_thread_v1_t register_thread;
   /** @sa spawn_thread_v1_t. */
@@ -80,6 +88,12 @@ struct PSI_thread_service_v1 {
   new_thread_v1_t new_thread;
   /** @sa set_thread_id_v1_t. */
   set_thread_id_v1_t set_thread_id;
+  /** @sa get_current_thread_internal_id_v2_t. */
+  get_current_thread_internal_id_v2_t get_current_thread_internal_id;
+  /** @sa get_thread_internal_id_v2_t. */
+  get_thread_internal_id_v2_t get_thread_internal_id;
+  /** @sa get_thread_by_id_v2_t. */
+  get_thread_by_id_v2_t get_thread_by_id;
   /** @sa set_thread_THD_v1_t. */
   set_thread_THD_v1_t set_thread_THD;
   /** @sa set_thread_os_id_v1_t. */
@@ -98,8 +112,6 @@ struct PSI_thread_service_v1 {
   set_connection_type_v1_t set_connection_type;
   /** @sa set_thread_start_time_v1_t. */
   set_thread_start_time_v1_t set_thread_start_time;
-  /** @sa set_thread_state_v1_t. */
-  set_thread_state_v1_t set_thread_state;
   /** @sa set_thread_info_v1_t. */
   set_thread_info_v1_t set_thread_info;
   /** @sa set_thread_resource_group_v1_t. */
@@ -108,14 +120,18 @@ struct PSI_thread_service_v1 {
   set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
+  /** @sa aggregate_thread_status_v1_t. */
+  aggregate_thread_status_v2_t aggregate_thread_status;
   /** @sa delete_current_thread_v1_t. */
   delete_current_thread_v1_t delete_current_thread;
   /** @sa delete_thread_v1_t. */
   delete_thread_v1_t delete_thread;
   /** @sa set_thread_connect_attrs_v1_t. */
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
-  /** @sa get_thread_event_id_v1_t. */
-  get_thread_event_id_v1_t get_thread_event_id;
+  /** @sa get_current_thread_event_id_v2_t. */
+  get_current_thread_event_id_v2_t get_current_thread_event_id;
+  /** @sa get_thread_event_id_v2_t. */
+  get_thread_event_id_v2_t get_thread_event_id;
   /** @sa get_thread_system_attrs_v1_t. */
   get_thread_system_attrs_v1_t get_thread_system_attrs;
   /** @sa get_thread_system_attrs_by_id_v1_t. */
@@ -132,7 +148,7 @@ struct PSI_thread_service_v1 {
   notify_session_change_user_v1_t notify_session_change_user;
 };
 
-typedef struct PSI_thread_service_v1 PSI_thread_service_t;
+typedef struct PSI_thread_service_v2 PSI_thread_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_thread_service_t *psi_thread_service;
 

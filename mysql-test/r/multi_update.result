@@ -647,13 +647,14 @@ set @@optimizer_switch=@optimizer_switch_saved;
 #
 set @optimizer_switch_saved=@@optimizer_switch;
 set optimizer_switch='derived_merge=off';
-CREATE FUNCTION f1 () RETURNS BLOB RETURN 1;
+CREATE FUNCTION f1 () RETURNS BLOB RETURN '2011-01-01';
 CREATE TABLE t1 (f1 DATE);
 INSERT INTO t1 VALUES('2001-01-01');
-UPDATE IGNORE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
-Warnings:
-Warning	1292	Incorrect date value: '1' for column 'f1' at row 2
+UPDATE IGNORE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = '2011-01-01';
 DROP FUNCTION f1;
+DROP TABLE t1;
+CREATE TABLE t1(a TEXT, FULLTEXT(a)) engine = blackhole;
+UPDATE IGNORE (SELECT 1 FROM t1 WHERE(MATCH(a) AGAINST(''))) `x`,`t1` SET a = 1;
 DROP TABLE t1;
 set @@optimizer_switch=@optimizer_switch_saved;
 # Bug#13256831 - ERROR 1032 (HY000): CAN'T FIND RECORD

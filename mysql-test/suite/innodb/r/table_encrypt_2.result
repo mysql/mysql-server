@@ -109,7 +109,7 @@ c1	c2
 3	NULL
 # Mysqldump output
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `tde_db`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -155,10 +155,10 @@ FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME like '%encrypted%'
   ORDER BY TABLE_NAME;
 TABLE_SCHEMA	TABLE_NAME	CREATE_OPTIONS
-test	encrypted1	ENCRYPTION="y"
-test	encrypted2	ENCRYPTION="Y"
-test	not_encrypted1	ENCRYPTION="n"
-test	not_encrypted2	ENCRYPTION="N"
+test	encrypted1	ENCRYPTION='y'
+test	encrypted2	ENCRYPTION='Y'
+test	not_encrypted1	
+test	not_encrypted2	
 DROP TABLE encrypted1;
 DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;

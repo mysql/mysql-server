@@ -24,6 +24,7 @@
 
 #include "Trix.hpp"
 
+#include <cstring>
 #include <string.h>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
@@ -351,11 +352,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index2 -T; index2 -I -n10000; index2 -c
     // all dump 300 0 0 0 0 0 4 2
     // select_count INDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[1] = {1};
@@ -376,11 +377,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index2 -T; index2 -I -n10000; index2 -c -p
     // all dump 301 0 0 0 0 0 4 2
     // select_count INDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[2] = {0, 1};
@@ -401,11 +402,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T; index -I -n1000; index -c -p
     // all dump 302 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -426,11 +427,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T -2; index -I -2 -n1000; index -c -p
     // all dump 303 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -451,11 +452,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T -L; index -I -L -n1000; index -c -p
     // all dump 304 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -476,11 +477,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T -2 -L; index -I -2 -L -n1000; index -c -p
     // all dump 305 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -545,14 +546,16 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
         c_theAttrOrderBufferPool.getSize(),
         c_theAttrOrderBufferPool.getEntrySize(),
         c_theAttrOrderBufferPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Subscription Record",
         c_theSubscriptionRecPool.getUsed(),
         c_theSubscriptionRecPool.getSize(),
         c_theSubscriptionRecPool.getEntrySize(),
         c_theSubscriptionRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { NULL, 0,0,0,0,{0,0,0,0}}
+        { 0,0,0,0 },
+        0},
+      { NULL, 0,0,0,0,{0,0,0,0},0}
     };
 
     const size_t num_config_params =
@@ -573,6 +576,8 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -934,7 +939,8 @@ void Trix::execSUB_SYNC_REF(Signal* signal)
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
-  buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
+  buildFailed(signal, subRecPtr,
+              (BuildIndxRef::ErrorCode)subSyncRef->errorCode);
   DBUG_VOID_RETURN;
 }
 
@@ -2732,7 +2738,8 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   ndbrequire(ah[3].getAttributeId() == 3 && kz != 0);
 
   // AFTER_VALUES
-  const Uint32 avmax = 3 + MAX_INDEX_STAT_KEY_SIZE;
+  // avmax = other pk attributes + length + max index stat key size
+  const Uint32 avmax = 3 + 1 + MAX_INDEX_STAT_KEY_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
   handle.getSection(ptr1, SubTableData::AFTER_VALUES);
@@ -2907,7 +2914,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   ndbrequire(kz != 0 && vz != 0);
 
   // AFTER_VALUES
-  const Uint32 avmax = MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
+  // avmax = length + max key size + length + max value size
+  const Uint32 avmax = 2 + MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
   handle.getSection(ptr1, SubTableData::AFTER_VALUES);

@@ -29,9 +29,9 @@
 #include "m_string.h"
 #include "my_command.h"
 #include "mysql/plugin_audit.h"
-#include "sql/auth/sql_security_ctx.h"  // Security_context
 
 class THD;
+class Security_context;
 struct TABLE_LIST;
 
 static const size_t MAX_USER_HOST_SIZE = 512;
@@ -44,19 +44,7 @@ static const size_t MAX_USER_HOST_SIZE = 512;
 bool is_audit_plugin_class_active(THD *thd, unsigned long event_class);
 bool is_global_audit_mask_set();
 
-static inline size_t make_user_name(Security_context *sctx, char *buf) {
-  LEX_CSTRING sctx_user = sctx->user();
-  LEX_CSTRING sctx_host = sctx->host();
-  LEX_CSTRING sctx_ip = sctx->ip();
-  LEX_CSTRING sctx_priv_user = sctx->priv_user();
-  return static_cast<size_t>(
-      strxnmov(buf, MAX_USER_HOST_SIZE,
-               sctx_priv_user.str[0] ? sctx_priv_user.str : "", "[",
-               sctx_user.length ? sctx_user.str : "", "] @ ",
-               sctx_host.length ? sctx_host.str : "", " [",
-               sctx_ip.length ? sctx_ip.str : "", "]", NullS) -
-      buf);
-}
+size_t make_user_name(Security_context *sctx, char *buf);
 
 struct st_plugin_int;
 
@@ -308,5 +296,30 @@ int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
                        const char *host, const char *authentication_plugin,
                        bool is_role, const char *new_user,
                        const char *new_host);
+
+/**
+  Call audit plugins of MESSAGE audit class.
+
+  @param[in] thd                  Current thread data.
+  @param[in] subclass             Message class subclass name.
+  @param[in] subclass_name        Subclass name length.
+  @param[in] component            Component name.
+  @param[in] component_length     Component name length.
+  @param[in] producer             Producer name.
+  @param[in] producer_length      Producer name length.
+  @param[in] message              Message text.
+  @param[in] message_length       Message text length.
+  @param[in] key_value_map        Key value map pointer.
+  @param[in] key_value_map_length Key value map length.
+
+  @return 0 continue server flow.
+*/
+int mysql_audit_notify(THD *thd, mysql_event_message_subclass_t subclass,
+                       const char *subclass_name, const char *component,
+                       size_t component_length, const char *producer,
+                       size_t producer_length, const char *message,
+                       size_t message_length,
+                       mysql_event_message_key_value_t *key_value_map,
+                       size_t key_value_map_length);
 
 #endif /* SQL_AUDIT_INCLUDED */

@@ -1,0 +1,158 @@
+
+--echo # This file contains test cases to validate the behavior of system
+--echo # variable 'table_encryption_privilege_check' with various
+--echo # permissions a user --echo # can have.
+
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # VARIABLE USED BY NORMAL USER.
+--echo #
+
+--echo #
+--echo # SET table_encryption_privilege_check
+--echo #
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION table_encryption_privilege_check=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL table_encryption_privilege_check=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST table_encryption_privilege_check=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY table_encryption_privilege_check=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH TABLE_ENCRYPTION_ADMIN privilege.
+--echo #
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET table_encryption_privilege_check
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL table_encryption_privilege_check=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST table_encryption_privilege_check=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY table_encryption_privilege_check=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH SYSTEM_VARIABLES_ADMIN privilege.
+--echo #
+
+connection default;
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET table_encryption_privilege_check
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL table_encryption_privilege_check=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST table_encryption_privilege_check=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY table_encryption_privilege_check=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH BOTH TABLE_ENCRYPTION_ADMIN and 
+--echo # SYSTEM_VARIABLES_ADMIN privilege.
+--echo #
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET table_encryption_privilege_check
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL table_encryption_privilege_check=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST table_encryption_privilege_check=true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY table_encryption_privilege_check=true;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH PERSIST_RO_VARIABLES_ADMIN,
+--echo # TABLE_ENCRYPTION_ADMIN && SYSTEM_VARIABLES_ADMIN privilege.
+--echo #
+
+connection default;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET table_encryption_privilege_check
+--echo #
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL table_encryption_privilege_check=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST table_encryption_privilege_check=true;
+
+SET PERSIST_ONLY table_encryption_privilege_check=true;
+SELECT @@global.table_encryption_privilege_check = false;
+
+--echo #
+--echo # VARIABLE USED BY USER WITH SUPER privilege.
+--echo #
+
+connection default;
+disconnect con1;
+REVOKE TABLE_ENCRYPTION_ADMIN, SYSTEM_VARIABLES_ADMIN,
+       PERSIST_RO_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SUPER ON *.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # SET table_encryption_privilege_check
+--echo #
+
+SET GLOBAL table_encryption_privilege_check=false;
+SELECT @@global.table_encryption_privilege_check = false;
+
+SET PERSIST table_encryption_privilege_check=true;
+SELECT @@global.table_encryption_privilege_check = true;
+
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY table_encryption_privilege_check=true;
+
+connection default;
+disconnect con1;
+REVOKE SUPER ON *.* FROM u1@localhost;
+DROP USER u1@localhost;
+RESET PERSIST;
+SET GLOBAL table_encryption_privilege_check=default;

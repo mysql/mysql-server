@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,9 @@
 
 #include <mysqld_error.h>
 
-#include "sql/dd/impl/bootstrap_ctx.h"            // DD_bootstrap_ctx
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 #include "sql/dd/impl/types/object_table_impl.h"  // Object_table_impl
+#include "sql/table.h"
 
 namespace dd {
 
@@ -64,7 +65,7 @@ int Object_table_impl::field_number(int target_field_number,
     for minor downgrade, we use the target field number directly since
     only extensions are allowed.
   */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade())
     return m_actual_def.field_number(field_label);
   return target_field_number;
 }
@@ -75,7 +76,7 @@ int Object_table_impl::field_number(const String_type &field_label) const {
     the actual definition. Otherwise, we get the position from the
     the target definition.
   */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade())
     return m_actual_def.field_number(field_label);
   return m_target_def.field_number(field_label);
 }

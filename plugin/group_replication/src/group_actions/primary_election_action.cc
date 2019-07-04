@@ -25,6 +25,7 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/server_ongoing_transactions_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "template_utils.h"
 
 Primary_election_action::Primary_election_action()
     : Primary_election_action(std::string(""), 0) {}
@@ -494,6 +495,7 @@ int Primary_election_action::after_view_change(
       }
       /* purecov: end */
     }
+    delete_container_pointers(*all_members_info);
     delete all_members_info;
 
     mysql_mutex_unlock(&phase_lock);
@@ -511,7 +513,7 @@ int Primary_election_action::after_view_change(
 
     Note 1: We pass election params instead of invoking them because of the hook
     mechanism that is invoking this method and is also used in the invoked
-    methods.
+    election methods.
   */
   if (current_action_phase == PRIMARY_ELECTION_PHASE) {
     Group_member_info *member_info =
@@ -548,13 +550,11 @@ int Primary_election_action::after_view_change(
           There was a failure when moving from multi master
           Question is: what is the state of the other members, are the members
           already on read mode, or are they still executing transactions?
-          For that reason, we skip the election invoked on the view change and
-          request a new election here with the original parameters.
+          For that reason, we request a new election here with the original
+          parameters.
 
           Note: since several primary members can fail in sequence, the same
-          logic applies over and over. For that reason we don't check
-          is_appointed_primary_leaving but instead we see if the group contains
-          a primary member, if not we request a new election.
+          logic applies over and over.
         */
         execution_message_area.set_warning_message(
             "The appointed primary being elected exited the group. "
@@ -632,8 +632,8 @@ int Primary_election_action::before_message_handling(
   Plugin_gcs_message::enum_cargo_type message_type = message.get_cargo_type();
 
   if (Plugin_gcs_message::CT_SINGLE_PRIMARY_MESSAGE == message_type) {
-    const Single_primary_message single_primary_message =
-        (const Single_primary_message &)message;
+    const Single_primary_message &single_primary_message =
+        down_cast<const Single_primary_message &>(message);
     Single_primary_message::Single_primary_message_type
         single_primary_msg_type =
             single_primary_message.get_single_primary_message_type();

@@ -7,10 +7,11 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications copyright (c) 2000, 2016. Oracle and/or its affiliates.
+  Modifications copyright (c) 2000, 2019. Oracle and/or its affiliates.
   All rights reserved.
 */
 #include "nt_servc.h"
+
 #include <process.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +65,7 @@ NTService::~NTService() {
 
  -------------------------------------------------------------------------- */
 
-BOOL NTService::GetOS() {
+BOOL NTService::GetOS() noexcept {
   bOsNT = FALSE;
   memset(&osVer, 0, sizeof(OSVERSIONINFO));
   osVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
@@ -85,7 +86,7 @@ BOOL NTService::GetOS() {
 */
 
 long NTService::Init(LPCSTR szInternName, void *ServiceThread,
-                     void (*fpReqAppShutdownCb)()) {
+                     void (*fpReqAppShutdownCb)()) noexcept {
   pService = this;
 
   fpRequestApplicationShutdownCallback = fpReqAppShutdownCb;
@@ -112,7 +113,7 @@ long NTService::Init(LPCSTR szInternName, void *ServiceThread,
 
 BOOL NTService::Install(int startType, LPCSTR szInternName,
                         LPCSTR szDisplayName, LPCSTR szFullPath,
-                        LPCSTR szAccountName, LPCSTR szPassword) {
+                        LPCSTR szAccountName, LPCSTR szPassword) noexcept {
   BOOL ret_val = FALSE;
   SC_HANDLE newService, scm;
 
@@ -174,7 +175,7 @@ BOOL NTService::Remove(LPCSTR szInternName) {
   } else {
     if ((service = OpenService(scm, szInternName, DELETE))) {
       if (!DeleteService(service))
-        printf("Failed to remove the service (code %i)\n", GetLastError());
+        printf("Failed to remove the service (code %lu)\n", GetLastError());
       else {
         printf("Service successfully removed.\n");
         ret_value = TRUE;  // everything went ok
@@ -441,14 +442,22 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType) {
 
   return ret_value;
 }
-/* ------------------------------------------------------------------------
- -------------------------------------------------------------------------- */
-BOOL NTService::IsService(LPCSTR ServiceName) {
+
+/**
+ * @brief Checks if service named `service_name` exists
+ *
+ * @param service_name Name of the service
+ * @return true if service exists, false otherwise
+ *
+ * @note It could also return false if opening Service Control Manager failed
+ *       for some reason.
+ */
+/*static*/ BOOL NTService::IsService(LPCSTR service_name) noexcept {
   BOOL ret_value = FALSE;
   SC_HANDLE service, scm;
 
   if ((scm = OpenSCManager(0, 0, SC_MANAGER_ENUMERATE_SERVICE))) {
-    if ((service = OpenService(scm, ServiceName, SERVICE_QUERY_STATUS))) {
+    if ((service = OpenService(scm, service_name, SERVICE_QUERY_STATUS))) {
       ret_value = TRUE;
       CloseServiceHandle(service);
     }

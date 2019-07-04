@@ -10,8 +10,8 @@ insert into test.t1 values (1,1), (2,2);
 A separate delete.
 delete from test.t1 where a=2;
 txt
-### Extra row data format: 0, len: 4 :0x0200FAFA
-### Extra row data format: 0, len: 4 :0x0200FAFA
+### Extra row ndb info: data_format: 0, len: 4, data: 0x0200FAFA
+### Extra row ndb info: data_format: 0, len: 4, data: 0x0200FAFA
 set global debug='';
 delete from test.t1;
 reset master;
@@ -24,8 +24,8 @@ insert into test.t1 values (1,1), (2,2);
 A separate delete.
 delete from test.t1 where a=2;
 txt
-### Extra row data format: 0, len: 4 :0x02000100
-### Extra row data format: 0, len: 4 :0x02000100
+### Extra row ndb info: data_format: 0, len: 4, data: 0x02000100
+### Extra row ndb info: data_format: 0, len: 4, data: 0x02000100
 set global debug='';
 delete from test.t1;
 reset master;
@@ -38,7 +38,7 @@ insert into test.t1 values (1,1), (2,2);
 A separate delete.
 delete from test.t1 where a=2;
 txt
-### Extra row data format: 0, len: 4 :0x02000200
-### Extra row data format: 0, len: 4 :0x02000200
+### Extra row ndb info: data_format: 0, len: 4, data: 0x02000200
+### Extra row ndb info: data_format: 0, len: 4, data: 0x02000200
 set global debug='';
 drop table t1;

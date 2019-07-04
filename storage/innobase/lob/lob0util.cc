@@ -201,4 +201,4 @@ dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
   return (DB_SUCCESS);
 }
 
-}; /* namespace lob */
+} /* namespace lob */

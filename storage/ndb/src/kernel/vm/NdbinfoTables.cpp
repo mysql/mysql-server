@@ -69,8 +69,8 @@ DECLARE_NDBINFO_TABLE(TEST,5) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(POOLS,12) =
-{ { "pools", 12, 0, "pool usage" },
+DECLARE_NDBINFO_TABLE(POOLS,14) =
+{ { "pools", 14, 0, "pool usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
@@ -84,7 +84,9 @@ DECLARE_NDBINFO_TABLE(POOLS,12) =
     {"config_param1",      Ndbinfo::Number, "config param 1 affecting pool"},
     {"config_param2",      Ndbinfo::Number, "config param 2 affecting pool"},
     {"config_param3",      Ndbinfo::Number, "config param 3 affecting pool"},
-    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"}
+    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"},
+    {"resource_id",        Ndbinfo::Number, ""},
+    {"type_id",            Ndbinfo::Number, "Record type id within resource"}
   }
 };
 

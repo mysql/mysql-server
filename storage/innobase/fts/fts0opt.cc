@@ -1996,7 +1996,7 @@ func_exit:
 
 /** Copy the deleted doc ids that will be purged during this optimize run
  to the being deleted FTS auxiliary tables. The transaction is committed
- upon successfull copy and rolled back on DB_DUPLICATE_KEY error.
+ upon successful copy and rolled back on DB_DUPLICATE_KEY error.
  @return DB_SUCCESS if all OK */
 static ulint fts_optimize_being_deleted_count(
     fts_optimize_t *optim) /*!< in: optimize instance */
@@ -2011,7 +2011,7 @@ static ulint fts_optimize_being_deleted_count(
 
 /** Copy the deleted doc ids that will be purged during this optimize run
  to the being deleted FTS auxiliary tables. The transaction is committed
- upon successfull copy and rolled back on DB_DUPLICATE_KEY error.
+ upon successful copy and rolled back on DB_DUPLICATE_KEY error.
  @return DB_SUCCESS if all OK */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     fts_optimize_create_deleted_doc_id_snapshot(

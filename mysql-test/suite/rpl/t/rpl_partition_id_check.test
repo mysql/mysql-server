@@ -1,0 +1,209 @@
+# ==== Purpose ====
+#
+# WL#12168 adds partition information to binary log when INSERT/UPDATE/DELETE
+# operations are performed on a partitioned table.
+# The test performs INSERT/UPDATE/DELETE through transactions, functions,
+# procedures, triggers and verifies that partition information is correctly
+# written into binary log every time.
+#
+# ==== Implementation ====
+#
+# 1) Perform INSERT, UPDATE, DELETE operations on partitioned table through
+#    FUNCTIONS. Verify partition information in binary log
+# 2) Perform INSERT, UPDATE, DELETE operations on partitioned table through
+#    PROCEDURES. Verify partition information in binary log
+# 3) Perform INSERT, UPDATE, DELETE operations on partitioned table through
+#    TRIGGERS. Verify partition information in binary log
+# 4) Perform INSERT, UPDATE, DELETE operations on partitioned table through
+#    transactions. Verify partition information in binary log
+#    Also, verify Table_map and event_type for transactions involving
+#    single, multiple and no partitions
+# 5) Sync with slave and check if all the tables are replicated correctly
+# 6) Clean up
+#
+# ==== References ====
+#
+# WL#12168:Add Partition Information into the Binary Log
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--let $gtid_event= !Gtid_or_anon
+
+# Test partition information with Functions
+CREATE TABLE func(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (25), PARTITION P1 VALUES LESS THAN (50));
+DELIMITER //;
+CREATE FUNCTION insert_data() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO func VALUES (100, 36);
+RETURN (SELECT COUNT(*) FROM func);
+END//
+CREATE FUNCTION update_data() RETURNS INT DETERMINISTIC
+BEGIN
+UPDATE func SET age=age-12 WHERE id=100;
+RETURN (SELECT COUNT(*) FROM func);
+END//
+CREATE FUNCTION delete_data() RETURNS INT DETERMINISTIC
+BEGIN
+DELETE FROM func WHERE id=100;
+RETURN (SELECT COUNT(*) FROM func);
+END//
+DELIMITER ;//
+--source include/save_binlog_position.inc
+BEGIN; SELECT insert_data(); COMMIT;
+--let $expected_partition_id = 1
+--source suite/rpl/include/rpl_partition_info.inc
+BEGIN; SELECT update_data(); COMMIT;
+--let $partition_id= 1 0
+--source suite/rpl/include/rpl_partition_info_update.inc
+BEGIN; SELECT delete_data(); COMMIT;
+--let $expected_partition_id = 0
+--source suite/rpl/include/rpl_partition_info.inc
+
+# Test partition information with Procedures
+CREATE TABLE proc(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (35), PARTITION P1 VALUES LESS THAN (60));
+DELIMITER //;
+CREATE PROCEDURE insert_data()
+BEGIN
+INSERT INTO proc VALUES (100, 30);
+END//
+CREATE PROCEDURE update_data()
+BEGIN
+UPDATE proc SET age=age+10 WHERE id=100;
+END//
+CREATE PROCEDURE delete_data()
+BEGIN
+DELETE FROM proc WHERE id=100;
+END//
+DELIMITER ;//
+--source include/save_binlog_position.inc
+BEGIN; CALL insert_data(); COMMIT;
+--let $expected_partition_id = 0
+--source suite/rpl/include/rpl_partition_info.inc
+--source include/save_binlog_position.inc
+BEGIN; CALL update_data(); COMMIT;
+--let $partition_id= 0 1
+--source suite/rpl/include/rpl_partition_info_update.inc
+--source include/save_binlog_position.inc
+BEGIN; CALL delete_data(); COMMIT;
+--let $expected_partition_id = 1
+--source suite/rpl/include/rpl_partition_info.inc
+
+# Test partition information with Triggers
+CREATE TABLE t1(a INT);
+CREATE TABLE trigg(id INT, age INT) PARTITION BY RANGE(age) (PARTITION P0 VALUES LESS THAN (25), PARTITION P1 VALUES LESS THAN (60));
+DELIMITER //;
+CREATE TRIGGER insert_data AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO trigg VALUES (100, 36);
+END//
+CREATE TRIGGER update_data AFTER UPDATE ON t1 FOR EACH ROW
+BEGIN
+UPDATE trigg SET age=age-13 WHERE id=100;
+END//
+CREATE TRIGGER delete_data AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+DELETE FROM trigg WHERE id=100;
+END//
+DELIMITER ;//
+--source include/save_binlog_position.inc
+BEGIN; INSERT INTO t1 VALUES(1); COMMIT;
+--let $expected_partition_id = 1
+--source suite/rpl/include/rpl_partition_info.inc
+--source include/save_binlog_position.inc
+BEGIN; UPDATE t1 SET a=a+10; COMMIT;
+--let $partition_id= 1 0
+--source suite/rpl/include/rpl_partition_info_update.inc
+--source include/save_binlog_position.inc
+BEGIN; DELETE FROM t1; COMMIT;
+--let $expected_partition_id = 0
+--source suite/rpl/include/rpl_partition_info.inc
+
+# Test partition information with Transactions
+CREATE TABLE trans(id INT, age INT) PARTITION BY RANGE(age) SUBPARTITION BY KEY(id)
+(
+PARTITION P0 VALUES LESS THAN (30)
+ (SUBPARTITION P0A, SUBPARTITION P0B)
+,
+PARTITION P1 VALUES LESS THAN (60)
+ (SUBPARTITION P1A, SUBPARTITION P1B)
+);
+--source include/save_binlog_position.inc
+BEGIN; INSERT INTO trans VALUES(100,46); COMMIT;
+--let $expected_partition_id = 3
+--source suite/rpl/include/rpl_partition_info.inc
+--source include/save_binlog_position.inc
+BEGIN; UPDATE trans SET age=age-20 WHERE id=100; COMMIT;
+--let $partition_id = 3 1
+--source suite/rpl/include/rpl_partition_info_update.inc
+--source include/save_binlog_position.inc
+BEGIN; DELETE FROM trans WHERE id=100; COMMIT;
+--let $expected_partition_id = 1
+--source suite/rpl/include/rpl_partition_info.inc
+# Verify Table_map and event_type for Insert Update Delete within a single transaction on single partition
+--source include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(1,55),(1,55);
+UPDATE trans SET id=id+10;
+DELETE FROM trans WHERE id=11;
+COMMIT;
+--let $insert_pattern= # Table_map # Write_rows
+--let $update_pattern= # Table_map # Update_rows
+--let $delete_pattern= # Table_map # Delete_rows
+--let $dont_print_pattern= 1
+--let $event_sequence = $gtid_event  # !Begin $insert_pattern $update_pattern $delete_pattern # !Commit
+--source include/assert_binlog_events.inc
+# Verify Table_map and event_type for Insert Update Delete within a single transaction on multiple partitions
+--source include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(101,46),(102,23);
+UPDATE trans SET id=id+100;
+DELETE FROM trans WHERE id=201;
+COMMIT;
+--let $event_sequence = $gtid_event  # !Begin $insert_pattern # Write_rows $update_pattern # Update_rows $delete_pattern # !Commit
+--source include/assert_binlog_events.inc
+# Verify Table_map and event_type for Insert Update Delete within a single transaction on partitioned and non-partitioned table
+CREATE TABLE t2(a INT);
+--source include/save_binlog_position.inc
+BEGIN;
+INSERT INTO trans VALUES(301,55),(301,55);
+INSERT INTO t2 VALUES(10);
+UPDATE trans SET id=id+10;
+UPDATE t2 SET a=a+10;
+DELETE FROM trans WHERE id=11;
+DELETE FROM t2 WHERE a=20;
+COMMIT;
+--let $event_sequence = $gtid_event  # !Begin $insert_pattern $insert_pattern $update_pattern # Update_rows $update_pattern $delete_pattern # !Commit
+--source include/assert_binlog_events.inc
+
+# Check if data is replicated properly across master and slave
+--source include/sync_slave_sql_with_master.inc
+let $diff_tables= master:trans, slave:trans;
+--source include/diff_tables.inc
+let $diff_tables= master:func, slave:func;
+--source include/diff_tables.inc
+let $diff_tables= master:proc, slave:proc;
+--source include/diff_tables.inc
+let $diff_tables= master:trigg, slave:trigg;
+--source include/diff_tables.inc
+
+# Cleanup
+connection master;
+DROP FUNCTION insert_data;
+DROP FUNCTION update_data;
+DROP FUNCTION delete_data;
+DROP PROCEDURE insert_data;
+DROP PROCEDURE update_data;
+DROP PROCEDURE delete_data;
+DROP TRIGGER insert_data;
+DROP TRIGGER update_data;
+DROP TRIGGER delete_data;
+DROP TABLE trans;
+DROP TABLE func;
+DROP TABLE proc;
+DROP TABLE trigg;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

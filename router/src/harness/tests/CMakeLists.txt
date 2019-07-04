@@ -22,6 +22,7 @@
 
 INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(include)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
 
 IF(NOT BUILD_IS_SINGLE_CONFIG)
   FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
@@ -44,6 +45,7 @@ ADD_SUBDIRECTORY(plugins)
 SET(TEST_MODULE harness)
 
 SET(TESTS
+  test_utility_string.cc
   test_loader.cc
   test_loader_lifecycle.cc
   test_logging.cc
@@ -59,6 +61,11 @@ SET(TESTS
   test_resolver.cc
   test_random_generator.cc
   test_mysql_router_thread.cc
+  test_mpmc_queue.cc
+  test_dynamic_state.cc
+  test_arg_handler.cc
+  test_vt100.cc
+  test_string_utils.cc
 )
 
 FOREACH(TEST ${TESTS})

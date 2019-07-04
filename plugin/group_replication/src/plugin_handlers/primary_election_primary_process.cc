@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_primary_process.h"
+#include "plugin/group_replication/include/hold_transactions.h"
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
 static void *launch_handler_thread(void *arg) {
@@ -47,6 +49,10 @@ Primary_election_primary_process::Primary_election_primary_process()
 Primary_election_primary_process::~Primary_election_primary_process() {
   mysql_mutex_destroy(&election_lock);
   mysql_cond_destroy(&election_cond);
+}
+
+void Primary_election_primary_process::set_stop_wait_timeout(ulong timeout) {
+  stop_wait_timeout = timeout;
 }
 
 bool Primary_election_primary_process::is_election_process_running() {
@@ -281,6 +287,11 @@ wait_for_queued_message:
   }
   mysql_mutex_unlock(&election_lock);
 
+  DBUG_EXECUTE_IF("group_replication_cancel_apply_backlog", { goto end; };);
+
+  hold_transactions->disable();
+  primary_election_handler->unregister_transaction_observer();
+
 end:
 
   primary_election_handler->set_election_running(false);
@@ -290,7 +301,7 @@ end:
   if (error && !election_process_aborted) {
     group_events_observation_manager->after_primary_election(
         primary_uuid, true, election_mode, PRIMARY_ELECTION_PROCESS_ERROR);
-    kill_transactions_and_leave_on_election_error(err_msg);
+    kill_transactions_and_leave_on_election_error(err_msg, stop_wait_timeout);
   }
 
   if (!election_process_aborted && !error) {
@@ -362,8 +373,8 @@ int Primary_election_primary_process::before_message_handling(
   Plugin_gcs_message::enum_cargo_type message_type = message.get_cargo_type();
 
   if (message_type == Plugin_gcs_message::CT_SINGLE_PRIMARY_MESSAGE) {
-    const Single_primary_message single_primary_message =
-        (const Single_primary_message &)message;
+    const Single_primary_message &single_primary_message =
+        down_cast<const Single_primary_message &>(message);
     Single_primary_message::Single_primary_message_type
         single_primary_msg_type =
             single_primary_message.get_single_primary_message_type();

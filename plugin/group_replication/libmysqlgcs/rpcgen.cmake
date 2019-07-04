@@ -100,16 +100,9 @@ FOREACH(X xcom_vp)
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 
-    IF(NOT RPC_INCLUDE_DIR)
-      MESSAGE(FATAL_ERROR
-        "Could not find rpc/rpc.h in /usr/include or /usr/include/tirpc")
-    ENDIF()
-    MESSAGE(STATUS "RPC_INCLUDE_DIR ${RPC_INCLUDE_DIR}")
-    IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
-      INCLUDE_DIRECTORIES(SYSTEM /usr/include/tirpc)
-      ADD_DEFINITIONS(-DHAVE_TIRPC)
-      SET(TIRPC_LIBRARY tirpc)
-    ENDIF()
+    MYSQL_CHECK_RPC()
+
+    MESSAGE(STATUS "RPC_INCLUDE_DIRS ${RPC_INCLUDE_DIRS}")
 
     # on unix systems try to generate them if needed
     ADD_CUSTOM_COMMAND(OUTPUT ${x_gen_h} ${x_gen_c} ${x_tmp_plat_h}

@@ -1,0 +1,72 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap group on server 1 and create table t1
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+# 2. Join server2 to group and lock tables t1
+[connection server_2]
+include/start_group_replication.inc
+LOCK TABLES t1 READ;
+
+# 3. Execute transaction on primary server
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 4. Server2 will certify transaction but won't apply due lock tables
+[connection server2]
+
+# 5. Start a transaction on secondary that will be elected as primary
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+BEGIN;
+
+# 6. Execute group_replication_set_as_primary to appoint server2 as
+#    primary
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+
+# 7. Validate that primary election is executing
+[connection server2]
+
+# 8. Transaction started previous to primary election, it will not block
+#    due hook only run once by transaction.
+SELECT  * FROM t1;
+a
+
+# 9. A write will fail due SUPER_READ_ONLY=1 until primary election
+#    finishes
+INSERT INTO t1 VALUES (2);
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+COMMIT;
+
+# 10. A start of a transaction to a new primary will be put on hold
+#     until all backlog's are applied
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+BEGIN;;
+
+# 11. Validate statement is on hold
+[connection server_2]
+
+# 12. UNLOCK tables to allow backlog to be applied
+UNLOCK TABLES;
+
+# 12. Reap with success execution of set as primary server2
+[connection server1]
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+
+# 13. Reap with success start of transaction and execute some statements
+[connection server2]
+SELECT * FROM t1;
+a
+1
+COMMIT;
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+# 14. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

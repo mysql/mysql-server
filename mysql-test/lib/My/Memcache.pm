@@ -458,14 +458,20 @@ sub read_known_length {
   my $self = shift;
   my $len  = shift;
   my $data;
+  my $pre_buflen;
 
   $self->{read_try} = 0;
   while ($self->{read_try} < $self->{max_read_tries}) {
-    $self->{read_try}++;
     $data = $self->get_length_from_buffer($len);
     return $data if (defined($data));
-    if (!$self->read($len - $self->{buflen})) {
-      return undef;
+    # Desired length is not yet in buffer.
+    $pre_buflen = $self->{buflen};
+    if (!$self->read($len - $pre_buflen)) {  # limited by io_timeout
+      return undef;   # read error
+    }
+    Carp::croak if ($self->{buflen} < $pre_buflen);
+    if($self->{buflen} == $pre_buflen) {
+      $self->{read_try}++;  # select() timed out. Nothing was read.
     }
   }
   # Perhaps the read completed on the final attempt

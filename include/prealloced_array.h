@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ class Prealloced_array {
     CTORs/DTORs invoked by the C++ runtime.
   */
   Element_type *cast_rawbuff() {
-    return static_cast<Element_type *>(static_cast<void *>(&m_buff.data[0]));
+    return static_cast<Element_type *>(static_cast<void *>(m_buff));
   }
 
  public:
@@ -563,8 +563,7 @@ class Prealloced_array {
   size_t m_size;
   size_t m_capacity;
   // This buffer must be properly aligned.
-  my_aligned_storage<Prealloc * sizeof(Element_type), MY_ALIGNOF(double)>
-      m_buff;
+  alignas(Element_type) char m_buff[Prealloc * sizeof(Element_type)];
   Element_type *m_array_ptr;
   PSI_memory_key m_psi_key;
 };

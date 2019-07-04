@@ -19,7 +19,7 @@ select "---Setup Section  --" as "";
 
 set timestamp=1000000000;
 
---disable_warnings ONCE
+--disable_warnings ER_BAD_TABLE_ERROR ONCE
 DROP TABLE IF EXISTS t1,t2,t3;
 
 connection master;
@@ -331,7 +331,6 @@ connection master;
 # BUG#17654 also test mysqlbinlog to ensure it can read the binlog from a remote server 
 # and ensure that the results are the same as if read from a file (the same file).
 
---disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (a INT NOT NULL KEY, b INT);

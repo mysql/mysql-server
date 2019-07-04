@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
- * This file is basicly usa7 character sets with some extra functions
- * for big5 handling
- */
-
-/*
- * This comment is parsed by configure to create ctype.c,
- * so don't change it unless you know what you are doing.
- *
- * .configure. strxfrm_multiply_big5=1
- * .configure. mbmaxlen_big5=2
+  Support for Chinese(BIG5) characters.
+  This file is basicly usa7 character sets with some extra functions
+  for big5 handling
  */
 
 #include <stddef.h>
@@ -45,12 +38,6 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-
-/*
-  Support for Chinese(BIG5) characters, by jou@nematic.ieo.nctu.edu.tw
-  modified by Wei He (hewei@mail.ied.ac.cn)
-  modified by Alex Barkov <bar@udm.net>
-*/
 
 #define isbig5head(c) (0xa1 <= (uchar)(c) && (uchar)(c) <= 0xf9)
 #define isbig5tail(c)                            \

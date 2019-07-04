@@ -151,8 +151,10 @@ bool SHA2_password_cache::search(const std::string authorization_id,
   auto it = m_password_cache.find(authorization_id);
   if (it != m_password_cache.end()) {
     const sha2_cache_entry stored_entry = it->second;
-    memcpy(cache_entry.digest_buffer, stored_entry.digest_buffer,
-           sizeof(cache_entry.digest_buffer));
+    for (unsigned int i = 0; i < MAX_PASSWORDS; ++i) {
+      memcpy(cache_entry.digest_buffer[i], stored_entry.digest_buffer[i],
+             sizeof(cache_entry.digest_buffer[i]));
+    }
     DBUG_RETURN(false);
   }
   DBUG_RETURN(true);
@@ -226,97 +228,109 @@ Caching_sha2_password::~Caching_sha2_password() {
                                  mysql.authentication_string column
   @param [in] plaintext_password Password as received from client
 
-  @returns Outcome of comparison against expected hash
-    @retval false Success. Entry may have been added in cache.
-    @retval true  Validation error.
+  @returns Outcome of comparison against expected hash and whether
+           second password was used or not.
 */
 
-bool Caching_sha2_password::authenticate(
-    const std::string &authorization_id, const std::string &serialized_string,
+std::pair<bool, bool> Caching_sha2_password::authenticate(
+    const std::string &authorization_id, const std::string *serialized_string,
     const std::string &plaintext_password) {
   DBUG_ENTER("Caching_sha2_password::authenticate");
 
   /* Don't process the password if it is longer than maximum limit */
   if (plaintext_password.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
-    DBUG_RETURN(true);
+    DBUG_RETURN(std::make_pair(true, false));
 
   /* Empty authentication string */
-  if (!serialized_string.length())
-    DBUG_RETURN(plaintext_password.length() ? true : false);
+  if (!serialized_string[0].length())
+    DBUG_RETURN(
+        std::make_pair(plaintext_password.length() ? true : false, false));
 
-  std::string random;
-  std::string digest;
-  std::string generated_digest;
-  Digest_info digest_type;
-  size_t iterations;
+  bool second = false;
+  for (unsigned int i = 0;
+       i < MAX_PASSWORDS && serialized_string[i].length() > 0; ++i) {
+    second = i > 0;
+    std::string random;
+    std::string digest;
+    std::string generated_digest;
+    Digest_info digest_type;
+    size_t iterations;
 
-  /*
-    Get digest type, iterations, salt and digest
-    from the authentication string.
-  */
-  if (deserialize(serialized_string, digest_type, random, digest, iterations)) {
-    if (m_plugin_info)
-      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING,
-                   authorization_id.c_str());
-    DBUG_RETURN(true);
-  }
-
-  /*
-    Generate multiple rounds of sha2 hash using plaintext password
-    and salt retrieved from the authentication string.
-  */
-
-  if (this->generate_sha2_multi_hash(plaintext_password, random,
-                                     &generated_digest,
-                                     m_stored_digest_rounds)) {
-    if (m_plugin_info)
-      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH,
-                   authorization_id.c_str());
-    DBUG_RETURN(true);
-  }
-
-  /*
-    Generated digest should match with stored digest
-    for successful authentication.
-  */
-  if (memcmp(digest.c_str(), generated_digest.c_str(),
-             STORED_SHA256_DIGEST_LENGTH) == 0) {
     /*
-      If authentication is successful, we would want to make
-      entry in cache for fast authentication. Subsequent
-      authentication attempts would use the fast authentication
-      to speed up the process.
+      Get digest type, iterations, salt and digest
+      from the authentication string.
     */
-    sha2_cache_entry fast_digest;
-
-    if (generate_fast_digest(plaintext_password, fast_digest)) {
-      DBUG_PRINT("info", ("Failed to generate multi-round hash for %s. "
-                          "Fast authentication won't be possible.",
-                          authorization_id.c_str()));
-      DBUG_RETURN(false);
+    if (deserialize(serialized_string[i], digest_type, random, digest,
+                    iterations)) {
+      if (m_plugin_info)
+        LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING,
+                     authorization_id.c_str());
+      DBUG_RETURN(std::make_pair(true, second));
     }
 
-    rwlock_scoped_lock wrlock(&m_cache_lock, true, __FILE__, __LINE__);
-    if (m_cache.add(authorization_id, fast_digest)) {
-      sha2_cache_entry stored_digest;
-      m_cache.search(authorization_id, stored_digest);
+    /*
+      Generate multiple rounds of sha2 hash using plaintext password
+      and salt retrieved from the authentication string.
+    */
 
-      /* Same digest is already added, so just return */
-      if (memcmp(fast_digest.digest_buffer, stored_digest.digest_buffer,
-                 sizeof(fast_digest.digest_buffer)) == 0)
-        DBUG_RETURN(false);
-
-      /* Update the digest */
-      m_cache.remove(authorization_id);
-      m_cache.add(authorization_id, fast_digest);
-      DBUG_PRINT("info", ("An old digest for %s was recorded in cache. "
-                          "It has been replaced with the latest digest.",
-                          authorization_id.c_str()));
-      DBUG_RETURN(false);
+    if (this->generate_sha2_multi_hash(plaintext_password, random,
+                                       &generated_digest,
+                                       m_stored_digest_rounds)) {
+      if (m_plugin_info)
+        LogPluginErr(ERROR_LEVEL,
+                     ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH,
+                     authorization_id.c_str());
+      DBUG_RETURN(std::make_pair(true, second));
     }
-    DBUG_RETURN(false);
+
+    /*
+      Generated digest should match with stored digest
+      for successful authentication.
+    */
+    if (memcmp(digest.c_str(), generated_digest.c_str(),
+               STORED_SHA256_DIGEST_LENGTH) == 0) {
+      /*
+        If authentication is successful, we would want to make
+        entry in cache for fast authentication. Subsequent
+        authentication attempts would use the fast authentication
+        to speed up the process.
+      */
+      sha2_cache_entry fast_digest;
+      memset(&fast_digest, 0, sizeof(fast_digest));
+
+      if (generate_fast_digest(plaintext_password, fast_digest, i)) {
+        DBUG_PRINT("info", ("Failed to generate multi-round hash for %s. "
+                            "Fast authentication won't be possible.",
+                            authorization_id.c_str()));
+        DBUG_RETURN(std::make_pair(false, second));
+      }
+
+      rwlock_scoped_lock wrlock(&m_cache_lock, true, __FILE__, __LINE__);
+      if (m_cache.add(authorization_id, fast_digest)) {
+        sha2_cache_entry stored_digest;
+        m_cache.search(authorization_id, stored_digest);
+
+        /* Same digest is already added, so just return */
+        if (memcmp(fast_digest.digest_buffer[i], stored_digest.digest_buffer[i],
+                   sizeof(fast_digest.digest_buffer[i])) == 0)
+          DBUG_RETURN(std::make_pair(false, second));
+
+        /* Update the digest */
+        uint retain_index = i ? 0 : 1;
+        memcpy(fast_digest.digest_buffer[retain_index],
+               stored_digest.digest_buffer[retain_index],
+               sizeof(fast_digest.digest_buffer[retain_index]));
+        m_cache.remove(authorization_id);
+        m_cache.add(authorization_id, fast_digest);
+        DBUG_PRINT("info", ("An old digest for %s was recorded in cache. "
+                            "It has been replaced with the latest digest.",
+                            authorization_id.c_str()));
+        DBUG_RETURN(std::make_pair(false, second));
+      }
+      DBUG_RETURN(std::make_pair(false, second));
+    }
   }
-  DBUG_RETURN(true);
+  DBUG_RETURN(std::make_pair(true, second));
 }
 
 /**
@@ -329,15 +343,16 @@ bool Caching_sha2_password::authenticate(
   @param [in] random           Per session random number
   @param [in] random_length    Length of the random number
   @param [in] scramble         Scramble received from the client
+  @param [in] check_second     Check secondary credentials
 
-  @returns Outcome of scramble validation
-    @retval false Success.
-    @retval true Validation error.
+  @returns Outcome of scramble validation and whether
+           second password was used or not.
 */
 
-bool Caching_sha2_password::fast_authenticate(
+std::pair<bool, bool> Caching_sha2_password::fast_authenticate(
     const std::string &authorization_id, const unsigned char *random,
-    unsigned int random_length, const unsigned char *scramble) {
+    unsigned int random_length, const unsigned char *scramble,
+    bool check_second) {
   DBUG_ENTER("Caching_sha2_password::fast_authenticate");
   if (!scramble || !random) {
     DBUG_PRINT("info", ("For authorization id : %s,"
@@ -345,7 +360,7 @@ bool Caching_sha2_password::fast_authenticate(
                         "Random is null - %s :",
                         authorization_id.c_str(), !scramble ? "true" : "false",
                         !random ? "true" : "false"));
-    DBUG_RETURN(true);
+    DBUG_RETURN(std::make_pair(true, false));
   }
 
   rwlock_scoped_lock rdlock(&m_cache_lock, false, __FILE__, __LINE__);
@@ -354,13 +369,21 @@ bool Caching_sha2_password::fast_authenticate(
   if (m_cache.search(authorization_id, digest)) {
     DBUG_PRINT("info", ("Could not find entry for %s in cache.",
                         authorization_id.c_str()));
-    DBUG_RETURN(true);
+    DBUG_RETURN(std::make_pair(true, false));
   }
 
   /* Entry found, so validate scramble against it */
-  Validate_scramble validate_scramble(scramble, digest.digest_buffer, random,
-                                      random_length);
-  DBUG_RETURN(validate_scramble.validate());
+  Validate_scramble validate_scramble_first(scramble, digest.digest_buffer[0],
+                                            random, random_length);
+  bool retval = validate_scramble_first.validate();
+  bool second = false;
+  if (retval && check_second) {
+    second = true;
+    Validate_scramble validate_scramble_second(
+        scramble, digest.digest_buffer[1], random, random_length);
+    retval = validate_scramble_second.validate();
+  }
+  DBUG_RETURN(std::make_pair(retval, second));
 }
 
 /**
@@ -467,7 +490,7 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
   salt = serialized_string.substr(delimiter + 1, SALT_LENGTH);
   if (salt.length() != SALT_LENGTH) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
-                        "Invalid salt information."));
+                        "Invalid m_salt information."));
     DBUG_RETURN(true);
   }
 
@@ -543,7 +566,7 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
 
   /* Salt */
   if (salt.length() != SALT_LENGTH) {
-    DBUG_PRINT("info", ("Invalid salt."));
+    DBUG_PRINT("info", ("Invalid m_salt."));
     DBUG_RETURN(true);
   }
   serialized_string.append(salt.c_str(), salt.length());
@@ -568,6 +591,7 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
 
   @param [out] digest Digest output buffer
   @param [in]  plaintext_password Source text
+  @param [in] pos Position of the digest
 
   @returns status of digest generation
     @retval false Success.
@@ -575,10 +599,13 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
 */
 
 bool Caching_sha2_password::generate_fast_digest(
-    const std::string &plaintext_password, sha2_cache_entry &digest) {
+    const std::string &plaintext_password, sha2_cache_entry &digest,
+    unsigned int pos) {
   DBUG_ENTER("Caching_sha2_password::generate_fast_digest");
+  DBUG_ASSERT(pos < MAX_PASSWORDS);
   SHA256_digest sha256_digest;
   unsigned char digest_buffer[CACHING_SHA2_DIGEST_LENGTH];
+  DBUG_ASSERT(sizeof(digest.digest_buffer[pos]) == sizeof(digest_buffer));
 
   if (sha256_digest.update_digest(plaintext_password.c_str(),
                                   plaintext_password.length()) ||
@@ -601,7 +628,8 @@ bool Caching_sha2_password::generate_fast_digest(
   }
 
   /* Calculated digest is stored in digest */
-  memcpy(digest.digest_buffer, digest_buffer, sizeof(digest.digest_buffer));
+  memcpy(digest.digest_buffer[pos], digest_buffer,
+         sizeof(digest.digest_buffer[pos]));
   DBUG_RETURN(false);
 }
 
@@ -975,9 +1003,13 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if (pkt_len != sha2_password::CACHING_SHA2_DIGEST_LENGTH)
     DBUG_RETURN(CR_ERROR);
 
-  if (g_caching_sha2_password->fast_authenticate(
+  std::pair<bool, bool> fast_auth_result =
+      g_caching_sha2_password->fast_authenticate(
           authorization_id, reinterpret_cast<unsigned char *>(scramble),
-          SCRAMBLE_LENGTH, pkt)) {
+          SCRAMBLE_LENGTH, pkt,
+          info->additional_auth_string_length ? true : false);
+
+  if (fast_auth_result.first) {
     /*
       We either failed to authenticate or did not find entry in the cache.
       In either case, move to full authentication and ask the password
@@ -988,6 +1020,13 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     /* Send fast_auth_success packet followed by CR_OK */
     if (vio->write_packet(vio, (uchar *)&fast_auth_success, 1))
       DBUG_RETURN(CR_AUTH_HANDSHAKE);
+    if (fast_auth_result.second) {
+      const char *username =
+          *info->authenticated_as ? info->authenticated_as : "";
+      LogPluginErr(INFORMATION_LEVEL,
+                   ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
+                   username, hostname ? hostname : "");
+    }
 
     DBUG_RETURN(CR_OK);
   }
@@ -1064,12 +1103,24 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }  // if(!my_vio_is_encrypted())
 
   /* Fetch user authentication_string and extract the password salt */
-  std::string serialized_string(info->auth_string, info->auth_string_length);
+  std::string serialized_string[] = {
+      std::string(info->auth_string, info->auth_string_length),
+      std::string(info->additional_auth_string_length
+                      ? info->additional_auth_string
+                      : "",
+                  info->additional_auth_string_length)};
   std::string plaintext_password((char *)pkt, pkt_len - 1);
-  if (g_caching_sha2_password->authenticate(authorization_id, serialized_string,
-                                            plaintext_password))
+  std::pair<bool, bool> auth_success = g_caching_sha2_password->authenticate(
+      authorization_id, serialized_string, plaintext_password);
+  if (auth_success.first) DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
 
-    DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
+  if (auth_success.second) {
+    const char *username =
+        *info->authenticated_as ? info->authenticated_as : "";
+    LogPluginErr(INFORMATION_LEVEL,
+                 ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
+                 username, hostname ? hostname : "");
+  }
 
   DBUG_RETURN(CR_OK);
 }

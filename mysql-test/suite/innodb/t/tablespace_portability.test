@@ -40,10 +40,11 @@ SHOW WARNINGS;
 --rmdir $MYSQL_TMP_DIR/read_only_dir
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\].* The error means mysqld does not have the access rights to the directory.");
-call mtr.add_suppression("\\[ERROR\\].* Cannot create file");
-call mtr.add_suppression("\\[Warning\\].* Converting backslash to forward slash in ADD DATAFILE");
-call mtr.add_suppression("\\[Warning\\].* '.*' permission error, can't delete!");
+call mtr.add_suppression("\\[Warning\\] .* Converting backslash to forward slash in ADD DATAFILE");
+call mtr.add_suppression("\\[Warning\\] .* '.*' permission error, can't delete!");
+call mtr.add_suppression("\\[ERROR\\] .* The error means mysqld does not have the access rights to the directory.");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create file");
+call mtr.add_suppression("\\[ERROR\\] .* The directory '.*' does not exist");
 --enable_query_log
 
 --source suite/innodb/include/tablespace_filenames.inc

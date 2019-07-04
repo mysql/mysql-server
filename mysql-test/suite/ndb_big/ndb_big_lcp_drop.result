@@ -27,4 +27,4 @@ insert into t1 select a+16384,b,c from t1;
 insert into t1 select a+32768,b,c from t1;
 insert into t2 values (1,1),(2,2),(3,3),(4,4);
 insert into t3 values (1,1),(2,2),(3,3),(4,4);
-drop table t1;
+drop table t1, t2, t3;

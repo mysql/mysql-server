@@ -111,7 +111,8 @@ class ha_archive : public handler {
     return (HA_NO_TRANSACTIONS | HA_CAN_BIT_FIELD | HA_BINLOG_ROW_CAPABLE |
             HA_BINLOG_STMT_CAPABLE | HA_STATS_RECORDS_IS_EXACT |
             HA_COUNT_ROWS_INSTANT | HA_CAN_REPAIR | HA_FILE_BASED |
-            HA_CAN_GEOMETRY);
+            HA_CAN_GEOMETRY | HA_UPDATE_NOT_SUPPORTED |
+            HA_DELETE_NOT_SUPPORTED);
   }
   ulong index_flags(uint, uint, bool) const { return HA_ONLY_WHOLE_INDEX; }
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,

@@ -570,7 +570,7 @@ USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SET GLOBAL event_scheduler = ON;
 CREATE TABLE events_test.event_log
@@ -737,8 +737,6 @@ Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will 
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
-select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
-select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select event_name from information_schema.events where event_name = 'e1' and sql_mode = @full_mode;
 EVENT_NAME
 e1
@@ -844,6 +842,48 @@ SLEEP(3)
 SET @@global.autocommit=@save_autocommit_value;
 SET @@session.TIMESTAMP=default;
 DROP TABLE t1;
+#
+# Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+#
+# Test case to verify events with case and accent insensitive names.
+#
+CREATE EVENT cafe ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+# Event names are case and accent insensitive. So from the data-dictionary
+# "cafe" is obtained for the following statement. Since MDL key comparison
+# is case and accent sensitive, assert condition to verify expected lock
+# with name "test.cafe" fails (lock is obtained on the test.café)
+CREATE EVENT café ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'café' already exists
+# Following statement is to verify operation with the upper case name.
+CREATE EVENT CAFE ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'CAFE' already exists
+SHOW CREATE EVENT CaFé;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+cafe	#	#	#	#	#	#
+DROP EVENT CaFé;
+# Event with NAME_LEN size name.
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é' already exists
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E' already exists
+SHOW CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#	#
+DROP EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+SET NAMES default;
+#
+# BUG#29269819 - WRONG METADATA WHILE CREATE AN EVENT
+#
+CREATE EVENT Fortnight_Event ON SCHEDULE EVERY 2 WEEK DO SELECT 1;
+SELECT EVENT_NAME, INTERVAL_VALUE, INTERVAL_FIELD FROM information_schema.events;
+EVENT_NAME	INTERVAL_VALUE	INTERVAL_FIELD
+Fortnight_Event	2	WEEK
+DROP EVENT Fortnight_Event;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

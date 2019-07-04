@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,22 +171,23 @@ bool Item_row::check_cols(uint c) {
   return 0;
 }
 
-void Item_row::print(String *str, enum_query_type query_type) {
+void Item_row::print(const THD *thd, String *str,
+                     enum_query_type query_type) const {
   str->append('(');
   for (uint i = 0; i < arg_count; i++) {
     if (i) str->append(',');
-    items[i]->print(str, query_type);
+    items[i]->print(thd, str, query_type);
   }
   str->append(')');
 }
 
 bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   for (uint i = 0; i < arg_count; i++) {
     if (items[i]->walk(processor, walk, arg)) return true;
   }
-  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg) {

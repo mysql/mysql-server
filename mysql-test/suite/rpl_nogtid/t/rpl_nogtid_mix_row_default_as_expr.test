@@ -46,7 +46,6 @@ SELECT COUNT(*) from t2;
 
 SET @start_enforce_gtid_consistency = @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
-CALL mtr.add_suppression('Statement violates GTID consistency:');
 ALTER TABLE t2 ADD COLUMN c char(36) DEFAULT (PI());
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = @start_enforce_gtid_consistency;
 

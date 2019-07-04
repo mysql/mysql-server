@@ -23,3 +23,4 @@ alter table t1 engine=ndbcluster comment='NDB_TABLE=NOLOGGING' partition by key(
 alter table t1 engine=memory;
 select count(*) from t1;
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

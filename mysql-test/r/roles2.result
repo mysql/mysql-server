@@ -1,3 +1,5 @@
+set @orig_partial_revokes = @@global.partial_revokes;
+SET GLOBAL partial_revokes= OFF;
 CREATE ROLE r1;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 SHOW GRANTS FOR u1@localhost;
@@ -505,3 +507,4 @@ DROP DATABASE db1aaaa;
 DROP DATABASE dddddb1;
 DROP DATABASE secdb1;
 DROP DATABASE secdb2;
+SET GLOBAL partial_revokes = @orig_partial_revokes;

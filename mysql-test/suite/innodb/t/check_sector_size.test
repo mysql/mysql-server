@@ -39,4 +39,5 @@ SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
 # Cleanup
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring10

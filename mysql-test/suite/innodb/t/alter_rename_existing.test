@@ -149,10 +149,26 @@ SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test
 SELECT * from t1;
 
 --echo #
+--echo # Rename this file-per-table from test.t1 to test2.t2.
+--echo #
+CREATE DATABASE test2;
+ALTER TABLE test.t1 RENAME TO test2.t2;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test%';
+
+--echo #
+--echo # Also try the RENAME TABLE syntax.
+--echo #
+CREATE DATABASE test3;
+RENAME TABLE test2.t2 TO test3.t3;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test%';
+
+--echo #
 --echo # Cleanup
 --echo #
-DROP TABLE t1;
+DROP TABLE test3.t3;
 DROP TABLESPACE s1;
+DROP DATABASE test2;
+DROP DATABASE test3;
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");

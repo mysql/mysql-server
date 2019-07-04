@@ -471,8 +471,8 @@ select * from qn;
 3	0
 3	0
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # UNION DISTINCT affecting recursive member, followed by UNION ALL
 insert into t1 values(1),(2);
 set @c=0, @d=0;
@@ -593,7 +593,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 1 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
 with recursive qn (n) as (
 select 1 where 1 union all select n+1 from qn where 0
 ) select * from qn;
@@ -773,8 +773,8 @@ SEQ	ID	NAME	PATH
 5	72	Pierre	333,198,29,72
 6	4610	Sarah	333,198,29,4610
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # Direct & indirect reports of John = having John in their PATH
 WITH RECURSIVE employees_extended
 AS
@@ -1786,8 +1786,8 @@ select * from qn;
 3	0
 3	0
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # UNION DISTINCT affecting recursive member, followed by UNION ALL
 insert into t1 values(1),(2);
 set @c=0, @d=0;
@@ -1908,7 +1908,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 1 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
 with recursive qn (n) as (
 select 1 where 1 union all select n+1 from qn where 0
 ) select * from qn;
@@ -2088,8 +2088,8 @@ SEQ	ID	NAME	PATH
 5	72	Pierre	333,198,29,72
 6	4610	Sarah	333,198,29,4610
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # Direct & indirect reports of John = having John in their PATH
 WITH RECURSIVE employees_extended
 AS

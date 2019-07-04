@@ -1,10 +1,7 @@
+create schema xtest default charset 'utf8mb4';
 ######### preparation #########
 
-0 rows affected
-
-1 rows affected
-
-0 rows affected
+command ok
 
 0 rows affected
 

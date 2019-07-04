@@ -125,6 +125,7 @@ where
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
 
+--error ER_TABLE_CANT_HANDLE_FT
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -142,11 +143,12 @@ order by
   match(betreff) against ('+abc' in boolean mode) desc;
 
 # BUG#11869 part2: used table type doesn't support FULLTEXT indexes error
+--error ER_TABLE_CANT_HANDLE_FT
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;
 
---error 1191
+--error ER_TABLE_CANT_HANDLE_FT
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc') desc;

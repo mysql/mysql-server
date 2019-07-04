@@ -1,0 +1,28 @@
+###############################################################################
+# WL#12098: MySQL system users                                                #
+#                                                                             #
+#   This test file covers the scenarios around adding/removing the            #
+#   restriction_list in mysql.user.user_attributes column.                    #
+#                                                                             #
+#   The restriction_list is a key:value pair. Database name serves as key,    #
+#   and an array of static privileges which are prohibited on that database   #
+#   serves as value.                                                          #
+#                                                                             #
+#   Refer the test file - partial_revokes_usage.test for the usage of         #
+#   partial revokes once they are created                                     #
+#                                                                             #
+###############################################################################
+
+--source include/master-slave.inc
+
+SELECT @@global.partial_revokes;
+
+--disable_query_log
+CALL mtr.add_suppression("one or more privileges granted through");
+CALL mtr.add_suppression("these are not valid database privileges");
+CALL mtr.add_suppression("corresponding global privilege(s) are not granted");
+--enable_query_log
+
+--let $TEST_MODE=RPL
+--source ../../auth_sec/include/partial_revokes_add_remove.inc
+--source include/rpl_end.inc

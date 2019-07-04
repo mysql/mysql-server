@@ -18,11 +18,10 @@ DROP DATABASE sys;
 SHOW DATABASES;
 
 # Finally reload the sys schema to return to normal
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
-# Also, equalize the two OK status returns from upgrade.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
 SHOW DATABASES;
 
 # Restore the saved contents of mysql.user and mysql.tables_priv

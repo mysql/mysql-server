@@ -1,0 +1,47 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+--source include/have_debug.inc
+
+connection master;
+
+CREATE TABLE t ( pk INT, PRIMARY KEY (pk) ) ENGINE=ndbcluster;
+CREATE TABLE t1 ( pk INT, PRIMARY KEY (pk) ) ENGINE=ndbcluster;
+CREATE TABLE t2 ( pk INT, PRIMARY KEY (pk) ) ENGINE=ndbcluster;
+CREATE TABLE t3 ( pk INT, PRIMARY KEY (pk) ) ENGINE=ndbcluster;
+
+INSERT INTO t (pk) VALUES (1);
+INSERT INTO t1 (pk) VALUES (1);
+INSERT INTO t2 (pk) VALUES (1);
+INSERT INTO t3 (pk) VALUES (1);
+
+--sync_slave_with_master
+# connect to slave and ensure data it there.
+--connection slave
+select * from t1;
+
+--connection master
+
+INSERT INTO t (pk) VALUES (12);
+
+let $table=t1;
+source ndb_rpl_alter_wide_table.inc;
+
+let $table=t2;
+source ndb_rpl_alter_wide_table.inc;
+
+--sync_slave_with_master
+# connect to slave and ensure data it there.
+--connection slave
+select * from t2;
+
+--connection master
+DROP TABLE t1;
+ALTER TABLE t3 ALGORITHM=INPLACE, ADD COLUMN (c1 INT);
+DROP TABLE t;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--connection master
+
+--source include/rpl_end.inc

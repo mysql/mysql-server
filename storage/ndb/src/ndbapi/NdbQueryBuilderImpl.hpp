@@ -52,7 +52,6 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 
-#if defined(__cplusplus)
 #include <Vector.hpp>
 #include <Bitmask.hpp>
 #include "NdbQueryBuilder.hpp"
@@ -278,7 +277,7 @@ public:
     m_scanOrder(NdbQueryOptions::ScanOrdering_void),
     m_parent(NULL),
     m_interpretedCode(NULL)
-  {};
+  {}
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
 
@@ -399,7 +398,7 @@ public:
     return false;
   }
 
-  // Return 'true' is query type is a multi-row scan
+  // Return 'true' if query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
@@ -762,7 +761,7 @@ protected:
   friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
   friend NdbQueryDefImpl::~NdbQueryDefImpl();
 
-  virtual ~NdbQueryOperandImpl(){};
+  virtual ~NdbQueryOperandImpl(){}
 
   NdbQueryOperandImpl(Kind kind)
     : m_column(0),
@@ -872,35 +871,35 @@ protected:
   #define UNDEFINED_CONVERSION	\
   { return QRY_OPERAND_HAS_WRONG_TYPE; }
 
-  virtual int convertUint8()  UNDEFINED_CONVERSION;
-  virtual int convertInt8()   UNDEFINED_CONVERSION;
-  virtual int convertUint16() UNDEFINED_CONVERSION;
-  virtual int convertInt16()  UNDEFINED_CONVERSION;
-  virtual int convertUint24() UNDEFINED_CONVERSION;
-  virtual int convertInt24()  UNDEFINED_CONVERSION;
-  virtual int convertUint32() UNDEFINED_CONVERSION;
-  virtual int convertInt32()  UNDEFINED_CONVERSION;
-  virtual int convertUint64() UNDEFINED_CONVERSION;
-  virtual int convertInt64()  UNDEFINED_CONVERSION;
-  virtual int convertFloat()  UNDEFINED_CONVERSION;
+  virtual int convertUint8()  UNDEFINED_CONVERSION
+  virtual int convertInt8()   UNDEFINED_CONVERSION
+  virtual int convertUint16() UNDEFINED_CONVERSION
+  virtual int convertInt16()  UNDEFINED_CONVERSION
+  virtual int convertUint24() UNDEFINED_CONVERSION
+  virtual int convertInt24()  UNDEFINED_CONVERSION
+  virtual int convertUint32() UNDEFINED_CONVERSION
+  virtual int convertInt32()  UNDEFINED_CONVERSION
+  virtual int convertUint64() UNDEFINED_CONVERSION
+  virtual int convertInt64()  UNDEFINED_CONVERSION
+  virtual int convertFloat()  UNDEFINED_CONVERSION
   virtual int convertDouble() UNDEFINED_CONVERSION
 
-  virtual int convertUDec()   UNDEFINED_CONVERSION;
-  virtual int convertDec()    UNDEFINED_CONVERSION;
+  virtual int convertUDec()   UNDEFINED_CONVERSION
+  virtual int convertDec()    UNDEFINED_CONVERSION
 
-  virtual int convertBit()    UNDEFINED_CONVERSION;
-  virtual int convertChar()   UNDEFINED_CONVERSION;
-  virtual int convertVChar()  UNDEFINED_CONVERSION;
-  virtual int convertLVChar() UNDEFINED_CONVERSION;
-  virtual int convertBin()    UNDEFINED_CONVERSION;
-  virtual int convertVBin()   UNDEFINED_CONVERSION;
-  virtual int convertLVBin()  UNDEFINED_CONVERSION;
+  virtual int convertBit()    UNDEFINED_CONVERSION
+  virtual int convertChar()   UNDEFINED_CONVERSION
+  virtual int convertVChar()  UNDEFINED_CONVERSION
+  virtual int convertLVChar() UNDEFINED_CONVERSION
+  virtual int convertBin()    UNDEFINED_CONVERSION
+  virtual int convertVBin()   UNDEFINED_CONVERSION
+  virtual int convertLVBin()  UNDEFINED_CONVERSION
 
-  virtual int convertDate()   UNDEFINED_CONVERSION;
-  virtual int convertDatetime() UNDEFINED_CONVERSION;
-  virtual int convertTime()   UNDEFINED_CONVERSION;
-  virtual int convertYear()   UNDEFINED_CONVERSION;
-  virtual int convertTimestamp() UNDEFINED_CONVERSION;
+  virtual int convertDate()   UNDEFINED_CONVERSION
+  virtual int convertDatetime() UNDEFINED_CONVERSION
+  virtual int convertTime()   UNDEFINED_CONVERSION
+  virtual int convertYear()   UNDEFINED_CONVERSION
+  virtual int convertTimestamp() UNDEFINED_CONVERSION
 
   virtual int convert2ColumnType();
 
@@ -909,10 +908,10 @@ protected:
     */
   class ConvertedValue {
   public:
-    ConvertedValue()  : len(0), buffer(NULL) {};
+    ConvertedValue()  : len(0), buffer(NULL) {}
     ~ConvertedValue() {
       if (buffer) delete[] ((char*)buffer);
-    };
+    }
 
     char* getCharBuffer(Uint32 size) {
       char* dst = val.shortChar;
@@ -952,5 +951,4 @@ private:
 }; // class NdbConstOperandImpl
 
 
-#endif /* __cplusplus */
 #endif

@@ -7,9 +7,9 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_replication_observers_example_plugin.inc
 
---disable_warnings ONCE
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
---disable_warnings ONCE
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 # Install the replication observers example plugin
 
@@ -51,9 +51,9 @@ SET @@GLOBAL.master_info_repository='FILE';
 
 # Clean
 
---disable_warnings ONCE
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
---disable_warnings ONCE
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;

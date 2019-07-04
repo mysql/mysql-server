@@ -1,0 +1,147 @@
+# ==== Purpose ====
+#
+# Test the server behaviour when `read_only` or `super_read_only` modes are
+# enabled and the binary log has to be rotated.
+#
+# ==== Requirements ====
+#
+# R1. If `read_only` mode is enabled, binlog rotation MUST NOT fail because of
+#     it.
+#
+# R2. If `super_read_only` mode is enabled, binlog rotation MUST NOT fail
+#     because of it.
+#
+# ==== Implementation ====
+#
+# TC1. Variable `read_only` is ON & rotate the binlog
+# ------------------------------------------------------------------------
+# 1) Set `read_only` to ON
+# 2) Execute `FLUSH BINARY LOGS` and expect success.
+# 3) Assert that binary log rotated.
+#
+# TC2. Variable `super_read_only` is ON & rotate the binlog
+# ------------------------------------------------------------------------
+# 1) Set `super_read_only` to ON
+# 2) Execute `FLUSH BINARY LOGS` and expect success.
+# 3) Assert that binary log rotated.
+#
+# TC3. Variable `read_only` is ON & simulate max binlog size reached
+# ------------------------------------------------------------------------
+# 1) Set `read_only` to ON
+# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
+#    `max_binlog_size` limit was reached.
+# 3) Execute `INSERT` statement and expect success.
+# 4) Assert that binary log rotated.
+#
+# TC4. Variable `super_read_only` is ON & simulate max binlog size reached
+# ------------------------------------------------------------------------
+# 1) Set `super_read_only` to ON
+# 2) Add `DEBUG` sync point, `simulate_max_binlog_size` to simulate that
+#    `max_binlog_size` limit was reached.
+# 3) Execute `INSERT` statement and expect success.
+# 4) Assert that binary log rotated.
+#
+# ==== References ====
+#
+# BUG#29111514 FLUSHING BINARY LOGS WITH GTID LEADS TO AN OOM ERROR
+#
+
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+
+--let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.1/data/*binlog*.0*
+
+--let $initial_read_only = `SELECT IF(@@read_only, "ON", "OFF")`
+--let $initial_super_read_only = `SELECT IF(@@super_read_only, "ON", "OFF")`
+
+--let $tc = 1
+while ($tc != 3) {
+
+  if ($tc == 1) {
+    --let $option = read_only
+  }
+  if ($tc == 2) {
+    --let $option = super_read_only
+  }
+
+  --echo #
+  --echo # TC$tc. Variable `$option` is ON & rotate the binlog
+  --echo #
+
+  # 1) Set option to ON
+  --let $initial_option = `SELECT IF(@@$option, "ON", "OFF")`
+  --eval SET GLOBAL $option = ON
+
+  --source include/rpl_log_file_max_number.inc
+  --let $max_log_file_before_flush = $log_file_max_number
+
+  # 2) Execute `FLUSH BINARY LOGS` and expect success.
+  FLUSH BINARY LOGS;
+
+  # 3) Assert that binary log rotated.
+  --source include/rpl_log_file_max_number.inc
+  --let $max_log_file_after_flush = $log_file_max_number
+  --let $offset = 1
+  --expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset
+  --let $assert_text = 'FLUSH BINARY LOGS' rotated the binlog with '$option=ON'
+  --let $assert_cond = $max_log_file_after_flush = $expected_max_log_file_after_flush
+  --source include/assert.inc
+
+  # Clean up
+  --replace_result $initial_option INITIAL_OPTION_VALUE
+  --eval SET GLOBAL $option = $initial_option
+
+  --inc $tc
+}
+
+# Clean up
+--replace_result $initial_read_only INITIAL_OPTION_VALUE
+--eval SET GLOBAL read_only = $initial_read_only
+--replace_result $initial_super_read_only INITIAL_OPTION_VALUE
+--eval SET GLOBAL super_read_only = $initial_super_read_only
+
+while ($tc != 5) {
+
+  if ($tc == 3) {
+    --let $option = read_only
+  }
+  if ($tc == 4) {
+    --let $option = super_read_only
+  }
+
+  --echo #
+  --echo # TC$tc. Variable `$option` is ON & simulate max binlog size reached
+  --echo #
+
+  # 1) Set option to ON
+  --let $initial_option = `SELECT IF(@@$option, "ON", "OFF")`
+  --eval SET GLOBAL $option = ON
+
+  --source include/rpl_log_file_max_number.inc
+  --let $max_log_file_before_flush = $log_file_max_number
+
+  # 2) Execute `FLUSH BINARY LOGS` and expect success.
+  SET DEBUG = "d,simulate_max_binlog_size";
+  DROP PROCEDURE IF EXISTS p1;
+
+  # 3) Assert that binary log rotated.
+  --source include/rpl_log_file_max_number.inc
+  --let $max_log_file_after_flush = $log_file_max_number
+  --let $offset = 1
+  --expr $expected_max_log_file_after_flush = $max_log_file_before_flush + $offset
+  --let $assert_text = Having '$option=ON' didnot prevent the binlog of rotating when `max_binlog_size` is reached
+  --let $assert_cond = $max_log_file_after_flush = $expected_max_log_file_after_flush
+  --source include/assert.inc
+
+  # Clean up
+  --replace_result $initial_option INITIAL_OPTION_VALUE
+  --eval SET GLOBAL $option = $initial_option
+
+  --inc $tc
+}
+
+# Clean up
+--replace_result $initial_read_only INITIAL_OPTION_VALUE
+--eval SET GLOBAL read_only = $initial_read_only
+--replace_result $initial_super_read_only INITIAL_OPTION_VALUE
+--eval SET GLOBAL super_read_only = $initial_super_read_only

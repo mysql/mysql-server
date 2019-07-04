@@ -47,7 +47,8 @@ LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
     m_size(0),
     m_lost_bytes(0),
     m_lost_messages(0),
-    m_lost_msg_handler(lost_msg_handler)
+    m_lost_msg_handler(lost_msg_handler),
+    m_stop(false)
 {
   m_log_buf = (char*)malloc(size+1);
   assert(m_log_buf != NULL);
@@ -333,7 +334,7 @@ LogBuffer::get(char* buf, size_t buf_size, uint timeout_ms)
   }
 
   // Wait until there's something in the buffer or until timeout
-  while((m_size == 0) && (cond_ret == 0))
+  while((m_size == 0) && (cond_ret == 0) && (m_stop == false))
   {
     /**
      * Log buffer is empty, block until signal is received
@@ -426,6 +427,14 @@ size_t
 LogBuffer::getLostCount() const
 {
   return m_lost_bytes;
+}
+
+void
+LogBuffer::stop()
+{
+  Guard g(m_mutex);
+  m_stop = true;
+  NdbCondition_Signal(m_cond);
 }
 
 bool

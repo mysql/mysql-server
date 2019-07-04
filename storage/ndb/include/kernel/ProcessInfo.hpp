@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class ProcessInfo {
 
 public:
   ProcessInfo();
-  ~ProcessInfo() {};
+  ~ProcessInfo() {}
 
   static ProcessInfo * forNodeId(Uint16);
   static void release(ProcessInfo *);
@@ -61,14 +61,14 @@ public:
 
   int getServiceUri(char * buffer, size_t length) const;
 
-  const char * getUriPath() const        { return uri_path;          };
-  const char * getUriScheme() const      { return uri_scheme;        };
-  const char * getProcessName() const    { return process_name;      };
-  const char * getHostAddress() const    { return host_address;      };
+  const char * getUriPath() const        { return uri_path;          }
+  const char * getUriScheme() const      { return uri_scheme;        }
+  const char * getProcessName() const    { return process_name;      }
+  const char * getHostAddress() const    { return host_address;      }
   int getPid() const;
-  int getAngelPid() const                { return angel_process_id;  };
-  int getPort() const                    { return application_port;  };
-  int getNodeId() const                  { return node_id;           };
+  int getAngelPid() const                { return angel_process_id;  }
+  int getPort() const                    { return application_port;  }
+  int getNodeId() const                  { return node_id;           }
 
   STATIC_CONST( UriPathLength = 128 );
   STATIC_CONST( UriPathLengthInWords = 32 );

@@ -38,11 +38,6 @@ typedef struct sock_probe sock_probe;
 #define INVALID_SOCKET -1
 #endif
 
-typedef struct sockaddr_in sockaddr_in;
-typedef struct sockaddr_in6 sockaddr_in6;
-typedef struct in_addr in_addr;
-typedef struct sockaddr sockaddr;
-
 void get_host_name(char *a, char *name);
 node_no xcom_find_node_index(node_list *nodes);
 node_no xcom_mynode_match(char *name, xcom_port port);

@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +44,7 @@ public:
 	     int colNo,
 	     int val);
 #endif
-  ScanFilter(int records = 1000){};
+  ScanFilter(int records = 1000){}
   virtual ~ScanFilter() {}
   virtual int filterOp(NdbOperation*) = 0;
   virtual int verifyRecord(NDBT_ResultRow&) = 0;
@@ -57,7 +55,7 @@ private:
 
 class LessThanFilter : public ScanFilter {
 public:
-  LessThanFilter(int records){ compare_value = records / 100; };
+  LessThanFilter(int records){ compare_value = records / 100; }
   virtual ~LessThanFilter(){}
 private:
   Uint32 compare_value;

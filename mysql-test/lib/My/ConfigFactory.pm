@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -632,6 +632,14 @@ sub new_config {
   # Additional rules required for [mysqltest]
   $self->run_rules_for_group($config, $config->insert('mysqltest'),
                              @mysqltest_rules);
+
+  if ($::secondary_engine_support) {
+    eval 'use mtr_secondary_engine_config; 1';
+    # Additional rules required for secondary engine server
+    push(@post_rules, \&post_check_secondary_engine_group);
+    # Additional rules required for [mysqld] when secondary engine is enabled
+    push(@post_rules, \&post_check_secondary_engine_mysqld_group);
+  }
 
   # Run post rules
   foreach my $rule (@post_rules) {

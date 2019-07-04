@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,23 @@ class Storage_adapter {
 
   template <typename T>
   Object_id core_get_id(const typename T::Name_key &key);
+
+  /**
+     Update the dd object in the core registry.  This is a noop unless
+     this member function is overloaded for a given type. See below.
+   */
+  template <typename T>
+  void core_update(const T *) {}
+
+  /**
+     Overload of core_update for dd::Tablespace. Currently the core
+     registry can only be updated for the DD tablespace when
+     encrypting it. A clone of the dd::Tablespace object passed in is
+     stored in the registry.
+
+     @param new_tsp the new dd::Tablespace object to keep in the core registry.
+  */
+  void core_update(const dd::Tablespace *new_tsp);
 
   /**
     Get a dictionary object from persistent storage.

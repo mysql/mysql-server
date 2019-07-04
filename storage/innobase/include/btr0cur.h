@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -357,7 +357,7 @@ dberr_t btr_cur_update_in_place(
     MY_ATTRIBUTE((warn_unused_result));
 /** Writes a redo log record of updating a record in-place. */
 void btr_cur_update_in_place_log(
-    ulint flags,         /*!< in: flags */
+    ulint flags,         /*!< in: undo logging and locking flags */
     const rec_t *rec,    /*!< in: record */
     dict_index_t *index, /*!< in: index of the record */
     const upd_t *update, /*!< in: update vector */
@@ -757,6 +757,9 @@ struct btr_cur_t {
                          information of the path through
                          the tree */
   rtr_info_t *rtr_info{nullptr}; /*!< rtree search info */
+
+  /** If cursor is used in a scan or simple page fetch. */
+  Page_fetch m_fetch_mode{Page_fetch::NORMAL};
 };
 
 /** The following function is used to set the deleted bit of a record.

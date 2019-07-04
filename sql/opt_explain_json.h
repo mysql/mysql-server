@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,10 +42,9 @@ class context;
 class Explain_format_JSON : public Explain_format {
  private:
   opt_explain_json_namespace::context *current_context;  ///< current tree node
-  Query_result *output;
 
  public:
-  Explain_format_JSON() : current_context(NULL), output(NULL) {}
+  Explain_format_JSON() : current_context(nullptr) {}
 
   virtual bool is_hierarchical() const { return true; }
   virtual bool send_headers(Query_result *result);

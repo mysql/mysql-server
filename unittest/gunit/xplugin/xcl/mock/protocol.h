@@ -80,6 +80,12 @@ class Mock_protocol : public XProtocol {
   MOCK_METHOD1(send, XError(const Mysqlx::Connection::CapabilitiesGet &m));
   MOCK_METHOD1(send, XError(const Mysqlx::Connection::CapabilitiesSet &m));
   MOCK_METHOD1(send, XError(const Mysqlx::Connection::Close &m));
+  MOCK_METHOD1(send, XError(const Mysqlx::Cursor::Open &m));
+  MOCK_METHOD1(send, XError(const Mysqlx::Cursor::Close &m));
+  MOCK_METHOD1(send, XError(const Mysqlx::Cursor::Fetch &m));
+  MOCK_METHOD1(send, XError(const Mysqlx::Prepare::Prepare &m));
+  MOCK_METHOD1(send, XError(const Mysqlx::Prepare::Execute &m));
+  MOCK_METHOD1(send, XError(const Mysqlx::Prepare::Deallocate &m));
   MOCK_METHOD0(recv_ok, XError());
   MOCK_METHOD0(execute_close, XError());
   MOCK_METHOD1(execute_fetch_capabilities_raw,
@@ -107,6 +113,16 @@ class Mock_protocol : public XProtocol {
                                XError *out_error));
   MOCK_METHOD2(execute_delete_raw,
                XQuery_result *(const Mysqlx::Crud::Delete &m,
+                               XError *out_error));
+  MOCK_METHOD2(execute_prep_stmt_raw,
+               XQuery_result *(const Mysqlx::Prepare::Execute &m,
+                               XError *out_error));
+  MOCK_METHOD2(execute_cursor_open_raw,
+               XQuery_result *(const Mysqlx::Cursor::Open &m,
+                               XError *out_error));
+  MOCK_METHOD3(execute_cursor_fetch_raw,
+               XQuery_result *(const Mysqlx::Cursor::Fetch &m,
+                               std::unique_ptr<XQuery_result> &cursor_open_res,
                                XError *out_error));
 
  private:
@@ -155,6 +171,18 @@ class Mock_protocol : public XProtocol {
     return XQuery_result_ptr(execute_find_raw(m, out_error));
   }
 
+  XQuery_result_ptr execute_cursor_open(const Mysqlx::Cursor::Open &m,
+                                        XError *out_error) override {
+    return XQuery_result_ptr(execute_cursor_open_raw(m, out_error));
+  }
+
+  XQuery_result_ptr execute_cursor_fetch(const Mysqlx::Cursor::Fetch &m,
+                                         XQuery_result_ptr cursor_open_result,
+                                         XError *out_error) override {
+    return XQuery_result_ptr(
+        execute_cursor_fetch_raw(m, cursor_open_result, out_error));
+  }
+
   XQuery_result_ptr execute_update(const Mysqlx::Crud::Update &m,
                                    XError *out_error) override {
     return XQuery_result_ptr(execute_update_raw(m, out_error));
@@ -168,6 +196,11 @@ class Mock_protocol : public XProtocol {
   XQuery_result_ptr execute_delete(const Mysqlx::Crud::Delete &m,
                                    XError *out_error) override {
     return XQuery_result_ptr(execute_delete_raw(m, out_error));
+  }
+
+  XQuery_result_ptr execute_prep_stmt(const Mysqlx::Prepare::Execute &m,
+                                      XError *out_error) override {
+    return XQuery_result_ptr(execute_prep_stmt_raw(m, out_error));
   }
 };
 

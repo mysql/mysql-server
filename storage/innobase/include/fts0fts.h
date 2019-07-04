@@ -191,7 +191,7 @@ enum fts_table_type_t {
   FTS_COMMON_TABLE, /*!< FTS auxiliary table that is common
                     for all FTS index on a table */
 
-  FTS_OBSELETED_TABLE /*!< FTS obseleted tables like DOC_ID,
+  FTS_OBSOLETED_TABLE /*!< FTS obsoleted tables like DOC_ID,
                       ADDED, STOPWORDS */
 };
 

@@ -57,6 +57,8 @@ class SQL_I_List {
         first(tmp.first),
         next(elements ? tmp.next : &first) {}
 
+  SQL_I_List(SQL_I_List &&) = default;
+
   inline void empty() {
     elements = 0;
     first = NULL;
@@ -89,6 +91,9 @@ class SQL_I_List {
       elements += save->elements;
     }
   }
+
+  SQL_I_List &operator=(SQL_I_List &) = default;
+  SQL_I_List &operator=(SQL_I_List &&) = default;
 };
 
 /*
@@ -119,19 +124,6 @@ struct list_node {
 };
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
-
-/**
-  Comparison function for list sorting.
-
-  @param n1   Info of 1st node
-  @param n2   Info of 2nd node
-  @param arg  Additional info
-
-  @return
-    -1  n1 < n2
-     0  n1 == n2
-     1  n1 > n2
-*/
 
 class base_list {
  protected:
@@ -413,7 +405,7 @@ class base_list_iterator {
   {
     return &current->info;
   }
-  inline bool is_last(void) { return el == &list->last_ref()->next; }
+  inline bool is_last(void) { return el == list->last; }
   inline bool is_before_first() const { return current == NULL; }
   bool prepend(void *a, MEM_ROOT *mem_root) {
     if (list->push_front(a, mem_root)) return true;
@@ -626,7 +618,7 @@ class List_STL_Iterator {
     return !(*this == other);
   }
 
-  T *operator->() const { static_cast<T *>(m_current->info); }
+  T *operator->() const { return static_cast<T *>(m_current->info); }
 
   // DefaultConstructible (required for ForwardIterator).
   List_STL_Iterator() {}

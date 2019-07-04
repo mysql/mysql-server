@@ -1,0 +1,97 @@
+--source include/have_debug_sync.inc
+
+--echo Bug #28733170
+--echo PERFORMANCE_SCHEMA.DATA_LOCKS DOES NOT HANDLE JOINS CORRECTLY
+
+CREATE TABLE t1(
+  id INT PRIMARY KEY
+) Engine=InnoDB;
+
+# Create a situation in which a transaction holds more than one lock.
+BEGIN;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 FOR UPDATE;
+
+# Now let another transaction be blocked by the first one
+--connect (C1, localhost, root,,)
+    BEGIN;
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C1_will_wait';
+    --send SELECT * FROM t1 WHERE id=1 FOR UPDATE
+
+
+--connect (C2, localhost, root,,)
+    SET DEBUG_SYNC = 'now WAIT_FOR C1_will_wait';
+
+    # Store all blocking_engine_lock_id-s in t2
+
+    CREATE TABLE t2 (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        lock_id VARCHAR(200) NOT NULL
+    ) Engine=InnoDB;
+
+    INSERT INTO t2 (lock_id)
+        SELECT blocking_engine_lock_id
+        FROM performance_schema.data_lock_waits;
+
+    # We expect the number of rows in the JOIN
+    # to be equal to the number of rows in t2.
+    # The bug was causing this JOIN to trigger debug assertion
+    # failure (or return single row only if one only fixed the
+    # assertion failure).
+
+    SELECT COUNT(*) FROM t2;
+
+    SELECT COUNT(t2.id)
+    FROM t2
+    JOIN performance_schema.data_lock_waits dlw
+    ON(dlw.blocking_engine_lock_id = t2.lock_id)
+    ORDER BY t2.id;
+
+    # Store two copies of the requesting_engine_lock_id in t3
+
+    CREATE TABLE t3 (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        lock_id VARCHAR(200) NOT NULL
+    ) Engine=InnoDB;
+
+    INSERT INTO t3 (lock_id)
+        SELECT requesting_engine_lock_id
+        FROM performance_schema.data_lock_waits
+        LIMIT 1;
+    INSERT INTO t3 (lock_id)
+        SELECT requesting_engine_lock_id
+        FROM performance_schema.data_lock_waits
+        LIMIT 1;
+
+    # We expect each of two rows in t3 to match at least one row
+    # so the result should be 2. The bug caused assertion failure
+    # in debug mode (or just 1 row to be found if one fixed only
+    # assertion failure).
+    SELECT COUNT(DISTINCT t3.id)
+    FROM t3
+    JOIN performance_schema.data_lock_waits dlw
+    ON(dlw.requesting_engine_lock_id = t3.lock_id)
+    ORDER BY t3.id;
+
+    # Finally try if JOINing data_lock_waits with data_locks works,
+    # which means that each of edges in data_lock_waits should be
+    # successfully joined on both ends to nodes in data_locks.
+    # The bug caused this to find only one row instead of two.
+    SELECT COUNT(*) FROM performance_schema.data_lock_waits;
+    SELECT COUNT(*)
+    FROM performance_schema.data_lock_waits
+    JOIN performance_schema.data_locks r
+    ON(r.engine_lock_id = requesting_engine_lock_id)
+    JOIN performance_schema.data_locks b
+    ON(b.engine_lock_id = blocking_engine_lock_id);
+
+    DROP TABLE t2;
+    DROP TABLE t3;
+
+--connection default
+ROLLBACK;
+
+--disconnect C1
+--disconnect C2
+
+DROP TABLE t1;

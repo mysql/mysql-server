@@ -181,3 +181,28 @@ mysqltest_db1.t1	repair	status	OK
 # Switching to connection 'default'.
 drop database mysqltest_db1;
 drop user mysqltest_u1@localhost;
+USE test;
+#
+# Bug #28653104: HANDLE_FATAL_SIGNAL (SIG=11) IN __STRCHR_SSE2
+#
+# Setup
+call mtr.add_suppression("The plugin .* used to authenticate user .* is not loaded. Nobody can currently login using this account");
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+call mtr.add_suppression("Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value.");
+CREATE TEMPORARY TABLE save_user AS SELECT * FROM mysql.user;
+# Test
+INSERT INTO mysql.user(user,plugin,ssl_cipher,x509_issuer,x509_subject) VALUES ('foo','bar','','',''),('bar','bar','','',''),('baz','bar','','','');
+CREATE ROLE r1,r2,r3;
+GRANT r3 TO r2;
+CREATE USER''@''IDENTIFIED WITH 'server' AS 'user';
+ERROR HY000: Plugin 'server' is not loaded
+UPDATE mysql.user SET plugin='';
+# Success criteria: must not crash
+CREATE USER plug IDENTIFIED WITH 'server';
+ERROR HY000: Plugin 'server' is not loaded
+# Cleanup
+REVOKE r3 FROM r2;
+DELETE FROM mysql.user;
+INSERT INTO mysql.user SELECT * FROM save_user;
+FLUSH PRIVILEGES;
+# End of 8.0 tests

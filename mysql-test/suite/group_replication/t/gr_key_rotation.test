@@ -178,13 +178,15 @@ DELETE FROM t1 WHERE c1=1;
 
 # Clean Up
 
-# Uninstall keyring plugin on server2
+# Uninstall keyring plugin and remove dummy keyring file on server2
 UNINSTALL PLUGIN keyring_file;
+--remove_file $MYSQL_TMP_DIR/mydummy_key2
 
-# Uninstall keyring plugin on server1
+# Uninstall keyring plugin and remove dummy keyring file on server1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 UNINSTALL PLUGIN keyring_file;
+--remove_file $MYSQL_TMP_DIR/mydummy_key1
 
 DROP TABLE t2;
 DROP TABLE t3;

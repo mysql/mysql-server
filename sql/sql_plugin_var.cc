@@ -151,14 +151,20 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
 }
 
 SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
-  switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+  switch (plugin_var->flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
       return SHOW_MY_BOOL;
     case PLUGIN_VAR_INT:
+      return SHOW_SIGNED_INT;
+    case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED:
       return SHOW_INT;
     case PLUGIN_VAR_LONG:
+      return SHOW_SIGNED_LONG;
+    case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED:
       return SHOW_LONG;
     case PLUGIN_VAR_LONGLONG:
+      return SHOW_SIGNED_LONGLONG;
+    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED:
       return SHOW_LONGLONG;
     case PLUGIN_VAR_STR:
       return SHOW_CHAR_PTR;
@@ -270,9 +276,10 @@ bool sys_var_pluginvar::check_update_type(Item_result type) {
 }
 
 uchar *sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type) {
-  DBUG_ASSERT(thd || (type == OPT_GLOBAL));
+  DBUG_ASSERT(thd || (type == OPT_GLOBAL) || (type == OPT_PERSIST));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL) {
-    if (type == OPT_GLOBAL) thd = NULL;
+    /* scope of OPT_PERSIST is always GLOBAL */
+    if (type == OPT_GLOBAL || type == OPT_PERSIST) thd = NULL;
 
     return intern_sys_var_ptr(thd, *(int *)(plugin_var + 1), false);
   }
@@ -567,7 +574,10 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR:
-        strcpy(def_val, ((sysvar_str_t *)plugin_var)->def_val);
+        if (((sysvar_str_t *)plugin_var)->def_val != NULL)
+          strcpy(def_val, ((sysvar_str_t *)plugin_var)->def_val);
+        else /* no default: consider empty */
+          def_val[0] = 0;
         return;
       case PLUGIN_VAR_DOUBLE:
         var->save_result.double_value =

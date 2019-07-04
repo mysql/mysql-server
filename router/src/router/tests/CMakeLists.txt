@@ -32,6 +32,10 @@ add_test_dir(issues MODULE issues
   LIB_DEPENDS test-helpers
   SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+ENDIF()
+
 # Use configuration file templates to generate configuration files
 CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR})
 COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR})

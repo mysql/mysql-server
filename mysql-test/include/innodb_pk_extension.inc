@@ -141,10 +141,13 @@ SHOW STATUS LIKE 'handler_read%';
 
 --echo #
 --echo # Optimization of sorting
+--echo # Also verifies FORMAT=tree for reverse ref access.
 --echo #
 
 --replace_column 10 #
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
+ORDER BY pk_2 DESC LIMIT 5;
+EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'

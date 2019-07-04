@@ -5,10 +5,10 @@
 
 connection slave;
 --let $debug_point_silent= 1
---let $debug_point= extra_row_data_check
+--let $debug_point= extra_row_ndb_info_check
 --source include/add_debug_point.inc
 connection master;
---let $debug_point= extra_row_data_set
+--let $debug_point= extra_row_ndb_info_set
 --source include/add_debug_point.inc
 --echo Basic insert, update, delete from Master->Slave
 --echo DBUG code will set + check transfer of extra
@@ -28,13 +28,13 @@ flush logs;
 create table raw_data(txt varchar(1000));
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/rpl_extra_row_data.out
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/rpl_extra_row_ndb_info.out
 
---eval load data local infile '$MYSQLTEST_VARDIR/tmp/rpl_extra_row_data.out' into table raw_data columns terminated by '\n';
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/rpl_extra_row_ndb_info.out' into table raw_data columns terminated by '\n';
 --enable_query_log
 
-select replace(txt, '\r', '') from raw_data where txt like '%### Extra row data format%' order by txt;
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_extra_row_data.out
+select replace(txt, '\r', '') from raw_data where txt like '%### Extra row ndb info: data_format:%' order by txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_extra_row_ndb_info.out
 drop table raw_data;
 
 --echo Generate some more insert, update, delete traffic
@@ -68,9 +68,9 @@ source include/check_slave_is_running.inc;
 connection master;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
---let $debug_point= extra_row_data_check
+--let $debug_point= extra_row_ndb_info_check
 --source include/remove_debug_point.inc
 connection master;
---let $debug_point= extra_row_data_set
+--let $debug_point= extra_row_ndb_info_set
 --source include/remove_debug_point.inc
 --source include/rpl_end.inc

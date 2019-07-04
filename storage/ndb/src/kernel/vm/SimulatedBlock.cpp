@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,12 +92,12 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     c_segmentedFragmentSendList(c_fragmentSendPool),
     c_mutexMgr(* this),
     c_counterMgr(* this)
+#ifdef VM_TRACE_TIME
+    ,m_currentGsn(0)
+#endif
 #ifdef VM_TRACE
     ,debugOutFile(globalSignalLoggers.getOutputStream())
     ,debugOut(debugOutFile)
-#endif
-#ifdef VM_TRACE_TIME
-    ,m_currentGsn(0)
 #endif
 {
   m_threadId = 0;
@@ -134,12 +134,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_callbackTableAddr = 0;
 
   CLEAR_ERROR_INSERT_VALUE;
-
-#ifdef VM_TRACE
-  m_global_variables = new Ptr<void> * [1];
-  m_global_variables[0] = 0;
-  m_global_variables_save = 0;
-#endif
 
 #ifndef NDBD_MULTITHREADED
   /* Ndbd, init from GlobalScheduler */
@@ -204,12 +198,6 @@ SimulatedBlock::~SimulatedBlock()
   freeBat();
 #ifdef VM_TRACE_TIME
   printTimes(stdout);
-#endif
-
-#ifdef VM_TRACE
-  enable_global_variables();
-  delete [] m_global_variables;
-  m_global_variables = 0;
 #endif
 
   if (theInstanceList != 0) {
@@ -710,6 +698,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, 0);
 
   signal->header.theLength = length;
@@ -812,6 +801,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = 0;
 
+ndbrequire(noOfSections == 0);
   check_sections(signal, noOfSections, 0);
 
   if ((length == 0) || (length > 25) || (recBlock == 0)) {
@@ -918,6 +908,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
@@ -1040,6 +1031,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
   
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
@@ -1172,6 +1164,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1286,6 +1279,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1425,6 +1419,7 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1549,6 +1544,7 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -1679,6 +1675,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   
   BlockNumber bnr = refToBlock(ref);
 
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, 0);
   
   signal->header.theLength = length;
@@ -1726,6 +1723,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     bnr_error();
   }//if
 
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
@@ -3420,6 +3418,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 noOfSections,
 				  Uint32 messageSize){
   
+ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   info.m_sectionPtr[0].m_linear.p = NULL;
@@ -3950,43 +3949,46 @@ SimulatedBlock::execFSAPPENDREF(Signal* signal)
   fsRefError(signal, __LINE__, "File system append failed");
 }
 
-#ifdef VM_TRACE
-static Ptr<void> * m_empty_global_variables[] = { 0 };
+#if defined(USE_INIT_GLOBAL_VARIABLES)
 void
 SimulatedBlock::disable_global_variables()
 {
-  m_global_variables_save = m_global_variables;
-  m_global_variables = m_empty_global_variables;
+#ifdef NDBD_MULTITHREADED
+  mt_disable_global_variables(m_threadId);
+#endif
 }
 
 void
 SimulatedBlock::enable_global_variables()
 {
-  if (m_global_variables == m_empty_global_variables)
-  {
-    m_global_variables = m_global_variables_save;
-  }
+#ifdef NDBD_MULTITHREADED
+  mt_enable_global_variables(m_threadId);
+#endif
 }
 
 void
-SimulatedBlock::clear_global_variables(){
-  Ptr<void> ** tmp = m_global_variables;
-  while(* tmp != 0){
-    (* tmp)->i = RNIL;
-    (* tmp)->p = 0;
-    tmp++;
-  }
+SimulatedBlock::init_global_ptrs(void ** tmp, size_t cnt)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_ptr_instances(m_threadId, tmp, cnt);
+#endif
 }
 
 void
-SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
-  m_global_variables = new Ptr<void> * [cnt+1];
-  for(size_t i = 0; i<cnt; i++){
-    m_global_variables[i] = (Ptr<void>*)tmp[i];
-  }
-  m_global_variables[cnt] = 0;
+SimulatedBlock::init_global_uint32_ptrs(void ** tmp, size_t cnt)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_uint32_ptr_instances(m_threadId, tmp, cnt);
+#endif
 }
 
+void
+SimulatedBlock::init_global_uint32(void ** tmp, size_t cnt)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_uint32_instances(m_threadId, tmp, cnt);
+#endif
+}
 #endif
 
 int
@@ -4085,7 +4087,7 @@ SimulatedBlock::xfrm_attr_hash(
   if (cs == NULL)
   {
     jam();
-    Uint32 len;
+    Uint32 len = 0;
     switch(array){
     case NDB_ARRAYTYPE_SHORT_VAR:
       len = 1 + srcPtr[0];
@@ -4129,7 +4131,7 @@ SimulatedBlock::xfrm_attr_hash(
     // defLen: Max defined length of src data 
     const unsigned remLen = ((dstSize - dstPos) << 2);
     const unsigned defLen = srcBytes - lb;
-    int n = NdbSqlUtil::strnxfrm_hash(cs,
+    int n = NdbSqlUtil::strnxfrm_hash(cs, typeId,
                                  dstPtr, remLen, 
                                  srcPtr + lb, len, defLen);
     

@@ -15,6 +15,8 @@ alter user xplugin@localhost password expire;
 --echo
 --echo Test: Expired password with no support for sandbox mode (should fail)
 --write_file $MYSQL_TMP_DIR/connection_expire.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 
 -->expecterror ER_MUST_CHANGE_PASSWORD_LOGIN
 -->login foo
@@ -26,6 +28,8 @@ EOF
 --echo
 --echo Test: Expired password with support for sandbox mode (should succeed)
 --write_file $MYSQL_TMP_DIR/connection_expire.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
@@ -49,7 +53,8 @@ EOF
 --exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.tmp 2>&1
 
 --write_file $MYSQL_TMP_DIR/connection_expire_x_root.tmp
-
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -71,6 +76,8 @@ Mysqlx.Connection.CapabilitiesSet {
 EOF
 
 --write_file $MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {

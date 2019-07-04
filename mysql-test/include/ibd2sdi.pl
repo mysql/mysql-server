@@ -44,13 +44,13 @@ sub ibd2sdi_replace() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/$1X$3Y$5Z$7M;/g;
 
     # Remove any version id
     $_=~ s/("[a-z_]+_version_id": )[0-9]+/$1X/g;
 
-    # Remove dd version id
-    $_=~ s/("dd_version": )[0-9]+/$1X/g;
+    # Remove any version
+    $_=~ s/("[a-z_]+_version": )[0-9]+/$1X/g;
 
     # Remove se_private_data: null and table_id
     $_=~ s/("se_private_data":) "default_null=[0-1];table_id=[0-9]+;"/$1 "default_null=X;table_id=Y"/g;
@@ -118,14 +118,14 @@ sub ibd2sdi_replace_system() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/$1X$3Y$5Z$7M;/g;
 
     # Remove any version id
     $_=~ s/("[a-z_]+_version_id": )[0-9]+/$1X/g;
 
 
-    # Remove dd version id
-    $_=~ s/("dd_version": )[0-9]+/$1X/g;
+    # Remove any version
+    $_=~ s/("[a-z_]+_version": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
@@ -189,13 +189,13 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/$1X$3Y$5Z$7M;/g;
 
     # Remove any version id
     $_=~ s/("[a-z_]+_version_id": )[0-9]+/$1X/g;
 
-    # Remove dd version id
-    $_=~ s/("dd_version": )[0-9]+/$1X/g;
+    # Remove any version
+    $_=~ s/("[a-z_]+_version": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)

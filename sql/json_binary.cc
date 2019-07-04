@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1164,11 +1164,12 @@ Value Value::key(size_t pos) const {
   Get the value associated with the specified key in a JSON object.
 
   @param[in] key  the key to look up
+  @param[in] length  the length of the key
   @return the value associated with the key, if there is one. otherwise,
   returns ERROR
 */
-Value Value::lookup(const std::string &key) const {
-  size_t index = lookup_index(key);
+Value Value::lookup(const char *key, size_t length) const {
+  size_t index = lookup_index(key, length);
   if (index == element_count()) return err();
   return element(index);
 }
@@ -1177,10 +1178,11 @@ Value Value::lookup(const std::string &key) const {
   Get the index of the element with the specified key in a JSON object.
 
   @param[in] key  the key to look up
+  @param[in] length  the length of the key
   @return the index if the key is found, or `element_count()` if the
   key is not found
 */
-size_t Value::lookup_index(const std::string &key) const {
+size_t Value::lookup_index(const char *key, size_t length) const {
   DBUG_ASSERT(m_type == OBJECT);
 
   const auto offset_size = json_binary::offset_size(m_large);
@@ -1198,15 +1200,15 @@ size_t Value::lookup_index(const std::string &key) const {
 
     // Keys are ordered on length, so check length first.
     size_t key_len = uint2korr(m_data + entry_offset + offset_size);
-    if (key.length() > key_len)
+    if (length > key_len) {
       lo = idx + 1;
-    else if (key.length() < key_len)
+    } else if (length < key_len) {
       hi = idx;
-    else {
+    } else {
       // The keys had the same length, so compare their contents.
       size_t key_offset = read_offset_or_size(m_data + entry_offset, m_large);
 
-      int cmp = memcmp(key.data(), m_data + key_offset, key_len);
+      int cmp = memcmp(key, m_data + key_offset, key_len);
       if (cmp > 0)
         lo = idx + 1;
       else if (cmp < 0)

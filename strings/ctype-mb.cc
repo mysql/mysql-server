@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "strings/str_uca_type.h"
+#include "template_utils.h"
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str) {
   uint32 l;
@@ -341,7 +342,8 @@ size_t my_well_formed_len_mb(const CHARSET_INFO *cs, const char *b,
     my_wc_t wc;
     int mb_len;
 
-    if ((mb_len = cs->cset->mb_wc(cs, &wc, (uchar *)b, (uchar *)e)) <= 0) {
+    if ((mb_len = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(b),
+                                  pointer_cast<const uchar *>(e))) <= 0) {
       *error = b < e ? 1 : 0;
       break;
     }
@@ -373,8 +375,8 @@ uint my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
     while (b < end) {
       int mb_len;
 
-      if (!cs->coll->strnncoll(cs, (uchar *)b, s_length, (uchar *)s, s_length,
-                               0)) {
+      if (!cs->coll->strnncoll(cs, pointer_cast<const uchar *>(b), s_length,
+                               pointer_cast<const uchar *>(s), s_length, 0)) {
         if (nmatch) {
           match[0].beg = 0;
           match[0].end = (uint)(b - b0);
@@ -555,7 +557,8 @@ int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 
 void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const uchar *key, size_t len, ulong *nr1, ulong *nr2) {
+                         const uchar *key, size_t len, uint64 *nr1,
+                         uint64 *nr2) {
   const uchar *pos = key;
 
   /*
@@ -564,9 +567,9 @@ void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   */
   key = skip_trailing_space(key, len);
 
-  for (; pos < (uchar *)key; pos++) {
+  for (; pos < key; pos++) {
     nr1[0] ^=
-        (ulong)((((uint)nr1[0] & 63) + nr2[0]) * ((uint)*pos)) + (nr1[0] << 8);
+        (uint64)((((uint)nr1[0] & 63) + nr2[0]) * ((uint)*pos)) + (nr1[0] << 8);
     nr2[0] += 3;
   }
 }
@@ -812,7 +815,8 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
   for (; charlen > 0; charlen--) {
     my_wc_t wc, wc2;
     int res;
-    if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)ptr, (uchar *)end)) <= 0) {
+    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(ptr),
+                               pointer_cast<const uchar *>(end))) <= 0) {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
         return true;          /* min_length and max_length are not important */
       break;                  /* End of the string */
@@ -820,7 +824,8 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
     ptr += res;
 
     if (wc == (my_wc_t)escape) {
-      if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)ptr, (uchar *)end)) <= 0) {
+      if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(ptr),
+                                 pointer_cast<const uchar *>(end))) <= 0) {
         if (res == MY_CS_ILSEQ)
           return true; /* min_length and max_length are not important */
         /*
@@ -869,7 +874,8 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
     if (cs->uca) contraction_flags = cs->uca->contraction_flags;
     if (contraction_flags &&
         my_uca_can_be_contraction_head(contraction_flags, wc) &&
-        (res = cs->cset->mb_wc(cs, &wc2, (uchar *)ptr, (uchar *)end)) > 0) {
+        (res = cs->cset->mb_wc(cs, &wc2, pointer_cast<const uchar *>(ptr),
+                               pointer_cast<const uchar *>(end))) > 0) {
       const uint16 *weight;
       if ((wc2 == (my_wc_t)w_one || wc2 == (my_wc_t)w_many)) {
         /* Contraction head followed by a wildcard */
@@ -1265,7 +1271,8 @@ size_t my_numcells_mb(const CHARSET_INFO *cs, const char *b, const char *e) {
   while (b < e) {
     int mb_len;
     uint pg;
-    if ((mb_len = cs->cset->mb_wc(cs, &wc, (uchar *)b, (uchar *)e)) <= 0 ||
+    if ((mb_len = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(b),
+                                  pointer_cast<const uchar *>(e))) <= 0 ||
         wc > 0xFFFF) {
       /*
         Let's think a wrong sequence takes 1 dysplay cell.

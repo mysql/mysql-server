@@ -1,0 +1,483 @@
+# We are using some debug-only features in this test
+Explore some event weirdness
+use test;
+create table test.synch(x int primary key auto_increment) engine=ndb;
+show create table test.synch;
+reset master;
+Create table with tableId X and blob part tables :
+NDB$BLOB_X_2
+NDB$BLOB_X_3
+NDB$BLOB_X_4
+Event will also be created
+REPL$test/t1
+Plus
+NDB$BLOBEVENT_REPL$test/t1_2
+NDB$BLOBEVENT_REPL$test/t1_3
+NDB$BLOBEVENT_REPL$test/t1_4
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+insert into test.t1 values(0, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+reset master;
+Show tables and events
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+Drop table, and show tables and events gone
+drop table test.t1;
+Expecting 0 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+0
+Recreate the table
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+insert into test.t1 values(0, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+reset master;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+Drop the table, but fail to drop the event(s)
+set @save_debug = @@global.debug;
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Expect : The tables are gone, but their events still hang around
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expect : The tables are gone, but their events still hang around
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+----------------------------------------------------------------------
+Case 1 : Create a table with the same tableId and same number of blobs
+Expect : Creation ok with no errors 
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+reset master;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+Drop the table, but fail to drop the event(s)
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+----------------------------------------------------------------------
+Case 2 : Create a table with the same tableid + name, more blobs
+Expect : No errors, event setup includes one event for each blob column
+create table test.t1 (a int primary key, b text, c text, d text, e text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b", "c", "d", "e");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+mysqld1:	###   @5='e'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+mysqld2:	###   @5='e'
+reset master;
+Expecting 4 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+4
+Drop the table, but fail to drop the event(s)
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 4 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+4
+----------------------------------------------------------------------
+Case 3 : Create a table with the same tableid + name, fewer blobs
+Expect : No errors, extra blob events dropped
+create table test.t1 (a int primary key, b text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+reset master;
+Expecting 1 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+1
+Drop the table, but fail to drop the event(s)
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 1 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+1
+----------------------------------------------------------------------
+Case 4 : Create a table with the same tableid + name, different numbered blobs
+Expect : No errors, event for new numbered blob, others gone
+create table test.t1 (a int primary key, b int, c text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, 1, "c");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @3='c'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @3='c'
+reset master;
+Expecting 1 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+1
+Drop the table, but fail to drop the event(s)
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Cleanup table in cluster
+Expect : All t1 related events and tables gone
+create table test.t1 (a int primary key, b text) engine=ndb;
+insert into test.t1 values(0, "b");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+reset master;
+drop table test.t1;
+Expecting 0 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+0
+Create table with 3 blob columns
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+insert into test.t1 values(0, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+reset master;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+And drop without dropping events...
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+----------------------------------------------------------------------
+Case 5 : Create a table with same name, different tableid, same blobs 
+Expect : No errors, all blobs have events referring to their parts tables
+Create a filler table to shift-up tableids
+create table test.filler1(a int) engine=ndb;
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+reset master;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+Drop table and recreate to get normal setup
+Expect : Table creates without warnings and all events are as expected
+drop table test.t1;
+create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+reset master;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+And drop without dropping events...
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+----------------------------------------------------------------------
+Case 6 : Same name, different tableid, different numbered blobs
+Drop filler table to shift tableids
+drop table test.filler1;
+create table test.t1 (a int primary key, spacer int, b text, c text, d text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, 1, "b", "c", "d");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @3='b'
+mysqld1:	###   @4='c'
+mysqld1:	###   @5='d'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @3='b'
+mysqld2:	###   @4='c'
+mysqld2:	###   @5='d'
+reset master;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+And drop without dropping events...
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+----------------------------------------------------------------------
+Case 7 : Create a table with the same tableid + name, no blobs
+Expect : No errors, all blob events gone, currently fail
+create table test.t1 (a int primary key, b varchar(2), c varchar(2), d varchar(2), e varchar(2)) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b", "c", "d", "e");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+mysqld1:	###   @5='e'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+mysqld2:	###   @5='e'
+reset master;
+Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+Drop the table, but fail to drop any event(s)
+set global debug='-d';
+set global debug='+d,ndb_skip_drop_event';
+drop table test.t1;
+show warnings;
+Level	Code	Message
+Redo the drop command to clear MySQLD metadata
+Expect an error as the table doesn't exist in Ndb
+drop table test.t1;
+ERROR 42S02: Unknown table 'test.t1'
+set global debug='+d';
+set global debug=@save_debug;
+Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+3
+----------------------------------------------------------------------
+Case 8 : Create a table with the same tableid + name, blobs when previously no blobs
+Expect : No errors, event setup includes one event for each blob column
+create table test.t1 (a int primary key, b text, c text, d text, e text) engine=ndb;
+show warnings;
+Level	Code	Message
+insert into test.t1 values(0, "b", "c", "d", "e");
+"Check that the binlog contains the inserted row"
+mysqld1:	txt
+mysqld1:	### INSERT INTO `test`.`t1`
+mysqld1:	###   @2='b'
+mysqld1:	###   @3='c'
+mysqld1:	###   @4='d'
+mysqld1:	###   @5='e'
+reset master;
+"Check that the binlog contains the inserted row"
+mysqld2:	txt
+mysqld2:	### INSERT INTO `test`.`t1`
+mysqld2:	###   @2='b'
+mysqld2:	###   @3='c'
+mysqld2:	###   @4='d'
+mysqld2:	###   @5='e'
+reset master;
+Expecting 4 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+4
+drop table test.t1;
+Expecting 0 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
+0
+drop table test.synch;

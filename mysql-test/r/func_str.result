@@ -737,7 +737,7 @@ t1	CREATE TABLE `t1` (
   `trim(BOTH _latin2' ' FROM _latin2' a ')` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `repeat(_latin2'a',10)` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
   `reverse(_latin2'ab')` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
-  `quote(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
+  `quote(_latin2'ab')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `soundex(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `substring(_latin2'ab',1)` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
@@ -1151,7 +1151,6 @@ str	num
 notnumber	0
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
-Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 str	num
 notnumber	0
@@ -1359,7 +1358,7 @@ c	res
 y,abc	abc
 y,abc	abc
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;
 select cast(rtrim('  20.06 ') as decimal(19,2));
 cast(rtrim('  20.06 ') as decimal(19,2))
@@ -2819,7 +2818,7 @@ SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 67108864
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4233,37 +4232,37 @@ SELECT @b:= TO_BASE64(''), FROM_BASE64(@b);
 @b:= TO_BASE64('')	FROM_BASE64(@b)
 	
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @b:= TO_BASE64('f'), FROM_BASE64(@b);
 @b:= TO_BASE64('f')	FROM_BASE64(@b)
 Zg==	f
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @b:= TO_BASE64('fo'), FROM_BASE64(@b);
 @b:= TO_BASE64('fo')	FROM_BASE64(@b)
 Zm8=	fo
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @b:= TO_BASE64('foo'), FROM_BASE64(@b);
 @b:= TO_BASE64('foo')	FROM_BASE64(@b)
 Zm9v	foo
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @b:= TO_BASE64('foob'), FROM_BASE64(@b);
 @b:= TO_BASE64('foob')	FROM_BASE64(@b)
 Zm9vYg==	foob
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @b:= TO_BASE64('fooba'), FROM_BASE64(@b);
 @b:= TO_BASE64('fooba')	FROM_BASE64(@b)
 Zm9vYmE=	fooba
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT @b:= TO_BASE64('foobar'), FROM_BASE64(@b);
 @b:= TO_BASE64('foobar')	FROM_BASE64(@b)
 Zm9vYmFy	foobar
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 #
 # Invalid characters - return NULL
 #
@@ -4390,7 +4389,7 @@ SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 67108864
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -5029,7 +5028,7 @@ CREATE TABLE t1 AS SELECT quote('a');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `quote('a')` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `quote('a')` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8;
 Warnings:
@@ -5038,14 +5037,14 @@ CREATE TABLE t2 AS SELECT quote('a');
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `quote('a')` varchar(3) CHARACTER SET utf8 DEFAULT NULL
+  `quote('a')` varchar(4) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8mb4;
 CREATE TABLE t3 AS SELECT quote('a');
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `quote('a')` varchar(3) DEFAULT NULL
+  `quote('a')` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES DEFAULT;
 DROP TABLE t1, t2, t3;
@@ -5090,3 +5089,86 @@ i
 i
 51393
 DROP PROCEDURE proc;
+#
+# Bug#29133127 ASSERTION `MAYBE_NULL' FAILED
+#              |ITEM_FUNC_CONCAT::VAL_STR(STRING*)
+#
+SET GLOBAL max_allowed_packet=1024;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SET collation_connection=utf32_unicode_ci;
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+"
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+"
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SET GLOBAL max_allowed_packet=default;

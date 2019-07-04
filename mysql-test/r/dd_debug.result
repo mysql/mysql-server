@@ -91,7 +91,7 @@ CREATE TABLE t1 (pk INT PRIMARY KEY) TABLESPACE no_such_tablespace;
 ERROR HY000: Tablespace no_such_tablespace doesn't exist.
 # 2.1c Fail while acquiring tablespace object during create.
 connect  con1, localhost, root,,;
-SET DEBUG_SYNC= 'before_acquire_in_fill_dd_tablespace_id_or_name SIGNAL before_acquire WAIT_FOR cont';
+SET DEBUG_SYNC= 'before_acquire_in_read_tablespace_encryption SIGNAL before_acquire WAIT_FOR cont';
 CREATE TABLE t1 (pk INT PRIMARY KEY) TABLESPACE no_such_tablespace;;
 connection default;
 SET DEBUG_SYNC= 'now WAIT_FOR before_acquire';

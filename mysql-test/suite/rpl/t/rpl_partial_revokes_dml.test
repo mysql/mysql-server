@@ -1,0 +1,16 @@
+###############################################################################
+# WL#12098: MySQL system users                                                #
+#                                                                             #
+#   This test file covers the usage of partial revokes.                       #
+#   In other words how does the partial_revokes restricts DML/DDL access on   #
+#   databases for which they are created.                                     #
+#                                                                             #
+#   Refer the test file - partial_revokes_add_remove.test to understand       #
+#   the various scenarios of adding/removing partial revokes                  #
+#                                                                             #
+###############################################################################
+
+--source include/master-slave.inc
+--let $TEST_MODE = RPL
+--source ../../auth_sec/include/partial_revokes_dml.inc
+--source include/rpl_end.inc

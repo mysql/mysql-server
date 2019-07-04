@@ -32,10 +32,11 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "sql/json_dom.h"
 #include "sql_string.h"
 
+class Json_dom;
 class THD;
 class set_var;
 class sys_var;
@@ -56,7 +57,6 @@ struct st_persist_var {
   bool is_null;
   st_persist_var();
   st_persist_var(THD *thd);
-  st_persist_var(const st_persist_var &var);
   st_persist_var(const std::string key, const std::string value,
                  const ulonglong timestamp, const std::string user,
                  const std::string host, const bool is_null);
@@ -154,7 +154,8 @@ class Persisted_variables_cache {
                                        std::string host, bool is_null,
                                        String *dest);
   /* Helper function to extract variables from json formatted string */
-  bool extract_variables_from_json(Json_dom *dom, bool is_read_only = false);
+  bool extract_variables_from_json(const Json_dom *dom,
+                                   bool is_read_only = false);
 
  private:
   /* Helper functions for file IO */

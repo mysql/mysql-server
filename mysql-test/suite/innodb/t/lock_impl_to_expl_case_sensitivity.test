@@ -1,0 +1,52 @@
+--source include/have_debug_sync.inc
+
+# Save the original settings, to be restored at the end of test
+  SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+# Make sure that transactions will not finish prematurely
+  SET @@global.innodb_lock_wait_timeout = 100000;
+
+# Perepare a table with case-insensitive secondary index
+  CREATE TABLE t1 (
+    id INT PRIMARY KEY,
+    val VARCHAR(50) NOT NULL COLLATE utf8mb4_0900_ai_ci,
+    KEY(val)
+  );
+# and two rows, which are initially lower-case
+  INSERT INTO t1 (id,val) VALUES (1,"a"), (2,"a");
+
+--connect (con1, localhost, root,,)
+  BEGIN;
+  # Change the case only
+  UPDATE t1 SET val="A" WHERE id=2;
+
+  SELECT index_name, lock_type, lock_mode, lock_status, lock_data
+  FROM performance_schema.data_locks
+  WHERE object_schema="test" AND object_name="t1"
+  ORDER BY 1, 2, 3, 4, 5;
+
+--connect (con2, localhost, root,,)
+  BEGIN;
+  # This query can be answered entirely by just looking into `val` secondary index
+  # yet it depends on the actual bytes (and thus is case-sensitive).
+  # The result set, thus depends on con1's transaction, and thus con2 should wait
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT COUNT(1) FROM t1 WHERE val="a" AND CONVERT(val,binary)="A" FOR SHARE
+
+--connection con1
+  SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+  COMMIT;
+
+--connection con2
+  # We expect only one row, the one with id=2 to be returned
+  --reap
+  COMMIT;
+
+# Clean up
+--connection default
+
+  --disconnect con1
+  --disconnect con2
+
+  DROP TABLE t1;
+  SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;

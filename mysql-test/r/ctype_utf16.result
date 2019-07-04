@@ -1030,7 +1030,7 @@ DB7FDCFF	F3AFB3BF	DB7FDCFF
 E000	EE8080	E000
 FFFF	EFBFBF	FFFF
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;
 set collation_connection=utf16_general_ci;
 drop table if exists t1;

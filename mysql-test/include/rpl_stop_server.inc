@@ -37,7 +37,7 @@ if (!$_include_file_depth)
 --let $_rpl_stop_server_old_connection= $CURRENT_CONNECTION
 if ($rpl_debug)
 {
-  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLED_WARNINGS' qlog='$ENABLED_QUERY_LOG' rlog='$ENABLED_RESULT_LOG' aborterr='$ENABLED_ABORT_ON_ERROR'
+  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLE_WARNINGS' qlog='$ENABLE_QUERY_LOG' rlog='$ENABLE_RESULT_LOG' aborterr='$ENABLE_ABORT_ON_ERROR'
   --echo $_include_file_indent==== BEGIN include/rpl_stop_server.inc ====
 }
 
@@ -55,6 +55,14 @@ if ($VALGRIND_TEST)
 {
   let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
 }
+
+let $have_sparc = `select convert(@@version_compile_machine using latin1) IN ('sparc')`;
+if ($have_sparc)
+{
+  let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
+}
+
+
 if ($rpl_force_stop)
 {
    # if force_stop is set, shutdown server immediately(equal to killing the server)
@@ -69,5 +77,5 @@ shutdown_server $shutdown_server_timeout;
 if ($rpl_debug)
 {
   --echo $_include_file_indent==== END include/rpl_stop_server.inc [server_number=$rpl_server_number] ====
-  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLED_WARNINGS' qlog='$ENABLED_QUERY_LOG' rlog='$ENABLED_RESULT_LOG' aborterr='$ENABLED_ABORT_ON_ERROR'
+  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLE_WARNINGS' qlog='$ENABLE_QUERY_LOG' rlog='$ENABLE_RESULT_LOG' aborterr='$ENABLE_ABORT_ON_ERROR'
 }

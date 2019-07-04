@@ -1,4 +1,3 @@
-drop table if exists t1;
 select @@session.time_zone;
 @@session.time_zone
 SYSTEM
@@ -36,7 +35,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # test defaults
 insert into t1 (a) values (0);
 select * from t1;
@@ -87,8 +86,10 @@ select count(*) from t1
 where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
 count(*)
 67
-# check results via myisam
-alter table t1 engine=myisam;
+# check results via innodb
+alter table t1 engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -98,13 +99,13 @@ t1	CREATE TABLE `t1` (
   `d` time NOT NULL DEFAULT '10:11:12',
   `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
   `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
-  PRIMARY KEY (`a`) USING HASH,
+  PRIMARY KEY (`a`),
   KEY `bx` (`b`),
   KEY `cx` (`c`),
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1105949732775
@@ -161,7 +162,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restore data from backup
 # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -186,46 +187,15 @@ fx(f) - OrderedIndex
 # restore data from wl946_pre
 # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
-count(*)	sum(crc32(concat(a,b,c,d,e,f)))
-500	1105949732775
-# index queries
-select * from t1 where b = '1969';
-a	b	c	d	e	f
-233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
-select * from t1 where c = '2017-03-21';
-a	b	c	d	e	f
-233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
-select * from t1 where d = '17:50:30';
-a	b	c	d	e	f
-233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
-select * from t1 where e = '2014-03-19 18:41:26';
-a	b	c	d	e	f
-233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
-select * from t1 where f = '1999-05-23 10:45:42';
-a	b	c	d	e	f
-233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
-select count(*) from t1
-where b between '2000' and 2010;
-count(*)
-15
-select count(*) from t1
-where c between '2000-01-01' and '2010-01-01';
-count(*)
-20
-select count(*) from t1
-where d between '-20:30:40' and '20:30:40';
-count(*)
-381
-select count(*) from t1
-where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
-count(*)
-23
-select count(*) from t1
-where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
-count(*)
-67
+ERROR 42S02: Table 'test.t1' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t1' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 set time_zone = default;
 select @@session.time_zone;
 @@session.time_zone
 SYSTEM
-drop table t1;

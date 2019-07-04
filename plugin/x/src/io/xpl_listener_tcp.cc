@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,18 @@
 #include <netdb.h>
 #endif
 
+#include <memory>
+
 #include "my_io.h"
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+
+#ifdef HAVE_SETNS
+#include "sql/net_ns.h"
+#endif
 
 namespace xpl {
 
@@ -48,13 +54,13 @@ class Tcp_creator {
       : m_factory(factory),
         m_system_interface(m_factory.create_system_interface()) {}
 
-  ngs::shared_ptr<addrinfo> resolve_bind_address(
+  std::shared_ptr<addrinfo> resolve_bind_address(
       const std::string &bind_address, const unsigned short port,
       std::string &error_message) {
     struct addrinfo *result = nullptr;
     std::string service;
     std::vector<std::string> bind_addresses;
-    ngs::String_formatter formatter;
+    String_formatter formatter;
     service = formatter.append(port).get_result();
 
     bind_addresses.push_back(bind_address);
@@ -78,16 +84,16 @@ class Tcp_creator {
     if (nullptr == result) {
       error_message = "can't resolve `hostname`";
 
-      return ngs::shared_ptr<addrinfo>();
+      return std::shared_ptr<addrinfo>();
     }
 
-    return ngs::shared_ptr<addrinfo>(
-        result, ngs::bind(&ngs::System_interface::freeaddrinfo,
-                          m_system_interface, ngs::placeholders::_1));
+    return std::shared_ptr<addrinfo>(
+        result, std::bind(&ngs::System_interface::freeaddrinfo,
+                          m_system_interface, std::placeholders::_1));
   }
 
   ngs::Socket_interface::Shared_ptr create_and_bind_socket(
-      ngs::shared_ptr<addrinfo> ai, const uint32 backlog, int &error_code,
+      std::shared_ptr<addrinfo> ai, const uint32 backlog, int &error_code,
       std::string &error_message) {
     addrinfo *used_ai = nullptr;
     std::string errstr;
@@ -103,7 +109,7 @@ class Tcp_creator {
     if (nullptr == result_socket.get()) {
       m_system_interface->get_socket_error_and_message(error_code, errstr);
 
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("`socket()` failed with error: ")
                           .append(errstr)
                           .append("(")
@@ -154,7 +160,7 @@ class Tcp_creator {
       // lets decide later if its an error or not
       m_system_interface->get_socket_error_and_message(error_code, errstr);
 
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("`bind()` failed with error: ")
                           .append(errstr)
                           .append(" (")
@@ -171,7 +177,7 @@ class Tcp_creator {
       // lets decide later if its an error or not
       m_system_interface->get_socket_error_and_message(error_code, errstr);
 
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("`listen()` failed with error: ")
                           .append(errstr)
                           .append("(")
@@ -217,7 +223,7 @@ class Tcp_creator {
 
   bool is_ipv6_avaiable() {
     ngs::Socket_interface::Shared_ptr socket(m_factory.create_socket(
-        PSI_NOT_INSTRUMENTED, AF_INET6, SOCK_STREAM, 0));
+        KEY_socket_x_diagnostics, AF_INET6, SOCK_STREAM, 0));
     const bool has_ipv6 = INVALID_SOCKET != socket->get_socket_fd();
 
     return has_ipv6;
@@ -246,13 +252,16 @@ class Tcp_creator {
 };
 
 Listener_tcp::Listener_tcp(Factory_ptr operations_factory,
-                           std::string &bind_address, const uint16 port,
-                           const uint32 port_open_timeout,
+                           std::string &bind_address,
+                           const std::string &network_namespace,
+                           const uint16 port, const uint32 port_open_timeout,
                            ngs::Socket_events_interface &event,
                            const uint32 backlog)
     : m_operations_factory(operations_factory),
-      m_state(ngs::State_listener_initializing),
+      m_state(ngs::State_listener_initializing, KEY_mutex_x_listener_tcp_sync,
+              KEY_cond_x_listener_tcp_sync),
       m_bind_address(bind_address),
+      m_network_namespace(network_namespace),
       m_port(port),
       m_port_open_timeout(port_open_timeout),
       m_backlog(backlog),
@@ -268,7 +277,7 @@ Listener_tcp::Sync_variable_state &Listener_tcp::get_state() { return m_state; }
 std::string Listener_tcp::get_last_error() { return m_last_error; }
 
 std::string Listener_tcp::get_name_and_configuration() const {
-  return ngs::String_formatter()
+  return String_formatter()
       .append("bind-address: '")
       .append(m_bind_address)
       .append("' ")
@@ -333,8 +342,15 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
 
   log_debug("TCP Sockets address is '%s' and port is %i",
             m_bind_address.c_str(), (int)m_port);
-
-  ngs::shared_ptr<addrinfo> ai =
+  if (!m_network_namespace.empty()) {
+#ifdef HAVE_SETNS
+    if (set_network_namespace(m_network_namespace)) return nullptr;
+#else
+    log_error(ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
+    return nullptr;
+#endif
+  }
+  std::shared_ptr<addrinfo> ai =
       creator.resolve_bind_address(m_bind_address, m_port, m_last_error);
 
   if (nullptr == ai.get()) return ngs::Socket_interface::Shared_ptr();
@@ -361,6 +377,10 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
 
     waited += time_to_wait;
   }
+#ifdef HAVE_SETNS
+  if (!m_network_namespace.empty() && restore_original_network_namespace())
+    return nullptr;
+#endif
 
   return result_socket;
 }

@@ -49,16 +49,16 @@
   @return length of directory part
  */
 size_t dirname_length(const char *name) {
-  char *pos, *gpos;
 #ifdef _WIN32
   CHARSET_INFO *fs = fs_character_set();
 #endif
+  const char *pos = name - 1;
 #ifdef FN_DEVCHAR
-  if ((pos = (char *)strrchr(name, FN_DEVCHAR)) == 0)
+  const char *devchar_pos = strrchr(name, FN_DEVCHAR);
+  if (devchar_pos != nullptr) pos = devchar_pos;
 #endif
-    pos = (char *)name - 1;
 
-  gpos = pos++;
+  const char *gpos = pos++;
   for (; *pos; pos++) /* Find last FN_LIBCHAR */
   {
 #ifdef _WIN32
@@ -70,7 +70,7 @@ size_t dirname_length(const char *name) {
 #endif
     if (is_directory_separator(*pos)) gpos = pos;
   }
-  return (size_t)(gpos + 1 - (char *)name);
+  return gpos + 1 - name;
 }
 
 /**

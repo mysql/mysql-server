@@ -663,6 +663,60 @@ ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL;
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
+#
+# Bug#28836543 "DUPLICATE HANDLING OF GENERATION EXPRESSION CHANGE IN
+#               FILL_ALTER_INPLACE_INFO".
+#
+# For ALTER TABLE statements which do not modify generated column type,
+# expression and storage type INPLACE algorithm should be supported.
+# ALTER TABLE statements which modify generated column expression or
+# type should require COPY algorithm. Change of storage type of
+# generated column is not supported.
+CREATE TABLE t1 (a INT, g INT GENERATED ALWAYS AS (a + 1) VIRTUAL);
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 2) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY g BIGINT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+DROP TABLE t1;
+CREATE TABLE t2 (a INT, g INT GENERATED ALWAYS AS (a + 1) STORED);
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 2) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# InnoDB has special error message for change of column type
+ALTER TABLE t2 MODIFY g BIGINT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+Got one of the listed errors
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+DROP TABLE t2;
+#
+# Bug #28848265 "CHANGING DEFAULT BY MAKING COLUMN NULLABLE DOESN'T
+#                UPDATE GENERATED COLUMN".
+#
+# Test for original issue.
+CREATE TABLE t1(a INT NOT NULL DEFAULT 4, gc INT AS (a + DEFAULT(a)) STORED);
+INSERT INTO t1 (a) VALUES (1);
+ALTER TABLE t1 MODIFY COLUMN a INT NULL;
+INSERT INTO t1 (a) VALUES (2);
+# Generated stored column value must reflect new default (i.e. NULL).
+SELECT *, a + DEFAULT(a) FROM t1;
+a	gc	a + DEFAULT(a)
+1	NULL	NULL
+2	NULL	NULL
+# Check that change of default on which generated column depends
+# can't be done in-place.
+ALTER TABLE t1 MODIFY COLUMN a INT NULL DEFAULT 0, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 0, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# However, changing default of some other column can be done
+# in-place.
+ALTER TABLE t1 ADD b INT;
+ALTER TABLE t1 MODIFY COLUMN b INT DEFAULT 0, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT 1, ALGORITHM=INPLACE;
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

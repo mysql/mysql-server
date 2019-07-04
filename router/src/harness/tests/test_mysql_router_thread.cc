@@ -21,6 +21,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 #include "gmock/gmock.h"
@@ -29,6 +31,8 @@
 #include "mysql_router_thread.h"
 
 // this flag should be set to true by thread
+std::mutex flag_cond_mutex;
+std::condition_variable flag_cond;
 bool flag = false;
 
 class MySqlRouterThreadTest : public testing::Test {
@@ -37,22 +41,40 @@ class MySqlRouterThreadTest : public testing::Test {
 };
 
 void *f(void *) {
-  flag = true;
+  {
+    std::unique_lock<std::mutex> lk(flag_cond_mutex);
+    // mutex is needed to ensure that testing thread doesn't exit
+    // after a spurious wakeup after 'flag' got set, but 'notify_one()'
+    // got called
+
+    flag = true;
+
+    flag_cond.notify_one();
+  }
+
   return nullptr;
 }
 
 TEST_F(MySqlRouterThreadTest, ThreadCreated) {
   mysql_harness::MySQLRouterThread thread;
+
   ASSERT_NO_THROW(thread.run(&f, nullptr));
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_TRUE(flag);
+  {
+    std::unique_lock<std::mutex> lk(flag_cond_mutex);
+    ASSERT_TRUE(flag_cond.wait_for(lk, std::chrono::milliseconds(100),
+                                   [] { return flag; }));
+  }
 }
 
 TEST_F(MySqlRouterThreadTest, DetachTreadCreated) {
   mysql_harness::MySQLRouterThread thread;
+
   ASSERT_NO_THROW(thread.run(&f, nullptr, true));
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_TRUE(flag);
+  {
+    std::unique_lock<std::mutex> lk(flag_cond_mutex);
+    ASSERT_TRUE(flag_cond.wait_for(lk, std::chrono::milliseconds(100),
+                                   [] { return flag; }));
+  }
 }
 
 int main(int argc, char *argv[]) {

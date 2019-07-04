@@ -84,15 +84,17 @@ if ($rpl_debug)
   }
 }
 
---let $_include_file_enabled_warnings= $ENABLED_WARNINGS$_include_file_enabled_warnings
---let $_include_file_enabled_query_log= $ENABLED_QUERY_LOG$_include_file_enabled_query_log
---let $_include_file_enabled_result_log= $ENABLED_RESULT_LOG$_include_file_enabled_result_log
---let $_include_file_enabled_abort_on_error= $ENABLED_ABORT_ON_ERROR$_include_file_enabled_abort_on_error
---let $_include_file_connection= $CURRENT_CONNECTION,$_include_file_connection
+--let $_include_file_disable_warnings_list  = $DISABLED_WARNINGS_LIST|$_include_file_disable_warnings_list
+--let $_include_file_enable_warnings_list   = $ENABLED_WARNINGS_LIST|$_include_file_enable_warnings_list
+--let $_include_file_enabled_warnings       = $ENABLE_WARNINGS$_include_file_enabled_warnings
+--let $_include_file_enabled_query_log      = $ENABLE_QUERY_LOG$_include_file_enabled_query_log
+--let $_include_file_enabled_result_log     = $ENABLE_RESULT_LOG$_include_file_enabled_result_log
+--let $_include_file_enabled_abort_on_error = $ENABLE_ABORT_ON_ERROR$_include_file_enabled_abort_on_error
+--let $_include_file_connection             = $CURRENT_CONNECTION,$_include_file_connection
 
 if ($rpl_debug)
 {
-  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLED_WARNINGS' qlog='$ENABLED_QUERY_LOG' rlog='$ENABLED_RESULT_LOG' aborterr='$ENABLED_ABORT_ON_ERROR'
+  --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLE_WARNINGS' qlog='$ENABLE_QUERY_LOG' rlog='$ENABLE_RESULT_LOG' aborterr='$ENABLE_ABORT_ON_ERROR'
 }
 
 --let $include_filename=

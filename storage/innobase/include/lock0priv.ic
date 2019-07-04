@@ -298,6 +298,19 @@ ulint lock_get_wait(const lock_t *lock) /*!< in: lock */
   return (lock->type_mode & LOCK_WAIT);
 }
 
+/** The back pointer to a waiting lock request in the transaction is set to NULL
+ and the wait bit in lock type_mode is reset. */
+UNIV_INLINE
+void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
+{
+  ut_ad(lock->trx->lock.wait_lock == lock);
+  ut_ad(lock_get_wait(lock));
+  ut_ad(lock_mutex_own());
+
+  lock->trx->lock.wait_lock = NULL;
+  lock->type_mode &= ~LOCK_WAIT;
+}
+
 /** Looks for a suitable type record lock struct by the same trx on the same
  page. This can be used to save space when a new record lock should be set on a
  page: no new struct is needed, if a suitable old is found.

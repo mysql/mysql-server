@@ -25,6 +25,8 @@
 #ifndef MYSQL_HARNESS_LOADER_CONFIG_INCLUDED
 #define MYSQL_HARNESS_LOADER_CONFIG_INCLUDED
 
+#include <stdexcept>
+
 #include "config_parser.h"
 #include "harness_export.h"
 

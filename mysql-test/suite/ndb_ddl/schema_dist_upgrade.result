@@ -1,0 +1,5 @@
+select @@ndb_schema_dist_upgrade_allowed;
+@@ndb_schema_dist_upgrade_allowed
+0
+set @@ndb_schema_dist_upgrade_allowed = true;
+ERROR HY000: Variable 'ndb_schema_dist_upgrade_allowed' is a read only variable

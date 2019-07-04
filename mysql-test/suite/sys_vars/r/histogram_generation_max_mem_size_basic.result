@@ -53,6 +53,6 @@ SELECT @@session.histogram_generation_max_mem_size;
 # cannot be modified.
 CREATE USER non_root@localhost IDENTIFIED BY '';
 SET @@session.histogram_generation_max_mem_size = 450000000;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 DROP USER non_root@localhost;
 # END OF histogram_generation_max_mem_size TESTS

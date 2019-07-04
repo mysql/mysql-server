@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,8 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists);
 
 /** Create a schema record into dd.schemata. */
 bool create_schema(THD *thd, const char *schema_name,
-                   const CHARSET_INFO *charset_info);
+                   const CHARSET_INFO *charset_info,
+                   const bool default_encryption);
 
 /**
   Acquire MDL on schema name.

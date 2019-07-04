@@ -43,6 +43,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_xml.h"
+#include "template_utils.h"
 
 #define ROW_LEN 16
 #define ROW16_LEN 8
@@ -87,8 +88,8 @@ static int get_charset_number(const char *charset_name) {
   return 0;
 }
 
-static char *mdup(const char *src, uint len) {
-  char *dst = (char *)malloc(len);
+static uchar *mdup(const uchar *src, uint len) {
+  auto *dst = static_cast<uchar *>(malloc(len));
   if (!dst) exit(1);
   memcpy(dst, src, len);
   return dst;
@@ -102,24 +103,21 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
 
   if (from->name) to->name = strdup(from->name);
 
-  if (from->ctype)
-    to->ctype = (uchar *)mdup((char *)from->ctype, MY_CS_CTYPE_TABLE_SIZE);
+  if (from->ctype) to->ctype = mdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE);
   if (from->to_lower)
-    to->to_lower =
-        (uchar *)mdup((char *)from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE);
+    to->to_lower = mdup(from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE);
   if (from->to_upper)
-    to->to_upper =
-        (uchar *)mdup((char *)from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE);
+    to->to_upper = mdup(from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE);
   if (from->sort_order) {
-    to->sort_order =
-        (uchar *)mdup((char *)from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
+    to->sort_order = mdup(from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
     /*
       set_max_sort_char(to);
     */
   }
   if (from->tab_to_uni) {
     uint sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16);
-    to->tab_to_uni = (uint16 *)mdup((char *)from->tab_to_uni, sz);
+    to->tab_to_uni = pointer_cast<uint16 *>(
+        mdup(pointer_cast<const uchar *>(from->tab_to_uni), sz));
     /*
     create_fromuni(to);
     */

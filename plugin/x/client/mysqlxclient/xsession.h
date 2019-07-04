@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,19 @@ class XSession {
       Option type: INTEGER.
     */
     Connect_timeout,
+    /**
+      Define session establishment timeout, which involves the following steps:
+      * hostname resolve
+      * socket-connection
+      * X Protocol handshake
+      * X Protocol authentication until AuthenticationOk
+      Default value of this parameter is set to "-1", which means infinite
+      block. Values greater than "-1" define the timeout in milliseconds.
+
+      Default: -1.
+      Option type: INTEGER.
+     */
+    Session_connect_timeout,
     /**
       Define timeout behavior when reading from the connection.
 
@@ -237,7 +250,14 @@ class XSession {
       Default: 10
       Option type: INT
     */
-    Datetime_length_discriminator
+    Datetime_length_discriminator,
+    /** Network namespace (if any) which should be used at connection
+      establishment.
+
+      Default:
+      Option type: STRING
+    */
+    Network_namespace
   };
 
  public:

@@ -1,0 +1,15 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test the behaviour of `SELECT` based
+# statements that acquire table write-locks on regards to `GTID_NEXT` and
+# `GTID_EXECUTED` state, when `GTID_MODE` is set to `ON`.
+#
+# ==== References ====
+#
+# binlog_nogtid.binlog_nogtid_select_taking_write_locks
+#
+# BUG#27903848 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `GTID_NEXT_TYPE ==
+# ANONYMOUS_GTID' FAILED.
+#
+
+--source extra/binlog_tests/binlog_select_taking_write_locks.inc

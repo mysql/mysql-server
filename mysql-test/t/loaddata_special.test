@@ -1,0 +1,33 @@
+--source include/linux.inc
+--source include/count_sessions.inc
+
+
+# /proc/uptime stands as 0 bytes when stat-ing it, but we should
+# be able to read its contents nevertheless.
+--replace_regex /[0-9]+\.[0-9]+/<num>/
+select load_file("/proc/uptime");
+
+# File larger than max_allowed_packet.
+SET @old_net_buffer_length = @@global.net_buffer_length;
+SET @old_max_allowed_packet= @@global.max_allowed_packet;
+SET GLOBAL net_buffer_length = 1024;
+SET GLOBAL max_allowed_packet = 1024;
+connect (con2,localhost,root,,);  # Makes max_allowed_packet take effect, globally.
+select load_file("/proc/modules");
+connection default;
+SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
+SET GLOBAL net_buffer_length = @old_net_buffer_length;
+connect (con3,localhost,root,,);  # Makes max_allowed_packet take effect, globally.
+
+# Special files, like pipes, should not be opened.
+select load_file("/proc/self/fd/0");
+
+# Clean up for subsequent tests.
+disconnect con2;
+disconnect con3;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Check that we haven't broken anything permanently.
+--replace_regex /[0-9]+\.[0-9]+/<num>/
+select load_file("/proc/uptime");

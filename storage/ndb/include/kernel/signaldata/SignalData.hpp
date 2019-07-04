@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,24 +63,24 @@ cast_constptr(const Uint32 * ptr)
 // defines for setter and getters on commonly used member data in signals
 
 #define GET_SET_SENDERDATA \
-  Uint32 getSenderData() { return senderData; }; \
-  void setSenderData(Uint32 _s) { senderData = _s; };
+  Uint32 getSenderData() { return senderData; } \
+  void setSenderData(Uint32 _s) { senderData = _s; }
 
 #define GET_SET_SENDERREF \
-  Uint32 getSenderRef() { return senderRef; }; \
-  void setSenderRef(Uint32 _s) { senderRef = _s; };
+  Uint32 getSenderRef() { return senderRef; } \
+  void setSenderRef(Uint32 _s) { senderRef = _s; }
 
 #define GET_SET_PREPAREID \
-  Uint32 getPrepareId() { return prepareId; }; \
-  void setPrepareId(Uint32 _s) { prepareId = _s; };
+  Uint32 getPrepareId() { return prepareId; } \
+  void setPrepareId(Uint32 _s) { prepareId = _s; }
 
 #define GET_SET_ERRORCODE \
-  Uint32 getErrorCode() { return errorCode; }; \
-  void setErrorCode(Uint32 _s) { errorCode = _s; };
+  Uint32 getErrorCode() { return errorCode; } \
+  void setErrorCode(Uint32 _s) { errorCode = _s; }
 
 #define GET_SET_TCERRORCODE \
-  Uint32 getTCErrorCode() { return TCErrorCode; }; \
-  void setTCErrorCode(Uint32 _s) { TCErrorCode = _s; };
+  Uint32 getTCErrorCode() { return TCErrorCode; } \
+  void setTCErrorCode(Uint32 _s) { TCErrorCode = _s; }
 
 #define GSN_PRINT_SIGNATURE(f) bool f(FILE *, const Uint32 *, Uint32, Uint16)
 

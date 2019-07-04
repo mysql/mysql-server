@@ -1,0 +1,62 @@
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Bug #28825617 ASSERTION FAILURE: LOB0LOB.CC.*TRX == NULLPTR
+--echo # || TRX->IS_READ_UNCOMMITTED()
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT, c TEXT, INDEX (b(1)));
+SHOW CREATE TABLE t1;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+INSERT INTO t1 (a, b, c) VALUES (1, 'hello', repeat('blob ', 12345));
+BEGIN;
+UPDATE t1 SET b=repeat('blob', 12345), c = 'world' where a = 1;
+
+--echo # Connection default:
+connection default;
+set debug = '+d, innodb_cached_old_vers_offsets';
+
+--source include/expect_crash.inc
+
+--error 2013
+CHECK TABLE t1;
+
+--source include/start_mysqld.inc
+disconnect con1;
+DROP TABLE t1;
+
+--echo #
+--echo # Repeat the scenario without the debug point.
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT, c TEXT, INDEX (b(1)));
+SHOW CREATE TABLE t1;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+INSERT INTO t1 (a, b, c) VALUES (1, 'hello', repeat('blob ', 12345));
+BEGIN;
+UPDATE t1 SET b=repeat('blob', 12345), c = 'world' where a = 1;
+
+--echo # Connection default:
+connection default;
+
+CHECK TABLE t1;
+
+--echo # Connection con1:
+connection con1;
+commit;
+
+--echo # Connection default:
+connection default;
+disconnect con1;
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

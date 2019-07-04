@@ -1505,7 +1505,7 @@ SELECT 1 FROM t1 GROUP BY @b := @a, @b;
 1
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
 CREATE TABLE t1 SELECT 0.123456789012345678901234567890123456 AS f1;
 Warnings:

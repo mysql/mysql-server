@@ -1,0 +1,455 @@
+## Test of general functionality of prepare statement
+
+## Preamble
+--source include/no_ps_protocol.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_sundries.xpl
+-->import assert_variable.macro
+-->quiet
+
+
+-->echo
+-->echo ## 1. Verify prep-stat status variables that are set to zero
+-->echo ## 2. Execute cursor open
+-->echo #   a. success for open with one parameter
+-->echo #   b. success for open with two parameters (more than needed)
+-->echo #   c. fails when no parameter was supplied, try to fetch using failed cursor_id
+-->echo #   d. fails when using invalid cursor ID, try to fetch using failed cursor_id
+-->echo ## 3. Close cursor
+-->echo #   a. success when using ID that was already opened
+-->echo #   b. fails when using ID that was already deallocated
+-->echo #   c. fails when using ID that was never opened
+-->echo ## 4. Mixed tests
+-->echo #   a. open(curID1), close(curID1), open(curID1) - reuse already closes ID
+-->echo #   b. open(curID1), open(curID1) - open implicit closes previous cursor
+-->echo #   c. open(curID1, stmtID1), open(curID2, stmtID1) - curID2 closes curID1 because they use same stmtID
+-->echo #   d. prep(stmtID1), open(curID1, stmtID1), deallocate(stmtID1), failed_fetch(curID1) - closure of prepared-statement, closes the cursor
+-->echo ## 5. Assert status variables for new session, they should be at zero
+
+
+-->title = 1. Verify cursor status variables
+
+-->macro Assert_status_variables_required_by_the_test
+callmacro Assert_status_variable	Mysqlx_prep_prepare	0;
+callmacro Assert_status_variable	Mysqlx_cursor_open	0;
+callmacro Assert_status_variable	Mysqlx_cursor_close	0;
+callmacro Assert_status_variable	Mysqlx_cursor_fetch	0;
+-->endmacro
+
+-->callmacro Assert_status_variables_required_by_the_test
+
+-->title = 2.a. Open cursor with valid stmt
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: FIND
+    find: {
+      collection { name: "xtable" schema: "xtest" }
+      data_model: TABLE
+      projection {
+        source {
+          type: FUNC_CALL function_call {
+            name {
+              name: "count"
+            }
+            param {
+              type: LITERAL literal {
+                type: V_OCTETS v_octets {
+                  value: "*"
+                }
+              }
+            }
+          }
+        }
+      }
+      criteria {
+        type: OPERATOR operator {
+          name: "like"
+          param {
+            type: IDENT identifier {
+              name: 'phrase'
+            }
+          }
+          param {
+            type: PLACEHOLDER position: 0
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	1
+
+Mysqlx.Cursor.Open {
+  cursor_id: 100
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+      args {
+        type: SCALAR scalar {
+          type: V_STRING v_string {
+            value: "%"
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_open	1
+
+
+-->title = 2.b. Open cursor with valid stmt (args more than needed)
+
+Mysqlx.Cursor.Open {
+  cursor_id: 101
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+      args {
+        type: SCALAR scalar {
+          type: V_STRING v_string {
+            value: "Alice%"
+          }
+        }
+      }
+      args {
+        type: SCALAR scalar {
+          type: V_STRING v_string {
+            value: "123"
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+show status like 'Mysqlx_cursor_open';
+-->callmacro Assert_status_variable	Mysqlx_cursor_open	2
+
+
+-->title = 2.c. Fails open cursor with valid stmt (missing arg)
+Mysqlx.Cursor.Open {
+  cursor_id: 102
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+-->expecterror ER_X_PREPARED_EXECUTE_ARGUMENT_CONSISTENCY
+-->recvresult
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 102
+}
+-->expecterror ER_X_BAD_CURSOR_ID
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_open	3
+-->callmacro Assert_status_variable	Mysqlx_cursor_fetch	1
+
+
+-->title = 2.d. Fails open cursor with invalid stmt
+
+Mysqlx.Cursor.Open {
+  cursor_id: 103
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 200
+    }
+  }
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 103
+}
+-->expecterror ER_X_BAD_CURSOR_ID
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_open	4
+
+
+-->title = 3.a. Close already opened cursor
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 1"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 100
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 1
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Cursor.Close {
+  cursor_id: 100
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_close	1
+
+-->title = 3.b. Fails close cursor (bad id) / try to close second time
+
+Mysqlx.Cursor.Close {
+  cursor_id: 100
+}
+-->recverror ER_X_BAD_CURSOR_ID
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_close	2
+
+
+-->title = 3.c.  Fails close cursor (bad id/never used)
+
+Mysqlx.Cursor.Close {
+  cursor_id: 10000
+}
+-->recverror ER_X_BAD_CURSOR_ID
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_close	3
+
+-->title = 4.a. Reuse deallocated cursor ID
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 3"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 4
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 4"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 104
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 3
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Cursor.Close {
+  cursor_id: 104
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 104
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 4
+    }
+  }
+}
+-->recvresult
+
+
+-->title = 4.b. Reuse ID without direct deallocation
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 5
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 5 as col1"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 105
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 5
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Cursor.Open {
+  cursor_id: 105
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 5
+    }
+  }
+}
+-->recvresult
+
+
+-->title = 4.c. Same stmt can't be opened by cursor twice
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 6
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 6 as col1"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 106
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 6
+    }
+  }
+}
+-->recvresult
+
+
+Mysqlx.Cursor.Open {
+  cursor_id: 107
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 6
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 107
+}
+-->recvresult
+
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 106
+}
+-->expecterror ER_X_BAD_CURSOR_ID
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_cursor_fetch	4
+
+-->title = 4.d. Closure of prepared-statement, closes the cursor
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 7
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 7 as col1"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 107
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 7
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 7
+}
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 107
+}
+-->expecterror ER_X_BAD_CURSOR_ID
+-->recvresult
+
+
+-->title = 5. Assert status variables for new session, they should be at zero
+-->newsession s1	x_root
+-->callmacro Assert_status_variables_required_by_the_test
+
+EOF
+
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+CREATE TABLE xtable (phrase VARCHAR(30));
+INSERT INTO xtable (phrase) VALUES ('Alice has a cat');
+INSERT INTO xtable (phrase) VALUES ('Bob has a dog');
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/prep_stmt_sundries.xpl 2>&1;
+
+# Ensure that all connections are closed, after that we can proceed
+# with Prepared_stmt_count status variables assertion
+#
+let $wait_for_status_variable = 'Mysqlx_connections_closed';
+let $wait_for_status_value = 2;
+source ../include/wait_for_status_variables.inc;
+
+--echo
+--echo ## Assert global variables
+--let $assert_text= Global plugin variable Mysqlx_cursor_open must match number of send Mysqlx.Cursor.Open messages
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_cursor_open", Value, 1] = 12
+--source include/assert.inc
+
+--let $assert_text= Global plugin variable Mysqlx_cursor_close must match number of send Mysqlx.Cursor.Close messages
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_cursor_close", Value, 1] = 4
+--source include/assert.inc
+
+--let $assert_text= Global plugin variable Mysqlx_cursor_fetch must match number of send Mysqlx.Cursor.Fetch messages
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_cursor_fetch", Value, 1] = 5
+--source include/assert.inc
+
+--let $assert_text= Global system status Prepared_stmt_count must be set to zero, all prep-stmt must be deallocated.
+--let $assert_cond= [SHOW STATUS LIKE "Prepared_stmt_count", Value, 1] = 0
+--source include/assert.inc
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

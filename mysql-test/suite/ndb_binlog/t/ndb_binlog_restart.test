@@ -271,3 +271,4 @@ enable_query_log;
 connection server2;
 --echo Wait for 'server2' to complete setup and get out of read-only mode
 --source include/ndb_not_readonly.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -46,11 +46,12 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
   ErrorPacket()
       : Packet(0), code_(1105), message_("Unknown error"), sql_state_("HY000") {
     prepare_packet();
-  };
+  }
 
   /** @overload
    *
    * @param buffer bytes of the error packet
+   * @throws mysql_protocol::packet_error
    */
   ErrorPacket(const std::vector<uint8_t> &buffer)
       : ErrorPacket(buffer, Capabilities::ALL_ZEROS) {}
@@ -105,6 +106,8 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
   /** @brief Parses the packet
    *
    * Parses the packet from the given buffer.
+   *
+   * @throws mysql_protocol::packet_error
    */
   void parse_payload();
 

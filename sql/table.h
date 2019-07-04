@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <string>
 
-#include "binary_log_types.h"
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
@@ -65,7 +65,7 @@ class Field;
 
 namespace histograms {
 class Histogram;
-};
+}
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -96,6 +96,7 @@ class Temp_table_param;
 class handler;
 class partition_info;
 enum enum_stats_auto_recalc : int;
+enum Value_generator_source : short;
 enum row_type : int;
 struct HA_CREATE_INFO;
 struct LEX;
@@ -114,6 +115,14 @@ class View;
 enum class enum_table_type;
 }  // namespace dd
 class Common_table_expr;
+
+class Sql_table_check_constraint;
+using Sql_table_check_constraint_list =
+    Mem_root_array<Sql_table_check_constraint *>;
+
+class Sql_check_constraint_share;
+using Sql_check_constraint_share_list =
+    Mem_root_array<Sql_check_constraint_share *>;
 
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
@@ -644,7 +653,7 @@ struct TABLE_SHARE {
                      in a secondary storage engine
   */
   TABLE_SHARE(unsigned long version, bool secondary)
-      : m_version(version), m_secondary(secondary) {}
+      : m_version(version), m_secondary_engine(secondary) {}
 
   /*
     A map of [uint, Histogram] values, where the key is the field index. The
@@ -931,6 +940,9 @@ struct TABLE_SHARE {
   uint foreign_key_parents{0};
   TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *foreign_key_parent{nullptr};
 
+  // List of check constraint share instances.
+  Sql_check_constraint_share_list *check_constraint_share_list{nullptr};
+
   /**
     Set share's table cache key and update its db and table name appropriately.
 
@@ -1122,17 +1134,17 @@ struct TABLE_SHARE {
   }
 
   /// Does this TABLE_SHARE represent a table in a primary storage engine?
-  bool is_primary() const { return !m_secondary; }
+  bool is_primary_engine() const { return !m_secondary_engine; }
 
   /// Does this TABLE_SHARE represent a table in a secondary storage engine?
-  bool is_secondary() const { return m_secondary; }
+  bool is_secondary_engine() const { return m_secondary_engine; }
 
   /**
     Does this TABLE_SHARE represent a primary table that has a shadow
     copy in a secondary storage engine?
   */
-  bool has_secondary() const {
-    return is_primary() && secondary_engine.str != nullptr;
+  bool has_secondary_engine() const {
+    return is_primary_engine() && secondary_engine.str != nullptr;
   }
 
  private:
@@ -1147,7 +1159,7 @@ struct TABLE_SHARE {
   unsigned long m_version{0};
 
   /// Does this TABLE_SHARE represent a table in a secondary storage engine?
-  bool m_secondary{false};
+  bool m_secondary_engine{false};
 };
 
 /**
@@ -1462,6 +1474,9 @@ struct TABLE {
   uint db_stat{0};         /* mode of file as in handler.h */
   int current_lock{0};     /* Type of lock on table */
 
+  // List of table check constraints.
+  Sql_table_check_constraint_list *table_check_constraint_list{nullptr};
+
  private:
   /**
     If true, this table is inner w.r.t. some outer join operation, all columns
@@ -1610,7 +1625,7 @@ struct TABLE {
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
 
-  void mark_column_used(THD *thd, Field *field, enum enum_mark_columns mark);
+  void mark_column_used(Field *field, enum enum_mark_columns mark);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
                                            uint key_parts = 0);
   void mark_columns_used_by_index(uint index);
@@ -1802,6 +1817,9 @@ struct TABLE {
     if (s->null_bytes > 0) memcpy(null_flags, null_flags_saved, s->null_bytes);
   }
 
+  /// Empties internal temporary table (deletes rows, closes scan)
+  bool empty_result_table();
+
   /**
     Initialize the optimizer cost model.
 
@@ -1835,19 +1853,26 @@ struct TABLE {
 
   /**
     Helper function for refix_value_generator_items() that fixes one column's
-    expression (be it GC or default expression).
+    expression (be it GC or default expression) and check constraint expression.
 
-    @param[in] thd           current thread
-    @param[in,out] g_expr    the expression who's items needs to be fixed
-    @param[in] table         the table it blongs to
-    @param[in] field         the column it blongs to
-    @param[in] is_gen_col    if it is a generated column or default expression
+    @param[in]     thd          current thread
+    @param[in,out] g_expr       the expression who's items needs to be fixed
+    @param[in]     table        the table it blongs to
+    @param[in]     field        the column it blongs to (for GC and Default
+                                expression).
+    @param[in]     source       Source of value generator(a generated column, a
+                                regular column with generated default value or
+                                a check constraint).
+    @param[in]     source_name  Name of the source (generated column, a reguler
+                                column with generated default value or a check
+                                constraint).
 
     @return true if error, else false
   */
   bool refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
                                          Field *field, TABLE *table,
-                                         bool is_gen_col);
+                                         Value_generator_source source,
+                                         const char *source_name);
 
   /**
     Clean any state in items associated with generated columns to be ready for
@@ -2117,7 +2142,7 @@ static inline void empty_record(TABLE *table) {
     memset(table->null_flags, 255, table->s->null_bytes);
 }
 
-enum enum_schema_table_state {
+enum enum_schema_table_state : int {
   NOT_PROCESSED = 0,
   PROCESSED_BY_CREATE_SORT_INDEX,
   PROCESSED_BY_JOIN_EXEC
@@ -2139,10 +2164,6 @@ struct FOREIGN_KEY_INFO {
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED 2
 
-#define SKIP_OPEN_TABLE 0  // do not open table
-#define OPEN_FRM_ONLY 1    // open FRM file only
-#define OPEN_FULL_TABLE 2  // open FRM,MYD, MYI files
-
 struct ST_FIELD_INFO {
   /**
       This is used as column name.
@@ -2160,7 +2181,7 @@ struct ST_FIELD_INFO {
      be one entry in the enum for each SQL data type, although there seem to
      be a number of additional entries in the enum.
   */
-  enum enum_field_types field_type;
+  enum_field_types field_type;
   int value;
   /**
      This is used to set column attributes. By default, columns are @c NOT
@@ -2172,11 +2193,7 @@ struct ST_FIELD_INFO {
    */
   uint field_flags;  // Field atributes(maybe_null, signed, unsigned etc.)
   const char *old_name;
-  /**
-     This should be one of @c SKIP_OPEN_TABLE,
-     @c OPEN_FRM_ONLY or @c OPEN_FULL_TABLE.
-  */
-  uint open_method;
+  uint open_method;  // Not used
 };
 
 struct ST_SCHEMA_TABLE {
@@ -2192,7 +2209,7 @@ struct ST_SCHEMA_TABLE {
                        LEX_STRING *db_name, LEX_STRING *table_name);
   int idx_field1, idx_field2;
   bool hidden;
-  uint i_s_requested_object; /* the object we need to open(TABLE | VIEW) */
+  uint i_s_requested_object;  // Not used
 };
 
 #define JOIN_TYPE_LEFT 1
@@ -2335,6 +2352,8 @@ struct LEX_USER {
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_replace_clause;
+  bool retain_current_password;
+  bool discard_old_password;
   LEX_ALTER alter_status;
   /*
     Allocates the memory in the THD mem pool and initialize the members of
@@ -2445,7 +2464,7 @@ struct TABLE_LIST {
         alias(alias_arg),
         m_map(1),
         table(table_arg),
-        m_lock_descriptor(lock_type_arg),
+        m_lock_descriptor{lock_type_arg},
         db_length(db_length_arg),
         table_name_length(table_name_length_arg) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
@@ -2556,7 +2575,7 @@ struct TABLE_LIST {
   void cleanup_items();
 
   /// Produce a textual identification of this object
-  void print(THD *thd, String *str, enum_query_type query_type) const;
+  void print(const THD *thd, String *str, enum_query_type query_type) const;
 
   /// Check which single table inside a view that matches a table map
   bool check_single_table(TABLE_LIST **table_ref, table_map map);
@@ -2803,7 +2822,7 @@ struct TABLE_LIST {
   bool materialize_derived(THD *thd);
 
   /// Clean up the query expression for a materialized derived table
-  bool cleanup_derived();
+  bool cleanup_derived(THD *thd);
 
   /// Prepare security context for a view
   bool prepare_security(THD *thd);
@@ -3295,8 +3314,8 @@ struct TABLE_LIST {
     These attributes MUST NOT be used for any purposes but the parsing.
   */
 
-  LEX_STRING view_client_cs_name{nullptr, 0};
-  LEX_STRING view_connection_cl_name{nullptr, 0};
+  LEX_CSTRING view_client_cs_name{nullptr, 0};
+  LEX_CSTRING view_connection_cl_name{nullptr, 0};
 
   /*
     View definition (SELECT-statement) in the UTF-form.
@@ -3651,17 +3670,22 @@ static inline void dbug_tmp_restore_column_maps(
 void init_mdl_requests(TABLE_LIST *table_list);
 
 /**
-   Unpacks the definition of a generated column or default expression passed as
-   argument. Parses the text obtained from TABLE_SHARE and produces an Item.
+   Unpacks the definition of a generated column, default expression or check
+   constraint expression passed as argument. Parses the text obtained from
+   TABLE_SHARE and produces an Item.
 
   @param thd                  Thread handler
   @param table                Table with the checked field
+  @param val_generator        The expression to unpack.
+  @param source               Source of value generator(a generated column,
+                              a regular column with generated default value or
+                              a check constraint).
+  @param source_name          Name of the source (generated column, a reguler
+                              column with generated default value or a check
+                              constraint).
   @param field                Pointer to Field object
-  @param val_generator        The virtual column or default expr to be parsed.
   @param is_create_table      Indicates that table is opened as part
                               of CREATE or ALTER and does not yet exist in SE
-  @param is_gen_col           Indicates if the expression is a column or just
-                              an expression for the default value.
   @param error_reported       updated flag for the caller that no other error
                               messages are to be generated.
 
@@ -3669,10 +3693,11 @@ void init_mdl_requests(TABLE_LIST *table_list);
   @retval false Success.
 */
 
-bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
+bool unpack_value_generator(THD *thd, TABLE *table,
                             Value_generator **val_generator,
-                            bool is_create_table, bool is_gen_col,
-                            bool *error_reported);
+                            Value_generator_source source,
+                            const char *source_name, Field *field,
+                            bool is_create_table, bool *error_reported);
 
 /**
    Unpack the partition expression. Parse the partition expression
@@ -3837,6 +3862,8 @@ class Common_table_expr {
     generated by open_table_from_share().
   */
   Mem_root_array<TABLE_LIST *> tmp_tables;
+  /// Name of the WITH block. Used only for EXPLAIN FORMAT=tree.
+  LEX_STRING name;
 };
 
 /**
@@ -3912,7 +3939,8 @@ class FRM_context {
     NO,
     REL,
     CHECK,
-    EMPTY,
+    EMPTY_VAL,  // EMPTY_VAL rather than EMPTY since EMPTY can conflict with
+                // system headers.
     UNKNOWN_FIELD,
     CASEDN,
     NEXT_NUMBER,

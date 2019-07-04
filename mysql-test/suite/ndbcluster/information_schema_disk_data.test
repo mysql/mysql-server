@@ -8,6 +8,24 @@ CREATE LOGFILE GROUP lg_1
   UNDO_BUFFER_SIZE = 1M
   ENGINE=NDB;
 
+# Check that the logfilegroups FILE_ID column in INFORMATION_SCHEMA.FILES is
+# same as the object id in NDB(as reported by ndb_show_tables)
+let $logfilegroup_objectid =
+  `SELECT LOGFILE_GROUP_NUMBER FROM INFORMATION_SCHEMA.FILES
+      WHERE LOGFILE_GROUP_NAME='lg_1'`;
+#echo logfilegroup_objectid: $logfilegroup_objectid;
+--replace_result $logfilegroup_objectid logfilegroup_objectid
+--exec $NDB_SHOW_TABLES --no-defaults --type=21
+
+# Check that the undofiles FILE_ID column in INFORMATION_SCHEMA.FILES is same
+# as the object id in NDB(as reported by ndb_show_tables)
+let $undofile_objectid =
+  `SELECT FILE_ID FROM INFORMATION_SCHEMA.FILES
+      WHERE ENGINE='ndbcluster' AND FILE_TYPE='UNDO LOG'`;
+#echo undofile_objectid: $undofile_objectid;
+--replace_result $undofile_objectid undofile_objectid
+--exec $NDB_SHOW_TABLES --no-defaults --type=23
+
 ALTER LOGFILE GROUP lg_1
   ADD UNDOFILE 'undofile1.dat'
   INITIAL_SIZE 16M
@@ -15,7 +33,8 @@ ALTER LOGFILE GROUP lg_1
 
 # Check relevant fields for undo files
 --vertical_results
-SELECT FILE_ID, FILE_NAME, FILE_TYPE, LOGFILE_GROUP_NUMBER, LOGFILE_GROUP_NAME, ENGINE, TOTAL_EXTENTS, EXTENT_SIZE, INITIAL_SIZE, MAXIMUM_SIZE
+SELECT FILE_NAME, FILE_TYPE, LOGFILE_GROUP_NAME, ENGINE,
+  TOTAL_EXTENTS, EXTENT_SIZE, INITIAL_SIZE, MAXIMUM_SIZE, EXTRA
 FROM INFORMATION_SCHEMA.FILES
 WHERE ENGINE='ndbcluster' AND FILE_TYPE='UNDO LOG';
 
@@ -24,6 +43,15 @@ CREATE TABLESPACE ts_1
   USE LOGFILE GROUP lg_1
   INITIAL_SIZE 2M
   ENGINE NDB;
+
+# Check that the datafiles FILE_ID column in INFORMATION_SCHEMA.FILES is same
+# as its object id in NDB(as reported by ndb_show_tables)
+let $datafile_objectid =
+  `SELECT FILE_ID FROM INFORMATION_SCHEMA.FILES
+      WHERE ENGINE='ndbcluster' AND FILE_TYPE='DATAFILE'`;
+#echo datafile_objectid: $datafile_objectid;
+--replace_result $datafile_objectid datafile_objectid
+--exec $NDB_SHOW_TABLES --no-defaults --type=22
 
 ALTER TABLESPACE ts_1
   ADD DATAFILE 'datafile2.dat'
@@ -40,7 +68,9 @@ INSERT INTO t1 VALUES (1, "We have got Chhetri");
 
 # Check relevant fields for datafiles
 --vertical_results
-SELECT FILE_ID, FILE_NAME, FILE_TYPE, TABLESPACE_NAME, LOGFILE_GROUP_NUMBER, LOGFILE_GROUP_NAME, ENGINE, FREE_EXTENTS, TOTAL_EXTENTS, EXTENT_SIZE, INITIAL_SIZE, MAXIMUM_SIZE, ROW_FORMAT
+SELECT FILE_NAME, FILE_TYPE, TABLESPACE_NAME,
+  LOGFILE_GROUP_NAME, ENGINE, FREE_EXTENTS, TOTAL_EXTENTS, EXTENT_SIZE,
+  INITIAL_SIZE, MAXIMUM_SIZE, ROW_FORMAT
 FROM INFORMATION_SCHEMA.FILES
 WHERE ENGINE='ndbcluster' AND FILE_TYPE='DATAFILE';
 
@@ -48,7 +78,7 @@ DROP TABLE t1;
 
 # Check FREE_EXTENTS after dropping table
 --vertical_results
-SELECT FILE_ID, FILE_NAME, FREE_EXTENTS, TOTAL_EXTENTS
+SELECT FILE_NAME, FREE_EXTENTS, TOTAL_EXTENTS
 FROM information_schema.files
 WHERE ENGINE='ndbcluster' AND FILE_TYPE='DATAFILE';
 

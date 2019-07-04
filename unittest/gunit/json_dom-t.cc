@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "base64.h"
+#include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "sql/json_binary.h"
 #include "sql/json_diff.h"
@@ -101,8 +102,7 @@ static Json_dom_ptr parse_json(const char *json_text) {
 static Json_path parse_path(const char *json_path) {
   Json_path path;
   size_t bad_index;
-  EXPECT_FALSE(
-      parse_path(false, std::strlen(json_path), json_path, &path, &bad_index))
+  EXPECT_FALSE(parse_path(std::strlen(json_path), json_path, &path, &bad_index))
       << "bad index: " << bad_index;
   return path;
 }
@@ -1280,7 +1280,7 @@ static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
 static void BM_JsonDomSearchEllipsis(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonDomSearchEllipsis);
+BENCHMARK(BM_JsonDomSearchEllipsis)
 
 /**
   Microbenchmark which tests how fast a lookup with an ellipsis is in
@@ -1289,7 +1289,7 @@ BENCHMARK(BM_JsonDomSearchEllipsis);
 static void BM_JsonDomSearchEllipsis_OnlyOne(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
 }
-BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne);
+BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne)
 
 /**
   Microbenchmark which tests how fast a lookup of a JSON object member
@@ -1298,7 +1298,7 @@ BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne);
 static void BM_JsonDomSearchKey(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonDomSearchKey);
+BENCHMARK(BM_JsonDomSearchKey)
 
 /**
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
@@ -1346,7 +1346,7 @@ static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
 static void BM_JsonBinarySearchEllipsis(size_t num_iterations) {
   benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonBinarySearchEllipsis);
+BENCHMARK(BM_JsonBinarySearchEllipsis)
 
 /**
   Microbenchmark which tests how fast a lookup with an ellipsis is in
@@ -1356,7 +1356,7 @@ BENCHMARK(BM_JsonBinarySearchEllipsis);
 static void BM_JsonBinarySearchEllipsis_OnlyOne(size_t num_iterations) {
   benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
 }
-BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne);
+BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne)
 
 /**
   Microbenchmark which tests how fast a lookup of a JSON object member
@@ -1365,7 +1365,7 @@ BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne);
 static void BM_JsonBinarySearchKey(size_t num_iterations) {
   benchmark_binary_seek(num_iterations, parse_path("$.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonBinarySearchKey);
+BENCHMARK(BM_JsonBinarySearchKey)
 
 /**
   Microbenchmark which tests the performance of
@@ -1394,7 +1394,7 @@ static void BM_JsonStringToString_Plain(size_t num_iterations) {
 
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonStringToString_Plain);
+BENCHMARK(BM_JsonStringToString_Plain)
 
 /**
   Microbenchmark which tests the performance of
@@ -1422,7 +1422,7 @@ static void BM_JsonStringToString_SpecialChars(size_t num_iterations) {
 
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonStringToString_SpecialChars);
+BENCHMARK(BM_JsonStringToString_SpecialChars)
 
 /**
   Microbenchmark which tests the performance of
@@ -1452,6 +1452,201 @@ static void BM_JsonObjectToString(size_t num_iterations) {
 
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonObjectToString);
+BENCHMARK(BM_JsonObjectToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with boolean elements.
+*/
+static void BM_JsonBooleanArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  for (size_t i = 0; i < 1000; ++i) {
+    array->append_alias(create_dom_ptr<Json_boolean>(i % 2 == 0));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonBooleanArrayToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with double elements.
+*/
+static void BM_JsonDoubleArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  for (size_t i = 0; i < 1000; ++i) {
+    array->append_alias(create_dom_ptr<Json_double>(i));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonDoubleArrayToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with decimal elements.
+*/
+static void BM_JsonDecimalArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  for (size_t i = 0; i < 1000; ++i) {
+    my_decimal decimal;
+    EXPECT_FALSE(double2my_decimal(0, i, &decimal));
+    array->append_alias(create_dom_ptr<Json_decimal>(decimal));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonDecimalArrayToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with date elements.
+*/
+static void BM_JsonDateArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  MYSQL_TIME date = {2018, 11, 20, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  for (size_t i = 0; i < 1000; ++i) {
+    array->append_alias(create_dom_ptr<Json_datetime>(date, MYSQL_TYPE_DATE));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonDateArrayToString)
+
+/**
+  Tests the performance of Json_wrapper_object_iterator when iterating
+  over a JSON object in the DOM representation.
+*/
+static void BM_JsonWrapperObjectIteratorDOM(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_object object;
+  for (size_t i = 0; i < 1000; ++i) {
+    object.add_alias("JSON object member number " + std::to_string(i),
+                     create_dom_ptr<Json_null>());
+  }
+
+  Json_wrapper wrapper(&object);
+  wrapper.set_alias();
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    for (const auto &it : Json_object_wrapper(wrapper)) {
+      EXPECT_NE(0U, it.first.length);
+      EXPECT_EQ(enum_json_type::J_NULL, it.second.type());
+    }
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonWrapperObjectIteratorDOM)
+
+/**
+  Tests the performance of Json_wrapper_object_iterator when iterating
+  over a JSON object in the binary representation.
+*/
+static void BM_JsonWrapperObjectIteratorBinary(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_object dom_object;
+  for (size_t i = 0; i < 1000; ++i) {
+    dom_object.add_alias("JSON object member number " + std::to_string(i),
+                         create_dom_ptr<Json_null>());
+  }
+
+  String serialized_object;
+  EXPECT_FALSE(json_binary::serialize(initializer.thd(), &dom_object,
+                                      &serialized_object));
+  Json_wrapper wrapper(json_binary::parse_binary(serialized_object.ptr(),
+                                                 serialized_object.length()));
+  EXPECT_EQ(enum_json_type::J_OBJECT, wrapper.type());
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    for (const auto &it : Json_object_wrapper(wrapper)) {
+      EXPECT_NE(0U, it.first.length);
+      EXPECT_EQ(enum_json_type::J_NULL, it.second.type());
+    }
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonWrapperObjectIteratorBinary)
 
 }  // namespace json_dom_unittest

@@ -133,6 +133,7 @@ bool Gcs_debug_options::get_debug_options(const int64_t debug_options,
 bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
                                           int64_t &res_debug_options) {
   bool found;
+  bool match = false;
   unsigned int i;
   unsigned int num_options = get_number_debug_options();
 
@@ -150,6 +151,7 @@ bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
 
     if (!option.compare(m_debug_all)) {
       res_debug_options = GCS_DEBUG_ALL;
+      match = true;
       continue;
     }
 
@@ -166,9 +168,14 @@ bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
       }
     }
 
+    match |= found;
+
     if (!found && option.compare("") && option.compare(m_debug_none))
       return true;
   }
+
+  if (!match && (debug_options.find(",") != std::string::npos)) return true;
+
   return false;
 }
 

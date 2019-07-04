@@ -25,28 +25,23 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_client_interactive.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
 #include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/capabilities/handler_auth_mech.h"
+#include "plugin/x/src/capabilities/handler_client_interactive.h"
+#include "plugin/x/src/capabilities/handler_connection_attributes.h"
+#include "plugin/x/src/capabilities/handler_tls.h"
 #include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/assert_error_code.h"
 #include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
 #include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
-namespace ngs {
+namespace xpl {
 
 namespace test {
 
 using namespace ::testing;
-using ::Mysqlx::Datatypes::Any;
-using ::Mysqlx::Datatypes::Scalar;
-
-class No_delete {
- public:
-  template <typename T>
-  void operator()(T *) {}
-};
 
 class CapabilityHanderTlsTestSuite : public Test {
  public:
@@ -58,10 +53,10 @@ class CapabilityHanderTlsTestSuite : public Test {
         .WillRepeatedly(Return(&mock_ssl_context));
   }
 
-  StrictMock<Mock_vio> mock_connection;
+  StrictMock<ngs::test::Mock_vio> mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<Mock_ssl_context> mock_ssl_context;
-  StrictMock<Mock_server> mock_server;
+  StrictMock<ngs::test::Mock_ssl_context> mock_ssl_context;
+  StrictMock<ngs::test::Mock_server> mock_server;
 
   Capability_tls sut;
 };
@@ -73,8 +68,8 @@ TEST_F(
       .WillOnce(Return(true))
       .WillOnce(Return(false));
   EXPECT_CALL(mock_connection, get_type())
-      .WillOnce(Return(Connection_tcpip))
-      .WillOnce(Return(Connection_tcpip));
+      .WillOnce(Return(xpl::Connection_tcpip))
+      .WillOnce(Return(xpl::Connection_tcpip));
 
   ASSERT_TRUE(sut.is_supported());
   ASSERT_FALSE(sut.is_supported());
@@ -86,8 +81,8 @@ TEST_F(CapabilityHanderTlsTestSuite,
       .WillOnce(Return(true))
       .WillOnce(Return(false));
   EXPECT_CALL(mock_connection, get_type())
-      .WillOnce(Return(Connection_namedpipe))
-      .WillOnce(Return(Connection_namedpipe));
+      .WillOnce(Return(xpl::Connection_namedpipe))
+      .WillOnce(Return(xpl::Connection_namedpipe));
 
   ASSERT_FALSE(sut.is_supported());
   ASSERT_FALSE(sut.is_supported());
@@ -100,70 +95,26 @@ TEST_F(CapabilityHanderTlsTestSuite, name_returnsTls_always) {
 TEST_F(CapabilityHanderTlsTestSuite,
        get_returnsCurrentConnectionOption_always) {
   const bool expected_result = true;
-  Any any;
+  ::Mysqlx::Datatypes::Any any;
 
   EXPECT_CALL(mock_connection, get_type())
-      .WillOnce(Return(ngs::Connection_type::Connection_tls));
+      .WillOnce(Return(xpl::Connection_type::Connection_tls));
 
   sut.get(any);
 
-  ASSERT_EQ(Any::SCALAR, any.type());
-  ASSERT_EQ(Scalar::V_BOOL, any.scalar().type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, any.type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_BOOL, any.scalar().type());
   ASSERT_EQ(expected_result, any.scalar().v_bool());
 }
 
 class Set_params {
  public:
-  Set_params(bool any, bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_BOOL);
-    m_any.mutable_scalar()->set_v_bool(any);
+  template <typename T>
+  Set_params(T any, bool tls) : m_tls_active(tls) {
+    m_any = Any{Scalar{any}};
 
     m_tls_active = tls;
   }
-
-  Set_params(int any, bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_SINT);
-    m_any.mutable_scalar()->set_v_signed_int(any);
-
-    m_tls_active = tls;
-  }
-
-  Set_params(unsigned int any, bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_UINT);
-    m_any.mutable_scalar()->set_v_unsigned_int(any);
-
-    m_tls_active = tls;
-  }
-
-  Set_params(float any, bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_FLOAT);
-    m_any.mutable_scalar()->set_v_float(any);
-
-    m_tls_active = tls;
-  }
-
-  Set_params(double any, bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_DOUBLE);
-    m_any.mutable_scalar()->set_v_double(any);
-
-    m_tls_active = tls;
-  }
-
-  Set_params(const char *any, bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_STRING);
-    m_any.mutable_scalar()->mutable_v_string()->set_value(any);
-
-    m_tls_active = tls;
-  }
-
-  Set_params(bool tls) : m_tls_active(tls) {
-    m_any.mutable_scalar()->set_type(Scalar::V_NULL);
-
-    m_tls_active = tls;
-  }
-
-  Set_params(const Set_params &other)
-      : m_any(other.m_any), m_tls_active(other.m_tls_active) {}
 
   Any m_any;
   bool m_tls_active;
@@ -179,22 +130,20 @@ class SuccessSetCapabilityHanderTlsTestSuite
  public:
 };
 
-#if !defined(HAVE_UBSAN)
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_success_forValidParametersAndTlsSupportedOnTcpip) {
   auto s = GetParam();
 
   EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(true));
   EXPECT_CALL(mock_connection, get_type())
-      .WillRepeatedly(Return(Connection_tcpip));
+      .WillRepeatedly(Return(xpl::Connection_tcpip));
 
-  ASSERT_TRUE(sut.set(s.m_any));
+  ASSERT_EQ(ER_X_SUCCESS, sut.set(s.m_any).error);
 
   EXPECT_CALL(mock_client, activate_tls_void());
 
   sut.commit();
 }
-#endif  // HAVE_UBSAN
 
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_failure_forValidParametersAndTlsSupportedOnNamedPipe) {
@@ -202,9 +151,9 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
 
   EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(true));
   EXPECT_CALL(mock_connection, get_type())
-      .WillRepeatedly(Return(Connection_namedpipe));
+      .WillRepeatedly(Return(xpl::Connection_namedpipe));
 
-  ASSERT_FALSE(sut.set(s.m_any));
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut.set(s.m_any).error);
 }
 
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
@@ -213,9 +162,9 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
 
   EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(false));
   EXPECT_CALL(mock_connection, get_type())
-      .WillRepeatedly(Return(Connection_tcpip));
+      .WillRepeatedly(Return(xpl::Connection_tcpip));
 
-  ASSERT_FALSE(sut.set(s.m_any));
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut.set(s.m_any).error);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -232,9 +181,9 @@ TEST_P(FaildSetCapabilityHanderTlsTestSuite, get_failure_forValidParameters) {
 
   EXPECT_CALL(mock_connection, get_type())
       .WillRepeatedly(
-          Return(s.m_tls_active ? Connection_tls : Connection_tcpip));
+          Return(s.m_tls_active ? xpl::Connection_tls : xpl::Connection_tcpip));
 
-  ASSERT_FALSE(sut.set(s.m_any));
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut.set(s.m_any).error);
 
   sut.commit();
 }
@@ -258,16 +207,16 @@ INSTANTIATE_TEST_CASE_P(FaildInstantiationAlreadyDisabled,
 class CapabilityHanderAuthMechTestSuite : public Test {
  public:
   CapabilityHanderAuthMechTestSuite() : sut(mock_client) {
-    mock_server = ngs::make_shared<StrictMock<Mock_server>>();
+    mock_server = std::make_shared<StrictMock<ngs::test::Mock_server>>();
 
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(*mock_server));
   }
 
-  ngs::shared_ptr<StrictMock<Mock_server>> mock_server;
+  std::shared_ptr<StrictMock<ngs::test::Mock_server>> mock_server;
 
-  StrictMock<Mock_vio> mock_connection;
+  StrictMock<ngs::test::Mock_vio> mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;
 
   Capability_auth_mech sut;
@@ -280,7 +229,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, isSupported_returnsTrue_always) {
 TEST_F(CapabilityHanderAuthMechTestSuite, set_returnsFalse_always) {
   Set_params set(1, false);
 
-  ASSERT_FALSE(sut.set(set.m_any));
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut.set(set.m_any).error);
 }
 
 TEST_F(CapabilityHanderAuthMechTestSuite, commit_doesNothing_always) {
@@ -291,14 +240,9 @@ TEST_F(CapabilityHanderAuthMechTestSuite, name) {
   ASSERT_STREQ("authentication.mechanisms", sut.name().c_str());
 }
 
-/*
-  HAVE_UBSAN: undefined behaviour in gmock.
-  runtime error: member call on null pointer of type 'const struct ResultHolder'
- */
-#if !defined(HAVE_UBSAN)
 TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
   std::vector<std::string> names;
-  Any any;
+  ::Mysqlx::Datatypes::Any any;
 
   // EXPECT_CALL(mock_connection,
   // is_option_set(Connection::Option_active_tls)).WillOnce(Return(true));
@@ -308,14 +252,14 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
 
   sut.get(any);
 
-  ASSERT_EQ(Any::ARRAY, any.type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Any::ARRAY, any.type());
   EXPECT_EQ(0, any.array().value_size());
 }
 
 TEST_F(CapabilityHanderAuthMechTestSuite,
        get_returnAuthMethodsFromServer_always) {
   std::vector<std::string> names;
-  Any any;
+  ::Mysqlx::Datatypes::Any any;
 
   names.push_back("first");
   names.push_back("second");
@@ -326,18 +270,17 @@ TEST_F(CapabilityHanderAuthMechTestSuite,
 
   sut.get(any);
 
-  ASSERT_EQ(Any::ARRAY, any.type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Any::ARRAY, any.type());
   ASSERT_EQ(static_cast<int>(names.size()), any.array().value_size());
 
   for (std::size_t i = 0; i < names.size(); ++i) {
-    const Any &a = any.array().value(static_cast<int>(i));
+    const auto &a = any.array().value(static_cast<int>(i));
 
-    ASSERT_EQ(Any::SCALAR, a.type());
-    ASSERT_EQ(Scalar::V_STRING, a.scalar().type());
+    ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, a.type());
+    ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_STRING, a.scalar().type());
     ASSERT_STREQ(names[i].c_str(), a.scalar().v_string().value().c_str());
   }
 }
-#endif  // HAVE_UBSAN
 
 class Capability_hander_client_interactive_test_suite : public Test {
  public:
@@ -348,7 +291,7 @@ class Capability_hander_client_interactive_test_suite : public Test {
     sut.reset(new Capability_client_interactive(mock_client));
   }
 
-  ngs::unique_ptr<Capability_client_interactive> sut;
+  std::unique_ptr<Capability_client_interactive> sut;
   StrictMock<xpl::test::Mock_client> mock_client;
 };
 
@@ -368,12 +311,12 @@ TEST_F(Capability_hander_client_interactive_test_suite,
   sut.reset(new Capability_client_interactive(mock_client));
 
   const bool expected_result = true;
-  Any any;
+  ::Mysqlx::Datatypes::Any any;
 
   sut->get(any);
 
-  ASSERT_EQ(Any::SCALAR, any.type());
-  ASSERT_EQ(Scalar::V_BOOL, any.scalar().type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, any.type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_BOOL, any.scalar().type());
   ASSERT_EQ(expected_result, any.scalar().v_bool());
 }
 
@@ -383,22 +326,20 @@ TEST_F(Capability_hander_client_interactive_test_suite,
   sut.reset(new Capability_client_interactive(mock_client));
 
   const bool expected_result = false;
-  Any any;
+  ::Mysqlx::Datatypes::Any any;
 
   sut->get(any);
 
-  ASSERT_EQ(Any::SCALAR, any.type());
-  ASSERT_EQ(Scalar::V_BOOL, any.scalar().type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Any::SCALAR, any.type());
+  ASSERT_EQ(::Mysqlx::Datatypes::Scalar::V_BOOL, any.scalar().type());
   ASSERT_EQ(expected_result, any.scalar().v_bool());
 }
 
 TEST_F(Capability_hander_client_interactive_test_suite,
        set_and_commit_valid_type) {
-  Any any;
-  any.mutable_scalar()->set_type(Scalar::V_BOOL);
-  any.mutable_scalar()->set_v_bool(true);
+  Any any{Scalar{true}};
 
-  ASSERT_TRUE(sut->set(any));
+  ASSERT_EQ(ER_X_SUCCESS, sut->set(any).error);
 
   EXPECT_CALL(mock_client, set_is_interactive(true));
 
@@ -407,17 +348,162 @@ TEST_F(Capability_hander_client_interactive_test_suite,
 
 TEST_F(Capability_hander_client_interactive_test_suite,
        set_and_commit_invalid_type) {
-  Any any;
-  any.mutable_scalar()->set_type(Scalar::V_STRING);
-  any.mutable_scalar()->mutable_v_string()->set_value("invalid");
+  Any any{Scalar{"invalid"}};
 
-  ASSERT_FALSE(sut->set(any));
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut->set(any).error);
 
   EXPECT_CALL(mock_client, set_is_interactive(false));
 
   sut->commit();
 }
 
+class Capability_handler_connection_attributes : public Test {
+ public:
+  void SetUp() override {
+    ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, m_sut.set(m_any).error);
+  }
+
+  Any m_any;
+  Capability_connection_attributes m_sut;
+};
+
+TEST_F(Capability_handler_connection_attributes, is_supported) {
+  ASSERT_TRUE(m_sut.is_supported());
+}
+
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_empty_object) {
+  const auto empty_obj = Any::Object{};
+  m_any = Any{empty_obj};
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, m_sut.set(m_any).error);
+}
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_empty_field) {
+  const Any::Object::Fld field{};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_field_with_empty_value) {
+  const Any::Object::Fld field{"some_key", {}};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_field_with_empty_scalar) {
+  Scalar empty_scalar;
+  Any value{empty_scalar};
+  const Any::Object::Fld field{"some_key", value};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_TYPE, m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_field_with_scalar_other_than_string) {
+  Scalar scalar{true};
+  Any value{scalar};
+  const Any::Object::Fld field{"some_key", value};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_TYPE, m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_field_with_empty_string_scalar) {
+  ::Mysqlx::Datatypes::Object obj;
+  ::Mysqlx::Datatypes::Any value;
+  ::Mysqlx::Datatypes::Scalar scalar;
+  ::Mysqlx::Datatypes::Scalar_String empty_scalar_string;
+  scalar.mutable_v_string()->CopyFrom(empty_scalar_string);
+  value.mutable_scalar()->CopyFrom(scalar);
+  auto field = obj.add_fld();
+  field->set_key("some_key");
+  field->mutable_value()->CopyFrom(value);
+  ::Mysqlx::Datatypes::Any any;
+  any.mutable_obj()->CopyFrom(obj);
+  ASSERT_EQ(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_TYPE, m_sut.set(any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes,
+       set_invalid_capability_field_without_a_key) {
+  ::Mysqlx::Datatypes::Object obj;
+  ::Mysqlx::Datatypes::Any value;
+  ::Mysqlx::Datatypes::Scalar scalar;
+  ::Mysqlx::Datatypes::Scalar_String scalar_string;
+  scalar_string.set_value("some value");
+  scalar.mutable_v_string()->CopyFrom(scalar_string);
+  value.mutable_scalar()->CopyFrom(scalar);
+  auto field = obj.add_fld();
+  field->mutable_value()->CopyFrom(value);
+  ::Mysqlx::Datatypes::Any any;
+  any.mutable_obj()->CopyFrom(obj);
+  ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, m_sut.set(any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes, key_max_size_exceeded) {
+  Scalar::String scalar_string{"some value"};
+  Scalar scalar{scalar_string};
+  Any value{scalar};
+  std::string long_string(128, 'x');
+  const Any::Object::Fld field{long_string, value};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH,
+            m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes, empty_key) {
+  Scalar::String scalar_string{"some value"};
+  Scalar scalar{scalar_string};
+  Any value{scalar};
+  const Any::Object::Fld field{"", value};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_EMPTY_KEY,
+            m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes, value_max_size_exceeded) {
+  std::string long_string(2048, 'x');
+  Scalar::String long_scalar_string{long_string};
+  Scalar scalar{long_scalar_string};
+  Any value{scalar};
+  const Any::Object::Fld field{"some key", value};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH,
+            m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes, set_one_key_value_pair) {
+  Scalar::String scalar_string{"some value"};
+  Scalar scalar{scalar_string};
+  Any value{scalar};
+  const Any::Object::Fld field{"some key", value};
+  const Any::Object obj{field};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_SUCCESS, m_sut.set(m_any).error);
+}
+
+TEST_F(Capability_handler_connection_attributes, set_two_key_value_pairs) {
+  Scalar::String scalar_string1{"some value"};
+  Scalar::String scalar_string2{"other value"};
+  Scalar scalar1{scalar_string1};
+  Scalar scalar2{scalar_string1};
+  Any value1{scalar1};
+  Any value2{scalar2};
+  const Any::Object::Fld field1{"some key", value1};
+  const Any::Object::Fld field2{"other key", value2};
+  const Any::Object obj{{field1, field2}};
+  m_any = Any{obj};
+  ASSERT_EQ(ER_X_SUCCESS, m_sut.set(m_any).error);
+}
+
 }  // namespace test
 
-}  // namespace ngs
+}  // namespace xpl

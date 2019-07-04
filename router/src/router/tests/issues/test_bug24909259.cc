@@ -40,6 +40,7 @@
 #include "router_test_helpers.h"
 
 #include <fstream>
+#include <stdexcept>
 #include <string>
 
 #include "gmock/gmock.h"

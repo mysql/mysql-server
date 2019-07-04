@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,23 +32,23 @@
 
 #include "storage/perfschema/pfs_server.h"
 
-extern int pfs_set_thread_resource_group_v1(const char *group_name,
+extern int pfs_set_thread_resource_group_v2(const char *group_name,
                                             int group_name_len,
                                             void *user_data);
-extern int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+extern int pfs_set_thread_resource_group_by_id_v2(PSI_thread *thread,
                                                   ulonglong thread_id,
                                                   const char *group_name,
                                                   int group_name_len,
                                                   void *user_data);
-extern int pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs);
+extern int pfs_get_thread_system_attrs_v2(PSI_thread_attrs *thread_attrs);
 
-extern int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+extern int pfs_get_thread_system_attrs_by_id_v2(PSI_thread *thread,
                                                 ulonglong thread_id,
                                                 PSI_thread_attrs *thread_attrs);
 
 int impl_pfs_set_thread_resource_group(const char *group_name,
                                        int group_name_len, void *user_data) {
-  return pfs_set_thread_resource_group_v1(group_name, group_name_len,
+  return pfs_set_thread_resource_group_v2(group_name, group_name_len,
                                           user_data);
 }
 
@@ -57,18 +57,18 @@ int impl_pfs_set_thread_resource_group_by_id(PSI_thread *thread,
                                              const char *group_name,
                                              int group_name_len,
                                              void *user_data) {
-  return pfs_set_thread_resource_group_by_id_v1(thread, thread_id, group_name,
+  return pfs_set_thread_resource_group_by_id_v2(thread, thread_id, group_name,
                                                 group_name_len, user_data);
 }
 
 int impl_pfs_get_thread_system_attrs(PSI_thread_attrs *thread_attrs) {
-  return pfs_get_thread_system_attrs_v1(thread_attrs);
+  return pfs_get_thread_system_attrs_v2(thread_attrs);
 }
 
 int impl_pfs_get_thread_system_attrs_by_id(PSI_thread *thread,
                                            ulonglong thread_id,
                                            PSI_thread_attrs *thread_attrs) {
-  return pfs_get_thread_system_attrs_by_id_v1(thread, thread_id, thread_attrs);
+  return pfs_get_thread_system_attrs_by_id_v2(thread, thread_id, thread_attrs);
 }
 
 SERVICE_TYPE(pfs_resource_group)

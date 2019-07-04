@@ -345,6 +345,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -446,6 +459,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -547,6 +573,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -651,6 +690,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -752,6 +804,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -853,6 +918,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -958,6 +1036,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1060,6 +1151,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1162,6 +1266,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1270,6 +1387,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where multiple equal('2', NULL, NULL))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1371,6 +1501,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` where multiple equal('2'))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1395,7 +1538,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from dual where (<cache>('2') = '2')))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1474,6 +1617,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where multiple equal('2', `test`.`t3`.`i`, NULL))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1498,7 +1654,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` where (<cache>('2') = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1580,6 +1736,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t3` where multiple equal('2', NULL))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1671,7 +1840,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from dual where ((<cache>('2') = '2'))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1685,6 +1854,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1692,7 +1876,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from dual where ((<cache>('2') = '2'))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1713,7 +1897,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>('2') = '2')))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1725,7 +1909,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` where (<cache>('2') = '2')))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1784,7 +1968,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` where ((`test`.`t3`.`i` = '2') and (<cache>('2') = '2'))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1798,6 +1982,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1805,7 +2004,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` where ((`test`.`t3`.`i` = '2') and (<cache>('2') = '2'))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1826,7 +2025,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where (<cache>('2') = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1838,7 +2037,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` where (<cache>('2') = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1911,6 +2110,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where multiple equal('2', NULL, `test`.`t2`.`i`))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2004,7 +2216,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`i` = '2') and (<cache>('2') = '2'))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2018,6 +2230,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2025,7 +2252,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`i` = '2') and (<cache>('2') = '2'))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2046,7 +2273,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>('2') = '2')))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2058,7 +2285,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` straight_join `test`.`t3` where (<cache>('2') = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2118,7 +2345,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`i` = `test`.`t3`.`i`) and (<cache>('2') = `test`.`t3`.`i`))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2132,6 +2359,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2139,7 +2381,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`i` = `test`.`t3`.`i`) and (<cache>('2') = `test`.`t3`.`i`))))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2160,7 +2402,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where (<cache>('2') = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2172,7 +2414,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from dual where <in_optimizer>('2',<exists>(/* select#2 */ select 1 from `test`.`t2` straight_join `test`.`t3` where (<cache>('2') = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2249,6 +2491,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`i` = NULL) and multiple equal(NULL, NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2350,6 +2605,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = '2') and multiple equal(NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2453,6 +2721,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`i` = `test`.`t3`.`i`) and multiple equal(NULL, `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2560,6 +2841,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t3` where ((`test`.`t1`.`i` = NULL) and multiple equal('2', NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2665,6 +2959,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from dual where ((`test`.`t1`.`i` = '2')))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2693,7 +3002,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select '2' from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select '2' from <constant table> left join `test`.`t2` on(multiple equal('2', '2')) where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`)))))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2778,6 +3087,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t3` where ((`test`.`t3`.`i` = '2') and (`test`.`t1`.`i` = '2')))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2893,6 +3217,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`i` = NULL) and multiple equal(`test`.`t2`.`i`, NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3000,6 +3337,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`i` = '2') and (`test`.`t1`.`i` = '2')))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3028,7 +3380,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select '2' from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select '2' from <constant table> left join `test`.`t2` on((`test`.`t2`.`i` = '2')) where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`)))))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -3117,6 +3469,22 @@ i
 1
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`i` = `test`.`t3`.`i`) and (`test`.`t1`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+1
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5446,13 +5814,13 @@ ON TRUE
 WHERE t1.a IN (SELECT * FROM v AS it2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 3	SUBQUERY	it2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t4`.`a` AS `a` from `test`.`t` `t1` left join (`test`.`t2` left join `test`.`t` `t3` on(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`it`.`a` from `test`.`t` `it` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`)))))) join `test`.`t4`) on(((`test`.`t4`.`a` = 100) and TRUE)) where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#3 */ select `test`.`it2`.`a` from `test`.`v` `it2` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t4`.`a` AS `a` from `test`.`t` `t1` left join (`test`.`t2` left join `test`.`t` `t3` on(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`it`.`a` from `test`.`t` `it` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`)))))) join `test`.`t4`) on(((`test`.`t4`.`a` = 100))) where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#3 */ select `test`.`it2`.`a` from `test`.`v` `it2` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
 SELECT *
 FROM t AS t1
 LEFT JOIN
@@ -7033,7 +7401,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	range	Population,Country	Population	4	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))))))
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -7064,7 +7432,7 @@ EXPLAIN
         "Name",
         "Population"
       ],
-      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -7105,7 +7473,7 @@ EXPLAIN
                 "Language",
                 "Percentage"
               ],
-              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))"
+              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
             }
           }
         },
@@ -7162,7 +7530,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))))))
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -7399,13 +7767,13 @@ set @a=0;
 create table t3 as select * from t2 limit 0;
 insert into t3 select @a:=@a+1, t2.a from t2, t0;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 insert into t3 select @a:=@a+1, t2.a from t2, t0;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 insert into t3 select @a:=@a+1, t2.a from t2, t0;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 alter table t3 add primary key(id), add key(a);
 The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
@@ -8091,7 +8459,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	b1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	b2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`f2`,`test`.`t2`.`f2` in ( <materialize> (/* select#2 */ select '1' from (`test`.`t2` `b1` join `test`.`t2` `b2`) where 1 ), <primary_index_lookup>(`test`.`t2`.`f2` in <temporary table> on <auto_key> where ((`test`.`t2`.`f2` = `materialized-subquery`.`f1`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`f2`,`test`.`t2`.`f2` in ( <materialize> (/* select#2 */ select '1' from <constant table> left join (`test`.`t2` `b1` join `test`.`t2` `b2`) on((1)) where 1 ), <primary_index_lookup>(`test`.`t2`.`f2` in <temporary table> on <auto_key> where ((`test`.`t2`.`f2` = `materialized-subquery`.`f1`)))))
 SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
@@ -8517,11 +8885,11 @@ AND grandparent1.col_varchar_key IS NOT NULL
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	grandparent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	90.00	Using where
+2	SUBQUERY	grandparent1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
 3	SUBQUERY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 3	SUBQUERY	parent2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`g1` AS `g1` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`g1`,`test`.`t1`.`g1` in ( <materialize> (/* select#2 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `g1` from `test`.`t2` `grandparent1` where (<in_optimizer>(`test`.`grandparent1`.`col_varchar_key`,`test`.`grandparent1`.`col_varchar_key` in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_varchar_nokey` AS `p1` from `test`.`t2` `parent1` left join `test`.`t3` `parent2` on((`test`.`parent2`.`pk` = `test`.`parent1`.`pk`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_varchar_key` = `materialized-subquery`.`p1`))))) and (`test`.`grandparent1`.`col_varchar_key` is not null)) ), <primary_index_lookup>(`test`.`t1`.`g1` in <temporary table> on <auto_key> where ((`test`.`t1`.`g1` = `materialized-subquery`.`g1`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`g1` AS `g1` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`g1`,`test`.`t1`.`g1` in ( <materialize> (/* select#2 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `g1` from `test`.`t2` `grandparent1` where <in_optimizer>(`test`.`grandparent1`.`col_varchar_key`,`test`.`grandparent1`.`col_varchar_key` in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_varchar_nokey` AS `p1` from `test`.`t2` `parent1` left join `test`.`t3` `parent2` on((`test`.`parent2`.`pk` = `test`.`parent1`.`pk`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_varchar_key` = `materialized-subquery`.`p1`))))) ), <primary_index_lookup>(`test`.`t1`.`g1` in <temporary table> on <auto_key> where ((`test`.`t1`.`g1` = `materialized-subquery`.`g1`)))))))
 SELECT *
 FROM t1
 WHERE g1 NOT IN
@@ -9154,7 +9522,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1a`.`pk` AS `pk`,`test`.`t1a`.`col_int_nokey` AS `col_int_nokey`,`test`.`t1a`.`col_int_key` AS `col_int_key` from `test`.`t1` `t1a` join `test`.`t1` `t1b` where ((`test`.`t1b`.`col_int_nokey` = `test`.`t1a`.`col_int_nokey`) and <in_optimizer>(`test`.`t1a`.`col_int_key`,`test`.`t1a`.`col_int_key` in ( <materialize> (/* select#2 */ select '1' from dual where <in_optimizer>('7',<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>('7') = `test`.`t1`.`col_int_nokey`))) ), <primary_index_lookup>(`test`.`t1a`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`t1a`.`col_int_key` = `materialized-subquery`.`pk`))))))
+Note	1003	/* select#1 */ select `test`.`t1a`.`pk` AS `pk`,`test`.`t1a`.`col_int_nokey` AS `col_int_nokey`,`test`.`t1a`.`col_int_key` AS `col_int_key` from `test`.`t1` `t1a` join `test`.`t1` `t1b` where ((`test`.`t1b`.`col_int_nokey` = `test`.`t1a`.`col_int_nokey`) and <in_optimizer>(`test`.`t1a`.`col_int_key`,`test`.`t1a`.`col_int_key` in ( <materialize> (/* select#2 */ select '1' from dual where 1 ), <primary_index_lookup>(`test`.`t1a`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`t1a`.`col_int_key` = `materialized-subquery`.`pk`))))))
 SELECT t1a.*
 FROM t1 AS t1a
 JOIN t1 AS t1b USING ( col_int_nokey )
@@ -9459,7 +9827,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	col_varchar_key	col_varchar_key	6	func	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where ((`test`.`ot`.`col_int_nokey` >= 2) and (<cache>(`test`.`ot`.`col_varchar_nokey`) = `test`.`it`.`col_varchar_key`))))) order by `test`.`ot`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where (`test`.`ot`.`col_int_nokey` >= 2)))) order by `test`.`ot`.`col_varchar_nokey`
 SELECT col_varchar_nokey
 FROM t2 AS ot
 WHERE col_varchar_nokey IN (
@@ -9493,7 +9861,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	col_varchar_key	col_varchar_key	6	func	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where ((`test`.`ot`.`col_int_nokey` >= 2) and (<cache>(`test`.`ot`.`col_varchar_nokey`) = `test`.`it`.`col_varchar_key`))))) order by `test`.`ot`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where (`test`.`ot`.`col_int_nokey` >= 2)))) order by `test`.`ot`.`col_varchar_nokey`
 SELECT col_varchar_nokey
 FROM t2 AS ot
 WHERE col_varchar_nokey IN (
@@ -9527,7 +9895,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	col_varchar_key	col_varchar_key	6	func	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where ((`test`.`ot`.`col_int_nokey` >= 2) and (<cache>(`test`.`ot`.`col_varchar_nokey`) = `test`.`it`.`col_varchar_key`))))) order by `test`.`ot`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where (`test`.`ot`.`col_int_nokey` >= 2)))) order by `test`.`ot`.`col_varchar_nokey`
 SELECT col_varchar_nokey
 FROM t2 AS ot
 WHERE col_varchar_nokey IN (
@@ -9589,7 +9957,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t2	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 3	SUBQUERY	t3	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`gp1`.`id` AS `id` from `test`.`t1` `gp1` where (<in_optimizer>((`test`.`gp1`.`col_varchar_nokey`,`test`.`gp1`.`col_varchar_nokey`),(`test`.`gp1`.`col_varchar_nokey`,`test`.`gp1`.`col_varchar_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`col_varchar_nokey`,`test`.`t1`.`col_varchar_nokey` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col_varchar_nokey`,`test`.`t1`.`col_varchar_nokey` in ( <materialize> (/* select#3 */ select 'b' from `test`.`t3` where 1 ), <primary_index_lookup>(`test`.`t1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`t1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`))))) ), <primary_index_lookup>(`test`.`gp1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`gp1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`test`.`gp1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`))))) and ('k' <> `test`.`gp1`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `test`.`gp1`.`id` AS `id` from `test`.`t1` `gp1` where (<in_optimizer>((`test`.`gp1`.`col_varchar_nokey`,`test`.`gp1`.`col_varchar_nokey`),(`test`.`gp1`.`col_varchar_nokey`,`test`.`gp1`.`col_varchar_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`col_varchar_nokey`,`test`.`t1`.`col_varchar_nokey` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col_varchar_nokey`,`test`.`t1`.`col_varchar_nokey` in ( <materialize> (/* select#3 */ select 'b' from <constant table> left join `test`.`t3` on(multiple equal('b', NULL)) where 1 ), <primary_index_lookup>(`test`.`t1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`t1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`))))) ), <primary_index_lookup>(`test`.`gp1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`gp1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`test`.`gp1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`))))) and ('k' <> `test`.`gp1`.`col_varchar_nokey`))
 SELECT gp1.id
 FROM t1 AS gp1 JOIN t3 AS gp2
 ON gp2.col_varchar_key <> gp1.col_varchar_nokey
@@ -10383,7 +10751,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	inner_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Using where
 2	DEPENDENT SUBQUERY	inner_t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.inner_t2.pk	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'1' AS `pk` from `test`.`t3` `outer_t1` where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,'1' AS `pk` from <constant table> left join `test`.`t3` `outer_t1` on(<in_optimizer>('6',<exists>(/* select#2 */ select 1 from <constant table> left join (`test`.`t1` `inner_t2` join `test`.`t1` `inner_t3`) on(((`test`.`inner_t3`.`pk` = `test`.`inner_t2`.`pk`) and (`test`.`inner_t3`.`col_varchar_nokey` = `test`.`inner_t2`.`col_varchar_key`))) where (<cache>('6') = '6'))))
 SELECT outer_t1.pk, outer_t2.pk
 FROM t3 AS outer_t1
 RIGHT JOIN t2 AS outer_t2
@@ -11642,7 +12010,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	7	func	1	50.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_nokey`) in t2 on col_varchar_key where ((`test`.`innr`.`pk` <= 7) and (<cache>(`test`.`outr`.`col_varchar_nokey`) = `test`.`innr`.`col_varchar_key`)))))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_nokey`) in t2 on col_varchar_key where (`test`.`innr`.`pk` <= 7))))
 SELECT 1
 FROM t1 AS outr
 WHERE outr.col_varchar_nokey IN
@@ -11723,7 +12091,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x1)
 2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	PRIMARY,c1_key	c1_key	6	func	1	50.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t1` join `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`c1`) in t3 on c1_key where ((`test`.`t3`.`pk` < 3) and (<cache>(`test`.`t2`.`c1`) = `test`.`t3`.`c1`))))) and (`test`.`t1`.`i1` >= `test`.`t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t1` join `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`c1`) in t3 on c1_key where (`test`.`t3`.`pk` < 3)))) and (`test`.`t1`.`i1` >= `test`.`t2`.`pk`))
 SELECT *
 FROM t1 JOIN t2 ON t1.i1 >= t2.pk
 WHERE t2.c1 IN (

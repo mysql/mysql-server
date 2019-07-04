@@ -7,30 +7,26 @@
 --source include/have_ndb.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 ##############################
 # mix endian restore section #
 ##############################
 #
 # Restore backup files (from little endian)
 #
---disable_warnings
-USE test;
-DROP TABLE IF EXISTS t1;
---enable_warnings
 --echo *********************************
 --echo * restore tables w/ new column from little endian
 --echo *********************************
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
-SHOW TABLES;
---disable_warnings
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+
+--disable_query_log
+call mtr.add_suppression("NDB: Table upgrade required");
+--enable_query_log
+
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
---enable_warnings
-SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
-DROP TABLE t1;
+SHOW WARNINGS;
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
 
 #
 # Restore backup files (from big endian)
@@ -38,13 +34,11 @@ DROP TABLE t1;
 --echo *********************************
 --echo * restore tables w/ new column from big endian
 --echo *********************************
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
-SHOW TABLES;
---disable_warnings
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
---enable_warnings
-SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
-DROP TABLE t1;
---source suite/ndb/include/backup_restore_cleanup.inc
-# End of 5.1 Test Case
+SHOW WARNINGS;
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--remove_file $NDB_TOOLS_OUTPUT

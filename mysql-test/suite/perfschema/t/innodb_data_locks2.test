@@ -64,18 +64,15 @@ CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, val INT) Engine=InnoDB;
 --connection default
   SET DEBUG_SYNC = 'now WAIT_FOR C4_will_wait';
 
-  # We need to sort results so they are repeatable.
-  # However Bug #28176910 causes ORDER BY to spoil the content of
-  # result table if used directly in a query.
-  # For now we simply hope for determinism.
-    SELECT
-      object_name,
-      index_name,
-      lock_type,
-      lock_mode,
-      lock_status,
-      lock_data
-    FROM performance_schema.data_locks;
+  SELECT
+    object_name,
+    index_name,
+    lock_type,
+    lock_mode,
+    lock_status,
+    lock_data
+  FROM performance_schema.data_locks
+  ORDER BY 1,2,3,4,5,6;
 
 
 --connection C1

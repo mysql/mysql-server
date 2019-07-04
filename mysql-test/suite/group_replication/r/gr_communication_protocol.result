@@ -1,0 +1,124 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE t1 (i INT, s VARCHAR(16), PRIMARY KEY (i));
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, "");
+INSERT INTO t1 VALUES (3, "5");
+INSERT INTO t1 VALUES (4, "5.7");
+INSERT INTO t1 VALUES (5, "5.7.14a");
+INSERT INTO t1 VALUES (6, "5.7.13");
+INSERT INTO t1 VALUES (7, "99.99.99");
+[connection server2]
+###############################################################################
+# 2. Decrease communication_protocol.
+[connection server1]
+SELECT group_replication_set_communication_protocol("5.7.14");
+group_replication_set_communication_protocol("5.7.14")
+The operation group_replication_set_communication_protocol completed successfully
+include/assert.inc [communication_protocol is supposed to be 5.7.14]
+[connection server2]
+include/assert.inc [communication_protocol is supposed to be 5.7.14]
+###############################################################################
+# 3. Increase communication_protocol.
+[connection server1]
+SELECT group_replication_set_communication_protocol("8.0.16");
+group_replication_set_communication_protocol("8.0.16")
+The operation group_replication_set_communication_protocol completed successfully
+include/assert.inc [communication_protocol is supposed to be 8.0.16]
+[connection server2]
+include/assert.inc [communication_protocol is supposed to be 8.0.16]
+###############################################################################
+# 4. Confirm invalid calls to group_replication_get_communication_protocol
+[connection server1]
+SELECT group_replication_get_communication_protocol(1);
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; UDF does not take arguments.
+SELECT group_replication_get_communication_protocol(1.1);
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; UDF does not take arguments.
+SELECT group_replication_get_communication_protocol("hehe");
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; UDF does not take arguments.
+SELECT group_replication_get_communication_protocol(NULL);
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; UDF does not take arguments.
+###############################################################################
+# 5. Confirm invalid calls to group_replication_set_communication_protocol
+SELECT group_replication_set_communication_protocol();
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; UDF takes one version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol(NULL);
+group_replication_set_communication_protocol(NULL)
+UDF takes one version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol(1);
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; UDF takes one version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol(5.7);
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; UDF takes one version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol("");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; '' is not version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol(" ");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; ' ' is not version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol("5");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; '5' is not version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol("5.7");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; '5.7' is not version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol("5.7.14a");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; '5.7.14a' is not version string argument with format major.minor.patch
+SELECT group_replication_set_communication_protocol("5.7.13");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; 5.7.13 is not between 5.7.14 and MYSQL_VERSION
+SELECT group_replication_set_communication_protocol("99.99.99");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; 99.99.99 is not between 5.7.14 and MYSQL_VERSION
+SELECT group_replication_set_communication_protocol(s) FROM t1;
+group_replication_set_communication_protocol(s)
+UDF takes one version string argument with format major.minor.patch
+'' is not version string argument with format major.minor.patch
+'5' is not version string argument with format major.minor.patch
+'5.7' is not version string argument with format major.minor.patch
+'5.7.14a' is not version string argument with format major.minor.patch
+5.7.13 is not between 5.7.14 and MYSQL_VERSION
+99.99.99 is not between 5.7.14 and MYSQL_VERSION
+[connection server2]
+include/stop_group_replication.inc
+###############################################################################
+# 6. Check that it is not possible to modify/query communication_protocol value when server is in RECOVERING state.
+[connection server1]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+SELECT group_replication_set_communication_protocol("5.7.14");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; A member is joining the group, wait for it to be ONLINE.
+SELECT group_replication_get_communication_protocol();
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; A member is joining the group, wait for it to be ONLINE.
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Wait until server2 becomes ONLINE
+###############################################################################
+# 7. Check that it is not possible to call communication_protocol UDFs when a member is in UNREACHABLE state.
+[connection server2]
+[connection server_1]
+include/gr_wait_for_member_state.inc
+SELECT group_replication_get_communication_protocol();
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; All members in the group must be reachable.
+SELECT group_replication_set_communication_protocol("5.7.14");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; All members in the group must be reachable.
+include/rpl_reconnect.inc
+[connection server_2]
+SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
+SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
+SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
+include/start_group_replication.inc
+[connection server1]
+include/rpl_sync.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+###############################################################################
+# 8. Stop GR and try to call UDFs outside of a group
+[connection server1]
+DROP TABLE t1;
+include/rpl_sync.inc
+include/group_replication_end.inc
+SELECT group_replication_get_communication_protocol();
+ERROR HY000: Can't initialize function 'group_replication_get_communication_protocol'; Member must be ONLINE and in the majority partition.
+SELECT group_replication_set_communication_protocol("5.7.14");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; Member must be ONLINE and in the majority partition.

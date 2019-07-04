@@ -41,6 +41,7 @@
 #include <string.h>
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 IMPORT_LOG_FUNCTIONS()
 

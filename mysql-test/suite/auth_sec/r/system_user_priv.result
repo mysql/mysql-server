@@ -1,0 +1,387 @@
+#------------------------------------------------------------------------
+# 1. Create the Users and Roles. Grant/REVOKE the SYSTEM_USER
+#    privilege from them.
+#------------------------------------------------------------------------
+
+# 1.1 User is granted SYSTEM_USER priv only if it is granted explictly
+CREATE USER sys_usr IDENTIFIED BY 'pwd';
+SHOW GRANTS FOR sys_usr;
+Grants for sys_usr@%
+GRANT USAGE ON *.* TO `sys_usr`@`%`
+GRANT SYSTEM_USER ON *.* TO sys_usr WITH GRANT OPTION;
+SHOW GRANTS FOR sys_usr;
+Grants for sys_usr@%
+GRANT USAGE ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
+GRANT SYSTEM_USER ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
+
+# 1.2 Revoke the SYSTEM_USER privilege from user;
+CREATE USER non_sys_usr IDENTIFIED BY 'pwd';
+GRANT ALL ON *.* TO non_sys_usr;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_usr;
+REVOKE UPDATE ON *.* FROM non_sys_usr;
+SHOW GRANTS FOR non_sys_usr;
+Grants for non_sys_usr@%
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `non_sys_usr`@`%`
+GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `non_sys_usr`@`%`
+
+# 1.3 Role is granted SYSTEM_USER priv only if it is granted explictly
+CREATE ROLE sys_role;
+SHOW GRANTS FOR sys_role;
+Grants for sys_role@%
+GRANT USAGE ON *.* TO `sys_role`@`%`
+GRANT SYSTEM_USER ON *.* TO sys_role WITH GRANT OPTION;
+SHOW GRANTS FOR sys_role;
+Grants for sys_role@%
+GRANT USAGE ON *.* TO `sys_role`@`%` WITH GRANT OPTION
+GRANT SYSTEM_USER ON *.* TO `sys_role`@`%` WITH GRANT OPTION
+
+# 1.4 Revoke the SYSTEM_USER privilege from user;
+CREATE USER non_sys_role;
+GRANT ALL ON *.* TO non_sys_role;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_role;
+SHOW GRANTS FOR non_sys_role;
+Grants for non_sys_role@%
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `non_sys_role`@`%`
+GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `non_sys_role`@`%`
+#------------------------------------------------------------------------
+# 2. sys_usr cannot modify the other users properties unless the former
+#    is granted the relevant properties to do so
+#------------------------------------------------------------------------
+CREATE USER test_usr;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+ALTER USER non_sys_usr IDENTIFIED BY 'pwd';
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+RENAME USER non_sys_usr TO power_usr;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+DROP USER non_sys_usr;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+#------------------------------------------------------------------------
+# 3. non_sys_usr cannot modify the other sys_usr even if former is
+#    granted global privileges
+#------------------------------------------------------------------------
+CREATE USER test_user;
+ALTER USER test_user IDENTIFIED BY 'pwd';
+RENAME USER test_user TO temp_user;
+DROP USER temp_user;
+ALTER USER sys_usr IDENTIFIED BY 'pwd';
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+RENAME USER sys_usr TO power_usr;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP USER sys_usr;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+#------------------------------------------------------------------------
+# 4. non_sys_usr cannot grant/revoke SYSTEM_USER privilege to /from
+#    other users/roles
+#------------------------------------------------------------------------
+CREATE USER test_user;
+GRANT SYSTEM_USER ON *.* TO test_user;
+ERROR 42000: Access denied; you need (at least one of) the GRANT OPTION privilege(s) for this operation
+REVOKE SYSTEM_USER FROM sys_usr;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+GRANT SYSTEM_USER ON *.* TO sys_role;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+GRANT SYSTEM_USER ON *.* TO non_sys_role;
+ERROR 42000: Access denied; you need (at least one of) the GRANT OPTION privilege(s) for this operation
+REVOKE SYSTEM_USER ON *.* FROM sys_role;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+GRANT sys_role to test_user;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+GRANT sys_role TO test_user;
+SHOW GRANTS FOR test_user;
+Grants for test_user@%
+GRANT USAGE ON *.* TO `test_user`@`%`
+GRANT `sys_role`@`%` TO `test_user`@`%`
+REVOKE sys_role FROM test_user;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP USER test_user;
+#------------------------------------------------------------------------
+# 5. Mandatory Roles
+#------------------------------------------------------------------------
+
+# 5.1 Check with root user
+SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
+ERROR HY000: Cannot set mandatory_roles: AuthId `sys_role`@`%` has 'SYSTEM_USER' privilege.
+SET @@GLOBAL.MANDATORY_ROLES='sys_role';
+ERROR HY000: Cannot set mandatory_roles: AuthId `sys_role`@`%` has 'SYSTEM_USER' privilege.
+SET @@GLOBAL.MANDATORY_ROLES='non_sys_role';
+
+# 5.2 Check with user who does not have system user privilege
+SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
+ERROR HY000: Cannot set mandatory_roles: AuthId `sys_role`@`%` has 'SYSTEM_USER' privilege.
+SET @@GLOBAL.MANDATORY_ROLES='sys_role';
+ERROR HY000: Cannot set mandatory_roles: AuthId `sys_role`@`%` has 'SYSTEM_USER' privilege.
+SET @@GLOBAL.MANDATORY_ROLES='non_sys_role';
+
+# 5.3 Check with user who has system user privilege
+SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@GLOBAL.MANDATORY_ROLES='sys_role';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+
+# 5.4 Non existing mandatory_role which is granted the SYSTEM_USER priv
+#     later
+SET @@GLOBAL.MANDATORY_ROLES='test_role';
+CREATE ROLE test_role;
+GRANT SYSTEM_USER ON *.* TO 'test_role';
+ERROR HY000: AuthId `test_role`@`%` is set as mandatory_roles. Cannot grant the 'SYSTEM_USER' privilege.
+GRANT SYSTEM_USER ON *.* TO 'test_role';
+ERROR HY000: AuthId `test_role`@`%` is set as mandatory_roles. Cannot grant the 'SYSTEM_USER' privilege.
+GRANT SYSTEM_USER ON *.* TO 'test_role';
+ERROR 42000: Access denied; you need (at least one of) the GRANT OPTION privilege(s) for this operation
+SET @@GLOBAL.MANDATORY_ROLES='';
+DROP ROLE test_role;
+
+# 5.5 None of the roles in the role's hierarchy should have SYSTEM_USER
+#     privilege if former is set as mandatory_role.
+CREATE ROLE r1, r2;
+GRANT r1 TO r2;
+GRANT sys_role TO r1;
+SET @@GLOBAL.MANDATORY_ROLES='r2';
+ERROR HY000: Cannot set mandatory_roles: AuthId `r2`@`%` has 'SYSTEM_USER' privilege.
+DROP ROLE r1, r2;
+#------------------------------------------------------------------------
+# 6. If the definer has SYSTEM_USER privilege then owner must also have
+#    the SYSTEM_USER privilege.
+#------------------------------------------------------------------------
+CREATE TABLE test.t1 (c1 INT);
+CREATE DATABASE restricted;
+CREATE TABLE restricted.t1 (c1 int, restricted int);
+INSERT INTO restricted.t1 VALUES (1,2);
+GRANT SET_USER_ID ON *.* TO sys_usr;
+
+# 6.1 Stored procedure and functions
+SELECT CURRENT_USER();
+CURRENT_USER()
+sys_usr@%
+SELECT * FROM restricted.t1;
+ERROR 42000: SELECT command denied to user 'sys_usr'@'localhost' for table 't1'
+USE test;
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
+# With the SET_USER_ID privilege we can escalate the authorization
+CALL p1();
+c1	restricted
+1	2
+CREATE DEFINER=root@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
+RETURN i*10;
+# With the SET_USER_ID privilege we can escalate the authorization
+SELECT f1(2);
+f1(2)
+20
+
+SELECT CURRENT_USER();
+CURRENT_USER()
+non_sys_usr@%
+USE test;
+CREATE DEFINER=root@localhost PROCEDURE p2() SELECT * FROM restricted.t1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+CREATE DEFINER=root@localhost FUNCTION f2(i INT) RETURNS INT(10) DETERMINISTIC
+RETURN i*10;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# Invoker has EXECUTE privilege but not SYSTEM_USER privilege
+CALL p1();
+c1	restricted
+1	2
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP PROCEDURE test.p1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP FUNCTION test.f1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+
+# 6.2 Create trigger
+SELECT CURRENT_USER();
+CURRENT_USER()
+sys_usr@%
+CREATE DEFINER=root@localhost TRIGGER test.tr1 BEFORE INSERT ON test.t1
+FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
+# Use trigger to escalate privileges
+INSERT INTO test.t1 VALUES (1);
+SELECT * FROM restricted.t1;
+c1	restricted
+1	2
+1	1
+CREATE DEFINER=root@localhost TRIGGER test.tr2 BEFORE INSERT ON test.t1
+FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+
+# 6.3 Create View
+# We need some privilege on the column for CREATE VIEW to work
+GRANT INSERT(restricted) ON restricted.t1 TO sys_usr;
+SHOW GRANTS FOR CURRENT_USER();
+Grants for sys_usr@%
+GRANT USAGE ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
+GRANT SET_USER_ID ON *.* TO `sys_usr`@`%`
+GRANT SYSTEM_USER ON *.* TO `sys_usr`@`%` WITH GRANT OPTION
+GRANT INSERT (`restricted`) ON `restricted`.`t1` TO `sys_usr`@`%`
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `test`.`p1` TO `sys_usr`@`%`
+GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `test`.`f1` TO `sys_usr`@`%`
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
+SELECT a.restricted FROM restricted.t1 as a;
+# Use escalated privileges to read restricted column.
+SELECT * FROM v1;
+restricted
+2
+1
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v2 AS
+SELECT a.restricted FROM restricted.t1 as a;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT a.restricted FROM restricted.t1 as a;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP VIEW v1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+
+# 6.4 Create Event
+CREATE DEFINER=root@localhost EVENT test.eve1 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 HOUR
+DO BEGIN
+INSERT INTO restricted.t1 VALUES (5,5);
+END ;$$
+CREATE DEFINER=root@localhost EVENT test.eve2 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 SECOND
+DO BEGIN
+INSERT INTO restricted.t1 VALUES (5,5);
+END ;$$
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP EVENT test.eve1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# Cleanup
+DROP TRIGGER test.tr1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP DATABASE restricted;
+DROP VIEW test.v1;
+DROP TABLE test.t1;
+DROP EVENT test.eve1;
+#------------------------------------------------------------------------
+# 7. If SYSTEM_USER privilege is granted to definer and invoker
+#    through roles
+#------------------------------------------------------------------------
+USE test;
+CREATE TABLE test.t1 (c1 int, c2 int);
+INSERT INTO test.t1 VALUES(1,2);
+CREATE USER test_user@localhost;
+GRANT sys_role TO test_user@localhost;
+GRANT ALL ON test.* TO test_user@localhost;
+GRANT EXECUTE ON *.*  TO test_user@localhost;
+
+#  7.1 Invoker is not granted SYSTEM_USER priv through roles
+#  7.1.1 ALTER AND DROP STORED PROCEDURE
+CREATE DEFINER=test_user@localhost PROCEDURE p1() SELECT * FROM test.t1;
+SHOW GRANTS FOR test_user@localhost;
+Grants for test_user@localhost
+GRANT EXECUTE ON *.* TO `test_user`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.* TO `test_user`@`localhost`
+GRANT `sys_role`@`%` TO `test_user`@`localhost`
+CALL p1();
+c1	c2
+1	2
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP PROCEDURE test.p1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# 7.1.2 ALTER and DROP FUNCTIONS
+CREATE DEFINER=test_user@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
+RETURN i*10;
+SELECT f1(2);
+f1(2)
+20
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP FUNCTION test.f1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# 7.1.3 ALTER and DROP View
+CREATE DEFINER=test_user@localhost SQL SECURITY DEFINER VIEW v1 AS
+SELECT a.c1 FROM test.t1 as a;
+SELECT * FROM v1;
+c1
+1
+ALTER VIEW v1 AS SELECT a.c1 FROM test.t1 as a;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP VIEW v1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+
+# 7.1.4 ALTER and DROP EVENT
+CREATE DEFINER=test_user@localhost EVENT test.eve1 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 HOUR
+DO BEGIN
+INSERT INTO test.t1 VALUES (5,5);
+END ;$$
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP EVENT test.eve1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+
+#  7.2 Invoker is also granted SYSTEM_USER priv through roles
+CREATE ROLE r1, r2;
+GRANT SYSTEM_USER ON *.* TO r1;
+GRANT r1 TO r2;
+GRANT r2 TO non_sys_usr;
+#  7.2.1 ALTER and DROP PROCEDURE
+CALL p1();
+c1	c2
+1	2
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP PROCEDURE test.p1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# Activate the role to get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+CALL p1();
+c1	c2
+1	2
+DROP PROCEDURE test.p1;
+SET ROLE NONE;
+# 7.2.2 ALTER and DROP FUNCTIONS
+SELECT f1(2);
+f1(2)
+20
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP FUNCTION test.f1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+SELECT f1(2);
+f1(2)
+20
+# Activate the role to  get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+DROP FUNCTION test.f1;
+SET ROLE NONE;
+# 7.2.3 ALTER and DROP VIEW
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT a.c1 FROM test.t1 as a;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP VIEW v1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# Activate the role to get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT a.c1 FROM test.t1 as a;
+DROP VIEW v1;
+SET ROLE NONE;
+
+# 7.2.4 ALTER and DROP EVENT
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+DROP EVENT test.eve1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# Activate the role to get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+DROP EVENT test.eve2;
+SET ROLE NONE;
+# Cleanup
+DROP USER test_user@localhost;
+DROP ROLE r1, r2;
+DROP TABLE test.t1;
+#
+# Global clean up
+#
+DROP USER sys_usr;
+DROP USER non_sys_usr;
+DROP USER sys_role;
+DROP USER non_sys_role;
+call mtr.add_suppression(".*Cannot set mandatory_roles: AuthId.* privilege.");

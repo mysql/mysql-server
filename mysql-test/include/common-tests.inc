@@ -1785,7 +1785,7 @@ select max(t2nr) from t3 where price=983543950;
 # Test of alias
 #
 
-select t1.period from t3 = t1 limit 1;
+select t1.period from t3 t1 limit 1;
 select t1.period from t1 as t1 limit 1;
 select t1.period as "Nuvarande period" from t1 as t1 limit 1;
 select period as ok_period from t1 limit 1;

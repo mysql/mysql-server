@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,6 +96,7 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
       break;
     }
     g_err << "Restarting nodes to apply config change" << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter.restartAll())
     {
       g_err << "Failed to restart nodes." << endl;
@@ -632,7 +633,7 @@ int runDeleteInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }
-    if (hugoTrans.loadTable(GETNDB(step), records, 1) != 0){
+    if (hugoTrans.loadTable(GETNDB(step), records, 50000) != 0){
       result = NDBT_FAILED;
       break;
     }
@@ -2108,7 +2109,8 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; i<loops; i++)
   {
     int master = restarter.getMasterNodeId();
-    int node1, node2;
+    int node1 = 0;
+    int node2 = 0;
     switch(i % 5){
     case 0:
       node1 = master;
@@ -6717,6 +6719,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd, Uint32 key, Uint32 value, int nodeId
       return NDBT_FAILED;
     }
     g_err << "Restarting node to apply config change..." << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter->restartOneDbNode(nodeId, false, false, true))
     {
       g_err << "Failed to restart node." << endl;
@@ -7405,7 +7408,7 @@ struct Bug16895311 {
     pTab = 0;
     records = 0;
     rows = 0;
-  };
+  }
 };
 
 static Bug16895311 bug16895311;
@@ -7962,8 +7965,8 @@ setupTestVariant(NdbRestarter& res,
   }
 
   return NDBT_OK;
-};
-                 
+}
+
 
 int
 runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
@@ -7971,7 +7974,7 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
   /* Intention here is to :
    *   a) Use DUMP code to lower GCP stop detection threshold
    *   b) Use ERROR INSERT to trigger GCP stop
-   *   c) (Optional : Use ERROR INSERT to cause 'kill-self' 
+   *   c) (Optional : Use ERROR INSERT to cause 'kill-self'
    *       handling of GCP Stop to fail, so that isolation
    *       is required)
    *   d) Check that GCP is resumed
@@ -8167,8 +8170,6 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
-static const Uint32 numTables = 20;
-
 int CMT_createTableHook(Ndb* ndb,
                         NdbDictionary::Table& table,
                         int when,
@@ -8194,6 +8195,7 @@ int CMT_createTableHook(Ndb* ndb,
 int createManyTables(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
+  const Uint32 numTables=ctx->getProperty("NumTables", Uint32(20));
 
   for (Uint32 tn = 0; tn < numTables; tn++)
   {
@@ -8219,6 +8221,8 @@ int dropManyTables(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
 
   char buf[100];
+
+  const Uint32 numTables=ctx->getProperty("NumTables", Uint32(20));
 
   for (Uint32 tn = 0; tn < numTables; tn++)
   {
@@ -8820,13 +8824,16 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
 int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
 {
   Ndb *pNdb = GETNDB(step);
-  int loops = 2800;
+  int loops = 2200;
   int records = ctx->getNumRecords();
+  bool drop_table = (bool)ctx->getProperty("DropTable", 1);
   HugoTransactions hugoTrans(*ctx->getTab());
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = 2;
-  HugoOperations hugoOps(*ctx->getTab());
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  NdbDictionary::Table tab = * ctx->getTab();
+  HugoOperations hugoOps(tab);
   NdbMgmd mgmd;
   if (nodeCount != 2)
   {
@@ -8904,6 +8911,26 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
       //return NDBT_FAILED;
     }
   }
+  if (drop_table)
+  {
+    /**
+     * In this case we will drop this table, this will verify that
+     * BUG#92955 is fixed. After this we create a new table and
+     * perform a scan against the new table.
+     * This will cause a crash if the bug isn't fixed.
+     */
+    pDict->dropTable(tab.getName());
+    int res = pDict->createTable(tab);
+    if (res)
+    {
+      ndbout_c("Failed to create table again");
+      return NDBT_FAILED;
+    }
+    HugoTransactions trans(* pDict->getTable(tab.getName()));
+    trans.loadTable(pNdb, ctx->getNumRecords());
+    trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+    return NDBT_OK;
+  }
   /**
    * Finally after creating a complex restore situation we test this
    * by restarting node 2 to ensure that we can also recover the
@@ -8957,6 +8984,8 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
+  bool initial = (bool)ctx->getProperty("Initial", 1);
+  bool wait_start = (bool)ctx->getProperty("WaitStart", 1);
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = restarter.getRandomNotMasterNodeId(rand());
@@ -8969,7 +8998,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
     return NDBT_OK; /* Requires at least 2 nodes to run */
   }
   g_err << "Executing " << loops << " loops" << endl;
-  while(++i <= loops && result != NDBT_FAILED)
+  while (++i <= loops && result != NDBT_FAILED)
   {
     g_err << "Start loop " << i << endl;
     g_err << "Loading " << records << " records..." << endl;
@@ -8979,7 +9008,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       return NDBT_FAILED;
     }
     if (restarter.restartOneDbNode(nodeId,
-                                   true, /* initial */
+                                   initial, /* initial */
                                    true,  /* nostart  */
                                    false, /* abort */
                                    false  /* force */) != 0)
@@ -8994,17 +9023,20 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       g_err << "Failed to insert error 1011" << endl;
       return NDBT_FAILED;
     }
-    ndbout << "Start node" << endl;
-    if (restarter.startNodes(&nodeId, 1) != 0)
+    if (!wait_start)
     {
-      g_err << "Start failed" << endl;
-      return NDBT_FAILED;
+      ndbout << "Start node" << endl;
+      if (restarter.startNodes(&nodeId, 1) != 0)
+      {
+        g_err << "Start failed" << endl;
+        return NDBT_FAILED;
+      }
     }
     ndbout << "Delete records" << endl;
 
     Uint32 row_step = 10;
     Uint32 num_deleted_records = records / 10;
-    Uint32 batch = 1;
+    Uint32 batch = 10;
 
     for (Uint32 start = 0; start < 10; start++)
     {
@@ -9018,11 +9050,22 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       if (result == NDBT_FAILED)
         return result;
       NdbSleep_SecSleep(1);
+      ndbout << "Completed Delete records (" << (start+1) << ")" << endl;
     }
-    ndbout << "Wait for initial node restart to complete" << endl;
+    if (wait_start)
+    {
+      ndbout << "Start node" << endl;
+      if (restarter.startNodes(&nodeId, 1) != 0)
+      {
+        g_err << "Start failed" << endl;
+        return NDBT_FAILED;
+      }
+    }
+    ndbout << "Delete records" << endl;
+    ndbout << "Wait for node restart to complete" << endl;
     if (restarter.waitNodesStarted(&nodeId, 1) != 0)
     {
-      g_err << "Wait node start failed" << endl;
+      g_err << "Wait node restart failed" << endl;
       return NDBT_FAILED;
     }
   }
@@ -9131,6 +9174,57 @@ int run_PLCP_I2(NDBT_Context *ctx, NDBT_Step *step)
     if (result == NDBT_FAILED)
       return result;
   }
+  return NDBT_OK;
+}
+
+int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  int other = restarter.getRandomNodeSameNodeGroup(master, rand());
+
+  ndbout_c("Master %u  Other %u",
+           master, other);
+
+  ndbout_c("Stalling lcp in node %u", other);
+  restarter.insertErrorInNode(other, 5073);
+
+  int dump[] = { 7099 };
+  ndbout_c("Triggering LCP");
+  restarter.dumpStateOneNode(master, dump, 1);
+
+  ndbout_c("Giving time for things to stall");
+  NdbSleep_MilliSleep(10000);
+
+  ndbout_c("Getting Master to kill other when Master LCP complete %u", master);
+  restarter.insertErrorInNode(master, 7178);
+
+  ndbout_c("Releasing scans in node %u", other);
+  restarter.insertErrorInNode(other, 0);
+
+  ndbout_c("Expect other node failure");
+  Uint32 retries=100;
+  while (restarter.getNodeStatus(other) == NDB_MGM_NODE_STATUS_STARTED)
+  {
+    if ((--retries) == 0)
+    {
+      ndbout_c("Timeout waiting for other node to restart");
+      return NDBT_FAILED;
+    }
+    NdbSleep_MilliSleep(500);
+  }
+
+  ndbout_c("Other node failed, now wait for it to restart");
+  restarter.insertErrorInNode(master, 0);
+
+  if (restarter.waitNodesStarted(&other, 1) != 0)
+  {
+    ndbout_c("Timed out waiting for restart");
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("Restart succeeded");
+
   return NDBT_OK;
 }
 
@@ -9299,8 +9393,9 @@ TESTCASE("RestartMasterNodeError",
 TESTCASE("GetTabInfoOverload",
          "Test behaviour of GET_TABINFOREQ overload + LCP + restart")
 {
+  TC_PROPERTY("NumTables", 20);
   INITIALIZER(createManyTables);
-  STEPS(runGetTabInfo, (int) numTables);
+  STEPS(runGetTabInfo, 20);
   STEP(runLCPandRestart);
   FINALIZER(dropManyTables);
 };
@@ -9832,11 +9927,41 @@ TESTCASE("MultiCrashTest",
 TESTCASE("LCP_with_many_parts",
          "Ensure that LCP has many parts")
 {
+  TC_PROPERTY("DropTable", (Uint32)0);
   INITIALIZER(run_PLCP_many_parts);
+}
+TESTCASE("LCP_with_many_parts_drop_table",
+         "Ensure that LCP has many parts")
+{
+  TC_PROPERTY("DropTable", (Uint32)1);
+  INITIALIZER(run_PLCP_many_parts);
+}
+TESTCASE("PLCP_R1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)0);
+  TC_PROPERTY("WaitStart", (Uint32)0);
+  INITIALIZER(run_PLCP_I1);
+}
+TESTCASE("PLCP_RW1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)0);
+  TC_PROPERTY("WaitStart", (Uint32)1);
+  INITIALIZER(run_PLCP_I1);
+}
+TESTCASE("PLCP_IW1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)1);
+  TC_PROPERTY("WaitStart", (Uint32)1);
+  INITIALIZER(run_PLCP_I1);
 }
 TESTCASE("PLCP_I1",
          "Initial node restart while deleting rows")
 {
+  TC_PROPERTY("Initial", (Uint32)1);
+  TC_PROPERTY("WaitStart", (Uint32)0);
   INITIALIZER(run_PLCP_I1);
 }
 TESTCASE("PLCP_I2",
@@ -9867,8 +9992,16 @@ TESTCASE("StartDuringNodeRestart",
 {
   STEP(runTestStartNode);
 }
+TESTCASE("NodeFailLcpStall",
+         "Check that node failure does not result in LCP stall")
+{
+  TC_PROPERTY("NumTables", Uint32(100));
+  INITIALIZER(createManyTables);
+  STEP(runNodeFailLcpStall);
+  FINALIZER(dropManyTables);
+}
 
-NDBT_TESTSUITE_END(testNodeRestart);
+NDBT_TESTSUITE_END(testNodeRestart)
 
 int main(int argc, const char** argv){
   ndb_init();

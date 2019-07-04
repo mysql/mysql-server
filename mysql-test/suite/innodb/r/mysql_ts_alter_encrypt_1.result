@@ -1,0 +1,210 @@
+
+#############################################################
+# TEST 1 : NORMAL ALTER ENCRYPT mysql TABLESPACE.
+#############################################################
+
+#########################################################################
+# RESTART 1 : WITH KEYRING PLUGIN
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+# Initially, mysql should be unencrypted by default
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+
+#############################################################
+# TEST 2 : CRASH DURING ALTER ENCRYPT mysql TABLESPACE.
+#############################################################
+
+############################################################
+# ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+#                         (crash at page 10)               #
+############################################################
+# Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+# Restart after crash
+SET debug='+d,skip_dd_table_access_check';
+# Wait for Encryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+#########################################################################
+# RESTART 2 : WITH KEYRING PLUGIN
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+############################################################
+# ALTER TABLESPACE 2 :    Encrypted => Unencrypted         #
+#                         (crash at page 10)               #
+############################################################
+# Set Unencryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE mysql ENCRYPTION='N';
+# Restart after crash
+SET debug='+d,skip_dd_table_access_check';
+# Wait for Unencryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+#########################################################################
+# RESTART 3 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+#############################################################
+# TEST 3 : CRASH BEFORE/AFTER ENCRYPTION PROCESSING.
+#############################################################
+
+#########################################################################
+# RESTART 4 : WITH KEYRING PLUGIN
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+# Set server to crash just before encryption processing starts
+SET SESSION debug="+d,alter_encrypt_tablespace_crash_before_processing";
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE mysql ENCRYPTION='N';
+# Restart after crash
+SET debug='+d,skip_dd_table_access_check';
+# Wait for Unencryption processing to finish in background thread
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+# Set server to crash just after encryption processing finishes
+SET SESSION debug="-d,alter_encrypt_tablespace_crash_before_processing";
+SET SESSION debug="+d,alter_encrypt_tablespace_crash_after_processing";
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE mysql ENCRYPTION='N';
+# Restart after crash
+SET debug='+d,skip_dd_table_access_check';
+# Wait for Unencryption processing to finish in background thread
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+#############################################################
+# TEST 4 : CRASH DURING KEY ROTATION.
+#############################################################
+
+#########################################################################
+# RESTART 5 : WITH KEYRING PLUGIN
+#########################################################################
+SET debug='+d,skip_dd_table_access_check';
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+# Set server to crash while rotating encryption
+SET SESSION debug="+d,ib_crash_during_rotation_for_encryption";
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+# Restart after crash
+SET debug='+d,skip_dd_table_access_check';
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+SET SESSION debug="-d,ib_crash_during_rotation_for_encryption";
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+#############################################################
+# TEST 5 : PRIVILEGE CHECK.
+#############################################################
+
+CREATE DATABASE priv_test;
+CREATE USER myuser@'localhost';
+GRANT ALL ON priv_test.* TO myuser@'localhost';
+#connection con1
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+ERROR 42000: Access denied; you need (at least one of) the CREATE TABLESPACE privilege(s) for this operation
+#connection default
+GRANT CREATE TABLESPACE ON mysql.* TO myuser@'localhost';
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
+GRANT CREATE TABLESPACE ON *.* TO myuser@'localhost';
+#connection con1
+ALTER TABLESPACE mysql ENCRYPTION='N';
+#connection default
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+#connection con1
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+#connection default
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=Y;
+DROP DATABASE priv_test;
+DROP USER myuser@localhost;
+###########
+# Cleanup #
+###########
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
+NAME	OPTIONS
+mysql	encryption=N;
+#########################################################################
+# RESTART 6 : WITHOUT KEYRING PLUGIN
+#########################################################################
+# restart: 

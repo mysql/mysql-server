@@ -284,3 +284,29 @@ void Plugin_gcs_message::decode_payload_item_string(
 
   DBUG_VOID_RETURN;
 }
+
+void Plugin_gcs_message::encode_payload_item_bytes(
+    std::vector<unsigned char> *buffer, uint16 type, const unsigned char *value,
+    unsigned long long length) const {
+  DBUG_ENTER("Plugin_gcs_message::encode_payload_item_bytes");
+
+  encode_payload_item_type_and_length(buffer, type, length);
+  buffer->insert(buffer->end(), value, value + length);
+
+  DBUG_VOID_RETURN;
+}
+
+/* purecov: begin inspected */
+void Plugin_gcs_message::decode_payload_item_bytes(const unsigned char **buffer,
+                                                   uint16 *type,
+                                                   unsigned char *value,
+                                                   unsigned long long *length) {
+  DBUG_ENTER("Plugin_gcs_message::decode_payload_item_bytes");
+
+  decode_payload_item_type_and_length(buffer, type, length);
+  memcpy(value, buffer, *length);
+  *buffer += *length;
+
+  DBUG_VOID_RETURN;
+}
+/* purecov: end */

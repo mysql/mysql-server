@@ -43,14 +43,17 @@
 #include <time.h>
 
 #include "m_ctype.h"
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "sql/field.h"
 #include "storage/myisam/fulltext.h"
 #include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 #include "storage/myisam/rt_index.h"
 #include "storage/myisam/sp_defs.h"
 
@@ -632,6 +635,7 @@ err:
     case 5:
       (void)mysql_file_close(info.dfile, MYF(0));
       if (old_share) break; /* Don't remove open table */
+
       /* fall through */
     case 4:
       my_free(share);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid) {
     thd->owned_gtid = gtid;
     thd->owned_gtid.dbug_print(NULL, "set owned_gtid in acquire_ownership");
     thd->owned_sid = sid_map->sidno_to_sid(gtid.sidno);
+    thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().set_last_used_gtid(gtid);
   }
   RETURN_OK;
 err:
@@ -298,8 +299,10 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set *wait_for,
 
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
-  if (timeout > 0)
-    set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
+  if (timeout > 0) {
+    set_timespec_nsec(&abstime,
+                      static_cast<ulonglong>(timeout * 1000000000ULL));
+  }
 
   /*
     Algorithm:
@@ -670,6 +673,11 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation) {
   DBUG_ENTER("Gtid_state::save_gtids_of_last_binlog_into_table");
   int ret = 0;
 
+  if (DBUG_EVALUATE_IF("gtid_executed_readonly", true, false)) {
+    my_error(ER_RPL_GTID_TABLE_CANNOT_OPEN, MYF(0), "mysql", "gtid_executed");
+    DBUG_RETURN(ER_RPL_GTID_TABLE_CANNOT_OPEN);
+  }
+
   /*
     Use local Sid_map, so that we don't need a lock while inserting
     into the table.
@@ -693,11 +701,16 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation) {
     if (!logged_gtids_last_binlog.is_empty() ||
         mysql_bin_log.is_rotating_caused_by_incident) {
       /* Prepare previous_gtids_logged for next binlog on binlog rotation */
-      if (on_rotation)
-        ret = previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog);
+      if (on_rotation) {
+        if (previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog))
+          ret = ER_OOM_SAVE_GTIDS;
+      }
       global_sid_lock->unlock();
       /* Save set of GTIDs of the last binlog into gtid_executed table */
-      if (!ret) ret = save(&logged_gtids_last_binlog);
+      if (!ret) {
+        if (save(&logged_gtids_last_binlog))
+          ret = ER_RPL_GTID_TABLE_CANNOT_OPEN;
+      }
     } else
       global_sid_lock->unlock();
   } else

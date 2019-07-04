@@ -261,7 +261,8 @@ class QUICK_SELECT_I {
   bool forced_by_hint;
 
   QUICK_SELECT_I();
-  virtual ~QUICK_SELECT_I(){};
+  QUICK_SELECT_I(const QUICK_SELECT_I &) = default;
+  virtual ~QUICK_SELECT_I() {}
 
   /*
     Do post-constructor initialization.
@@ -363,7 +364,7 @@ class QUICK_SELECT_I {
   /*
     Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
   */
-  virtual void save_last_pos(){};
+  virtual void save_last_pos() {}
 
   /*
     Append comma-separated list of keys this quick select uses to key_names;
@@ -379,7 +380,7 @@ class QUICK_SELECT_I {
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))){};
+  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))) {}
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -391,7 +392,7 @@ class QUICK_SELECT_I {
     correctly. Function is overridden by quick selects that merge
     indices.
    */
-  virtual bool is_valid() { return index != MAX_KEY; };
+  virtual bool is_valid() { return index != MAX_KEY; }
 
   /*
     rowid of last row retrieved by this quick select. This is used only when
@@ -542,6 +543,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
  private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
+  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = default;
 };
 
 class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
@@ -549,7 +551,7 @@ class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
   QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg, bool no_alloc,
                           MEM_ROOT *parent_alloc, bool *create_error)
       : QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc,
-                           create_error){};
+                           create_error) {}
   virtual int get_next();
 };
 
@@ -883,7 +885,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
  private:
   JOIN *join;          /* Descriptor of the current query */
   KEY *index_info;     /* The index chosen for data access */
-  uchar *record;       /* Buffer where the next record is returned. */
   uchar *tmp_record;   /* Temporary storage for next_min(), next_max(). */
   uchar *group_prefix; /* Key prefix consisting of the GROUP fields. */
   const uint group_prefix_len; /* Length of the group prefix. */
@@ -994,7 +995,7 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
   }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
-  uint used_key_parts;
+  uint m_used_key_parts;
 };
 
 /*
@@ -1122,7 +1123,8 @@ int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
                       const enum_order interesting_order,
                       const QEP_shared_owner *tab, Item *cond,
-                      Key_map *needed_reg, QUICK_SELECT_I **quick);
+                      Key_map *needed_reg, QUICK_SELECT_I **quick,
+                      bool ignore_table_scan);
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);

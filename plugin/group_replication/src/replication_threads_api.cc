@@ -20,8 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <sstream>
+
 #include "plugin/group_replication/include/replication_threads_api.h"
 
+#include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
 
 using std::string;
@@ -300,4 +303,21 @@ bool Replication_thread_api::get_retrieved_gtid_set(std::string &retrieved_set,
 
 bool Replication_thread_api::is_partial_transaction_on_relay_log() {
   return is_partial_transaction_on_channel_relay_log(interface_channel);
+}
+
+int Replication_thread_api::rpl_channel_stop_all(int threads_to_stop,
+                                                 long timeout, int ecode) {
+  std::string error_message;
+  int error = channel_stop_all(threads_to_stop, timeout, &error_message);
+  if (error) {
+    if (!error_message.empty()) {
+      LogPluginErr(ERROR_LEVEL, ecode, error_message.c_str());
+    } else {
+      std::stringstream err_msg_ss;
+      err_msg_ss << "Got error: " << error
+                 << "Please check the error log for more details.";
+      LogPluginErr(ERROR_LEVEL, ecode, err_msg_ss.str().c_str());
+    }
+  }
+  return error;
 }

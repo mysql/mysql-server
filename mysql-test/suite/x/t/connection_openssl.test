@@ -1,5 +1,6 @@
 --source include/have_ssl.inc
 --source include/have_openssl.inc
+--source include/not_have_tlsv13.inc
 
 ## Result files for openssl and wolfssl are different
 #1) wolfssl instead TLS1.1 prints TLS1

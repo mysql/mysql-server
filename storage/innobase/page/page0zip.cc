@@ -1565,16 +1565,16 @@ static ibool page_zip_header_cmp(
  columns.  The data must already have been written to the uncompressed page.
  @return end of modification log */
 static byte *page_zip_write_rec_ext(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const page_t *page,       /*!< in: page containing rec */
-    const byte *rec,          /*!< in: record being written */
-    dict_index_t *index,      /*!< in: record descriptor */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
-    ulint create,             /*!< in: nonzero=insert, zero=update */
-    ulint trx_id_col,         /*!< in: position of DB_TRX_ID */
-    ulint heap_no,            /*!< in: heap number of rec */
-    byte *storage,            /*!< in: end of dense page directory */
-    byte *data)               /*!< in: end of modification log */
+    page_zip_des_t *page_zip,  /*!< in/out: compressed page */
+    const page_t *page,        /*!< in: page containing rec */
+    const byte *rec,           /*!< in: record being written */
+    const dict_index_t *index, /*!< in: record descriptor */
+    const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
+    ulint create,              /*!< in: nonzero=insert, zero=update */
+    ulint trx_id_col,          /*!< in: position of DB_TRX_ID */
+    ulint heap_no,             /*!< in: heap number of rec */
+    byte *storage,             /*!< in: end of dense page directory */
+    byte *data)                /*!< in: end of modification log */
 {
   const byte *start = rec;
   ulint i;
@@ -1668,11 +1668,11 @@ static byte *page_zip_write_rec_ext(
 /** Write an entire record on the compressed page.  The data must already
  have been written to the uncompressed page. */
 void page_zip_write_rec(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const byte *rec,          /*!< in: record being written */
-    dict_index_t *index,      /*!< in: the index the record belongs to */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
-    ulint create)             /*!< in: nonzero=insert, zero=update */
+    page_zip_des_t *page_zip,  /*!< in/out: compressed page */
+    const byte *rec,           /*!< in: record being written */
+    const dict_index_t *index, /*!< in: the index the record belongs to */
+    const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
+    ulint create)              /*!< in: nonzero=insert, zero=update */
 {
   const page_t *page;
   byte *data;

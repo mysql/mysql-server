@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,8 @@
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_atomic.h"
-#include "mysys_err.h"  // EE_ERROR_LAST for globerrs
+#include "my_systime.h"  // my_micro_time()
+#include "mysys_err.h"   // EE_ERROR_LAST for globerrs
 #include "sql/derror.h"
 #include "sql/log.h"
 // for the default rules

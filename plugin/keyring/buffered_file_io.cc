@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,9 +267,14 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
     @retval true    - file I/O error (unreadable, missing...)
 */
 bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created() {
+  // Check if the file exists
+  int file_exist = !my_access(keyring_filename.c_str(), F_OK);
+
   // try creating file or opening existing
-  File file = file_io.open(keyring_file_data_key, keyring_filename.c_str(),
-                           O_RDWR | O_CREAT, MYF(MY_WME));
+  File file = file_io.open(
+      keyring_file_data_key, keyring_filename.c_str(),
+      file_exist && keyring_open_mode ? O_RDONLY : O_RDWR | O_CREAT,
+      MYF(MY_WME));
 
   // if we can't open file or position ourselves at end - it's an error
   if (file < 0 ||
@@ -553,9 +558,14 @@ ISerializer *Buffered_file_io::get_serializer() {
 */
 bool Buffered_file_io::get_serialized_object(
     ISerialized_object **serialized_object) {
+  // Check if the file exists
+  int file_exist = !my_access(keyring_filename.c_str(), F_OK);
+
   // try opening keyring file, leave on error
-  File file = file_io.open(keyring_file_data_key, keyring_filename.c_str(),
-                           O_CREAT | O_RDWR, MYF(MY_WME));
+  File file = file_io.open(
+      keyring_file_data_key, keyring_filename.c_str(),
+      file_exist && keyring_open_mode ? O_RDONLY : O_RDWR | O_CREAT,
+      MYF(MY_WME));
   if (file < 0) return true;
 
   // try loading file content into a Buffer implementation

@@ -1,0 +1,52 @@
+--echo #
+--echo # InnoDB supports CREATE/ALTER/DROP UNDO TABLESPACE
+--echo # Show that up to 125 explicit undo tablespaces can be created.
+--echo #
+
+--source include/big_test.inc
+--source include/have_innodb_default_undo_tablespaces.inc
+
+let $cnt = 3;
+while ($cnt <= 127)
+{
+  let $undo_space_name = undo_$cnt;
+  let $datafile = undo_$cnt.ibu;
+  eval CREATE UNDO TABLESPACE $undo_space_name ADD DATAFILE '$datafile';
+  inc $cnt;
+}
+
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE UNDO TABLESPACE undo_128 ADD DATAFILE 'undo_128.ibu';
+SHOW WARNINGS;
+
+let $cnt = 3;
+while ($cnt <= 127)
+{
+  let $undo_space_name = undo_$cnt;
+  eval ALTER UNDO TABLESPACE $undo_space_name SET INACTIVE; 
+  inc $cnt;
+}
+
+--echo # Wait for all explicit undo tablespaces to become empty.
+let $cnt = 3;
+while ($cnt <= 127)
+{
+  let $inactive_undo_space = undo_$cnt;
+  source include/wait_until_undo_space_is_empty.inc;
+  inc $cnt;
+}
+
+--echo # Drop all explicit undo tablespaces.
+let $cnt = 3;
+while ($cnt <= 127)
+{
+  let $undo_space_name = undo_$cnt;
+  eval DROP UNDO TABLESPACE $undo_space_name; 
+  inc $cnt;
+}
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .* Log writer is waiting for checkpointer to to catch up lag");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create undo tablespace undo_128 at undo_128.ibu because 127 undo tablespaces already exist");
+--enable_query_log
+

@@ -12,8 +12,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select @query, @trace;
 @query	@trace
 explain select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
@@ -90,6 +90,10 @@ explain select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -191,6 +195,10 @@ explain select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -218,8 +226,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set names utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -320,6 +328,10 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
                       }
                     ] /* attached_conditions_summary */
                   } /* attaching_conditions_to_tables */
+                },
+                {
+                  "finalizing_table_conditions": [
+                  ] /* finalizing_table_conditions */
                 },
                 {
                   "refine_plan": [
@@ -444,8 +456,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set names utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -606,6 +618,15 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`c` < '√Å√Ç√É√Ñ√Ö')",
+                "final_table_condition   ": "(`t1`.`c` < '√Å√Ç√É√Ñ√Ö')"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -830,6 +851,15 @@ select `col
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t\n1\ta`",
+                "original_table_condition": "(`t\n1\ta`.`col\n1\ta` < 6)",
+                "final_table_condition   ": "(`t\n1\ta`.`col\n1\ta` < 6)"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [

@@ -27,8 +27,8 @@
 
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/connection_type.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/io/connection_type.h"
 
 namespace ngs {
 
@@ -45,7 +45,7 @@ class Vio_wrapper : public Vio_interface {
   void set_thread_owner() override;
 
   my_socket get_fd() override;
-  Connection_type get_type() override;
+  xpl::Connection_type get_type() override;
   sockaddr_storage *peer_addr(std::string &address, uint16 &port) override;
 
   int shutdown() override;
@@ -53,7 +53,7 @@ class Vio_wrapper : public Vio_interface {
   Vio *get_vio() override { return m_vio; }
   MYSQL_SOCKET &get_mysql_socket() override { return m_vio->mysql_socket; }
 
-  ~Vio_wrapper();
+  ~Vio_wrapper() override;
 
  private:
   Vio *m_vio;

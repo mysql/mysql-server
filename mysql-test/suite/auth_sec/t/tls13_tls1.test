@@ -1,0 +1,36 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+--source include/have_ssl.inc
+--source include/have_tlsv13.inc
+
+# Test requires TLSv1 and TLSv1.1
+--source include/not_min_protocol_tlsv12.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#12361: TLSv1.3 support, connect with TLSv1 TLSv1.1 client
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Failed to set up SSL because of");
+call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
+--enable_query_log
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PORT= `SELECT @@port`;
+
+--echo Setting TLS version TLSv1.1 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting TLS version TLSv1 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting TLS version TLSv1, TLSv1.1 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo Setting TLS version TLSv1, TLSv1.1, TLSv1.2 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1,TLSv1.2 -e "SHOW STATUS like 'Ssl_version'"

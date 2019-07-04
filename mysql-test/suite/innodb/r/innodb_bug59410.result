@@ -15,5 +15,5 @@ set @a=(select b from bug59410_2 where
 (select 1 from bug59410_2 where a group by @a=b)
 group by @a:=b);
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table bug59410_2;

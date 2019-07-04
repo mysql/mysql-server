@@ -24,6 +24,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`id` AS `id`,`tt`.`jpath` AS `jpath`,`tt`.`jexst` AS `jexst` from json_table('[{"a":"3"},{"a":2},{"b":1},{"a":0}]', '$[*]' columns (id for ordinality, jpath varchar(100) path '$.a', jexst int exists path '$.b')) `tt`
+explain format=tree select * from
+json_table(
+'[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+'$[*]' columns (id for ordinality,
+jpath varchar(100) path '$.a',
+jexst int exists path '$.b')
+) as tt;
+EXPLAIN
+-> Materialize table function
+
 select * from
 json_table(
 '[{"x":"3"},{"a":2},{"b":1},{"a":0}]',
@@ -887,7 +897,7 @@ DEALLOCATE PREPARE stmt;
 CREATE TABLE t1 (id INT, jc JSON);
 SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
 ERROR 42S02: Unknown table 't1' in a table function argument
@@ -921,33 +931,33 @@ SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 WITH qn AS
 (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
 SELECT * from qn;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 WITH qn AS
 (SELECT 1 UNION
 SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
 SELECT * from qn;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
 ON t1o.id=t1i.id;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt'
 INSERT INTO t1 VALUES(1,"1"),(2,"4"),(3,"3");
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -970,7 +980,7 @@ LEFT JOIN
 JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
 RIGHT JOIN
 JSON_TABLE(jt.id, '$' COLUMNS (id FOR ORDINALITY)) as jt1 ON jt.id=jt1.id;
-ERROR HY000: INNER or LEFT JOIN must be used for 'jt1' table function's LATERAL reference
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'jt1'
 DROP TABLE t1;
 set @save_mem_se= @@internal_tmp_mem_storage_engine;
 set @@internal_tmp_mem_storage_engine=MEMORY;
@@ -1764,6 +1774,27 @@ value	cumulfreq
 パ	1
 DROP TABLE t1;
 #
+# Bug#28254268: JSON_TABLE() FUNCTION REJECTS SELECT PERMISSIONS
+#
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1 (c JSON);
+INSERT INTO t1 VALUES('[1,2,3]');
+CREATE USER user1@localhost;
+GRANT SELECT ON db2.t1 TO user1@localhost;
+USE db2;
+SELECT t1.c FROM t1;
+c
+[1, 2, 3]
+SELECT jt.* FROM t1, JSON_TABLE(t1.c, '$[*]' COLUMNS (num INT PATH '$[0]'))
+AS jt;
+num
+1
+2
+3
+DROP USER user1@localhost;
+DROP DATABASE db2;
+#
 # Bug#27856835 JSON_TABLE RETURNS WRONG DATATYPE WHEN INT-VALUE IS GRATER
 #              THAN (2^31-1)
 #
@@ -1796,6 +1827,7 @@ SELECT id FROM JSON_TABLE('[{"id":"2147483648"}]', '$[*]' COLUMNS
 id
 2147483648
 # Check that we preserve the signedness of the columns.
+USE test;
 CREATE TABLE t1 AS SELECT id, value FROM
 JSON_TABLE('[{"id":9223372036854775808, "value":9223372036854775807}]',
 '$[*]' COLUMNS (id BIGINT UNSIGNED PATH '$.id',
@@ -1861,3 +1893,56 @@ xval	yval
 4	6
 DROP USER foo@localhost;
 DROP SCHEMA my_schema;
+#
+# Bug#28538315: JSON_TABLE() COLUMN TYPES DON'T SUPPORT COLLATE CLAUSE
+#
+CREATE TABLE t1 SELECT *
+FROM JSON_TABLE('"test"', '$' COLUMNS(x VARCHAR(10)
+CHARSET utf8mb4
+PATH '$')) AS jt1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `x` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 SELECT *
+FROM JSON_TABLE('"test"', '$' COLUMNS(x VARCHAR(10)
+CHARSET utf8mb4 COLLATE utf8mb4_bin
+PATH '$')) AS jt1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `x` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 AS SELECT *
+FROM JSON_TABLE('"a"', '$' COLUMNS (a VARCHAR(10)
+COLLATE ascii_bin
+PATH '$')) jt;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varchar(10) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2, t3;
+#
+# Bug#28643862 JSON_TABLE'S "COLUMNS" CLAUSE USES
+#              GLOBAL.CHARACTER_SET_RESULTS DEFAULT CHARSET
+#
+SET @@SESSION.character_set_connection = ascii;
+CREATE TABLE t1 SELECT a.col
+FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col` varchar(10) CHARACTER SET ascii DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @@SESSION.collation_connection = latin1_bin;
+CREATE TABLE t2 SELECT a.col
+FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+SET @@SESSION.character_set_connection = DEFAULT;

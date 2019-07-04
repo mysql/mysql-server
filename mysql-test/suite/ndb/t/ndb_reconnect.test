@@ -135,3 +135,4 @@ delimiter ;//
 
 # cleanup
 drop table t1, t2;
+--remove_file $NDB_TOOLS_OUTPUT

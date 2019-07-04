@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -882,7 +882,7 @@ struct LogMax {
   LogMax(int nodes) {
     m_nodes = nodes;
     m_logused = new LogUsed [nodes];
-  };
+  }
   ~LogMax() {
     m_nodes = 0;
     delete [] m_logused;
@@ -1378,6 +1378,7 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_err << "Restarting nodes to apply config change..." << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter.restartAll(true))
     {
       g_err << "Failed to restart node." << endl;
@@ -2103,7 +2104,7 @@ TESTCASE("CheckNextRedoFileOpened",
   FINALIZER(runDrop);
   FINALIZER(resizeRedoLog);
 }
-NDBT_TESTSUITE_END(testRedo);
+NDBT_TESTSUITE_END(testRedo)
 
 int
 main(int argc, const char** argv)

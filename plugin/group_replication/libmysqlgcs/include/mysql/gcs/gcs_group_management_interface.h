@@ -81,11 +81,10 @@ class Gcs_group_management_interface {
 
     @retval GCS_OK if successful
     @retval GCS_NOK if unsuccessful
-
   */
   virtual enum_gcs_error set_write_concurrency(uint32_t write_concurrency) = 0;
 
-  virtual ~Gcs_group_management_interface(){};
+  virtual ~Gcs_group_management_interface() {}
 };
 
 #endif  // GCS_GROUP_MANAGEMENT_INTERFACE_INCLUDED

@@ -208,7 +208,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 # NOT NULL (not nullable column)
 EXPLAIN SELECT * FROM t1 WHERE t1.col4 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	90.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
 EXPLAIN SELECT * FROM t1 WHERE t1.col4 != NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	90.00	Using where
@@ -317,27 +317,27 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 # range in subquery, no filter
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
-2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	117	100.00	Using index condition
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	128	91.41	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using join buffer (Block Nested Loop)
 
 # table scan subquery, filter SEL(=)
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col3=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	128	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	128	10.00	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using join buffer (Block Nested Loop)
 
 # range in subquery, filter SEL(=)
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2 and col3=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
-2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	117	10.00	Using index condition; Using where
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	128	9.14	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using join buffer (Block Nested Loop)
 
 # EXISTS - outer reference
 # dynamic range subq, filter SEL(>)
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT 1 FROM t2 where col1_idx>t1.col3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	128	33.33	Range checked for each record (index map: 0x1)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	128	33.33	Range checked for each record (index map: 0x1); FirstMatch(t1)
 
 #
 EXPLAIN SELECT * FROM t1 WHERE col3 =   (SELECT 1 FROM t2);

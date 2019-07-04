@@ -19,8 +19,6 @@ if ($innodb_lock_wait_timeout < 10)
 # First session
 connection default;
 
-
---enable_warnings
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b INT) ENGINE = InnoDB;
 
 INSERT INTO t1 VALUES (1,1),(2,2),(3,3);

@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Check constraint 't1_chk_2' is violated.");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CREATE TABLE t1 (f1 int primary key, CHECK(f1 < 100));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 (f1) VALUES(20);
+include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD CONSTRAINT CHECK(f1 < 50);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f1` < 50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+update t1 set f1 = 80;
+[connection slave]
+# t1_chk_2 check constraint validation for update fails at slave.
+include/wait_for_slave_sql_error.inc [errno=3819]
+SELECT * from t1;
+f1
+20
+[connection master]
+insert into t1 values(90);
+[connection slave]
+# t1_chk_2 check constraint validation for insert fails at slave.
+include/wait_for_slave_sql_error.inc [errno=3819]
+SELECT * from t1;
+f1
+20
+[connection master]
+DROP TABLE t1;
+[connection slave]
+DROP TABLE t1;
+include/rpl_reset.inc
+include/rpl_end.inc

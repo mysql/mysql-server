@@ -1,17 +1,24 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef BASIC_OSTREAM_INCLUDED
 #define BASIC_OSTREAM_INCLUDED
@@ -62,6 +69,20 @@ class Truncatable_ostream : public Basic_ostream {
      @retval true  Error
   */
   virtual bool seek(my_off_t offset) = 0;
+  /**
+     Flush data.
+
+     @retval false Success.
+     @retval true Error.
+  */
+  virtual bool flush() = 0;
+  /**
+     Sync.
+
+     @retval false Success
+     @retval true Error
+  */
+  virtual bool sync() = 0;
 
   virtual ~Truncatable_ostream() {}
 };
@@ -74,7 +95,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
   IO_CACHE_ostream();
   IO_CACHE_ostream &operator=(const IO_CACHE_ostream &) = delete;
   IO_CACHE_ostream(const IO_CACHE_ostream &) = delete;
-  ~IO_CACHE_ostream();
+  ~IO_CACHE_ostream() override;
 
   /**
      Open the output stream. It opens related file and initialize IO_CACHE.
@@ -109,7 +130,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
      @retval false  Success
      @retval true  Error
   */
-  bool flush();
+  bool flush() override;
 
   /**
      Syncs the file to disk. It doesn't check and flush any remaining data still
@@ -119,7 +140,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
      @retval false  Success
      @retval true  Error
   */
-  bool sync();
+  bool sync() override;
 
  private:
   IO_CACHE m_io_cache;

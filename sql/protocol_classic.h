@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "my_command.h"
 #include "my_inttypes.h"
@@ -47,14 +47,7 @@ class I_List;
 template <class T>
 class List;
 union COM_DATA;
-
-#ifdef __cplusplus
 class THD;
-
-#define MYSQL_THD THD *
-#else
-#define MYSQL_THD void *
-#endif
 
 class Protocol_classic : public Protocol {
  private:
@@ -62,9 +55,9 @@ class Protocol_classic : public Protocol {
   virtual bool parse_packet(union COM_DATA *data, enum_server_command cmd);
 
  protected:
-  MYSQL_THD m_thd;
+  THD *m_thd;
   String *packet;
-  String *convert;
+  String convert;
   uint field_pos;
   bool send_metadata;
 #ifndef DBUG_OFF
@@ -137,7 +130,7 @@ class Protocol_classic : public Protocol {
   virtual bool send_field_metadata(Send_field *field,
                                    const CHARSET_INFO *item_charset);
   virtual void abort_row() {}
-  virtual enum enum_protocol_type type() = 0;
+  virtual enum enum_protocol_type type() const = 0;
 
   /**
     Returns the type of the connection
@@ -145,8 +138,8 @@ class Protocol_classic : public Protocol {
     @return
       enum enum_vio_type
   */
-  virtual enum enum_vio_type connection_type() {
-    Vio *v = get_vio();
+  virtual enum enum_vio_type connection_type() const {
+    const Vio *v = get_vio();
     return v ? vio_type(v) : NO_VIO_TYPE;
   }
 
@@ -168,7 +161,7 @@ class Protocol_classic : public Protocol {
   /* Wipe NET with zeros */
   void wipe_net();
   /* Check whether VIO is healhty */
-  virtual bool connection_alive();
+  virtual bool connection_alive() const;
   /* Returns the client capabilities */
   virtual ulong get_client_capabilities() { return m_client_capabilities; }
   /* Sets the client capabilities */
@@ -193,6 +186,7 @@ class Protocol_classic : public Protocol {
   NET *get_net();
   /* return VIO */
   Vio *get_vio();
+  const Vio *get_vio() const;
   /* Set VIO */
   void set_vio(Vio *vio);
   /* Set packet number */
@@ -235,7 +229,7 @@ class Protocol_text : public Protocol_classic {
   virtual void start_row();
   virtual bool send_parameters(List<Item_param> *parameters, bool);
 
-  virtual enum enum_protocol_type type() { return PROTOCOL_TEXT; };
+  virtual enum enum_protocol_type type() const { return PROTOCOL_TEXT; }
 
  protected:
   virtual bool store(const char *from, size_t length,
@@ -271,7 +265,7 @@ class Protocol_binary : public Protocol_text {
   virtual bool send_parameters(List<Item_param> *parameters,
                                bool is_sql_prepare);
 
-  virtual enum enum_protocol_type type() { return PROTOCOL_BINARY; };
+  virtual enum enum_protocol_type type() const { return PROTOCOL_BINARY; }
 
  protected:
   virtual bool store(const char *from, size_t length,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,9 +46,9 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags) {
   DBUG_PRINT("enter", ("dir: %s", dir));
 
 #if defined(_WIN32)
-  if (mkdir((char *)dir))
+  if (_mkdir(dir))
 #else
-  if (mkdir((char *)dir, Flags & my_umask_dir))
+  if (mkdir(dir, Flags & my_umask_dir))
 #endif
   {
     set_my_errno(errno);

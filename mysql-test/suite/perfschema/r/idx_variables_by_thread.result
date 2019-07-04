@@ -21,7 +21,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.variables_by_thread
-where THREAD_ID < "impossible";
+where THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	variables_by_thread	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -55,7 +55,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select VARIABLE_VALUE
 from performance_schema.variables_by_thread
 where THREAD_ID = @tid
-and VARIABLE_NAME < "impossible";
+and VARIABLE_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	variables_by_thread	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
 ############ Explain for Query ####################################

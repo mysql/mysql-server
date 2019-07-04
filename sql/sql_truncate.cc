@@ -76,7 +76,8 @@ class Table;
   @return A human-readable string describing the foreign key.
 */
 
-static const char *fk_info_str(THD *thd, const dd::Foreign_key_parent *fk_p) {
+static const char *fk_info_str(const THD *thd,
+                               const dd::Foreign_key_parent *fk_p) {
   bool res = false;
   char buffer[STRING_BUFFER_USUAL_SIZE * 2];
   String str(buffer, sizeof(buffer), system_charset_info);
@@ -87,14 +88,13 @@ static const char *fk_info_str(THD *thd, const dd::Foreign_key_parent *fk_p) {
     `db`.`tbl`, CONSTRAINT `id`
   */
 
-  append_identifier(NULL, &str, fk_p->child_schema_name().c_str(),
+  append_identifier(&str, fk_p->child_schema_name().c_str(),
                     fk_p->child_schema_name().length());
   res |= str.append(".");
-  append_identifier(NULL, &str, fk_p->child_table_name().c_str(),
+  append_identifier(&str, fk_p->child_table_name().c_str(),
                     fk_p->child_table_name().length());
   res |= str.append(", CONSTRAINT ");
-  append_identifier(NULL, &str, fk_p->fk_name().c_str(),
-                    fk_p->fk_name().length());
+  append_identifier(&str, fk_p->fk_name().c_str(), fk_p->fk_name().length());
 
   return res ? NULL : thd->strmake(str.ptr(), str.length());
 }

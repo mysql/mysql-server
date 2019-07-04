@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ namespace info_schema {
     Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
     to INT.
 
-  80012: Current
+  Current 80012: Published in 8.0.12
   ------------------------------------
   Changes from version 80011:
 
@@ -76,9 +76,48 @@ namespace info_schema {
     This column prints out the expression for functional key parts, or SQL NULL
     if it is a regular key part. For functional key parts, COLUMN_NAME is set to
     SQL NULL.
+
+  80013: Published in 8.0.13
+  ------------------------------------
+  Changes from version 80012
+
+  - WL#11000 ST_Distance with units
+    Adds a new view `information_schema`.`st_units_of_measure` with columns
+    `UNIT_NAME`, `CONVERSION_FACTOR`, `DESCRIPTION`, and `UNIT_TYPE`. This view
+    contains the supported spatial units.
+
+  80014: Published in 8.0.14
+  ------------------------------------
+  There are no changes from version 80013. Hence server version 80014 used
+  I_S version 80013.
+
+  80015: Not published.
+  ----------------------------------------------------------------------------
+  There are no changes from version 80014. Hence server version 80015 used
+  I_S version 80013.
+
+  80016: Current
+  ------------------------------------
+  Changes from version 80015.
+
+  - WL#929 - CHECK CONSTRAINTS
+    New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
+    INFORMATION_SCHMEA.TABLE_CONSTRAINTS is modified to include check
+    constraints defined on the table.
+
+  - WL#12261 Control (enforce and disable) table encryption
+    - Add new column information_schema.schemata.default_encryption
+    - information_schema.tables.options UDF definition is changed to pass
+      schema default encryption.
+
+  80017: Next IS version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80016:
+  - No changes, this version number is not active yet.
+
 */
 
-static const uint IS_DD_VERSION = 80012;
+static const uint IS_DD_VERSION = 80016;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

@@ -24,7 +24,8 @@
 
 #include "my_time.h"  // TIME_to_ulonglong_datetime
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"  // dd::create_object
+#include "sql/dd/dd.h"          // dd::create_object
+#include "sql/dd/impl/utils.h"  // dd::my_time_t_to_ull_datetime()
 #include "sql/dd/properties.h"
 #include "sql/dd/types/index_stat.h"             // dd::Index_stat
 #include "sql/dd/types/table_stat.h"             // dd::Table_stat
@@ -156,8 +157,6 @@ inline void setup_table_stats_record(THD *thd, dd::Table_stat *obj,
                                      const ha_statistics &stats,
                                      ulonglong checksum, bool has_checksum,
                                      bool has_autoinc) {
-  MYSQL_TIME time;
-
   obj->set_schema_name(schema_name);
   obj->set_table_name(table_name);
   obj->set_table_rows(stats.records);
@@ -168,15 +167,11 @@ inline void setup_table_stats_record(THD *thd, dd::Table_stat *obj,
   obj->set_data_free(stats.delete_length);
 
   if (stats.update_time) {
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, (my_time_t)stats.update_time);
-    ulonglong ull_time = TIME_to_ulonglong_datetime(&time);
-    obj->set_update_time(ull_time);
+    obj->set_update_time(dd::my_time_t_to_ull_datetime(stats.update_time));
   }
 
   if (stats.check_time) {
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, (my_time_t)stats.check_time);
-    ulonglong ull_time = TIME_to_ulonglong_datetime(&time);
-    obj->set_check_time(ull_time);
+    obj->set_check_time(dd::my_time_t_to_ull_datetime(stats.check_time));
   }
 
   if (has_checksum) obj->set_checksum(checksum);
@@ -184,10 +179,8 @@ inline void setup_table_stats_record(THD *thd, dd::Table_stat *obj,
   if (has_autoinc) obj->set_auto_increment(stats.auto_increment_value);
 
   // Store statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
-  obj->set_cached_time(ull_curtime);
+  obj->set_cached_time(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 }
 
 inline void setup_index_stats_record(THD *thd, dd::Index_stat *obj,
@@ -203,11 +196,8 @@ inline void setup_index_stats_record(THD *thd, dd::Index_stat *obj,
   obj->set_cardinality(records);
 
   // Calculate time to be stored as cached time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
-
-  obj->set_cached_time(ull_curtime);
+  obj->set_cached_time(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 }
 
 /**
@@ -645,12 +635,11 @@ ulonglong Table_statistics::read_stat_by_open_table(
   Open_tables_backup open_tables_state_backup;
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup, 0);
 
-  Query_arena i_s_arena(thd->mem_root,
-                        Query_arena::STMT_CONVENTIONAL_EXECUTION);
+  Query_arena i_s_arena(thd->mem_root, Query_arena::STMT_REGULAR_EXECUTION);
   Query_arena *old_arena = thd->stmt_arena;
   thd->stmt_arena = &i_s_arena;
   Query_arena backup_arena;
-  thd->set_n_backup_active_arena(&i_s_arena, &backup_arena);
+  thd->swap_query_arena(i_s_arena, &backup_arena);
 
   LEX temp_lex, *lex;
   LEX *old_lex = thd->lex;
@@ -661,10 +650,10 @@ ulonglong Table_statistics::read_stat_by_open_table(
   lex->context_analysis_only = CONTEXT_ANALYSIS_ONLY_VIEW;
 
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
-  if (!thd->make_lex_string(&db_name_lex_cstr, schema_name_ptr.ptr(),
-                            schema_name_ptr.length(), false) ||
-      !thd->make_lex_string(&table_name_lex_cstr, table_name_ptr.ptr(),
-                            table_name_ptr.length(), false)) {
+  if (lex_string_strmake(thd->mem_root, &db_name_lex_cstr,
+                         schema_name_ptr.ptr(), schema_name_ptr.length()) ||
+      lex_string_strmake(thd->mem_root, &table_name_lex_cstr,
+                         table_name_ptr.ptr(), table_name_ptr.length())) {
     error = -1;
     goto end;
   }
@@ -851,13 +840,13 @@ ulonglong Table_statistics::read_stat_by_open_table(
   }
 
 end:
-  lex->unit->cleanup(true);
+  lex->unit->cleanup(thd, true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.free_list == NULL);
+  DBUG_ASSERT(i_s_arena.item_list() == NULL);
   thd->free_items();
 
   /*
@@ -875,7 +864,7 @@ end:
   thd->lex = old_lex;
 
   thd->stmt_arena = old_arena;
-  thd->restore_active_arena(&i_s_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &i_s_arena);
 
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,10 +110,14 @@ struct NESTED_JOIN {
   /**
     Tables outside the semi-join that are used within the semi-join's
     ON condition (ie. the subquery WHERE clause and optional IN equalities).
+    Also contains lateral dependencies from materialized derived tables
+    contained inside the semi-join inner tables.
   */
   table_map sj_depends_on{0};
   /**
-    Outer non-trivially correlated tables, a true subset of sj_depends_on
+    Outer non-trivially correlated tables, a true subset of sj_depends_on.
+    Also contains lateral dependencies from materialized derived tables
+    contained inside the semi-join inner tables.
   */
   table_map sj_corr_tables{0};
   /**

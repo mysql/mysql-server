@@ -42,43 +42,41 @@
   This array must be in sync with Extra_tag enum.
 */
 static const char *traditional_extra_tags[ET_total] = {
-    NULL,                                 // ET_none
-    "Using temporary",                    // ET_USING_TEMPORARY
-    "Using filesort",                     // ET_USING_FILESORT
-    "Using index condition",              // ET_USING_INDEX_CONDITION
-    "Using",                              // ET_USING
-    "Range checked for each record",      // ET_RANGE_CHECKED_FOR_EACH_RECORD
-    "Using where with pushed condition",  // ET_USING_WHERE_WITH_PUSHED_CONDITION
-    "Using where",                        // ET_USING_WHERE
-    "Not exists",                         // ET_NOT_EXISTS
-    "Using MRR",                          // ET_USING_MRR
-    "Using index",                        // ET_USING_INDEX
-    "Full scan on NULL key",              // ET_FULL_SCAN_ON_NULL_KEY
-    "Skip_open_table",                    // ET_SKIP_OPEN_TABLE
-    "Open_frm_only",                      // ET_OPEN_FRM_ONLY
-    "Open_full_table",                    // ET_OPEN_FULL_TABLE
-    "Scanned",                            // ET_SCANNED_DATABASES
-    "Using index for group-by",           // ET_USING_INDEX_FOR_GROUP_BY
-    "Using index for skip scan",          // ET_USING_INDEX_FOR_SKIP_SCAN,
-    "Distinct",                           // ET_DISTINCT
-    "LooseScan",                          // ET_LOOSESCAN
-    "Start temporary",                    // ET_START_TEMPORARY
-    "End temporary",                      // ET_END_TEMPORARY
-    "FirstMatch",                         // ET_FIRST_MATCH
-    "Materialize",                        // ET_MATERIALIZE
-    "Start materialize",                  // ET_START_MATERIALIZE
-    "End materialize",                    // ET_END_MATERIALIZE
-    "Scan",                               // ET_SCAN
-    "Using join buffer",                  // ET_USING_JOIN_BUFFER
-    "const row not found",                // ET_CONST_ROW_NOT_FOUND
-    "unique row not found",               // ET_UNIQUE_ROW_NOT_FOUND
-    "Impossible ON condition",            // ET_IMPOSSIBLE_ON_CONDITION
-    "",                                   // ET_PUSHED_JOIN
-    "Ft_hints:",                          // ET_FT_HINTS
-    "Backward index scan",                // ET_BACKWARD_SCAN
-    "Recursive",                          // ET_RECURSIVE
-    "Table function:",                    // ET_TABLE_FUNCTION
-    "Index dive skipped due to FORCE"     // ET_SKIP_RECORDS_IN_RANGE
+    NULL,                               // ET_none
+    "Using temporary",                  // ET_USING_TEMPORARY
+    "Using filesort",                   // ET_USING_FILESORT
+    "Using index condition",            // ET_USING_INDEX_CONDITION
+    "Using",                            // ET_USING
+    "Range checked for each record",    // ET_RANGE_CHECKED_FOR_EACH_RECORD
+    "Using pushed condition",           // ET_USING_PUSHED_CONDITION
+    "Using where",                      // ET_USING_WHERE
+    "Not exists",                       // ET_NOT_EXISTS
+    "Using MRR",                        // ET_USING_MRR
+    "Using index",                      // ET_USING_INDEX
+    "Full scan on NULL key",            // ET_FULL_SCAN_ON_NULL_KEY
+    "Using index for group-by",         // ET_USING_INDEX_FOR_GROUP_BY
+    "Using index for skip scan",        // ET_USING_INDEX_FOR_SKIP_SCAN,
+    "Distinct",                         // ET_DISTINCT
+    "LooseScan",                        // ET_LOOSESCAN
+    "Start temporary",                  // ET_START_TEMPORARY
+    "End temporary",                    // ET_END_TEMPORARY
+    "FirstMatch",                       // ET_FIRST_MATCH
+    "Materialize",                      // ET_MATERIALIZE
+    "Start materialize",                // ET_START_MATERIALIZE
+    "End materialize",                  // ET_END_MATERIALIZE
+    "Scan",                             // ET_SCAN
+    "Using join buffer",                // ET_USING_JOIN_BUFFER
+    "const row not found",              // ET_CONST_ROW_NOT_FOUND
+    "unique row not found",             // ET_UNIQUE_ROW_NOT_FOUND
+    "Impossible ON condition",          // ET_IMPOSSIBLE_ON_CONDITION
+    "",                                 // ET_PUSHED_JOIN
+    "Ft_hints:",                        // ET_FT_HINTS
+    "Backward index scan",              // ET_BACKWARD_SCAN
+    "Recursive",                        // ET_RECURSIVE
+    "Table function:",                  // ET_TABLE_FUNCTION
+    "Index dive skipped due to FORCE",  // ET_SKIP_RECORDS_IN_RANGE
+    "Using secondary engine",           // ET_USING_SECONDARY_ENGINE
+    "Rematerialize"                     // ET_REMATERIALIZE
 };
 
 static const char *mod_type_name[] = {"NONE", "INSERT", "UPDATE", "DELETE",
@@ -207,6 +205,7 @@ bool Explain_format_traditional::flush_entry() {
           case ET_USING_INDEX_FOR_GROUP_BY:
           case ET_USING_JOIN_BUFFER:
           case ET_FIRST_MATCH:
+          case ET_REMATERIALIZE:
             brackets = true;  // for backward compatibility
             break;
           default:
@@ -217,9 +216,6 @@ bool Explain_format_traditional::flush_entry() {
           return true;
         if (brackets && buff.append("(")) return true;
         if (buff.append(e->data)) return true;
-        if (e->tag == ET_SCANNED_DATABASES &&
-            buff.append(e->data[0] == '1' ? " database" : " databases"))
-          return true;
         if (brackets && buff.append(")")) return true;
       }
       if (buff.append("; ")) return true;
@@ -231,6 +227,6 @@ bool Explain_format_traditional::flush_entry() {
     if (push(&items, column_buffer.col_message, nil)) return true;
   }
 
-  if (output->send_data(items)) return true;
+  if (output->send_data(current_thd, items)) return true;
   return false;
 }

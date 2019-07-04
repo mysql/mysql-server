@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class Mock_protocol : public Protocol {
   SSL_handle get_ssl() { return 0; }
   void start_row() {}
   bool end_row() { return false; }
-  bool connection_alive() { return false; }
+  bool connection_alive() const { return false; }
   void abort_row() {}
   uint get_rw_status() { return 0; }
   bool get_compression() { return false; }
@@ -136,8 +136,8 @@ class Mock_protocol : public Protocol {
   virtual bool store(MYSQL_TIME *, uint) { return false; }
   virtual bool store_date(MYSQL_TIME *) { return false; }
   virtual bool store(Proto_field *) { return false; }
-  virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; };
-  virtual enum enum_vio_type connection_type() { return NO_VIO_TYPE; }
+  virtual enum enum_protocol_type type() const { return PROTOCOL_LOCAL; }
+  virtual enum enum_vio_type connection_type() const { return NO_VIO_TYPE; }
   virtual int get_command(COM_DATA *, enum_server_command *) { return -1; }
   virtual bool flush() { return true; }
 };
@@ -147,14 +147,14 @@ TEST_F(FieldTest, FieldTimef) {
   uchar nullPtr[1] = {0};
   MYSQL_TIME time = {0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME};
 
-  Field_timef *field = new (*THR_MALLOC)
+  Field_timef *field = new (thd()->mem_root)
       Field_timef(fieldBuf, nullPtr, false, Field::NONE, "f1", 4);
   // Test public member functions
   EXPECT_EQ(4UL, field->decimals());  // TS-TODO
   EXPECT_EQ(MYSQL_TYPE_TIME, field->type());
   EXPECT_EQ(MYSQL_TYPE_TIME2, field->binlog_type());
 
-  longlong packed = TIME_to_longlong_packed(&time);
+  longlong packed = TIME_to_longlong_packed(time);
 
   EXPECT_EQ(0, field->store_packed(packed));
   EXPECT_DOUBLE_EQ(122312.1234, field->val_real());
@@ -312,10 +312,10 @@ TEST_F(FieldTest, FieldTimefCompare) {
   for (int i = 0; i < nFields; ++i) {
     char fieldName[3];
     sprintf(fieldName, "f%c", i);
-    fields[i] = new (*THR_MALLOC) Field_timef(fieldBufs[i], nullPtrs + i, false,
-                                              Field::NONE, fieldName, 6);
+    fields[i] = new (thd()->mem_root) Field_timef(
+        fieldBufs[i], nullPtrs + i, false, Field::NONE, fieldName, 6);
 
-    longlong packed = TIME_to_longlong_packed(&times[i]);
+    longlong packed = TIME_to_longlong_packed(times[i]);
     EXPECT_EQ(0, fields[i]->store_packed(packed));
     fields[i]->make_sort_key(sortStrings[i], fields[i]->pack_length());
   }
@@ -357,8 +357,8 @@ TEST_F(FieldTest, FieldTime) {
   MYSQL_TIME bigTime = {
       0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME};
 
-  Field_time *field =
-      new (*THR_MALLOC) Field_time(fieldBuf, nullPtr, false, Field::NONE, "f1");
+  Field_time *field = new (thd()->mem_root)
+      Field_time(fieldBuf, nullPtr, false, Field::NONE, "f1");
   EXPECT_EQ(0, field->store_time(&bigTime, 4));
   MYSQL_TIME t;
   EXPECT_FALSE(field->get_time(&t));
@@ -414,8 +414,8 @@ TEST_F(FieldTest, CopyFieldSet) {
   // Copy_field DTOR is not invoked in all contexts, so we may leak memory.
   EXPECT_FALSE(cf->tmp.is_alloced());
 
-  delete f_to->table;
-  delete f_from->table;
+  delete static_cast<Fake_TABLE *>(f_to->table);
+  delete static_cast<Fake_TABLE *>(f_from->table);
 }
 
 /*

@@ -1,0 +1,86 @@
+###############################################################################
+# WL#12098: MySQL system users                                                #
+#                                                                             #
+#   This test file covers the scenarios around adding/removing the            #
+#   restriction_list in mysql.user.user_attributes column.                    #
+#                                                                             #
+#   The restriction_list is a key:value pair. Database name serves as key,    #
+#   and an array of static privileges which are prohibited on that database   #
+#   serves as value.                                                          #
+#                                                                             #
+#   Refer the test file - partial_revokes_dml.test for the usage of           #
+#   partial revokes once they are created                                     #
+#                                                                             #
+###############################################################################
+
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_query_log
+CALL mtr.add_suppression("one or more privileges granted through");
+CALL mtr.add_suppression("these are not valid database privileges");
+CALL mtr.add_suppression("corresponding global privilege(s) are not granted");
+
+let $saved_partial_revokes = `SELECT @@global.partial_revokes`;
+--disable_warnings
+SET GLOBAL partial_revokes= ON;
+--enable_warnings
+--enable_query_log
+--let $TEST_MODE = NORMAL
+--source ../../auth_sec/include/partial_revokes_add_remove.inc
+
+--echo -------------------------------------------------------------------------
+--echo Toggling the partial_revokes system variable
+--echo -------------------------------------------------------------------------
+CREATE USER foo;
+--echo # 1. Add partial revoke and then try to turn OFF the system variable
+GRANT INSERT ON *.* to foo;
+REVOKE INSERT ON mysql.* FROM foo;
+--error ER_PARTIAL_REVOKES_EXIST
+SET @@global.partial_revokes = OFF;
+--echo # 2. Remove partial revoke and then try to turn OFF the system variable
+GRANT INSERT ON mysql.* to foo;
+SET @@global.partial_revokes = OFF;
+--echo # 3. Drop user that had partial revoke and
+--echo # then try to turn OFF the system variable
+SET @@global.partial_revokes = ON;
+REVOKE INSERT ON mysql.* FROM foo;
+--error ER_PARTIAL_REVOKES_EXIST
+SET @@global.partial_revokes = OFF;
+--echo # 4. After server restart @@partial_revokes must be turned ON
+--echo # with a warning in server log.
+--echo
+--echo # Restart server.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Remove the server log file so that we find the expected warning only once.
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+--exec echo "restart:--partial_revokes=OFF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] At least one partial revoke .* Turning ON the system variable .*
+--let $assert_text= Found the expected warning line in the server log.
+--let $assert_count=1
+--source include/assert_grep.inc
+DROP USER foo;
+--echo # 5. @@partial_revokes can be turned OFF after there exists no
+--echo #    partial revokes in the user_attributes table
+SET GLOBAL partial_revokes = OFF;
+--echo --------Toggling the system variable tests end --------------------------
+--disable_query_log
+--disable_warnings
+eval SET GLOBAL partial_revokes = $saved_partial_revokes;
+--enable_warnings
+--enable_query_log
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+call mtr.add_suppression(".*At least one partial revoke .* Turning ON the system variable .*");

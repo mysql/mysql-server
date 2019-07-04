@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,12 +69,12 @@ public:
   const char* get_db() const
   {
     return &db[1];
-  };
+  }
 
   const char* get_table_name() const
   {
     return &table_name[1];
-  };
+  }
 
   static const int MIN_MATCH_VAL = 1;
   static const int EXACT_MATCH_DB = 4;
@@ -224,7 +224,7 @@ private:
                       Ndb_rep_tab_row& best_match);
 public:
   Ndb_rep_tab_reader();
-  ~Ndb_rep_tab_reader() {};
+  ~Ndb_rep_tab_reader() {}
 
   /**
      lookup

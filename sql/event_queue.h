@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 #include <vector>
 
 #include "lex_string.h"
@@ -157,12 +158,12 @@ class Event_queue {
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
-  uint mutex_last_attempted_lock_at_line;
+  std::atomic<uint> mutex_last_attempted_lock_at_line;
   const char *mutex_last_locked_in_func;
   const char *mutex_last_unlocked_in_func;
-  const char *mutex_last_attempted_lock_in_func;
+  std::atomic<const char *> mutex_last_attempted_lock_in_func;
   bool mutex_queue_data_locked;
-  bool mutex_queue_data_attempting_lock;
+  std::atomic<bool> mutex_queue_data_attempting_lock;
   bool waiting_on_cond;
 };
 /**

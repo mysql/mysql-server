@@ -74,6 +74,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   FOREACH(warning
           "unused-but-set-variable"
           "strict-aliasing"
+          "missing-field-initializers"
           "unused-parameter")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)

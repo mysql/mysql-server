@@ -1,0 +1,2715 @@
+#------------------------------------------------------------------------
+# Test cases to verify column check constraint syntax.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 int CHECK);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+CREATE TABLE t1(f1 int CONSTRAINT CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+CREATE TABLE t1(f1 int t1_ck CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1_ck CHECK())' at line 1
+CREATE TABLE t1(f1 int CONSTRAINT t1_ck CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+CREATE TABLE t1(f1 int CONSTRAINT t1_ck CHECK( f1 < 10) NOT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int CHECK(f1));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
+CREATE TABLE t1(f1 int CHECK(f1 + 10));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
+CREATE TABLE t1(f1 int CHECK(f2 < 10));
+ERROR HY000: Column check constraint 't1_chk_1' references other column.
+CREATE TABLE t1 (f1 int CHECK(f1 < 10),
+f2 int CONSTRAINT t1_f2_ck CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_f2_ck` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CONSTRAINT CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int t1_f2_ck CHECK(f2 < 10));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1_f2_ck CHECK(f2 < 10))' at line 1
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CONSTRAINT t1_f2_ck CHECK(f2 < 10) NOT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f2 < 10) NOT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f2));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_2'.
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f2 + 10));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_2'.
+CREATE TABLE t1(f1 int CHECK(f1 < 10), f2 int CHECK(f3 < 10));
+ERROR HY000: Column check constraint 't1_chk_2' references other column.
+CREATE TABLE t1 (f1 int CHECK(f1 < 10), f2 int CHECK(f2 < 10),
+f3 int CONSTRAINT t1_f3_ck CHECK (f3  < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_f3_ck` CHECK ((`f3` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test cases to verify table check constraint syntax.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK());
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_ck'.
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1 + 10));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_ck'.
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f2 < 10));
+ERROR HY000: Check constraint 't1_ck' refers to non-existing column 'f2'.
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_ck` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f2 > 0) NOT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't2_ck'.
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 + 10));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't2_ck'.
+CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1<10), CONSTRAINT t2_ck CHECK(f2 > 1));
+ERROR HY000: Check constraint 't2_ck' refers to non-existing column 'f2'.
+CREATE TABLE t1(f1 int, CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 > 1));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t2_ck` CHECK ((`f1` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint name with special charecters.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT `ck_1$` CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT `ck_1$` CHECK ((`c2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint name with white spaces.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT ` ck_2$ ` CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT ` ck_2$ ` CHECK ((`c2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP CHECK ck_2$;
+ERROR HY000: Check constraint 'ck_2$' is not found in the table.
+ALTER TABLE t1 DROP CHECK ` ck_2$ `;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN c3 INTEGER , ADD CONSTRAINT ` c 3 ` CHECK ( c3 > 10 );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  CONSTRAINT ` c 3 ` CHECK ((`c3` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint name with reserved words.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT FLOAT CHECK (c2 < 10));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FLOAT CHECK (c2 < 10))' at line 1
+CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT `FLOAT` CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT `FLOAT` CHECK ((`c2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with long name.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT,
+CONSTRAINT ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+CHECK (c2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT `ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk` CHECK ((`c2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2(c1 INT, c2 INT,
+CONSTRAINT ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk1
+CHECK (c2 < 10));
+ERROR 42000: Identifier name 'ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk1' is too long
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with too long generated name.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+RENAME TABLE t1 TO t123456789012345678901234567890123456789012345678901234567890;
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567890_chk_1' is too long
+DROP TABLE t1;
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567890(f1 INT CHECK(f1 < 10));
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567890_chk_1' is too long
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567890(f1 INT);
+ALTER TABLE t123456789012345678901234567890123456789012345678901234567890 ADD CONSTRAINT CHECK (f1 < 10);
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567890_chk_1' is too long
+DROP TABLE t123456789012345678901234567890123456789012345678901234567890;
+#-----------------------------------------------------------------------
+# Test case to verify duplicate check constraint name under same
+# database. Check constraints with same name are not allowed under
+# same database.
+#-----------------------------------------------------------------------
+CREATE TABLE t(c1 INT CONSTRAINT t2_chk_1 CHECK (c1 > 10));
+CREATE TABLE t1(c1 INT CHECK (c1 > 10), CONSTRAINT ck CHECK(c1 > 10));
+CREATE TABLE t2(c1 INT, CONSTRAINT ck CHECK(c1 > 10));
+ERROR HY000: Duplicate check constraint name 'ck'.
+ALTER TABLE t1 ADD CONSTRAINT ck CHECK(c1 > 10);
+ERROR HY000: Duplicate check constraint name 'ck'.
+ALTER TABLE t1 RENAME TO t2;
+ERROR HY000: Duplicate check constraint name 't2_chk_1'.
+ALTER TABLE t1 ADD c2 INT, RENAME TO t2;
+ERROR HY000: Duplicate check constraint name 't2_chk_1'.
+DROP TABLE t;
+CREATE DATABASE db1;
+CREATE TABLE db1.t(c1 INT CONSTRAINT t2_chk_1 CHECK (c1 > 10));
+ALTER TABLE t1 ADD c2 INT, RENAME TO db1.t2;
+ERROR HY000: Duplicate check constraint name 't2_chk_1'.
+ALTER TABLE t1 RENAME TO db1.t2;
+ERROR HY000: Duplicate check constraint name 't2_chk_1'.
+DROP DATABASE db1;
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Check constraint names are case insenitive and accent sensitive. Test
+# case to verify the same.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT,
+CONSTRAINT cafe CHECK (f1 < 10),
+CONSTRAINT CAFE CHECK (f1 < 10));
+ERROR HY000: Duplicate check constraint name 'CAFE'.
+create table t1 (f1 int,
+CONSTRAINT cafe CHECK (f1 < 10),
+CONSTRAINT café CHECK (f1 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `cafe` CHECK ((`f1` < 10)),
+  CONSTRAINT `café` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test cases to verify forward reference of columns in the constraint.
+#------------------------------------------------------------------------
+CREATE TABLE t1(CHECK((f1 + f3) > 10), f1 int CHECK (f1 < 10), f2 int);
+ERROR HY000: Check constraint 't1_chk_1' refers to non-existing column 'f3'.
+CREATE TABLE t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 10), f2 int);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK (((`f1` + `f2`) > 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	t1_chk_1	((`f1` + `f2`) > 10)
+def	test	t1_chk_2	(`f1` < 10)
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify creation of multiple check constraint on table.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, c3 INT, c4 INT);
+ALTER TABLE t1 ADD CONSTRAINT ck11 CHECK(c1 > 1),
+ADD CONSTRAINT ck12 CHECK(c1 < 1),
+ADD CONSTRAINT ck21 CHECK(c2 > 1),
+ADD CONSTRAINT ck22 CHECK(c2 < 1),
+ADD CONSTRAINT ck31 CHECK(c3 > 1),
+ADD CONSTRAINT ck32 CHECK(c3 < 1),
+ADD CONSTRAINT ck41 CHECK(c4 > 1),
+ADD CONSTRAINT ck42 CHECK(c4 < 1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  CONSTRAINT `ck11` CHECK ((`c1` > 1)),
+  CONSTRAINT `ck12` CHECK ((`c1` < 1)),
+  CONSTRAINT `ck21` CHECK ((`c2` > 1)),
+  CONSTRAINT `ck22` CHECK ((`c2` < 1)),
+  CONSTRAINT `ck31` CHECK ((`c3` > 1)),
+  CONSTRAINT `ck32` CHECK ((`c3` < 1)),
+  CONSTRAINT `ck41` CHECK ((`c4` > 1)),
+  CONSTRAINT `ck42` CHECK ((`c4` < 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraints with generated columns
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT,
+c2 INT,
+c3 INT GENERATED ALWAYS AS (c1 + c2),
+CONSTRAINT ck CHECK (c3 > 10)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) GENERATED ALWAYS AS ((`c1` + `c2`)) VIRTUAL,
+  CONSTRAINT `ck` CHECK ((`c3` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(c1,c2) VALUES(1,1);
+ERROR HY000: Check constraint 'ck' is violated.
+INSERT INTO t1(c1,c2) VALUES(10,10);
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with DEFAULT column value.
+#------------------------------------------------------------------------
+CREATE TABLE t1(c1 INT DEFAULT 100 CHECK(c1 > 10));
+INSERT INTO t1() VALUES(1);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1() VALUES();
+DROP TABLE t1;
+CREATE TABLE t1(c1 int DEFAULT 1, CONSTRAINT CHECK(c1 IS NOT NULL));
+INSERT INTO t1() VALUES();
+INSERT INTO t1() VALUES(NULL);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint behaviour with ascii charset
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 VARCHAR(1) CHARSET ASCII CHECK(c1 = 'a'),
+c2 VARCHAR(1) CHARSET ASCII DEFAULT('b'));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(1) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+  `c2` varchar(1) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT (_utf8mb4'b'),
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` = _utf8mb4'a'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(c1) VALUES('b');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1(c1) VALUES('a');
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with an expression evaluated to
+# FALSE always.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (CHECK (1 < 1), f1 int);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((1 < 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(1);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(10);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES();
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify INFORMATION_SCHEMA.CHECK_CONSTRAINTS and
+# INFORMATION_SCHEMA.TABLE_CONSTRAINTS result set.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10),
+CONSTRAINT t2_cc1 CHECK (f1 + SQRT(f2) > 6174));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t2_cc1` CHECK (((`f1` + sqrt(`f2`)) > 6174))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t2_cc1	((`f1` + sqrt(`f2`)) > 6174)
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test	PRIMARY	test	t1	PRIMARY KEY	YES
+def	test	t1_chk_1	test	t1	CHECK	YES
+def	test	t2_cc1	test	t1	CHECK	YES
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test cases to verify check constraints in temporary table.
+#------------------------------------------------------------------------
+CREATE TEMPORARY TABLE tmp_t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 12),
+f2 int);
+SHOW CREATE TABLE tmp_t1;
+Table	Create Table
+tmp_t1	CREATE TEMPORARY TABLE `tmp_t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `tmp_t1_chk_1` CHECK (((`f1` + `f2`) > 10)),
+  CONSTRAINT `tmp_t1_chk_2` CHECK ((`f1` < 12))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+DROP TABLE tmp_t1;
+#------------------------------------------------------------------------
+# Test cases to verify check constraints with CREATE TABLE LIKE
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT CHECK (f1 < 10), f2 INT, CHECK (f2 < 10),
+CONSTRAINT min CHECK (f1 + f2 > 10),
+CONSTRAINT max CHECK (f1 + f2 < 929));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `max` CHECK (((`f1` + `f2`) < 929)),
+  CONSTRAINT `min` CHECK (((`f1` + `f2`) > 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t2_chk_1` CHECK (((`f1` + `f2`) < 929)),
+  CONSTRAINT `t2_chk_2` CHECK (((`f1` + `f2`) > 10)),
+  CONSTRAINT `t2_chk_3` CHECK ((`f1` < 10)),
+  CONSTRAINT `t2_chk_4` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TEMPORARY TABLE tmp_t2 LIKE t2;
+SHOW CREATE TABLE tmp_t2;
+Table	Create Table
+tmp_t2	CREATE TEMPORARY TABLE `tmp_t2` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `tmp_t2_chk_1` CHECK (((`f1` + `f2`) < 929)),
+  CONSTRAINT `tmp_t2_chk_2` CHECK (((`f1` + `f2`) > 10)),
+  CONSTRAINT `tmp_t2_chk_3` CHECK ((`f1` < 10)),
+  CONSTRAINT `tmp_t2_chk_4` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 LIKE tmp_t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK (((`f1` + `f2`) < 929)),
+  CONSTRAINT `t3_chk_2` CHECK (((`f1` + `f2`) > 10)),
+  CONSTRAINT `t3_chk_3` CHECK ((`f1` < 10)),
+  CONSTRAINT `t3_chk_4` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2, t3, tmp_t2;
+#------------------------------------------------------------------------
+# Test cases to verify effect of check constraint in DML operations.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES(101, 1);
+INSERT INTO t2 VALUES(102, NULL);
+INSERT INTO t2 VALUES(103, 1000);
+# INSERT operations.
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(2, NULL);
+INSERT INTO t1 VALUES(3, 1000);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT IGNORE INTO t1 VALUES (3, 1000);
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+INSERT INTO t1 SELECT * FROM t2;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+INSERT IGNORE INTO t1 SELECT * FROM t2;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+101	1
+102	NULL
+# REPLACE operations.
+REPLACE INTO t1 VALUES(4, 1);
+REPLACE INTO t1 VALUES(5, NULL);
+REPLACE INTO t1 VALUES(6, 100);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+REPLACE INTO t1 VALUES(2, 10);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+REPLACE INTO t1 VALUES(2, 2);
+SELECT * FROM t1;
+f1	f2
+1	1
+2	2
+4	1
+5	NULL
+101	1
+102	NULL
+# UPDATE operations.
+UPDATE t1 SET f2 = 2;
+SELECT * FROM t1;
+f1	f2
+1	2
+2	2
+4	2
+5	2
+101	2
+102	2
+UPDATE t1 SET f2 = NULL;
+UPDATE t1 SET f2 = 1000;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+UPDATE IGNORE t1 SET f2 = 1000;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	NULL
+2	NULL
+4	NULL
+5	NULL
+101	NULL
+102	NULL
+DROP TABLE t1, t2;
+# LOAD DATA operations.
+CREATE TABLE t2(f1 INT,f2 INT);
+INSERT INTO t2 VALUES(1,1);
+INSERT INTO t2 VALUES(2,NULL);
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+f1	f2
+1	1
+2	NULL
+SELECT * FROM t2 INTO OUTFILE 'tmp1.txt';
+LOAD DATA INFILE 'tmp1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+DELETE FROM t1;
+INSERT INTO t2 VALUES(3,20);
+SELECT * FROM t2;
+f1	f2
+1	1
+2	NULL
+3	20
+SELECT * FROM t2 INTO OUTFILE 'tmp2.txt';
+LOAD DATA INFILE 'tmp2.txt' INTO TABLE t1;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+LOAD DATA INFILE 'tmp2.txt' IGNORE INTO TABLE t1;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT CHECK(a < 3), b CHAR(10)) CHARSET latin1;
+LOAD DATA INFILE '../../std_data/loaddata3.dat' IGNORE INTO TABLE t1
+FIELDS TERMINATED BY '' ENCLOSED BY '' IGNORE 1 LINES;
+Warnings:
+Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
+Warning	1262	Row 3 was truncated; it contained more data than there were input columns
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	1261	Row 4 doesn't contain data for all columns
+Warning	1261	Row 4 doesn't contain data for all columns
+Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
+Warning	1262	Row 5 was truncated; it contained more data than there were input columns
+DROP TABLE t1;
+# LOAD XML operations.
+CREATE TABLE t2(f1 INT,f2 INT);
+INSERT INTO t2 VALUES(1,1);
+INSERT INTO t2 VALUES(2,NULL);
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+f1	f2
+1	1
+2	NULL
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t1;;
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+DELETE FROM t1;
+INSERT INTO t2 VALUES(3,20);
+SELECT * FROM t2;
+f1	f2
+1	1
+2	NULL
+3	20
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp2.xml" INTO TABLE t1;;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp2.xml" IGNORE INTO TABLE t1;;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	1
+2	NULL
+DROP TABLE t1,t2;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with INSERT ON DUPLICATE
+#-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, 2) ON DUPLICATE KEY UPDATE f2 = 4;
+SELECT * FROM t1;
+f1	f2
+1	4
+INSERT IGNORE INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE f2 = 20;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE f2 = 20;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraints with multi-table update.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT, f2 INT CHECK(f2 < 20));
+INSERT INTO t1 VALUES (4, 4);
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES (4, 24);
+UPDATE t1,t2  SET t1.f2 = t1.f2 + 20 WHERE t1.f1 = t2.f1;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+UPDATE IGNORE t1,t2  SET t1.f2 = t1.f2 + 20 WHERE t1.f1 = t2.f1;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+DROP TABLE t1, t2;
+CREATE TABLE t1 (
+`f1` int(10) unsigned NOT NULL auto_increment,
+`f2` int(11) NOT NULL default '0',
+PRIMARY KEY  (`f1`)
+);
+INSERT INTO t1 VALUES (4433,5424);
+CREATE TABLE t2 (
+`f3` int(10) unsigned NOT NULL default '0',
+`f4` int(10) unsigned NOT NULL default '0' CHECK (f4 <= 500),
+PRIMARY KEY  (`f3`,`f4`)
+);
+INSERT INTO t2 VALUES (495,500);
+INSERT INTO t2 VALUES (496,500);
+UPDATE t2,t1 set t2.f4 = t2.f4 + 1;
+ERROR HY000: Check constraint 't2_chk_1' is violated.
+UPDATE IGNORE t2,t1 set t2.f4 = t2.f4 + 1;
+Warnings:
+Warning	3819	Check constraint 't2_chk_1' is violated.
+Warning	3819	Check constraint 't2_chk_1' is violated.
+DROP TABLE t1, t2;
+#------------------------------------------------------------------------
+# Test cases to verify generated check constraint name updates due to
+# RENAME TABLE operation.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK(f1 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE t1 TO t2;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t2_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t1(f1 INT CHECK (f1>10), f11 INT CHECK (f11 < 1000));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f11` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` > 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f11` < 1000))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE t1 TO t3, t2 TO t1, t3 TO t2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  `f11` int(11) DEFAULT NULL,
+  CONSTRAINT `t2_chk_1` CHECK ((`f1` > 10)),
+  CONSTRAINT `t2_chk_2` CHECK ((`f11` < 1000))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+#------------------------------------------------------------------------
+# Test case to verify check constraints removal on DROP table operation.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	t1_chk_1	(`f2` < 10)
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test	PRIMARY	test	t1	PRIMARY KEY	YES
+def	test	t1_chk_1	test	t1	CHECK	YES
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints creation with ALTER TABLE ADD
+# CONSTRAINT operation.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+CREATE TEMPORARY TABLE t3(f1 INT CHECK (f1 < 10));
+ALTER TABLE t1 ADD CONSTRAINT CHECK (f1 > 1), ADD CONSTRAINT `t1_p_ck` CHECK (f1 > 1);
+ALTER TABLE t3 ADD CONSTRAINT CHECK (f1 > 1), ADD CONSTRAINT `t3_p_ck` CHECK (f1 > 1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t1_p_ck` CHECK ((`f1` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Test case to verify check constraint creation with ALTER TABLE ADD
+# constraint and generated name updates with RENAME TO <table> in
+# ALTER operation.
+ALTER TABLE t1 ADD f2 INT CHECK (f2 < 10), RENAME TO t6, ALGORITHM=COPY;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_p_ck` CHECK ((`f1` > 1)),
+  CONSTRAINT `t6_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t6_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t6_chk_3` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), RENAME TO t7, ALGORITHM=COPY;
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TEMPORARY TABLE `t7` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t7_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t7_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1)),
+  CONSTRAINT `t7_chk_3` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t6 RENAME TO t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_p_ck` CHECK ((`f1` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t7 RENAME TO t3;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_chk_3` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Test case to verify add check constraint with INPLACE alter algorithm.
+ALTER TABLE t1 ADD f2 INT CHECK (f2 < 10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD f3 INT CHECK (f3 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD CONSTRAINT CHECK (f2 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
+ALTER TABLE t1 RENAME COLUMN f1 TO f10;
+ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_1 expression'
+#------------------------------------------------------------------------
+# Test case to verify check constraints creation with ALTER TABLE DROP
+# CONSTRAINT operation.
+#------------------------------------------------------------------------
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_chk_3` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t3 DROP CHECK t3_chk_3;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t3 DROP CHECK t3_p_ck, ADD CONSTRAINT t3_p_ck CHECK (f1 > 38);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
+  CONSTRAINT `t3_p_ck` CHECK ((`f1` > 38))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#------------------------------------------------------------------------
+# Test case to verify check constraints alter operations.
+#------------------------------------------------------------------------
+INSERT INTO t1 VALUES (5, 5, 5);
+ALTER TABLE t1 ALTER CHECK t1_chk_1 NOT ENFORCED, ALGORITHM=INPLACE;
+INSERT INTO t1 VALUES (8, 8, 8);
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=COPY;
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=INPLACE;
+INSERT INTO t1 VALUES (12, 5, 5);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+ALTER TABLE t1 ALTER CHECK t1_chk_1 NOT ENFORCED, ALGORITHM=INPLACE;
+INSERT INTO t1 VALUES (12, 5, 5);
+ALTER TABLE t1 ALTER CHECK t1_chk_1 ENFORCED, ALGORITHM=COPY;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1, t3;
+#-----------------------------------------------------------------------
+# Test case to add check constraint with copy,instant,inplace algorithm
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT);
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10), ALGORITHM=COPY;
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`C1` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify drop check constraint with inplace algorithm.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD CONSTRAINT t1_chk_1 CHECK (f1 < 10), DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to alter table to add/drop column with the check constraint.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, CONSTRAINT ck1 CHECK (c1 > 10));
+ALTER TABLE t1 ADD COLUMN c2 INT,
+ADD CONSTRAINT ck2 CHECK (c2 > 10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`c1` > 10)),
+  CONSTRAINT `ck2` CHECK ((`c2` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(20,10);
+ERROR HY000: Check constraint 'ck2' is violated.
+ALTER TABLE t1 DROP CHECK ck2, DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c3 INT,
+ADD CONSTRAINT ck3 CHECK (c3 < 10);
+ALTER TABLE t1 DROP CHECK ck3, DROP COLUMN c3,
+ADD COLUMN c4 INT, ADD CONSTRAINT ck4 CHECK( c4 > 10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`c1` > 10)),
+  CONSTRAINT `ck4` CHECK ((`c4` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify
+#   - Creation of check constraint with NOT ENFORCED state.
+#   - Listing state of the check constraints with SHOW and
+#     INFORMATION_SCHEMA.CHECK_CONSTRAINTS table.
+#   - State updates with ALTER TABLE statement to ALTER
+#     check constraints.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT,
+f2 INT CHECK (f2 < 10),
+f3 INT CHECK (f3 < 10) NOT ENFORCED,
+CONSTRAINT ck CHECK (f1 > 10),
+CONSTRAINT CHECK (f1 > 10) NOT ENFORCED);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	ck	(`f1` > 10)
+def	test	t1_chk_3	(`f1` > 10)
+# REVOKE check constraint ck.
+ALTER TABLE t1 ALTER CHECK ck NOT ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+# ENFORCE check constraint ck.
+ALTER TABLE t1 ALTER CHECK ck ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+# Add new constraint in NOT ENFORCED state.
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK(f1<10) NOT ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `ck1` CHECK ((`f1` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+def	test	ck1	(`f1` < 10)
+# ENFORCE check constraint ck1
+ALTER TABLE t1 ALTER CHECK ck1 ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `ck1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	ck1	(`f1` < 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+# ENFORCE check constraint t1_chk_2
+ALTER TABLE t1 ALTER CHECK t1_chk_2 ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `ck1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	ck1	(`f1` < 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+# ADD column check constraint in NOT ENFORCED state.
+ALTER TABLE t1 ADD f4 INT CONSTRAINT t1_f4_chk CHECK (f4 < 10) NOT ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  `f4` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `ck1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_f4_chk` CHECK ((`f4` < 10)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	ck1	(`f1` < 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+def	test	t1_f4_chk	(`f4` < 10)
+# ENFORCE check constraint t1_f4_chk
+ALTER TABLE t1 ALTER CHECK t1_f4_chk ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  `f3` int(11) DEFAULT NULL,
+  `f4` int(11) DEFAULT NULL,
+  CONSTRAINT `ck` CHECK ((`f1` > 10)),
+  CONSTRAINT `ck1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_f4_chk` CHECK ((`f4` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	ck	(`f1` > 10)
+def	test	ck1	(`f1` < 10)
+def	test	t1_chk_1	(`f2` < 10)
+def	test	t1_chk_2	(`f3` < 10)
+def	test	t1_chk_3	(`f1` > 10)
+def	test	t1_f4_chk	(`f4` < 10)
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify alter statement with drop and alter constraint
+# on non-existing check constraint.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, c3 INT, c4 INT);
+ALTER TABLE t1 DROP CHECK ck13;
+ERROR HY000: Check constraint 'ck13' is not found in the table.
+ALTER TABLE t1 ALTER CHECK ck13 ENFORCED;
+ERROR HY000: Check constraint 'ck13' is not found in the table.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify alter statement with multiple add, drop, enforce,
+# revoke check constraints.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT, c3 INT, c4 INT);
+ALTER TABLE t1 ADD CONSTRAINT ck11 CHECK(c1 > 1),
+ADD CONSTRAINT ck12 CHECK(c1 < 1),
+ADD CONSTRAINT ck21 CHECK(c2 > 1),
+ADD CONSTRAINT ck22 CHECK(c2 < 1),
+ADD CONSTRAINT ck31 CHECK(c3 > 1),
+ADD CONSTRAINT ck32 CHECK(c3 < 1),
+ADD CONSTRAINT ck41 CHECK(c4 > 1),
+ADD CONSTRAINT ck42 CHECK(c4 < 1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  CONSTRAINT `ck11` CHECK ((`c1` > 1)),
+  CONSTRAINT `ck12` CHECK ((`c1` < 1)),
+  CONSTRAINT `ck21` CHECK ((`c2` > 1)),
+  CONSTRAINT `ck22` CHECK ((`c2` < 1)),
+  CONSTRAINT `ck31` CHECK ((`c3` > 1)),
+  CONSTRAINT `ck32` CHECK ((`c3` < 1)),
+  CONSTRAINT `ck41` CHECK ((`c4` > 1)),
+  CONSTRAINT `ck42` CHECK ((`c4` < 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1
+DROP CHECK ck11, ADD CONSTRAINT ck11 CHECK (c1 > 10),
+DROP CHECK ck12, ADD CONSTRAINT ck12 CHECK (c1 < 10),
+DROP CHECK ck21, ADD CONSTRAINT ck21 CHECK (c1 > 10),
+DROP CHECK ck22, ADD CONSTRAINT ck22 CHECK (c1 < 10),
+DROP CHECK ck31, ADD CONSTRAINT ck31 CHECK (c1 > 10),
+DROP CHECK ck32, ADD CONSTRAINT ck32 CHECK (c1 < 10),
+DROP CHECK ck41, ADD CONSTRAINT ck41 CHECK (c1 > 10),
+DROP CHECK ck42, ADD CONSTRAINT ck42 CHECK (c1 < 10),
+ALTER CHECK ck11 NOT ENFORCED,
+ALTER CHECK ck12 NOT ENFORCED,
+ALTER CHECK ck21 NOT ENFORCED,
+ALTER CHECK ck22 NOT ENFORCED,
+ALTER CHECK ck11 ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  CONSTRAINT `ck11` CHECK ((`c1` > 10)),
+  CONSTRAINT `ck12` CHECK ((`c1` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `ck21` CHECK ((`c1` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `ck22` CHECK ((`c1` < 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `ck31` CHECK ((`c1` > 10)),
+  CONSTRAINT `ck32` CHECK ((`c1` < 10)),
+  CONSTRAINT `ck41` CHECK ((`c1` > 10)),
+  CONSTRAINT `ck42` CHECK ((`c1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify auto-drop of check constraint on column drop.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT check (f1 < 10), f2 INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Drops check constraint t1_chk_1 too.
+ALTER TABLE t1 DROP COLUMN f1;
+ALTER TABLE t1 ADD COLUMN f1 INT check(f1 < 10),
+ADD CONSTRAINT check(f1 + f2 < 10),
+ADD CONSTRAINT check(f2 < 10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f2` int(11) DEFAULT NULL,
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK (((`f1` + `f2`) < 10)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN f1;
+ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_2 expression'
+ALTER TABLE t1 RENAME COLUMN f1 to f3;
+ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_1 expression'
+# Drops column f1 and constraints t1_chk_1, t1_chk_2.
+ALTER TABLE t1 DROP CHECK t1_chk_2, DROP COLUMN f1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with MODIFY COLUMN syntax.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 CHAR(1), CHECK (c1 > 'A'));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(1) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` > _utf8mb4'A'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('A');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES('B');
+DELETE FROM t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(1) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` > _utf8mb4'A'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN c1 FLOAT(10.3), DROP CHECK t1_chk_1, ADD CONSTRAINT CHECK(C1 > 10.1) ENFORCED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` float DEFAULT NULL,
+  CONSTRAINT `t1_chk_2` CHECK ((`C1` > 10.1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INT CHECK (f1 = default(f1)));
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALTER f1 SET DEFAULT 20, algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=copy;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with CHANGE COLUMN syntax.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 CHAR(1), CHECK (c1 > 'A'));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(1) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` > _utf8mb4'A'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE c1 c1 FLOAT, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 DROP CHECK t1_chk_1, CHANGE c1 c2 VARCHAR(20), ADD CONSTRAINT CHECK(c2 > 'B');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c2` varchar(20) DEFAULT NULL,
+  CONSTRAINT `t1_chk_2` CHECK ((`c2` > _utf8mb4'B'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t (a INT, b INT, CHECK(a != b));
+INSERT INTO t VALUES (2000000000, 2000000001);
+ALTER TABLE t CHANGE a a FLOAT, CHANGE b b FLOAT;
+ERROR HY000: Check constraint 't_chk_1' is violated.
+ALTER TABLE t ADD CONSTRAINT CHECK(a > b);
+ERROR HY000: Check constraint 't_chk_2' is violated.
+DROP TABLE t;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with IN operator.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 int CHECK (f1 IN (10, 20, 30)), f2 int, CHECK(f2 IN (100, 120, 450)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` in (10,20,30))),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` in (100,120,450)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(10, 100);
+INSERT INTO t1 VALUES(15, 100);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(10, 105);
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with BETWEEN operator.
+#------------------------------------------------------------------------
+CREATE TABLE t1(f1 int CHECK(f1 BETWEEN 10 AND 30),
+f2 int, CHECK(f2 BETWEEN 100 AND 450));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` between 10 and 30)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` between 100 and 450))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(20, 200);
+INSERT INTO t1 VALUES(2, 200);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(20, 2000);
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with IS NOT NULL.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (f1 int CHECK(f1 IS NOT NULL));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` is not null))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(10);
+INSERT INTO t1 VALUES(NULL);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with IS NULL.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (f1 int CHECK(f1 IS NULL));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK (isnull(`f1`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(NULL);
+INSERT INTO t1 VALUES(10);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with CASE Statement
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT);
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (CASE WHEN c1 > 10 THEN c2 = 20 END) = 1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK (((case when (`c1` > 10) then (`c2` = 20) end) = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(1,1);
+INSERT INTO t1 VALUES(15,1);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(15,20);
+SELECT * FROM t1;
+c1	c2
+1	1
+15	20
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints restrictions.
+#------------------------------------------------------------------------
+# Check constraint using column with AUTO_INCREMENT attribute.
+CREATE TABLE t1 (f1 int primary key auto_increment, f2 int, CHECK (f1 != f2));
+ERROR HY000: Check constraint 't1_chk_1' cannot refer to an auto-increment column.
+CREATE TABLE t1 (f1 int primary key auto_increment CHECK (f1 < 10), f2 int, CHECK (f1 != f2));
+ERROR HY000: Check constraint 't1_chk_1' cannot refer to an auto-increment column.
+# Check constraint using non-deterministic builtin functions.
+# NOW()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + NOW() > '2011-11-21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# CURRENT_TIMESTAMP()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIMESTAMP() > '2011-11-21 01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# CURRENT_TIMESTAMP
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIMESTAMP > '2011-11-21 01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# CURDATE()
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + CURDATE() > '2011-11-21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curdate.
+# CURTIME()
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + CURTIME() > '23:11:21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curtime.
+# CURTIME
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIME > '01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curtime.
+# CURRENT_DATE()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_DATE() > '2011-11-21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curdate.
+# CURRENT_DATE
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_DATE > '2011-11-21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curdate.
+# CURRENT_TIME()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIME() > '01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curtime.
+# CURRENT_TIME
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + CURRENT_TIME > '01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: curtime.
+# LOCALTIME()
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + LOCALTIME() > '23:11:21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# LOCALTIME
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + LOCALTIME > '23:11:21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# LOCALTIMESTAMP()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + LOCALTIMESTAMP() > '2011-11-21 01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# LOCALTIMESTAMP
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + LOCALTIMESTAMP > '2011-11-21 01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: now.
+# UNIX_TIMESTAMP()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + UNIX_TIMESTAMP() > '2011-11-21 01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: unix_timestamp.
+# UNIX_DATE()
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + UTC_DATE() > '2011-11-21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: utc_date.
+# UNIX_TIMESTAMP()
+CREATE TABLE t1 (f1 TIMESTAMP CHECK (f1 + UTC_TIMESTAMP() > '2011-11-21 01:02:03'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: utc_timestamp.
+# UNIX_TIME()
+CREATE TABLE t1 (f1 DATETIME CHECK (f1 + UTC_TIME() > '23:11:21'));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: utc_time.
+# CONNECTION_ID
+CREATE TABLE t1 (f1 INT CHECK (f1 + CONNECTION_ID() < 929));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: connection_id.
+# CURRENT_USER()
+CREATE TABLE t1 (a VARCHAR(32) CHECK (CURRENT_USER() != a));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: current_user.
+# CURRENT_USER
+CREATE TABLE t1 (a VARCHAR(32) CHECK (CURRENT_USER != a));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: current_user.
+# SESSION_USER()
+CREATE TABLE t1 (a VARCHAR(32) CHECK (SESSION_USER() != a));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: user.
+# VERSION()
+CREATE TABLE t1 (a VARCHAR(32) CHECK (VERSION() != a));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: version().
+# FOUND_ROWS
+CREATE TABLE t1 (a VARCHAR(1024), b INT CHECK (b + FOUND_ROWS() > 2000));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: found_rows.
+# LAST_INSERT_ID
+CREATE TABLE t1 (a INT CHECK ((a + LAST_INSERT_ID()) < 929));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: last_insert_id.
+# SYSTEM_USER
+CREATE TABLE t1 (a VARCHAR(32) CHECK (SYSTEM_USER() != a));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: user.
+# USER
+CREATE TABLE t1 (a VARCHAR(32) CHECK (USER() != a));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: user.
+# RAND()
+CREATE TABLE t1 (f1 FLOAT CHECK (f1 + RAND() < 929.929));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: rand.
+# ROW_COUNT()
+CREATE TABLE t1 (a INT CHECK (a + ROW_COUNT() > 1000));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: row_count.
+# GET_LOCK()
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (GET_LOCK(b,10) != 0));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: get_lock.
+# IS_FREE_LOCK()
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (IS_FREE_LOCK(b) != 0));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: is_free_lock.
+# IS_USED_LOCK()
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (IS_USED_LOCK(b) != 0));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: is_used_lock.
+# RELEASE_LOCK()
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) CHECK (RELEASE_LOCK(b) != 0));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: release_lock.
+# RELEASE_ALL_LOCK()
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024), CHECK (RELEASE_ALL_LOCKS() != 0));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: release_all_locks.
+# LOAD_FILE
+CREATE TABLE t1 (f1 VARCHAR(1024), f2 VARCHAR(1024) CHECK (LOAD_FILE(f2) != NULL));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: load_file.
+# UUID()
+CREATE TABLE t1 (id CHAR(40) CHECK(UUID() != id));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: uuid.
+# UUID_SHORT
+CREATE TABLE t1 (id INT CHECK(UUID_SHORT() != id));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: uuid_short.
+# SLEEP
+CREATE TABLE t1 (id INT CHECK(SLEEP(id) != 0));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: sleep.
+# Stored function
+CREATE FUNCTION func() RETURNS INT DETERMINISTIC return 1;
+CREATE TABLE t1 (id INT CHECK(id = func()));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: `func`.
+DROP FUNCTION func;
+# Stored procedure
+CREATE PROCEDURE proc() SELECT 1;
+CREATE TABLE t1 (id INT CHECK(id = proc()));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function: `proc`.
+DROP PROCEDURE proc;
+# User variable
+SET @v = 10;
+CREATE TABLE t1 (id INT CHECK (id != @v));
+ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variable.
+# System variables.
+CREATE TABLE t1 (id INT CHECK (id != @@global.max_execution_time));
+ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variable.
+CREATE TABLE t1 (id INt CHECK (id != @@session.max_execution_time));
+ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variable.
+# Subquery
+CREATE TABLE t1 (id INT CHECK (id != (SELECT 1)));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
+# Parameter
+PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
+EXECUTE stmt using @v;
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
+DEALLOCATE PREPARE stmt;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with numeric data types.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (
+c1 BIT(7) CHECK(c1 < B'1111100'),
+c2 BOOLEAN CHECK(c2 > 0),
+c3 TINYINT CHECK(c3 > 10),
+c4 SMALLINT CHECK(c4 > 10),
+c5 MEDIUMINT CHECK(c5 > 10),
+c6 INT CHECK(c6 > 10),
+c7 BIGINT CHECK(c7 > 10),
+c8 DECIMAL(6,2) CHECK(c8 > 10.1),
+c9 FLOAT(6,2) CHECK(c9 > 10.1),
+c10 DOUBLE(6,2) CHECK(c10 > 10.1));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bit(7) DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
+  `c3` tinyint(4) DEFAULT NULL,
+  `c4` smallint(6) DEFAULT NULL,
+  `c5` mediumint(9) DEFAULT NULL,
+  `c6` int(11) DEFAULT NULL,
+  `c7` bigint(20) DEFAULT NULL,
+  `c8` decimal(6,2) DEFAULT NULL,
+  `c9` float(6,2) DEFAULT NULL,
+  `c10` double(6,2) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` < 0x7c)),
+  CONSTRAINT `t1_chk_10` CHECK ((`c10` > 10.1)),
+  CONSTRAINT `t1_chk_2` CHECK ((`c2` > 0)),
+  CONSTRAINT `t1_chk_3` CHECK ((`c3` > 10)),
+  CONSTRAINT `t1_chk_4` CHECK ((`c4` > 10)),
+  CONSTRAINT `t1_chk_5` CHECK ((`c5` > 10)),
+  CONSTRAINT `t1_chk_6` CHECK ((`c6` > 10)),
+  CONSTRAINT `t1_chk_7` CHECK ((`c7` > 10)),
+  CONSTRAINT `t1_chk_8` CHECK ((`c8` > 10.1)),
+  CONSTRAINT `t1_chk_9` CHECK ((`c9` > 10.1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(c1) VALUES(B'1111110');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1(c2) VALUES(0);
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+INSERT INTO t1(c3) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_3' is violated.
+INSERT INTO t1(c4) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_4' is violated.
+INSERT INTO t1(c5) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_5' is violated.
+INSERT INTO t1(c6) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_6' is violated.
+INSERT INTO t1(c7) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_7' is violated.
+INSERT INTO t1(c8) VALUES(10.0);
+ERROR HY000: Check constraint 't1_chk_8' is violated.
+INSERT INTO t1(c9) VALUES(10.0);
+ERROR HY000: Check constraint 't1_chk_9' is violated.
+INSERT INTO t1(c10) VALUES(10.0);
+ERROR HY000: Check constraint 't1_chk_10' is violated.
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+VALUES(B'1111000',1,11,11,11,11,11,10.2,10.2,10.2);
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with string data types.
+#------------------------------------------------------------------------
+CREATE TABLE t1(c1 CHAR(1) CHECK(c1 > 'a'),
+c2 VARCHAR(1) CHECK(c2 > 'a'),
+c3 BINARY(1) CHECK(c3 > 'a'),
+c4 VARBINARY(1) CHECK(c4 > 'a'),
+c5 TINYBLOB CHECK(c5 > 'a'),
+c6 TINYTEXT CHECK(c6 > 'a'),
+c7 BLOB CHECK(c7 > 'a'),
+c8 TEXT CHECK(c8 > 'a'),
+c9 MEDIUMBLOB CHECK(c9 > 'a'),
+c10 MEDIUMTEXT CHECK(c10 > 'a'),
+c11 LONGBLOB CHECK(c11 > 'a'),
+c12 LONGTEXT CHECK(c12 > 'a'));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(1) DEFAULT NULL,
+  `c2` varchar(1) DEFAULT NULL,
+  `c3` binary(1) DEFAULT NULL,
+  `c4` varbinary(1) DEFAULT NULL,
+  `c5` tinyblob,
+  `c6` tinytext,
+  `c7` blob,
+  `c8` text,
+  `c9` mediumblob,
+  `c10` mediumtext,
+  `c11` longblob,
+  `c12` longtext,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_10` CHECK ((`c10` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_11` CHECK ((`c11` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_12` CHECK ((`c12` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_2` CHECK ((`c2` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_3` CHECK ((`c3` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_4` CHECK ((`c4` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_5` CHECK ((`c5` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_6` CHECK ((`c6` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_7` CHECK ((`c7` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_8` CHECK ((`c8` > _utf8mb4'a')),
+  CONSTRAINT `t1_chk_9` CHECK ((`c9` > _utf8mb4'a'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(c1) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1(c2) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+INSERT INTO t1(c3) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_3' is violated.
+INSERT INTO t1(c4) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_4' is violated.
+INSERT INTO t1(c5) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_5' is violated.
+INSERT INTO t1(c6) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_6' is violated.
+INSERT INTO t1(c7) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_7' is violated.
+INSERT INTO t1(c8) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_8' is violated.
+INSERT INTO t1(c9) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_9' is violated.
+INSERT INTO t1(c10) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_10' is violated.
+INSERT INTO t1(c11) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_11' is violated.
+INSERT INTO t1(c12) VALUES('a');
+ERROR HY000: Check constraint 't1_chk_12' is violated.
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+VALUES('b',"b","b","b","b","b","b","b","b","b","b","b");
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with date and time data types.
+#------------------------------------------------------------------------
+CREATE TABLE t1 (c1 DATE CHECK(c1 > '2007-01-01'),
+c2 DATETIME CHECK(c2 > '2007-01-01 12:00:01'),
+c3 TIMESTAMP CHECK(c3 > '2007-01-01 00:00:01.000000'),
+c4 TIME CHECK(c4 > '12:00:01.000000'),
+c5 YEAR CHECK(c5 > '2007'));
+INSERT INTO t1(c1) VALUES('2006-01-01');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1(c2) VALUES('2007-01-01 11:00:01');
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+INSERT INTO t1(c3) VALUES('2007-01-01 00:00:00.000000');
+ERROR HY000: Check constraint 't1_chk_3' is violated.
+INSERT INTO t1(c4) VALUES('12:00:00.000000');
+ERROR HY000: Check constraint 't1_chk_4' is violated.
+INSERT INTO t1(c5) VALUES('2006');
+ERROR HY000: Check constraint 't1_chk_5' is violated.
+INSERT INTO t1(c1,c2,c3,c4,c5)
+VALUES('2008-01-01','2007-01-01 12:00:02','2007-01-01 00:00:02.000000',
+'12:00:02.000000','2008');
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with JSON data type.
+#------------------------------------------------------------------------
+CREATE TABLE t1(
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(255),
+browser JSON CHECK( browser->'$.name' = "Chrome" ));
+INSERT INTO t1(name,browser)
+VALUES('pageview','{ "name": "Safari", "os": "Mac" }');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1(name,browser)
+VALUES('pageview','{ "name": "Chrome", "os": "Mac" }');
+SELECT * FROM t1;
+id	name	browser
+1	pageview	{"os": "Mac", "name": "Chrome"}
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# check constraint with ENUM data type
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (c1 ENUM ('a','b') CHECK (c1 IN ('c', 'd')) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` enum('a','b') DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` in (_utf8mb4'c',_utf8mb4'd')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('a');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES('b');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES('c');
+ERROR 01000: Data truncated for column 'c1' at row 1
+INSERT INTO t1 VALUES('d');
+ERROR 01000: Data truncated for column 'c1' at row 1
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# check constraint with SET data type
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (c1 SET ('a','b') CHECK (c1 IN ('c', 'd')) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` set('a','b') DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` in (_utf8mb4'c',_utf8mb4'd')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES('a');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES('b');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES('c');
+ERROR 01000: Data truncated for column 'c1' at row 1
+INSERT INTO t1 VALUES('d');
+ERROR 01000: Data truncated for column 'c1' at row 1
+DROP TABLE t1;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with spatial data type.
+#------------------------------------------------------------------------
+CREATE TABLE t1(
+pt POINT CHECK(ST_Equals(pt, ST_GEOMFROMTEXT('POINT(10 20)')) = TRUE),
+lnstr LINESTRING CHECK(ST_Equals(lnstr, ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)'))),
+mlnstr MULTILINESTRING CHECK(ST_Equals(mlnstr, ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),
+                                                                  (6 6,8 8,9 9,10 10))'))),
+poly POLYGON CHECK(ST_Equals(poly, ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),
+                                                     (3 6,4 6,4 7,3 6))'))),
+mpoly MULTIPOLYGON CHECK(ST_Equals(mpoly, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),
+                                                             ((2 2,4 5,6 2,2 2)))'))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pt` point DEFAULT NULL,
+  `lnstr` linestring DEFAULT NULL,
+  `mlnstr` multilinestring DEFAULT NULL,
+  `poly` polygon DEFAULT NULL,
+  `mpoly` multipolygon DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((st_equals(`pt`,st_geomfromtext(_utf8mb4'POINT(10 20)')) = TRUE)),
+  CONSTRAINT `t1_chk_2` CHECK (st_equals(`lnstr`,st_geomfromtext(_utf8mb4'LINESTRING(0 0,5 5,6 6)'))),
+  CONSTRAINT `t1_chk_3` CHECK (st_equals(`mlnstr`,st_geomfromtext(_utf8mb4'MULTILINESTRING((0 0,2 3,4 5),\n                                                                  (6 6,8 8,9 9,10 10))'))),
+  CONSTRAINT `t1_chk_4` CHECK (st_equals(`poly`,st_geomfromtext(_utf8mb4'POLYGON((0 0,6 7,8 8,3 9,0 0),\n                                                     (3 6,4 6,4 7,3 6))'))),
+  CONSTRAINT `t1_chk_5` CHECK (st_equals(`mpoly`,st_geomfromtext(_utf8mb4'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),\n                                                             ((2 2,4 5,6 2,2 2)))')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(pt) VALUES (ST_GEOMFROMTEXT('POINT(10 21)'));
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1(lnstr) VALUES (ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 7)'));
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+INSERT INTO t1(mlnstr) VALUES (ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 11))'));
+ERROR HY000: Check constraint 't1_chk_3' is violated.
+INSERT INTO t1(poly) VALUES (ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 8,3 6))'));
+ERROR HY000: Check constraint 't1_chk_4' is violated.
+INSERT INTO t1(mpoly) VALUES (ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((2 2,4 5,6 3,2 2)))'));
+ERROR HY000: Check constraint 't1_chk_5' is violated.
+INSERT INTO t1(pt) VALUES (ST_GEOMFROMTEXT('POINT(10 20)'));
+INSERT INTO t1(lnstr) VALUES (ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)'));
+INSERT INTO t1(mlnstr) VALUES (ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 10))'));
+INSERT INTO t1(poly) VALUES (ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 7,3 6))'));
+INSERT INTO t1(mpoly) VALUES (ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((2 2,4 5,6 2,2 2)))'));
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with REGEX
+#-----------------------------------------------------------------------
+CREATE TABLE student
+(
+id      	INT,
+stu_code 	VARCHAR(10),
+name    	VARCHAR(14),
+email   	VARCHAR(20),
+scholarship 	INT,
+country 	VARCHAR(20),
+CONSTRAINT ck1 CHECK (id != 0),
+CONSTRAINT ck2 CHECK (stu_code like 'j%'),
+CONSTRAINT ck3 CHECK (lower(name) != "noname"),
+CONSTRAINT ck4 CHECK (REGEXP_LIKE(email,'@')),
+CONSTRAINT ck5 CHECK (scholarship BETWEEN 5000 AND 20000),
+CONSTRAINT ck6 CHECK (country IN ('usa','uk'))
+);
+SHOW CREATE TABLE student;
+Table	Create Table
+student	CREATE TABLE `student` (
+  `id` int(11) DEFAULT NULL,
+  `stu_code` varchar(10) DEFAULT NULL,
+  `name` varchar(14) DEFAULT NULL,
+  `email` varchar(20) DEFAULT NULL,
+  `scholarship` int(11) DEFAULT NULL,
+  `country` varchar(20) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`id` <> 0)),
+  CONSTRAINT `ck2` CHECK ((`stu_code` like _utf8mb4'j%')),
+  CONSTRAINT `ck3` CHECK ((lower(`name`) <> _utf8mb4'noname')),
+  CONSTRAINT `ck4` CHECK (regexp_like(`email`,_utf8mb4'@')),
+  CONSTRAINT `ck5` CHECK ((`scholarship` between 5000 and 20000)),
+  CONSTRAINT `ck6` CHECK ((`country` in (_utf8mb4'usa',_utf8mb4'uk')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO student VALUES(0,"j001","name1","name1@oracle.com",6000,'usa');
+ERROR HY000: Check constraint 'ck1' is violated.
+INSERT INTO student VALUES(1,"s001","name1","name1@oracle.com",6000,'usa');
+ERROR HY000: Check constraint 'ck2' is violated.
+INSERT INTO student VALUES(1,"j001","NONAME","name1@oracle.com",6000,'usa');
+ERROR HY000: Check constraint 'ck3' is violated.
+INSERT INTO student VALUES(1,"j001","name1","name1oracle.com",6000,'usa');
+ERROR HY000: Check constraint 'ck4' is violated.
+INSERT INTO student VALUES(1,"j001","name1","name1@oracle.com",4000,'usa');
+ERROR HY000: Check constraint 'ck5' is violated.
+INSERT INTO student VALUES(1,"j001","name1","name1@oracle.com",6000,'nocountry');
+ERROR HY000: Check constraint 'ck6' is violated.
+INSERT INTO student VALUES(1,"j001","name1","name1@oracle.com",6000,'usa');
+SELECT * FROM student;
+id	stu_code	name	email	scholarship	country
+1	j001	name1	name1@oracle.com	6000	usa
+DROP TABLE student;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with numeric comparator
+# operators with varchar columns.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 VARCHAR(20));
+ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK ( c1 > c2 );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(20) DEFAULT NULL,
+  CONSTRAINT `ck1` CHECK ((`c1` > `c2`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with Comparison Functions
+# and Operators
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, CHECK ( c1 IN ( SELECT COALESCE(NULL, 1, 1))));
+ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
+CREATE TABLE t1(c1 INT, CHECK ( c1 < ( SELECT COALESCE(NULL, 1, 1))));
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
+CREATE TABLE t1(c1 INT , CHECK ( c1 <=> NULL ));
+INSERT INTO t1 VALUES(1);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+c1
+NULL
+ALTER TABLE t1 ADD COLUMN c2 INT, ADD CONSTRAINT CHECK( c2 > 10 );
+INSERT INTO t1(c2) VALUES(10);
+ERROR HY000: Check constraint 't1_chk_2' is violated.
+INSERT INTO t1(c2) VALUES(11);
+ALTER TABLE t1 ADD COLUMN c3 INT, ADD CONSTRAINT CHECK( c3 >= 10 );
+INSERT INTO t1(c3) VALUES(9);
+ERROR HY000: Check constraint 't1_chk_3' is violated.
+INSERT INTO t1(c3) VALUES(10);
+ALTER TABLE t1 ADD COLUMN c4 INT, ADD CONSTRAINT CHECK( c4 < 10 );
+INSERT INTO t1(c4) VALUES(10);
+ERROR HY000: Check constraint 't1_chk_4' is violated.
+INSERT INTO t1(c4) VALUES(9);
+ALTER TABLE t1 ADD COLUMN c5 INT, ADD CONSTRAINT CHECK( c5 <= 10 );
+INSERT INTO t1(c5) VALUES(11);
+ERROR HY000: Check constraint 't1_chk_5' is violated.
+INSERT INTO t1(c5) VALUES(10);
+ALTER TABLE t1 ADD COLUMN c6 INT, ADD CONSTRAINT CHECK( c6 != 10 );
+INSERT INTO t1(c6) VALUES(10);
+ERROR HY000: Check constraint 't1_chk_6' is violated.
+INSERT INTO t1(c6) VALUES(20);
+ALTER TABLE t1 ADD COLUMN c7 INT, ADD CONSTRAINT CHECK( c7 <> 10 );
+INSERT INTO t1(c7) VALUES(10);
+ERROR HY000: Check constraint 't1_chk_7' is violated.
+INSERT INTO t1(c7) VALUES(20);
+ALTER TABLE t1 ADD COLUMN c8 INT, ADD CONSTRAINT CHECK( c8 = GREATEST(1,2,3) );
+INSERT INTO t1(c8) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_8' is violated.
+INSERT INTO t1(c8) VALUES(3);
+ALTER TABLE t1 ADD COLUMN c9 INT, ADD CONSTRAINT CHECK( c9 = LEAST(1,2,3) );
+INSERT INTO t1(c9) VALUES(3);
+ERROR HY000: Check constraint 't1_chk_9' is violated.
+INSERT INTO t1(c9) VALUES(1);
+ALTER TABLE t1 ADD COLUMN c10 INT, ADD CONSTRAINT CHECK( c10 NOT IN (1,2,3) );
+INSERT INTO t1(c10) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_10' is violated.
+INSERT INTO t1(c10) VALUES(3);
+ERROR HY000: Check constraint 't1_chk_10' is violated.
+INSERT INTO t1(c10) VALUES(10);
+ALTER TABLE t1 ADD COLUMN c11 YEAR, ADD CONSTRAINT CHECK ( c11 > '2007-01-01' + INTERVAL +1 YEAR);
+INSERT INTO t1(c11) VALUES(2007);
+ERROR HY000: Check constraint 't1_chk_11' is violated.
+INSERT INTO t1(c11) VALUES(2008);
+ERROR HY000: Check constraint 't1_chk_11' is violated.
+INSERT INTO t1(c11) VALUES(2009);
+ALTER TABLE t1 ADD COLUMN c12 INT, ADD CONSTRAINT CHECK ( c12 NOT BETWEEN 10 AND 20);
+INSERT INTO t1(c12) VALUES(15);
+ERROR HY000: Check constraint 't1_chk_12' is violated.
+INSERT INTO t1(c12) VALUES(25);
+ALTER TABLE t1 ADD COLUMN c13 INT, ADD CONSTRAINT CHECK ( c13 NOT IN (1, 2, 3));
+INSERT INTO t1(c13) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_13' is violated.
+INSERT INTO t1(c13) VALUES(15);
+ALTER TABLE t1 ADD COLUMN c14 CHAR(10), ADD CONSTRAINT CHECK ( c14 LIKE 'A%');
+INSERT INTO t1(c14) VALUES('Good');
+ERROR HY000: Check constraint 't1_chk_14' is violated.
+INSERT INTO t1(c14) VALUES('All');
+ALTER TABLE t1 ADD COLUMN c15 INT, ADD CONSTRAINT CHECK ( c15 = STRCMP('A','A'));
+INSERT INTO t1(c15) VALUES(1);
+ERROR HY000: Check constraint 't1_chk_15' is violated.
+INSERT INTO t1(c15) VALUES(0);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  `c5` int(11) DEFAULT NULL,
+  `c6` int(11) DEFAULT NULL,
+  `c7` int(11) DEFAULT NULL,
+  `c8` int(11) DEFAULT NULL,
+  `c9` int(11) DEFAULT NULL,
+  `c10` int(11) DEFAULT NULL,
+  `c11` year(4) DEFAULT NULL,
+  `c12` int(11) DEFAULT NULL,
+  `c13` int(11) DEFAULT NULL,
+  `c14` char(10) DEFAULT NULL,
+  `c15` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` <=> NULL)),
+  CONSTRAINT `t1_chk_10` CHECK ((`c10` not in (1,2,3))),
+  CONSTRAINT `t1_chk_11` CHECK ((`c11` > 2008)),
+  CONSTRAINT `t1_chk_12` CHECK ((`c12` not between 10 and 20)),
+  CONSTRAINT `t1_chk_13` CHECK ((`c13` not in (1,2,3))),
+  CONSTRAINT `t1_chk_14` CHECK ((`c14` like _utf8mb4'A%')),
+  CONSTRAINT `t1_chk_15` CHECK ((`c15` = strcmp(_utf8mb4'A',_utf8mb4'A'))),
+  CONSTRAINT `t1_chk_2` CHECK ((`c2` > 10)),
+  CONSTRAINT `t1_chk_3` CHECK ((`c3` >= 10)),
+  CONSTRAINT `t1_chk_4` CHECK ((`c4` < 10)),
+  CONSTRAINT `t1_chk_5` CHECK ((`c5` <= 10)),
+  CONSTRAINT `t1_chk_6` CHECK ((`c6` <> 10)),
+  CONSTRAINT `t1_chk_7` CHECK ((`c7` <> 10)),
+  CONSTRAINT `t1_chk_8` CHECK ((`c8` = greatest(1,2,3))),
+  CONSTRAINT `t1_chk_9` CHECK ((`c9` = least(1,2,3)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with Logical Operators
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT);
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) AND (c2 < 20) );
+INSERT INTO t1 VALUES(1,10);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) && (c2 < 20) );
+INSERT INTO t1 VALUES(15,25);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+ALTER TABLE t1 DROP CHECK `t1_chk_1`;
+ALTER TABLE t1 DROP CHECK `t1_chk_2`;
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) || (c2 < 20) );
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) OR (c2 < 20) );
+INSERT INTO t1 VALUES(15,25);
+INSERT INTO t1 VALUES(5,10);
+INSERT INTO t1 VALUES(5,25);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+ALTER TABLE t1 DROP CHECK `t1_chk_1`;
+ALTER TABLE t1 DROP CHECK `t1_chk_2`;
+DELETE FROM t1;
+ALTER TABLE t1 ADD CONSTRAINT CHECK( (c1 > 10) XOR (c2 < 20) );
+INSERT INTO t1 VALUES(15,10);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK (((`c1` > 10) xor (`c2` < 20)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint behaviour with DEFAULT, NULL
+# and with LOGICAL operators.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 OR c1 IS NOT NULL));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL DEFAULT '2',
+  PRIMARY KEY (`c1`),
+  CONSTRAINT `t1_chk_1` CHECK (((`c1` > 1) or (`c1` is not null)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(NULL);
+ERROR 23000: Column 'c1' cannot be null
+INSERT INTO t1 VALUES(1);
+SELECT * FROM t1;
+c1
+1
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 OR c1 > 2));
+INSERT INTO t1 VALUES(1);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+c1
+2
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 AND c1 IS NOT NULL));
+INSERT INTO t1 VALUES(1);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint when table is moved to another DB
+#-----------------------------------------------------------------------
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+USE test1;
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test1	t1_chk_1	(`c2` < 10)
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test1	t1_chk_1	test1	t1	CHECK	YES
+ALTER TABLE test1.t1 rename test2.t1;
+USE test2;
+SELECT * FROM t1;
+c1	c2
+1	1
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test2	t1_chk_1	(`c2` < 10)
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test2	t1_chk_1	test2	t1	CHECK	YES
+DROP DATABASE test2;
+DROP DATABASE test1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint when table is moved to another DB
+# with different name.
+#-----------------------------------------------------------------------
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+USE test1;
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+INSERT INTO t1 VALUES(1,1);
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test1	t1_chk_1	(`c2` < 10)
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test1	t1_chk_1	test1	t1	CHECK	YES
+ALTER TABLE test1.t1 rename test2.t2;
+USE test2;
+SELECT * FROM t2;
+c1	c2
+1	1
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test2	t2_chk_1	(`c2` < 10)
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test2	t2_chk_1	test2	t2	CHECK	YES
+DROP DATABASE test2;
+DROP DATABASE test1;
+use test;
+#-----------------------------------------------------------------------
+# Test case to verify check constraints with foreign key constraint
+#-----------------------------------------------------------------------
+CREATE TABLE parent(pid INT NOT NULL PRIMARY KEY CHECK(pid > 1));
+CREATE TABLE child(cid INT CHECK(cid > 1),
+CONSTRAINT fk FOREIGN KEY (cid) REFERENCES parent(pid));
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pid` int(11) NOT NULL,
+  PRIMARY KEY (`pid`),
+  CONSTRAINT `parent_chk_1` CHECK ((`pid` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `cid` int(11) DEFAULT NULL,
+  KEY `fk` (`cid`),
+  CONSTRAINT `fk` FOREIGN KEY (`cid`) REFERENCES `parent` (`pid`),
+  CONSTRAINT `child_chk_1` CHECK ((`cid` > 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO parent VALUES(2);
+INSERT INTO child VALUES(1);
+ERROR HY000: Check constraint 'child_chk_1' is violated.
+INSERT INTO child VALUES(3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fk` FOREIGN KEY (`cid`) REFERENCES `parent` (`pid`))
+INSERT INTO child VALUES(2);
+SELECT * FROM parent;
+pid
+2
+SELECT * FROM child;
+cid
+2
+DROP TABLE child;
+DROP TABLE parent;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with FK referential actions.
+#-----------------------------------------------------------------------
+CREATE TABLE parent (a INT PRIMARY KEY);
+CREATE TABLE child (
+b INT,
+c INT CHECK (c < 10),
+INDEX(b),
+FOREIGN KEY (b) REFERENCES parent(a) ON DELETE SET NULL,
+CHECK (b IS NOT NULL)
+);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+CREATE TABLE child (
+b INT,
+c INT CHECK (c < 10),
+INDEX(b),
+FOREIGN KEY (b) REFERENCES parent(a) ON DELETE SET NULL
+);
+ALTER TABLE child ADD CONSTRAINT CHECK (b IS NOT NULL);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+ALTER TABLE child DROP FOREIGN KEY child_ibfk_1;
+ALTER TABLE child ADD CONSTRAINT FOREIGN KEY (b) REFERENCES parent(a) ON DELETE SET NULL,
+ADD CONSTRAINT CHECK (b IS NOT NULL);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+DROP TABLE child;
+CREATE TABLE child (
+b INT,
+c INT CHECK (c < 10),
+INDEX(b),
+FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE SET NULL,
+CHECK (b IS NOT NULL)
+);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+CREATE TABLE child (
+b INT,
+c INT CHECK (c < 10),
+INDEX(b),
+FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE SET NULL
+);
+ALTER TABLE child ADD CONSTRAINT CHECK (b IS NOT NULL);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+ALTER TABLE child DROP FOREIGN KEY child_ibfk_1;
+ALTER TABLE child ADD CONSTRAINT FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE SET NULL,
+ADD CONSTRAINT CHECK (b IS NOT NULL);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+DROP TABLE child;
+CREATE TABLE child (
+b INT,
+c INT CHECK (c < 10),
+INDEX(b),
+FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE CASCADE,
+CHECK (b IS NOT NULL)
+);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+CREATE TABLE child (
+b INT,
+c INT CHECK (c < 10),
+INDEX(b),
+FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE CASCADE
+);
+ALTER TABLE child ADD CONSTRAINT CHECK (b IS NOT NULL);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+ALTER TABLE child DROP FOREIGN KEY child_ibfk_1;
+ALTER TABLE child ADD CONSTRAINT FOREIGN KEY (b) REFERENCES parent(a) ON UPDATE CASCADE,
+ADD CONSTRAINT CHECK (b IS NOT NULL);
+ERROR HY000: Column 'b' cannot be used in a check constraint 'child_chk_2': needed in a foreign key constraint 'child_ibfk_1' referential action.
+DROP TABLE child;
+DROP TABLE parent;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with triggers
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+CREATE TABLE t2(c1 INT, c2 INT);
+CREATE TRIGGER before_t2_insert
+BEFORE INSERT ON t2
+FOR EACH ROW
+BEGIN
+INSERT INTO t1 VALUES(NEW.c1,NEW.c2);
+END
+//
+INSERT INTO t2 VALUES(1,20);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+c1	c2
+SELECT * FROM t2;
+c1	c2
+DROP TRIGGER before_t2_insert;
+CREATE TRIGGER after_t2_insert
+AFTER INSERT ON t2
+FOR EACH ROW
+BEGIN
+INSERT INTO t1 VALUES(NEW.c1,NEW.c2);
+END
+//
+INSERT INTO t2 VALUES(1,30);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+c1	c2
+SELECT * FROM t2;
+c1	c2
+DROP TRIGGER after_t2_insert;
+INSERT INTO t2 VALUES(1,5);
+INSERT INTO t1 VALUES(1,5);
+CREATE TRIGGER before_t2_update
+BEFORE UPDATE ON t2
+FOR EACH ROW
+BEGIN
+UPDATE t1 SET c2=NEW.c2 WHERE c1=NEW.c1;
+END
+//
+UPDATE t2 SET c2=20 WHERE c1=1;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+c1	c2
+1	5
+SELECT * FROM t2;
+c1	c2
+1	5
+DROP TRIGGER before_t2_update;
+CREATE TRIGGER after_t2_update
+AFTER UPDATE ON t2
+FOR EACH ROW
+BEGIN
+UPDATE t1 SET c2=NEW.c2 WHERE c1=NEW.c1;
+END
+//
+UPDATE t2 SET c2=20 WHERE c1=1;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+c1	c2
+1	5
+SELECT * FROM t2;
+c1	c2
+1	5
+DROP TRIGGER after_t2_update;
+CREATE TRIGGER before_t1_insert
+BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+IF (NEW.c2 >= 10) THEN
+SET NEW.c2 = 0;
+END IF;
+END
+//
+CREATE TRIGGER before_t1_update
+BEFORE UPDATE ON t1
+FOR EACH ROW
+BEGIN
+IF (NEW.c2 >= 10) THEN
+SET NEW.c2 = 0;
+END IF;
+END
+//
+INSERT INTO t1 VALUES(1, 11);
+UPDATE t1 SET c2 = 11 WHERE c1 = 1;
+DROP TRIGGER before_t1_insert;
+DROP TRIGGER before_t1_update;
+DROP TABLE t1,t2;
+#-----------------------------------------------------------------------
+# Test case uses triggers to work as check constraints.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 int CONSTRAINT ck1 CHECK(c1 < 5));
+CREATE PROCEDURE proc1 (IN val1 INT)
+BEGIN
+IF val1 < 10 THEN
+SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'check constraint on c1 failed';
+END IF;
+END
+//
+CREATE TRIGGER before_t1_insert
+BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+CALL proc1(new.c1);
+END
+//
+INSERT INTO t1 VALUES(20);
+ERROR HY000: Check constraint 'ck1' is violated.
+INSERT INTO t1 VALUES(9);
+ERROR 45000: check constraint on c1 failed
+INSERT INTO t1 VALUES(4);
+ERROR 45000: check constraint on c1 failed
+DROP PROCEDURE proc1;
+DROP TRIGGER before_t1_insert;
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with mysqldump
+#-----------------------------------------------------------------------
+CREATE DATABASE test1;
+USE test1;
+CREATE TABLE t1 (
+c1 BIT(7) CHECK(c1 < B'1111100') NOT ENFORCED,
+c2 BOOLEAN CHECK(c2 > 0) NOT ENFORCED,
+c3 TINYINT CHECK(c3 > 10) NOT ENFORCED,
+c4 SMALLINT CHECK(c4 > 10) NOT ENFORCED,
+c5 MEDIUMINT CHECK(c5 > 10) NOT ENFORCED,
+c6 INT CHECK(c6 > 10),
+c7 BIGINT CHECK(c7 > 10),
+c8 DECIMAL(6,2) CHECK(c8 > 10.1),
+c9 FLOAT(6,2) CHECK(c9 > 10.1),
+c10 DOUBLE(6,2) CHECK(c10 > 10.1),
+c11 CHAR(6) CHECK (c11 IS NULL));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bit(7) DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
+  `c3` tinyint(4) DEFAULT NULL,
+  `c4` smallint(6) DEFAULT NULL,
+  `c5` mediumint(9) DEFAULT NULL,
+  `c6` int(11) DEFAULT NULL,
+  `c7` bigint(20) DEFAULT NULL,
+  `c8` decimal(6,2) DEFAULT NULL,
+  `c9` float(6,2) DEFAULT NULL,
+  `c10` double(6,2) DEFAULT NULL,
+  `c11` char(6) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` < 0x7c)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_10` CHECK ((`c10` > 10.1)),
+  CONSTRAINT `t1_chk_11` CHECK (isnull(`c11`)),
+  CONSTRAINT `t1_chk_2` CHECK ((`c2` > 0)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`c3` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_4` CHECK ((`c4` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_5` CHECK ((`c5` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_6` CHECK ((`c6` > 10)),
+  CONSTRAINT `t1_chk_7` CHECK ((`c7` > 10)),
+  CONSTRAINT `t1_chk_8` CHECK ((`c8` > 10.1)),
+  CONSTRAINT `t1_chk_9` CHECK ((`c9` > 10.1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE test1;
+USE test1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bit(7) DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
+  `c3` tinyint(4) DEFAULT NULL,
+  `c4` smallint(6) DEFAULT NULL,
+  `c5` mediumint(9) DEFAULT NULL,
+  `c6` int(11) DEFAULT NULL,
+  `c7` bigint(20) DEFAULT NULL,
+  `c8` decimal(6,2) DEFAULT NULL,
+  `c9` float(6,2) DEFAULT NULL,
+  `c10` double(6,2) DEFAULT NULL,
+  `c11` char(6) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` < 0x7c)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_10` CHECK ((`c10` > 10.1)),
+  CONSTRAINT `t1_chk_11` CHECK (isnull(`c11`)),
+  CONSTRAINT `t1_chk_2` CHECK ((`c2` > 0)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_3` CHECK ((`c3` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_4` CHECK ((`c4` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_5` CHECK ((`c5` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t1_chk_6` CHECK ((`c6` > 10)),
+  CONSTRAINT `t1_chk_7` CHECK ((`c7` > 10)),
+  CONSTRAINT `t1_chk_8` CHECK ((`c8` > 10.1)),
+  CONSTRAINT `t1_chk_9` CHECK ((`c9` > 10.1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+VALUES(B'1111111',0,5,5,5,1,1,1.2,1.2,1.2);
+ERROR HY000: Check constraint 't1_chk_10' is violated.
+INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+VALUES(B'1111111',0,5,5,5,11,11,10.2,10.2,10.2);
+SELECT * FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11
+	0	5	5	5	11	11	10.20	10.20	10.20	NULL
+DROP TABLE t1;
+DROP DATABASE test1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with mysqlpump
+#-----------------------------------------------------------------------
+CREATE DATABASE test2;
+USE test2;
+CREATE TABLE t2 (
+c1 BIT(7) CHECK(c1 < B'1111100'),
+c2 BOOLEAN CHECK(c2 > 0),
+c3 TINYINT CHECK(c3 > 10),
+c4 SMALLINT CHECK(c4 > 10),
+c5 MEDIUMINT CHECK(c5 > 10),
+c6 INT CHECK(c6 > 10) NOT ENFORCED,
+c7 BIGINT CHECK(c7 > 10) NOT ENFORCED,
+c8 DECIMAL(6,2) CHECK(c8 > 10.1) NOT ENFORCED,
+c9 FLOAT(6,2) CHECK(c9 > 10.1) NOT ENFORCED,
+c10 DOUBLE(6,2) CHECK(c10 > 10.1) NOT ENFORCED);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bit(7) DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
+  `c3` tinyint(4) DEFAULT NULL,
+  `c4` smallint(6) DEFAULT NULL,
+  `c5` mediumint(9) DEFAULT NULL,
+  `c6` int(11) DEFAULT NULL,
+  `c7` bigint(20) DEFAULT NULL,
+  `c8` decimal(6,2) DEFAULT NULL,
+  `c9` float(6,2) DEFAULT NULL,
+  `c10` double(6,2) DEFAULT NULL,
+  CONSTRAINT `t2_chk_1` CHECK ((`c1` < 0x7c)),
+  CONSTRAINT `t2_chk_10` CHECK ((`c10` > 10.1)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_2` CHECK ((`c2` > 0)),
+  CONSTRAINT `t2_chk_3` CHECK ((`c3` > 10)),
+  CONSTRAINT `t2_chk_4` CHECK ((`c4` > 10)),
+  CONSTRAINT `t2_chk_5` CHECK ((`c5` > 10)),
+  CONSTRAINT `t2_chk_6` CHECK ((`c6` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_7` CHECK ((`c7` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_8` CHECK ((`c8` > 10.1)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_9` CHECK ((`c9` > 10.1)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE test2;
+USE test2;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bit(7) DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
+  `c3` tinyint(4) DEFAULT NULL,
+  `c4` smallint(6) DEFAULT NULL,
+  `c5` mediumint(9) DEFAULT NULL,
+  `c6` int(11) DEFAULT NULL,
+  `c7` bigint(20) DEFAULT NULL,
+  `c8` decimal(6,2) DEFAULT NULL,
+  `c9` float(6,2) DEFAULT NULL,
+  `c10` double(6,2) DEFAULT NULL,
+  CONSTRAINT `t2_chk_1` CHECK ((`c1` < 0x7c)),
+  CONSTRAINT `t2_chk_10` CHECK ((`c10` > 10.1)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_2` CHECK ((`c2` > 0)),
+  CONSTRAINT `t2_chk_3` CHECK ((`c3` > 10)),
+  CONSTRAINT `t2_chk_4` CHECK ((`c4` > 10)),
+  CONSTRAINT `t2_chk_5` CHECK ((`c5` > 10)),
+  CONSTRAINT `t2_chk_6` CHECK ((`c6` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_7` CHECK ((`c7` > 10)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_8` CHECK ((`c8` > 10.1)) /*!80016 NOT ENFORCED */,
+  CONSTRAINT `t2_chk_9` CHECK ((`c9` > 10.1)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+VALUES(B'1111000',0,10,10,10,5,5,9.1,9.1,9.1);
+ERROR HY000: Check constraint 't2_chk_2' is violated.
+INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
+VALUES(B'1111000',1,11,11,11,5,5,9.1,9.1,9.1);
+SELECT * FROM t2;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+x	1	11	11	11	5	5	9.10	9.10	9.10
+DROP TABLE t2;
+DROP DATABASE test2;
+USE test;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with PREPARE statement
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT CHECK(c1 > 10));
+PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(1)';
+EXECUTE stmt1;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DEALLOCATE PREPARE stmt1;
+PREPARE stmt2 FROM 'INSERT INTO t1 VALUES(20)';
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt2;
+SELECT * FROM t1;
+c1
+20
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint behaviour inside transaction
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(c1 INT CHECK(c1 > 10));
+SET AUTOCOMMIT = OFF;
+START TRANSACTION;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+ERROR HY000: Check constraint 't2_chk_1' is violated.
+ROLLBACK;
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
+START TRANSACTION;
+ALTER TABLE t1 ADD CONSTRAINT CHECK (C1 > 10);
+COMMIT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`C1` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET AUTOCOMMIT = ON;
+DROP TABLE t1,t2;
+#------------------------------------------------------------------------
+# Test case to verify check constraints with Partition table.
+#------------------------------------------------------------------------
+# check constraint with range partition
+CREATE TABLE t1(
+d DATE NOT NULL CHECK(YEAR(d) > '1950')
+)
+PARTITION BY RANGE( YEAR(d) ) (
+PARTITION p0 VALUES LESS THAN (1960),
+PARTITION p1 VALUES LESS THAN (1970),
+PARTITION p2 VALUES LESS THAN (1980),
+PARTITION p3 VALUES LESS THAN (1990)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `d` date NOT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((year(`d`) > _utf8mb4'1950'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`d`))
+(PARTITION p0 VALUES LESS THAN (1960) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (1970) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (1980) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (1990) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES('1940-01-01');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES('1960-01-01');
+SELECT * FROM t1;
+d
+1960-01-01
+DROP TABLE t1;
+# check constraint with list partition
+CREATE TABLE t1(
+id INT NOT NULL CHECK(id BETWEEN 10 AND 50),
+name VARCHAR(10)
+)
+PARTITION BY LIST(id) (
+PARTITION p0 VALUES IN (10,19),
+PARTITION p1 VALUES IN (20,29),
+PARTITION p2 VALUES IN (30,39),
+PARTITION p3 VALUES IN (40,49)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `name` varchar(10) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`id` between 10 and 50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`id`)
+(PARTITION p0 VALUES IN (10,19) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (20,29) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (30,39) ENGINE = InnoDB,
+ PARTITION p3 VALUES IN (40,49) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES(60,'aaa');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(30,'aaa');
+SELECT * FROM t1;
+id	name
+30	aaa
+DROP TABLE t1;
+# check constraint with hash partition
+CREATE TABLE t1(id INT NOT NULL CHECK(id > 10),
+name VARCHAR(40)
+)
+PARTITION BY HASH(id)
+PARTITIONS 4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `name` varchar(40) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`id` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+INSERT INTO t1 VALUES(1,'aaa');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(60,'aaa');
+SELECT * FROM t1;
+id	name
+60	aaa
+DROP TABLE t1;
+# check constraint with key partition
+CREATE TABLE t1(id INT PRIMARY KEY NOT NULL CHECK(id > 10),
+name VARCHAR(40)
+)
+PARTITION BY KEY()
+PARTITIONS 4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `name` varchar(40) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `t1_chk_1` CHECK ((`id` > 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
+INSERT INTO t1 VALUES(1,'aaa');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES(60,'aaa');
+SELECT * FROM t1;
+id	name
+60	aaa
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify alter operations on non-transactional SE table
+# with check constraints.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(f1 INT CHECK (f1 < 10)) ENGINE = myisam;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD f2 INT, ALGORITHM=copy;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER f1 SET DEFAULT 10, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT '10',
+  `f2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify check constraint with Updatable view
+#-----------------------------------------------------------------------
+CREATE TABLE t1(c1 INT, c2 INT CHECK (c2 < 10));
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO v1 VALUES(1,20);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO v1 VALUES(1,5);
+SELECT * FROM t1;
+c1	c2
+1	5
+SELECT * FROM v1;
+c1	c2
+1	5
+DROP VIEW v1;
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify error reporting when check constraint evaluation
+# fails due to type conversion issue.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 CHAR(10) CHECK (f1 < 10));
+INSERT INTO t1 VALUES ("xy");
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+# Show warnings lists error reported for type conversion issue too.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1292	Truncated incorrect DOUBLE value: 'xy'
+Error	3819	Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Bug#29191994 - MULTIPLE CONSTRAINTS ARE NOT ACCEPTED WHEN FIRST IS
+#                CHECK CONSTRAINT IN COLUMN.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(a INTEGER CHECK (a > 0) NOT NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2(a INTEGER CHECK (a > 0) UNIQUE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  CONSTRAINT `t2_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3(a INTEGER CHECK (a > 0) PRIMARY KEY);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  CONSTRAINT `t3_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t4(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  CONSTRAINT `t4_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t5(a INTEGER CHECK (a > 0) NOT ENFORCED NOT NULL);
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  CONSTRAINT `t5_chk_1` CHECK ((`a` > 0)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t6(a INTEGER CHECK (a > 0) UNIQUE CHECK (a IS NOT NULL) NULL CHECK (a < 100));
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  CONSTRAINT `t6_chk_1` CHECK ((`a` > 0)),
+  CONSTRAINT `t6_chk_2` CHECK ((`a` is not null)),
+  CONSTRAINT `t6_chk_3` CHECK ((`a` < 100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t7(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+# [NOT] ENFORCED must follow check constraint clause. Error is reported otherwise.
+CREATE TABLE t8(a INTEGER ENFORCED);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' ENFORCED)' at line 1
+CREATE TABLE t8(a INTEGER NOT ENFORCED);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOT ENFORCED)' at line 1
+CREATE TABLE t8(a INTEGER AUTO_INCREMENT NOT ENFORCED);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOT ENFORCED)' at line 1
+# Error is reported if column check constraints reference other columns of the
+# table. Following cases verify the same when multiple check constraints are
+# defined for a column.
+CREATE TABLE t8(a INTEGER, b INTEGER CHECK (a + b > 0) UNIQUE CHECK ( a - b < 1000));
+ERROR HY000: Column check constraint 't8_chk_1' references other column.
+CREATE TABLE t7(a INTEGER, b INTEGER CHECK (b > 0) UNIQUE CHECK ( a - b < 1000));
+ERROR HY000: Column check constraint 't7_chk_2' references other column.
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;

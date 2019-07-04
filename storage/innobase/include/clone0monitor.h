@@ -36,8 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/psi/mysql_stage.h"
 #include "ut0dbg.h"
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
-
 /** Class used to report CLONE progress via Performance Schema. */
 class Clone_Monitor {
  public:
@@ -46,6 +44,7 @@ class Clone_Monitor {
       : m_estimate(),
         m_work_done(),
         m_progress(),
+        m_estimate_bytes_left(),
         m_work_bytes_left(),
         m_cur_phase(NOT_STARTED) {
     m_pfs_data_chunk_size = ut_2_exp(PFS_DATA_CHUNK_SIZE_POW2);
@@ -61,29 +60,53 @@ class Clone_Monitor {
   }
 
   /** Initialize all monitoring data.
-  @param[in]	key	key to register stage event with performance
-  schema. */
-  void init_state(int key) {
+  @param[in]	key	PFS key to register stage event
+  @param[in]	enable  if true, enable PFS trackig. */
+  void init_state(PSI_stage_key key, bool enable) {
     change_phase();
     m_progress = nullptr;
     m_estimate = 0;
     m_work_done = 0;
+    m_estimate_bytes_left = 0;
     m_work_bytes_left = 0;
-    m_cur_phase = ESTIMATE_WORK;
 
-    if (key != s_invalid_key) {
+    if (enable && key != PSI_NOT_INSTRUMENTED) {
       m_progress = mysql_set_stage(key);
     }
+
+    if (m_progress == nullptr) {
+      m_cur_phase = NOT_STARTED;
+      return;
+    }
+
+    m_cur_phase = ESTIMATE_WORK;
+  }
+
+  /** @return true if in estimation phase */
+  bool is_estimation_phase() const { return (m_cur_phase == ESTIMATE_WORK); }
+
+  /** @return estimated work in bytes */
+  uint64_t get_estimate() {
+    uint64_t ret_estimate = 0;
+    if (m_estimate > 0) {
+      ret_estimate = m_estimate << PFS_DATA_CHUNK_SIZE_POW2;
+    }
+    ret_estimate += m_estimate_bytes_left;
+    return (ret_estimate);
   }
 
   /** Update the work estimated for the clone operation.
   @param[in]	size	size in bytes that needs to transferred
   across. */
-  void add_estimate(ib_uint64_t size) {
+  void add_estimate(uint64_t size) {
+    m_estimate += convert_bytes_to_work(size, true);
+
+    if (m_cur_phase == NOT_STARTED) {
+      return;
+    }
+
     ut_ad(m_cur_phase == ESTIMATE_WORK);
     ut_ad(m_progress != nullptr);
-
-    m_estimate += convert_bytes_to_work(size);
 
     mysql_stage_set_work_estimated(m_progress, m_estimate);
   }
@@ -92,11 +115,14 @@ class Clone_Monitor {
   param[in]	size	size in bytes that is being transferred
   across. */
   void update_work(uint size) {
-    ut_ad(m_cur_phase == COMPLETE_WORK);
+    if (m_cur_phase == NOT_STARTED) {
+      return;
+    }
+
     ut_ad(m_progress != nullptr);
+    ut_ad(m_cur_phase == COMPLETE_WORK);
 
-    m_work_done += convert_bytes_to_work(size);
-
+    m_work_done += convert_bytes_to_work(size, false);
     mysql_stage_set_work_completed(m_progress, m_work_done);
   }
 
@@ -107,8 +133,8 @@ class Clone_Monitor {
         return;
 
       case ESTIMATE_WORK:
-        if (m_work_bytes_left != 0) {
-          m_work_bytes_left = 0;
+        if (m_estimate_bytes_left != 0) {
+          m_estimate_bytes_left = 0;
           m_estimate++;
           mysql_stage_set_work_estimated(m_progress, m_estimate);
         }
@@ -130,40 +156,36 @@ class Clone_Monitor {
     }
   }
 
-  /* Invalid PFS key */
-  static const int s_invalid_key = -1;
-
  private:
   /** Translate bytes to  work unit.
   @param[in]	size	size in bytes that needs to be converted to the
+  @param[in]	is_estimate	if called during estimation
   corresponding work unit.
   @return the number of PFS chunks that the size constitutes. */
-  uint convert_bytes_to_work(ib_uint64_t size) {
-    uint aligned_size;
-    int chunks;
+  uint64_t convert_bytes_to_work(uint64_t size, bool is_estimate) {
+    auto &bytes_left = is_estimate ? m_estimate_bytes_left : m_work_bytes_left;
+    size += bytes_left;
 
-    size += m_work_bytes_left;
-    aligned_size =
-        static_cast<uint>(ut_uint64_align_down(size, m_pfs_data_chunk_size));
-    chunks = aligned_size >> PFS_DATA_CHUNK_SIZE_POW2;
+    auto aligned_size = ut_uint64_align_down(size, m_pfs_data_chunk_size);
+    bytes_left = size - aligned_size;
 
-    m_work_bytes_left = static_cast<uint>(size) - aligned_size;
-
-    return chunks;
+    return (aligned_size >> PFS_DATA_CHUNK_SIZE_POW2);
   }
 
   /* Number of PFS chunks which needs to be transferred across.  */
-  uint m_estimate;
+  uint64_t m_estimate;
 
   /* Number of PFS chunks already transferred. */
-  uint m_work_done;
+  uint64_t m_work_done;
 
   /* Performance schema accounting object. */
   PSI_stage_progress *m_progress;
 
-  /* Size in bytes which couldn't fit the chunk size during the
-  estimation or the transfer. */
-  uint m_work_bytes_left;
+  /* Size in bytes which couldn't fit the chunk during estimation. */
+  uint64_t m_estimate_bytes_left;
+
+  /* Size in bytes which couldn't fit the chunk during transfer. */
+  uint64_t m_work_bytes_left;
 
   /* Current phase. */
   enum { NOT_STARTED = 0, ESTIMATE_WORK, COMPLETE_WORK } m_cur_phase;
@@ -175,5 +197,4 @@ class Clone_Monitor {
   uint m_pfs_data_chunk_size;
 };
 
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 #endif /* CLONE_MONITOR_H */

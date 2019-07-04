@@ -26,7 +26,7 @@ CALL mtr.add_suppression('Unsafe statement written to the binary log using state
 
 CREATE TABLE t1 ( id int(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)) ENGINE=InnoDB;
 XA START 'xatest';
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 DELETE FROM t1 where id=1;
 XA END 'xatest';
 XA COMMIT 'xatest' ONE PHASE;

@@ -223,6 +223,7 @@ if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
     add_compiler_flags(
         -Wno-error=deprecated-declarations
+        -Wno-unused-function
         -Qunused-arguments
     )
 endif()

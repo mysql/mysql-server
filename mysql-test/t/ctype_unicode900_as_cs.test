@@ -264,3 +264,48 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.8 tests
 --echo #
+
+# Test the characters in different groups are reordered correctly. For example,
+# U+33E8 is in the core group, and U+2F17 is in the Han group, and 'A' is in
+# the latin group. According to the reorder rule defined by the CLDR for the
+# Chinese collation, we should get U+33E8 < U+2F17 < 'A'. This also tests how
+# different glyphs of one Han character sort according to the weight shift rule
+# defined by CLDR. For example, U+3197 (IDEOGRAPHIC ANNOTATION MIDDLE MARK) and
+# U+4E2D (CJK UNIFIED IDEOGRAPH-4E2D) are different glyphs of a Chinese
+# character which means 'middle' and the CLDR defines "U+412D <<< U+3197".
+CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0x2E87), (_utf16 0x2E8D), (_utf16 0x2F17),
+(_utf16 0x3038), (_utf16 0x24B6), (_utf32 0x1F150), (_utf16 0x4E2D),
+(_utf16 0x3197), (_utf32 0x1F22D), ('A'), ('a'), ('Z'), ('z'),
+(_utf16 0x3082), (_utf16 0x30E2), (_utf16 0x2E31), (_utf16 0x33E8),
+(_utf32 0x1F229), (_utf32 0x1F241), (_utf16 0xFA56);
+SELECT HEX(CONVERT(a USING utf32)), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, HEX(a);
+DROP TABLE t1;
+
+# Test how the contraction of Han characters sorts. For example, U+6C88 and
+# U+5F1E are differenct characters, and U+6C88 < U+5F1E. But the strings
+# U+6C88U+9633 and U+5F1EU+9633 mean same thing. In such a contraction case,
+# U+5F1EU+9633 < U+6C88U+9633.
+CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0x6C88), (_utf16 0x5F1E), (_utf16 0x9633),
+(_utf16 0x6C889633), (_utf16 0x5F1E9633);
+SELECT HEX(CONVERT(a USING utf32)), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, HEX(a);
+DROP TABLE t1;
+
+# This tests how different glyphs of one Han character sort. For example,
+# U+2F9E (KANGXI RADICAL CART) and U+F902 (CJK COMPATIBILITY IDEOGRAPH-F902)
+# are different glyphs of Chinese character which means 'cart'.
+CREATE TABLE t1(a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_zh_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0xF902, _utf16 0x2F9E), (_utf16 0xF907, _utf16 0x2FD4),
+(_utf16 0xF908, _utf16 0x2FD4), (_utf16 0xF9D1, _utf16 0x3285);
+SELECT HEX(CONVERT(a USING utf16)) AS a_u16, HEX(CONVERT(b USING utf16)) AS b_u16, a = b FROM t1;
+DROP TABLE t1;
+
+# CLDR defines some weight shift rules for Chinese Bopomofo characters.
+# Bopomofo is a group of latin characters used to illustrate how a Han character
+# is pronounced. For example, 'e' is one of Bopomofo characters. This tests
+# how accented latin character which is not in Bopomofo group should be sorted.
+CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0x1EC2), (_utf16 0x1EC3), (_utf16 0x1EC5), (_utf16 0x1EC0), (_utf16 0x1EC7), (_Utf16 0x1EBF);
+SELECT HEX(CONVERT(a USING utf16)) FROM t1 ORDER BY a;
+DROP TABLE t1;

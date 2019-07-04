@@ -31,6 +31,8 @@
 IMPORT_LOG_FUNCTIONS()
 
 #include <string.h>
+#include <stdexcept>
+
 #ifdef _WIN32
 #define strcasecmp _stricmp
 #endif
@@ -261,6 +263,24 @@ void mysqlrouter::require_innodb_group_replication_is_ok(MySQLSession *mysql) {
         "The provided server is currently not in a InnoDB cluster group with "
         "quorum and thus may contain inaccurate or outdated data.");
   }
+}
+
+std::string mysqlrouter::get_group_replication_id(MySQLSession *mysql) {
+  std::string q = "select @@group_replication_group_name";
+
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
+  if (result) {
+    if (result->size() != 1) {
+      throw std::out_of_range(
+          "Invalid number of values returned from "
+          "@@group_replication_group_name "
+          "expected 1 got " +
+          std::to_string(result->size()));
+    }
+    return std::string((*result)[0]);
+  }
+
+  throw std::logic_error("No result returned for metadata query");
 }
 
 void MySQLInnoDBClusterMetadata::check_router_id(

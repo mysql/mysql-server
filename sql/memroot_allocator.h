@@ -46,10 +46,10 @@
   memory expect it. Otherwise these functions will try to use the memory,
   leading to seg faults if memory allocation was not successful.
 
-  @note This allocator cannot be used for std::basic_string
-  because of this libstd++ bug:
-  http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437
-  "basic_string assumes that allocators are default-constructible"
+  @note This allocator cannot be used for std::basic_string with RHEL 6/7
+  because of this bug:
+  https://bugzilla.redhat.com/show_bug.cgi?id=1546704
+  "Define _GLIBCXX_USE_CXX11_ABI gets ignored by gcc in devtoolset-7"
 
   @note C++98 says that STL implementors can assume that allocator objects
   of the same type always compare equal. This will only be the case for
@@ -84,6 +84,8 @@ class Memroot_allocator {
 
   explicit Memroot_allocator(MEM_ROOT *memroot) : m_memroot(memroot) {}
 
+  explicit Memroot_allocator() : m_memroot(nullptr) {}
+
   template <class U>
   Memroot_allocator(const Memroot_allocator<U> &other)
       : m_memroot(other.memroot()) {}
@@ -93,8 +95,6 @@ class Memroot_allocator {
       const Memroot_allocator<U> &other MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(m_memroot == other.memroot());  // Don't swap memroot.
   }
-
-  ~Memroot_allocator() {}
 
   pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
     if (n == 0) return NULL;

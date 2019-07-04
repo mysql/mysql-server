@@ -5,9 +5,6 @@
 -- source include/have_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 #
 # Bug #27775 - mediumint auto inc not restored correctly
 #            - check mediumint
@@ -182,21 +179,13 @@ source show_varpart.inc;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
 let $show_varpart_table=t3_c;
 source show_varpart.inc;
 let $show_varpart_table=t2_c;
 source show_varpart.inc;
-
-# Bug #30667
-# ndb table discovery does not work correcly with information schema
-# - prior to bug fix this would yeild no output and a warning
-select TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE
-  from information_schema.columns where table_name = "t1_c";
-
-# random output order??
-#show tables;
 
 select count(*) from t1;
 select count(*) from t1_c;
@@ -459,6 +448,7 @@ drop table t2_c,t11_c,t12_c;
 # Only part of tables is restored, it should work
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+
 #Should only t11_c is restored
 SELECT * FROM t11_c ORDER BY c1;
 
@@ -483,9 +473,9 @@ source include/ndb_backup_id.inc;
 #
 
 # ensure correct restore of epoch numbers in old versions
---exec $NDB_RESTORE --core-file=0 -e -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=0 -e -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
---exec $NDB_RESTORE --core-file=0 -e -b 1 -n 1 $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=0 -e -b 1 -n 1 $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
 # ensure correct restore of epoch numbers in current version
 # number hould be "big"
@@ -496,12 +486,12 @@ select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 #
 # Bug#40428 core dumped when restore backup log file(redo log)
 #
---exec $NDB_RESTORE --print --print_meta -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --print --print_meta -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug #33040 ndb_restore crashes with --print_log
 #
---exec $NDB_RESTORE --print_log -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --print_log -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#48005 ndb backup / restore does not restore the auto_increment
@@ -515,9 +505,8 @@ show create table t1;
 drop table t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---disable_warnings
+
 show create table t1;
---enable_warnings
 drop table t1;
 
 #
@@ -526,6 +515,7 @@ drop table t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
 drop table t1;
 
 #
@@ -564,7 +554,7 @@ drop table ndb_show_tables_results;
 #
 # Bug#51432
 #
---exec $NDB_RESTORE --core-file=0 -e -b 1 -n 2 -m $backup_data_dir/hashmap >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=0 -e -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#56285
@@ -586,7 +576,7 @@ while ($i)
   let $separator=,;
   dec $i;
 }
-let $sql=$sql, c500 varchar(11000);
+let $sql=$sql, c500 varchar(11000) CHARACTER SET latin1;
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 eval $sql; # eval the sql and create the table
 
@@ -688,6 +678,13 @@ drop table t1;
 delete from mysql.ndb_apply_status;
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 --restore-epoch $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
 select count(1) from mysql.ndb_apply_status where server_id=0;
 drop table t1;
+--replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+--error 2
+--exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id 2>&1
+--error 2
+--exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id 2>&1
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

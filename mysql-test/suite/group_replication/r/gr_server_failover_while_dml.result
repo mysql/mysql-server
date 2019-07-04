@@ -27,6 +27,10 @@ call dml_operations();
 # killing
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
 # restarting
+[connection server1]
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+Got one of the listed errors
+[connection server_1]
 include/rpl_reconnect.inc
 [connection server2]
 # check that there are 2 members in the group

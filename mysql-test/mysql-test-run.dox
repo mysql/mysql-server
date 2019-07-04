@@ -303,7 +303,7 @@
         of the server can be passed in both
         <b><em>test_name</em>-master.opt</b> and
         <b><em>test_name</em>-slave.opt</b>. Each bootstrap variable
-        must be passed as the value of a <b>--bootstrap</b> option so
+        must be passed as the value of a <b>`--initialize`</b> option so
         that @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" can
         recognize that the variable should be used during server
         initialization, remove the existing data directory, and
@@ -377,6 +377,11 @@
       </li>
 
       <li>
+        A file name of the form <b><em>test_name</em>.combinations</b>
+        provides section of options for each test run.
+      </li>
+
+      <li>
         A file name of the form <b><em>suite</em>.opt</b> provides
         server options to all the tests within the suite it belongs
         to.
@@ -415,27 +420,17 @@
         like this, where fields are separated by one or more spaces.
 
         @verbatim
-  suite_name.test_name : BUG#nnnnn YYYY-MM-DD disabler comment
+  suite_name.test_name [@platform|@!platform] : <BUG|WL>#<XXXX> [<comment>]
         @endverbatim
 
         Example:
 
         @verbatim
-  rpl.rpl_row_blob_innodb : BUG#18980 2006-04-10 kent Test fails randomly
+  main.1st @linux : BUG#18980 Test fails randomly
         @endverbatim
 
         <b><em>suite_name</em></b> is the suite name.
         <b><em>test_name</em></b> is the test case name.
-        <b>BUG#<em>nnnnn</em></b> indicates the bug related to the
-        test that causes it to fail (and thus requires it to be
-        disabled). <b><em>disabler</em></b> is the name of the person
-        that disabled the test. <b><em>comment</em></b> normally
-        provides a reason why the test was disabled.
-
-        The text following the colon is not part of the mandatory
-        syntax for this file; @ref PAGE_MYSQL_TEST_RUN_PL
-        "mysql-test-run.pl" will not actually care what is written
-        here. However, it is a recommended standard.
 
         An additional element after the test name and before the
         colon you may add a <b>\@<em>platform</em></b> to have the
@@ -443,6 +438,18 @@
         reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
         supported. Alternatively, <b>@!<em>platform</i></b> will
         disable the test on all except the named platform.
+
+        <b>BUG#<em>nnnnn</em></b> or <b>WL#<em>nnnn</em></b> indicates
+        the bug or the WL related to the test that causes it to fail
+        (and thus requires it to be disabled).
+
+        The <b><em>comment</em></b> text following the
+        <b>BUG#<em>nnnnn</em></b> or the <b>WL#<em>nnnn</em></b> is
+        not part of the mandatory syntax for this file,
+        @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" will not
+        actually care what is written here. Length of a
+        <b><em>comment</em></b> text must not be more than <b>80</b>
+        characters.
 
         A comment line can be written in the file by beginning the
         line with a “<b>#</b>” character.
@@ -2038,9 +2045,18 @@
 
       For test runs specific to a given test suite, an alternative to
       the use of the <b>`--combination`</b> option is to create a
-      <b>combinations</b> file in the suite directory. The file
-      should contain a section of options for each test run. For an
-      example, see @ref PAGE_BINARY_LOG_FORMAT.
+      <b>combinations</b> file in the suite directory. The file should
+      contain a section of options for each test run. For an example,
+      see @ref PAGE_BINARY_LOG_FORMAT.
+
+      <b>combinations</b> file can support <b>bootstrap</b> variables
+      too. The <b>bootstrap</b> variable has to be passed as a value
+      to the <b>`initialize`</b> keyword.
+
+      For a test specific combinations, an alternative to the use of
+      the <b>`--combination`</b> option is to create a
+      <b><em>test_name</em>.combinations</b> file in the test
+      directory.
     </li>
 
     <li>
@@ -2137,45 +2153,32 @@
   with <b>`--innodb-page-size`=8k</b>. The test can be run like this:
 
   @verbatim
-  shell> ./mysql-test-run.pl test_name_8k
-           --bootstrap=--innodb-page-size=8k --mysqld=--innodb-page-size=8k
+  shell> ./mysql-test-run.pl test_name_8k --initialize=--innodb-page-size=8k
   @endverbatim
 
-  To ensure the test runs with only a particular page size, an include
-  file is used to make it skip during runs with other page sizes.
+  This will initialize the data directory with 8k page size, and start the
+  server with that value.
 
-  @verbatim
-  --source include/have_innodb_8k.inc
-  @endverbatim
-
-  One limitation of using this include file is that the test is skipped
-  unless the required option is passed on the command line.
-
-  Another way to run a test with a bootstrap variable is to delete the
-  existing data directory, and initialize a new data directory with
-  the bootstrap options, inside the test. When the server is started
-  with the bootstrap options after this, the SQL queries will run with
-  the specified options.
-
-  Now it is possible to pass bootstrap options in the
+  It is also possible to pass bootstrap options in the
   <b>master.opt</b> file of the test, so that the test can run with
   the specified value of the bootstrap options without using any
-  command line arguments, or reinitializing the server within the
-  test. Specifying bootstrap variables in the opt file is the
-  preferred method. The usage is:
+  command line arguments. The usage is:
 
   @verbatim
-  --bootstrap --innodb-page-size=8k
+  --initialize --innodb-page-size=8k
   @endverbatim
 
   or
 
   @verbatim
-  --bootstrap=--innodb-page-size=8k
+  --initialize=--innodb-page-size=8k
   @endverbatim
 
+  Specifying bootstrap variables in the opt file is the preferred
+  method.
+
   Each bootstrap variable must be specified as the value of a
-  <b>`--bootstrap`</b> option in the opt file to ensure @ref
+  <b>`--initialize`</b> option in the opt file to ensure @ref
   PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" recognizes that the
   variable must be used during server initialization. If there are
   bootstrap options in the file, the current data directory is
@@ -2186,11 +2189,30 @@
   Similarly, bootstrap options passed in the <b>slave.opt</b> will be
   used to reinitialize the slave server in replication scenarios.
 
-  Note that since the options are passed in the opt files, they have
-  precedence over the command line options. So, if a test has a
-  master.opt file containing <b>`--innodb-page-size`=8k</b>, and while
-  it is being run, <b>`--innodb-page-size`=4k</b> is passed on the
-  command line, the test will run with <b>8k</b> page size.
+  Bootstrap options set in the opt file are passed to the server
+  first, followed by the server options. So, server start up options
+  have precedence over bootstrap options, regardless of the order in
+  which they are set in the opt file.
+
+  Note that since the bootstrap options are passed in the opt files,
+  they have precedence over the command line bootstrap options. So,
+  if a test has a master.opt file containing <b>`--innodb-page-size`=8k</b>,
+  and while it is being run, <b>`--innodb-page-size`=4k</b> is passed on
+  the command line, the test will run with <b>8k</b> page size.
+
+  Some tests require the server to be restarted multiple times with
+  different server options, as well different bootstrap options. In
+  such cases, the existing data directory is deleted inside the test
+  and a new data directory is initialized with the bootstrap options.
+  When the server is started with the bootstrap options after this,
+  the SQL queries will run with the specified options.
+
+  @verbatim
+  --exec $MYSQLD --no-defaults --initialize-insecure
+  --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=8K
+  --basedir=$MYSQLD_BASEDIR --datadir=$MYSQL_TMP_DIR/datadir1/data
+  --init-file=$BOOTSTRAP_SQL --secure-file-priv=""
+  @endverbatim
 */
 
 ###############################################################################
@@ -2414,13 +2436,22 @@
   shell> ./mysql-test-run.pl --suite=rpl --do-test=row
   @endverbatim
 
+  Similar to <b>combinations</b> file in the test suite directory, you
+  can also create a file named <b><em>test_name</em>.combinations</b>
+  in the test directory and list the options that you would specify
+  using <b>`--combination`</b>, one line per option.
+
+  If there exist both suite level <b>combinations</b> file and a
+  <b><em>test_name</em>.combinations</b> file, then the
+  <b><em>test_name</em>.combinations</b> file will take the priority
+  i.e combinations specified in suite level <b>combinations</b> file
+  will be ignored.
+
   The format of the <b>combinations</b> file is similar to that of
   <b>my.cnf</b> files (section names followed by options for each
-  section), but options listed in the <b>combinations</b> file
-  should include the leading dashes. (Options in <b>my.cnf</b> files
-  are given without the leading dashes.) @ref PAGE_MYSQL_TEST_RUN_PL
-  "mysql-test-run.pl" displays the section name following the test
-  name when it reports the test result.
+  section). @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" displays
+  the section name following the test name when it reports the test
+  result.
 
   Any <b>`--combination`</b> options specified on the command line
   override those found in a <b>combinations</b> file.
@@ -2430,7 +2461,9 @@
   applies globally to all tests run by a given invocation of @ref
   PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl". The
   <b>combinations</b> file is placed in a test suite directory and
-  applies only to tests in that suite.
+  applies only to tests in that suite. The
+  <b><em>test_name</em>.combinations</b> file is placed in a test
+  directory and applies only to <b>test_name</b>.
 */
 
 ###############################################################################
@@ -3107,6 +3140,12 @@
     </li>
 
     <li>
+      <tt>`--async-client`</tt>
+
+      Enable asynchronous communication support in mysql protocol.
+    </li>
+
+    <li>
       <tt>`--basedir`=<b>dir_name</b>, -b <b>dir_name</b></tt>
 
       The base directory for tests.
@@ -3723,9 +3762,9 @@
 
   To perform setup prior to running tests, @ref PAGE_MYSQL_TEST_RUN_PL
   "mysql-test-run.pl" needs to invoke <b>mysqld</b> with the
-  <b>`--bootstrap`</b> and <b>`--skip-grant-tables`</b> options.
+  <b>`--initialize`</b> and <b>`--skip-grant-tables`</b> options.
   If MySQL was built with the compiler flag
-  <b>-DDISABLE_GRANT_OPTIONS</b>, then <b>`--bootstrap`</b>,
+  <b>-DDISABLE_GRANT_OPTIONS</b>, then <b>`--initialize`</b>,
   <b>`--skip-grant-tables`</b>, and <b>`--init-file`</b> will be
   disabled. To handle this, set the <b>MYSQLD_BOOTSTRAP</b>
   environment variable to the full path name of a server that has all
@@ -3815,6 +3854,23 @@
         option, 0 otherwise.
       </td>
     </tr>
+    <tr>
+      <td><tt>MTR_UNIQUE_IDS_DIR</tt></td>
+      <td>
+        The method in which the free ports are allocated is by maintaining
+        a list under the unique ids directory. In case there are multiple
+        chroot environments on the same host, then the same set of ports may
+        get allocated for all environments, because there will be
+        multiple unique ids directories in different physical locations,
+        but MTR assumes it is the same directory.
+        This will lead to a conflict while reserving ports for the
+        different MTR runs. To avoid this problem, when using chroot
+        environments, <b>MTR_UNIQUE_IDS_DIR</b> environment variable can
+        be set to a common location, so that all the MTR processes will
+        use the same unique ids directory.
+        Users have to make sure this variable is set to the same path
+        on all environments, and that this common path is mounted on
+        all the environments.
     <tr>
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
@@ -4104,6 +4160,10 @@
       <b>combinations</b> file in the suite directory. The file
       should contain a section of options for each test run. See @ref
       PAGE_PASSING_OPTIONS.
+
+      For test specific combinations, onc can use
+      <b><em>test_name</em>.combinations</b> file in the test
+      directory.
     </li>
 
     <li>
@@ -4439,6 +4499,22 @@
     </li>
 
     <li>
+      <tt>`--initialize`=<b>value</b></tt>
+
+      Extra bootstrap options that need be to be passed during
+      the server initialization process can be passed as a value
+      to <b>`--initialize`</b>. The server is then started with
+      the specified value. Only one option may be specified in
+      <b>value</b>; to specify more than one, use additional
+      <b>`--initialize`</b> options.
+
+      Options passed as a value to <b>`--mysqld`</b> will have
+      precedence over the options passed to <b>`--initialize`</b>,
+      regardless of the order in which they passed on the command
+      line.
+    </li>
+
+    <li>
       <tt>`--json-explain-protocol`</tt>
 
       Run <b>EXPLAIN FORMAT=JSON</b> on all <b>SELECT</b>,
@@ -4646,6 +4722,11 @@
       <tt>`--nowarnings`</tt>
 
       Do not look for and report errors and warning in the server logs.
+
+      @note
+      In addition to being passed as a command-line option,
+      <b>`--nowarnings`</b> can also be passed in the <b>.opt</b> file of
+      a test case.
     </li>
 
     <li>
@@ -4718,6 +4799,18 @@
 
       Pass the <b>`--ps-protocol`</b> option to @ref PAGE_MYSQLTEST
       "mysqltest".
+    </li>
+
+    <li>
+      <tt>`--quiet`</tt>
+
+      Reuse the output buffer and maintain a single line for reporting
+      successful tests, skipped tests and disabled tests. Failed tests
+      and the necessary information about the failure will be printed
+      on a separate line.
+
+      When <b>`--quiet`</b> option is enabled, MTR prints only the
+      test name and result of the test run.
     </li>
 
     <li>
@@ -6347,8 +6440,54 @@
   --disable_warnings
   --enable_warnings
       @endverbatim
+
+      <b>disable_warnings</b> and <b>enable_warnings</b> commands can
+      take an optional argument specifying one or more comma-separated
+      list of warnings to be disabled or enabled. Each warning
+      specified should be in symbolic error name format.
+
+      @verbatim
+  --disable_warnings ER_BAD_TABLE_ERROR,ER_YES
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings ER_BAD_TABLE_ERROR,ER_YES
+      @endverbatim
+
+      Or
+
+      @verbatim
+  --disable_warnings
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings ER_BAD_TABLE_ERROR,ER_YES
+  DROP TABLE IF EXISTS t1;
+  --disable_warnings ER_BAD_TABLE_ERROR,ER_YES
+  --enable_warnings
+      @endverbatim
+
+      <b>disable_warnings</b> and <b>enable_warnings</b> commands can
+      also take a second optional argument, <b>"ONCE"</b>, which when
+      specified will disable or enable the warnings for next
+      statement only.
+
+      @verbatim
+  --disable_warnings ER_BAD_TABLE_ERROR ONCE
+  DROP TABLE IF EXISTS t1;
+      @endverbatim
+
+      Or
+
+      @verbatim
+  --disable_warnings
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings ER_BAD_TABLE_ERROR ONCE
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings
+      @endverbatim
     </li>
 
+      @note
+      At the end of a test, all the disabled warnings must be enabled,
+      else @ref PAGE_MYSQLTEST "mysqltest" will throw an error and
+      abort the test run.
     <li>
       <tt>disconnect <b>connection_name</b></tt>
 
@@ -7162,13 +7301,12 @@
       sensitive by default. Specify the optional <b>i</b> modifier to
       cause matching to be case insensitive.
 
-      The syntax for allowable patterns is the same as for the
-      <b>REGEXP</b> SQL operator. In addition, the pattern can contain
-      parentheses to mark substrings matched by parts of the pattern.
-      These substrings can be referenced in the replacement string: An
-      instance of <b><em>N</em></b> in the replacement string causes
-      insertion of the <b><em>N</em>-th</b> substring matched by the
-      pattern. For example, the following command matches
+      The syntax for allowable patterns is same as the <b>std::ECMAScript</b>
+      syntax. The pattern can contain parentheses to mark substrings
+      matched by parts of the pattern. These substrings can be referenced in
+      the replacement string: An instance of <b><em>N</em></b> in the
+      replacement string causes insertion of the <b><em>N</em>-th</b> substring
+      matched by the pattern. For example, the following command matches
       <b>strawberry</b> and replaces it with <b>raspberry</b> and
       <b>strawberry</b>:
 
@@ -7292,8 +7430,21 @@
       the functionality of both. After variable replacement has been
       done, it behaves like the <b>send</b> command.
 
+      If <b><em>statement</em></b> is omitted, the <b>send_eval</b>
+      command applies to the next statement executed. This means that
+      <b>send_eval</b> can be used on a line by itself before a
+      statement. Thus, this command:
+
       @verbatim
   --send_eval $my_stmt
+      @endverbatim
+    </li>
+
+      Is equivalent to these commands:
+
+      @verbatim
+  --send_eval
+  $my_stmt;
       @endverbatim
     </li>
 

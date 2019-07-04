@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -488,7 +488,7 @@ diff_nodes(const Config* a, const Config* b, Properties& diff)
 struct NodePair {
   Uint32 nodeId1;
   Uint32 nodeId2;
-  NodePair(Uint32 n1, Uint32 n2) : nodeId1(n1), nodeId2(n2) {};
+  NodePair(Uint32 n1, Uint32 n2) : nodeId1(n1), nodeId2(n2) {}
 };
 
 static void

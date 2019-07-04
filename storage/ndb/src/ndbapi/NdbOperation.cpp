@@ -238,6 +238,13 @@ NdbOperation::release()
 
   theLockHandle = NULL;
   m_blob_lock_upgraded = false;
+
+#ifndef NDEBUG
+  // Poison members to detect late usage
+  m_accessTable = m_currentTable = (NdbTableImpl*) 0x1;
+  theNdbCon = (NdbTransaction*) 0x1;
+  m_key_record = m_attribute_record = (NdbRecord*) 0x1;
+#endif
 }
 
 void

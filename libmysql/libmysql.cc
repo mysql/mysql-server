@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #include <time.h>
 
 #include "errmsg.h"
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -1966,8 +1967,22 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
         DBUG_ASSERT(stmt->result.rows == 0);
         prev_ptr = &stmt->result.data;
         if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) DBUG_RETURN(1);
-      } else
+      } else {
         read_ok_ex(mysql, pkt_len);
+        /*
+          If the result set was empty and the server did not open a cursor,
+          then the response from the server would have been <metadata><OK>.
+          This means the OK packet read above was the last OK packet of the
+          sequence. Hence, we set the status to indicate that the client is
+          now ready for next command. The stmt->read_row_func is set so as
+          to ensure that the next call to C API mysql_stmt_fetch() will not
+          read on the network. Instead, it will return NO_MORE_DATA.
+        */
+        if (!(mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)) {
+          mysql->status = MYSQL_STATUS_READY;
+          stmt->read_row_func = stmt_read_row_no_data;
+        }
+      }
     }
   }
 
@@ -2321,8 +2336,13 @@ static void prepare_to_fetch_result(MYSQL_STMT *stmt) {
       cursors framework in the server and writes rows directly to the
       network or b) is more efficient if all (few) result set rows are
       precached on client and server's resources are freed.
+      The below check for mysql->status is required because we could
+      have already read the last packet sent by the server in execute()
+      and set the status to MYSQL_STATUS_READY. In such cases, we need
+      not call mysql_stmt_store_result().
     */
-    mysql_stmt_store_result(stmt);
+    if (stmt->mysql->status != MYSQL_STATUS_READY)
+      mysql_stmt_store_result(stmt);
   } else {
     stmt->mysql->unbuffered_fetch_owner = &stmt->unbuffered_fetch_cancelled;
     stmt->unbuffered_fetch_cancelled = false;
@@ -2929,7 +2949,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos) {
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
                                          size_t length) {
   uchar *buffer = pointer_cast<uchar *>(param->buffer);
-  char *endptr = value + length;
+  const char *endptr = value + length;
 
   /*
     This function should support all target buffer types: the rest
@@ -3295,7 +3315,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       break;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE: {
-      ulonglong value = TIME_to_ulonglong(my_time);
+      ulonglong value = TIME_to_ulonglong(*my_time);
       fetch_float_with_conversion(param, field, ulonglong2double(value),
                                   MY_GCVT_ARG_DOUBLE);
       break;
@@ -3305,7 +3325,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG: {
-      longlong value = (longlong)TIME_to_ulonglong(my_time);
+      longlong value = (longlong)TIME_to_ulonglong(*my_time);
       fetch_long_with_conversion(param, field, value, true);
       break;
     }
@@ -3315,7 +3335,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
         fetch_string_with_conversion:
       */
       char buff[MAX_DATE_STRING_REP_LENGTH];
-      uint length = my_TIME_to_str(my_time, buff, field->decimals);
+      uint length = my_TIME_to_str(*my_time, buff, field->decimals);
       /* Resort to string conversion */
       fetch_string_with_conversion(param, (char *)buff, length);
       break;
@@ -4520,6 +4540,40 @@ int STDCALL mysql_next_result(MYSQL *mysql) {
   }
 
   DBUG_RETURN(-1); /* No more results */
+}
+
+/*
+  This API reads the next statement result and returns a status to indicate
+  whether more results exist
+
+  @param[in]    mysql                                    connection handle
+
+  @retval       NET_ASYNC_ERROR                          Error
+  @retval       NET_ASYNC_NOT_READY                      reading next result not
+                                                         yet completed, call
+                                                         this API again
+  @retval       NET_ASYNC_COMPLETE                       finished reading result
+  @retval       NET_ASYNC_COMPLETE_NO_MORE_RESULTS       status to indicate if
+                                                         more results exist
+*/
+net_async_status STDCALL mysql_next_result_nonblocking(MYSQL *mysql) {
+  DBUG_ENTER(__func__);
+  net_async_status status;
+  if (mysql->status != MYSQL_STATUS_READY) {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    DBUG_RETURN(NET_ASYNC_ERROR);
+  }
+  net_clear_error(&mysql->net);
+  mysql->affected_rows = ~(my_ulonglong)0;
+
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
+    status = (*mysql->methods->next_result_nonblocking)(mysql);
+    DBUG_RETURN(status);
+  } else {
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  }
+
+  DBUG_RETURN(NET_ASYNC_COMPLETE_NO_MORE_RESULTS); /* No more results */
 }
 
 int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt) {

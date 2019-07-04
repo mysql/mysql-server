@@ -23,7 +23,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string>
+#include <vector>
+
 class Item;
+class JOIN;
 class THD;
 struct TABLE;
 
@@ -41,8 +45,6 @@ struct TABLE;
   The abstraction is not completely tight. In particular, it still leaves some
   specifics to TABLE, such as which columns to read (the read_set). This means
   it would probably be hard as-is to e.g. sort a join of two tables.
-
-  TODO: Convert the joins themselves into RowIterator.
 
   Use by:
 @code
@@ -83,6 +85,20 @@ class RowIterator {
    */
   virtual int Read() = 0;
 
+  /**
+    Mark the current row buffer as containing a NULL row or not, so that if you
+    read from it and the flag is true, you'll get only NULLs no matter what is
+    actually in the buffer (typically some old leftover row). This is used
+    for outer joins, when an iterator hasn't produced any rows and we need to
+    produce a NULL-complemented row. Init() or Read() won't necessarily
+    reset this flag, so if you ever set is to true, make sure to also set it
+    to false when needed.
+
+    TODO: We shouldn't need this. See the comments on AggregateIterator for
+    a bit more discussion on abstracting out a row interface.
+   */
+  virtual void SetNullRowFlag(bool is_null_row) = 0;
+
   // In certain queries, such as SELECT FOR UPDATE, UPDATE or DELETE queries,
   // reading rows will automatically take locks on them. (This means that the
   // set of locks taken will depend on whether e.g. the optimizer chose a table
@@ -101,11 +117,64 @@ class RowIterator {
   // or just ignore it. The right behavior depends on the iterator.
   virtual void UnlockRow() = 0;
 
+  struct Child {
+    RowIterator *iterator;
+
+    // Normally blank. If not blank, a heading for this iterator
+    // saying what kind of role it has to the parent if it is not
+    // obvious. E.g., FilterIterator can print iterators that are
+    // children because they come out of subselect conditions.
+    std::string description;
+  };
+
+  virtual std::vector<Child> children() const { return std::vector<Child>(); }
+
+  virtual std::vector<std::string> DebugString() const = 0;
+
+  // If this is the root iterator of a join, points back to the join object.
+  // This has one single purpose: EXPLAIN uses it to be able to get the SELECT
+  // list and print out any subselects in it; they are not children of
+  // the iterator per se, but need to be printed with it.
+  //
+  // We could have stored the list of these extra subselect iterators directly
+  // on the iterator (it breaks the abstraction a bit to refer to JOIN here),
+  // but setting a single pointer is cheaper, especially considering that most
+  // queries are not EXPLAIN queries and we don't want the overhead for them.
+  JOIN *join() const { return m_join; }
+
+  // Should be called by JOIN::create_iterators() only.
+  void set_join(JOIN *join) { m_join = join; }
+
+  /**
+    Start performance schema batch mode, if supported (otherwise ignored).
+
+    PFS batch mode is a hack to reduce the overhead of performance schema,
+    typically applied at the innermost table of the entire join. If you start
+    it before scanning the table and then end it afterwards, the entire set
+    of handler calls will be timed only once, as a group, and the costs will
+    be distributed evenly out. This reduces timer overhead.
+
+    If you start PFS batch mode, you must also take care to end it at the
+    end of the scan, one way or the other. Do note that this is true even
+    if the query ends abruptly (LIMIT is reached, or an error happens).
+    The easiest workaround for this is to simply go through all the open
+    handlers and call end_psi_batch_mode_if_started(). See the PFSBatchMode
+    class for a useful helper.
+   */
+  virtual void StartPSIBatchMode() {}
+
+  /**
+    Ends performance schema batch mode, if started. It's always safe to
+    call this.
+   */
+  virtual void EndPSIBatchModeIfStarted() {}
+
  protected:
   THD *thd() const { return m_thd; }
 
  private:
   THD *const m_thd;
+  JOIN *m_join = nullptr;
 };
 
 class TableRowIterator : public RowIterator {
@@ -113,11 +182,13 @@ class TableRowIterator : public RowIterator {
   TableRowIterator(THD *thd, TABLE *table) : RowIterator(thd), m_table(table) {}
 
   void UnlockRow() override;
+  void SetNullRowFlag(bool is_null_row) override;
+  void StartPSIBatchMode() override;
+  void EndPSIBatchModeIfStarted() override;
 
  protected:
   int HandleError(int error);
   void PrintError(int error);
-  void PushDownCondition(Item *condition);
   TABLE *table() const { return m_table; }
 
  private:

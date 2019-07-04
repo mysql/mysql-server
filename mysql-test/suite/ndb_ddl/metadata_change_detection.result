@@ -1,0 +1,71 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+USE ndb_ddl_test;
+CREATE TABLE t10 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB
+TABLESPACE ts1
+STORAGE DISK;
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a,b)
+) ENGINE NDB;
+CREATE TABLE t2(
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE ndb_ddl_test4;
+USE ndb_ddl_test4;
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a,b)
+) ENGINE NDB;
+CREATE TABLE t2(
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE ndb_ddl_test5;
+USE ndb_ddl_test5;
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a,b)
+) ENGINE NDB;
+USE ndb_ddl_test;
+DROP TABLE t6;
+DROP TABLE t7;
+DROP TABLE t8;
+DROP TABLE t9;
+DROP TABLE t10;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+USE ndb_ddl_test3;
+DROP TABLE t1;
+DROP TABLE t2;
+SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET SESSION ndb_metadata_check = 1;
+ERROR HY000: Variable 'ndb_metadata_check' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ndb_metadata_check_interval = 5;
+ERROR HY000: Variable 'ndb_metadata_check_interval' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check = 1;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+DROP DATABASE ndb_ddl_test3;

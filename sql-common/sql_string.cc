@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This file is originally from the mysql distribution. Coded by monty */
-
 #include "sql_string.h"
 
 #include <algorithm>
@@ -91,7 +89,8 @@ bool String::real_alloc(size_t length) {
    new buffer is smaller than the currently allocated buffer (if one exists),
    no allocation occured.
 
-   @retval true An error occured when attempting to allocate memory.
+   @retval true An error occured when attempting to allocate memory or memory
+   allocation length exceeded allowed limit (4GB) for String Class.
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
   size_t len = ALIGN_SIZE(alloc_length + 1);
@@ -106,8 +105,11 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     m_alloced_length = 0;
   }
 
-  if (m_alloced_length < len) {
-    // Available bytes are not enough.
+  if (m_alloced_length < len) {  // Available bytes are not enough.
+  // Signal an error if len exceeds uint32 max on 64-bit word platform.
+#if defined(__WORDSIZE) && (__WORDSIZE == 64)
+    if (len > std::numeric_limits<uint32>::max()) return true;
+#endif
     char *new_ptr;
     if (m_is_alloced) {
       if (!(new_ptr = static_cast<char *>(
@@ -122,10 +124,6 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     } else
       return true;  // Signal error
     m_ptr = new_ptr;
-    // Assert on debug build if len exceeds uint32 max on 64-bit word platform.
-#if defined(__WORDSIZE) && (__WORDSIZE == 64)
-    DBUG_ASSERT(len <= std::numeric_limits<uint32>::max());
-#endif
     m_alloced_length = static_cast<uint32>(len);
   }
   m_ptr[alloc_length] = 0;  // This make other funcs shorter
@@ -143,10 +141,10 @@ inline size_t String::next_realloc_exp_size(size_t sz) {
 }
 
 /**
-  This function is used by the various append() member functions, to ensure
-  that append() has amortized constant cost. Once we have started to allocate
-  buffer on the heap, we increase the buffer size exponentially, rather
-  than linearly.
+  This function is used by the various append() and replace() member functions,
+  to ensure that functions have amortized constant cost.
+  Once we have started to allocate buffer on the heap, we increase the buffer
+  size exponentially, rather than linearly.
 
   @param alloc_length The requested string size in characters, excluding any
                       null terminator.
@@ -681,7 +679,7 @@ bool String::replace(size_t offset, size_t arg_length, const char *to,
               m_length - offset - arg_length);
     } else {
       if (diff) {
-        if (mem_realloc(m_length + diff)) return true;
+        if (mem_realloc_exp(m_length + diff)) return true;
         memmove(m_ptr + offset + to_length, m_ptr + offset + arg_length,
                 m_length - offset - arg_length);
       }
@@ -701,26 +699,27 @@ int String::reserve(size_t space_needed, size_t grow_by) {
   return false;
 }
 
-void String::qs_append(const char *str, size_t len) {
-  memcpy(m_ptr + m_length, str, len + 1);
-  m_length += len;
+void qs_append(const char *str_in, size_t len, String *str) {
+  memcpy(&((*str)[str->length()]), str_in, len + 1);
+  str->length(str->length() + len);
 }
 
-void String::qs_append(double d, size_t len) {
-  char *buff = m_ptr + m_length;
-  m_length += my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
+void qs_append(double d, size_t len, String *str) {
+  char *buff = &((*str)[str->length()]);
+  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
+  str->length(str->length() + written);
 }
 
-void String::qs_append(int i) {
-  char *buff = m_ptr + m_length;
+void qs_append(int i, String *str) {
+  char *buff = &((*str)[str->length()]);
   char *end = int10_to_str(i, buff, -10);
-  m_length += (int)(end - buff);
+  str->length(str->length() + (int)(end - buff));
 }
 
-void String::qs_append(uint i) {
-  char *buff = m_ptr + m_length;
+void qs_append(uint i, String *str) {
+  char *buff = &((*str)[str->length()]);
   char *end = int10_to_str(i, buff, 10);
-  m_length += (int)(end - buff);
+  str->length(str->length() + (int)(end - buff));
 }
 
 /*
@@ -1000,7 +999,7 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
   return res;
 }
 
-void String::print(String *str) {
+void String::print(String *str) const {
   char *st = m_ptr;
   char *end = st + m_length;
 
@@ -1182,7 +1181,7 @@ size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len) {
                                   // encoding for some input character
         return true
 */
-bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
+bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
                      size_t *valid_length, bool *length_error) {
   if (cs->mbmaxlen > 1) {
     int well_formed_error;

@@ -406,10 +406,14 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
     String com_sys_var_name;
     sys_var *var;
 
-    if (com_sys_var_name.reserve(strlen(component_name) + 1 + strlen(var_name) +
-                                 1) ||
-        com_sys_var_name.append(component_name) ||
-        com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
+    // all of the non-prefixed variables are treated as part of the server
+    // component
+    if (!strcmp(component_name, "mysql_server"))
+      com_sys_var_name.set(var_name, strlen(var_name), &my_charset_latin1);
+    else if (com_sys_var_name.reserve(strlen(component_name) + 1 +
+                                      strlen(var_name) + 1) ||
+             com_sys_var_name.append(component_name) ||
+             com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
       return true;  // OOM
     mysql_rwlock_rdlock(&LOCK_system_variables_hash);
     var = intern_find_sys_var(com_sys_var_name.c_ptr(),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -207,8 +207,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // GET_DD_CREATE_OPTIONS(NULL, NULL)
-  CREATE_ITEM(Item_func_get_dd_create_options, TWO_NULL_ARGS);
+  // GET_DD_CREATE_OPTIONS(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_get_dd_create_options, THREE_NULL_ARGS);
   // Empty string value is returned in this case.
   EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
 
@@ -262,6 +262,14 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
 
   // INTERNAL_TABLESPACE_STATUS()
   CREATE_ITEM(Item_func_internal_tablespace_status, FOUR_NULL_ARGS);
+  EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // GET_DD_PROPERTY_KEY_VALUE()
+  CREATE_ITEM(Item_func_get_dd_property_key_value, TWO_NULL_ARGS);
+  EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // REMOVE_DD_PROPERTY_KEY()
+  CREATE_ITEM(Item_func_remove_dd_property_key, TWO_NULL_ARGS);
   EXPECT_EQ(nullptr, item->val_str(&str));
 }
 }  // namespace dd_info_schema_native_func

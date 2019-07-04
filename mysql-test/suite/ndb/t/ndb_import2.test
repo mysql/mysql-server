@@ -108,3 +108,4 @@ drop table t1, t1ver, t2, t2ver;
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.rej
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.res
+--remove_file $NDB_TOOLS_OUTPUT

@@ -24,6 +24,8 @@
 
 #include "mysqlrouter/plugin_config.h"
 
+#include <stdexcept>
+
 #ifndef _WIN32
 #include <sys/un.h>
 #include <unistd.h>

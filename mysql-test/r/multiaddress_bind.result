@@ -14,10 +14,10 @@ SELECT @@global.bind_address;
 # Stop DB server which was created by MTR default
 # Check that not existing IP address as a value of
 # the option --bind-address is treated as an error.
-Pattern "MY-010262.*Bind on TCP/IP port:.*requested address" found
+Pattern "MY-010262.*Bind on TCP/IP port:.*" found
 # Check that not existing IP address as one of a value of
 # the option --bind-address is treated as an error.
-Pattern "MY-010262.*Bind on TCP/IP port:.*requested address" found
+Pattern "MY-010262.*Bind on TCP/IP port:.*" found
 #
 # Starting mysqld in the regular mode...
 #

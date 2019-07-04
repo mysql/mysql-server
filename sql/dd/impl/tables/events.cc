@@ -41,6 +41,14 @@ const Events &Events::instance() {
   return *s_instance;
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Events::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Events::Events() {
   m_target_def.set_table_name("events");
 
@@ -49,7 +57,8 @@ Events::Events() {
   m_target_def.add_field(FIELD_SCHEMA_ID, "FIELD_SCHEMA_ID",
                          "schema_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_DEFINER, "FIELD_DEFINER",
                          "definer VARCHAR(93) NOT NULL");
   m_target_def.add_field(FIELD_TIME_ZONE, "FIELD_TIME_ZONE",
@@ -69,41 +78,7 @@ Events::Events() {
                          "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND'"
                          ",'MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND'"
                          ",'MINUTE_MICROSECOND','SECOND_MICROSECOND')");
-  m_target_def.add_field(FIELD_SQL_MODE, "FIELD_SQL_MODE",
-                         "sql_mode SET( \n"
-                         "'REAL_AS_FLOAT',\n"
-                         "'PIPES_AS_CONCAT',\n"
-                         "'ANSI_QUOTES',\n"
-                         "'IGNORE_SPACE',\n"
-                         "'NOT_USED',\n"
-                         "'ONLY_FULL_GROUP_BY',\n"
-                         "'NO_UNSIGNED_SUBTRACTION',\n"
-                         "'NO_DIR_IN_CREATE',\n"
-                         "'NOT_USED_9',\n"
-                         "'NOT_USED_10',\n"
-                         "'NOT_USED_11',\n"
-                         "'NOT_USED_12',\n"
-                         "'NOT_USED_13',\n"
-                         "'NOT_USED_14',\n"
-                         "'NOT_USED_15',\n"
-                         "'NOT_USED_16',\n"
-                         "'NOT_USED_17',\n"
-                         "'NOT_USED_18',\n"
-                         "'ANSI',\n"
-                         "'NO_AUTO_VALUE_ON_ZERO',\n"
-                         "'NO_BACKSLASH_ESCAPES',\n"
-                         "'STRICT_TRANS_TABLES',\n"
-                         "'STRICT_ALL_TABLES',\n"
-                         "'NO_ZERO_IN_DATE',\n"
-                         "'NO_ZERO_DATE',\n"
-                         "'INVALID_DATES',\n"
-                         "'ERROR_FOR_DIVISION_BY_ZERO',\n"
-                         "'TRADITIONAL',\n"
-                         "'NOT_USED_29',\n"
-                         "'HIGH_NOT_PRECEDENCE',\n"
-                         "'NO_ENGINE_SUBSTITUTION',\n"
-                         "'PAD_CHAR_TO_FULL_LENGTH',\n"
-                         "'TIME_TRUNCATE_FRACTIONAL') NOT NULL");
+  m_target_def.add_sql_mode_field(FIELD_SQL_MODE, "FIELD_SQL_MODE");
   m_target_def.add_field(FIELD_STARTS, "FIELD_STARTS", "starts DATETIME");
   m_target_def.add_field(FIELD_ENDS, "FIELD_ENDS", "ends DATETIME");
   m_target_def.add_field(
@@ -162,11 +137,8 @@ Events::Events() {
 
 bool Events::update_object_key(Item_name_key *key, Object_id schema_id,
                                const String_type &event_name) {
-  char buf[NAME_LEN + 1];
-  my_stpcpy(buf, event_name.c_str());
-  my_casedn_str(&my_charset_utf8_tolower_ci, buf);
-
-  key->update(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, buf);
+  key->update(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, event_name,
+              name_collation());
   return false;
 }
 

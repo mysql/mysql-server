@@ -34,12 +34,14 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "storage/myisam/fulltext.h"
+#include "storage/myisam/myisamdef.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else
 #include <stddef.h>
 #endif
 #include "storage/myisam/queues.h"
+#include "template_utils.h"
 
 /* static variables */
 

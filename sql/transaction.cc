@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -278,7 +278,24 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock) {
 
   trans_track_end_trx(thd);
 
-  thd->dd_client()->commit_modified_objects();
+  /*
+    Avoid updating modified uncommitted objects when committing attachable
+    read-write transaction. This is required to allow I_S queries to update
+    table statistics during CREATE TABLE ... SELECT, otherwise the
+    uncommitted object added by DDL would be removed by I_S query.
+  */
+  if (!thd->is_attachable_rw_transaction_active()) {
+    /*
+      If the SE failed to commit the transaction, we must rollback the
+      modified dictionary objects to make sure the DD cache, the DD
+      tables and the state in the SE stay in sync.
+    */
+    if (res)
+      thd->dd_client()->rollback_modified_objects();
+    else
+      thd->dd_client()->commit_modified_objects();
+  }
+
   thd->locked_tables_list.adjust_renamed_tablespace_mdls(&thd->mdl_context);
 
   DBUG_RETURN(res);
@@ -324,7 +341,7 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res = ha_commit_trans(thd, true, ignore_global_read_lock);
   } else if (tc_log)
-    tc_log->commit(thd, true);
+    res = tc_log->commit(thd, true);
 
   if (res == false)
     if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_transaction_commit(
@@ -346,7 +363,24 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
 
   trans_track_end_trx(thd);
 
-  thd->dd_client()->commit_modified_objects();
+  /*
+    Avoid updating modified uncommitted objects when committing attachable
+    read-write transaction. This is required to allow I_S queries to update
+    table statistics during CREATE TABLE ... SELECT, otherwise the
+    uncommitted object added by DDL would be removed by I_S query.
+  */
+  if (!thd->is_attachable_rw_transaction_active()) {
+    /*
+      If the SE failed to commit the transaction, we must rollback the
+      modified dictionary objects to make sure the DD cache, the DD
+      tables and the state in the SE stay in sync.
+    */
+    if (res)
+      thd->dd_client()->rollback_modified_objects();
+    else
+      thd->dd_client()->commit_modified_objects();
+  }
+
   thd->locked_tables_list.adjust_renamed_tablespace_mdls(&thd->mdl_context);
   DBUG_RETURN(res);
 }
@@ -381,7 +415,16 @@ bool trans_rollback(THD *thd) {
 
   trans_track_end_trx(thd);
 
-  thd->dd_client()->rollback_modified_objects();
+  /*
+    Avoid updating modified uncommitted objects when rolling back
+    attachable read-write transaction. This is required to allow I_S
+    queries to update table statistics during CREATE TABLE ... SELECT,
+    otherwise the uncommitted object added by DDL would be removed by I_S
+    query.
+  */
+  if (!thd->is_attachable_rw_transaction_active())
+    thd->dd_client()->rollback_modified_objects();
+
   thd->locked_tables_list.discard_renamed_tablespace_mdls();
 
   DBUG_RETURN(res);
@@ -429,7 +472,16 @@ bool trans_rollback_implicit(THD *thd) {
 
   trans_track_end_trx(thd);
 
-  thd->dd_client()->rollback_modified_objects();
+  /*
+    Avoid updating modified uncommitted objects when rolling back
+    attachable read-write transaction. This is required to allow I_S
+    queries to update table statistics during CREATE TABLE ... SELECT,
+    otherwise the uncommitted object added by DDL would be removed by I_S
+    query.
+  */
+  if (!thd->is_attachable_rw_transaction_active())
+    thd->dd_client()->rollback_modified_objects();
+
   thd->locked_tables_list.discard_renamed_tablespace_mdls();
 
   DBUG_RETURN(res);
@@ -480,7 +532,7 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock) {
     if (!thd->in_active_multi_stmt_transaction())
       trans_reset_one_shot_chistics(thd);
   } else if (tc_log)
-    tc_log->commit(thd, false);
+    res = tc_log->commit(thd, false);
   if (res == false && !thd->in_active_multi_stmt_transaction())
     if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_transaction_commit(
             thd))

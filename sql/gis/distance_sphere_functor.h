@@ -49,7 +49,7 @@ class Distance_sphere : public Functor<double> {
   boost::geometry::strategy::distance::haversine<double> m_strategy;
 
  public:
-  Distance_sphere(double sphere_radius) : m_strategy{sphere_radius} {};
+  Distance_sphere(double sphere_radius) : m_strategy{sphere_radius} {}
 
   double operator()(const Geometry *g1, const Geometry *g2) const override;
 

@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_stages_summary_by_host_by_event_name
-where HOST < "impossible";
+where HOST < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_stages_summary_by_host_by_event_name	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -53,7 +53,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT_STAR
 from performance_schema.events_stages_summary_by_host_by_event_name
 where HOST = "localhost"
-and EVENT_NAME < "impossible";
+and EVENT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_stages_summary_by_host_by_event_name	NULL	ref	HOST	HOST	241	const	#	33.33	Using where
 ############ Explain for Query ####################################

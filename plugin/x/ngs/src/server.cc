@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,15 +40,18 @@
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+
+#include "my_systime.h"  // my_sleep()
 
 namespace ngs {
 
-Server::Server(ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
-               ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
+Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
+               std::shared_ptr<Scheduler_dynamic> work_scheduler,
                Server_delegate *delegate,
-               ngs::shared_ptr<Protocol_config> config,
+               std::shared_ptr<Protocol_config> config,
                Server_properties *properties, const Server_task_vector &tasks,
-               ngs::shared_ptr<Timeout_callback_interface> timeout_callback)
+               std::shared_ptr<Timeout_callback_interface> timeout_callback)
     : m_timer_running(false),
       m_skip_name_resolve(false),
       m_errors_while_accepting(0),
@@ -56,8 +59,10 @@ Server::Server(ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
       m_worker_scheduler(work_scheduler),
       m_config(config),
       m_id_generator(new Document_id_generator()),
-      m_state(State_initializing),
+      m_state(State_initializing, KEY_mutex_x_server_state_sync,
+              KEY_cond_x_server_state_sync),
       m_delegate(delegate),
+      m_client_exit_mutex(KEY_mutex_x_server_client_exit),
       m_properties(properties),
       m_tasks(tasks),
       m_timeout_callback(timeout_callback) {}
@@ -70,7 +75,7 @@ bool Server::prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
   Task_context context(on_connection, skip_networking, m_properties,
                        &m_client_list);
   m_skip_name_resolve = skip_name_resolve;
-  m_ssl_context = ngs::move(ssl_context);
+  m_ssl_context = std::move(ssl_context);
 
   bool result = true;
 
@@ -92,7 +97,7 @@ bool Server::prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
   return false;
 }
 
-void Server::run_task(ngs::shared_ptr<Server_task_interface> handler) {
+void Server::run_task(std::shared_ptr<Server_task_interface> handler) {
   handler->pre_loop();
 
   while (m_state.is(State_running)) {
@@ -160,23 +165,23 @@ void Server::stop(const bool is_called_from_timeout_handler) {
 }
 
 struct Copy_client_not_closed {
-  Copy_client_not_closed(std::vector<ngs::Client_ptr> &client_list)
+  Copy_client_not_closed(std::vector<Client_ptr> &client_list)
       : m_client_list(client_list) {}
 
-  bool operator()(ngs::Client_ptr &client) {
-    if (ngs::Client_interface::Client_closed != client->get_state())
+  bool operator()(Client_ptr &client) {
+    if (Client_interface::Client_closed != client->get_state())
       m_client_list.push_back(client);
 
     // Continue enumerating
     return false;
   }
 
-  std::vector<ngs::Client_ptr> &m_client_list;
+  std::vector<Client_ptr> &m_client_list;
 };
 
-void Server::go_through_all_clients(ngs::function<void(Client_ptr)> callback) {
+void Server::go_through_all_clients(std::function<void(Client_ptr)> callback) {
   MUTEX_LOCK(lock_client_exit, m_client_exit_mutex);
-  std::vector<ngs::Client_ptr> client_list;
+  std::vector<Client_ptr> client_list;
   Copy_client_not_closed matcher(client_list);
 
   // Prolong life of clients when there are already in
@@ -189,7 +194,7 @@ void Server::go_through_all_clients(ngs::function<void(Client_ptr)> callback) {
 
 void Server::close_all_clients() {
   go_through_all_clients(
-      ngs::bind(&Client_interface::on_server_shutdown, ngs::placeholders::_1));
+      std::bind(&Client_interface::on_server_shutdown, std::placeholders::_1));
 }
 
 void Server::wait_for_clients_closure() {
@@ -210,15 +215,16 @@ void Server::wait_for_clients_closure() {
 }
 
 void Server::start_client_supervision_timer(
-    const chrono::duration &oldest_object_time_ms) {
-  log_debug("Supervision timer started %i ms",
-            (int)chrono::to_milliseconds(oldest_object_time_ms));
+    const xpl::chrono::Duration &oldest_object_time_ms) {
+  log_debug(
+      "Supervision timer started %i ms",
+      static_cast<int>(xpl::chrono::to_milliseconds(oldest_object_time_ms)));
 
   m_timer_running = true;
 
   m_timeout_callback->add_callback(
-      static_cast<size_t>(chrono::to_milliseconds(oldest_object_time_ms)),
-      ngs::bind(&Server::timeout_for_clients_validation, this));
+      static_cast<size_t>(xpl::chrono::to_milliseconds(oldest_object_time_ms)),
+      std::bind(&Server::timeout_for_clients_validation, this));
 }
 
 void Server::restart_client_supervision_timer() {
@@ -232,18 +238,18 @@ bool Server::timeout_for_clients_validation() {
 
   log_debug("Supervision timeout - started client state verification");
 
-  const chrono::time_point time_oldest =
-      chrono::now() - get_config()->connect_timeout;
-  const chrono::time_point time_to_release =
+  const xpl::chrono::Time_point time_oldest =
+      xpl::chrono::now() - get_config()->connect_timeout;
+  const xpl::chrono::Time_point time_to_release =
       time_oldest + get_config()->connect_timeout_hysteresis;
 
   Server_client_timeout client_validator(time_to_release);
 
   go_through_all_clients(
-      ngs::bind(&Server_client_timeout::validate_client_state,
-                &client_validator, ngs::placeholders::_1));
+      std::bind(&Server_client_timeout::validate_client_state,
+                &client_validator, std::placeholders::_1));
 
-  if (chrono::is_valid(client_validator.get_oldest_client_accept_time())) {
+  if (xpl::chrono::is_valid(client_validator.get_oldest_client_accept_time())) {
     start_client_supervision_timer(
         client_validator.get_oldest_client_accept_time() - time_oldest);
   }
@@ -270,9 +276,8 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor) {
     return;
   }
 
-  ngs::shared_ptr<Vio_interface> connection(
-      ngs::allocate_shared<Vio_wrapper>(vio));
-  ngs::shared_ptr<Client_interface> client(
+  std::shared_ptr<Vio_interface> connection(allocate_shared<Vio_wrapper>(vio));
+  std::shared_ptr<Client_interface> client(
       m_delegate->create_client(connection));
 
   if (m_delegate->will_accept_client(*client)) {
@@ -282,9 +287,8 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor) {
     client->reset_accept_time();
     m_client_list.add(client);
 
-    Scheduler_dynamic::Task *task =
-        ngs::allocate_object<Scheduler_dynamic::Task>(ngs::bind(
-            &ngs::Client_interface::run, client, m_skip_name_resolve));
+    Scheduler_dynamic::Task *task = allocate_object<Scheduler_dynamic::Task>(
+        std::bind(&Client_interface::run, client, m_skip_name_resolve));
 
     const uint64_t client_id = client->client_id_num();
     client.reset();
@@ -292,7 +296,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor) {
     // all references to client object should be removed at this thread
     if (!m_worker_scheduler->post(task)) {
       log_error(ER_XPLUGIN_FAILED_TO_SCHEDULE_CLIENT);
-      ngs::free_object(task);
+      free_object(task);
       m_client_list.remove(client_id);
     }
 
@@ -311,19 +315,20 @@ bool Server::on_check_terminated_workers() {
   return false;
 }
 
-ngs::shared_ptr<Session_interface> Server::create_session(
+std::shared_ptr<Session_interface> Server::create_session(
     Client_interface &client, Protocol_encoder_interface &proto,
     const int session_id) {
-  if (is_terminating()) return ngs::shared_ptr<Session_interface>();
+  if (is_terminating()) return std::shared_ptr<Session_interface>();
 
   return m_delegate->create_session(client, proto, session_id);
 }
 
 void Server::on_client_closed(const Client_interface &client) {
   log_debug("%s: on_client_close", client.client_id());
-  m_delegate->on_client_closed(client);
-
+  // Lets first remove it, and then decrement the counters
+  // in m_delegate.
   m_client_list.remove(client.client_id_num());
+  m_delegate->on_client_closed(client);
 }
 
 void Server::add_authentication_mechanism(
@@ -340,9 +345,10 @@ void Server::add_sha256_password_cache(SHA256_password_cache_interface *cache) {
 
 Authentication_interface_ptr Server::get_auth_handler(
     const std::string &name, Session_interface *session) {
-  Connection_type type = session->client().connection().get_type();
+  xpl::Connection_type type = session->client().connection().get_type();
 
-  Authentication_key key(name, Connection_type_helper::is_secure_type(type));
+  Authentication_key key(name,
+                         xpl::Connection_type_helper::is_secure_type(type));
 
   Auth_handler_map::const_iterator auth_handler = m_auth_handlers.find(key);
 
@@ -354,8 +360,8 @@ Authentication_interface_ptr Server::get_auth_handler(
 
 void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech,
                                            Client_interface &client) {
-  const Connection_type type = client.connection().get_type();
-  const bool is_secure = Connection_type_helper::is_secure_type(type);
+  const xpl::Connection_type type = client.connection().get_type();
+  const bool is_secure = xpl::Connection_type_helper::is_secure_type(type);
 
   auth_mech.clear();
 
@@ -371,7 +377,7 @@ void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech,
 }
 
 void Server::add_callback(const std::size_t delay_ms,
-                          ngs::function<bool()> callback) {
+                          std::function<bool()> callback) {
   m_timeout_callback->add_callback(delay_ms, callback);
 }
 
@@ -387,6 +393,15 @@ bool Server::reset_globals() {
   m_id_generator.reset(new Document_id_generator());
 
   return true;
+}
+
+Client_ptr Server::get_client(const THD *thd) {
+  std::vector<Client_ptr> clients;
+  get_client_list().get_all_clients(clients);
+
+  for (auto &c : clients)
+    if (c->is_handler_thd(thd)) return c;
+  return {};
 }
 
 }  // namespace ngs

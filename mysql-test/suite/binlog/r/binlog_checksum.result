@@ -5,8 +5,8 @@ set @@global.master_verify_checksum = 1;
 reset master;
 must be binlog.000001
 show binary logs;
-Log_name	File_size
-binlog.000001	#
+Log_name	File_size	Encrypted
+binlog.000001	#	#
 create table t1 (a int);
 flush logs;
 drop table t1;

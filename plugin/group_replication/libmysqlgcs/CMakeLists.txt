@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,9 @@ SET(XCOM_SOURCES
   src/bindings/xcom/xcom/task_net.c
   src/bindings/xcom/xcom/synode_no.c
   src/bindings/xcom/xcom/xcom_detector.c
+  src/bindings/xcom/xcom/xcom_input_request.c
+  src/bindings/xcom/xcom/get_synode_app_data.c
+  src/bindings/xcom/xcom/checked_data.c
   ${XCOM_SUNRPC_SOURCES}
   ${XCOM_RPCGEN_SOURCES})
 
@@ -88,7 +91,8 @@ SET(GCS_INTERFACE_SOURCES
   src/interface/gcs_message.cc
   src/interface/gcs_member_identifier.cc
   src/interface/gcs_group_identifier.cc
-  src/interface/gcs_psi.cc)
+  src/interface/gcs_psi.cc
+  src/interface/gcs_tagged_lock.cc)
 
 
 SET(GCS_SOURCES
@@ -97,6 +101,7 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_communication_interface.cc
   src/bindings/xcom/gcs_xcom_control_interface.cc
   src/bindings/xcom/gcs_xcom_group_management.cc
+  src/bindings/xcom/gcs_internal_message_headers.cc
   src/bindings/xcom/gcs_internal_message.cc
   src/bindings/xcom/gcs_xcom_networking.cc
   src/bindings/xcom/gcs_xcom_utils.cc
@@ -107,7 +112,12 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_interface.cc
   src/bindings/xcom/gcs_xcom_notification.cc
   src/bindings/xcom/gcs_message_stage_lz4.cc
-  src/bindings/xcom/gcs_xcom_statistics_interface.cc)
+  src/bindings/xcom/gcs_xcom_statistics_interface.cc
+  src/bindings/xcom/gcs_xcom_proxy.cc
+  src/bindings/xcom/gcs_xcom_communication_protocol_changer.cc
+  ../../../extra/lz4/xxhash.c # required by gcs_message_stage_split
+  src/bindings/xcom/gcs_message_stage_split.cc
+  src/bindings/xcom/gcs_xcom_synode.cc)
 
 MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
 IF(HAVE_CAST_FUNCTION_TYPE)
@@ -146,13 +156,22 @@ ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
 ENDIF()
 
-ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
-ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
+ADD_COMPILE_DEFINITIONS(
+  ${XCOM_SOURCES}
+  ${GCS_SOURCES}
+  COMPILE_DEFINITIONS MYSQL_DYNAMIC_PLUGIN)
+
+ADD_COMPILE_DEFINITIONS(../../../extra/lz4/xxhash.c
+  COMPILE_DEFINITIONS "XXH_NAMESPACE=GCS_")
 
 ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
 
-IF(TIRPC_LIBRARY)
-  TARGET_LINK_LIBRARIES(${GCS_LIBRARY} ${TIRPC_LIBRARY})
+IF(TIRPC_LIBRARIES)
+  TARGET_LINK_LIBRARIES(${GCS_LIBRARY} ${TIRPC_LIBRARIES})
+ENDIF()
+
+IF(MSVC)
+	TARGET_LINK_LIBRARIES(${GCS_LIBRARY} iphlpapi)
 ENDIF()
 
 # convenience target

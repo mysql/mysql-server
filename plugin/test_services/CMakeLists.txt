@@ -32,3 +32,6 @@ MYSQL_ADD_PLUGIN(test_services_thread test_services_threaded.cc
 MYSQL_ADD_PLUGIN(test_services_plugin_registry test_services_plugin_registry.cc
   TEST_ONLY MODULE_ONLY)
 
+MYSQL_ADD_PLUGIN(test_services_host_application_signal test_services_host_application_signal.cc
+  MODULE_ONLY TEST_ONLY)
+

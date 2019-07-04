@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include <limits>
 #include <memory>  // std::unique_ptr
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "my_base.h"  // ha_rows
 #include "my_dbug.h"
@@ -382,7 +382,7 @@ double Bucket<MYSQL_TIME>::get_distance_from_lower(
   longlong upper_lower_diff_seconds;
   long upper_lower_diff_microseconds;
   int sign = lower_modified.neg != upper_modified.neg ? -1 : 1;
-  calc_time_diff(&lower_modified, &upper_modified, sign,
+  calc_time_diff(lower_modified, upper_modified, sign,
                  &upper_lower_diff_seconds, &upper_lower_diff_microseconds);
   double upper_lower_diff =
       upper_lower_diff_seconds + (upper_lower_diff_microseconds / 1000000.0);
@@ -394,7 +394,7 @@ double Bucket<MYSQL_TIME>::get_distance_from_lower(
   longlong value_lower_diff_seconds;
   long value_lower_diff_microseconds;
   sign = lower_modified.neg != value_modified.neg ? -1 : 1;
-  calc_time_diff(&lower_modified, &value_modified, sign,
+  calc_time_diff(lower_modified, value_modified, sign,
                  &value_lower_diff_seconds, &value_lower_diff_microseconds);
   double value_lower_diff =
       value_lower_diff_seconds + (value_lower_diff_microseconds / 1000000.0);

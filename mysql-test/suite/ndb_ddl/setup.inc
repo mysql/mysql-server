@@ -158,7 +158,7 @@ INSERT INTO t8 VALUES
 # hidden pk and blobs
 
 # ignore the warning about binlogging not supported on this table
---disable_warnings ONCE
+--disable_warnings ER_ILLEGAL_HA_CREATE_OPTION ONCE
 eval
 CREATE TABLE t9 (
   a INT,

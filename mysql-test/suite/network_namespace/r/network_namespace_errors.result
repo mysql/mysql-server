@@ -1,0 +1,24 @@
+# Stop DB server which was created by default
+# Using an unknown network namespace with bind-address
+Pattern "ERROR.*Server.*Unknown network namespace 'green'" found
+# Simulate lack of cap_sys_admin capability
+Pattern "ERROR.*Server.*setns\(\) failed with error 'Operation not permitted'" found
+Pattern "ERROR.*Server.*setns\(\) failed with error 'Operation not permitted'" found
+# Try specifying wildcard address for bind-address/admin-address with network namespaces
+Pattern "ERROR.*Server.*Network namespace not allowed for wildcard interface address" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '\*/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '0.0.0.0/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '::/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '\*/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '0.0.0.0/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '::/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '127.0.0.1/'" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '127.0.0.1/,localhost'" found
+Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '127.0.0.1/'" found
+# Try specifying incorrect values to --mysqlx-bind-address
+# restart: --log-error=MYSQLD_LOG --mysqlx-bind-address=10.0.2.1/green
+Pattern "ERROR.*Server.*Unknown network namespace 'green'" found
+# restart: --log-error=MYSQLD_LOG --mysqlx-bind-address=*/red
+Pattern "ERROR.*Server.*Plugin mysqlx reported: 'Network namespace not allowed for wildcard interface address'" found
+# Starting mysqld with original parameters
+# restart

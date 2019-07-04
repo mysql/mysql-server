@@ -1,0 +1,40 @@
+###########################################################################
+# Test Author   : Mohit Joshi                                             #
+# Creation Date : 30-Nov-2018                                             #
+# WL#11543      : Instrument the keyring into performance schema          #
+# Test Objective: To verify that only users with permissions to query the #
+# performance schema can access the keyring_keys table.                   #
+###########################################################################
+
+CREATE USER happygilmore@localhost identified by 'happy';
+GRANT SELECT ON *.* TO happygilmore@localhost;
+
+--connect (con1,localhost,happygilmore,happy,test)
+--connection con1
+SHOW GRANTS;
+SELECT * FROM performance_schema.keyring_keys;
+
+--connection default
+REVOKE SELECT ON *.* FROM happygilmore@localhost;
+--disconnect con1
+
+--connect (con1,localhost,happygilmore,happy,test)
+--connection con1
+SHOW GRANTS;
+# Due to no SELECT privilege on the user, SELECT operation MUST fail.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM performance_schema.keyring_keys;
+
+--connection default
+GRANT SELECT ON *.* TO happygilmore@localhost;
+--disconnect con1
+
+--connect (con1,localhost,happygilmore,happy,test)
+--connection con1
+SHOW GRANTS;
+# Query must execute successfully after giving SELECT privilege to the user.
+SELECT * FROM performance_schema.keyring_keys;
+
+--connection default
+DROP USER happygilmore@localhost;
+--disconnect con1

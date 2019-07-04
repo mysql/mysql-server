@@ -28,13 +28,14 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <stdexcept>
 
 #include <signal.h>
 #include <sys/types.h>
 
 #include "mysqld_error.h"
 
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/message_matcher.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 #include "plugin/x/tests/driver/connector/warning.h"
@@ -46,6 +47,7 @@
 #include "plugin/x/tests/driver/processor/indigestion_processor.h"
 #include "plugin/x/tests/driver/processor/macro_block_processor.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
+#include "plugin/x/tests/driver/processor/variable_names.h"
 
 namespace {
 
@@ -106,7 +108,7 @@ class Backup_and_restore {
 
 }  // namespace
 
-ngs::chrono::time_point Command::m_start_measure;
+xpl::chrono::Time_point Command::m_start_measure;
 
 Command::Command() {
   m_commands["title"] = &Command::cmd_title;
@@ -155,6 +157,7 @@ Command::Command() {
   m_commands["varlet"] = &Command::cmd_varlet;
   m_commands["varinc"] = &Command::cmd_varinc;
   m_commands["varsub"] = &Command::cmd_varsub;
+  m_commands["varreplace"] = &Command::cmd_varreplace;
   m_commands["vargen"] = &Command::cmd_vargen;
   m_commands["varescape"] = &Command::cmd_varescape;
   m_commands["binsend"] = &Command::cmd_binsend;
@@ -172,6 +175,12 @@ Command::Command() {
   m_commands["noquery_result"] = &Command::cmd_noquery;
   m_commands["wait_for"] = &Command::cmd_wait_for;
   m_commands["received"] = &Command::cmd_received;
+  m_commands["clear_received"] = &Command::cmd_clear_received;
+  m_commands["recvresult_store_metadata"] =
+      &Command::cmd_recvresult_store_metadata;
+  m_commands["recv_with_stored_metadata"] =
+      &Command::cmd_recv_with_stored_metadata;
+  m_commands["clear_stored_metadata"] = &Command::cmd_clear_stored_metadata;
 }
 
 bool Command::is_command_registred(const std::string &command_line,
@@ -235,8 +244,10 @@ Command::Result Command::cmd_title(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args) {
   if (!args.empty()) {
-    context->print("\n", args.substr(1), "\n");
-    std::string sep(args.length() - 1, args[0]);
+    std::string s = args.substr(1);
+    context->m_variables->replace(&s);
+    context->print("\n", s, "\n");
+    std::string sep(s.length(), args[0]);
     context->print(sep, "\n");
   } else {
     context->print("\n\n");
@@ -443,8 +454,6 @@ Command::Result Command::cmd_recverror(std::istream &input,
                                        const std::string &args) {
   xcl::XProtocol::Server_message_type_id msgid;
   xcl::XError xerror;
-  Message_ptr msg(
-      context->session()->get_protocol().recv_single_message(&msgid, &xerror));
 
   if (args.empty()) {
     context->print_error(
@@ -452,30 +461,37 @@ Command::Result Command::cmd_recverror(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  if (msg.get()) {
-    bool failed = false;
-    try {
-      const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
-      if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
-          expected_error_code !=
-              static_cast<int>(
-                  static_cast<Mysqlx::Error *>(msg.get())->code())) {
-        context->print_error(context->m_script_stack, "Was expecting Error ",
-                             args, ", but got:\n");
-        failed = true;
-      } else {
-        context->print("Got expected error:\n");
-      }
+  Message_ptr msg(
+      context->session()->get_protocol().recv_single_message(&msgid, &xerror));
 
-      context->print(*msg, "\n");
+  if (nullptr == msg.get()) {
+    context->print_error(context->m_script_stack, "Was expecting Error ", args,
+                         ", but got I/O error:", xerror.error(),
+                         ", message:", xerror.what(), "\n");
+    return Result::Stop_with_failure;
+  }
 
-      if (failed && context->m_options.m_fatal_errors) {
-        return Result::Stop_with_success;
-      }
-    } catch (std::exception &e) {
-      context->print_error_red(context->m_script_stack, e, '\n');
-      if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
+  bool failed = false;
+  try {
+    const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
+    if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
+        expected_error_code !=
+            static_cast<int>(static_cast<Mysqlx::Error *>(msg.get())->code())) {
+      context->print_error(context->m_script_stack, "Was expecting Error ",
+                           args, ", but got:\n");
+      failed = true;
+    } else {
+      context->print("Got expected error:\n");
     }
+
+    context->print(*msg, "\n");
+
+    if (failed && context->m_options.m_fatal_errors) {
+      return Result::Stop_with_success;
+    }
+  } catch (std::exception &e) {
+    context->print_error_red(context->m_script_stack, e, '\n');
+    if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
   }
 
   return Result::Continue;
@@ -518,7 +534,11 @@ Command::Result Command::cmd_recvresult(std::istream &input,
 Command::Result Command::cmd_recvresult(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args,
-                                        Value_callback value_callback) {
+                                        Value_callback value_callback,
+                                        const Metadata_policy metadata_policy) {
+  context->m_variables->set(k_variable_result_rows_affected, "0");
+  context->m_variables->set(k_variable_result_last_insert_id, "0");
+
   try {
     std::vector<std::string> columns;
     std::string cmd_args = args;
@@ -537,10 +557,24 @@ Command::Result Command::cmd_recvresult(std::istream &input,
     if (quiet) columns.erase(i);
 
     Result_fetcher result{context->session()->get_protocol().recv_resultset()};
+    if (metadata_policy != Metadata_policy::Default) {
+      if (columns.size() == 0) {
+        context->print_error("No metadata tag given");
+        return Result::Stop_with_failure;
+      }
+      auto metadata_tag = *columns.begin();
+      columns.clear();
+      if (metadata_policy == Metadata_policy::Use_stored)
+        result.set_metadata(context->m_stored_metadata[metadata_tag]);
+      else if (metadata_policy == Metadata_policy::Store)
+        context->m_stored_metadata[metadata_tag] = result.column_metadata();
+    }
+
     std::vector<Warning> warnings;
 
     const bool force_quiet = !context->m_options.m_show_query_result || quiet;
-    print_resultset(context, &result, columns, value_callback, force_quiet);
+    print_resultset(context, &result, columns, value_callback, force_quiet,
+                    print_colinfo);
 
     auto error = result.get_last_error();
 
@@ -552,18 +586,22 @@ Command::Result Command::cmd_recvresult(std::istream &input,
       return Result::Continue;
     }
 
-    if (print_colinfo) context->print(result.column_metadata());
-
     context->m_variables->clear_unreplace();
 
+    const auto rows = result.affected_rows();
+    const auto insert_id = result.last_insert_id();
+
+    context->m_variables->set(k_variable_result_rows_affected,
+                              std::to_string(rows));
+    context->m_variables->set(k_variable_result_last_insert_id,
+                              std::to_string(insert_id));
+
     if (!force_quiet) {
-      int64_t x = result.affected_rows();
-      if (x >= 0)
-        context->print(x, " rows affected\n");
+      if (rows >= 0)
+        context->print(rows, " rows affected\n");
       else
         context->print("command ok\n");
-      if (result.last_insert_id() > 0)
-        context->print("last insert id: ", result.last_insert_id(), "\n");
+      if (insert_id > 0) context->print("last insert id: ", insert_id, "\n");
 
       std::vector<std::string> document_ids = result.generated_document_ids();
       if (!document_ids.empty()) {
@@ -759,7 +797,7 @@ Command::Result Command::cmd_sleep(std::istream &input,
 
   std::string tmp = args;
   context->m_variables->replace(&tmp);
-  const double delay_in_seconds = ngs::stod(tmp);
+  const double delay_in_seconds = std::stod(tmp);
 #ifdef _WIN32
   const int delay_in_milliseconds = static_cast<int>(delay_in_seconds * 1000);
   Sleep(delay_in_milliseconds);
@@ -853,12 +891,12 @@ Command::Result Command::cmd_repeat(std::istream &input,
   // Allow use of variables as a source of number of iterations
   context->m_variables->replace(&argl[0]);
 
-  Loop_do loop = {input.tellg(), ngs::stoi(argl[0]), 0, variable_name};
+  Loop_do loop = {input.tellg(), std::stoi(argl[0]), 0, variable_name};
 
   m_loop_stack.push_back(loop);
 
   if (variable_name.length())
-    context->m_variables->set(variable_name, ngs::to_string(loop.value));
+    context->m_variables->set(variable_name, xpl::to_string(loop.value));
 
   return Result::Continue;
 }
@@ -873,7 +911,7 @@ Command::Result Command::cmd_endrepeat(std::istream &input,
     ++ld.value;
 
     if (ld.variable_name.length())
-      context->m_variables->set(ld.variable_name, ngs::to_string(ld.value));
+      context->m_variables->set(ld.variable_name, xpl::to_string(ld.value));
 
     if (1 > ld.iterations) {
       m_loop_stack.pop_back();
@@ -1039,7 +1077,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
     tolerance = 10 * expected_delta_time / 100;
   }
 
-  ngs::chrono::time_point start_time = ngs::chrono::now();
+  xpl::chrono::Time_point start_time = xpl::chrono::now();
   try {
     xcl::XProtocol::Server_message_type_id msgid;
     context->m_connection->active_xconnection()->set_read_timeout(
@@ -1070,7 +1108,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
   }
 
   int execution_delta_time = static_cast<int>(
-      ngs::chrono::to_milliseconds(ngs::chrono::now() - start_time));
+      xpl::chrono::to_milliseconds(xpl::chrono::now() - start_time));
 
   if (abs(execution_delta_time - expected_delta_time) > tolerance) {
     context->print_error(
@@ -1167,7 +1205,7 @@ Command::Result Command::cmd_shutdown_server(std::istream &input,
                                              const std::string &args) {
   int timeout_seconds = 0;
 
-  if (args.size() > 0) timeout_seconds = ngs::stoi(args);
+  if (args.size() > 0) timeout_seconds = std::stoi(args);
 
   if (0 != timeout_seconds) {
     context->m_console.print_error(
@@ -1195,7 +1233,7 @@ Command::Result Command::cmd_shutdown_server(std::istream &input,
                               }));
     try_result(cmd_varfile(input, context, "__%VAR% " + pid_file));
 
-    const auto pid = ngs::stoi(context->m_variables->get("__%VAR%"));
+    const auto pid = std::stoi(context->m_variables->get("__%VAR%"));
 
     if (0 == pid) {
       context->m_console.print_error("Pid-file doesn't contain valid PID.\n");
@@ -1450,14 +1488,14 @@ Command::Result Command::cmd_expecterror(std::istream &input,
 Command::Result Command::cmd_measure(std::istream &input,
                                      Execution_context *context,
                                      const std::string &args) {
-  m_start_measure = ngs::chrono::now();
+  m_start_measure = xpl::chrono::now();
   return Result::Continue;
 }
 
 Command::Result Command::cmd_endmeasure(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args) {
-  if (!ngs::chrono::is_valid(m_start_measure)) {
+  if (!xpl::chrono::is_valid(m_start_measure)) {
     context->print_error("Time measurement, wasn't initialized", '\n');
     return Result::Stop_with_failure;
   }
@@ -1470,13 +1508,13 @@ Command::Result Command::cmd_endmeasure(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  const int64_t expected_msec = ngs::stoi(argl[0]);
+  const int64_t expected_msec = std::stoi(argl[0]);
   const int64_t msec =
-      ngs::chrono::to_milliseconds(ngs::chrono::now() - m_start_measure);
+      xpl::chrono::to_milliseconds(xpl::chrono::now() - m_start_measure);
 
   int64_t tolerance = expected_msec * 10 / 100;
 
-  if (2 == argl.size()) tolerance = ngs::stoi(argl[1]);
+  if (2 == argl.size()) tolerance = std::stoi(argl[1]);
 
   if (abs(static_cast<int>(expected_msec - msec)) > tolerance) {
     context->print_error("Timeout should occur after ", expected_msec,
@@ -1484,7 +1522,7 @@ Command::Result Command::cmd_endmeasure(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  m_start_measure = ngs::chrono::time_point();
+  m_start_measure = xpl::chrono::Time_point();
   return Result::Continue;
 }
 
@@ -1513,6 +1551,27 @@ Command::Result Command::cmd_varsub(std::istream &input,
   }
 
   context->m_variables->push_unreplace(args);
+  return Result::Continue;
+}
+Command::Result Command::cmd_varreplace(std::istream &input,
+                                        Execution_context *context,
+                                        const std::string &args) {
+  std::vector<std::string> argl;
+  aux::split(argl, args, "\t", true);
+
+  if (3 != argl.size()) {
+    context->print_error(
+        "'cmd_varreplace' command, requires three arguments, still received '",
+        args, "'\n");
+    return Result::Stop_with_failure;
+  }
+  context->m_variables->replace(&argl[1]);
+  context->m_variables->replace(&argl[2]);
+
+  std::string value = context->m_variables->get(argl[0]);
+  aux::replace_all(value, argl[1], argl[2], 1);
+  context->m_variables->set(argl[0], value);
+
   return Result::Continue;
 }
 
@@ -1568,7 +1627,7 @@ Command::Result Command::cmd_varinc(std::istream &input,
   int64_t int_val = strtol(val.c_str(), &c, 10);
   int64_t int_n = strtol(inc_by.c_str(), &c, 10);
   int_val += int_n;
-  val = ngs::to_string(int_val);
+  val = xpl::to_string(int_val);
   context->m_variables->set(argl[0], val);
 
   return Result::Continue;
@@ -1583,7 +1642,7 @@ Command::Result Command::cmd_vargen(std::istream &input,
     context->print_error("Invalid number of arguments for command vargen\n");
     return Result::Stop_with_failure;
   }
-  std::string data(ngs::stoi(argl[2]), *argl[1].c_str());
+  std::string data(std::stoi(argl[2]), *argl[1].c_str());
   context->m_variables->set(argl[0], data);
   return Result::Continue;
 }
@@ -1700,12 +1759,12 @@ Command::Result Command::cmd_hexsend(std::istream &input,
 size_t Command::value_to_offset(const std::string &data,
                                 const size_t maximum_value) {
   if ('%' == *data.rbegin()) {
-    size_t percent = ngs::stoi(data);
+    size_t percent = std::stoi(data);
 
     return maximum_value * percent / 100;
   }
 
-  return ngs::stoi(data);
+  return std::stoi(data);
 }
 
 Command::Result Command::cmd_binsendoffset(std::istream &input,
@@ -1866,7 +1925,7 @@ Command::Result Command::cmd_assert_gt(std::istream &input,
   context->m_variables->replace(&vargs[0]);
   context->m_variables->replace(&vargs[1]);
 
-  if (ngs::stoi(vargs[0]) <= ngs::stoi(vargs[1])) {
+  if (std::stoi(vargs[0]) <= std::stoi(vargs[1])) {
     context->print_error("Expecting '", vargs[0], "' to be greater than '",
                          vargs[1], "'\n");
     return Result::Stop_with_failure;
@@ -1984,6 +2043,14 @@ Command::Result Command::cmd_wait_for(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_clear_received(std::istream &input,
+                                            Execution_context *context,
+                                            const std::string &args) {
+  context->m_connection->active_holder().clear_received_messages();
+
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_received(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
@@ -1995,13 +2062,13 @@ Command::Result Command::cmd_received(std::istream &input,
   if (2 != vargs.size()) {
     context->print_error(
         "Specified invalid number of arguments for command received:",
-        vargs.size(), " expecting 2\n");
+        vargs.size(), " expecting 2 or 1\n");
     return Result::Stop_with_failure;
   }
 
   context->m_variables->set(
       vargs[1],
-      ngs::to_string(
+      xpl::to_string(
           context->m_connection->active_session_messages_received(vargs[0])));
 
   return Result::Continue;
@@ -2037,6 +2104,36 @@ Command::Result Command::cmd_expectwarnings(std::istream &input,
     return Result::Stop_with_failure;
   }
 
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_recvresult_store_metadata(
+    std::istream &input, Execution_context *context, const std::string &args) {
+  return cmd_recvresult(input, context, args, Value_callback(),
+                        Metadata_policy::Store);
+}
+
+Command::Result Command::cmd_recv_with_stored_metadata(
+    std::istream &input, Execution_context *context, const std::string &args) {
+  if (args.empty()) {
+    context->print_error(
+        "'recv_with_stored_metadata' command requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  std::string metadata_tag(args);
+  if (context->m_stored_metadata.count(args) == 0) {
+    context->print_error("No metadata stored with the given METADATA_TAG\n");
+    return Result::Stop_with_failure;
+  }
+  return cmd_recvresult(input, context, args, Value_callback(),
+                        Metadata_policy::Use_stored);
+}
+
+Command::Result Command::cmd_clear_stored_metadata(std::istream &input,
+                                                   Execution_context *context,
+                                                   const std::string &args) {
+  context->m_stored_metadata.clear();
   return Result::Continue;
 }
 
@@ -2104,61 +2201,68 @@ Command::Result Command::cmd_import(std::istream &input,
 void Command::print_resultset(Execution_context *context,
                               Result_fetcher *result,
                               const std::vector<std::string> &columns,
-                              Value_callback value_callback, const bool quiet) {
-  std::vector<xcl::Column_metadata> meta(result->column_metadata());
-  std::vector<int> column_indexes;
-  int column_index = -1;
-  bool first = true;
+                              Value_callback value_callback, const bool quiet,
+                              const bool print_column_info) {
+  do {
+    std::vector<xcl::Column_metadata> meta(result->column_metadata());
 
-  if (result->get_last_error()) return;
+    if (result->get_last_error()) return;
 
-  for (auto col = meta.begin(); col != meta.end(); ++col) {
-    ++column_index;
+    std::vector<int> column_indexes;
+    int column_index = -1;
+    bool first = true;
 
-    if (!first) {
-      if (!quiet) context->print("\t");
-    } else {
-      first = false;
-    }
+    for (auto col = meta.begin(); col != meta.end(); ++col) {
+      ++column_index;
 
-    if (!columns.empty() &&
-        columns.end() == std::find(columns.begin(), columns.end(), col->name))
-      continue;
-
-    column_indexes.push_back(column_index);
-    if (!quiet) context->print(col->name);
-  }
-  if (!quiet) context->print("\n");
-
-  for (;;) {
-    const xcl::XRow *row(result->next());
-
-    if (!row) break;
-
-    try {
-      std::vector<int>::iterator i = column_indexes.begin();
-      const auto field_count = row->get_number_of_fields();
-      for (; i != column_indexes.end() && (*i) < field_count; ++i) {
-        std::string out_result;
-
-        if (!row->get_field_as_string(*i, &out_result))
-          throw std::runtime_error("Data decoder failed");
-
-        int field = (*i);
-        if (field != 0)
-          if (!quiet) context->print("\t");
-        std::string str = context->m_variables->unreplace(out_result, false);
-        if (!quiet) context->print(str);
-        if (value_callback) {
-          value_callback(str);
-          Value_callback().swap(value_callback);
-        }
+      if (!first) {
+        if (!quiet) context->print("\t");
+      } else {
+        first = false;
       }
-    } catch (std::exception &e) {
-      context->print_error("ERROR: ", e, '\n');
+
+      if (!columns.empty() &&
+          columns.end() == std::find(columns.begin(), columns.end(), col->name))
+        continue;
+
+      column_indexes.push_back(column_index);
+      if (!quiet) context->print(col->name);
     }
     if (!quiet) context->print("\n");
-  }
+
+    for (;;) {
+      const xcl::XRow *row(result->next());
+
+      if (!row) break;
+
+      try {
+        std::vector<int>::iterator i = column_indexes.begin();
+        const auto field_count = row->get_number_of_fields();
+        for (; i != column_indexes.end() && (*i) < field_count; ++i) {
+          std::string out_result;
+
+          if (!row->get_field_as_string(*i, &out_result))
+            throw std::runtime_error("Data decoder failed");
+
+          int field = (*i);
+          if (field != 0)
+            if (!quiet) context->print("\t");
+          std::string str = context->m_variables->unreplace(out_result, false);
+          if (!quiet) context->print(str);
+          if (value_callback) {
+            value_callback(str);
+            Value_callback().swap(value_callback);
+          }
+        }
+      } catch (std::exception &e) {
+        context->print_error("ERROR: ", e, '\n');
+      }
+      if (!quiet) context->print("\n");
+    }
+
+    if (print_column_info) context->print(meta);
+
+  } while (result->next_data_set());
 }
 
 void print_help_commands() {
@@ -2334,6 +2438,9 @@ void print_help_commands() {
   std::cout << "  Add a variable to the list of variables to replace for "
                "the next recv or sql command (value is replaced by the "
                "name)\n";
+  std::cout << "-->varreplace <varname>\t<old_txt>\t<new_txt>\n";
+  std::cout << "  Replace all occurrence of <old_txt> with <new_txt> in "
+               "<varname> value.\n";
   std::cout << "-->varescape <varname>\n";
   std::cout << "  Escape end-line and backslash characters.\n";
   std::cout << "-->binsend <bindump>[<bindump>...]\n";
@@ -2354,5 +2461,18 @@ void print_help_commands() {
   std::cout << "-->received <msgtype>\t<varname>\n";
   std::cout << "  Assigns number of received messages of indicated type (in "
                "active session) to a variable\n";
+  std::cout << "-->clear_received\n";
+  std::cout << "  Clear number of received messages.\n";
+  std::cout << "-->recvresult_store_metadata <METADATA_TAG> [print-columnsinfo]"
+               " ["
+            << CMD_ARG_BE_QUIET << "]\n";
+  std::cout << "  Receive result and store metadata for future use; if "
+               "print-columnsinfo is present also print short columns "
+               "status\n";
+  std::cout << "-->recv_with_stored_metadata <METADATA_TAG>\n";
+  std::cout << "  Receive a message using a previously stored metadata\n";
+  std::cout << "-->clear_stored_metadata\n";
+  std::cout << "  Clear metadata information stored by the "
+               "recvresult_store_metadata\n";
   std::cout << "# comment\n";
 }

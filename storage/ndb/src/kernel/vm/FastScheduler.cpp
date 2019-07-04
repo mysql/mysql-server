@@ -307,7 +307,6 @@ APZJobBuffer::signal2buffer(Signal* signal,
 			    BufferEntry& buf)
 {
   Uint32 tSignalId = globalData.theSignalId;
-  Uint32 tFirstData = signal->theData[0];
   Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;
   Uint32 tSigId  = buf.header.theSignalId;
   
@@ -316,26 +315,12 @@ APZJobBuffer::signal2buffer(Signal* signal,
   buf.header.theReceiversBlockNumber = bnr;
   buf.header.theSendersSignalId = tSignalId - 1;
   buf.header.theSignalId = tSigId;
-  buf.theDataRegister[0] = tFirstData;
   
-  Uint32 tLengthCopied = 1;
-  Uint32* tSigDataPtr = &signal->theData[1];
-  Uint32* tDataRegPtr = &buf.theDataRegister[1];
-  while (tLengthCopied < tLength) {
-    Uint32 tData0 = tSigDataPtr[0];
-    Uint32 tData1 = tSigDataPtr[1];
-    Uint32 tData2 = tSigDataPtr[2];
-    Uint32 tData3 = tSigDataPtr[3];
-    
-    tLengthCopied += 4;
-    tSigDataPtr += 4;
+  Uint32* tSigDataPtr = &signal->theData[0];
+  Uint32* tDataRegPtr = &buf.theDataRegister[0];
 
-    tDataRegPtr[0] = tData0;
-    tDataRegPtr[1] = tData1;
-    tDataRegPtr[2] = tData2;
-    tDataRegPtr[3] = tData3;
-    tDataRegPtr += 4;
-  }//while
+  // TODO hint that data is aligned(?) to -4 bytes per 16 bytes for performance
+  memcpy(tDataRegPtr, tSigDataPtr, tLength * sizeof(Uint32));
 }//APZJobBuffer::signal2buffer()
 
 void

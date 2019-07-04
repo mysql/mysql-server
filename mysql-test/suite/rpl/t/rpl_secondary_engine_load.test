@@ -25,6 +25,7 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped")
 # Install plugin on master.
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN'
+SET @@secondary_engine_cost_threshold = 0;
 
 --connection slave
 --echo [ Connection Slave ]
@@ -32,6 +33,7 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped")
 # Install plugin on slave.
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN'
+SET @@secondary_engine_cost_threshold = 0;
 
 --connection master
 --echo [ Connection Master ]
@@ -65,6 +67,15 @@ ALTER TABLE t1 SECONDARY_LOAD;
 
 --source include/sync_slave_sql_with_master.inc
 --echo [ Connection Slave ]
+
+# Check that SECONDARY_LOAD was not propagated and that the table has not been
+# loaded into its secondary engine.
+FLUSH STATUS;
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# Load table also on slave.
+ALTER TABLE t1 SECONDARY_LOAD;
 
 # Check that the query is offloaded.
 FLUSH STATUS;
@@ -128,8 +139,8 @@ FLUSH STATUS;
 SELECT * FROM t2;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# Unload the table on slave.
-ALTER TABLE t2 SECONDARY_UNLOAD;
+# Load the table on slave.
+ALTER TABLE t2 SECONDARY_LOAD;
 
 FLUSH STATUS;
 SELECT * FROM t2;
@@ -148,6 +159,15 @@ ALTER TABLE t1 SECONDARY_UNLOAD;
 
 --source include/sync_slave_sql_with_master.inc
 --echo [ Connection Slave ]
+
+# Check that SECONDARY_UNLOAD was not propagated and that the table is
+# still loaded into its secondary engine.
+FLUSH STATUS;
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# Unload table also on slave.
+ALTER TABLE t1 SECONDARY_UNLOAD;
 
 # Check that the table is unloaded.
 FLUSH STATUS;
@@ -179,18 +199,11 @@ ALTER TABLE t2 SECONDARY_ENGINE=NULL;
 --connection master
 --echo [ Connection Master ]
 
-# Load the table on master. This operation will fail on slave because it has
-# no secondary engine defined.
+# Load the table on master.
 ALTER TABLE t2 SECONDARY_LOAD;
 
 --connection slave
 --echo [ Connection Slave ]
-
-START SLAVE SQL_THREAD;
-
-# Since the secondary engine is not defined, this error is expected.
---let $slave_sql_errno = convert_error(ER_SECONDARY_ENGINE)
---source include/wait_for_slave_sql_error.inc
 
 # Change secondary engine to MOCK
 ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
@@ -270,17 +283,12 @@ UNINSTALL PLUGIN mock;
 --connection master
 --echo [ Connection Master ]
 
-# Check if table gets offloaded if there is no plugin installed on slave.
+# Check if table gets loaded on master even if there is no plugin installed on
+# slave.
 ALTER TABLE t1 SECONDARY_LOAD;
 
 --connection slave
 --echo [ Connection Slave ]
-
-START SLAVE SQL_THREAD;
-
-# Since the plugin is not available, this error is expected.
---let $slave_sql_errno = convert_error(ER_UNKNOWN_STORAGE_ENGINE)
---source include/wait_for_slave_sql_error.inc
 
 # Install the plugin on slave again
 --replace_regex /\.dll/.so/
@@ -303,11 +311,13 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t1;
 DROP TABLE t2;
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 
 --source include/sync_slave_sql_with_master.inc
 
 # Uninstall plugin on slave too.
 --sleep 3
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 
 --source include/rpl_end.inc

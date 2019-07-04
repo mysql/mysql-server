@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 
 #include "DataTypeHandler.h"
 #include "debug.h"
+#include "my_byteorder.h"
 #include "int3korr.h"
    
 
@@ -991,7 +992,7 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) :
   
   too_long = ( len > 60);  
   if(! too_long) {
-    register unsigned int i = 0;
+    unsigned int i = 0;
     if(*c == '-' || *c == '+') {
       *buf++ = *c++;  // tolerate initial + or -
       i++;
@@ -1179,7 +1180,7 @@ int readFraction(const NdbDictionary::Column *col, const char *buf) {
   int prec  = col->getPrecision();
   int usec = 0;
   if(prec > 0) {  
-    register int bufsz = (1 + prec) / 2;
+    int bufsz = (1 + prec) / 2;
     usec = unpack_bigendian(buf, bufsz);
     while(prec < 5) usec *= 100, prec += 2;
   }
@@ -1188,7 +1189,7 @@ int readFraction(const NdbDictionary::Column *col, const char *buf) {
 
 int writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   int prec  = col->getPrecision();
-  register int bufsz = 0;
+  int bufsz = 0;
   if(prec > 0) {
     bufsz = (1 + prec) / 2;
     while(prec < 5) usec /= 100, prec += 2;

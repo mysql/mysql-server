@@ -31,34 +31,34 @@ namespace ngs {
 namespace test {
 
 using namespace ::testing;
-// The ngs::chrono is missing string to time_point conversion
+// The chrono is missing string to Time_point conversion
 // lets make initialize time constants in constructor
 // relatively from now()
-const ngs::chrono::time_point TIMEPOINT_RELEASE_ALL_BEFORE = chrono::now();
-const ngs::chrono::duration DELTA_TO_RELEASE_1 =
-    ngs::chrono::milliseconds(-500);
-const ngs::chrono::duration DELTA_TO_RELEASE_2 =
-    ngs::chrono::milliseconds(-1000);
-const ngs::chrono::duration DELTA_TO_RELEASE_3 =
-    ngs::chrono::milliseconds(-2000);
-const ngs::chrono::duration DELTA_NOT_TO_RELEASE_1 =
-    ngs::chrono::milliseconds(2000);
-const ngs::chrono::duration DELTA_NOT_TO_RELEASE_2 =
-    ngs::chrono::milliseconds(1000);
-const ngs::chrono::duration DELTA_NOT_TO_RELEASE_3 =
-    ngs::chrono::milliseconds(500);
+const xpl::chrono::Time_point TIMEPOINT_RELEASE_ALL_BEFORE = xpl::chrono::now();
+const xpl::chrono::Duration DELTA_TO_RELEASE_1 =
+    xpl::chrono::Milliseconds(-500);
+const xpl::chrono::Duration DELTA_TO_RELEASE_2 =
+    xpl::chrono::Milliseconds(-1000);
+const xpl::chrono::Duration DELTA_TO_RELEASE_3 =
+    xpl::chrono::Milliseconds(-2000);
+const xpl::chrono::Duration DELTA_NOT_TO_RELEASE_1 =
+    xpl::chrono::Milliseconds(2000);
+const xpl::chrono::Duration DELTA_NOT_TO_RELEASE_2 =
+    xpl::chrono::Milliseconds(1000);
+const xpl::chrono::Duration DELTA_NOT_TO_RELEASE_3 =
+    xpl::chrono::Milliseconds(500);
 
-const ngs::chrono::time_point TP_TO_RELEASE_1 =
+const xpl::chrono::Time_point TP_TO_RELEASE_1 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_TO_RELEASE_1;
-const ngs::chrono::time_point TP_TO_RELEASE_2 =
+const xpl::chrono::Time_point TP_TO_RELEASE_2 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_TO_RELEASE_2;
-const ngs::chrono::time_point TP_TO_RELEASE_3 =
+const xpl::chrono::Time_point TP_TO_RELEASE_3 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_TO_RELEASE_3;
-const ngs::chrono::time_point TP_NOT_TO_RELEASE_1 =
+const xpl::chrono::Time_point TP_NOT_TO_RELEASE_1 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_NOT_TO_RELEASE_1;
-const ngs::chrono::time_point TP_NOT_TO_RELEASE_2 =
+const xpl::chrono::Time_point TP_NOT_TO_RELEASE_2 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_NOT_TO_RELEASE_2;
-const ngs::chrono::time_point TP_NOT_TO_RELEASE_3 =
+const xpl::chrono::Time_point TP_NOT_TO_RELEASE_3 =
     TIMEPOINT_RELEASE_ALL_BEFORE + DELTA_NOT_TO_RELEASE_3;
 
 class ServerClientTimeoutTestSuite : public Test {
@@ -66,10 +66,10 @@ class ServerClientTimeoutTestSuite : public Test {
   ServerClientTimeoutTestSuite()
       : sut(new Server_client_timeout(TIMEPOINT_RELEASE_ALL_BEFORE)) {}
 
-  ngs::shared_ptr<Client_interface> expectClientValid(
-      const ngs::chrono::time_point &tp,
-      const ngs::Client_interface::Client_state state) {
-    ngs::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
+  std::shared_ptr<Client_interface> expectClientValid(
+      const xpl::chrono::Time_point &tp,
+      const Client_interface::Client_state state) {
+    std::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
 
     result.reset(new StrictMock<::xpl::test::Mock_client>());
 
@@ -81,10 +81,10 @@ class ServerClientTimeoutTestSuite : public Test {
     return result;
   }
 
-  ngs::shared_ptr<Client_interface> expectClientNotValid(
-      const ngs::chrono::time_point &tp,
-      const ngs::Client_interface::Client_state state) {
-    ngs::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
+  std::shared_ptr<Client_interface> expectClientNotValid(
+      const xpl::chrono::Time_point &tp,
+      const Client_interface::Client_state state) {
+    std::shared_ptr<StrictMock<::xpl::test::Mock_client>> result;
 
     result.reset(new StrictMock<::xpl::test::Mock_client>());
 
@@ -98,29 +98,29 @@ class ServerClientTimeoutTestSuite : public Test {
     return result;
   }
 
-  ngs::unique_ptr<Server_client_timeout> sut;
+  std::unique_ptr<Server_client_timeout> sut;
 };
 
 TEST_F(ServerClientTimeoutTestSuite,
        returnInvalidDate_whenNoClientWasProcessed) {
-  ASSERT_FALSE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 struct ClientParams {
-  ClientParams(const ngs::chrono::duration &duration,
-               const ngs::Client_interface::Client_state state)
-      : m_duration(duration),
-        m_tp(TIMEPOINT_RELEASE_ALL_BEFORE + duration),
+  ClientParams(const xpl::chrono::Duration &Duration,
+               const Client_interface::Client_state state)
+      : m_Duration(Duration),
+        m_tp(TIMEPOINT_RELEASE_ALL_BEFORE + Duration),
         m_state(state) {}
 
-  ngs::chrono::duration m_duration;
-  ngs::chrono::time_point m_tp;
-  ngs::Client_interface::Client_state m_state;
+  xpl::chrono::Duration m_Duration;
+  xpl::chrono::Time_point m_tp;
+  Client_interface::Client_state m_state;
 };
 
 void PrintTo(const ClientParams &x, ::std::ostream *os) {
   *os << "{ state:" << static_cast<int>(x.m_state)
-      << ", durations:" << x.m_duration.count() << " }";
+      << ", Durations:" << x.m_Duration.count() << " }";
 }
 
 class ServerClientTimeoutTestSuiteWithClientsState
@@ -137,75 +137,66 @@ TEST_P(ExpiredClient,
        returnInvalidDateNoFurtherNeedOfChecking_clientReleasedInitiated) {
   expectClientNotValid(GetParam().m_tp, GetParam().m_state);
 
-  ASSERT_FALSE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 TEST_P(NoExpiredClient_stateNotOk,
        returnClientsAcceptanceDate_thereIsANeedOfFutureChecking) {
-  const ngs::chrono::time_point clients_tp = GetParam().m_tp;
+  const xpl::chrono::Time_point clients_tp = GetParam().m_tp;
   expectClientValid(clients_tp, GetParam().m_state);
 
-  ASSERT_TRUE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(clients_tp, sut->get_oldest_client_accept_time());
 }
 
 TEST_P(NoExpiredClient_stateOk,
        returnInvalidDate_clientRunsCorrectlyNoNeedOfFutureChecking) {
-  const ngs::chrono::time_point clients_tp = GetParam().m_tp;
+  const xpl::chrono::Time_point clients_tp = GetParam().m_tp;
   expectClientValid(clients_tp, GetParam().m_state);
 
-  ASSERT_FALSE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState, ExpiredClient,
-    Values(ClientParams(DELTA_TO_RELEASE_1,
-                        ngs::Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_2,
-                        ngs::Client_interface::Client_accepted),
-           ClientParams(DELTA_TO_RELEASE_3,
-                        ngs::Client_interface::Client_accepted),
+    Values(ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_accepted),
+           ClientParams(DELTA_TO_RELEASE_2, Client_interface::Client_accepted),
+           ClientParams(DELTA_TO_RELEASE_3, Client_interface::Client_accepted),
            ClientParams(DELTA_TO_RELEASE_1,
-                        ngs::Client_interface::Client_authenticating_first),
+                        Client_interface::Client_authenticating_first),
            ClientParams(DELTA_TO_RELEASE_2,
-                        ngs::Client_interface::Client_authenticating_first),
+                        Client_interface::Client_authenticating_first),
            ClientParams(DELTA_TO_RELEASE_3,
-                        ngs::Client_interface::Client_authenticating_first)));
+                        Client_interface::Client_authenticating_first)));
 
 INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState,
     NoExpiredClient_stateNotOk,
-    Values(ClientParams(DELTA_NOT_TO_RELEASE_1,
-                        ngs::Client_interface::Client_accepted),
-           ClientParams(DELTA_NOT_TO_RELEASE_2,
-                        ngs::Client_interface::Client_accepted),
-           ClientParams(DELTA_NOT_TO_RELEASE_3,
-                        ngs::Client_interface::Client_accepted),
-           ClientParams(DELTA_NOT_TO_RELEASE_1,
-                        ngs::Client_interface::Client_authenticating_first),
-           ClientParams(DELTA_NOT_TO_RELEASE_2,
-                        ngs::Client_interface::Client_authenticating_first),
-           ClientParams(DELTA_NOT_TO_RELEASE_3,
-                        ngs::Client_interface::Client_authenticating_first)));
+    Values(
+        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_accepted),
+        ClientParams(DELTA_NOT_TO_RELEASE_2, Client_interface::Client_accepted),
+        ClientParams(DELTA_NOT_TO_RELEASE_3, Client_interface::Client_accepted),
+        ClientParams(DELTA_NOT_TO_RELEASE_1,
+                     Client_interface::Client_authenticating_first),
+        ClientParams(DELTA_NOT_TO_RELEASE_2,
+                     Client_interface::Client_authenticating_first),
+        ClientParams(DELTA_NOT_TO_RELEASE_3,
+                     Client_interface::Client_authenticating_first)));
 
 INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatNoExpiredAndAreInValidState,
     NoExpiredClient_stateOk,
     Values(
         ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     ngs::Client_interface::Client_accepted_with_session),
-        ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     ngs::Client_interface::Client_running),
-        ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     ngs::Client_interface::Client_closing),
-        ClientParams(DELTA_NOT_TO_RELEASE_1,
-                     ngs::Client_interface::Client_closed),
+                     Client_interface::Client_accepted_with_session),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_running),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_closing),
+        ClientParams(DELTA_NOT_TO_RELEASE_1, Client_interface::Client_closed),
         ClientParams(DELTA_TO_RELEASE_1,
-                     ngs::Client_interface::Client_accepted_with_session),
-        ClientParams(DELTA_TO_RELEASE_1, ngs::Client_interface::Client_running),
-        ClientParams(DELTA_TO_RELEASE_1, ngs::Client_interface::Client_closing),
-        ClientParams(DELTA_TO_RELEASE_1,
-                     ngs::Client_interface::Client_closed)));
+                     Client_interface::Client_accepted_with_session),
+        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_running),
+        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_closing),
+        ClientParams(DELTA_TO_RELEASE_1, Client_interface::Client_closed)));
 
 TEST_F(
     ServerClientTimeoutTestSuite,
@@ -214,7 +205,7 @@ TEST_F(
   expectClientValid(TP_NOT_TO_RELEASE_2, Client_interface::Client_accepted);
   expectClientValid(TP_NOT_TO_RELEASE_3, Client_interface::Client_accepted);
 
-  ASSERT_TRUE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
 
@@ -225,7 +216,7 @@ TEST_F(ServerClientTimeoutTestSuite,
   expectClientValid(TP_NOT_TO_RELEASE_3, Client_interface::Client_accepted);
   expectClientNotValid(TP_TO_RELEASE_1, Client_interface::Client_accepted);
 
-  ASSERT_TRUE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
 
@@ -235,15 +226,15 @@ TEST_F(ServerClientTimeoutTestSuite,
   expectClientValid(TP_TO_RELEASE_2, Client_interface::Client_closing);
   expectClientValid(TP_TO_RELEASE_3, Client_interface::Client_closing);
 
-  ASSERT_FALSE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 TEST_F(ServerClientTimeoutTestSuite, returnInvalidDate_whenNoInitializedDate) {
-  ngs::chrono::time_point not_set_time_point;
+  xpl::chrono::Time_point not_set_Time_point;
 
-  expectClientValid(not_set_time_point, Client_interface::Client_invalid);
+  expectClientValid(not_set_Time_point, Client_interface::Client_invalid);
 
-  ASSERT_FALSE(chrono::is_valid(sut->get_oldest_client_accept_time()));
+  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
 }  // namespace test

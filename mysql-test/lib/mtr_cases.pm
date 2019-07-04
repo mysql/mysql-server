@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@ our @EXPORT = qw(collect_option collect_test_cases init_pattern
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
 use IO::File;
-use My::File::Path qw / get_bld_path /;
 
 use My::Config;
+use My::File::Path qw / get_bld_path /;
 use My::Find;
 use My::Platform;
 use My::SysInfo;
@@ -73,7 +73,6 @@ our $enable_disabled;
 our $opt_with_ndbcluster_only;
 our $print_testcases;
 our $quick_collect;
-our $skip_combinations;
 our $skip_rpl;
 our $skip_test;
 our $start_from;
@@ -116,19 +115,42 @@ sub init_pattern {
   return $from;
 }
 
-# Check if the test name format in a disabled.def file is correct. The
-# format is "suite_name.test_name". If the format is incorrect, throw
-# an error and abort the test run.
-sub check_test_name_format($$$) {
-  my $test_name         = shift;
-  my $disabled_def_file = shift;
+## Report an error for an invalid disabled test entry in a disabled.def
+## file.
+##
+## Arguments:
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub report_disabled_test_format_error($$$) {
+  my $line              = shift;
   my $line_number       = shift;
+  my $disabled_def_file = shift;
 
+  mtr_error("The format of line '$line' at '$disabled_def_file:$line_number' " .
+            "is incorrect. The format is '<suitename>.<testcasename> " .
+            "[\@platform|\@!platform] : <BUG|WL>#<XXXX> [<comment>]'.");
+}
+
+## Check if the test name format in a disabled.def file is correct. The
+## format is "suite_name.test_name". If the format is incorrect, throw an
+## error and abort the test run.
+##
+## Arguments:
+##   $test_name         Test name
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub validate_test_name($$$$) {
+  my $test_name         = shift;
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  # Test name must be in "<suitename>.<testcasename>" format.
   my ($suite_name, $tname, $extension) = split_testname($test_name);
   if (not defined $suite_name || not defined $tname || defined $extension) {
-    mtr_error("Invalid test name format '$test_name' at " .
-              "'$disabled_def_file:$line_number', it should be " .
-              "'suite_name.test_name'.");
+    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
   }
 
   # disabled.def should contain only non-ndb suite tests, and disabled_ndb.def
@@ -141,9 +163,132 @@ sub check_test_name_format($$$) {
   }
 }
 
-# Create a list of disabled tests from disabled.def file. This list is
-# used while collecting the test cases. If a test case is disabled, disabled
-# flag is enabled for the test and the test run will be disabled.
+## Check if the test name section in a disabled.def file is correct. The
+## format is "suite_name.test_name [@platform|@!platform]". If the format
+## is incorrect, throw an error and abort the test run.
+##
+## Arguments:
+##   $test_name_part    Test name section in a disabled test entry
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub validate_test_name_part($$$$) {
+  my $test_name_part    = shift;
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  my $test_name;
+  if ($test_name_part =~ /\@/) {
+    # $^O on Windows considered not generic enough.
+    my $plat = (IS_WINDOWS) ? 'windows' : $^O;
+
+    # Test name part contains platform name.
+    if ($test_name_part =~ /^\s*(\S+)\s+\@$plat\s*$/) {
+      # Platform name is mentioned on which the test should be disabled
+      # i.e "suite_name.test_name @platform : <comment>".
+      $test_name = $1;
+      validate_test_name($test_name, $line, $line_number, $disabled_def_file);
+      return $test_name;
+    } elsif ($test_name_part =~ /^\s*(\S+)\s+\@!(\S*)\s*$/) {
+      # Platform name is mentioned on which the test shouldn't be
+      # disabled i.e "suite_name.test_name @!platform : XXXX".
+      $test_name = $1;
+      validate_test_name($test_name, $line, $line_number, $disabled_def_file);
+      return $test_name if ($2 ne $plat);
+    } elsif ($test_name_part !~ /^\s*(\S+)\s+\@(\S*)\s*$/) {
+      # Invalid format for a disabled test.
+      report_disabled_test_format_error($line, $line_number,
+                                        $disabled_def_file);
+    }
+  } elsif ($test_name_part =~ /^\s*(\S+)\s*$/) {
+    # No platform specified.
+    $test_name = $1;
+    validate_test_name($test_name, $line, $line_number, $disabled_def_file);
+    return $test_name;
+  } else {
+    # Invalid format, throw an error.
+    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+  }
+}
+
+## Check if the comment section in a disabled.def file is correct. The
+## format is "<BUG|WL>#<XXXX> [<comment>]". If the format is incorrect,
+## throw an error and abort the test run.
+##
+## Arguments:
+##   $comment_part      Comment section in a disabled test entry
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub validate_comment_part($$$$) {
+  my $comment_part      = shift;
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  if ($comment_part =~ /^\s*(BUG|WL)#\d+\s*(\s+(.*))?$/i) {
+    my $comment = $3;
+    # Length of a comment section can't be more than 80 characters.
+    if (length($comment) > 79) {
+      mtr_error("Length of a comment section in a disabled test entry can't " .
+                "be more than 80 characters, " .
+                "'$line' at '$disabled_def_file:$line_number'.");
+    }
+    # Valid format for comment section.
+    return $comment_part;
+  } else {
+    # Invalid format. throw an error.
+    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+  }
+}
+
+## Validate the format of an entry in a disabled.def file.
+##
+## Arguments:
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+##
+## Returns:
+##   Test name and the comment part.
+sub validate_disabled_test_entry($$$) {
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  my $comment_part;
+  my $test_name_part;
+
+  if ($line =~ /^(.*?):(.*)$/) {
+    $test_name_part = $1;
+    $comment_part   = $2;
+  }
+
+  # Check the format of test name part.
+  my $test_name =
+    validate_test_name_part($test_name_part, $line, $line_number,
+                            $disabled_def_file);
+
+  # Check the format of comment part.
+  my $comment =
+    validate_comment_part($comment_part, $line, $line_number,
+                          $disabled_def_file);
+
+  return ($test_name, $comment);
+}
+
+## Create a list of disabled tests from disabled.def file. This list
+## is used while collecting the test cases. If a test case is disabled,
+## disabled flag is enabled for the test and the test run will be
+## disabled.
+##
+## Arguments:
+##   $disabled           List to store the disabled tests
+##   $opt_skip_test_list File containing list of tests to be disabled
+##
+## Returns:
+##   List of disabled tests
 sub create_disabled_test_list($$) {
   my $disabled           = shift;
   my $opt_skip_test_list = shift;
@@ -162,6 +307,12 @@ sub create_disabled_test_list($$) {
   # Add internal 'disabled.def' file only if it exists
   my $internal_disabled_def_file =
     "$::basedir/internal/mysql-test/collections/disabled.def";
+  unshift(@disabled_collection, $internal_disabled_def_file)
+    if -f $internal_disabled_def_file;
+
+  # 'disabled.def' file in cloud directory.
+  $internal_disabled_def_file =
+    "$::basedir/internal/cloud/mysql-test/collections/disabled.def";
   unshift(@disabled_collection, $internal_disabled_def_file)
     if -f $internal_disabled_def_file;
 
@@ -196,48 +347,22 @@ sub create_disabled_test_list($$) {
 
   for my $disabled_def_file (@disabled_collection) {
     my $file_handle = IO::File->new($disabled_def_file, '<') or
-      die "Can't open $disabled_def_file: $!";
+      mtr_error("Can't open '$disabled_def_file' file: $!.");
+
     if (defined $file_handle) {
-      # $^O on Windows considered not generic enough
-      my $plat = (IS_WINDOWS) ? 'windows' : $^O;
+      while (my $line = <$file_handle>) {
+        # Skip a line if it starts with '#' or is an empty line.
+        next if ($line =~ /^#/ or $line =~ /^$/);
 
-      while (<$file_handle>) {
-        chomp;
+        chomp($line);
+        my $line_number = $.;
 
-        # Skip a line if it starts with '#'
-        next if /^#/;
+        # Check the format of an entry in a disabled.def file.
+        my ($test_name, $comment) =
+          validate_disabled_test_entry($line, $line_number, $disabled_def_file);
 
-        my $line_number;
-
-        # After the test name, a platform name can be mentioned on which the
-        # test should be disabled or enabled. Mentioning '@platform_name' will
-        # disable the test on 'platform_name' and '@!platform_name' will
-        # disable the test on all platforms except 'platform_name'.
-        if (/\@/) {
-          if (/\@$plat/) {
-            # Platform name is mentioned on which the test should be disabled
-            # i.e "suite_name.test_name @platform : XXXX"
-            /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/;
-            $line_number = $.;
-            check_test_name_format($1, $disabled_def_file, $line_number);
-            $disabled->{$1} = $2 if not exists $disabled->{$1};
-          } elsif (/\@!(\S*)/) {
-            # Platform name is mentioned on which the test shouldn't be
-            # disabled i.e "suite_name.test_name @!platform : XXXX"
-            if ($1 ne $plat) {
-              # Disable the test on all other platforms except '$plat'
-              /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/;
-              $line_number = $.;
-              check_test_name_format($1, $disabled_def_file, $line_number);
-              $disabled->{$1} = $2 if not exists $disabled->{$1};
-            }
-          }
-        } elsif (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
-          # Disable the test on all platforms i.e "suite_name.test_name : XXXX"
-          $line_number = $.;
-          check_test_name_format($1, $disabled_def_file, $line_number);
-          $disabled->{$1} = $2 if not exists $disabled->{$1};
-        }
+        # Disable the test case if defined.
+        $disabled->{$test_name} = $comment if defined $test_name;
       }
       $file_handle->close();
     }
@@ -521,6 +646,95 @@ sub split_testname {
   mtr_error("Illegal format of test name: $test_name");
 }
 
+# Read a combination file and return an array of all possible
+# combinations.
+sub combinations_from_file($) {
+  my $combination_file = shift;
+
+  my @combinations;
+
+  # Read combinations file in my.cnf format
+  mtr_verbose("Read combinations file $combination_file.");
+
+  my $config = My::Config->new($combination_file);
+  foreach my $group ($config->groups()) {
+    my $comb = {};
+    $comb->{name} = $group->name();
+    foreach my $option ($group->options()) {
+      push(@{ $comb->{comb_opt} }, $option->option());
+    }
+    push(@combinations, $comb);
+  }
+
+  return @combinations;
+}
+
+# Fetch different combinations specified on command line using
+# --combination option.
+sub combinations_from_command_line($) {
+  my @opt_combinations = shift;
+
+  # Take the combination from command-line
+  mtr_verbose("Take the combination from command line");
+
+  # Collect all combinations
+  my @combinations;
+  foreach my $combination (@::opt_combinations) {
+    my $comb = {};
+    $comb->{name} = $combination;
+    push(@{ $comb->{comb_opt} }, $combination);
+    push(@combinations,          $comb);
+  }
+
+  return @combinations;
+}
+
+# Create a new test object for each combination and return an array
+# containing all new tests.
+sub create_test_combinations($$) {
+  my $test         = shift;
+  my $combinations = shift;
+
+  my @new_cases;
+
+  foreach my $comb (@{$combinations}) {
+    # Skip this combination if the values it provides already are set
+    # in master_opt or slave_opt.
+    if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
+        My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ||
+        My::Options::is_set(\@::opt_extra_bootstrap_opt, $comb->{comb_opt}) ||
+        My::Options::is_set(\@::opt_extra_mysqld_opt, $comb->{comb_opt})) {
+      next;
+    }
+
+    # Create a new test object.
+    my $new_test = My::Test->new();
+
+    # Copy the original test options.
+    while (my ($key, $value) = each(%$test)) {
+      if (ref $value eq "ARRAY") {
+        push(@{ $new_test->{$key} }, @$value);
+      } else {
+        $new_test->{$key} = $value;
+      }
+    }
+
+    # Append the combination options to master_opt and slave_opt
+    push(@{ $new_test->{master_opt} }, @{ $comb->{comb_opt} })
+      if defined $comb->{comb_opt};
+    push(@{ $new_test->{slave_opt} }, @{ $comb->{comb_opt} })
+      if defined $comb->{comb_opt};
+
+    # Add combination name
+    $new_test->{combination} = $comb->{name};
+
+    # Add the new test to list of new test cases
+    push(@new_cases, $new_test);
+  }
+
+  return @new_cases;
+}
+
 # Look through one test suite for tests named in the second parameter,
 # or all tests in the suite if that list is empty.
 #
@@ -555,7 +769,8 @@ sub collect_one_suite($$$$) {
     } else {
       $suitedir = my_find_dir(
         $::basedir,
-        [ "internal/mysql-test/suite/",
+        [ "internal/cloud/mysql-test/suite/",
+          "internal/mysql-test/suite/",
           "internal/plugin/$suite/tests",
           "lib/mysql-test/suite",
           "mysql-test/suite",
@@ -666,74 +881,27 @@ sub collect_one_suite($$$$) {
 
   # Read combinations for this suite and build testcases x
   # combinations if any combinations exists.
-  if (!$skip_combinations && !$quick_collect) {
+  if (!$::opt_skip_combinations && !$quick_collect) {
     my @combinations;
-    my $combination_file = "$suitedir/combinations";
-
     if (@::opt_combinations) {
-      # Take the combination from command-line
-      mtr_verbose("Take the combination from command line");
-
-      foreach my $combination (@::opt_combinations) {
-        my $comb = {};
-        $comb->{name} = $combination;
-        push(@{ $comb->{comb_opt} }, $combination);
-        push(@combinations,          $comb);
-      }
-    } elsif (-f $combination_file) {
-      # Read combinations file in my.cnf format
-      mtr_verbose("Read combinations file");
-
-      my $config = My::Config->new($combination_file);
-      foreach my $group ($config->groups()) {
-        my $comb = {};
-        $comb->{name} = $group->name();
-        foreach my $option ($group->options()) {
-          push(@{ $comb->{comb_opt} }, $option->option());
-        }
-        push(@combinations, $comb);
-      }
+      @combinations = combinations_from_command_line(@::opt_combinations);
+    } else {
+      my $combination_file = "$suitedir/combinations";
+      @combinations = combinations_from_file($combination_file)
+        if -f $combination_file;
     }
 
     if (@combinations) {
-      print " - adding combinations for $suite\n";
-
       my @new_cases;
-      foreach my $comb (@combinations) {
-        foreach my $test (@cases) {
-          next if ($test->{'skip'});
+      mtr_report(" - Adding combinations for $suite");
 
-          # Skip this combination if the values it provides already
-          # are set in master_opt or slave_opt.
-          if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
-              My::Options::is_set($test->{slave_opt}, $comb->{comb_opt})) {
-            next;
-          }
-
-          # Copy test options
-          my $new_test = My::Test->new();
-          while (my ($key, $value) = each(%$test)) {
-            if (ref $value eq "ARRAY") {
-              push(@{ $new_test->{$key} }, @$value);
-            } else {
-              $new_test->{$key} = $value;
-            }
-          }
-
-          # Append the combination options to master_opt and slave_opt
-          push(@{ $new_test->{master_opt} }, @{ $comb->{comb_opt} });
-          push(@{ $new_test->{slave_opt} },  @{ $comb->{comb_opt} });
-
-          # Add combination name short name
-          $new_test->{combination} = $comb->{name};
-
-          # Add the new test to new test cases list
-          push(@new_cases, $new_test);
-        }
+      foreach my $test (@cases) {
+        next if ($test->{'skip'} or defined $test->{'combination'});
+        push(@new_cases, create_test_combinations($test, \@combinations));
       }
 
-      # Add the plain test if it was not already added as part of a
-      # combination.
+      # Add the plain test if it was not already added as part
+      # of a combination.
       my %added;
       foreach my $new_test (@new_cases) {
         $added{ $new_test->{name} } = 1;
@@ -924,6 +1092,11 @@ sub process_opts_file {
         next;
       }
 
+      if ($opt eq "--nowarnings") {
+        $tinfo->{'skip_check_warnings'} = 1;
+        next;
+      }
+
       # Ok, this was a real option, add it
       push(@{ $tinfo->{$opt_name} }, $opt);
     }
@@ -983,6 +1156,14 @@ sub collect_one_test_case {
       # be saved in case of --record.
       $tinfo->{record_file} = $result_file;
     }
+  }
+
+  # Disable quiet output when a test file doesn't contain a result file
+  # and --record option is disabled.
+  if ($::opt_quiet and defined $tinfo->{record_file} and !$::opt_record) {
+    $::opt_quiet = 0;
+    mtr_report("Turning off '--quiet' option since the MTR run contains " .
+               "a test without a result file.");
   }
 
   # Skip some tests but include in list, just mark them as skipped
@@ -1093,7 +1274,8 @@ sub collect_one_test_case {
   # include file), other normal/non-big tests shouldn't run with
   # only-big-test option.
   if ($::opt_only_big_test) {
-    if (!$tinfo->{'no_valgrind_without_big'} and !$tinfo->{'big_test'}) {
+    if ((!$tinfo->{'no_valgrind_without_big'} and !$tinfo->{'big_test'}) or
+        ($tinfo->{'no_valgrind_without_big'} and !$::opt_valgrind)) {
       skip_test($tinfo, "Not a big test");
       return $tinfo;
     }
@@ -1214,10 +1396,6 @@ sub collect_one_test_case {
     $tinfo->{extra_template_path} = $defaults_extra_file;
   }
 
-  # Append mysqld extra options to both master and slave
-  push(@{ $tinfo->{'master_opt'} }, @::opt_extra_mysqld_opt);
-  push(@{ $tinfo->{'slave_opt'} },  @::opt_extra_mysqld_opt);
-
   if (!$::start_only or @::opt_cases) {
     # Add master opts, extra options only for master
     process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
@@ -1231,7 +1409,27 @@ sub collect_one_test_case {
     process_opts_file($tinfo, "$testdir/$tname-client.opt", 'client_opt');
   }
 
-  return $tinfo;
+  my @new_tests;
+
+  # Check if test specific combination file (<test_name>.combinations)
+  # exists, if yes read different combinations from it.
+  if (!$::opt_skip_combinations && !$quick_collect) {
+    if (!$tinfo->{'skip'}) {
+      my $combination_file = "$testdir/$tname.combinations";
+
+      # Check for test specific combination file
+      my @combinations = combinations_from_file($combination_file)
+        if -f $combination_file;
+
+      # Create a new test object for each combination
+      if (@combinations) {
+        mtr_report(" - Adding combinations for test '$tname'");
+        push(@new_tests, create_test_combinations($tinfo, \@combinations));
+      }
+    }
+  }
+
+  @new_tests ? return @new_tests : return $tinfo;
 }
 
 # List of tags in the .test files that if found should set
@@ -1286,7 +1484,10 @@ my @tags = (
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
-  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],);
+  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],
+
+  [ "include/have_change_propagation_off.inc", "change-propagation", 0 ],
+  [ "include/have_change_propagation_on.inc",  "change-propagation", 1 ],);
 
 sub tags_from_test_file {
   my $tinfo = shift;
@@ -1337,9 +1538,14 @@ sub unspace {
 sub opts_from_file ($) {
   my $file = shift;
 
-  open(FILE, "<", $file) or mtr_error("can't open file \"$file\": $!");
+  my $file_handle = IO::File->new($file, '<') or
+    mtr_error("Can't open file '$file': $!");
+
   my @args;
-  while (<FILE>) {
+  while (<$file_handle>) {
+    # Skip a line if it starts with '#' (i.e comments)
+    next if /^\s*#/;
+
     chomp;
     s/^\s+//;    # Remove leading space
     s/\s+$//;    # Remove ending space
@@ -1364,12 +1570,11 @@ sub opts_from_file ($) {
 
       # Do not pass empty string since my_getopt is not capable to
       # handle it.
-      if (length($arg)) {
-        push(@args, $arg);
-      }
+      push(@args, $arg) if (length($arg));
     }
   }
-  close FILE;
+
+  $file_handle->close();
   return \@args;
 }
 

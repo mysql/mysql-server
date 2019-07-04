@@ -39,8 +39,6 @@ namespace xpl {
 
 extern MYSQL_PLUGIN plugin_handle;
 
-void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *);
-
 }  // namespace xpl
 
 #define log_error(errcode, ...) \

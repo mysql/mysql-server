@@ -23,11 +23,16 @@
 #ifndef PIPELINE_INTERFACES_INCLUDED
 #define PIPELINE_INTERFACES_INCLUDED
 
+#include <list>
+
 #include <mysql/group_replication_priv.h>
+#include <mysql/plugin_group_replication.h>
 #include "mysql/components/services/log_builtins.h"
 
+#include "mysqld_error.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 
 // Define the data packet type
 #define DATA_PACKET_TYPE 1
@@ -46,7 +51,7 @@ class Packet {
   */
   Packet(int type) : packet_type(type) {}
 
-  virtual ~Packet(){};
+  virtual ~Packet() {}
 
   /**
    @return the packet type
@@ -69,17 +74,32 @@ class Data_packet : public Packet {
 
     @param[in]  data             the packet data
     @param[in]  len              the packet length
+    @param[in]  consistency_level  the transaction consistency level
+    @param[in]  online_members     the ONLINE members when the transaction
+                                   message was delivered
   */
-  Data_packet(const uchar *data, ulong len)
-      : Packet(DATA_PACKET_TYPE), payload(NULL), len(len) {
+  Data_packet(const uchar *data, ulong len,
+              enum_group_replication_consistency_level consistency_level =
+                  GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+              std::list<Gcs_member_identifier> *online_members = NULL)
+      : Packet(DATA_PACKET_TYPE),
+        payload(NULL),
+        len(len),
+        m_consistency_level(consistency_level),
+        m_online_members(online_members) {
     payload = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(0));
     memcpy(payload, data, len);
   }
 
-  ~Data_packet() { my_free(payload); }
+  ~Data_packet() {
+    my_free(payload);
+    delete m_online_members;
+  }
 
   uchar *payload;
   ulong len;
+  const enum_group_replication_consistency_level m_consistency_level;
+  std::list<Gcs_member_identifier> *m_online_members;
 };
 
 // Define the data packet type
@@ -109,14 +129,23 @@ class Pipeline_event {
     @param[in]  base_packet      the wrapper packet
     @param[in]  fde_event        the format description event for conversions
     @param[in]  modifier         the event modifier
+    @param[in]  consistency_level  the transaction consistency level
+    @param[in]  online_members     the ONLINE members when the transaction
+                                   message was delivered
   */
   Pipeline_event(Data_packet *base_packet,
                  Format_description_log_event *fde_event,
-                 int modifier = UNDEFINED_EVENT_MODIFIER)
+                 int modifier = UNDEFINED_EVENT_MODIFIER,
+                 enum_group_replication_consistency_level consistency_level =
+                     GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+                 std::list<Gcs_member_identifier> *online_members = NULL)
       : packet(base_packet),
         log_event(NULL),
         event_context(modifier),
-        format_descriptor(fde_event) {}
+        format_descriptor(fde_event),
+        m_consistency_level(consistency_level),
+        m_online_members(online_members),
+        m_online_members_memory_ownership(true) {}
 
   /**
     Create a new pipeline wrapper based on a log event.
@@ -126,13 +155,22 @@ class Pipeline_event {
     @param[in]  base_event       the wrapper log event
     @param[in]  fde_event        the format description event for conversions
     @param[in]  modifier         the event modifier
+    @param[in]  consistency_level  the transaction consistency level
+    @param[in]  online_members     the ONLINE members when the transaction
+                                   message was delivered
   */
   Pipeline_event(Log_event *base_event, Format_description_log_event *fde_event,
-                 int modifier = UNDEFINED_EVENT_MODIFIER)
+                 int modifier = UNDEFINED_EVENT_MODIFIER,
+                 enum_group_replication_consistency_level consistency_level =
+                     GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+                 std::list<Gcs_member_identifier> *online_members = NULL)
       : packet(NULL),
         log_event(base_event),
         event_context(modifier),
-        format_descriptor(fde_event) {}
+        format_descriptor(fde_event),
+        m_consistency_level(consistency_level),
+        m_online_members(online_members),
+        m_online_members_memory_ownership(true) {}
 
   ~Pipeline_event() {
     if (packet != NULL) {
@@ -140,6 +178,9 @@ class Pipeline_event {
     }
     if (log_event != NULL) {
       delete log_event;
+    }
+    if (m_online_members_memory_ownership) {
+      delete m_online_members;
     }
   }
 
@@ -246,6 +287,9 @@ class Pipeline_event {
     Format description events, are NOT deleted.
     This is due to the fact that they are given, and do not belong to the
     pipeline event.
+
+    Transaction consistency level is not reset, despite the event
+    is reset, consistency level belongs to the transaction.
   */
   void reset_pipeline_event() {
     if (packet != NULL) {
@@ -257,6 +301,39 @@ class Pipeline_event {
       log_event = NULL;
     }
     event_context = UNDEFINED_EVENT_MODIFIER;
+  }
+
+  /**
+    Get transaction consistency level.
+  */
+  enum_group_replication_consistency_level get_consistency_level() {
+    return m_consistency_level;
+  }
+
+  /**
+    Get the list of ONLINE Group members when a
+    Transaction_with_guarantee_message message was received, or NULL if
+    if any group member version is from a version lower than
+    #TRANSACTION_WITH_GUARANTEES_VERSION.
+    For Transaction_message messages it always return NULL
+
+    @return  list of all ONLINE members, if all members have version
+             equal or greater than #TRANSACTION_WITH_GUARANTEES_VERSION
+             for Transaction_with_guarantee_message messages
+             otherwise  NULL
+
+    @note the memory allocated for the list ownership belongs to the
+          caller
+  */
+  std::list<Gcs_member_identifier> *get_online_members() {
+    return m_online_members;
+  }
+
+  /**
+    Release memory ownership of m_online_members.
+  */
+  void release_online_members_memory_ownership() {
+    m_online_members_memory_ownership = false;
   }
 
  private:
@@ -315,6 +392,9 @@ class Pipeline_event {
   int event_context;
   /* Format description event used on conversions */
   Format_description_log_event *format_descriptor;
+  enum_group_replication_consistency_level m_consistency_level;
+  std::list<Gcs_member_identifier> *m_online_members;
+  bool m_online_members_memory_ownership;
 };
 
 /**
@@ -423,7 +503,7 @@ class Pipeline_action {
  public:
   Pipeline_action(int action_type) { type = action_type; }
 
-  virtual ~Pipeline_action(){};
+  virtual ~Pipeline_action() {}
 
   /**
     Returns this action type.

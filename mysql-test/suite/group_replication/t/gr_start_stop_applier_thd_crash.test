@@ -15,7 +15,8 @@
 # 5. Clean up.
 ###########################################################################
 
---source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -24,9 +25,12 @@ SET sql_log_bin = 0;
 call mtr.add_suppression("Unblocking the group replication thread waiting for applier to start, as the start group replication was killed.");
 call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
 call mtr.add_suppression("Failed to setup the group replication applier thread.");
+call mtr.add_suppression("Error while starting the group replication applier thread");
 call mtr.add_suppression("Failed to stop the group replication applier thread.");
 call mtr.add_suppression("Info table is not ready to be used.*");
 call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("Error writing master configuration");
+call mtr.add_suppression("Error reading master configuration");
 SET sql_log_bin = 1;
 
 

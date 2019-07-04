@@ -613,7 +613,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   req.p->m_frag_ptr_i= fragPtr.i;
   req.p->m_uncommitted_used_space= sz;
   
-  int pageBits; // received
+  int pageBits = 0; // received
   Ptr<Extent_info> ext;
   const Uint32 bits = alloc.calc_page_free_bits(sz); // required
   bool found= false;

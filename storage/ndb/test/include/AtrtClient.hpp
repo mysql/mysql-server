@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +32,10 @@ public:
 
   enum AtrtCommandType {
     ATCT_CHANGE_VERSION= 1,
-    ATCT_RESET_PROC= 2
+    ATCT_RESET_PROC= 2,
+    ATCT_START_PROCESS= 3,
+    ATCT_STOP_PROCESS= 4,
+    ATCT_SWITCH_CONFIG = 5
   };
 
   AtrtClient(const char* _suffix= ".1.atrt");
@@ -43,6 +45,9 @@ public:
 
   // Command functions
   bool changeVersion(int process_id, const char* process_args);
+  bool switchConfig(int process_id, const char* process_args);
+  bool stopProcess(int process_id);
+  bool startProcess(int process_id);
   bool resetProc(int process_id);
 
   // Query functions

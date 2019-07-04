@@ -836,3 +836,4 @@ include/stop_slave.inc
 drop table mysql.ndb_apply_status;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 SET @@global.default_storage_engine=@old_slave_storage_engine;
+include/rpl_end.inc

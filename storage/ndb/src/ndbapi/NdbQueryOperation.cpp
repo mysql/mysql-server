@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -745,7 +745,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
-{};
+{}
 
 NdbResultStream::~NdbResultStream()
 {
@@ -1440,7 +1440,7 @@ NdbQuery::getNdbTransaction() const
 const NdbError& 
 NdbQuery::getNdbError() const {
   return m_impl.getNdbError();
-};
+}
 
 int NdbQuery::isPrunable(bool& prunable) const
 {
@@ -1486,7 +1486,7 @@ NdbQueryOperation::getQueryOperationDef() const
 NdbQuery& 
 NdbQueryOperation::getQuery() const {
   return m_impl.getQuery().getInterface();
-};
+}
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const char* anAttrName,
@@ -2923,7 +2923,7 @@ public:
      m_workerNo(0)
   {}
 
-  virtual ~InitialReceiverIdIterator() {};
+  virtual ~InitialReceiverIdIterator() {}
   
   /**
    * Get next batch of receiver ids. 
@@ -2934,7 +2934,7 @@ public:
   virtual const Uint32* getNextWords(Uint32& sz);
 
   virtual void reset()
-  { m_workerNo = 0;};
+  { m_workerNo = 0;}
   
 private:
   /** 
@@ -2993,7 +2993,7 @@ public:
      m_currWorkerNo(0)
   {}
 
-  virtual ~FetchMoreTcIdIterator() {};
+  virtual ~FetchMoreTcIdIterator() {}
   
   /**
    * Get next batch of receiver ids. 
@@ -3004,7 +3004,7 @@ public:
   virtual const Uint32* getNextWords(Uint32& sz);
 
   virtual void reset()
-  { m_currWorkerNo = 0;};
+  { m_currWorkerNo = 0;}
   
 private:
   /** 

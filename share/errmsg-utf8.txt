@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -4975,7 +4975,7 @@ ER_SLAVE_IGNORED_SSL_PARAMS
         jpn "このMySQLスレーブはSSLサポートを含めてコンパイルされていないので、CHANGE MASTER のSSLパラメータは無視されました。今後SSLサポートを持つMySQLスレーブを起動する際に利用されます。"
         por "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado."
         spa "Parametros SSL en CHANGE MASTER son ignorados porque este slave MySQL fue compilado sin soporte SSL; pueden ser usados despues cuando el slave MySQL con SSL sea inicializado"
-ER_SERVER_IS_IN_SECURE_AUTH_MODE  
+OBSOLETE_ER_SERVER_IS_IN_SECURE_AUTH_MODE
         eng "Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format"
         ger "Server läuft im Modus --secure-auth, aber '%s'@'%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern"
         jpn "サーバーは --secure-auth モードで稼働しています。しかし '%s'@'%s' は古い形式のパスワードを使用しています。新しい形式のパスワードに変更してください。"
@@ -6006,8 +6006,8 @@ ER_FOREIGN_DUPLICATE_KEY_OLD_UNUSED 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"
 # OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
-        eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
-        ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
+        eng "The column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
+        ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte verwenden Sie die MySQL-Upgrade-Prozedur, um den Fehler zu beheben."
 OBSOLETE_ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
         eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
         ger "Kann nicht aus dem zeilenbasierten Binärlog-Format herauswechseln, wenn die Sitzung offene temporäre Tabellen hat"
@@ -6884,7 +6884,7 @@ ER_FK_DUP_NAME
 	eng "Duplicate foreign key constraint name '%s'"
 
 ER_PASSWORD_FORMAT
-  eng "The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function."
+  eng "The password hash doesn't have the expected format."
 
 ER_FK_COLUMN_CANNOT_DROP
         eng "Cannot drop column '%-.192s': needed in a foreign key constraint '%-.192s'"
@@ -7134,8 +7134,8 @@ ER_FK_DEPTH_EXCEEDED
   eng "Foreign key cascade delete/update exceeds max depth of %d."
 
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
-        eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
-        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
+        eng "The column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
+        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte verwenden Sie die MySQL-Upgrade-Prozedur, um den Fehler zu beheben."
 
 ER_WARN_TRIGGER_DOESNT_HAVE_CREATED
   eng "Trigger %s.%s.%s does not have CREATED attribute."
@@ -7689,7 +7689,7 @@ ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
   eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using."
 
 ER_USER_COLUMN_OLD_LENGTH
-  eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please run mysql_upgrade."
+  eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please perform the MySQL upgrade procedure."
 
 ER_CANT_RESET_MASTER
   eng "RESET MASTER is not allowed because %-.384s."
@@ -8024,7 +8024,7 @@ ER_NO_ACCESS_TO_NATIVE_FCT
   eng "Access to native function '%.64s' is rejected."
 
 ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
-  eng "The requested value '%lu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
+  eng "The requested value '%llu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
 
 ER_UNRESOLVED_TABLE_LOCK
   eng "Unresolved table name %s in locking clause."
@@ -8327,7 +8327,7 @@ ER_TF_MUST_HAVE_ALIAS 42000
         eng "Every table function must have an alias"
 
 ER_TF_FORBIDDEN_JOIN_TYPE
-  eng "INNER or LEFT JOIN must be used for '%.192s' table function's LATERAL reference"
+  eng "INNER or LEFT JOIN must be used for LATERAL references made by '%.192s'"
 
 ER_JT_VALUE_OUT_OF_RANGE 22003
   eng "Value is out of range for JSON_TABLE's column '%.192s'"
@@ -8581,7 +8581,7 @@ ER_XA_CANT_CREATE_MDL_BACKUP
   eng "XA: Failed to take MDL Lock backup of PREPARED XA transaction during client disconnect."
 
 ER_TABLE_WITHOUT_PK
-  eng "Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting."
+  eng "Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting."
 
 WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX 01000
   eng "Data truncated for functional index '%s' at row %ld"
@@ -8618,6 +8618,7 @@ ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX
 
 ER_FUNCTIONAL_INDEX_ON_FIELD
   eng "Functional index on a column is not supported. Consider using a regular index instead."
+
 ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
   eng "Expression of generated column '%s' contains a disallowed function: %s."
 
@@ -8631,7 +8632,7 @@ ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
   eng "Column '%s' of table '%s' has a default value expression dependency and cannot be dropped."
 
 ER_DEFAULT_VAL_GENERATED_NON_PRIOR
-  eng "Default value expression of column '%s' can refer only to generated columns and columns with default value expressions defined prior to it."
+  eng "Default value expression of column '%s' cannot refer to a column defined after it if that column is a generated column or has an expression as default value."
 
 ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC
   eng "Default value expression of column '%s' cannot refer to an auto-increment column."
@@ -8663,7 +8664,7 @@ ER_FK_CANNOT_CHANGE_ENGINE
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
 ER_WARN_DEPRECATED_USER_SET_EXPR
-  eng "Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead."
+  eng "Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'."
 
 ER_WARN_DEPRECATED_UTF8MB3_COLLATION
   eng "'%-.64s' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead."
@@ -8671,6 +8672,177 @@ ER_WARN_DEPRECATED_UTF8MB3_COLLATION
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
 ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX
   eng "Nested comment syntax is deprecated and will be removed in a future release."
+
+ER_FK_INCOMPATIBLE_COLUMNS
+  eng "Referencing column '%s' and referenced column '%s' in foreign key constraint '%s' are incompatible."
+
+ER_GR_HOLD_WAIT_TIMEOUT
+  eng "Timeout exceeded for held statement while new Group Replication primary member is applying backlog."
+
+ER_GR_HOLD_KILLED
+  eng "Held statement aborted because Group Replication plugin got shut down or thread was killed while new primary member was applying backlog."
+
+ER_GR_HOLD_MEMBER_STATUS_ERROR
+  eng "Held statement was aborted due to member being in error state, while backlog is being applied during Group Replication primary election."
+
+ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_KEY_NOT_FOUND
+  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+
+ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
+  eng "Fetched an invalid key from keyring."
+
+ER_RPL_ENCRYPTION_HEADER_ERROR
+  eng "Error reading a replication log encryption header: %s."
+
+ER_RPL_ENCRYPTION_FAILED_TO_ROTATE_LOGS
+  eng "Failed to rotate some logs after changing binlog encryption settings. Please fix the problem and rotate the logs manually."
+
+ER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
+  eng "Key %s exists unexpected."
+
+ER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
+  eng "Failed to generate key, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
+  eng "Failed to store key, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
+  eng "Failed to remove key, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION
+  eng "Failed to change binlog_encryption value. %-.80s."
+
+ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+
+ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE
+  eng "slow query log file format changed as requested, but setting will have no effect when not actually logging to a file."
+
+ER_GRP_TRX_CONSISTENCY_NOT_ALLOWED
+  eng "The option group_replication_consistency cannot be used on the current member state."
+
+ER_GRP_TRX_CONSISTENCY_BEFORE
+  eng "Error while waiting for group transactions commit on group_replication_consistency= 'BEFORE'."
+
+ER_GRP_TRX_CONSISTENCY_AFTER_ON_TRX_BEGIN
+  eng "Error while waiting for transactions with group_replication_consistency= 'AFTER' to commit."
+
+ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
+  eng "The Group Replication plugin is stopping, therefore new transactions are not allowed to start."
+
+ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED
+  eng "Expression of functional index '%s' cannot refer to a row value."
+
+ER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT
+  eng "Failed to encrypt content to write into binlog file: %s."
+
+ER_PAGE_TRACKING_NOT_STARTED
+  eng "Page Tracking is not started yet."
+
+ER_PAGE_TRACKING_RANGE_NOT_TRACKED
+  eng "Tracking was not enabled for the LSN range specified"
+
+ER_PAGE_TRACKING_CANNOT_PURGE
+  eng "Cannot purge data when concurrent clone is in progress. Try later."
+
+ER_RPL_ENCRYPTION_CANNOT_ROTATE_BINLOG_MASTER_KEY
+  eng "Cannot rotate binary log master key when 'binlog-encryption' is off."
+
+ER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
+  eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
+
+ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+  eng "Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files."
+
+ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS
+  eng "Failed to rotate one or more binary or relay log files. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key."
+
+ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+  eng "%s. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key."
+
+ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS
+  eng "Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+
+ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
+  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+
+ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+  eng "An expression of non-boolean type specified to a check constraint '%-.192s'."
+
+ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+  eng "Column check constraint '%-.192s' references other column."
+
+ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+  eng "An expression of a check constraint '%-.192s' contains disallowed function: %s."
+
+ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
+  eng "An expression of a check constraint '%-.192s' contains disallowed function."
+
+ER_CHECK_CONSTRAINT_VARIABLES
+  eng "An expression of a check constraint '%-.192s' cannot refer to a user or system variable."
+
+ER_CHECK_CONSTRAINT_ROW_VALUE
+  eng "Check constraint '%-.192s' cannot refer to a row value."
+
+ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN
+  eng "Check constraint '%-.192s' cannot refer to an auto-increment column."
+
+ER_CHECK_CONSTRAINT_VIOLATED
+  eng "Check constraint '%-.192s' is violated."
+
+ER_CHECK_CONSTRAINT_REFERS_UNKNOWN_COLUMN
+  eng "Check constraint '%-.192s' refers to non-existing column '%-.192s'."
+
+ER_CHECK_CONSTRAINT_NOT_FOUND
+  eng "Check constraint '%-.192s' is not found in the table."
+
+ER_CHECK_CONSTRAINT_DUP_NAME
+  eng "Duplicate check constraint name '%-.192s'."
+
+ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+  eng "Column '%-.192s' cannot be used in a check constraint '%-.192s': needed in a foreign key constraint '%-.192s' referential action."
+
+WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB
+  eng "Creating an unencrypted table in a database with default encryption enabled."
+
+ER_INVALID_ENCRYPTION_REQUEST
+  eng "Request to create %s table while using an %s tablespace."
+
+ER_CANNOT_SET_TABLE_ENCRYPTION
+  eng "Table encryption differ from its database default encryption, and user doesn't have enough privilege."
+
+ER_CANNOT_SET_DATABASE_ENCRYPTION
+  eng "Database default encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege."
+
+ER_CANNOT_SET_TABLESPACE_ENCRYPTION
+  eng "Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege."
+
+ER_TABLESPACE_CANNOT_BE_ENCRYPTED
+  eng "This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege."
+
+ER_TABLESPACE_CANNOT_BE_DECRYPTED
+  eng "This tablespace can't be decrypted, because one of table's schema has default encryption ON and user doesn't have enough privilege."
+
+ER_TABLESPACE_TYPE_UNKNOWN
+  eng "Cannot determine the type of the tablespace named '%s'."
+
+ER_TARGET_TABLESPACE_UNENCRYPTED
+  eng "Source tablespace is encrypted but target tablespace is not."
+
+ER_CANNOT_USE_ENCRYPTION_CLAUSE
+  eng "ENCRYPTION clause is not valid for %s tablespace."
+
+ER_INVALID_MULTIPLE_CLAUSES
+  eng "Multiple %s clauses"
+
+ER_UNSUPPORTED_USE_OF_GRANT_AS
+  eng "GRANT ... AS is currently supported only for global privileges."
+
+ER_UKNOWN_AUTH_ID_OR_ACCESS_DENIED_FOR_GRANT_AS
+  eng "Either some of the authorization IDs in the AS clause are invalid or the current user lacks privileges to execute the statement."
 
 #
 #  End of 8.0 error messages.
@@ -8941,7 +9113,7 @@ ER_INNODB_MANDATORY
 OBSOLETE_ER_INNODB_CANNOT_BE_IGNORED
   eng "ignore-builtin-innodb is ignored and will be removed in future releases."
 
-ER_OLD_PASSWORDS_NO_MIDDLE_GROUND
+OBSOLETE_ER_OLD_PASSWORDS_NO_MIDDLE_GROUND
   eng "Invalid old_passwords mode: 1. Valid values are 2 and 0"
 
 ER_VERBOSE_REQUIRES_HELP
@@ -9212,7 +9384,7 @@ ER_PERFSCHEMA_INIT_FAILED
 ER_STACKSIZE_UNEXPECTED
   eng "Asked for %lu thread stack, but got %ld"
 
-ER_CANT_SET_DATADIR
+OBSOLETE_ER_CANT_SET_DATADIR
   eng "failed to set datadir to %s"
 
 ER_CANT_STAT_DATADIR
@@ -9269,7 +9441,7 @@ ER_RPL_INFINITY_DENIED
 ER_RPL_INFINITY_IGNORED
   eng "using --replicate-same-server-id in conjunction with --log-slave-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined."
 
-ER_NDB_TABLES_NOT_READY
+OBSOLETE_ER_NDB_TABLES_NOT_READY
   eng "NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
 
 # could use verbatim, but we want an error-code
@@ -9368,7 +9540,7 @@ ER_UDF_INVALID_ROW_IN_FUNCTION_TABLE
   eng "Invalid row in mysql.func table for function '%.64s'"
 
 ER_UDF_CANT_OPEN_FUNCTION_TABLE
-  eng "Can't open the mysql.func table. Please run mysql_upgrade to create it."
+  eng "Could not open the mysql.func table. Please perform the MySQL upgrade procedure."
 
 ER_XA_RECOVER_FOUND_TRX_IN_SE
   eng "Found %d prepared transaction(s) in %s"
@@ -9566,19 +9738,19 @@ ER_CONN_ATTR_TRUNCATED
   eng "Connection attributes of length %lu were truncated (%d bytes lost) for connection %llu, user %s@%s (as %s), auth: %s"
 
 ER_X509_CIPHERS_MISMATCH
-  eng "X509 ciphers mismatch: should be '%s' but is '%s'"
+  eng "X.509 ciphers mismatch: should be '%s' but is '%s'"
 
 ER_X509_ISSUER_MISMATCH
-  eng "X509 issuer mismatch: should be '%s' but is '%s'"
+  eng "X.509 issuer mismatch: should be '%s' but is '%s'"
 
 ER_X509_SUBJECT_MISMATCH
-  eng "X509 subject mismatch: should be '%s' but is '%s'"
+  eng "X.509 subject mismatch: should be '%s' but is '%s'"
 
 ER_AUTH_CANT_ACTIVATE_ROLE
   eng "Failed to activate default role %s for %s"
 
 ER_X509_NEEDS_RSA_PRIVKEY
-  eng "Could not generate RSA private key required for X509 certificate."
+  eng "Could not generate RSA private key required for X.509 certificate."
 
 ER_X509_CANT_WRITE_KEY
   eng "Could not write key file: %s"
@@ -9593,7 +9765,7 @@ ER_X509_CANT_READ_CA_CERT
   eng "Could not read CA certificate file: %s"
 
 ER_X509_CANT_CREATE_CERT
-  eng "Could not generate X509 certificate."
+  eng "Could not generate X.509 certificate."
 
 ER_X509_CANT_WRITE_CERT
   eng "Could not write certificate file: %s"
@@ -9641,13 +9813,13 @@ ER_AUTHCACHE_PLUGIN_CONFIG
   eng "The plugin '%s' is used to authenticate user '%s'@'%.*s', %s configured. Nobody can currently login using this account."
 
 OBSOLETE_ER_AUTHCACHE_ROLE_TABLES_DODGY
-  eng "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed."
+  eng "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless the MySQL upgrade procedure is performed."
 
 ER_AUTHCACHE_USER_SKIPPED_NEEDS_RESOLVE
   eng "'user' entry '%s@%s' ignored in --skip-name-resolve mode."
 
 ER_AUTHCACHE_USER_TABLE_DODGY
-  eng "Fatal error: mysql.user table is damaged. Please run mysql_upgrade."
+  eng "Fatal error: Could not read the column 'authentication_string' from table 'mysql.user'. Please perform the MySQL upgrade procedure."
 
 ER_AUTHCACHE_USER_IGNORED_DEPRECATED_PASSWORD
   eng "User entry '%s'@'%s' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore."
@@ -9662,7 +9834,7 @@ ER_AUTHCACHE_EXPIRED_PASSWORD_UNSUPPORTED
   eng "'user' entry '%s@%s' has the password ignore flag raised, but its authentication plugin doesn't support password expiration. The user id will be ignored."
 
 ER_NO_SUPER_WITHOUT_USER_PLUGIN
-  eng "Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value. If you are upgrading from MySQL 5.6 to MySQL 5.7 it means we were not able to substitute for empty plugin column. Probably because of pre 4.1 password hash. If your account is disabled you will need to: 1. Stop the server and restart it with --skip-grant-tables. 2. Run mysql_upgrade. 3. Restart the server with the parameters you normally use. For complete instructions on how to upgrade MySQL to a new version please see the 'Upgrading MySQL' section from the MySQL manual"
+  eng "Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value. If you are upgrading from MySQL 5.6 to MySQL 5.7 it means that substitution for the empty plugin column was not possible. Probably because of pre 4.1 password hash. If your account is disabled you will need to perform the MySQL upgrade procedure. For complete instructions on how to upgrade MySQL to a new version please see the 'Upgrading MySQL' section from the MySQL manual."
 
 ER_AUTHCACHE_DB_IGNORED_EMPTY_NAME
   eng "Found an entry in the 'db' table with empty database name; Skipped"
@@ -9674,7 +9846,7 @@ ER_AUTHCACHE_DB_ENTRY_LOWERCASED_REVOKE_WILL_FAIL
   eng "'db' entry '%s %s@%s' had database in mixed case that has been forced to lowercase because lower_case_table_names is set. It will not be possible to remove this privilege using REVOKE."
 
 ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING
-  eng "Missing system table mysql.proxies_priv; please run mysql_upgrade to create it"
+  eng "The system table mysql.proxies_priv is missing. Please perform the MySQL upgrade procedure."
 
 ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES
   eng "Fatal error: Can't open and lock privilege tables: %s"
@@ -9874,43 +10046,43 @@ ER_NPIPE_FAILED_TO_SET_SECURITY_DESCRIPTOR
 ER_NPIPE_PIPE_ALREADY_IN_USE
   eng "Can't start server : Named Pipe \"%s\" already in use."
 
-ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START
+OBSOLETE_ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START
   eng "NDB Slave : At SQL thread start applying epoch %llu/%llu (%llu) from Master ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Master Log : %s  Group Master Log Pos : %llu.  Check slave positioning."
 
-ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS
+OBSOLETE_ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS
   eng "NDB Slave : SQL thread stopped as applying epoch %llu/%llu (%llu) from Master ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Master Log : %s  Group Master Log Pos : %llu"
 
-ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH
+OBSOLETE_ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH
   eng "NDB Slave : SQL thread stopped as attempted to reapply already committed epoch %llu/%llu (%llu) from server id %u.  Group Master Log : %s  Group Master Log Pos : %llu."
 
-ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED
+OBSOLETE_ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED
   eng "NDB Slave : SQL thread stopped as attempting to apply new epoch %llu/%llu (%llu) while lower received epoch %llu/%llu (%llu) has not been committed.  Master server id : %u.  Group Master Log : %s  Group Master Log Pos : %llu."
 
-ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN
+OBSOLETE_ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN
   eng "NDB Slave: missing data for %s timestamp column %u."
 
-ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO
+OBSOLETE_ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO
   eng "NDB Slave: Table %s.%s logging exceptions to %s.%s"
 
-ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION
+OBSOLETE_ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION
   eng "NDB Slave: Table %s.%s : %s, low epoch resolution"
 
-ER_NDB_INFO_FOUND_UNEXPECTED_FIELD_TYPE
+OBSOLETE_ER_NDB_INFO_FOUND_UNEXPECTED_FIELD_TYPE
   eng "Found unexpected field type %u"
 
-ER_NDB_INFO_FAILED_TO_CREATE_NDBINFO
+OBSOLETE_ER_NDB_INFO_FAILED_TO_CREATE_NDBINFO
   eng "Failed to create NdbInfo"
 
-ER_NDB_INFO_FAILED_TO_INIT_NDBINFO
+OBSOLETE_ER_NDB_INFO_FAILED_TO_INIT_NDBINFO
   eng "Failed to init NdbInfo"
 
-ER_NDB_CLUSTER_WRONG_NUMBER_OF_FUNCTION_ARGUMENTS
+OBSOLETE_ER_NDB_CLUSTER_WRONG_NUMBER_OF_FUNCTION_ARGUMENTS
   eng "ndb_serialize_cond: Unexpected mismatch of found and expected number of function arguments %u"
 
-ER_NDB_CLUSTER_SCHEMA_INFO
+OBSOLETE_ER_NDB_CLUSTER_SCHEMA_INFO
   eng "%s - %s.%s"
 
-ER_NDB_CLUSTER_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_CLUSTER_GENERIC_MESSAGE
   eng "%s"
 
 ER_RPL_CANT_OPEN_INFO_TABLE
@@ -10051,7 +10223,7 @@ ER_EVENT_ERROR_DURING_COMPILATION
 ER_EVENT_DROPPING
   eng "Event Scheduler: Dropping %s.%s"
 
-ER_NDB_SCHEMA_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_SCHEMA_GENERIC_MESSAGE
   eng "Ndb schema[%s.%s]: %s"
 
 ER_RPL_INCOMPATIBLE_DECIMAL_IN_RBR
@@ -10096,7 +10268,7 @@ ER_RPL_BINLOG_SKIPPING_REMAINING_HEARTBEAT_INFO
 ER_RPL_BINLOG_MASTER_USES_CHECKSUM_AND_SLAVE_CANT
   eng "Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process them"
 
-ER_NDB_QUERY_FAILED
+OBSOLETE_ER_NDB_QUERY_FAILED
   eng "NDB: Query '%s' failed, error: %d: %s"
 
 ER_KILLING_THREAD
@@ -10120,133 +10292,133 @@ ER_PLUGIN_DID_NOT_DEINITIALIZE_THREADS
 ER_KILLED_THREADS_OF_PLUGIN
   eng "Killed %u threads of plugin %s"
 
-ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_UNKNOWN
+OBSOLETE_ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_UNKNOWN
   eng "NDB Slave : Could not determine maximum replicated epoch from %s.%s at Slave start, error %u %s"
 
-ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_SET_TO
+OBSOLETE_ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_SET_TO
   eng "NDB Slave : MaxReplicatedEpoch set to %llu (%u/%u) at Slave start"
 
-ER_NDB_NODE_ID_AND_MANAGEMENT_SERVER_INFO
+OBSOLETE_ER_NDB_NODE_ID_AND_MANAGEMENT_SERVER_INFO
   eng "NDB: NodeID is %lu, management server '%s:%lu'"
 
-ER_NDB_DISCONNECT_INFO
+OBSOLETE_ER_NDB_DISCONNECT_INFO
   eng "tid %u: node[%u] transaction_hint=%u, transaction_no_hint=%u"
 
-ER_NDB_COLUMN_DEFAULTS_DIFFER
+OBSOLETE_ER_NDB_COLUMN_DEFAULTS_DIFFER
   eng "NDB Internal error: Default values differ for column %u, ndb_default: %d"
 
-ER_NDB_COLUMN_SHOULD_NOT_HAVE_NATIVE_DEFAULT
+OBSOLETE_ER_NDB_COLUMN_SHOULD_NOT_HAVE_NATIVE_DEFAULT
   eng "NDB Internal error: Column %u has native default, but shouldn't. Flags=%u, type=%u"
 
-ER_NDB_FIELD_INFO
+OBSOLETE_ER_NDB_FIELD_INFO
   eng "field[ name: '%s', type: %u, real_type: %u, flags: 0x%x, is_null: %d]"
 
-ER_NDB_COLUMN_INFO
+OBSOLETE_ER_NDB_COLUMN_INFO
   eng "ndbCol[name: '%s', type: %u, column_no: %d, nullable: %d]"
 
-ER_NDB_OOM_IN_FIX_UNIQUE_INDEX_ATTR_ORDER
+OBSOLETE_ER_NDB_OOM_IN_FIX_UNIQUE_INDEX_ATTR_ORDER
   eng "fix_unique_index_attr_order: my_malloc(%u) failure"
 
-ER_NDB_SLAVE_MALFORMED_EVENT_RECEIVED_ON_TABLE
+OBSOLETE_ER_NDB_SLAVE_MALFORMED_EVENT_RECEIVED_ON_TABLE
   eng "NDB Slave : Malformed event received on table %s cannot parse.  Stopping Slave."
 
-ER_NDB_SLAVE_CONFLICT_FUNCTION_REQUIRES_ROLE
+OBSOLETE_ER_NDB_SLAVE_CONFLICT_FUNCTION_REQUIRES_ROLE
   eng "NDB Slave : Conflict function %s defined on table %s requires ndb_slave_conflict_role variable to be set.  Stopping slave."
 
-ER_NDB_SLAVE_CONFLICT_DETECTION_REQUIRES_TRANSACTION_IDS
+OBSOLETE_ER_NDB_SLAVE_CONFLICT_TRANSACTION_IDS
   eng "NDB Slave : Transactional conflict detection defined on table %s, but events received without transaction ids.  Check --ndb-log-transaction-id setting on upstream Cluster."
 
-ER_NDB_SLAVE_BINLOG_MISSING_INFO_FOR_CONFLICT_DETECTION
+OBSOLETE_ER_NDB_SLAVE_BINLOG_MISSING_INFO_FOR_CONFLICT_DETECTION
   eng "NDB Slave : Binlog event on table %s missing info necessary for conflict detection.  Check binlog format options on upstream cluster."
 
-ER_NDB_ERROR_IN_READAUTOINCREMENTVALUE
+OBSOLETE_ER_NDB_ERROR_IN_READAUTOINCREMENTVALUE
   eng "Error %lu in readAutoIncrementValue(): %s"
 
-ER_NDB_FOUND_UNCOMMITTED_AUTOCOMMIT
+OBSOLETE_ER_NDB_FOUND_UNCOMMITTED_AUTOCOMMIT
   eng "found uncommitted autocommit+rbwr transaction, commit status: %d"
 
-ER_NDB_SLAVE_TOO_MANY_RETRIES
+OBSOLETE_ER_NDB_SLAVE_TOO_MANY_RETRIES
   eng "Ndb slave retried transaction %u time(s) in vain.  Giving up."
 
-ER_NDB_SLAVE_ERROR_IN_UPDATE_CREATE_INFO
+OBSOLETE_ER_NDB_SLAVE_ERROR_IN_UPDATE_CREATE_INFO
   eng "Error %lu in ::update_create_info(): %s"
 
-ER_NDB_SLAVE_CANT_ALLOCATE_TABLE_SHARE
+OBSOLETE_ER_NDB_SLAVE_CANT_ALLOCATE_TABLE_SHARE
   eng "NDB: allocating table share for %s failed"
 
-ER_NDB_BINLOG_ERROR_INFO_FROM_DA
+OBSOLETE_ER_NDB_BINLOG_ERROR_INFO_FROM_DA
   eng "NDB Binlog: (%d)%s"
 
-ER_NDB_BINLOG_CREATE_TABLE_EVENT
+OBSOLETE_ER_NDB_BINLOG_CREATE_TABLE_EVENT
   eng "NDB Binlog: CREATE TABLE Event: %s"
 
-ER_NDB_BINLOG_FAILED_CREATE_TABLE_EVENT_OPERATIONS
+OBSOLETE_ER_NDB_BINLOG_FAILED_CREATE_TABLE_EVENT_OPERATIONS
   eng "NDB Binlog: FAILED CREATE TABLE event operations. Event: %s"
 
-ER_NDB_BINLOG_RENAME_EVENT
+OBSOLETE_ER_NDB_BINLOG_RENAME_EVENT
   eng "NDB Binlog: RENAME Event: %s"
 
-ER_NDB_BINLOG_FAILED_CREATE_EVENT_OPERATIONS_DURING_RENAME
+OBSOLETE_ER_NDB_BINLOG_FAILED_CREATE_DURING_RENAME
   eng "NDB Binlog: FAILED create event operations during RENAME. Event %s"
 
-ER_NDB_UNEXPECTED_RENAME_TYPE
+OBSOLETE_ER_NDB_UNEXPECTED_RENAME_TYPE
   eng "Unexpected rename case detected, sql_command: %d"
 
-ER_NDB_ERROR_IN_GET_AUTO_INCREMENT
+OBSOLETE_ER_NDB_ERROR_IN_GET_AUTO_INCREMENT
   eng "Error %lu in ::get_auto_increment(): %s"
 
-ER_NDB_CREATING_SHARE_IN_OPEN
+OBSOLETE_ER_NDB_CREATING_SHARE_IN_OPEN
   eng "Calling ndbcluster_create_binlog_setup(%s) in ::open"
 
-ER_NDB_TABLE_OPENED_READ_ONLY
+OBSOLETE_ER_NDB_TABLE_OPENED_READ_ONLY
   eng "table '%s' opened read only"
 
-ER_NDB_INITIALIZE_GIVEN_CLUSTER_PLUGIN_DISABLED
+OBSOLETE_ER_NDB_INITIALIZE_GIVEN_CLUSTER_PLUGIN_DISABLED
   eng "NDB: '--initialize' -> ndbcluster plugin disabled"
 
-ER_NDB_BINLOG_FORMAT_CHANGED_FROM_STMT_TO_MIXED
+OBSOLETE_ER_NDB_BINLOG_FORMAT_CHANGED_FROM_STMT_TO_MIXED
   eng "NDB: Changed global value of binlog_format from STATEMENT to MIXED"
 
-ER_NDB_TRAILING_SHARE_RELEASED_BY_CLOSE_CACHED_TABLES
+OBSOLETE_ER_NDB_TRAILING_SHARE_RELEASED_BY_CLOSE_CACHED_TABLES
   eng "NDB_SHARE: trailing share %s, released by close_cached_tables"
 
-ER_NDB_SHARE_ALREADY_EXISTS
+OBSOLETE_ER_NDB_SHARE_ALREADY_EXISTS
   eng "NDB_SHARE: %s already exists use_count=%d. Moving away for safety, but possible memleak."
 
-ER_NDB_HANDLE_TRAILING_SHARE_INFO
+OBSOLETE_ER_NDB_HANDLE_TRAILING_SHARE_INFO
   eng "handle_trailing_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_GET_SHARE_INFO
+OBSOLETE_ER_NDB_CLUSTER_GET_SHARE_INFO
   eng "ndbcluster_get_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_REAL_FREE_SHARE_INFO
+OBSOLETE_ER_NDB_CLUSTER_REAL_FREE_SHARE_INFO
   eng "ndbcluster_real_free_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_REAL_FREE_SHARE_DROP_FAILED
+OBSOLETE_ER_NDB_CLUSTER_REAL_FREE_SHARE_DROP_FAILED
   eng "ndbcluster_real_free_share: %s, still open - ignored 'free' (leaked?)"
 
-ER_NDB_CLUSTER_FREE_SHARE_INFO
+OBSOLETE_ER_NDB_CLUSTER_FREE_SHARE_INFO
   eng "ndbcluster_free_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_MARK_SHARE_DROPPED_INFO
+OBSOLETE_ER_NDB_CLUSTER_MARK_SHARE_DROPPED_INFO
   eng "ndbcluster_mark_share_dropped: %s use_count: %u"
 
-ER_NDB_CLUSTER_MARK_SHARE_DROPPED_DESTROYING_SHARE
+OBSOLETE_ER_NDB_CLUSTER_MARK_SHARE_DROPPED_DESTROYING_SHARE
   eng "ndbcluster_mark_share_dropped: destroys share %s"
 
-ER_NDB_CLUSTER_OOM_THD_NDB
+OBSOLETE_ER_NDB_CLUSTER_OOM_THD_NDB
   eng "Could not allocate Thd_ndb object"
 
-ER_NDB_BINLOG_NDB_TABLES_INITIALLY_READ_ONLY
+OBSOLETE_ER_NDB_BINLOG_NDB_TABLES_INITIALLY_READ_ONLY
   eng "NDB Binlog: Ndb tables initially read only."
 
-ER_NDB_UTIL_THREAD_OOM
+OBSOLETE_ER_NDB_UTIL_THREAD_OOM
   eng "ndb util thread: malloc failure, query cache not maintained properly"
 
-ER_NDB_ILLEGAL_VALUE_FOR_NDB_RECV_THREAD_CPU_MASK
+OBSOLETE_ER_NDB_ILLEGAL_VALUE_FOR_NDB_RECV_THREAD_CPU_MASK
   eng "Trying to set ndb_recv_thread_cpu_mask to illegal value = %s, ignored"
 
-ER_NDB_TOO_MANY_CPUS_IN_NDB_RECV_THREAD_CPU_MASK
+OBSOLETE_ER_NDB_TOO_MANY_CPUS_IN_NDB_RECV_THREAD_CPU_MASK
   eng "Trying to set too many CPU's in ndb_recv_thread_cpu_mask, ignored this variable, erroneus value = %s"
 
 ER_DBUG_CHECK_SHARES_OPEN
@@ -10438,7 +10610,7 @@ ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED_WITH_ERRNO
 ER_RPL_SLAVE_FAILED_TO_INIT_PARTITIONS_HASH
   eng "Failed to init partitions hash"
 
-ER_RPL_SLAVE_NDB_TABLES_NOT_AVAILABLE
+OBSOLETE_ER_RPL_SLAVE_NDB_TABLES_NOT_AVAILABLE
   eng "Slave SQL thread : NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
 
 ER_RPL_SLAVE_SQL_THREAD_STARTING
@@ -10525,304 +10697,304 @@ ER_RPL_CANT_OPEN_LOG_IN_RLI_INIT_INFO
 ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION
   eng "Error writing relay log configuration."
 
-ER_NDB_OOM_GET_NDB_BLOBS_VALUE
+OBSOLETE_ER_NDB_OOM_GET_NDB_BLOBS_VALUE
   eng "get_ndb_blobs_value: my_malloc(%u) failed"
 
-ER_NDB_THREAD_TIMED_OUT
+OBSOLETE_ER_NDB_THREAD_TIMED_OUT
   eng "NDB: Thread id %u timed out (30s) waiting for epoch %u/%u to be handled.  Progress : %u/%u -> %u/%u."
 
-ER_NDB_TABLE_IS_NOT_DISTRIBUTED
+OBSOLETE_ER_NDB_TABLE_IS_NOT_DISTRIBUTED
   eng "NDB: Inconsistency detected in distributed privilege tables. Table '%s.%s' is not distributed"
 
-ER_NDB_CREATING_TABLE
+OBSOLETE_ER_NDB_CREATING_TABLE
   eng "NDB: Creating %s.%s"
 
-ER_NDB_FLUSHING_TABLE_INFO
+OBSOLETE_ER_NDB_FLUSHING_TABLE_INFO
   eng "NDB: Flushing %s.%s"
 
-ER_NDB_CLEANING_STRAY_TABLES
+OBSOLETE_ER_NDB_CLEANING_STRAY_TABLES
   eng "NDB: Cleaning stray tables from database '%s'"
 
-ER_NDB_DISCOVERED_MISSING_DB
+OBSOLETE_ER_NDB_DISCOVERED_MISSING_DB
   eng "NDB: Discovered missing database '%s'"
 
-ER_NDB_DISCOVERED_REMAINING_DB
+OBSOLETE_ER_NDB_DISCOVERED_REMAINING_DB
   eng "NDB: Discovered remaining database '%s'"
 
-ER_NDB_CLUSTER_FIND_ALL_DBS_RETRY
+OBSOLETE_ER_NDB_CLUSTER_FIND_ALL_DBS_RETRY
   eng "NDB: ndbcluster_find_all_databases retry: %u - %s"
 
-ER_NDB_CLUSTER_FIND_ALL_DBS_FAIL
+OBSOLETE_ER_NDB_CLUSTER_FIND_ALL_DBS_FAIL
   eng "NDB: ndbcluster_find_all_databases fail: %u - %s"
 
-ER_NDB_SKIPPING_SETUP_TABLE
+OBSOLETE_ER_NDB_SKIPPING_SETUP_TABLE
   eng "NDB: skipping setup table %s.%s, in state %d"
 
-ER_NDB_FAILED_TO_SET_UP_TABLE
+OBSOLETE_ER_NDB_FAILED_TO_SET_UP_TABLE
   eng "NDB: failed to setup table %s.%s, error: %d, %s"
 
-ER_NDB_MISSING_FRM_DISCOVERING
+OBSOLETE_ER_NDB_MISSING_FRM_DISCOVERING
   eng "NDB: missing frm for %s.%s, discovering..."
 
-ER_NDB_MISMATCH_IN_FRM_DISCOVERING
+OBSOLETE_ER_NDB_MISMATCH_IN_FRM_DISCOVERING
   eng "NDB: mismatch in frm for %s.%s, discovering..."
 
-ER_NDB_BINLOG_CLEANING_UP_SETUP_LEFTOVERS
+OBSOLETE_ER_NDB_BINLOG_CLEANING_UP_SETUP_LEFTOVERS
   eng "ndb_binlog_setup: Clean up leftovers"
 
-ER_NDB_WAITING_INFO
+OBSOLETE_ER_NDB_WAITING_INFO
   eng "NDB %s: waiting max %u sec for %s %s.  epochs: (%u/%u,%u/%u,%u/%u)  injector proc_info: %s"
 
-ER_NDB_WAITING_INFO_WITH_MAP
+OBSOLETE_ER_NDB_WAITING_INFO_WITH_MAP
   eng "NDB %s: waiting max %u sec for %s %s.  epochs: (%u/%u,%u/%u,%u/%u)  injector proc_info: %s map: %x%08x"
 
-ER_NDB_TIMEOUT_WHILE_DISTRIBUTING
+OBSOLETE_ER_NDB_TIMEOUT_WHILE_DISTRIBUTING
   eng "NDB %s: distributing %s timed out. Ignoring..."
 
-ER_NDB_NOT_WAITING_FOR_DISTRIBUTING
+OBSOLETE_ER_NDB_NOT_WAITING_FOR_DISTRIBUTING
   eng "NDB %s: not waiting for distributing %s"
 
-ER_NDB_DISTRIBUTED_INFO
+OBSOLETE_ER_NDB_DISTRIBUTED_INFO
   eng "NDB: distributed %s.%s(%u/%u) type: %s(%u) query: \'%s\' to %x%08x"
 
-ER_NDB_DISTRIBUTION_COMPLETE
+OBSOLETE_ER_NDB_DISTRIBUTION_COMPLETE
   eng "NDB: distribution of %s.%s(%u/%u) type: %s(%u) query: \'%s\' - complete!"
 
-ER_NDB_SCHEMA_DISTRIBUTION_FAILED
+OBSOLETE_ER_NDB_SCHEMA_DISTRIBUTION_FAILED
   eng "NDB Schema dist: Data node: %d failed, subscriber bitmask %x%08x"
 
-ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_SUBSCRIBE
+OBSOLETE_ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_SUBSCRIBE
   eng "NDB Schema dist: Data node: %d reports subscribe from node %d, subscriber bitmask %x%08x"
 
-ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_UNSUBSCRIBE
+OBSOLETE_ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_UNSUBSCRIBE
   eng "NDB Schema dist: Data node: %d reports unsubscribe from node %d, subscriber bitmask %x%08x"
 
-ER_NDB_BINLOG_CANT_DISCOVER_TABLE_FROM_SCHEMA_EVENT
+OBSOLETE_ER_NDB_BINLOG_CANT_DISCOVER_TABLE_FROM_SCHEMA_EVENT
   eng "NDB Binlog: Could not discover table '%s.%s' from binlog schema event '%s' from node %d. my_errno: %d"
 
-ER_NDB_BINLOG_SIGNALLING_UNKNOWN_VALUE
+OBSOLETE_ER_NDB_BINLOG_SIGNALLING_UNKNOWN_VALUE
   eng "NDB: unknown value for binlog signalling 0x%X, %s not logged"
 
-ER_NDB_BINLOG_REPLY_TO
+OBSOLETE_ER_NDB_BINLOG_REPLY_TO
   eng "NDB: reply to %s.%s(%u/%u) from %s to %x%08x"
 
-ER_NDB_BINLOG_CANT_RELEASE_SLOCK
+OBSOLETE_ER_NDB_BINLOG_CANT_RELEASE_SLOCK
   eng "NDB: Could not release slock on '%s.%s', Error code: %d Message: %s"
 
-ER_NDB_CANT_FIND_TABLE
+OBSOLETE_ER_NDB_CANT_FIND_TABLE
   eng "NDB schema: Could not find table '%s.%s' in NDB"
 
-ER_NDB_DISCARDING_EVENT_NO_OBJ
+OBSOLETE_ER_NDB_DISCARDING_EVENT_NO_OBJ
   eng "NDB: Discarding event...no obj: %s (%u/%u)"
 
-ER_NDB_DISCARDING_EVENT_ID_VERSION_MISMATCH
+OBSOLETE_ER_NDB_DISCARDING_EVENT_ID_VERSION_MISMATCH
   eng "NDB: Discarding event...key: %s non matching id/version [%u/%u] != [%u/%u]"
 
-ER_NDB_CLEAR_SLOCK_INFO
+OBSOLETE_ER_NDB_CLEAR_SLOCK_INFO
   eng "NDB: CLEAR_SLOCK key: %s(%u/%u) %x%08x, from %s to %x%08x"
 
-ER_NDB_BINLOG_SKIPPING_LOCAL_TABLE
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_LOCAL_TABLE
   eng "NDB Binlog: Skipping locally defined table '%s.%s' from binlog schema event '%s' from node %d."
 
-ER_NDB_BINLOG_ONLINE_ALTER_RENAME
+OBSOLETE_ER_NDB_BINLOG_ONLINE_ALTER_RENAME
   eng "NDB Binlog: handling online alter/rename"
 
-ER_NDB_BINLOG_CANT_REOPEN_SHADOW_TABLE
+OBSOLETE_ER_NDB_BINLOG_CANT_REOPEN_SHADOW_TABLE
   eng "NDB Binlog: Failed to re-open shadow table %s.%s"
 
-ER_NDB_BINLOG_ONLINE_ALTER_RENAME_COMPLETE
+OBSOLETE_ER_NDB_BINLOG_ONLINE_ALTER_RENAME_COMPLETE
   eng "NDB Binlog: handling online alter/rename done"
 
-ER_NDB_BINLOG_SKIPPING_DROP_OF_LOCAL_TABLE
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_DROP_OF_LOCAL_TABLE
   eng "NDB Binlog: Skipping drop of locally defined table '%s.%s' from binlog schema event '%s' from node %d. "
 
-ER_NDB_BINLOG_SKIPPING_RENAME_OF_LOCAL_TABLE
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_RENAME_OF_LOCAL_TABLE
   eng "NDB Binlog: Skipping renaming locally defined table '%s.%s' from binlog schema event '%s' from node %d. "
 
-ER_NDB_BINLOG_SKIPPING_DROP_OF_DB_CONTAINING_LOCAL_TABLES
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_DROP_OF_TABLES
   eng "NDB Binlog: Skipping drop database '%s' since it contained local tables binlog schema event '%s' from node %d. "
 
-ER_NDB_BINLOG_GOT_DIST_PRIV_EVENT_FLUSHING_PRIVILEGES
+OBSOLETE_ER_NDB_BINLOG_GOT_DIST_PRIV_EVENT_FLUSHING_PRIVILEGES
   eng "Got dist_priv event: %s, flushing privileges"
 
-ER_NDB_BINLOG_GOT_SCHEMA_EVENT
+OBSOLETE_ER_NDB_BINLOG_GOT_SCHEMA_EVENT
   eng "NDB: got schema event on %s.%s(%u/%u) query: '%s' type: %s(%d) node: %u slock: %x%08x"
 
-ER_NDB_BINLOG_SKIPPING_OLD_SCHEMA_OPERATION
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_OLD_SCHEMA_OPERATION
   eng "NDB schema: Skipping old schema operation(RENAME_TABLE_NEW) on %s.%s"
 
-ER_NDB_CLUSTER_FAILURE
+OBSOLETE_ER_NDB_CLUSTER_FAILURE
   eng "NDB Schema dist: cluster failure at epoch %u/%u."
 
-ER_NDB_TABLES_INITIALLY_READ_ONLY_ON_RECONNECT
+OBSOLETE_ER_NDB_TABLES_INITIALLY_READ_ONLY_ON_RECONNECT
   eng "NDB Binlog: ndb tables initially read only on reconnect."
 
-ER_NDB_IGNORING_UNKNOWN_EVENT
+OBSOLETE_ER_NDB_IGNORING_UNKNOWN_EVENT
   eng "NDB Schema dist: unknown event %u, ignoring..."
 
-ER_NDB_BINLOG_OPENING_INDEX
+OBSOLETE_ER_NDB_BINLOG_OPENING_INDEX
   eng "NDB Binlog: Opening ndb_binlog_index: %d, '%s'"
 
-ER_NDB_BINLOG_CANT_LOCK_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_CANT_LOCK_NDB_BINLOG_INDEX
   eng "NDB Binlog: Unable to lock table ndb_binlog_index"
 
-ER_NDB_BINLOG_INJECTING_RANDOM_WRITE_FAILURE
+OBSOLETE_ER_NDB_BINLOG_INJECTING_RANDOM_WRITE_FAILURE
   eng "NDB Binlog: Injecting random write failure"
 
-ER_NDB_BINLOG_CANT_WRITE_TO_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_CANT_WRITE_TO_NDB_BINLOG_INDEX
   eng "NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u  orig_server_id %u orig_epoch %u/%u with error %d."
 
-ER_NDB_BINLOG_WRITING_TO_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_WRITING_TO_NDB_BINLOG_INDEX
   eng "NDB Binlog: Writing row (%s) to ndb_binlog_index - %s"
 
-ER_NDB_BINLOG_CANT_COMMIT_TO_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_CANT_COMMIT_TO_NDB_BINLOG_INDEX
   eng "NDB Binlog: Failed committing transaction to ndb_binlog_index with error %d."
 
-ER_NDB_BINLOG_WRITE_TO_NDB_BINLOG_INDEX_FAILED_AFTER_KILL
+OBSOLETE_ER_NDB_BINLOG_WRITE_INDEX_FAILED_AFTER_KILL
   eng "NDB Binlog: Failed writing to ndb_binlog_index table while retrying after kill during shutdown"
 
-ER_NDB_BINLOG_USING_SERVER_ID_0_SLAVES_WILL_NOT
+OBSOLETE_ER_NDB_BINLOG_USING_SERVER_ID_0_SLAVES_WILL_NOT
   eng "NDB: server id set to zero - changes logged to bin log with server id zero will be logged with another server id by slave mysqlds"
 
-ER_NDB_SERVER_ID_RESERVED_OR_TOO_LARGE
+OBSOLETE_ER_NDB_SERVER_ID_RESERVED_OR_TOO_LARGE
   eng "NDB: server id provided is too large to be represented in opt_server_id_bits or is reserved"
 
-ER_NDB_BINLOG_NDB_LOG_TRANSACTION_ID_REQUIRES_V2_ROW_EVENTS
+OBSOLETE_ER_NDB_BINLOG_REQUIRES_V2_ROW_EVENTS
   eng "NDB: --ndb-log-transaction-id requires v2 Binlog row events but server is using v1."
 
-ER_NDB_BINLOG_NDB_LOG_APPLY_STATUS_FORCING_FULL_USE_WRITE
+OBSOLETE_ER_NDB_BINLOG_STATUS_FORCING_FULL_USE_WRITE
   eng "NDB: ndb-log-apply-status forcing %s.%s to FULL USE_WRITE"
 
-ER_NDB_BINLOG_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_BINLOG_GENERIC_MESSAGE
   eng "NDB Binlog: %s"
 
-ER_NDB_CONFLICT_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_CONFLICT_GENERIC_MESSAGE
   eng "%s"
 
-ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR
+OBSOLETE_ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR
   eng "%s"
 
-ER_NDB_CONFLICT_FN_PARSE_ERROR
+OBSOLETE_ER_NDB_CONFLICT_FN_PARSE_ERROR
   eng "NDB Slave: Table %s.%s : Parse error on conflict fn : %s"
 
-ER_NDB_CONFLICT_FN_SETUP_ERROR
+OBSOLETE_ER_NDB_CONFLICT_FN_SETUP_ERROR
   eng "NDB Slave: Table %s.%s : %s"
 
-ER_NDB_BINLOG_FAILED_TO_GET_TABLE
+OBSOLETE_ER_NDB_BINLOG_FAILED_TO_GET_TABLE
   eng "NDB Binlog: Failed to get table %s from ndb: %s, %d"
 
-ER_NDB_BINLOG_NOT_LOGGING
+OBSOLETE_ER_NDB_BINLOG_NOT_LOGGING
   eng "NDB Binlog: NOT logging %s"
 
-ER_NDB_BINLOG_CREATE_TABLE_EVENT_FAILED
+OBSOLETE_ER_NDB_BINLOG_CREATE_TABLE_EVENT_FAILED
   eng "NDB Binlog: FAILED CREATE (DISCOVER) TABLE Event: %s"
 
-ER_NDB_BINLOG_CREATE_TABLE_EVENT_INFO
+OBSOLETE_ER_NDB_BINLOG_CREATE_TABLE_EVENT_INFO
   eng "NDB Binlog: CREATE (DISCOVER) TABLE Event: %s"
 
-ER_NDB_BINLOG_DISCOVER_TABLE_EVENT_INFO
+OBSOLETE_ER_NDB_BINLOG_DISCOVER_TABLE_EVENT_INFO
   eng "NDB Binlog: DISCOVER TABLE Event: %s"
 
-ER_NDB_BINLOG_BLOB_REQUIRES_PK
+OBSOLETE_ER_NDB_BINLOG_BLOB_REQUIRES_PK
   eng "NDB Binlog: logging of table %s with BLOB attribute and no PK is not supported"
 
-ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB
   eng "NDB Binlog: Unable to create event in database. Event: %s  Error Code: %d  Message: %s"
 
-ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_AND_CANT_DROP
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_AND_CANT_DROP
   eng "NDB Binlog: Unable to create event in database.  Attempt to correct with drop failed. Event: %s Error Code: %d Message: %s"
 
-ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_DROPPED
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_DROPPED
   eng "NDB Binlog: Unable to create event in database.  Attempt to correct with drop ok, but create failed. Event: %s Error Code: %d Message: %s"
 
-ER_NDB_BINLOG_DISCOVER_REUSING_OLD_EVENT_OPS
+OBSOLETE_ER_NDB_BINLOG_DISCOVER_REUSING_OLD_EVENT_OPS
   eng "NDB Binlog: discover reusing old ev op"
 
-ER_NDB_BINLOG_CREATING_NDBEVENTOPERATION_FAILED
+OBSOLETE_ER_NDB_BINLOG_CREATING_NDBEVENTOPERATION_FAILED
   eng "NDB Binlog: Creating NdbEventOperation failed for %s"
 
-ER_NDB_BINLOG_CANT_CREATE_BLOB
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_BLOB
   eng "NDB Binlog: Creating NdbEventOperation blob field %u handles failed (code=%d) for %s"
 
-ER_NDB_BINLOG_NDBEVENT_EXECUTE_FAILED
+OBSOLETE_ER_NDB_BINLOG_NDBEVENT_EXECUTE_FAILED
   eng "NDB Binlog: ndbevent->execute failed for %s; %d %s"
 
-ER_NDB_CREATE_EVENT_OPS_LOGGING_INFO
+OBSOLETE_ER_NDB_CREATE_EVENT_OPS_LOGGING_INFO
   eng "NDB Binlog: logging %s (%s,%s)"
 
-ER_NDB_BINLOG_CANT_DROP_EVENT_FROM_DB
+OBSOLETE_ER_NDB_BINLOG_CANT_DROP_EVENT_FROM_DB
   eng "NDB Binlog: Unable to drop event in database. Event: %s Error Code: %d Message: %s"
 
-ER_NDB_TIMED_OUT_IN_DROP_TABLE
+OBSOLETE_ER_NDB_TIMED_OUT_IN_DROP_TABLE
   eng "NDB %s: %s timed out. Ignoring..."
 
-ER_NDB_BINLOG_UNHANDLED_ERROR_FOR_TABLE
+OBSOLETE_ER_NDB_BINLOG_UNHANDLED_ERROR_FOR_TABLE
   eng "NDB Binlog: unhandled error %d for table %s"
 
-ER_NDB_BINLOG_CLUSTER_FAILURE
+OBSOLETE_ER_NDB_BINLOG_CLUSTER_FAILURE
   eng "NDB Binlog: cluster failure for %s at epoch %u/%u."
 
-ER_NDB_BINLOG_UNKNOWN_NON_DATA_EVENT
+OBSOLETE_ER_NDB_BINLOG_UNKNOWN_NON_DATA_EVENT
   eng "NDB Binlog: unknown non data event %d for %s. Ignoring..."
 
-ER_NDB_BINLOG_INJECTOR_DISCARDING_ROW_EVENT_METADATA
+OBSOLETE_ER_NDB_BINLOG_INJECTOR_DISCARDING_ROW_EVENT_METADATA
   eng "NDB: Binlog Injector discarding row event meta data as server is using v1 row events. (%u %x)"
 
-ER_NDB_REMAINING_OPEN_TABLES
+OBSOLETE_ER_NDB_REMAINING_OPEN_TABLES
   eng "remove_all_event_operations: Remaining open tables: "
 
-ER_NDB_REMAINING_OPEN_TABLE_INFO
+OBSOLETE_ER_NDB_REMAINING_OPEN_TABLE_INFO
   eng "  %s.%s, use_count: %u"
 
-ER_NDB_COULD_NOT_GET_APPLY_STATUS_SHARE
+OBSOLETE_ER_NDB_COULD_NOT_GET_APPLY_STATUS_SHARE
   eng "NDB: Could not get apply status share"
 
-ER_NDB_BINLOG_SERVER_SHUTDOWN_DURING_NDB_CLUSTER_START
+OBSOLETE_ER_NDB_BINLOG_SERVER_SHUTDOWN_DURING_NDB_CLUSTER_START
   eng "NDB Binlog: Server shutdown detected while waiting for ndbcluster to start..."
 
-ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
+OBSOLETE_ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
   eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch."
 
-ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
+OBSOLETE_ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
   eng "NDB Binlog: cluster has reconnected. Changes to the database that occurred while disconnected will not be in the binlog"
 
-ER_NDB_BINLOG_STARTING_LOG_AT_EPOCH
+OBSOLETE_ER_NDB_BINLOG_STARTING_LOG_AT_EPOCH
   eng "NDB Binlog: starting log at epoch %u/%u"
 
-ER_NDB_BINLOG_NDB_TABLES_WRITABLE
+OBSOLETE_ER_NDB_BINLOG_NDB_TABLES_WRITABLE
   eng "NDB Binlog: ndb tables writable"
 
-ER_NDB_BINLOG_SHUTDOWN_DETECTED
+OBSOLETE_ER_NDB_BINLOG_SHUTDOWN_DETECTED
   eng "NDB Binlog: Server shutdown detected..."
 
-ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_WAITING
+OBSOLETE_ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_WAITING
   eng "NDB Binlog: Just lost schema connection, hanging around"
 
-ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_CONTINUING
+OBSOLETE_ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_CONTINUING
   eng "NDB Binlog: ...and on our way"
 
-ER_NDB_BINLOG_ERROR_HANDLING_SCHEMA_EVENT
+OBSOLETE_ER_NDB_BINLOG_ERROR_HANDLING_SCHEMA_EVENT
   eng "NDB: error %lu (%s) on handling binlog schema event"
 
-ER_NDB_BINLOG_CANT_INJECT_APPLY_STATUS_WRITE_ROW
+OBSOLETE_ER_NDB_BINLOG_CANT_INJECT_APPLY_STATUS_WRITE_ROW
   eng "NDB Binlog: Failed to inject apply status write row"
 
-ER_NDB_BINLOG_ERROR_DURING_GCI_ROLLBACK
+OBSOLETE_ER_NDB_BINLOG_ERROR_DURING_GCI_ROLLBACK
   eng "NDB Binlog: Error during ROLLBACK of GCI %u/%u. Error: %d"
 
-ER_NDB_BINLOG_ERROR_DURING_GCI_COMMIT
+OBSOLETE_ER_NDB_BINLOG_ERROR_DURING_GCI_COMMIT
   eng "NDB Binlog: Error during COMMIT of GCI. Error: %d"
 
-ER_NDB_BINLOG_LATEST_TRX_IN_EPOCH_NOT_IN_BINLOG
+OBSOLETE_ER_NDB_BINLOG_LATEST_TRX_IN_EPOCH_NOT_IN_BINLOG
   eng "NDB Binlog: latest transaction in epoch %u/%u not in binlog as latest handled epoch is %u/%u"
 
-ER_NDB_BINLOG_RELEASING_EXTRA_SHARE_REFERENCES
+OBSOLETE_ER_NDB_BINLOG_RELEASING_EXTRA_SHARE_REFERENCES
   eng "NDB Binlog: Release extra share references"
 
-ER_NDB_BINLOG_REMAINING_OPEN_TABLES
+OBSOLETE_ER_NDB_BINLOG_REMAINING_OPEN_TABLES
   eng "NDB Binlog: remaining open tables: "
 
-ER_NDB_BINLOG_REMAINING_OPEN_TABLE_INFO
+OBSOLETE_ER_NDB_BINLOG_REMAINING_OPEN_TABLE_INFO
   eng "  %s.%s state: %u use_count: %u"
 
 ER_TREE_CORRUPT_PARENT_SHOULD_POINT_AT_PARENT
@@ -10904,7 +11076,7 @@ ER_PLUGIN_REGISTRATION_FAILED
   eng "Plugin '%s' registration as a %s failed."
 
 ER_PLUGIN_CANT_OPEN_PLUGIN_TABLE
-  eng "Can't open the mysql.plugin table. Please run mysql_upgrade to create it."
+  eng "Could not open the mysql.plugin table. Please perform the MySQL upgrade procedure."
 
 ER_PLUGIN_CANT_LOAD
   eng "Couldn't load plugin named '%s' with soname '%s'."
@@ -11053,52 +11225,52 @@ ER_CANT_SET_PATH_FOR
 ER_CANT_OPEN_DIR
   eng "Failed to open dir %s"
 
-ER_NDB_EMPTY_NODEID_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Found empty nodeid specified in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_CANT_PARSE_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_CANT_PARSE_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Could not parse '%s' in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_INVALID_NODEID_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_INVALID_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Invalid nodeid %d in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_DUPLICATE_NODEID_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_DUPLICATE_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Found duplicate nodeid %d in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_POOL_SIZE_MUST_MATCH_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_POOL_SIZE_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: The size of the cluster connection pool must be equal to the number of nodeids in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_NODEID_NOT_FIRST_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_NODEID_NOT_FIRST_CONNECTION_POOL_NODEIDS
   eng "NDB: The nodeid specified by --ndb-nodeid must be equal to the first nodeid in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_USING_NODEID
+OBSOLETE_ER_NDB_USING_NODEID
   eng "NDB: using nodeid %u"
 
-ER_NDB_CANT_ALLOC_GLOBAL_NDB_CLUSTER_CONNECTION
+OBSOLETE_ER_NDB_CANT_ALLOC_GLOBAL_NDB_CLUSTER_CONNECTION
   eng "NDB: failed to allocate global ndb cluster connection"
 
-ER_NDB_CANT_ALLOC_GLOBAL_NDB_OBJECT
+OBSOLETE_ER_NDB_CANT_ALLOC_GLOBAL_NDB_OBJECT
   eng "NDB: failed to allocate global ndb object"
 
-ER_NDB_USING_NODEID_LIST
+OBSOLETE_ER_NDB_USING_NODEID_LIST
   eng "NDB[%u]: using nodeid %u"
 
-ER_NDB_CANT_ALLOC_NDB_CLUSTER_CONNECTION
+OBSOLETE_ER_NDB_CANT_ALLOC_NDB_CLUSTER_CONNECTION
   eng "NDB[%u]: failed to allocate cluster connect object"
 
-ER_NDB_STARTING_CONNECT_THREAD
+OBSOLETE_ER_NDB_STARTING_CONNECT_THREAD
   eng "NDB[%u]: starting connect thread"
 
-ER_NDB_NODE_INFO
+OBSOLETE_ER_NDB_NODE_INFO
   eng "NDB[%u]: NodeID: %d, %s"
 
-ER_NDB_CANT_START_CONNECT_THREAD
+OBSOLETE_ER_NDB_CANT_START_CONNECT_THREAD
   eng "NDB[%u]: failed to start connect thread"
 
-ER_NDB_GENERIC_ERROR
+OBSOLETE_ER_NDB_GENERIC_ERROR
   eng "NDB: error (%u) %s"
 
-ER_NDB_CPU_MASK_TOO_SHORT
+OBSOLETE_ER_NDB_CPU_MASK_TOO_SHORT
   eng "Ignored receive thread CPU mask, mask too short, %u CPUs needed in mask, only %u CPUs provided"
 
 ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG
@@ -11119,7 +11291,7 @@ ER_EVENT_CANT_GET_LOCK_FOR_DROPPING_EVENT
 ER_EVENT_UNABLE_TO_DROP_EVENT
   eng "Unable to drop event %s from schema %s"
 
-ER_BINLOG_ATTACHING_THREAD_MEMORY_FINALLY_AVAILABLE
+OBSOLETE_ER_BINLOG_ATTACHING_THREAD_MEMORY_FINALLY_AVAILABLE
   eng "Server overcomes the temporary 'out of memory' in '%d' tries while attaching to session thread during the group commit phase."
 
 ER_BINLOG_CANT_RESIZE_CACHE
@@ -11299,7 +11471,7 @@ ER_NDB_LOG_ENTRY
 ER_NDB_LOG_ENTRY_WITH_PREFIX
   eng "NDB %s: %s"
 
-ER_NDB_BINLOG_CANT_CREATE_PURGE_THD
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_PURGE_THD
   eng "NDB: Unable to purge %s.%s File=%s (failed to setup thd)"
 
 ER_INNODB_UNKNOWN_COLLATION
@@ -11380,19 +11552,19 @@ ER_AUDIT_CANT_ABORT_EVENT
 ER_AUDIT_WARNING
   eng "%s. The trigger error was (%d) [%s]: %s"
 
-ER_NDB_NUMBER_OF_CHANNELS
+OBSOLETE_ER_NDB_NUMBER_OF_CHANNELS
   eng "Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb"
 
-ER_NDB_SLAVE_PARALLEL_WORKERS
+OBSOLETE_ER_NDB_SLAVE_PARALLEL_WORKERS
   eng "Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb"
 
-ER_NDB_DISTRIBUTING_ERR
+OBSOLETE_ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
 
 ER_RPL_SLAVE_INSECURE_CHANGE_MASTER
   eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
 
-ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED
+OBSOLETE_ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED
   eng "FLUSH RELAY LOGS cannot be performed on channel '%-.192s'."
 
 ER_RPL_SLAVE_INCORRECT_CHANNEL
@@ -11555,7 +11727,7 @@ ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED
   eng "Could not add wild ignore table rule '%s'!"
 
 ER_PRIVILEGE_SYSTEM_INIT_FAILED
-  eng "The privilege system failed to initialize correctly. If you have upgraded your server, make sure you're executing mysql_upgrade to correct the issue."
+  eng "The privilege system failed to initialize correctly. For complete instructions on how to upgrade MySQL to a new version please see the 'Upgrading MySQL' section from the MySQL manual."
 
 ER_CANNOT_SET_LOG_ERROR_SERVICES
   eng "Cannot set services \"%s\" requested in --log-error-services, using defaults."
@@ -11594,7 +11766,7 @@ ER_RPL_SLAVE_RESET_FILTER_OPTIONS
   eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
 
 ER_MISSING_GRANT_SYSTEM_TABLE
-  eng "Missing system table mysql.global_grants; please run mysql_upgrade to create it."
+  eng "The system table mysql.global_grants is missing. Please perform the MySQL upgrade procedure."
 
 ER_MISSING_ACL_SYSTEM_TABLE
   eng "ACL table mysql.%.*s missing. Some operations may fail."
@@ -11735,7 +11907,7 @@ ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR
   eng "Failed to find valid data directory."
 
 ER_DD_UPGRADE_START
-  eng "Starting upgrade on data directory."
+  eng "Starting upgrade of data directory."
 
 ER_DD_UPGRADE_FAILED_INIT_DD_SE
   eng "Failed to initialize DD Storage Engine."
@@ -13592,7 +13764,7 @@ ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS
   eng "Due to a plugin error, some transactions were unable to be certified and will now rollback."
 
 ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS
-  eng "Error when trying to unblock non certified transactions. Check for consistency errors when restarting the service"
+  eng "Error when trying to unblock non certified or consistent transactions. Check for consistency errors when restarting the service"
 
 ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
   eng "This server is working as secondary member with primary member address %s:%u."
@@ -13643,7 +13815,7 @@ ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE
   eng "Going to wait for view modification"
 
 ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN
-  eng "On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details"
+  eng "While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details"
 
 ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE
   eng "Requesting to leave the group despite of not being a member"
@@ -13781,7 +13953,7 @@ ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED
   eng "group_replication_force_members can only be updated when Group Replication is running and a majority of the members are unreachable"
 
 ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF
-  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_whitelist: '%s'; group_replication_communication_debug_options: '%s'; group_replication_member_expel_timeout: '%lu'"
+  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_whitelist: '%s'; group_replication_communication_debug_options: '%s'; group_replication_member_expel_timeout: '%lu'; group_replication_communication_max_message_size: %lu; group_replication_message_cache_size: '%luu'"
 
 ER_GRP_RPL_UNKNOWN_GRP_RPL_APPLIER_PIPELINE_REQUESTED
   eng "Unknown group replication applier pipeline requested"
@@ -13823,7 +13995,7 @@ ER_GRP_RPL_SQL_SERVICE_FAILED_TO_FETCH_SECURITY_CTX
   eng "Error when trying to fetch security context when contacting the server for internal plugin requests."
 
 ER_GRP_RPL_SQL_SERVICE_SERVER_ACCESS_DENIED_FOR_USER
-  eng "There was an error when trying to access the server with user: %s. Make sure the user is present in the server and that mysql_upgrade was run after a server update."
+  eng "There was an error when trying to access the server with user: %s. Make sure the user is present in the server and that the MySQL upgrade procedure was run correctly."
 
 ER_GRP_RPL_SQL_SERVICE_MAX_CONN_ERROR_FROM_SERVER
   eng "Failed to establish an internal server connection to execute plugin operations since the server does not have available connections, please increase @@GLOBAL.MAX_CONNECTIONS. Server error: %i."
@@ -13856,7 +14028,7 @@ ER_GRP_RPL_EXIT_GRP_GCS_ERROR
   eng "Error calling group communication interfaces while trying to leave the group"
 
 ER_GRP_RPL_GRP_MEMBER_OFFLINE
-  eng "Member is OFFLINE, it is not possible to force a new group membership"
+  eng "Member is not ONLINE, it is not possible to force a new group membership"
 
 ER_GRP_RPL_GCS_INTERFACE_ERROR
   eng "Error calling group communication interfaces"
@@ -14434,28 +14606,28 @@ ER_IB_MSG_85
 ER_IB_MSG_86
   eng "%s"
 
-ER_IB_MSG_87
+OBSOLETE_ER_IB_MSG_87
   eng "%s"
 
-ER_IB_MSG_88
+OBSOLETE_ER_IB_MSG_88
   eng "%s"
 
-ER_IB_MSG_89
+OBSOLETE_ER_IB_MSG_89
   eng "%s"
 
-ER_IB_MSG_90
+OBSOLETE_ER_IB_MSG_90
   eng "%s"
 
-ER_IB_MSG_91
+OBSOLETE_ER_IB_MSG_91
   eng "%s"
 
-ER_IB_MSG_92
+OBSOLETE_ER_IB_MSG_92
   eng "%s"
 
-ER_IB_MSG_93
+OBSOLETE_ER_IB_MSG_93
   eng "%s"
 
-ER_IB_MSG_94
+OBSOLETE_ER_IB_MSG_94
   eng "%s"
 
 ER_IB_MSG_95
@@ -14512,22 +14684,22 @@ ER_IB_MSG_111
 ER_IB_MSG_112
   eng "%s"
 
-ER_IB_MSG_113
+OBSOLETE_ER_IB_MSG_113
   eng "%s"
 
-ER_IB_MSG_114
+OBSOLETE_ER_IB_MSG_114
   eng "%s"
 
-ER_IB_MSG_115
+OBSOLETE_ER_IB_MSG_115
   eng "%s"
 
-ER_IB_MSG_116
+OBSOLETE_ER_IB_MSG_116
   eng "%s"
 
-ER_IB_MSG_117
+OBSOLETE_ER_IB_MSG_117
   eng "%s"
 
-ER_IB_MSG_118
+OBSOLETE_ER_IB_MSG_118
   eng "%s"
 
 ER_IB_MSG_119
@@ -14990,25 +15162,25 @@ ER_IB_MSG_271
   eng "%s"
 
 ER_IB_MSG_272
-  eng "Table flags are %lx in the data dictionary but the flags in file %s  are %lx!"
+  eng "Table flags are 0x%lx in the data dictionary but the flags in file %s  are 0x%llx!"
 
 ER_IB_MSG_273
   eng "Can't read encryption key from file %s!"
 
 ER_IB_MSG_274
-  eng "Cannot close file %s, because n_pending_flushes %lu"
+  eng "Cannot close file %s, because n_pending_flushes %zu"
 
 ER_IB_MSG_275
-  eng "Cannot close file %s, because modification count %llu != flush count %llu"
+  eng "Cannot close file %s, because modification count %lld != flush count %lld"
 
 ER_IB_MSG_276
   eng "Cannot close file %s, because it is in use"
 
 ER_IB_MSG_277
-  eng "Open file list len in shard %lu is %lu"
+  eng "Open file list len in shard %zu is %llu"
 
 ER_IB_MSG_278
-  eng "Tablespace %s, waiting for IO to stop for %lu seconds"
+  eng "Tablespace %s, waiting for IO to stop for %lld seconds"
 
 ER_IB_MSG_279
   eng "%s"
@@ -15026,7 +15198,7 @@ ER_IB_MSG_283
   eng "%s"
 
 ER_IB_MSG_284
-  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %lu, max allowed open files %lu."
+  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %zu, max allowed open files %zu."
 
 ER_IB_MSG_285
   eng "Max tablespace id is too high, %lu"
@@ -15038,7 +15210,7 @@ ER_IB_MSG_287
   eng "Trying to close/delete tablespace '%s' but there are %lu pending operations on it."
 
 ER_IB_MSG_288
-  eng "Trying to delete/close tablespace '%s' but there are %lu flushes and %lu pending I/O's on it."
+  eng "Trying to delete/close tablespace '%s' but there are %lu flushes and %zu pending I/O's on it."
 
 ER_IB_MSG_289
   eng "%s"
@@ -15059,7 +15231,7 @@ ER_IB_MSG_294
   eng "Cannot rename '%s' to '%s' for space ID %lu because the target file exists. Remove the target file and try again."
 
 ER_IB_MSG_295
-  eng "Cannot rename file '%s' (space id %lu) retried %lu times. There are either pending IOs or flushes or the file is being extended."
+  eng "Cannot rename file '%s' (space id %lu) retried %llu times. There are either pending IOs or flushes or the file is being extended."
 
 ER_IB_MSG_296
   eng "Cannot find space id %lu in the tablespace memory cache, though the file '%s' in a rename operation should have that ID."
@@ -15083,7 +15255,7 @@ ER_IB_MSG_302
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
-  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %lu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
 
 ER_IB_MSG_304
   eng "Could not write the first page to tablespace '%s'"
@@ -15226,7 +15398,7 @@ ER_IB_MSG_349
 ER_IB_MSG_350
   eng "%s"
 
-ER_IB_MSG_351
+OBSOLETE_ER_IB_MSG_351
   eng "%s"
 
 ER_IB_MSG_352
@@ -15262,7 +15434,7 @@ ER_IB_MSG_361
 ER_IB_MSG_362
   eng "%s"
 
-ER_IB_MSG_363
+OBSOLETE_ER_IB_MSG_363
   eng "%s"
 
 ER_IB_MSG_364
@@ -15373,7 +15545,7 @@ ER_IB_MSG_398
 ER_IB_MSG_399
   eng "%s"
 
-ER_IB_MSG_400
+OBSOLETE_ER_IB_MSG_400
   eng "%s"
 
 ER_IB_MSG_401
@@ -15898,13 +16070,13 @@ ER_IB_MSG_573
 ER_IB_MSG_574
   eng "%s"
 
-ER_IB_MSG_575
+OBSOLETE_ER_IB_MSG_575
   eng "%s"
 
-ER_IB_MSG_576
+OBSOLETE_ER_IB_MSG_576
   eng "%s"
 
-ER_IB_MSG_577
+OBSOLETE_ER_IB_MSG_577
   eng "%s"
 
 ER_IB_MSG_578
@@ -16132,7 +16304,7 @@ ER_IB_MSG_651
 ER_IB_MSG_652
   eng "%s"
 
-ER_IB_MSG_653
+ER_IB_MSG_DDL_LOG_DELETE_BY_ID_OK
   eng "%s"
 
 ER_IB_MSG_654
@@ -16165,104 +16337,104 @@ ER_IB_MSG_662
 ER_IB_MSG_663
   eng "%s"
 
-ER_IB_MSG_664
+OBSOLETE_ER_IB_MSG_664
   eng "The transaction log size is too large for innodb_log_buffer_size (%lu >= %lu / 2). Trying to extend it."
 
-ER_IB_MSG_665
+OBSOLETE_ER_IB_MSG_665
   eng "innodb_log_buffer_size was extended to %lu bytes."
 
-ER_IB_MSG_666
+OBSOLETE_ER_IB_MSG_666
   eng "The transaction log files are too small for the single transaction log (size=%lu). So, the last checkpoint age might exceed the log group capacity %llu."
 
-ER_IB_MSG_667
+OBSOLETE_ER_IB_MSG_667
   eng "The age of the last checkpoint is %llu, which exceeds the log group capacity %llu."
 
-ER_IB_MSG_668
+OBSOLETE_ER_IB_MSG_668
   eng "Cannot continue operation. ib_logfiles are too small for innodb_thread_concurrency %lu. The combined size of ib_logfiles should be bigger than 200 kB * innodb_thread_concurrency. To get mysqld to start up, set innodb_thread_concurrency in my.cnf to a lower value, for example, to 8. After an ERROR-FREE shutdown of mysqld you can adjust the size of ib_logfiles. %s"
 
-ER_IB_MSG_669
+OBSOLETE_ER_IB_MSG_669
   eng "Redo log was encrypted, but keyring plugin is not loaded."
 
-ER_IB_MSG_670
+OBSOLETE_ER_IB_MSG_670
   eng "Read redo log encryption metadata successful."
 
-ER_IB_MSG_671
+OBSOLETE_ER_IB_MSG_671
   eng "Can't set redo log tablespace encryption metadata."
 
-ER_IB_MSG_672
+OBSOLETE_ER_IB_MSG_672
   eng "Cannot read the encryption information in log file header, please check if keyring plugin loaded and the key file exists."
 
-ER_IB_MSG_673
+OBSOLETE_ER_IB_MSG_673
   eng "Can't set redo log tablespace to be encrypted in read-only mode."
 
-ER_IB_MSG_674
+OBSOLETE_ER_IB_MSG_674
   eng "Can't set redo log tablespace to be encrypted."
 
-ER_IB_MSG_675
+OBSOLETE_ER_IB_MSG_675
   eng "Can't set redo log tablespace to be encrypted."
 
-ER_IB_MSG_676
+OBSOLETE_ER_IB_MSG_676
   eng "Redo log encryption is enabled."
 
-ER_IB_MSG_677
+OBSOLETE_ER_IB_MSG_677
   eng "Flush Waiting for archiver to to catch up lag LSN: %llu"
 
-ER_IB_MSG_678
+OBSOLETE_ER_IB_MSG_678
   eng "Flush overwriting data to archive - wait too long (1 minute) lag LSN: %llu"
 
-ER_IB_MSG_679
+OBSOLETE_ER_IB_MSG_679
   eng "%s"
 
-ER_IB_MSG_680
+OBSOLETE_ER_IB_MSG_680
   eng "Starting shutdown..."
 
-ER_IB_MSG_681
+OBSOLETE_ER_IB_MSG_681
   eng "Waiting for %s to exit"
 
-ER_IB_MSG_682
+OBSOLETE_ER_IB_MSG_682
   eng "Waiting for %lu active transactions to finish"
 
-ER_IB_MSG_683
+OBSOLETE_ER_IB_MSG_683
   eng "Waiting for master thread to be suspended"
 
-ER_IB_MSG_684
+OBSOLETE_ER_IB_MSG_684
   eng "Waiting for page_cleaner to finish flushing of buffer pool"
 
-ER_IB_MSG_685
+OBSOLETE_ER_IB_MSG_685
   eng "Pending checkpoint_writes: %lu. Pending log flush writes: %lu."
 
-ER_IB_MSG_686
+OBSOLETE_ER_IB_MSG_686
   eng "Waiting for %lu buffer page I/Os to complete"
 
-ER_IB_MSG_687
+OBSOLETE_ER_IB_MSG_687
   eng "MySQL has requested a very fast shutdown without flushing the InnoDB buffer pool to data files. At the next mysqld startup InnoDB will do a crash recovery!"
 
-ER_IB_MSG_688
+OBSOLETE_ER_IB_MSG_688
   eng "Background thread %s woke up during shutdown"
 
-ER_IB_MSG_689
+OBSOLETE_ER_IB_MSG_689
   eng "Waiting for archiver to finish archiving page and log"
 
-ER_IB_MSG_690
+OBSOLETE_ER_IB_MSG_690
   eng "Background thread %s woke up during shutdown"
 
-ER_IB_MSG_691
+OBSOLETE_ER_IB_MSG_691
   eng "Waiting for dirty buffer pages to be flushed"
 
-ER_IB_MSG_692
+OBSOLETE_ER_IB_MSG_692
   eng "Log sequence number at shutdown %llu is lower than at startup %llu!"
 
-ER_IB_MSG_693
+OBSOLETE_ER_IB_MSG_693
   eng "Waiting for archiver to finish archiving page and log"
 
 ER_IB_MSG_694
   eng "############### CORRUPT LOG RECORD FOUND ###############"
 
 ER_IB_MSG_695
-  eng "Log record type %d, page %lu:%lu. Log parsing proceeded successfully up to %llu. Previous log record type %d, is multi %lu Recv offset %lu, prev %lu"
+  eng "Log record type %d, page %lu:%lu. Log parsing proceeded successfully up to %llu. Previous log record type %d, is multi %llu Recv offset %zd, prev %llu"
 
 ER_IB_MSG_696
-  eng "Hex dump starting %lu bytes before and ending %lu bytes after the corrupted record:"
+  eng "Hex dump starting %llu bytes before and ending %llu bytes after the corrupted record:"
 
 ER_IB_MSG_697
   eng "Set innodb_force_recovery to ignore this error."
@@ -16271,7 +16443,7 @@ ER_IB_MSG_698
   eng "The log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
 
 ER_IB_MSG_699
-  eng "%lu pages with log records were left unprocessed!"
+  eng "%llu pages with log records were left unprocessed!"
 
 ER_IB_MSG_700
   eng "%s"
@@ -16279,10 +16451,10 @@ ER_IB_MSG_700
 ER_IB_MSG_701
   eng "%s"
 
-ER_IB_MSG_702
+OBSOLETE_ER_IB_MSG_702
   eng "Invalid redo log header checksum."
 
-ER_IB_MSG_703
+OBSOLETE_ER_IB_MSG_703
   eng "Unsupported redo log format (%lu). The redo log was created before MySQL 5.7.9"
 
 ER_IB_MSG_704
@@ -16295,7 +16467,7 @@ ER_IB_MSG_706
   eng "No valid checkpoint found (corrupted redo log). You can try --innodb-force-recovery=6 as a last resort."
 
 ER_IB_MSG_707
-  eng "Applying a batch of %lu redo log records ..."
+  eng "Applying a batch of %llu redo log records ..."
 
 ER_IB_MSG_708
   eng "%s"
@@ -16334,7 +16506,7 @@ ER_IB_MSG_719
   eng "Could not extend tablespace: %lu space name: %s to new size: %lu pages during recovery."
 
 ER_IB_MSG_720
-  eng "Log block %lu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
+  eng "Log block %llu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
 
 ER_IB_MSG_721
   eng "Recovery skipped, --innodb-read-only set!"
@@ -16391,7 +16563,7 @@ ER_IB_MSG_738
   eng "Waiting for recv_writer to finish flushing of buffer pool"
 
 ER_IB_MSG_739
-  eng "Recovery parsing buffer extended to %lu."
+  eng "Recovery parsing buffer extended to %zu."
 
 ER_IB_MSG_740
   eng "Out of memory while resizing recovery parsing buffer."
@@ -17312,40 +17484,40 @@ ER_IB_MSG_1045
   eng "%s"
 
 ER_IB_MSG_1046
-  eng "Old log sequence number %llu was greater than the new log sequence number%llu. Please submit a bug report to http://bugs.mysql.com"
+  eng "Old log sequence number %llu was greater than the new log sequence number %llu. Please submit a bug report to http://bugs.mysql.com"
 
 ER_IB_MSG_1047
-  eng "Semaphore wait has lasted > %lu seconds. We intentionally crash the server because it appears to be hung."
+  eng "Semaphore wait has lasted > %llu seconds. We intentionally crash the server because it appears to be hung."
 
 ER_IB_MSG_1048
-  eng "Waiting for %lu table(s) to be dropped"
+  eng "Waiting for %llu table(s) to be dropped"
 
 ER_IB_MSG_1049
-  eng "Waiting for change buffer merge to complete number of bytes of change buffer just merged: %lu"
+  eng "Waiting for change buffer merge to complete number of bytes of change buffer just merged: %llu"
 
-ER_IB_MSG_1050
+OBSOLETE_ER_IB_MSG_1050
   eng "Can't set undo tablespace(s) to be encrypted since --innodb_undo_tablespaces=0."
 
 ER_IB_MSG_1051
   eng "Can't set undo tablespace(s) to be encrypted in read-only-mode."
 
 ER_IB_MSG_1052
-  eng "Can't set undo tablespace number %lu to be encrypted."
+  eng "Can't set undo tablespace '%s' to be encrypted."
 
 ER_IB_MSG_1053
-  eng "Can't set undo tablespace number %lu to be encrypted. Failed to write header page."
+  eng "Can't set undo tablespace '%s' to be encrypted. Failed to write header page."
 
 ER_IB_MSG_1054
-  eng "Can't set undo tablespace number %lu to be encrypted. Error %d - %s"
+  eng "Can't set undo tablespace '%s' to be encrypted. Error %d - %s"
 
 ER_IB_MSG_1055
-  eng "Encryption is enabled for undo tablespace number %lu."
+  eng "Encryption is enabled for undo tablespace '%s'."
 
 ER_IB_MSG_1056
-  eng "Can't rotate encryption on undo tablespace number %lu."
+  eng "Can't rotate encryption on undo tablespace '%s'."
 
 ER_IB_MSG_1057
-  eng "Encryption is enabled for undo tablespace number %lu."
+  eng "Encryption is enabled for undo tablespace '%s'."
 
 ER_IB_MSG_1058
   eng "os_file_get_status() failed on '%s'. Can't determine file permissions."
@@ -17360,10 +17532,10 @@ ER_IB_MSG_1061
   eng "Cannot create %s"
 
 ER_IB_MSG_1062
-  eng "Setting log file %s size to %lu MB"
+  eng "Setting log file %s size to %llu MB"
 
 ER_IB_MSG_1063
-  eng "Cannot set log file %s to size %lu MB"
+  eng "Cannot set log file %s to size %llu MB"
 
 ER_IB_MSG_1064
   eng "Cannot create log files in read-only mode"
@@ -17384,13 +17556,13 @@ ER_IB_MSG_1069
   eng "Unable to open '%s'."
 
 ER_IB_MSG_1070
-  eng "Cannot create construction log file for undo tablespace ID=%lu"
+  eng "Cannot create construction log file '%s' for undo tablespace '%s'."
 
 ER_IB_MSG_1071
   eng "Creating UNDO Tablespace %s"
 
 ER_IB_MSG_1072
-  eng "Setting file %s size to %lu MB"
+  eng "Setting file %s size to %llu MB"
 
 ER_IB_MSG_1073
   eng "Physically writing the file full"
@@ -17411,7 +17583,7 @@ ER_IB_MSG_1078
   eng "Cannot recover a truncated undo tablespace in read-only mode"
 
 ER_IB_MSG_1079
-  eng "Reconstructing undo tablespace number %lu"
+  eng "Reconstructing undo tablespace number %lu."
 
 ER_IB_MSG_1080
   eng "Cannot create %s because %s already uses Space ID=%lu! Did you change innodb_undo_directory?"
@@ -17429,22 +17601,22 @@ ER_IB_MSG_1084
   eng "Unable to open undo tablespace number %lu"
 
 ER_IB_MSG_1085
-  eng "Opened %lu existing undo tablespaces."
+  eng "Opened %llu existing undo tablespaces."
 
 ER_IB_MSG_1086
-  eng "Cannot create undo tablespaces since innodb_%s has been set. Using %lu existing undo tablespaces."
+  eng "Cannot create undo tablespaces since innodb_%s has been set. Using %llu existing undo tablespaces."
 
 ER_IB_MSG_1087
   eng "Cannot continue InnoDB startup in %s mode because there are no existing undo tablespaces found."
 
 ER_IB_MSG_1088
-  eng "Could not create undo tablespace number %lu"
+  eng "Could not create undo tablespace '%s'."
 
 ER_IB_MSG_1089
-  eng "Error %d - %s - opening newly created undo tablespace number %lu"
+  eng "Error %d - %s - opening newly created undo tablespace '%s'."
 
 ER_IB_MSG_1090
-  eng "Created %lu undo tablespaces."
+  eng "Created %llu undo tablespaces."
 
 ER_IB_MSG_1091
   eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring plugin is initialized correctly"
@@ -17453,16 +17625,16 @@ ER_IB_MSG_1092
   eng "Encryption is enabled for undo tablespace number %lu."
 
 ER_IB_MSG_1093
-  eng "nable to initialize the header page in undo tablespace number %lu."
+  eng "Unable to initialize the header page in undo tablespace number %lu."
 
 ER_IB_MSG_1094
   eng "Cannot delete old undo tablespaces because they contain undo logs for XA PREPARED transactions."
 
 ER_IB_MSG_1095
-  eng "Upgrading %lu existing undo tablespaces that were tracked in the system tablespace to %lu new independent undo tablespaces."
+  eng "Upgrading %zu existing undo tablespaces that were tracked in the system tablespace to %lu new independent undo tablespaces."
 
 ER_IB_MSG_1096
-  eng "Deleting %lu new independent undo tablespaces that we just created."
+  eng "Deleting %llu new independent undo tablespaces that we just created."
 
 ER_IB_MSG_1097
   eng "Waiting for purge to start"
@@ -17492,7 +17664,7 @@ ER_IB_MSG_1105
   eng "Plugin initialization aborted %swith error %s."
 
 ER_IB_MSG_1106
-  eng "Waiting for %lu buffer page I/Os to complete"
+  eng "Waiting for %llu buffer page I/Os to complete"
 
 ER_IB_MSG_1107
   eng "PUNCH HOLE support available"
@@ -17501,7 +17673,7 @@ ER_IB_MSG_1108
   eng "PUNCH HOLE support not available"
 
 ER_IB_MSG_1109
-  eng "Size of InnoDB's ulint is %lu but size of void* is %lu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
+  eng "Size of InnoDB's ulint is %zu but size of void* is %zu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
 
 ER_IB_MSG_1110
   eng "Database upgrade cannot be accomplished in read-only mode."
@@ -17573,7 +17745,7 @@ ER_IB_MSG_1132
   eng "Completed initialization of buffer pool"
 
 ER_IB_MSG_1133
-  eng "Small buffer pool size (%luM), the flst_validate() debug function can cause a deadlock if the buffer pool fills up."
+  eng "Small buffer pool size (%lluM), the flst_validate() debug function can cause a deadlock if the buffer pool fills up."
 
 ER_IB_MSG_1134
   eng "Could not open or create the system tablespace. If you tried to add new data files to the system tablespace, and it failed here, you should now edit innodb_data_file_path in my.cnf back to what it was, and remove the new ibdata files InnoDB created in this failed attempt. InnoDB only wrote those files full of zeros, but did not yet use them in any way. But be careful: do not remove old data files which contain your precious data!"
@@ -17636,7 +17808,7 @@ ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
-  eng "Query counter shows %lu queries still inside InnoDB at shutdown"
+  eng "Query counter shows %llu queries still inside InnoDB at shutdown"
 
 ER_IB_MSG_1155
   eng "Shutdown completed; log sequence number %llu"
@@ -17687,13 +17859,13 @@ ER_IB_MSG_1170
   eng "%s"
 
 ER_IB_MSG_1171
-  eng "%s"
+  eng "Cannot create truncate log for undo tablespace '%s'."
 
 ER_IB_MSG_1172
   eng "%s"
 
 ER_IB_MSG_1173
-  eng "%s"
+  eng "Failed to truncate undo tablespace '%s'."
 
 ER_IB_MSG_1174
   eng "%s"
@@ -17863,7 +18035,7 @@ ER_IB_MSG_1228
 ER_IB_MSG_1229
   eng "%s"
 
-ER_IB_MSG_1230
+OBSOLETE_ER_IB_MSG_1230
   eng "%s"
 
 ER_IB_MSG_1231
@@ -17900,16 +18072,16 @@ ER_IB_MSG_1241
   eng "%s"
 
 ER_IB_MSG_1242
-  eng "%s"
+  eng "Can't set redo log tablespace to be encrypted in read-only mode."
 
 ER_IB_MSG_1243
-  eng "%s"
+  eng "Can't set redo log tablespace to be encrypted."
 
 ER_IB_MSG_1244
-  eng "%s"
+  eng "Can't set redo log tablespace to be encrypted."
 
 ER_IB_MSG_1245
-  eng "%s"
+  eng "Redo log encryption is enabled."
 
 ER_IB_MSG_1246
   eng "%s"
@@ -17935,7 +18107,7 @@ ER_IB_MSG_1252
 ER_IB_MSG_1253
   eng "%s"
 
-ER_IB_MSG_1254
+OBSOLETE_ER_IB_MSG_1254
   eng "%s"
 
 ER_IB_MSG_1255
@@ -18125,7 +18297,7 @@ ER_SERVER_TABLE_CHECK_FAILED
   eng "Incorrect definition of table %s.%s: expected column '%s' at position %d, found '%s'."
 
 ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
-  eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
+  eng "The column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
 
 ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
@@ -18216,7 +18388,7 @@ ER_ENDING_INIT
   eng "%s (mysqld %s) initializing of server has completed"
 
 ER_IB_MSG_1272
-  eng "Cannot boot server version %lu on data directory built by version %lu. Downgrade is not supported"
+  eng "Cannot boot server version %lu on data directory built by version %llu. Downgrade is not supported"
 
 ER_SERVER_SHUTDOWN_INFO
   eng "Received SHUTDOWN from user %s. Shutting down mysqld (Version: %s)."
@@ -18234,7 +18406,7 @@ ER_UPDATE_GTID_PURGED_WITH_GR
   eng "Cannot update GTID_PURGED with the Group Replication plugin running"
 
 ER_AUDIT_LOG_TABLE_DEFINITION_NOT_UPDATED
-  eng "'%s.%s' table definition has not been upgraded; to upgrade it, run mysql_upgrade command."
+  eng "'%s.%s' table definition has not been upgraded; Please perform the MySQL upgrade procedure."
 
 ER_DD_INITIALIZE_SQL_ERROR
   eng "Execution of server-side SQL statement '%s' failed with error code = %d, error message = '%s'."
@@ -18273,24 +18445,25 @@ ER_SYS_VAR_NOT_FOUND
   eng "Variable name '%s' not found."
 
 ER_IB_MSG_1274
-  eng "%s"
+  eng "Some (%d) threads are still active"
 
 ER_IB_MSG_1275
   eng "%s"
 
-ER_TARGET_TS_UNENCRYPTED
+# Unused since MySQL 8.0.15
+OBSOLETE_ER_TARGET_TS_UNENCRYPTED
   eng "Source tablespace is encrypted but target tablespace is not."
 
-ER_IB_MSG_1276
-  eng "%s"
+ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD
+  eng "Waiting for tablespace_alter_encrypt_thread to to exit"
 
 ER_IB_MSG_1277
   eng "%s"
 
-ER_IB_MSG_1278
+ER_IB_MSG_NO_ENCRYPT_PROGRESS_FOUND
   eng "%s"
 
-ER_IB_MSG_1279
+ER_IB_MSG_RESUME_OP_FOR_SPACE
   eng "%s"
 
 ER_IB_MSG_1280
@@ -18441,6 +18614,620 @@ ER_WARN_DEPRECATED_UTF8MB3_COLLATION_OPTION
 ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED
   eng "The SSL library function %s failed. This is typically caused by the SSL library already being used. As a result the SSL memory allocation will not be instrumented."
   bg "Функцията от SSL библиотеката %s върна грешка. Това обикновено е защото SSL библиотеката вече е била използвана. Заради това SSL паметта няма да се инструментира."
+
+ER_IB_MSG_MADV_DONTDUMP_UNSUPPORTED
+  eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet MADV_DONTDUMP is not supported on this platform"
+
+ER_IB_MSG_MADVISE_FAILED
+  eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%p,%zu,%s) failed with %s"
+
+ER_COLUMN_CHANGE_SIZE
+  eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
+
+ER_WARN_REMOVED_SQL_MODE
+  eng "sql_mode=0x%08x has been removed and will be ignored"
+
+ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT
+  eng "Failed to allocate memory for a pool of size %zu bytes. Will wait for %zu seconds for a thread to free a resource."
+
+ER_IB_MSG_NUM_POOLS
+ eng "Number of pools: %zu"
+
+ER_IB_MSG_USING_UNDO_SPACE
+  eng "Using undo tablespace '%s'."
+
+ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE
+  eng "%s Unable to save the current state of tablespace '%s' to the data dictionary"
+
+ER_IB_MSG_MAX_UNDO_SPACES_REACHED
+  eng "Cannot create undo tablespace %s at %s because %d undo tablespaces already exist."
+
+ER_IB_MSG_ERROR_OPENING_NEW_UNDO_SPACE
+  eng "Error %d opening newly created undo tablespace %s."
+
+ER_IB_MSG_FAILED_SDI_Z_BUF_ERROR
+  eng "SDI Compression failed, Z_BUF_ERROR"
+
+ER_IB_MSG_FAILED_SDI_Z_MEM_ERROR
+  eng "SDI Compression failed, Z_MEM_ERROR"
+
+ER_IB_MSG_SDI_Z_STREAM_ERROR
+  eng "SDI Compression failed, Z_STREAM_ERROR"
+
+ER_IB_MSG_SDI_Z_UNKNOWN_ERROR
+  eng "%s"
+
+ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
+  eng "Expected to find undo tablespace '%s' for Space ID=%lu, but found '%s' instead!  Did you change innodb_undo_directory?"
+
+ER_IB_MSG_NOT_END_WITH_IBU
+  eng "Cannot use %s as an undo tablespace because it does not end with '.ibu'."
+
+ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE
+  eng "ib_undo_trunc_empty_file"
+
+ER_IB_MSG_UNDO_TRUNC_BEFOR_DD_UPDATE
+  eng "ib_undo_trunc_before_dd_update"
+
+ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING
+  eng "ib_undo_trunc_before_done_logging"
+
+ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG
+  eng "ib_undo_trunc_before_rsegs"
+
+ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
+  eng "%s Failed to finish truncating Undo Tablespace '%s'"
+
+ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
+  eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
+
+ER_IB_MSG_DIR_DOES_NOT_EXIST
+  eng "The directory '%s' does not exist."
+
+ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
+  eng "%s"
+
+ER_CLONE_REMOTE_ERROR
+  eng "Clone Remote Error: %.512s."
+
+ER_CLONE_PROTOCOL_ERROR
+  eng "Clone Protocol Error: %.512s."
+
+ER_CLONE_INFO_CLIENT
+  eng "Client: %.512s."
+
+ER_CLONE_INFO_SERVER
+  eng "Server: %.512s."
+
+ER_THREAD_POOL_PFS_TABLES_INIT_FAILED
+  eng "Failed to initialize the performance schema tables service."
+
+ER_THREAD_POOL_PFS_TABLES_ADD_FAILED
+  eng "Failed to add thread pool performance schema tables."
+
+ER_CANT_SET_DATA_DIR
+  eng "Failed to set datadir to \'%-.200s\' (OS errno: %d - %s)"
+
+ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY_LOCATION
+  eng "The innodb_undo_directory is not allowed to be an ancestor of the datadir."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_KEY_NOT_FOUND
+  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+
+ER_SERVER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
+  eng "Fetched an invalid key from keyring."
+
+ER_SERVER_RPL_ENCRYPTION_HEADER_ERROR
+  eng "Error reading a replication log encryption header: %s."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ROTATE_LOGS
+  eng "Failed to rotate some logs after changing binlog encryption settings. Please fix the problem and rotate the logs manually."
+
+ER_SERVER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
+  eng "Key %s exists unexpected."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
+  eng "Failed to generate key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
+  eng "Failed to store key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
+  eng "Failed to remove key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE
+  eng "Failed to initialize binlog encryption, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_ROTATE_MASTER_KEY_AT_STARTUP
+  eng "Failed to rotate binlog encryption master key at startup, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_IGNORE_ROTATE_MASTER_KEY_AT_STARTUP
+  eng "Ignoring binlog_rotate_encryption_master_key_at_startup because binlog_encryption option is disabled."
+
+ER_INVALID_ADMIN_ADDRESS
+  eng "Invalid value for command line option admin-address: '%s'"
+
+ER_SERVER_STARTUP_ADMIN_INTERFACE
+  eng "Admin interface ready for connections, address: '%s'  port: %d"
+
+ER_CANT_CREATE_ADMIN_THREAD
+  eng "Can't create thread to handle admin connections (errno= %d)"
+
+ER_WARNING_RETAIN_CURRENT_PASSWORD_CLAUSE_VOID
+  eng "RETAIN CURRENT PASSWORD ignored for user '%s'@'%s' as its authentication plugin %s does not support multiple passwords."
+
+ER_WARNING_DISCARD_OLD_PASSWORD_CLAUSE_VOID
+  eng "DISCARD OLD PASSWORD ignored for user '%s'@'%s' as its authentication plugin %s does not support multiple passwords."
+
+ER_SECOND_PASSWORD_CANNOT_BE_EMPTY
+  eng "Empty password can not be retained as second password for user '%s'@'%s'."
+
+ER_PASSWORD_CANNOT_BE_RETAINED_ON_PLUGIN_CHANGE
+  eng "Current password can not be retained for user '%s'@'%s' because authentication plugin is being changed."
+
+ER_CURRENT_PASSWORD_CANNOT_BE_RETAINED
+  eng "Current password can not be retained for user '%s'@'%s' because new password is empty."
+
+ER_WARNING_AUTHCACHE_INVALID_USER_ATTRIBUTES
+  eng "Can not read and process value of User_attributes column from mysql.user table for user: '%s@%s'; Ignoring user."
+
+ER_MYSQL_NATIVE_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
+  eng "Second password was used for login by user: '%s'@'%s'."
+
+ER_SHA256_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
+  eng "Second password was used for login by user: '%s'@'%s'."
+
+ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
+  eng "Second password was used for login by user: '%s'@'%s'."
+
+ER_GRP_RPL_SEND_TRX_PREPARED_MESSAGE_FAILED
+  eng "Error sending transaction '%d:%lld' prepared message from session '%u'."
+
+ER_GRP_RPL_RELEASE_COMMIT_AFTER_GROUP_PREPARE_FAILED
+  eng "Error releasing transaction '%d:%lld' for commit on session '%u' after being prepared on all group members."
+
+ER_GRP_RPL_TRX_ALREADY_EXISTS_ON_TCM_ON_AFTER_CERTIFICATION
+  eng "Transaction '%d:%lld' already exists on Group Replication consistency manager while being registered after conflict detection."
+
+ER_GRP_RPL_FAILED_TO_INSERT_TRX_ON_TCM_ON_AFTER_CERTIFICATION
+  eng "Error registering transaction '%d:%lld' on Group Replication consistency manager after conflict detection."
+
+ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_GROUP_PREPARE_FAILED
+  eng "Error registering transaction '%d:%lld' from session '%u' to wait for being prepared on all group members."
+
+ER_GRP_RPL_TRX_WAIT_FOR_GROUP_PREPARE_FAILED
+  eng "Error on transaction '%d:%lld' from session '%u' while waiting for being prepared on all group members."
+
+ER_GRP_RPL_TRX_DOES_NOT_EXIST_ON_TCM_ON_HANDLE_REMOTE_PREPARE
+  eng "Transaction '%d:%lld' does not exist on Group Replication consistency manager while receiving remote transaction prepare."
+
+ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_DEPENDENCIES_COMMIT_FAILED
+  eng "Error releasing transaction '%d:%lld' for execution on session '%u' after its dependencies did complete commit."
+
+ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_DEPENDENCIES_FAILED
+  eng "Error registering transaction from session '%u' to wait for its dependencies to complete commit."
+
+ER_GRP_RPL_WAIT_FOR_DEPENDENCIES_FAILED
+  eng "Error on session '%u' while waiting for its dependencies to complete commit."
+
+ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_SYNC_BEFORE_EXECUTION_FAILED
+  eng "Error registering transaction from session '%u' to wait for sync before execution."
+
+ER_GRP_RPL_SEND_TRX_SYNC_BEFORE_EXECUTION_FAILED
+  eng "Error sending sync before execution message from session '%u'."
+
+ER_GRP_RPL_TRX_WAIT_FOR_SYNC_BEFORE_EXECUTION_FAILED
+  eng "Error on transaction from session '%u' while waiting for sync before execution."
+
+ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_WAIT_FOR_SYNC_BEFORE_EXEC
+  eng "Error releasing transaction for execution on session '%u' after wait for sync before execution."
+
+ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED
+  eng "Error waiting for group executed transactions commit on session '%u'."
+
+ER_UNIT_NOT_FOUND SU001
+  eng "There's no unit of measure named '%s'."
+
+ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
+  eng "The geometry passed to function %s is in SRID 0, which doesn't specify a length unit. Can't convert to '%s'."
+
+ER_WARN_PROPERTY_STRING_PARSE_FAILED
+  eng "Could not parse key-value pairs in property string '%s'"
+
+ER_INVALID_PROPERTY_KEY
+  eng "Property key '%s' is invalid."
+
+ER_GRP_RPL_GTID_SET_EXTRACT_ERROR_DURING_RECOVERY
+  eng "Error when extracting the group_replication_applier channel received transactions set. Unable to ensure the execution of group transactions received during recovery."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT
+  eng "Failed to encrypt content to write into binlog file: %s."
+
+ER_CANNOT_GET_SERVER_VERSION_FROM_TABLESPACE_HEADER
+  eng "Cannot get the server version number from the dictionary tablespace header."
+
+ER_CANNOT_SET_SERVER_VERSION_IN_TABLESPACE_HEADER
+  eng "Cannot set the server version number in the dictionary tablespace header."
+
+ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED
+  eng "Upgrading the server from server version '%u' is not supported."
+
+ER_SERVER_UPGRADE_FROM_VERSION
+  eng "MySQL server upgrading from version '%u' to '%u'."
+
+ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL
+  eng "The certification information could not be set in this server: '%s'"
+
+ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING
+  eng "A request to force a new group membership was issued when the member is leaving the group."
+
+ER_TRG_WRONG_ORDER
+  eng "Trigger %s.%s for table %s.%s is listed in wrong order. Please drop and recreate all triggers for the table."
+
+ER_SECONDARY_ENGINE_PLUGIN
+  eng "%s"
+
+ER_LDAP_AUTH_GRP_SEARCH_NOT_SPECIAL_HDL
+  eng "Special handling for group search, {GA} not found"
+
+ER_LDAP_AUTH_GRP_USER_OBJECT_HAS_GROUP_INFO
+  eng "User group retrieval: User object has group information"
+
+ER_LDAP_AUTH_GRP_INFO_FOUND_IN_MANY_OBJECTS
+  eng "Group information found in multiple user objects. Search filter configuration is incorrect."
+
+ER_LDAP_AUTH_GRP_INCORRECT_ATTRIBUTE
+  eng "User group retrieval: no group attribute found. Incorrect group search attribute. "
+
+ER_LDAP_AUTH_GRP_NULL_ATTRIBUTE_VALUE
+  eng "User group retrieval: Group attribute values is NULL. "
+
+ER_LDAP_AUTH_GRP_DN_PARSING_FAILED
+  eng "User group retrieval: parsing DN failed. "
+
+ER_LDAP_AUTH_GRP_OBJECT_HAS_USER_INFO
+  eng "User group retrieval: Group object has user information"
+
+ER_LDAP_AUTH_LDAPS
+  eng "Reserved port for ldaps using ldaps"
+
+ER_LDAP_MAPPING_GET_USER_PROXY
+  eng "Get user proxy"
+
+ER_LDAP_MAPPING_USER_DONT_BELONG_GROUP
+  eng "Get user proxy: User doesn't belongs to any group, user name will be treated as authenticated user."
+
+ER_LDAP_MAPPING_INFO
+  eng "Get user proxy: configured mapping info: %s"
+
+ER_LDAP_MAPPING_EMPTY_MAPPING
+  eng "Get user proxy: User doesn't have group mapping information, First LDAP group will be treated as authenticated user."
+
+ER_LDAP_MAPPING_PROCESS_MAPPING
+  eng "Process group proxy mapping"
+
+ER_LDAP_MAPPING_CHECK_DELIMI_QUOTE
+  eng "Check delimiter after quote"
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER
+  eng "Processing delimiter"
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER_EQUAL_NOT_FOUND
+  eng "Processing delimiter, separator = not found, resetting position"
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER_TRY_COMMA
+  eng ""Processing delimiter, failed to get data for = separator try for separator ,.""
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER_COMMA_NOT_FOUND
+  eng "Processing delimiter, separator , not found, resetting position"
+
+ER_LDAP_MAPPING_NO_SEPEARATOR_END_OF_GROUP
+  eng "Processing delimiter: No mapping separator is found, end of group information"
+
+ER_LDAP_MAPPING_GETTING_NEXT_MAPPING
+  eng "Getting next mapping information"
+
+ER_LDAP_MAPPING_PARSING_CURRENT_STATE
+  eng "Parsing mapping, current state: %d  delimiter char: %c "
+
+ER_LDAP_MAPPING_PARSING_MAPPING_INFO
+  eng "Parsing mapping info, LDAP group: %s MySQL proxy: %s"
+
+ER_LDAP_MAPPING_PARSING_ERROR
+  eng "Mapping parsing error"
+
+ER_LDAP_MAPPING_TRIMMING_SPACES
+  eng "Trimming left spaces"
+
+ER_LDAP_MAPPING_IS_QUOTE
+  eng "Checking if current characters is quote"
+
+ER_LDAP_MAPPING_NON_DESIRED_STATE
+  eng "Not desired state or un-defined states."
+
+ER_INVALID_NAMED_PIPE_FULL_ACCESS_GROUP
+  eng "Invalid value for named_pipe_full_access_group."
+
+# This error is not supposed to be reported to the users. It is only
+# meant for internal use to signal that a statement should be
+# reprepared for a secondary storage engine. The error should be
+# caught and handled by the server.
+ER_PREPARE_FOR_SECONDARY_ENGINE
+  eng "Retry the statement using a secondary storage engine."
+
+ER_SERVER_WARN_DEPRECATED
+  eng "'%s' is deprecated and will be removed in a future release. Please use %s instead"
+ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+  eng "Cannot set mandatory_roles: AuthId `%.64s`@`%.64s` has '%s' privilege."
+
+ER_SERVER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
+  eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
+
+ER_SERVER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
+  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+
+ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
+  eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
+
+ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS
+  eng "'%s' privilege for database '%s' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted."
+
+ER_DB_ACCESS_DENIED
+  eng "Access denied for AuthId `%.64s`@`%.64s` to database '%-.192s'."
+
+ER_PARTIAL_REVOKES_EXIST
+  eng "At least one partial revoke exists on a database. The system variable '@@partial_revokes' must be set to ON."
+
+ER_TURNING_ON_PARTIAL_REVOKES
+  eng "At least one partial revoke exists on a database. Turning ON the system variable '@@partial_revokes'."
+
+ER_WARN_PARTIAL_REVOKE_AND_DB_GRANT
+  eng "For user '%s'@'%s', one or more privileges granted through mysql.db for database '%s', conflict with partial revoke. It could mean 'mysql' schema is corrupted."
+
+ER_WARN_INCORRECT_PRIVILEGE_FOR_DB_RESTRICTIONS
+  eng "For user %s, ignored restrictions for privilege(s) '%s' for database '%s' as these are not valid database privileges."
+
+ER_WARN_INVALID_DB_RESTRICTIONS
+  eng "For user %s, ignored restrictions for privilege(s) '%s' for database '%s' as corresponding global privilege(s) are not granted."
+
+ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL
+  eng "'%s' is an invalid value for group_replication_communication_protocol_join, please use a MySQL version between 5.7.14 and this server's version"
+
+ER_GRP_RPL_STARTED_AUTO_REJOIN
+  eng "Started auto-rejoin procedure attempt %d of %d"
+
+ER_GRP_RPL_TIMEOUT_RECEIVED_VC_ON_REJOIN
+  eng "Timeout while waiting for a view change event during the auto-rejoin procedure"
+
+ER_GRP_RPL_FINISHED_AUTO_REJOIN
+  eng "Auto-rejoin procedure attempt %d of %d finished. Member was%s able to join the group."
+
+ER_GRP_RPL_DEFAULT_TABLE_ENCRYPTION_DIFF_FROM_GRP
+  eng "The member is configured with a default_table_encryption option value '%d' different from the group '%d'. The member will now exit the group."
+
+ER_SERVER_UPGRADE_OFF
+  eng "Server shutting down because upgrade is required, yet prohibited by the command line option '--upgrade=NONE'."
+
+ER_SERVER_UPGRADE_SKIP
+  eng "Server upgrade is required, but skipped by command line option '--upgrade=MINIMAL'."
+
+ER_SERVER_UPGRADE_PENDING
+  eng "Server upgrade started with version %d, but server upgrade of version %d is still pending."
+
+ER_SERVER_UPGRADE_FAILED
+  eng "Failed to upgrade server."
+
+ER_SERVER_UPGRADE_STATUS
+  eng "Server upgrade from '%d' to '%d' %s."
+
+ER_SERVER_UPGRADE_REPAIR_REQUIRED
+  eng "Table '%s' requires repair."
+
+ER_SERVER_UPGRADE_REPAIR_STATUS
+  eng "Table '%s' repair %s."
+
+ER_SERVER_UPGRADE_INFO_FILE
+  eng "Could not create server upgrade info file at '%s'."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA
+  eng "Upgrading the sys schema."
+
+ER_SERVER_UPGRADE_MYSQL_TABLES
+  eng "Running queries to upgrade MySQL server."
+
+ER_SERVER_UPGRADE_SYSTEM_TABLES
+  eng "Upgrading system table data."
+
+ER_SERVER_UPGRADE_EMPTY_SYS
+  eng "Found empty sys database. Installing the sys schema."
+
+ER_SERVER_UPGRADE_NO_SYS_VERSION
+  eng "A sys schema exists with no sys.version view. If you have a user created sys schema, this must be renamed for the upgrade to succeed."
+
+ER_SERVER_UPGRADE_SYS_VERSION_EMPTY
+  eng "A sys schema exists with a sys.version view, but it returns no results."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA_OUTDATED
+  eng "Found outdated sys schema version %s."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA_UP_TO_DATE
+  eng "The sys schema is already up to date (version %s)."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT
+  eng "Found %d sys %s, but expected %d. Re-installing the sys schema."
+
+ER_SERVER_UPGRADE_CHECKING_DB
+  eng "Checking '%s' schema."
+
+ER_IB_MSG_DDL_LOG_DELETE_BY_ID_TMCT
+  eng "Too many concurrent transactions while clearing the DDL Log. Please increase the number of Rollback Segments."
+
+ER_IB_MSG_POST_RECOVER_DDL_LOG_RECOVER
+  eng "Error in DDL Log recovery during Post-Recovery processing."
+
+ER_IB_MSG_POST_RECOVER_POST_TS_ENCRYPT
+  eng "Error in Post-Tablespace-Encryption during Post-Recovery processing."
+
+ER_IB_MSG_DDL_LOG_FAIL_POST_DDL
+  eng "Error in DLL Log cleanup during Post-DDL processing."
+
+ER_SERVER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+  eng "'%s' statement is unsafe because it uses a system function that may return a different value on the slave."
+
+ER_SERVER_UPGRADE_HELP_TABLE_STATUS
+  eng "Upgrade of help tables %s."
+
+ER_GRP_RPL_SRV_GTID_WAIT_ERROR
+  eng "Error when waiting for the server to execute local transactions in order assure the group change proper logging"
+
+ER_GRP_DELAYED_VCLE_LOGGING
+  eng "Unable to log the group change View log event in its exaction position in the log. This will not however affect the group replication recovery process or the overall plugin process."
+
+ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
+  eng "Cannot grant roles to an anonymous user."
+
+ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY
+  eng "Unable to create a new binlog file: Table `mysql.gtid_executed` couldn't be opened. %s"
+
+ER_NETWORK_NAMESPACES_NOT_SUPPORTED
+  eng "Network Namespaces is not supported on this platform"
+
+ER_UNKNOWN_NETWORK_NAMESPACE
+  eng "Unknown network namespace '%s'"
+
+ER_NETWORK_NAMESPACE_NOT_ALLOWED_FOR_WILDCARD_ADDRESS
+  eng "Network namespace not allowed for wildcard interface address"
+
+ER_SETNS_FAILED
+  eng "setns() failed with error '%s'"
+
+ER_WILDCARD_NOT_ALLOWED_FOR_MULTIADDRESS_BIND
+  eng "Wildcard address value not allowed for multivalued bind address"
+
+ER_NETWORK_NAMESPACE_FILE_PATH_TOO_LONG
+  eng "The path to a special network namespace file is too long. (got %u > max %u)"
+
+ER_IB_MSG_TOO_LONG_PATH
+  eng "Cannot create tablespace '%s'. The filepath is too long for this OS."
+
+ER_IB_RECV_FIRST_REC_GROUP_INVALID
+  eng "The last block of redo had corrupted first_rec_group and became fixed (%u -> %u)."
+
+ER_DD_UPGRADE_COMPLETED
+  eng "Data dictionary upgrade from version '%u' to '%u' completed."
+
+ER_SSL_SERVER_CERT_VERIFY_FAILED
+  eng "Server SSL certificate doesn't verify: %s"
+
+ER_PERSIST_OPTION_USER_TRUNCATED
+  eng "Truncated a user name for %s that was too long while reading the persisted variables file"
+
+ER_PERSIST_OPTION_HOST_TRUNCATED
+  eng "Truncated a host name for %s that was too long while reading the persisted variables file"
+
+ER_NET_WAIT_ERROR
+  eng "The wait_timeout period was exceeded, the idle time since last command was too long."
+
+ER_IB_MSG_1285
+  eng "'%s' found not encrypted while '%s' is ON. Trying to encrypt it now."
+
+ER_IB_MSG_CLOCK_MONOTONIC_UNSUPPORTED
+  eng "CLOCK_MONOTONIC is unsupported, so do not change the system time when MySQL is running !"
+
+ER_IB_MSG_CLOCK_GETTIME_FAILED
+  eng "clock_gettime() failed: %s"
+
+ER_PLUGIN_NOT_EARLY_DUP
+  eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
+  bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
+
+ER_PLUGIN_NO_INSTALL_DUP
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+  eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_FOUND_ROWS
+  eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
+
+ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
+  eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave."
+
+ER_GRP_RPL_MEMBER_VER_READ_COMPATIBLE
+  eng "Member version is read compatible with the group."
+
+ER_LOCK_ORDER_INIT_FAILED
+  eng "Lock order disabled (reason: init failed)."
+
+ER_AUDIT_LOG_KEYRING_ID_TIMESTAMP_VALUE_IS_INVALID
+  eng "Keyring ID timestamp value is invalid: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_TIMESTAMP_VALUE_IS_MISSING_OR_INVALID
+  eng "Cannot process audit log file. File name timestamp value is missing or invalid: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_DOES_NOT_HAVE_REQUIRED_FORMAT
+  eng "Cannot process audit log file. File name does not have required format: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_KEYRING_ID_VALUE_IS_MISSING
+  eng "Cannot process audit log file. File name keyring ID value is missing: '%s'"
+
+ER_AUDIT_LOG_FILE_HAS_BEEN_SUCCESSFULLY_PROCESSED
+  eng "Audit log file has been successfully processed: '%s'"
+
+ER_AUDIT_LOG_COULD_NOT_OPEN_FILE_FOR_READING
+  eng "Could not open audit log file for reading: '%s'"
+
+ER_AUDIT_LOG_INVALID_FILE_CONTENT
+  eng "Invalid audit log file content: '%s'"
+
+ER_AUDIT_LOG_CANNOT_READ_PASSWORD
+  eng "Cannot read password: '%.32s'"
+
+ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
+  eng "Cannot store password: '%.32s'"
+
+ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
+  eng "Cannot remove password: '%.32s'"
+
+ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+  eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
+
+ER_WRONG_MVI_VALUE
+  eng "Can't store an array or an object in a scalar key part of the index '%.192s'"
+
+ER_WARN_FUNC_INDEX_NOT_APPLICABLE
+  eng "Cannot use functional index '%-.64s' due to type or collation conversion"
+
+ER_EXCEEDED_MV_KEYS_NUM
+  eng "Exceeded max number of values per record for multi-valued index '%-.64s' by %u value(s)"
+
+ER_EXCEEDED_MV_KEYS_SPACE
+  eng "Exceeded max total length of values per record for multi-valued index '%-.64s' by %u bytes"
+
+ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG 22001
+  eng "Data too long for functional index '%-.64s'"
+
+ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
+  eng "Invalid JSON value for CAST for functional index '%-.64s'"
+
+ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
+  eng "Out of range JSON value for CAST for functional index '%-.64s'"
+
+ER_LDAP_EMPTY_USERDN_PASSWORD
+  eng "Empty user dn or password is not allowed, not attempting LDAP bind."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

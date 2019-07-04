@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,8 @@ class Tablespace_files : public Object_table_impl {
     FIELD_TABLESPACE_ID,
     FIELD_ORDINAL_POSITION,
     FIELD_FILE_NAME,
-    FIELD_SE_PRIVATE_DATA
+    FIELD_SE_PRIVATE_DATA,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {

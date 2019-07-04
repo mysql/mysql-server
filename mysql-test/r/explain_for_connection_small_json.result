@@ -153,14 +153,12 @@ QUERY: SELECT * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -24,10 +24,11 @@
+@@ -24,9 +24,10 @@
          "rows_examined_per_scan": 4,
 -        "rows_produced_per_join": 0,
 -        "filtered": "20.00",
--        "index_condition": "(`test`.`t1`.`key1` <=> 1130)",
 +        "rows_produced_per_join": 4,
 +        "filtered": "100.00",
-+        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
            "read_cost": "0.50",
@@ -170,7 +168,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "data_read_per_join": "38"
 +          "data_read_per_join": "192"
          },
-@@ -43,4 +44,3 @@
+@@ -42,4 +43,3 @@
            "col4"
 -        ],
 -        "attached_condition": "isnull(`test`.`t1`.`col1`)"
@@ -321,7 +319,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -39,4 +40,3 @@
            "c"
 -        ],
--        "attached_condition": "((`test`.`t1`.`a` <=> 1) and (`test`.`t1`.`b` <=> NULL) and isnull(`test`.`t1`.`b`))"
+-        "attached_condition": "isnull(`test`.`t1`.`b`)"
 +        ]
        }
 QUERY: SELECT * from t1 where b=1 or b is null order by a 
@@ -337,14 +335,12 @@ QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -25,10 +25,11 @@
+@@ -25,9 +25,10 @@
          "rows_examined_per_scan": 1,
 -        "rows_produced_per_join": 0,
 -        "filtered": "75.00",
--        "index_condition": "(`test`.`t1`.`a` <=> 2)",
 +        "rows_produced_per_join": 1,
 +        "filtered": "100.00",
-+        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
            "read_cost": "0.25",
@@ -354,7 +350,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "data_read_per_join": "12"
 +          "data_read_per_join": "16"
          },
-@@ -37,4 +38,3 @@
+@@ -36,4 +37,3 @@
            "c"
 -        ],
 -        "attached_condition": "((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))"
@@ -364,14 +360,12 @@ QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -25,10 +25,11 @@
+@@ -25,9 +25,10 @@
          "rows_examined_per_scan": 1,
 -        "rows_produced_per_join": 0,
 -        "filtered": "75.00",
--        "index_condition": "(`test`.`t1`.`a` <=> 2)",
 +        "rows_produced_per_join": 1,
 +        "filtered": "100.00",
-+        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
            "read_cost": "0.25",
@@ -381,7 +375,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "data_read_per_join": "12"
 +          "data_read_per_join": "16"
          },
-@@ -37,4 +38,3 @@
+@@ -36,4 +37,3 @@
            "c"
 -        ],
 -        "attached_condition": "((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))"
@@ -507,7 +501,7 @@ SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -10,72 +10,20 @@
        "filtered": "100.00",
--      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`topic`) in t2 on topic where ((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))))",
+-      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`topic`) in t2 on topic where (not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))))))",
 +      "using_where": true,
        "attached_subqueries": [
          {
@@ -547,7 +541,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "used_columns": [
 -                "topic"
 -              ],
--              "attached_condition": "((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`))",
+-              "attached_condition": "(not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`))))",
 -              "attached_subqueries": [
 -                {
 -                  "dependent": true,
@@ -592,19 +586,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            ]
            }
 QUERY: SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -52,2 +52,3 @@
-               "filtered": "100.00",
-+              "using_where": true,
-               "using_index": true,
-@@ -62,4 +63,3 @@
-                 "anno_dep"
--              ],
--              "attached_condition": "((`test`.`s`.`id_cns` <=> `test`.`cns`.`id`))"
-+              ]
-             }
+STATUS: EQUAL
 QUERY: SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
@@ -616,7 +598,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -61,4 +62,3 @@
                  "b"
 -              ],
--              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))"
+-              "attached_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
 +              ]
              }
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 
@@ -657,16 +639,6 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "attached_condition": "(`test`.`t3`.`b` is not null)"
 +          ]
          }
-@@ -102,2 +102,3 @@
-               "filtered": "100.00",
-+              "using_where": true,
-               "using_index": true,
-@@ -113,4 +114,3 @@
-                 "d"
--              ],
--              "attached_condition": "((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t2`.`c` <=> `test`.`t1`.`a`))"
-+              ]
-             }
 QUERY: SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
@@ -749,7 +721,7 @@ Diff: EXPLAIN NORMAL vs OTHER
                "using_index": true,
 @@ -63,3 +64,2 @@
                ],
--              "attached_condition": "((`test`.`rs`.`t1_id` <=> (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))) and (`test`.`rs`.`t1_id` = (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))))",
+-              "attached_condition": "(`test`.`rs`.`t1_id` = (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL)))",
                "attached_subqueries": [
 QUERY: UPDATE t1 join t2 on (t1.a=t2.a) set t1.id=t2.id 
 STATUS:NOT_EQUAL

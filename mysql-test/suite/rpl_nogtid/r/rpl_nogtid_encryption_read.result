@@ -1,0 +1,162 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+FLUSH LOCAL LOGS;
+include/assert.inc [Master status shall point to master-bin.000002]
+include/rpl_stop_server.inc [server_number=1]
+# Part 1
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Cannot get file password for encrypted replication log file]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Cannot get file password for encrypted replication log file]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Binlog has bad magic number]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Fetched an invalid key from keyring]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Fetched an invalid key from keyring]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Unable to determine encryption header version]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Unsupported encryption header version]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Header is corrupted]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Unknown field type]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Header is missing the replication encryption key ID]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Header is missing the encrypted password]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Header is missing the IV]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+Try to restart the master with debug instrumentation
+include/assert_grep.inc [Server reported: Header is incomplete]
+include/assert_grep.inc [Server failed to initialize binary log for recovery]
+include/assert_grep.inc [Server aborted to start]
+include/rpl_start_server.inc [server_number=1]
+# Part 2
+include/assert.inc [1st binary log is not encrypted]
+include/assert.inc [2nd binary log is encrypted]
+include/assert.inc [3rd binary log is not encrypted]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Previous_gtids	#	#	
+master-bin.000002	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT PRIMARY KEY)
+master-bin.000002	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
+master-bin.000002	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
+# Part 3
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Slave shall have t1 with a 6 rows on it]
+DROP TABLE t1;
+include/stop_slave.inc
+# Part 4
+[connection master]
+# Part 4.1
+# Part 4.1.1
+# Adding debug point 'corrupt_replication_encryption_key' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Binlog has bad magic number;  It's not a binary log file that can be used by this version of MySQL
+# Removing debug point 'corrupt_replication_encryption_key' from @@GLOBAL.debug
+# Part 4.1.2
+# Adding debug point 'corrupt_replication_encryption_key_type' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Fetched an invalid key from keyring.
+# Removing debug point 'corrupt_replication_encryption_key_type' from @@GLOBAL.debug
+# Part 4.1.3
+# Adding debug point 'corrupt_replication_encryption_key_size' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Fetched an invalid key from keyring.
+# Removing debug point 'corrupt_replication_encryption_key_size' from @@GLOBAL.debug
+# Part 4.1.4
+# Adding debug point 'corrupt_encrypted_header_version' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Unable to determine encryption header version.
+# Removing debug point 'corrupt_encrypted_header_version' from @@GLOBAL.debug
+# Part 4.1.5
+# Adding debug point 'force_encrypted_header_version_2' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Unsupported encryption header version.
+# Removing debug point 'force_encrypted_header_version_2' from @@GLOBAL.debug
+# Part 4.1.6
+# Adding debug point 'corrupt_encryption_header_read_above_header_size' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Header is corrupted.
+# Removing debug point 'corrupt_encryption_header_read_above_header_size' from @@GLOBAL.debug
+# Part 4.1.7
+# Adding debug point 'corrupt_encryption_header_unknown_field_type' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Unknown field type.
+# Removing debug point 'corrupt_encryption_header_unknown_field_type' from @@GLOBAL.debug
+# Part 4.1.8
+# Adding debug point 'corrupt_encryption_header_missing_key_id' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Header is missing the replication encryption key ID.
+# Removing debug point 'corrupt_encryption_header_missing_key_id' from @@GLOBAL.debug
+# Part 4.1.9
+# Adding debug point 'corrupt_encryption_header_missing_password' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Header is missing the encrypted password.
+# Removing debug point 'corrupt_encryption_header_missing_password' from @@GLOBAL.debug
+# Part 4.1.10
+# Adding debug point 'corrupt_encryption_header_missing_iv' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Header is missing the IV.
+# Removing debug point 'corrupt_encryption_header_missing_iv' from @@GLOBAL.debug
+# Part 4.1.11
+# Adding debug point 'force_incomplete_encryption_header' to @@GLOBAL.debug
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Error reading a replication log encryption header: Header is incomplete.
+# Removing debug point 'force_incomplete_encryption_header' from @@GLOBAL.debug
+# Part 4.2
+UNINSTALL PLUGIN keyring_file;
+include/rpl_stop_server.inc [server_number=1]
+include/rpl_start_server.inc [server_number=1]
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# Part 4.3
+UNINSTALL PLUGIN keyring_file;
+SHOW BINLOG EVENTS IN 'master-bin.000002';
+ERROR HY000: Failed to fetch key from keyring, please check if keyring plugin is loaded.
+# Part 5
+include/assert_grep.inc [mysqlbinlog reported it does not support reading encrypted log files]
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

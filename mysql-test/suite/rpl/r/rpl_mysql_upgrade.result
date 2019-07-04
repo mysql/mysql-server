@@ -7,10 +7,11 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 DROP DATABASE IF EXISTS `#mysql50#mysqltest-1`;
 CREATE DATABASE `#mysql50#mysqltest-1`;
 include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
-Master position is not changed
-STOP SLAVE SQL_THREAD;
-include/wait_for_slave_sql_to_stop.inc
+include/stop_slave_io.inc
+include/rpl_restart_server.inc [server_number=1 parameters: --upgrade=FORCE]
+include/start_slave_io.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1 parameters: --upgrade=FORCE]
 Master position has been changed
 DROP DATABASE `#mysql50#mysqltest-1`;
 DROP DATABASE `#mysql50#mysqltest-1`;

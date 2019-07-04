@@ -36,19 +36,24 @@ bool mysqlx_error_init(UDF_INIT *, UDF_ARGS *args, char *message) {
 }
 
 char *mysqlx_error(UDF_INIT *, UDF_ARGS *args, char *, unsigned long *,
-                   unsigned char *, unsigned char *error) {
+                   unsigned char *is_null, unsigned char *error) {
   my_message(*reinterpret_cast<long long *>(args->args[0]),
              "Mysqlx internal error", MYF(0));
   *error = 1;
+  *is_null = 1;
   return nullptr;
 }
 }  // namespace
 
 namespace udf {
 Registrator::Record get_mysqlx_error_record() {
-  return {"mysqlx_error", STRING_RESULT,
-          reinterpret_cast<Udf_func_any>(mysqlx_error),
-          reinterpret_cast<Udf_func_init>(mysqlx_error_init), nullptr};
+  return {
+      "mysqlx_error",
+      STRING_RESULT,
+      reinterpret_cast<Udf_func_any>(mysqlx_error),
+      mysqlx_error_init,
+      nullptr,
+  };
 }
 }  // namespace udf
 }  // namespace xpl

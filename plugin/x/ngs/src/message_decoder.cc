@@ -24,7 +24,7 @@
 
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/message_decoder.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 
@@ -35,31 +35,31 @@ Message *Message_decoder::alloc_message(int8 type, Error_code &ret_error,
     ret_shared = true;
     switch ((Mysqlx::ClientMessages::Type)type) {
       case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
-        msg = ngs::allocate_object<Mysqlx::Connection::CapabilitiesGet>();
+        msg = allocate_object<Mysqlx::Connection::CapabilitiesGet>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
-        msg = ngs::allocate_object<Mysqlx::Connection::CapabilitiesSet>();
+        msg = allocate_object<Mysqlx::Connection::CapabilitiesSet>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::CON_CLOSE:
-        msg = ngs::allocate_object<Mysqlx::Connection::Close>();
+        msg = allocate_object<Mysqlx::Connection::Close>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_CLOSE:
-        msg = ngs::allocate_object<Mysqlx::Session::Close>();
+        msg = allocate_object<Mysqlx::Session::Close>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_RESET:
-        msg = ngs::allocate_object<Mysqlx::Session::Reset>();
+        msg = allocate_object<Mysqlx::Session::Reset>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
-        msg = ngs::allocate_object<Mysqlx::Session::AuthenticateStart>();
+        msg = allocate_object<Mysqlx::Session::AuthenticateStart>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE:
-        msg = ngs::allocate_object<Mysqlx::Session::AuthenticateContinue>();
+        msg = allocate_object<Mysqlx::Session::AuthenticateContinue>();
         ret_shared = false;
         break;
       case Mysqlx::ClientMessages::SQL_STMT_EXECUTE:
@@ -91,6 +91,24 @@ Message *Message_decoder::alloc_message(int8 type, Error_code &ret_error,
         break;
       case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
         msg = &m_crud_drop_view;
+        break;
+      case Mysqlx::ClientMessages::CURSOR_OPEN:
+        msg = &m_cursor_open;
+        break;
+      case Mysqlx::ClientMessages::CURSOR_CLOSE:
+        msg = &m_cursor_close;
+        break;
+      case Mysqlx::ClientMessages::CURSOR_FETCH:
+        msg = &m_cursor_fetch;
+        break;
+      case Mysqlx::ClientMessages::PREPARE_PREPARE:
+        msg = &m_prepare_prepare;
+        break;
+      case Mysqlx::ClientMessages::PREPARE_EXECUTE:
+        msg = &m_prepare_execute;
+        break;
+      case Mysqlx::ClientMessages::PREPARE_DEALLOCATE:
+        msg = &m_prepare_deallocate;
         break;
 
       default:
@@ -137,7 +155,7 @@ Error_code Message_decoder::parse(const uint8 msg_type, const int msg_size,
       if (!message->ParseFromCodedStream(&stream)) {
         parse_result = false;
 
-        if (!msg_is_shared) ngs::free_object(message);
+        if (!msg_is_shared) free_object(message);
 
         message = nullptr;
 
@@ -156,7 +174,7 @@ Error_code Message_decoder::parse(const uint8 msg_type, const int msg_size,
     }
 
     if (!parse_result || !message->IsInitialized()) {
-      if (!msg_is_shared) ngs::free_object(message);
+      if (!msg_is_shared) free_object(message);
 
       message = nullptr;
 

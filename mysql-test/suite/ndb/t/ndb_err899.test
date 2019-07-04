@@ -1,0 +1,182 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+
+--echo check COMMIT behaviour with out-of-order signals and single delete
+
+--echo record DBTUP resource usage before test
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+
+# Test for multiple ops on specific tuple in transaction, where overall result
+# is deletion of tuple. Error insert re-orders COMMIT and delays COMPLETE to
+# provide a time window where
+# - READ was committed after DELETE
+# - READ has completed on primary and DELETE has not yet completed on backup
+# The tuple should still be deallocated in such a way that this time window
+# has a consistent rowID status: the rowID should either be available on both
+# the primary and the backup, or it should be unavailable on both.
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE; # READ-EX
+UPDATE test.t1 SET b=101 where a=101; # UPDATE
+DELETE FROM test.t1 where a=101; # DELETE
+COMMIT; # Delayed due to error inserts +
+--disable_query_log
+# Start an insert load to use free rowIDs. There should be no rowIDs which
+# have been dealloc'd on the primary but not on the backup, so inserts should
+# never hit an error 899 "rowID already allocated".
+let $i= 100;
+while ($i)
+{
+  eval INSERT INTO test.t1 values ($i, $i);
+  dec $i;
+}
+--enable_query_log
+
+drop table test.t1;
+
+--echo compare current DBTUP resource usage w/usage before test to check for leaks
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+
+--echo check COMMIT behaviour with out-of-order signals and multiple deletes
+
+--echo record DBTUP resource usage before test
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+
+# Test for multiple ops on specific tuple in transaction, where overall result
+# is deletion of tuple. Error insert re-orders COMMIT and delays COMPLETE to
+# provide a time window where
+# - READ was committed after DELETE
+# - READ has completed on primary and DELETE has not yet completed on backup
+# The tuple should still be deallocated in such a way that this time window
+# has a consistent rowID status: the rowID should either be available on both
+# the primary and the backup, or it should be unavailable on both.
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE; # READ-EX
+DELETE FROM test.t1 where a=101; # DELETE
+INSERT INTO test.t1 values (101,102); # INSERT
+UPDATE test.t1 SET b=101 where a=101; # DELETE
+DELETE FROM test.t1 where a=101; # DELETE
+COMMIT; # Delayed due to error inserts +
+--disable_query_log
+# Start an insert load to use free rowIDs. There should be no rowIDs which
+# have been dealloc'd on the primary but not on the backup, so inserts should
+# never hit an error 899 "rowID already allocated".
+let $i= 100;
+while ($i)
+{
+  eval INSERT INTO test.t1 values ($i, $i);
+  dec $i;
+}
+--enable_query_log
+
+drop table test.t1;
+
+--echo compare current DBTUP resource usage w/usage before test to check for leaks
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+
+
+
+
+--echo check COMMIT behaviour with concurrent reads
+
+--echo record DBTUP resource usage before test
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+
+--connection con1
+
+delimiter %;
+create procedure work(total int)
+begin
+  set @x = 0;
+  repeat
+    select * from test.t1 where a=101;
+    set @x = @x + 1;
+  until @x = total
+  end repeat;
+end%
+
+delimiter ;%
+
+--send call work(10000);
+
+--connection con2
+
+# Test for multiple ops on specific tuple in transaction, where overall result
+# is deletion of tuple. Error insert re-orders COMMIT and delays COMPLETE to
+# provide a time window where
+# - READ was committed after DELETE
+# - READ has completed on primary and DELETE has not yet completed on backup
+# The tuple should still be deallocated in such a way that this time window
+# has a consistent rowID status: the rowID should either be available on both
+# the primary and the backup, or it should be unavailable on both.
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE; # READ-EX
+DELETE FROM test.t1 where a=101; # INITIAL DELETE
+INSERT INTO test.t1 values (101,102); # INSERT
+UPDATE test.t1 SET b=101 where a=101; # UPDATE
+DELETE FROM test.t1 where a=101; # DELETE
+COMMIT; # Delayed due to error inserts +
+
+--connection con1
+--disable_query_log
+--disable_result_log
+--reap
+--enable_query_log
+--enable_result_log
+drop procedure work;
+
+drop table test.t1;
+
+--echo compare current DBTUP resource usage w/usage before test to check for leaks
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+
+
+--echo check ABORT behaviour with out-of-order signals
+
+--echo record DBTUP resource usage before test
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE; # READ-EX
+DELETE FROM test.t1 where a=101; # DELETE
+INSERT INTO test.t1 values (101,102); # INSERT
+UPDATE test.t1 SET b=101 where a=101; # DELETE
+DELETE FROM test.t1 where a=101; # DELETE
+INSERT INTO test.t1 values (101,102); # INSERT
+ROLLBACK; # Delayed due to error inserts +
+--disable_query_log
+let $i= 100;
+while ($i)
+{
+  eval INSERT INTO test.t1 values ($i, $i);
+  dec $i;
+}
+--enable_query_log
+
+drop table test.t1;
+
+--echo compare current DBTUP resource usage w/usage before test to check for leaks
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+--remove_file $NDB_TOOLS_OUTPUT

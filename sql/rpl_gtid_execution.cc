@@ -375,6 +375,26 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd) {
 }
 
 /**
+  Checks whether or not the statement held by the `THD` object is taking table
+  write-locks.
+
+  @param thd the THD object holding the statement to examine
+
+  @return true if the statement held by the THD object is acquiring table write
+          locks, false otherwise.
+ */
+static bool is_stmt_taking_table_wr_locks(const THD *thd) {
+  DBUG_ENTER("is_stmt_holding_table_wr_locks(const THD*)");
+  TABLE_LIST *tables = thd->lex->query_tables;
+  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+    if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) {
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(false);
+}
+
+/**
   Return true if the statement does not invoke any stored function,
   and is one of the following:
   - SET (except SET PASSWORD)
@@ -392,7 +412,8 @@ static bool is_stmt_innocent(const THD *thd) {
                  (sql_command != SQLCOM_BINLOG_BASE64_EVENT);
   bool is_set = (sql_command == SQLCOM_SET_OPTION);
   bool is_set_role = sql_command == SQLCOM_SET_ROLE;
-  bool is_select = (sql_command == SQLCOM_SELECT);
+  bool is_select =
+      (sql_command == SQLCOM_SELECT && !is_stmt_taking_table_wr_locks(thd));
   bool is_do = (sql_command == SQLCOM_DO);
   bool is_empty = (sql_command == SQLCOM_EMPTY_QUERY);
   bool is_use = (sql_command == SQLCOM_CHANGE_DB);

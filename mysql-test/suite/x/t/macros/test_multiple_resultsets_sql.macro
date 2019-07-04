@@ -1,0 +1,65 @@
+## Following macros are defined in this file:
+#
+# * Test_assert_user_variable
+# * Test_reset_variables
+# * Test_prepare_and_execute_proc_arg0
+# * Test_prepare_and_execute_proc_arg1
+# * Test_prepare_and_execute_proc_arg2
+#
+
+
+-->macro Test_assert_user_variable %VAR_NAME% %VALUE%
+callmacro Assert_user_variable	%VAR_NAME%	%VALUE%;
+-->endmacro
+
+
+-->macro Test_reset_variables
+noquery_result;
+echo [Reseting test variables];
+SET @res=-1;
+SET @min_val=-1;
+SET @max_val=-1;
+SET @in_val=5;
+query_result;
+-->endmacro
+
+
+-->macro_varg Test_prepare_and_execute_proc_arg0 %PROC_NAME%
+quiet;
+noquery_result;
+echo [Execute %PROC_NAME%];
+stmtsql CALL %PROC_NAME%;
+noquiet;
+query_result;
+%VAR_ARGS%
+-->recvresult
+-->endmacro
+
+
+-->macro_varg Test_prepare_and_execute_proc_arg1 %PROC_NAME% %OUT_PARAM1%
+quiet;
+noquery_result;
+varlet %NAME% %PROC_NAME%;
+varreplace %NAME%	?	%OUT_PARAM1%;
+echo [Execute %NAME%];
+stmtsql CALL %NAME%;
+noquiet;
+query_result;
+%VAR_ARGS%
+-->recvresult
+-->endmacro
+
+
+-->macro_varg Test_prepare_and_execute_proc_arg2 %PROC_NAME% %OUT_PARAM1% %OUT_PARAM2%
+quiet;
+noquery_result;
+varlet %NAME% %PROC_NAME%;
+varreplace %NAME%	?	%OUT_PARAM1%;
+varreplace %NAME%	?	%OUT_PARAM2%;
+stmtsql CALL %NAME%;
+echo [Execute %NAME%];
+noquiet;
+query_result;
+%VAR_ARGS%
+-->recvresult
+-->endmacro

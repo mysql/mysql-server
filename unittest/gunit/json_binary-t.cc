@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <memory>
 #include <string>
 
+#include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "sql/error_handler.h"
 #include "sql/json_binary.h"
@@ -740,7 +741,7 @@ class Invalid_binary_handler : public Internal_error_handler {
     thd->push_internal_handler(this);
   }
 
-  ~Invalid_binary_handler() {
+  ~Invalid_binary_handler() override {
     EXPECT_EQ(this, m_thd->pop_internal_handler());
     error_handler_hook = m_orig_handler;
   }
@@ -1397,7 +1398,7 @@ static void BM_JsonBinarySerializeIntArray(size_t num_iterations) {
 
   serialize_benchmark(&array, num_iterations);
 }
-BENCHMARK(BM_JsonBinarySerializeIntArray);
+BENCHMARK(BM_JsonBinarySerializeIntArray)
 
 /**
   Microbenchmark which tests the performance of serializing a JSON
@@ -1412,7 +1413,7 @@ static void BM_JsonBinarySerializeDoubleArray(size_t num_iterations) {
 
   serialize_benchmark(&array, num_iterations);
 }
-BENCHMARK(BM_JsonBinarySerializeDoubleArray);
+BENCHMARK(BM_JsonBinarySerializeDoubleArray)
 
 /**
   Microbenchmark which tests the performance of serializing a JSON
@@ -1427,6 +1428,6 @@ static void BM_JsonBinarySerializeStringArray(size_t num_iterations) {
 
   serialize_benchmark(&array, num_iterations);
 }
-BENCHMARK(BM_JsonBinarySerializeStringArray);
+BENCHMARK(BM_JsonBinarySerializeStringArray)
 
 }  // namespace json_binary_unittest

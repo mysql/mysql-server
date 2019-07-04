@@ -9,10 +9,20 @@ XA START 'xid1';
 INSERT INTO t1 VALUES (1);
 XA END 'xid1';
 XA PREPARE 'xid1';
+# Waiting for the connection server1_conn2 disappeared on the server side
 
 ############################################################
 # 3. Force a local failure in before_commit listener on the
 #    XA COMMIT.
+# Wait until a record about a prepared XA transaction be found in output of XA RECOVER.
+# Having two conditions satisfied (first one for disappeared connection server1_conn2
+# and the second one for presence of the prepared XA transaction with xid value equaled xid1)
+# guarantees that the connection server1_conn2 was really closed and a prepared XA transaction
+# with xid1 was really placed into an internal server cache of prepared XA transactions.
+# Output result of XA RECOVER into result file for sanity check.
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,simulate_failure_in_before_commit_hook';
 XA COMMIT 'xid1';

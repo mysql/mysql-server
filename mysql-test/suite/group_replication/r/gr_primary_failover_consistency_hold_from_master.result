@@ -1,0 +1,101 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap group on server 1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Join server2 to group
+[connection server_2]
+include/start_group_replication.inc
+
+# 3. Set group_replication_consistency to BEFORE_ON_PRIMARY_FAILOVER on
+#    global scope, so new connections have it
+SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+# 4. On server 2 create a slave connection to server 3
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_2';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch3_2']
+SET @@GLOBAL.group_replication_consistency= EVENTUAL;
+
+# 5. Create table t1 an t2 on server3 and replicate to group
+[connection server3]
+CREATE TABLE test.t1 (a int primary key);
+CREATE TABLE test.t2 (a int primary key);
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+
+# 6. Lock tables t1 to hold primary election
+[connection server_2]
+LOCK TABLES t1 READ;
+
+# 7. Execute transaction on group
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 8. Server2 will certify transaction but won't apply due lock tables
+[connection server2]
+
+# 9. Execute group_replication_switch_to_single_primary_mode to appoint
+#    server2 as primary on single primary mode group
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+
+# 10. Validate that primary election is executing
+[connection server2]
+
+# 11. A read statement to new primary will be put on hold until all
+#     backlog's are applied
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+SELECT COUNT(*)=1 FROM t1 WHERE a = 1;
+
+# 12. Validate statement is on hold
+[connection server_2]
+
+# 13. Statement executed on server3
+[connection server3]
+INSERT INTO t2 VALUES (1);
+
+# 14. Transaction from server3 will be held until backlog is applied
+[connection server_2_1]
+
+# 15. Table t2 will be empty until backlog is applied
+include/assert.inc ['There are no values in table t2']
+
+# 16. UNLOCK tables to allow backlog to be applied
+[connection server_2]
+UNLOCK TABLES;
+
+# 17. Reap with success read of last value inserted on group
+[connection server2]
+COUNT(*)=1
+1
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+# 18. Reap with success execution of set as primary server2
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+
+# 19. Server2 applied all backlog, table t2 has the data
+
+# 20. Cleanup
+[connection server3]
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[connection server3]
+include/sync_slave_sql_with_master.inc
+[connection server2]
+SET @@GLOBAL.group_replication_consistency= DEFAULT;
+STOP SLAVE FOR CHANNEL 'ch3_2';
+RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+[connection server3]
+RESET MASTER;
+include/group_replication_end.inc

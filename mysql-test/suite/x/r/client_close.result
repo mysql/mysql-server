@@ -195,7 +195,7 @@ send Mysqlx.Sql.StmtExecute {
   stmt: "select 3"
 }
 
-send Mysqlx.Session.Close {
+send Mysqlx.Connection.Close {
 }
 
 2
@@ -204,13 +204,10 @@ send Mysqlx.Session.Close {
 3
 3
 0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-
+RUN recvok
 RUN select 4
 While executing select 4:
-Got expected error (one of: 2006 2007 )
+Got expected error: MySQL server has gone away (code 2006)
 aborting session sess
 switched to session default
 
@@ -1459,7 +1456,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "sql"
 }
 
-send Mysqlx.Session.Close {
+send Mysqlx.Connection.Close {
 }
 
 Column

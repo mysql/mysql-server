@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "plugin/x/client/mysqlxclient/xrow.h"
 #include "plugin/x/client/password_hasher.h"
 #include "plugin/x/client/sha256_scramble_generator.h"
+#include "plugin/x/client/xpriority_list.h"
 #include "plugin/x/generated/mysqlx_version.h"
 #include "sha2.h"
 
@@ -67,7 +68,8 @@ namespace details {
 
 XError make_xerror(const Mysqlx::Error &error) {
   bool is_fatal = error.severity() == Mysqlx::Error::FATAL;
-  return XError{static_cast<int>(error.code()), error.msg(), is_fatal};
+  return XError{static_cast<int>(error.code()), error.msg(), is_fatal,
+                error.sql_state()};
 }
 
 class Query_sequencer : public Query_instances {
@@ -140,7 +142,7 @@ Protocol_impl::execute_fetch_capabilities(XError *out_error) {
 }
 
 XError Protocol_impl::execute_close() {
-  XError error = send(Mysqlx::Session::Close());
+  XError error = send(Mysqlx::Connection::Close());
 
   if (error) return error;
 
@@ -201,6 +203,27 @@ std::unique_ptr<XQuery_result> Protocol_impl::execute_insert(
 std::unique_ptr<XQuery_result> Protocol_impl::execute_delete(
     const Mysqlx::Crud::Delete &m, XError *out_error) {
   return execute(m, out_error);
+}
+
+std::unique_ptr<XQuery_result> Protocol_impl::execute_prep_stmt(
+    const Mysqlx::Prepare::Execute &m, XError *out_error) {
+  return execute(m, out_error);
+}
+
+std::unique_ptr<XQuery_result> Protocol_impl::execute_cursor_open(
+    const Mysqlx::Cursor::Open &m, XError *out_error) {
+  return execute(m, out_error);
+}
+
+std::unique_ptr<XQuery_result> Protocol_impl::execute_cursor_fetch(
+    const Mysqlx::Cursor::Fetch &m,
+    std::unique_ptr<XQuery_result> cursor_open_result, XError *out_error) {
+  *out_error = send(m);
+  if (*out_error) return {};
+  auto metadata = cursor_open_result->get_metadata();
+  auto result = recv_resultset();
+  if (result) result->set_metadata(metadata);
+  return result;
 }
 
 XError Protocol_impl::authenticate_mysql41(const std::string &user,
@@ -392,11 +415,11 @@ XProtocol::Handler_id Protocol_impl::add_notice_handler(
 
   switch (position) {
     case Handler_position::Begin:
-      m_notice_handlers.emplace_front(id, prio, handler);
+      m_notice_handlers.push_front({id, prio, handler});
       break;
 
     case Handler_position::End:
-      m_notice_handlers.emplace_back(id, prio, handler);
+      m_notice_handlers.push_back({id, prio, handler});
       break;
   }
 
@@ -411,11 +434,11 @@ XProtocol::Handler_id Protocol_impl::add_received_message_handler(
 
   switch (position) {
     case Handler_position::Begin:
-      m_message_received_handlers.emplace_front(id, prio, handler);
+      m_message_received_handlers.push_front({id, prio, handler});
       break;
 
     case Handler_position::End:
-      m_message_received_handlers.emplace_back(id, prio, handler);
+      m_message_received_handlers.push_back({id, prio, handler});
       break;
   }
 
@@ -430,11 +453,11 @@ XProtocol::Handler_id Protocol_impl::add_send_message_handler(
 
   switch (position) {
     case Handler_position::Begin:
-      m_message_send_handlers.emplace_front(id, prio, handler);
+      m_message_send_handlers.push_front({id, prio, handler});
       break;
 
     case Handler_position::End:
-      m_message_send_handlers.emplace_back(id, prio, handler);
+      m_message_send_handlers.push_back({id, prio, handler});
       break;
   }
 
@@ -610,6 +633,9 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::deserialize_received_message(
     case Mysqlx::ServerMessages::RESULTSET_ROW:
       ret_val.reset(new Mysqlx::Resultset::Row());
       break;
+    case Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED:
+      ret_val.reset(new Mysqlx::Resultset::FetchSuspended());
+      break;
     case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE:
       ret_val.reset(new Mysqlx::Resultset::FetchDone());
       break;
@@ -618,8 +644,6 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::deserialize_received_message(
       break;
     case Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK:
       ret_val.reset(new Mysqlx::Sql::StmtExecuteOk());
-      break;
-    case Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED:
       break;
     case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS:
       ret_val.reset(new Mysqlx::Resultset::FetchDoneMoreOutParams());
@@ -641,6 +665,7 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::deserialize_received_message(
 
   if (!ret_val->IsInitialized()) {
     std::string err(ERR_MSG_MESSAGE_NOT_INITIALIZED);
+    err += "Name:" + ret_val->GetTypeName() + ", ";
     err += ret_val->InitializationErrorString();
     *out_error = XError(CR_MALFORMED_PACKET, err);
 

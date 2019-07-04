@@ -27,6 +27,7 @@
 
 #include <cstring>
 #include <sstream>
+#include <stdexcept>
 
 // ignore GMock warnings
 #ifdef __clang__

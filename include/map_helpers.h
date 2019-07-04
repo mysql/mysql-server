@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef MAP_HELPERS_INCLUDED
 #define MAP_HELPERS_INCLUDED
 
+#include <map>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -139,7 +140,7 @@ class Collation_hasher {
       : cs(cs_arg), hash_sort(cs->coll->hash_sort) {}
 
   size_t operator()(const std::string &s) const {
-    ulong nr1 = 1, nr2 = 4;
+    uint64 nr1 = 1, nr2 = 4;
     hash_sort(cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
     return nr1;
   }
@@ -274,6 +275,12 @@ class collation_unordered_set
                            Malloc_allocator<Key>>(
             /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
             Malloc_allocator<>(psi_key)) {}
+  collation_unordered_set(std::initializer_list<Key> il, CHARSET_INFO *cs,
+                          PSI_memory_key psi_key)
+      : std::unordered_set<Key, Collation_hasher, Collation_key_equal,
+                           Malloc_allocator<Key>>(
+            il, /*bucket_count=*/10, Collation_hasher(cs),
+            Collation_key_equal(cs), Malloc_allocator<>(psi_key)) {}
 };
 
 /** std::unordered_set, but allocated on a MEM_ROOT.  */
@@ -291,4 +298,21 @@ class memroot_unordered_set
             /*bucket_count=*/10, Hash(), KeyEqual(),
             Memroot_allocator<Key>(mem_root)) {}
 };
+
+/**
+  std::unordered_map, but collation aware and allocated on a MEM_ROOT.
+*/
+template <class Key, class Value>
+class memroot_collation_unordered_map
+    : public std::unordered_map<
+          Key, Value, Collation_hasher, Collation_key_equal,
+          Memroot_allocator<std::pair<const Key, Value>>> {
+ public:
+  memroot_collation_unordered_map(const CHARSET_INFO *cs, MEM_ROOT *mem_root)
+      : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
+                           Memroot_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
+            Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
+};
+
 #endif  // MAP_HELPERS_INCLUDED

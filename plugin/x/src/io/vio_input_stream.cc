@@ -27,7 +27,7 @@
 #include "my_dbug.h"
 
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {
@@ -35,7 +35,7 @@ namespace xpl {
 const uint32 k_buffer_size = 1024 * 4;
 
 Vio_input_stream::Vio_input_stream(
-    const ngs::shared_ptr<ngs::Vio_interface> &connection)
+    const std::shared_ptr<ngs::Vio_interface> &connection)
     : m_connection(connection) {
   ngs::allocate_array(m_buffer, k_buffer_size, KEY_memory_x_recv_buffer);
 }
@@ -65,7 +65,7 @@ bool Vio_input_stream::was_io_error(int *error_code) const {
   }
 
   if (m_last_io_return_value < 0) {
-    ngs::Operations_factory operations_factory;
+    Operations_factory operations_factory;
 
     *error_code =
         operations_factory.create_system_interface()->get_socket_errno();

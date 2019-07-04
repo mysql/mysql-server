@@ -43,7 +43,7 @@ namespace mysqlrouter {
 
 class MySQLSession {
  public:
-  static const int kDefaultConnectTimeout = 30;
+  static const int kDefaultConnectTimeout = 15;
   static const int kDefaultReadTimeout = 30;
   typedef std::vector<const char *> Row;
   typedef std::function<bool(const Row &)> RowProcessor;

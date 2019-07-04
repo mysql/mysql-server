@@ -12,6 +12,7 @@ CREATE DATABASE events_test2;
 CREATE USER ev_test@localhost;
 GRANT ALL ON events_test.* to ev_test@localhost;
 GRANT ALL ON events_test2.* to ev_test@localhost;
+GRANT SYSTEM_USER ON *.* TO ev_test@localhost;
 REVOKE EVENT ON events_test2.* FROM ev_test@localhost;
 #now we are on con1
 connect (ev_con1,localhost,ev_test,,events_test2);

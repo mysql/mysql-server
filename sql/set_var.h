@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "my_getopt.h"  // get_opt_arg_type
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_systime.h"  // my_micro_time()
 #include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
@@ -82,7 +83,7 @@ struct sys_var_chain {
 int mysql_add_sys_var_chain(sys_var *chain);
 int mysql_del_sys_var_chain(sys_var *chain);
 
-enum enum_var_type {
+enum enum_var_type : int {
   OPT_DEFAULT = 0,
   OPT_SESSION,
   OPT_GLOBAL,
@@ -115,6 +116,10 @@ class sys_var {
     /**
      There can be some variables which needs to be set before plugin is loaded.
      ex: binlog_checksum needs to be set before GR plugin is loaded.
+     Also, there are some variables which needs to be set before some server
+     internal component initialization.
+     ex: binlog_encryption needs to be set before binary and relay log
+     files generation.
     */
 
     PERSIST_AS_READ_ONLY = 0x10000
@@ -276,8 +281,13 @@ class sys_var {
             type == OPT_PERSIST_ONLY);
   }
 
+  /**
+    Return true if settable at the command line
+  */
+  bool is_settable_at_command_line() { return option.id != -1; }
+
   bool register_option(std::vector<my_option> *array, int parse_flags) {
-    return (option.id != -1) && (m_parse_flag & parse_flags) &&
+    return is_settable_at_command_line() && (m_parse_flag & parse_flags) &&
            (array->push_back(option), false);
   }
   void do_deprecated_warning(THD *thd);
@@ -342,7 +352,7 @@ class set_var_base {
   virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
   virtual int check(THD *thd) = 0;    ///< Evaluate the expression
   virtual int update(THD *thd) = 0;   ///< Set the value
-  virtual void print(THD *thd, String *str) = 0;  ///< To self-print
+  virtual void print(const THD *thd, String *str) = 0;  ///< To self-print
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -387,10 +397,11 @@ class set_var : public set_var_base {
   /**
     Print variable in short form.
 
+    @param thd Thread handle.
     @param str String buffer to append the partial assignment to.
   */
-  void print_short(String *str);
-  void print(THD *, String *str); /* To self-print */
+  void print_short(const THD *thd, String *str);
+  void print(const THD *, String *str); /* To self-print */
   bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
@@ -411,7 +422,7 @@ class set_var_user : public set_var_base {
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* For SET PASSWORD */
@@ -419,15 +430,17 @@ class set_var_user : public set_var_base {
 class set_var_password : public set_var_base {
   LEX_USER *user;
   char *password;
-  char *current_passowrd;
+  char *current_password;
+  bool retain_current_password;
 
  public:
   set_var_password(LEX_USER *user_arg, char *password_arg,
-                   char *current_passowrd_arg);
+                   char *current_password_arg, bool retain_current);
+
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* For SET NAMES and SET CHARACTER SET */
@@ -455,13 +468,13 @@ class set_var_collation_client : public set_var_base {
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* optional things, have_* variables */
 extern SHOW_COMP_OPTION have_profiling;
 
-extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_compress;
@@ -491,6 +504,8 @@ bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd);
 bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                     LEX_STRING *ls);
+bool sql_mode_quoted_string_representation(THD *thd, sql_mode_t sql_mode,
+                                           LEX_STRING *ls);
 void update_parser_max_mem_size();
 
 extern sys_var *Sys_autocommit_ptr;
@@ -505,5 +520,12 @@ const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 int sys_var_init();
 int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
+
+/* check needed privileges to perform SET PERSIST[_only] or RESET PERSIST */
+bool check_priv(THD *thd, bool static_variable);
+
+#define PERSIST_ONLY_ADMIN_X509_SUBJECT "persist_only_admin_x509_subject"
+#define PERSISTED_GLOBALS_LOAD "persisted_globals_load"
+extern char *sys_var_persist_only_admin_x509_subject;
 
 #endif

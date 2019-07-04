@@ -1,0 +1,6 @@
+!include suite/ndb/my.cnf
+
+[mysqld]
+# Turn on the new flag to allow PARTITION BY HASH
+new
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,7 @@
 
 namespace xpl {
 
-Mutex::Mutex(PSI_mutex_key key MY_ATTRIBUTE((unused))) {
-  mysql_mutex_init(key, &m_mutex, nullptr);
-}
+Mutex::Mutex(PSI_mutex_key key) { mysql_mutex_init(key, &m_mutex, nullptr); }
 Mutex::~Mutex() { mysql_mutex_destroy(&m_mutex); }
 
 Mutex::operator mysql_mutex_t *() { return &m_mutex; }

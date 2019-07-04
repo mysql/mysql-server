@@ -58,7 +58,7 @@ public:
    */
   virtual ~LogHandler();
 
-  virtual const char* handler_type() {return "NONE";};
+  virtual const char* handler_type() {return "NONE";}
 
   /**
    * Opens/initializes the log handler.
@@ -175,10 +175,10 @@ public:
    *
    * @param config where to store parameters
    */
-  virtual bool getParams(BaseString &config) {return false;};
+  virtual bool getParams(BaseString &config) {return false;}
 
-  virtual off_t getCurrentSize() {return -1;};
-  virtual off_t getMaxSize() {return -1;};
+  virtual off_t getCurrentSize() {return -1;}
+  virtual off_t getMaxSize() {return -1;}
 
   /** Max length of the header the log. */
   STATIC_CONST( MAX_HEADER_LENGTH = 128 );

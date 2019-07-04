@@ -1,0 +1,34 @@
+###############################################################################
+# WL#12920: Extend GRANT/REVOKE syntax to cover partial revokes information   #
+#                                                                             #
+# This file covers DDL tests convering GRANT syntax's extension to specify    #
+# user context through AS clause.                                             #
+#                                                                             #
+###############################################################################
+
+--source include/have_log_bin.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+# Set partial revokes to ON
+SET @start_partial_revokes = @@global.partial_revokes;
+SET @@global.partial_revokes=ON;
+
+--disable_query_log
+CALL mtr.add_suppression("one or more privileges granted through");
+CALL mtr.add_suppression("these are not valid database privileges");
+CALL mtr.add_suppression("corresponding global privilege(s) are not granted");
+--enable_query_log
+
+SET @@global.partial_revokes = ON;
+SELECT @@global.partial_revokes;
+
+--let $TEST_MODE = NORMAL
+--source ../../auth_sec/include/grant_as_ddl.inc
+
+# Toggle partial_revokes to its original value
+SET @@global.partial_revokes = @start_partial_revokes;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

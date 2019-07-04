@@ -1,6 +1,5 @@
 --source include/have_example_component.inc
 --source include/no_valgrind_without_big.inc
---source include/mysql_upgrade_preparation.inc
 
 --echo #
 --echo # Bug #24453571  SERVER CRASHES WHEN INSTALL COMPONENT IS ISSUED,
@@ -13,18 +12,6 @@
 
 CALL mtr.add_suppression("Table 'mysql.component' doesn't exis");
 CALL mtr.add_suppression("The mysql.component table is missing or has an incorrect definition.");
-# Basic test that we can run mysql_upgrde and that it finds the expected
-# binaries it uses.
---echo Run mysql_upgrade once
-# Filter out ndb_binlog_index to mask differences due to running with or without
-# ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
-
-# It should have created a file in the MySQL Servers datadir
-let $MYSQLD_DATADIR= `select @@datadir`;
-file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 --echo # Dropping component table.
 DROP TABLE mysql.component;
@@ -40,8 +27,10 @@ DROP TABLE mysql.component;
 --echo # running mysql_upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or without
 # ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
 --source include/have_example_component.inc
 INSTALL COMPONENT "file://component_example_component1";
 --echo # a component should present

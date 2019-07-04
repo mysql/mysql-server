@@ -20,7 +20,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.status_by_user
-where USER < "impossible";
+where USER < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	status_by_user	NULL	ALL	USER	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -54,7 +54,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select VARIABLE_VALUE
 from performance_schema.status_by_user
 where USER = "foo"
-and VARIABLE_NAME < "impossible";
+and VARIABLE_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	status_by_user	NULL	ref	USER	USER	129	const	#	33.33	Using where
 ############ Explain for Query ####################################

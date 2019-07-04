@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,7 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
 }
 
 char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
-                    const char *lib[]) {
+                    const char *lib[], bool quoted) {
   char buff[STRING_BUFFER_USUAL_SIZE * 8];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
   LEX_STRING unused;
@@ -275,7 +275,9 @@ char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 
   for (uint i = 0; set; i++, set >>= 1)
     if (set & 1) {
+      if (quoted) tmp.append('\'');
       tmp.append(lib[i]);
+      if (quoted) tmp.append('\'');
       tmp.append(',');
     }
 
@@ -287,6 +289,11 @@ char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
     result->length = 0;
   }
   return result->str;
+}
+
+char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                    const char *lib[]) {
+  return set_to_string(thd, result, set, lib, false);
 }
 
 char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
@@ -309,4 +316,27 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
   result->length = tmp.length() - 1;
 
   return result->str;
+}
+
+LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, const char *str,
+                                 size_t length) {
+  auto lex_str =
+      reinterpret_cast<LEX_STRING *>(alloc_root(mem_root, sizeof(LEX_STRING)));
+  if (lex_str == nullptr || lex_string_strmake(mem_root, lex_str, str, length))
+    return nullptr;
+  return lex_str;
+}
+
+bool lex_string_strmake(MEM_ROOT *mem_root, LEX_STRING *lex_str,
+                        const char *str, size_t length) {
+  if (!(lex_str->str = strmake_root(mem_root, str, length))) return true;
+  lex_str->length = length;
+  return false;
+}
+
+bool lex_string_strmake(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
+                        const char *str, size_t length) {
+  if (!(lex_str->str = strmake_root(mem_root, str, length))) return true;
+  lex_str->length = length;
+  return false;
 }

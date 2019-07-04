@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Function 'group_replication' already exists");
-call mtr.add_suppression("Couldn't load plugin named 'group_replication' with soname 'group_replication.so'.");
+call mtr.add_suppression("Couldn't load plugin named 'group_replication' with soname 'group_replication.*'");
 SET SESSION sql_log_bin=1;
 
 # 1. Uninstall and install Group Replication via inc file do not log error.

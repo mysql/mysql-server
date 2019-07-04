@@ -136,7 +136,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 preSendChecksum = 0;
     if(iter.get(CFG_CONNECTION_SEND_SIGNAL_ID, &sendSignalId)) continue;
     if(iter.get(CFG_CONNECTION_CHECKSUM, &checksum)) continue;
-    if(iter.get(CFG_CONNECTION_PRESEND_CHECKSUM, &preSendChecksum)) continue;
+    iter.get(CFG_CONNECTION_PRESEND_CHECKSUM, &preSendChecksum);
 
     Uint32 type = ~0;
     if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
@@ -195,9 +195,9 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_SHM_KEY, &conf.shm.shmKey)) break;
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shm.shmSize)) break;
 
-      if(iter.get(CFG_SHM_SPINTIME, &spintime)) break;
+      iter.get(CFG_SHM_SPINTIME, &spintime);
       conf.shm.shmSpintime= spintime;
-      if(iter.get(CFG_SHM_SEND_BUFFER_SIZE, &shm_send_buffer_size)) break;
+      iter.get(CFG_SHM_SEND_BUFFER_SIZE, &shm_send_buffer_size);
       conf.shm.sendBufferSize= shm_send_buffer_size;
 
       conf.type = tt_SHM_TRANSPORTER;

@@ -41,6 +41,14 @@ const Foreign_keys &Foreign_keys::instance() {
   return *s_instance;
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Foreign_keys::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Foreign_keys::Foreign_keys() {
   m_target_def.set_table_name("foreign_keys");
 
@@ -51,7 +59,8 @@ Foreign_keys::Foreign_keys() {
   m_target_def.add_field(FIELD_TABLE_ID, "FIELD_TABLE_ID",
                          "table_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(
       FIELD_UNIQUE_CONSTRAINT_NAME, "FIELD_UNIQUE_CONSTRAINT_NAME",
       "unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci");
@@ -107,7 +116,8 @@ Foreign_keys::Foreign_keys() {
 Object_key *Foreign_keys::create_key_by_foreign_key_name(
     Object_id schema_id, const String_type &foreign_key_name) {
   return new (std::nothrow)
-      Item_name_key(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, foreign_key_name);
+      Item_name_key(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, foreign_key_name,
+                    name_collation());
 }
 
 Object_key *Foreign_keys::create_key_by_table_id(Object_id table_id) {

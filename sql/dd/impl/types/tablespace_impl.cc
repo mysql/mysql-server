@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -85,42 +86,24 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
+static const std::set<String_type> default_valid_option_keys = {"encryption"};
+
+static const std::set<String_type> default_valid_se_private_data_keys = {
+    // NDB keys:
+    "object_id", "object_version", "object_type",
+    // InnoDB keys:
+    "flags", "id", "server_version", "space_version", "state"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Tablespace_impl::Tablespace_impl()
-    : m_options(new Properties_impl()),
-      m_se_private_data(new Properties_impl()),
+    : m_options(default_valid_option_keys),
+      m_se_private_data(default_valid_se_private_data_keys),
       m_files() {} /* purecov: tested */
 
 Tablespace_impl::~Tablespace_impl() {}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Tablespace_impl::set_options_raw(const String_type &options_raw) {
-  Properties *properties = Properties_impl::parse_properties(options_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_options.reset(properties);
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Tablespace_impl::set_se_private_data_raw(
-    const String_type &se_private_data_raw) {
-  Properties *properties =
-      Properties_impl::parse_properties(se_private_data_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_se_private_data.reset(properties);
-  return false;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -180,11 +163,9 @@ bool Tablespace_impl::restore_attributes(const Raw_record &r) {
 
   m_comment = r.read_str(Tablespaces::FIELD_COMMENT);
 
-  m_options.reset(Properties_impl::parse_properties(
-      r.read_str(Tablespaces::FIELD_OPTIONS)));
+  set_options(r.read_str(Tablespaces::FIELD_OPTIONS));
 
-  m_se_private_data.reset(Properties_impl::parse_properties(
-      r.read_str(Tablespaces::FIELD_SE_PRIVATE_DATA)));
+  set_se_private_data(r.read_str(Tablespaces::FIELD_SE_PRIVATE_DATA));
 
   m_engine = r.read_str(Tablespaces::FIELD_ENGINE);
 
@@ -194,11 +175,18 @@ bool Tablespace_impl::restore_attributes(const Raw_record &r) {
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_impl::store_attributes(Raw_record *r) {
+#ifndef DBUG_OFF
+  if (my_strcasecmp(system_charset_info, "InnoDB", m_engine.c_str()) == 0) {
+    DBUG_ASSERT(m_options.exists("encryption"));
+  } else {
+    DBUG_ASSERT(!m_options.exists("encryption"));
+  }
+#endif
   return store_id(r, Tablespaces::FIELD_ID) ||
          store_name(r, Tablespaces::FIELD_NAME) ||
          r->store(Tablespaces::FIELD_COMMENT, m_comment) ||
-         r->store(Tablespaces::FIELD_OPTIONS, *m_options) ||
-         r->store(Tablespaces::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
+         r->store(Tablespaces::FIELD_OPTIONS, m_options) ||
+         r->store(Tablespaces::FIELD_SE_PRIVATE_DATA, m_se_private_data) ||
          r->store(Tablespaces::FIELD_ENGINE, m_engine);
 }
 
@@ -276,8 +264,8 @@ void Tablespace_impl::debug_print(String_type &outb) const {
      << "id: {OID: " << id() << "}; "
      << "m_name: " << name() << "; "
      << "m_comment: " << m_comment << "; "
-     << "m_options " << m_options->raw_string() << "; "
-     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
+     << "m_options " << m_options.raw_string() << "; "
+     << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_engine: " << m_engine << "; "
      << "m_files: " << m_files.size() << " [ ";
 
@@ -333,9 +321,8 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
     : Weak_object(src),
       Entity_object_impl(src),
       m_comment(src.m_comment),
-      m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
-      m_se_private_data(Properties_impl::parse_properties(
-          src.m_se_private_data->raw_string())),
+      m_options(src.m_options),
+      m_se_private_data(src.m_se_private_data),
       m_engine(src.m_engine),
       m_files() {
   m_files.deep_copy(src.m_files, this);
@@ -507,6 +494,12 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
     if (select_clos_where_key_matches(
             [&tref](Raw_record *r) {
               tref.m_schema_name = r->read_str(Schemata::FIELD_NAME);
+              tref.m_schema_encryption =
+                  static_cast<enum_encryption_type>(
+                      r->read_int(Schemata::FIELD_DEFAULT_ENCRYPTION)) ==
+                          enum_encryption_type::ET_YES
+                      ? true
+                      : false;
               return false;
             },
             trx.otx.get_table<Schema>(),
@@ -519,7 +512,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
   return false;
 }
 
-MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref) {
+MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref,
+                     enum enum_mdl_type mdl_type) {
   MDL_request *r = new (thd->mem_root) MDL_request;
 
   if (lower_case_table_names == 2) {
@@ -528,11 +522,27 @@ MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref) {
     dd::String_type lc_name =
         casedn(Object_table_definition_impl::fs_name_collation(), tref.m_name);
     MDL_REQUEST_INIT(r, MDL_key::TABLE, lc_schema_name.c_str(), lc_name.c_str(),
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+                     mdl_type, MDL_TRANSACTION);
   } else {
     MDL_REQUEST_INIT(r, MDL_key::TABLE, tref.m_schema_name.c_str(),
-                     tref.m_name.c_str(), MDL_EXCLUSIVE, MDL_TRANSACTION);
+                     tref.m_name.c_str(), mdl_type, MDL_TRANSACTION);
   }
   return r;
 }
+
+MDL_request *mdl_schema_req(THD *thd, const dd::String_type &schema_name) {
+  MDL_request *r = new (thd->mem_root) MDL_request;
+
+  if (lower_case_table_names == 2) {
+    dd::String_type lc_schema_name =
+        casedn(Object_table_definition_impl::fs_name_collation(), schema_name);
+    MDL_REQUEST_INIT(r, MDL_key::SCHEMA, lc_schema_name.c_str(), "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  } else {
+    MDL_REQUEST_INIT(r, MDL_key::SCHEMA, schema_name.c_str(), "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  }
+  return r;
+}
+
 }  // namespace dd

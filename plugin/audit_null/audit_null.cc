@@ -32,6 +32,8 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "thr_mutex.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {
@@ -106,6 +108,11 @@ LEX_CSTRING event_names[][6] = {
         {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE")},
         {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME")},
         {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP")},
+    },
+    /** MYSQL_AUDIT_MESSAGE_CLASS */
+    {
+        {C_STRING_WITH_LEN("MYSQL_AUDIT_MESSAGE_INTERNAL")},
+        {C_STRING_WITH_LEN("MYSQL_AUDIT_MESSAGE_USER")},
     }};
 
 static volatile int number_of_calls;
@@ -638,6 +645,56 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
       default:
         break;
     }
+  } else if (event_class == MYSQL_AUDIT_MESSAGE_CLASS) {
+    const struct mysql_event_message *evt =
+        reinterpret_cast<const struct mysql_event_message *>(event);
+
+    buffer_data +=
+        snprintf(buffer, sizeof(buffer) - 1,
+                 "component=\"%.*s\" producer=\"%.*s\" message=\"%.*s\"",
+                 static_cast<int>(evt->component.length), evt->component.str,
+                 static_cast<int>(evt->producer.length), evt->producer.str,
+                 static_cast<int>(evt->message.length), evt->message.str);
+
+    for (size_t i = 0; i < evt->key_value_map_length; ++i) {
+      if (evt->key_value_map[i].value_type ==
+              MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR &&
+          evt->key_value_map[i].value.str.str == nullptr)
+        buffer_data +=
+            snprintf(buffer + buffer_data, sizeof(buffer) - buffer_data - 1,
+                     " key[%zu]=\"%.*s\" value[%zu]=null", i,
+                     static_cast<int>(evt->key_value_map[i].key.length),
+                     evt->key_value_map[i].key.str, i);
+      else if (evt->key_value_map[i].value_type ==
+               MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR)
+        buffer_data +=
+            snprintf(buffer + buffer_data, sizeof(buffer) - buffer_data - 1,
+                     " key[%zu]=\"%.*s\" value[%zu]=\"%.*s\"", i,
+                     static_cast<int>(evt->key_value_map[i].key.length),
+                     evt->key_value_map[i].key.str, i,
+                     static_cast<int>(evt->key_value_map[i].value.str.length),
+                     evt->key_value_map[i].value.str.str);
+      else if (evt->key_value_map[i].value_type ==
+               MYSQL_AUDIT_MESSAGE_VALUE_TYPE_NUM)
+        buffer_data += snprintf(
+            buffer + buffer_data, sizeof(buffer) - buffer_data - 1,
+            " key[%zu]=\"%.*s\" value[%zu]=%lld", i,
+            static_cast<int>(evt->key_value_map[i].key.length),
+            evt->key_value_map[i].key.str, i, evt->key_value_map[i].value.num);
+    }
+
+    buffer[buffer_data] = '\0';
+
+    switch (evt->event_subclass) {
+      case MYSQL_AUDIT_MESSAGE_INTERNAL:
+        number_of_calls_message_internal++;
+        break;
+      case MYSQL_AUDIT_MESSAGE_USER:
+        number_of_calls_message_user++;
+        break;
+      default:
+        break;
+    }
   }
 
   process_event_record(thd, event_name, buffer, buffer_data);
@@ -756,7 +813,8 @@ static struct st_mysql_audit audit_null_descriptor = {
      (unsigned long)MYSQL_AUDIT_COMMAND_ALL,
      (unsigned long)MYSQL_AUDIT_QUERY_ALL,
      (unsigned long)MYSQL_AUDIT_STORED_PROGRAM_ALL,
-     (unsigned long)MYSQL_AUDIT_AUTHENTICATION_ALL}};
+     (unsigned long)MYSQL_AUDIT_AUTHENTICATION_ALL,
+     (unsigned long)MYSQL_AUDIT_MESSAGE_ALL}};
 
 static SYS_VAR *system_variables[] = {
 

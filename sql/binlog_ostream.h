@@ -1,22 +1,31 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef BINLOG_OSTREAM_INCLUDED
 #define BINLOG_OSTREAM_INCLUDED
 
+#include <openssl/evp.h>
 #include "sql/basic_ostream.h"
+#include "sql/rpl_log_encryption.h"
 
 /**
    Copy data from an input stream to an output stream.
@@ -57,7 +66,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   IO_CACHE_binlog_cache_storage &operator=(
       const IO_CACHE_binlog_cache_storage &) = delete;
   IO_CACHE_binlog_cache_storage(const IO_CACHE_binlog_cache_storage &) = delete;
-  ~IO_CACHE_binlog_cache_storage();
+  ~IO_CACHE_binlog_cache_storage() override;
 
   /**
      Opens the binlog cache. It creates a memory buffer as long as cache_size.
@@ -119,6 +128,8 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool next(unsigned char **buffer, my_off_t *length);
   my_off_t length() const;
+  bool flush() override { return false; }
+  bool sync() override { return false; }
 
  private:
   IO_CACHE m_io_cache;
@@ -132,7 +143,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
 */
 class Binlog_cache_storage : public Basic_ostream {
  public:
-  ~Binlog_cache_storage();
+  ~Binlog_cache_storage() override;
 
   bool open(my_off_t cache_size, my_off_t max_cache_size);
   void close();
@@ -196,4 +207,67 @@ class Binlog_cache_storage : public Basic_ostream {
   IO_CACHE_binlog_cache_storage m_file;
 };
 
+/**
+  It is an Truncatable_ostream which provides encryption feature. It can be
+  setup into an stream pipeline. In the pipeline, it encrypts the data
+  from up stream and then feeds the encrypted data into down stream.
+*/
+class Binlog_encryption_ostream : public Truncatable_ostream {
+ public:
+  ~Binlog_encryption_ostream() override;
+
+  /**
+    Initialize the context used in the encryption stream and write encryption
+    header into down stream.
+
+    @param[in] down_ostream The stream for storing encrypted data.
+
+    @retval false Success
+    @retval true Error.
+  */
+  bool open(std::unique_ptr<Truncatable_ostream> down_ostream);
+
+  /**
+    Initialize the context used in the encryption stream based on the
+    header passed as parameter. It shall be used when opening an ostream for
+    a stream that was already encrypted (the cypher password already exists).
+
+    @param[in] down_ostream the stream for storing encrypted data.
+    @param[in] header the encryption header to setup the cypher.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool open(std::unique_ptr<Truncatable_ostream> down_ostream,
+            std::unique_ptr<Rpl_encryption_header> header);
+
+  /**
+    Re-encrypt the encrypted binary/relay log file header by replacing its
+    binlog encryption key id with the current one and its encrypted file
+    password with the new one, which is got by encrypting its file password
+    with the current binlog encryption key.
+
+    @retval false Success with an empty error message.
+    @retval true Error with an error message.
+  */
+  std::pair<bool, std::string> reencrypt();
+
+  void close();
+  bool write(const unsigned char *buffer, my_off_t length) override;
+  bool truncate(my_off_t offset) override;
+  bool seek(my_off_t offset) override;
+  bool flush() override;
+  bool sync() override;
+  /**
+    Return the encrypted file header size.
+
+    @return the encrypted file header size.
+  */
+  int get_header_size();
+
+ private:
+  std::unique_ptr<Truncatable_ostream> m_down_ostream;
+  std::unique_ptr<Rpl_encryption_header> m_header;
+  std::unique_ptr<Rpl_cipher> m_encryptor;
+};
 #endif  // BINLOG_OSTREAM_INCLUDED

@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# 1. Create user with SYSTEM_VARIABLES_ADMIN privilege to allow change
+#    globals variables
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'group_rpl_user';
+
+# 2. Connect to server using group_rpl_user
+[connection con_group_rpl_user]
+
+# 3. Set group_replication_consistency at a global scope shall fail due
+#    to lack of privileges
+SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or GROUP_REPLICATION_ADMIN privilege(s) for this operation
+
+# 4. Set group_replication_consistency at a session scope shall succeed,
+#    do not need extra privileges
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+# 5. Grant GROUP_REPLICATION_ADMIN privileges to group_rpl_user
+[connection default]
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user';
+
+# 6. Set group_replication_consistency at a global scope shall succeed
+[connection con_group_rpl_user]
+SET @@GLOBAL.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+
+# 7. Cleanup
+[connection default]
+SET @@GLOBAL.group_replication_consistency= DEFAULT;
+DROP USER group_rpl_user;
+include/group_replication_end.inc

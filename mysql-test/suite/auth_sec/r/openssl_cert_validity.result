@@ -1,4 +1,4 @@
 #
 # Bug#20923066 SSL AND RSA KEY MATERIAL EXPIRATION SHOULD BE EXTENDED
 #
-Validity of certificate : 10 years
+Validity of certificate: 10 years

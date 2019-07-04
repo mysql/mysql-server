@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select TOTAL_CONNECTIONS
 from performance_schema.hosts
-where HOST < "impossible";
+where HOST < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	hosts	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "my_byteorder.h"
 #include "my_shm_defaults.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"

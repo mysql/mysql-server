@@ -29,16 +29,40 @@
 class HTTP_CLIENT_EXPORT RestClient {
  public:
   RestClient(IOContext &io_ctx, const std::string &address, uint16_t port)
-      : http_client_{io_ctx, address, port}, hostname_{address} {}
+      : http_client_{std::unique_ptr<HttpClient>{
+            new HttpClient(io_ctx, address, port)}} {}
+
+  RestClient(IOContext &io_ctx, const std::string &address, uint16_t port,
+             const std::string &username, const std::string &password)
+      : username_{username},
+        password_{password},
+        http_client_{std::unique_ptr<HttpClient>{
+            new HttpClient(io_ctx, address, port)}} {}
+
+  RestClient(IOContext &io_ctx, const HttpUri &u, const std::string &username,
+             const std::string &password)
+      : username_{username},
+        password_{password},
+        http_client_{std::unique_ptr<HttpClient>{
+            new HttpClient(io_ctx, u.get_host(), u.get_port())}} {}
+
+  // build a RestClient around an existing HttpClient object that's consumed
+  RestClient(std::unique_ptr<HttpClient> &&http_client)
+      : http_client_{std::move(http_client)} {}
 
   HttpRequest request_sync(
       HttpMethod::type method, const std::string &uri,
       const std::string &request_body = {},
       const std::string &content_type = "application/json");
 
+  operator bool() const { return http_client_->operator bool(); }
+
+  std::string error_msg() const { return http_client_->error_msg(); }
+
  private:
-  HttpClient http_client_;
-  std::string hostname_;
+  std::string username_;
+  std::string password_;
+  std::unique_ptr<HttpClient> http_client_;
 };
 
 #endif

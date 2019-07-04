@@ -48,6 +48,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/dd/dd_schema.h"  // dd::Schema_MDL_locker
+#include "sql/dd/types/event.h"
 #include "sql/event_data_objects.h"
 #include "sql/event_db_repository.h"
 #include "sql/event_queue.h"
@@ -163,9 +164,10 @@ void Event_worker_thread::print_warnings(THD *thd, Event_job_data *et) {
 */
 
 bool post_init_event_thread(THD *thd) {
-  if (my_thread_init() || thd->store_globals()) {
+  if (my_thread_init()) {
     return true;
   }
+  thd->store_globals();
 
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
@@ -352,18 +354,15 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
     thd is deleted.
   */
   {
-    MDL_request event_mdl_request;
-    char event_name_buf[NAME_LEN + 1];
-
     dd::Schema_MDL_locker mdl_handler(thd);
     if (mdl_handler.ensure_locked(event->dbname.str)) goto end;
 
-    // convert event name to lower case before acquiring MDL lock.
-    convert_name_lowercase(event->name.str, event_name_buf,
-                           sizeof(event_name_buf));
+    MDL_key mdl_key;
+    dd::Event::create_mdl_key(event->dbname.str, event->name.str, &mdl_key);
 
-    MDL_REQUEST_INIT(&event_mdl_request, MDL_key::EVENT, event->dbname.str,
-                     event_name_buf, MDL_SHARED, MDL_EXPLICIT);
+    MDL_request event_mdl_request;
+    MDL_REQUEST_INIT_BY_KEY(&event_mdl_request, &mdl_key, MDL_SHARED,
+                            MDL_EXPLICIT);
     if (thd->mdl_context.acquire_lock(&event_mdl_request,
                                       thd->variables.lock_wait_timeout)) {
       DBUG_PRINT("error", ("Got error in getting MDL locks"));
@@ -448,7 +447,6 @@ bool Event_scheduler::start(int *err_no) {
   bool ret = false;
   my_thread_handle th;
   struct scheduler_param *scheduler_param_value;
-  ulong master_access;
   DBUG_ENTER("Event_scheduler::start");
 
   LOCK_DATA();
@@ -476,11 +474,15 @@ bool Event_scheduler::start(int *err_no) {
     We should run the event scheduler thread under the super-user privileges.
     In particular, this is needed to be able to lock the mysql.events table
     for writing when the server is running in the read-only mode.
-
     Same goes for transaction access mode. Set it to read-write for this thd.
+
+    In case the definer has SYSTEM_USER privileges then event scheduler thread
+    can drop the event only if the same privilege is granted to it.
+    Therefore, assign all privileges to this thread.
   */
-  master_access = new_thd->security_context()->master_access();
-  new_thd->security_context()->set_master_access(master_access | SUPER_ACL);
+  new_thd->security_context()->skip_grants();
+  new_thd->security_context()->set_host_or_ip_ptr((char *)my_localhost,
+                                                  strlen(my_localhost));
   new_thd->variables.transaction_read_only = false;
   new_thd->tx_read_only = false;
 

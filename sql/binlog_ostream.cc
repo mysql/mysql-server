@@ -1,24 +1,34 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/binlog_ostream.h"
+#include <algorithm>
+#include "my_aes.h"
 #include "my_inttypes.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysqld_error.h"
 #include "sql/mysqld.h"
+#include "sql/rpl_log_encryption.h"
 #include "sql/sql_class.h"
 
 IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() {}
@@ -136,3 +146,149 @@ void Binlog_cache_storage::close() {
 }
 
 Binlog_cache_storage::~Binlog_cache_storage() { close(); }
+
+Binlog_encryption_ostream::~Binlog_encryption_ostream() { close(); }
+
+#define THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR                        \
+  char err_msg[MYSQL_ERRMSG_SIZE];                                          \
+  ERR_error_string_n(ERR_get_error(), err_msg, MYSQL_ERRMSG_SIZE);          \
+  LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT, err_msg); \
+  if (current_thd) {                                                        \
+    if (current_thd->is_error()) current_thd->clear_error();                \
+    my_error(ER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT, MYF(0), err_msg);         \
+  }
+
+bool Binlog_encryption_ostream::open(
+    std::unique_ptr<Truncatable_ostream> down_ostream) {
+  DBUG_ASSERT(down_ostream != nullptr);
+  m_header = Rpl_encryption_header::get_new_default_header();
+  const Key_string password_str = m_header->generate_new_file_password();
+  if (password_str.empty()) return true;
+  m_encryptor.reset(nullptr);
+  m_encryptor = m_header->get_encryptor();
+  if (m_encryptor->open(password_str, m_header->get_header_size())) {
+    THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR;
+    m_encryptor.reset(nullptr);
+    return true;
+  }
+  m_down_ostream = std::move(down_ostream);
+  return m_header->serialize(m_down_ostream.get());
+}
+
+bool Binlog_encryption_ostream::open(
+    std::unique_ptr<Truncatable_ostream> down_ostream,
+    std::unique_ptr<Rpl_encryption_header> header) {
+  DBUG_ASSERT(down_ostream != nullptr);
+
+  m_down_ostream = std::move(down_ostream);
+  m_header = std::move(header);
+  m_encryptor.reset(nullptr);
+  m_encryptor = m_header->get_encryptor();
+  if (m_encryptor->open(m_header->decrypt_file_password(),
+                        m_header->get_header_size())) {
+    THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR;
+    m_encryptor.reset(nullptr);
+    return true;
+  }
+
+  return seek(0);
+}
+
+std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
+  DBUG_ENTER("Binlog_encryption_ostream::reencrypt");
+  DBUG_ASSERT(m_header != nullptr);
+  DBUG_ASSERT(m_down_ostream != nullptr);
+  std::string error_message;
+
+  /* Get the file password */
+  Key_string password_str = m_header->decrypt_file_password();
+  if (password_str.empty() ||
+      DBUG_EVALUATE_IF("fail_to_decrypt_file_password", true, false)) {
+    error_message.assign("failed to decrypt the file password");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (m_down_ostream->seek(0) ||
+      DBUG_EVALUATE_IF("fail_to_reset_file_stream", true, false)) {
+    error_message.assign("failed to reset the file out stream");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  m_header.reset(nullptr);
+  m_header = Rpl_encryption_header::get_new_default_header();
+  if (m_header->encrypt_file_password(password_str) ||
+      DBUG_EVALUATE_IF("fail_to_encrypt_file_password", true, false)) {
+    error_message.assign(
+        "failed to encrypt the file password with current encryption key");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (m_header->serialize(m_down_ostream.get()) ||
+      DBUG_EVALUATE_IF("fail_to_write_reencrypted_header", true, false)) {
+    error_message.assign("failed to write the new reencrypted file header");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (flush() ||
+      DBUG_EVALUATE_IF("fail_to_flush_reencrypted_header", true, false)) {
+    error_message.assign("failed to flush the new reencrypted file header");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (sync() ||
+      DBUG_EVALUATE_IF("fail_to_sync_reencrypted_header", true, false)) {
+    error_message.assign(
+        "failed to synchronize the new reencrypted file header");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  close();
+
+  DBUG_RETURN(std::make_pair(false, error_message));
+}
+
+void Binlog_encryption_ostream::close() {
+  m_encryptor.reset(nullptr);
+  m_header.reset(nullptr);
+  m_down_ostream.reset(nullptr);
+}
+
+bool Binlog_encryption_ostream::write(const unsigned char *buffer,
+                                      my_off_t length) {
+  const int ENCRYPT_BUFFER_SIZE = 2048;
+  unsigned char encrypt_buffer[ENCRYPT_BUFFER_SIZE];
+  const unsigned char *ptr = buffer;
+
+  /*
+    Split the data in 'buffer' to ENCRYPT_BUFFER_SIZE bytes chunks and
+    encrypt them one by one.
+  */
+  while (length > 0) {
+    int encrypt_len =
+        std::min(length, static_cast<my_off_t>(ENCRYPT_BUFFER_SIZE));
+
+    if (m_encryptor->encrypt(encrypt_buffer, ptr, encrypt_len)) {
+      THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR;
+      return true;
+    }
+
+    if (m_down_ostream->write(encrypt_buffer, encrypt_len)) return true;
+
+    ptr += encrypt_len;
+    length -= encrypt_len;
+  }
+  return false;
+}
+
+bool Binlog_encryption_ostream::seek(my_off_t offset) {
+  if (m_down_ostream->seek(m_header->get_header_size() + offset)) return true;
+  return m_encryptor->set_stream_offset(offset);
+}
+
+bool Binlog_encryption_ostream::truncate(my_off_t offset) {
+  if (m_down_ostream->truncate(m_header->get_header_size() + offset))
+    return true;
+  return m_encryptor->set_stream_offset(offset);
+}
+
+bool Binlog_encryption_ostream::flush() { return m_down_ostream->flush(); }
+
+bool Binlog_encryption_ostream::sync() { return m_down_ostream->sync(); }
+
+int Binlog_encryption_ostream::get_header_size() {
+  return m_header->get_header_size();
+}

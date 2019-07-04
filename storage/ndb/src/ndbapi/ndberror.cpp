@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,6 +203,7 @@ ErrorBundle ErrorCodes[] = {
   { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
   { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
   { 21033, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - No parent row found" },
+  { 21034, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed" },
   /* DropFKRef + DropFKImplRef */
   { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
   { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
@@ -286,6 +287,7 @@ ErrorBundle ErrorCodes[] = {
   { 899,  DMEC, TR, "Rowid already allocated" },
   { 921,  DMEC, TR, "Out of transaction memory in local data manager, copy tuples (increase SharedGlobalMemory)" },
   { 922,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
+  { 923,  DMEC, TR, "Out of UNDO buffer memory (increase UNDO_BUFFER_SIZE)" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
@@ -563,6 +565,8 @@ ErrorBundle ErrorCodes[] = {
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
   { 909,  DMEC, IE, "No free index scan op" },
   { 910, HA_ERR_NO_SUCH_TABLE, SE, "Index is being dropped" },
+  { 911,  DMEC, SE, "Index stat scan requested on index with unsupported key size" },
+  { 912,  DMEC, AE, "Index stat scan requested with wrong lock mode" },
   { 913,  DMEC, AE, "Invalid index for index stats update" },
   { 914,  DMEC, IE, "Invalid index stats request" },
   { 915,  DMEC, TR, "No free index stats op" },
@@ -594,6 +598,7 @@ ErrorBundle ErrorCodes[] = {
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   { 1516, DMEC, SE, "File too small" },
+  { 1517, DMEC, SE, "Insufficient disk page buffer memory. Increase DiskPageBufferMemory or reduce data file size." },
 
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },

@@ -127,7 +127,7 @@ CREATE TABLE t1(i INT) ENGINE=MYISAM;
 # Use perl to patch sdi_version in SDI file
 # Copy SDI file back into data dir
 IMPORT TABLE FROM 't1_.sdi';
-ERROR HY000: Imported sdi version (42) is not compatible with current (1)
+Got one of the listed errors
 DROP TABLE t1;
 #
 # IM-NEG-8 Verify that CREATE and FILE privileges are required
@@ -221,7 +221,6 @@ DROP TABLE t2;
 # Check that the view is now invalid.
 CHECK TABLE v2;
 Table	Op	Msg_type	Msg_text
-test.v2	check	Error	Table 'test.t2' doesn't exist
 test.v2	check	Error	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v2	check	error	Corrupt
 # Copy files back into datadir
@@ -497,7 +496,21 @@ DROP TABLE t1;
 # Copy files back into datadir
 SET SESSION sql_require_primary_key= ON;
 IMPORT TABLE FROM 't1_*.sdi';
-ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
 SET SESSION sql_require_primary_key= OFF;
 # Clean SDI files in $EXPORT_DIR
+#-----------------------------------------------------------------------
+# WL#929 - Check constraint.
+# Test case to verify check constraint import from SDI.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10)) ENGINE=MyISAM;
+DROP TABLE t1;
+IMPORT TABLE FROM 'test/t1*.sdi';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
 # Remove 'export' folder created at the beginning of test file.

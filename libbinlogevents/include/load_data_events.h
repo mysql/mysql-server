@@ -232,8 +232,8 @@ class Delete_file_event : public Binary_log_event {
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &){};
-  void print_long_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 };
 
@@ -337,8 +337,8 @@ class Append_block_event : public Binary_log_event {
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &){};
-  void print_long_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 };
 
@@ -385,8 +385,8 @@ class Begin_load_query_event : public virtual Append_block_event {
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &){};
-  void print_long_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 };
 }  // end namespace binary_log

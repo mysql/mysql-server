@@ -119,7 +119,8 @@ static const char *handler_error_messages[] = {
     "Row format changed in storage engine",
     "Do not wait for lock",
     "No more room in disk",
-    "No session temporary tablespace available"};
+    "No session temporary tablespace available",
+    "Invalid table name"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

@@ -53,7 +53,7 @@ call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is execute
 call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
-call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression(".*The system table mysql.global_grants is missing.*");
 call mtr.add_suppression("ACL table mysql.[a-z_]* missing. Some operations may fail.");
 call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_master_info' cannot be opened");
 call mtr.add_suppression("Error in checking mysql.slave_master_info repository info type of TABLE");
@@ -87,15 +87,11 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 --exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $wait_counter= 10000
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SHOW CREATE TABLE partitions.t1;
-
---echo # Execute mysql_upgrade
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
 
 --echo #files in mysql schema
 --replace_regex /_[0-9]+\.sdi/_XXX.sdi/

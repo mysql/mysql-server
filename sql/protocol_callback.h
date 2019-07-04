@@ -85,7 +85,7 @@ class Protocol_callback : public Protocol {
       false  success
       true   failure
   */
-  virtual enum enum_protocol_type type() { return PROTOCOL_PLUGIN; }
+  virtual enum enum_protocol_type type() const { return PROTOCOL_PLUGIN; }
 
   /**
     Returns the type of the connection
@@ -93,7 +93,7 @@ class Protocol_callback : public Protocol {
     @return
       enum enum_vio_type
   */
-  virtual enum enum_vio_type connection_type();
+  virtual enum enum_vio_type connection_type() const;
 
   /**
     Sends null value
@@ -300,7 +300,7 @@ class Protocol_callback : public Protocol {
     @return
       true   alive
   */
-  virtual bool connection_alive();
+  virtual bool connection_alive() const;
 
   /**
     Should return protocol's reading/writing status. Returns 0 (idle) as it
@@ -410,6 +410,23 @@ class Protocol_callback : public Protocol {
   virtual bool flush();
 
  private:
+  /**
+    Set output parameters to variables bound at PS execution.
+
+    This method handles the case when preparing and executing was done
+    through SQL (not by COM_STMT_PREPARE/COM_STMT_EXECUTE) in which
+    output parameters are not going to be send to client (or
+    'st_command_service_cbs'), instead they will set concrete session
+    variables.
+
+    @param parameters  List of PS/SP parameters (both input and output).
+
+    @return
+      false  success
+      true   failure
+  */
+  bool set_variables_from_parameters(List<Item_param> *parameters);
+
   void *callbacks_ctx;
   struct st_command_service_cbs callbacks;
   unsigned long client_capabilities;

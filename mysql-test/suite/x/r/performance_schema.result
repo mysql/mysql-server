@@ -1,6 +1,6 @@
 
-14 rows affected
-Rows matched: 14  Changed: 0  Warnings: 0
+34 rows affected
+Rows matched: 34  Changed: 0  Warnings: 0
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
@@ -22,14 +22,30 @@ thread/mysqlx/acceptor_network
 thread/mysqlx/worker
 0 rows affected
 name
+wait/synch/mutex/mysqlx/broker_context_sync
+wait/synch/mutex/mysqlx/client_session_exit
 wait/synch/mutex/mysqlx/document_id_generate
+wait/synch/mutex/mysqlx/listener_tcp_sync
 wait/synch/mutex/mysqlx/lock_list_access
+wait/synch/mutex/mysqlx/notice_output_queue
+wait/synch/mutex/mysqlx/page_pool
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
+wait/synch/mutex/mysqlx/scheduler_post
+wait/synch/mutex/mysqlx/server_client_exit
+wait/synch/mutex/mysqlx/server_state_sync
+wait/synch/mutex/mysqlx/socket_acceptors_sync
+wait/synch/mutex/mysqlx/socket_events_timers
+wait/synch/mutex/mysqlx/vio_shutdown
+wait/synch/mutex/mysqlx/xpl_server_accepting
 0 rows affected
 name
+wait/synch/cond/mysqlx/broker_context_sync
+wait/synch/cond/mysqlx/listener_tcp_sync
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit
 wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
+wait/synch/cond/mysqlx/server_state_sync
+wait/synch/cond/mysqlx/socket_acceptors_sync
 0 rows affected
 name
 wait/synch/rwlock/mysqlx/client_list_clients
@@ -40,12 +56,29 @@ wait/synch/mutex/mysqlx/lock_list_access	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
 wait/synch/mutex/mysqlx/document_id_generate	YES	NO		0	null
+wait/synch/mutex/mysqlx/notice_output_queue	YES	NO		0	null
+wait/synch/mutex/mysqlx/xpl_server_accepting	YES	NO		0	null
+wait/synch/mutex/mysqlx/client_session_exit	YES	NO		0	null
+wait/synch/mutex/mysqlx/socket_events_timers	YES	NO		0	null
+wait/synch/mutex/mysqlx/scheduler_post	YES	NO		0	null
+wait/synch/mutex/mysqlx/server_client_exit	YES	NO		0	null
+wait/synch/mutex/mysqlx/vio_shutdown	YES	NO		0	null
+wait/synch/mutex/mysqlx/page_pool	YES	NO		0	null
+wait/synch/mutex/mysqlx/listener_tcp_sync	YES	NO		0	null
+wait/synch/mutex/mysqlx/broker_context_sync	YES	NO		0	null
+wait/synch/mutex/mysqlx/server_state_sync	YES	NO		0	null
+wait/synch/mutex/mysqlx/socket_acceptors_sync	YES	NO		0	null
 wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		0	null
 wait/synch/rwlock/mysqlx/sha256_password_cache	YES	NO		0	null
+wait/synch/rwlock/mysqlx/xpl_server_instance	YES	NO		0	null
 wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
+wait/synch/cond/mysqlx/listener_tcp_sync	YES	NO		0	null
+wait/synch/cond/mysqlx/broker_context_sync	YES	NO		0	null
+wait/synch/cond/mysqlx/server_state_sync	YES	NO		0	null
+wait/synch/cond/mysqlx/socket_acceptors_sync	YES	NO		0	null
 wait/io/socket/mysqlx/tcpip_socket	YES	NO		0	null
-wait/io/socket/mysqlx/unix_socket	YES	NO		0	null
+wait/io/socket/mysqlx/diagnostics_socket	YES	NO		0	null
 wait/io/socket/mysqlx/client_connection	YES	NO		0	null
 memory/mysqlx/objects	YES	null	global_statistics	0	null
 memory/mysqlx/recv_buffer	YES	null	global_statistics	0	null
@@ -260,14 +293,30 @@ thread/mysqlx/acceptor_network
 thread/mysqlx/worker
 command ok
 name
+wait/synch/mutex/mysqlx/broker_context_sync
+wait/synch/mutex/mysqlx/client_session_exit
 wait/synch/mutex/mysqlx/document_id_generate
+wait/synch/mutex/mysqlx/listener_tcp_sync
 wait/synch/mutex/mysqlx/lock_list_access
+wait/synch/mutex/mysqlx/notice_output_queue
+wait/synch/mutex/mysqlx/page_pool
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
+wait/synch/mutex/mysqlx/scheduler_post
+wait/synch/mutex/mysqlx/server_client_exit
+wait/synch/mutex/mysqlx/server_state_sync
+wait/synch/mutex/mysqlx/socket_acceptors_sync
+wait/synch/mutex/mysqlx/socket_events_timers
+wait/synch/mutex/mysqlx/vio_shutdown
+wait/synch/mutex/mysqlx/xpl_server_accepting
 command ok
 name
+wait/synch/cond/mysqlx/broker_context_sync
+wait/synch/cond/mysqlx/listener_tcp_sync
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit
 wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
+wait/synch/cond/mysqlx/server_state_sync
+wait/synch/cond/mysqlx/socket_acceptors_sync
 command ok
 name
 wait/synch/rwlock/mysqlx/client_list_clients
@@ -283,6 +332,7 @@ wait/io/socket/mysqlx/tcpip_socket
 command ok
 event_name
 wait/io/socket/mysqlx/client_connection
+wait/io/socket/mysqlx/diagnostics_socket
 wait/io/socket/mysqlx/tcpip_socket
 command ok
 event_name

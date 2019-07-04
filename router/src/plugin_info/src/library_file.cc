@@ -24,6 +24,10 @@
 
 #include "library_file.h"
 
+#include "my_config.h"
+
+#include <stdexcept>
+
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <unistd.h>
@@ -46,6 +50,12 @@
 #endif
 
 #if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__ == 1
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
+// dlopen/dlclose work differently on Alpine
+#if defined(LINUX_ALPINE)
 #undef USE_DLCLOSE
 #define USE_DLCLOSE 0
 #endif

@@ -61,12 +61,24 @@ class HARNESS_EXPORT Handler {
    */
   static constexpr const char *kDefaultName = nullptr;
 
+  explicit Handler() = default;
+  explicit Handler(const Handler &) = default;
+  Handler &operator=(const Handler &) = default;
+
   virtual ~Handler() = default;
 
   void handle(const Record &record);
 
   void set_level(LogLevel level) { level_ = level; }
   LogLevel get_level() const { return level_; }
+
+  /**
+   * Request to reopen underlying log sink. Should be no-op for handlers NOT
+   * writing to a file. Useful for log rotation, when the logger got the
+   * singal with the request to reopen the file.
+   *
+   */
+  virtual void reopen() = 0;
 
  protected:
   std::string format(const Record &record) const;
@@ -114,6 +126,9 @@ class HARNESS_EXPORT StreamHandler : public Handler {
   explicit StreamHandler(std::ostream &stream, bool format_messages = true,
                          LogLevel level = LogLevel::kNotSet);
 
+  // for the stream handler there is nothing to do
+  void reopen() override {}
+
  protected:
   std::ostream &stream_;
   std::mutex stream_mutex_;
@@ -137,9 +152,14 @@ class HARNESS_EXPORT FileHandler : public StreamHandler {
 
   explicit FileHandler(const Path &path, bool format_messages = true,
                        LogLevel level = LogLevel::kNotSet);
-  ~FileHandler();
+  ~FileHandler() override;
+
+  virtual void reopen() override;
 
  private:
+  void do_log(const Record &record) override;
+
+  const Path file_path_;
   std::ofstream fstream_;
 };
 

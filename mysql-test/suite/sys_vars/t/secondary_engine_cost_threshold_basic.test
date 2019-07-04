@@ -1,0 +1,136 @@
+############## mysql-test\t\secondary_engine_cost_threshold_basic.test ###########
+#                                                                                #
+# Variable Name: secondary_engine_cost_threshold                                 #
+# Scope: GLOBAL/SESSION                                                          #
+# Access Type: Dynamic                                                           #
+# Data Type: numeric                                                             #
+# Default Value:0                                                                #
+#                                                                                #
+#                                                                                #
+#                                                                                #
+# Description: Test Cases of Dynamic System Variable                             #
+# Optimizer offload to secondary engine if the estimated cost of executing the   #
+# query on the primary storage engine exceeds a threshold value                  #
+#              test checks the behavior of this variable in the following ways   #
+#              * Default Value                                                   #
+#              * Valid & Invalid values                                          #
+#              * Scope & Access method                                           #
+#              * Data Integrity                                                  #
+#                                                                                #
+# Reference: https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#
+#                                                                                #
+##################################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+
+SET @start_value = @@session.secondary_engine_cost_threshold;
+SELECT @start_value;
+SET @start_value_global = @@global.secondary_engine_cost_threshold;
+SELECT @start_value_global;
+
+########################################################################
+#      Display the DEFAULT value of secondary_engine_cost_threshold         #
+########################################################################
+
+SET @@session.secondary_engine_cost_threshold = 8734635;
+SET @@session.secondary_engine_cost_threshold = DEFAULT;
+SELECT @@session.secondary_engine_cost_threshold;
+
+
+##################################################################################
+#        Change the value of secondary_engine_cost_threshold to a valid value         #
+##################################################################################
+
+SET @@session.secondary_engine_cost_threshold = 0;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = 99;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = 10;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = 10000.01;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = 21;
+SELECT @@session.secondary_engine_cost_threshold;
+
+#####################################################################################
+#         Change the value of secondary_engine_cost_threshold to invalid value           #
+#####################################################################################
+
+SET @@session.secondary_engine_cost_threshold = -1;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = -1024;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = 42949672950;
+SELECT @@session.secondary_engine_cost_threshold;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.secondary_engine_cost_threshold = ON;
+SELECT @@session.secondary_engine_cost_threshold;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.secondary_engine_cost_threshold = 'test';
+SELECT @@session.secondary_engine_cost_threshold;
+
+
+#####################################################################################
+#       Test if accessing global secondary_engine_cost_threshold works              #
+#####################################################################################
+
+SELECT @@global.secondary_engine_cost_threshold,@@session.secondary_engine_cost_threshold;
+SET @@global.secondary_engine_cost_threshold = 0;
+SELECT @@global.secondary_engine_cost_threshold,@@session.secondary_engine_cost_threshold;
+
+##############################################################################
+# Check if the value in session & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT @@session.secondary_engine_cost_threshold = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='secondary_engine_cost_threshold';
+
+SELECT @@global.secondary_engine_cost_threshold = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='secondary_engine_cost_threshold';
+--enable_warnings
+
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@session.secondary_engine_cost_threshold = TRUE;
+SELECT @@session.secondary_engine_cost_threshold;
+SET @@session.secondary_engine_cost_threshold = FALSE;
+SELECT @@session.secondary_engine_cost_threshold;
+
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@session.secondary_engine_cost_threshold = 1;
+SELECT @@secondary_engine_cost_threshold = @@session.secondary_engine_cost_threshold;
+
+####################################################################################
+#   Check if secondary_engine_cost_threshold can be accessed with and without @@ sign   #
+####################################################################################
+
+--Error ER_PARSE_ERROR
+SET local.secondary_engine_cost_threshold = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.secondary_engine_cost_threshold;
+--Error ER_PARSE_ERROR
+SET session.secondary_engine_cost_threshold = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT session.secondary_engine_cost_threshold;
+--Error ER_BAD_FIELD_ERROR
+SELECT secondary_engine_cost_threshold = @@session.binlog_expire_logs_seconds;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@session.secondary_engine_cost_threshold = @start_value;
+SET @@global.secondary_engine_cost_threshold = @start_value_global;
+SELECT @@session.secondary_engine_cost_threshold,@@global.secondary_engine_cost_threshold;
+

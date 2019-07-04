@@ -1,0 +1,199 @@
+#This script will test the following partitioning commands
+
+# PARTITION BY
+# ADD PARTITION
+# DROP PARTITION
+# TRUNCATE PARTITION
+# REORGANIZE PARTITION
+# EXCHANGE PARTITION
+# ANALYZE PARTITION
+# CHECK PARTITION
+# OPTIMIZE PARTITION
+# REBUILD PARTITION
+# REPAIR PARTITION
+# REMOVE PARTITIONING
+# COALESCE PARTITION
+
+# References
+# WL#12168: Add Partition Information into the Binary Log
+#
+
+
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave=1
+--let $rpl_skip_change_master=1
+
+--source include/master-slave.inc
+RESET MASTER;
+#--let $rpl_connection_name= server_1
+#--source include/rpl_connection.inc
+
+# This table will be used to test all the above mentioned thing except COALESCE PARTITION, that will be tested at the end of this test
+# with PARTITION BY HASH
+
+CREATE TABLE employees (id INT NOT NULL, store_id INT NOT NULL);
+
+--echo Test PARTITION BY
+ALTER TABLE employees PARTITION BY RANGE (store_id) (PARTITION p0 VALUES LESS THAN (6), PARTITION p1 VALUES LESS THAN (11), PARTITION p2 VALUES LESS THAN (16));
+
+INSERT INTO employees VALUES (1, 3);
+INSERT INTO employees VALUES (2, 7);
+INSERT INTO employees VALUES (3, 12);
+
+--echo Test ADD PARTITION
+# The number of partitions before adding the new partition
+let $before_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS`;
+ALTER TABLE employees ADD PARTITION (PARTITION p3 VALUES LESS THAN (20));
+INSERT INTO employees VALUES (4, 19);
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS`;
+--let $assert_text= Check that the partition count is increased after ADD PARTITION
+--let $assert_cond= $before_count < $after_count
+--source include/assert.inc
+
+--echo Test DROP PARTITION
+let $before_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+ALTER TABLE employees DROP PARTITION p3;
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+--let $assert_text= Check that the partition count is decreased after ADD PARTITION
+--let $assert_cond= $before_count > $after_count
+--source include/assert.inc
+
+--echo Test TRUNCATE PARTITION
+# Increase the row count of 1st partition 'p0'
+INSERT INTO employees VALUES (2, 4);
+ALTER TABLE employees TRUNCATE PARTITION P0;
+--let $row_count_after = `SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees' AND PARTITION_NAME= 'p0'`
+--let $assert_text= Check that the row count after is zero
+--let $assert_cond= $row_count_after = 0
+--source include/assert.inc
+
+--echo Test REORGANIZE PARTITION
+let $before_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+ALTER TABLE employees REORGANIZE PARTITION p1,p2 INTO (PARTITION p3 VALUES LESS THAN (20));
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+
+--let $assert_text= Check that the partition count is decreased after REORGANIZE PARTITION
+--let $assert_cond= $before_count > $after_count
+--source include/assert.inc
+
+--echo Test EXCHANGE PARTITION
+CREATE TABLE employees1 LIKE employees;
+ALTER TABLE employees1 REMOVE PARTITIONING;
+let $before_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+ALTER TABLE employees EXCHANGE PARTITION p3 WITH TABLE employees1;
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+
+--let $assert_text= Check that the partition count is same after EXCHANGE PARTITION
+--let $assert_cond= $before_count = $after_count
+--source include/assert.inc
+
+DROP TABLE employees1;
+
+--echo Test ANALYZE PARTITION
+ALTER TABLE employees ANALYZE PARTITION p0;
+ALTER TABLE employees ANALYZE PARTITION ALL;
+
+--echo Test CHECK PARTITION
+
+ALTER TABLE employees CHECK PARTITION p0;
+ALTER TABLE employees CHECK PARTITION ALL;
+
+--echo Test OPTIMIZE PARTITION
+
+ALTER TABLE employees OPTIMIZE PARTITION p3;
+ALTER TABLE employees OPTIMIZE PARTITION ALL;
+
+--echo Test REBUILD PARTITION
+
+ALTER TABLE employees REBUILD PARTITION p3;
+ALTER TABLE employees REBUILD PARTITION ALL;
+
+--echo Test REPAIR PARTITION
+
+# Just checking here at once for the count of partition_ordinal_position should
+# be okay and we don't need to check it individually for all commands like
+# CHECK, ANALYZE, OPTIMIZE, REBUILD.
+let $before_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+ALTER TABLE employees REPAIR PARTITION p4;
+ALTER TABLE employees REPAIR PARTITION ALL;
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+
+--let $assert_text= Check that the partition count is same after REPAIR PARTITION
+--let $assert_cond= $before_count = $after_count
+--source include/assert.inc
+
+--echo Test REMOVE PARTITION
+ALTER TABLE employees REMOVE PARTITIONING;
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+
+--let $assert_text= Check that the partition count is 0 after REMOVE PARTITIONING
+--let $assert_cond= $after_count = 0
+--source include/assert.inc
+
+DROP TABLE employees;
+
+--echo Test DISCARD/IMPORT PARTITION
+
+# Create table and partitions on server_1 as we have removed it in the step above
+# while/after testing REMOVE PARTITION
+
+CREATE TABLE employees (id INT NOT NULL, store_id INT NOT NULL);
+ALTER TABLE employees PARTITION BY RANGE (store_id) (PARTITION p0 VALUES LESS THAN (6), PARTITION p1 VALUES LESS THAN (11), PARTITION p2 VALUES LESS THAN (16));
+--let $SERVER1_MYSQLD_DATADIR= `SELECT @@DATADIR`
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+CREATE TABLE employees (id INT NOT NULL, store_id INT NOT NULL);
+--let $SERVER2_MYSQLD_DATADIR= `SELECT @@DATADIR`
+ALTER TABLE employees PARTITION BY RANGE (store_id) (PARTITION p0 VALUES LESS THAN (6), PARTITION p1 VALUES LESS THAN (11), PARTITION p2 VALUES LESS THAN (16));
+ALTER TABLE employees DISCARD PARTITION p0 TABLESPACE;
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+FLUSH TABLES employees FOR EXPORT;
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--copy_file $SERVER1_MYSQLD_DATADIR/test/employees#P#p0.cfg $SERVER2_MYSQLD_DATADIR/test/employees#P#p0.cfg
+--copy_file $SERVER1_MYSQLD_DATADIR/test/employees#P#p0.ibd $SERVER2_MYSQLD_DATADIR/test/employees#P#p0.ibd
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+ALTER TABLE employees IMPORT PARTITION p0 TABLESPACE;
+
+DROP TABLE employees;
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE employees;
+
+# The below table and partition type will be used for testing the following
+# PARTITION BY
+# COALESCE PARTITION
+
+CREATE TABLE employees (id INT NOT NULL, store_id INT NOT NULL);
+
+--echo Test PARTITION BY
+ALTER TABLE employees PARTITION BY HASH(store_id) PARTITIONS 6;
+
+--echo Test COALESCE PARTITION
+
+let $before_count = `SELECT COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+ALTER TABLE employees COALESCE PARTITION 2;
+let $after_count = `SELECT  COUNT(PARTITION_ORDINAL_POSITION) FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'employees'`;
+
+--let $assert_text= Check that the before count is greater than after count  after COALESCE PARTITION
+--let $assert_cond= $after_count < $before_count
+--source include/assert.inc
+
+
+DROP TABLE employees;
+--let $rpl_only_running_threads= 1
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

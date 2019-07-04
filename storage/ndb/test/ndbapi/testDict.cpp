@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include <ndb_rand.h>
 #include <Bitmask.hpp>
 #include <../src/kernel/ndbd.hpp>
+#include <NdbMgmd.hpp>
 
 #define ERR_INSERT_MASTER_FAILURE1 6013
 #define ERR_INSERT_MASTER_FAILURE2 6014
@@ -70,6 +71,8 @@
 #define FREE_NODE_GROUP 65535
 #define MAX_NDB_NODES 49
 #define MAX_NDB_NODE_GROUPS 48
+
+#define TEST_FRM_DATA_SIZE 14000
 
 static int numNodeGroups;
 static int numNoNodeGroups;
@@ -134,6 +137,12 @@ char f_tablename[256];
          << " failed on line " << __LINE__ << ": " << c << endl; \
   result = NDBT_FAILED; \
   goto end; }
+
+#define CHECK3(b, c) if (!(b)) { \
+  g_err << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << ": " << c << endl; \
+  return NDBT_FAILED; }
+
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
@@ -563,7 +572,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
           int icols = 1 + myRandom48(tcols);
           if (icols > NDB_MAX_ATTRIBUTES_IN_INDEX)
             icols = NDB_MAX_ATTRIBUTES_IN_INDEX;
-          char indName[200];
+          char indName[256];
           sprintf(indName, "%s_X%d", tabName, inum);
           NdbDictionary::Index ind(indName);
           ind.setTable(tabName);
@@ -1499,9 +1508,9 @@ int runStoreFrm(NDBT_Context* ctx, NDBT_Step* step){
 
   for (int l = 0; l < loops && result == NDBT_OK ; l++){
 
-    Uint32 dataLen = (Uint32)myRandom48(MAX_FRM_DATA_SIZE);
+    Uint32 dataLen = (Uint32)myRandom48(TEST_FRM_DATA_SIZE);
     // size_t dataLen = 10;
-    unsigned char data[MAX_FRM_DATA_SIZE];
+    unsigned char data[TEST_FRM_DATA_SIZE];
 
     char start = l + 248;
     for(Uint32 i = 0; i < dataLen; i++){
@@ -1565,77 +1574,30 @@ int runStoreFrm(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-int runStoreFrmError(NDBT_Context* ctx, NDBT_Step* step){
-  Ndb* pNdb = GETNDB(step);  
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-
-  for (int l = 0; l < loops && result == NDBT_OK ; l++){
-
-    const Uint32 dataLen = MAX_FRM_DATA_SIZE + 10;
-    unsigned char data[dataLen];
-
-    char start = l + 248;
-    for(Uint32 i = 0; i < dataLen; i++){
-      data[i] = start;
-      start++;
-    }
-#if 0
-    ndbout << "dataLen="<<dataLen<<endl;
-    for (Uint32 i = 0; i < dataLen; i++){
-      unsigned char c = data[i];
-      ndbout << hex << c << ", ";
-    }
-    ndbout << endl;
-#endif
-
-    NdbDictionary::Table newTab(* pTab);
-        
-    void* pData = &data;
-    newTab.setFrm(pData, dataLen);
-    
-    // Try to create table in db
-    if (newTab.createTableInDb(pNdb) == 0){
-      result = NDBT_FAILED;
-      continue;
-    }
-    
-    const NdbDictionary::Table* pTab2 = 
-      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
-    if (pTab2 != NULL){
-      g_err << pTab->getName() << " was found in DB"<< endl;
-      result = NDBT_FAILED;
-      if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
-	g_err << "It can NOT be dropped" << endl;
-	result = NDBT_FAILED;
-      } 
-      
-      continue;
-    } 
-    
-  }
-
-  return result;
-}
-
-
 int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table* pTab = ctx->getTab();
   int result = NDBT_OK;
 
+  static constexpr Uint32 testBufferLenInWords = (TEST_FRM_DATA_SIZE + 3) / 4;
+  Int32 data[testBufferLenInWords];
+
   for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
   {
-    const Uint32 dataLen = (Uint32)myRandom48(MAX_FRM_DATA_SIZE);
-    unsigned char data[MAX_FRM_DATA_SIZE];
+    /* LENGTH OF DATA: The data fills 75% to 100% of the test buffer. */
+    const Uint32 dataLen = (testBufferLenInWords * 3) +
+                           myRandom48(testBufferLenInWords);
+    const Uint32 dataLenInWords = (dataLen + 3)  / 4;
 
-    // Fill in the "data" array with some varying numbers
-    char value = l + 248;
-    for(Uint32 i = 0; i < dataLen; i++){
-      data[i] = value;
-      value++;
+    /* Fill the buffer with (almost) random data. We use random data to defeat
+       the zlib compression that will be applied to ExtraMetadata.
+       Actually myRandom48() returns a signed long int >= 0, so for every 32 
+       bits stored we only get 31 bits of randomness, but this is good enough.
+    */
+    for(Uint32 i = 0; i < dataLenInWords; i++)
+    {
+      data[i] = myRandom48(INT32_MAX);
     }
 
     NdbDictionary::Table newTab(* pTab);
@@ -1644,12 +1606,14 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
     if (newTab.setExtraMetadata(version,
                                 &data, dataLen))
     {
+      g_err << "table.setExtraMetadata() failed. length:" << dataLen << endl;
       result = NDBT_FAILED;
       continue;
     }
 
     // Try to create table in db
     if (newTab.createTableInDb(pNdb) != 0){
+      g_err << "createTableInDb() failed" << endl;
       result = NDBT_FAILED;
       continue;
     }
@@ -1687,8 +1651,9 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
       result = NDBT_FAILED;
     }
 
-    // Verfiy the frm data
-    if (memcmp(&data, data2, dataLen2) != 0){
+    // Verify the frm data
+    if (memcmp(data, data2, dataLen2) != 0)
+    {
       g_err << "Wrong data received" << endl;
       for (size_t i = 0; i < dataLen; i++){
         unsigned char c = ((unsigned char*)data2)[i];
@@ -1708,27 +1673,28 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
-
+/* After wl#10665, the limit on the size of ExtraMetadata is
+   defined by MAX_WORDS_META_FILE.
+*/
 int runStoreExtraMetadataError(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table* pTab = ctx->getTab();
   int result = NDBT_OK;
 
+  static constexpr Uint32 dataLenInWords = MAX_WORDS_META_FILE;
+  static constexpr Uint32 dataLen = dataLenInWords * 4;
+  Int32 data[dataLenInWords];
+
   for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
   {
-    // The setExtraMetadata function will compress the payload,
-    // need to use a fairly larg value in order to guarantee it
-    // exceeds the MAX_FRM_DATA_SIZE limit after it has been
-    // compressed
-    const Uint32 dataLen = 0x200000U;
-    uchar* data = new uchar[dataLen];
+    // The whole dictionary entry must fit in MAX_WORDS_META_FILE.
+    // Create a table where the ExtraMetadata alone is too long
+    // (and cannot be effectively compressed).
 
-    // Fill in the "data" array with some varying numbers
-    char value = l + 248;
-    for(Uint32 i = 0; i < dataLen; i++){
-      data[i] = value;
-      value++;
+    for(Uint32 i = 0; i < dataLenInWords; i++)
+    {
+      data[i] = myRandom48(INT32_MAX);
     }
 
     // It should be possible to set the extra metadata
@@ -1737,13 +1703,10 @@ int runStoreExtraMetadataError(NDBT_Context* ctx, NDBT_Step* step)
     if (newTab.setExtraMetadata(37, // version
                                 data, dataLen))
     {
-      g_err << "Failed to set the extra metadata, "
-               "length: " << dataLen << endl;
+      g_err << "Failed to set the extra metadata, length: " << dataLen << endl;
       result = NDBT_FAILED;
-      delete[] data;
       continue;
     }
-    delete[] data;
 
     // Try to create table in db, should fail!
     if (newTab.createTableInDb(pNdb) == 0){
@@ -3885,11 +3848,11 @@ RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
       g_err << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    pDict->invalidateTable(pOld->getName());
     if (strcmp(pOld->getName(), tNew.getName()))
     {
       obj->m_name.assign(tNew.getName());
     }
+    pDict->invalidateTable(pOld->getName());
   }
 
   return NDBT_OK;
@@ -4832,7 +4795,7 @@ struct ST_Trg : public ST_Obj {
     ST_Obj(a_db, a_name) {
     ind = 0;
   }
-  virtual ~ST_Trg() {};
+  virtual ~ST_Trg() {}
 };
 
 template class Vector<ST_Trg*>;
@@ -4864,7 +4827,7 @@ struct ST_Ind : public ST_Obj {
     ind_r = 0;
     trglist = new ST_Trglist;
     trgcount = 0;
-  };
+  }
   virtual ~ST_Ind() {
     delete ind;
     delete trglist;
@@ -5105,8 +5068,13 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
     const char** indspec = NDBT_Tables::getIndexes(tab.name);
 
     while (indspec != 0 && *indspec != 0) {
-      char ind_name[ST_MAX_NAME_SIZE + 20];
-      sprintf(ind_name, "%sX%d", tab.name, tab.indcount);
+      char ind_name[ST_MAX_NAME_SIZE];
+      int ind_len = snprintf(ind_name,
+                             ST_MAX_NAME_SIZE,
+                             "%sX%d",
+                             tab.name,
+                             tab.indcount);
+      require(ind_len < ST_MAX_NAME_SIZE);
       tab.indlist->push_back(new ST_Ind("sys", ind_name));
       ST_Ind& ind = *tab.indlist->back();
       ind.tab = &tab;
@@ -5121,8 +5089,12 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         pInd->setType((NdbDictionary::Index::Type)ind.type);
         tab.induniquecount++;
 
-        { char trg_name[ST_MAX_NAME_SIZE + 20];
-          sprintf(trg_name, "NDB$INDEX_<%s>_UI", ind.name);
+        { char trg_name[ST_MAX_NAME_SIZE];
+          int trg_len = snprintf(trg_name,
+                                 ST_MAX_NAME_SIZE,
+                                 "NDB$INDEX_<%s>_UI",
+                                 ind.name);
+          require(trg_len < ST_MAX_NAME_SIZE);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
           trg.ind = &ind;
@@ -5136,8 +5108,12 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         pInd->setType((NdbDictionary::Index::Type)ind.type);
         tab.indorderedcount++;
 
-        { char trg_name[ST_MAX_NAME_SIZE + 20];
-          sprintf(trg_name, "NDB$INDEX_<%s>_CUSTOM", ind.name);
+        { char trg_name[ST_MAX_NAME_SIZE];
+          int trg_len = snprintf(trg_name,
+                                 ST_MAX_NAME_SIZE,
+                                 "NDB$INDEX_<%s>_CUSTOM",
+                                 ind.name);
+          require(trg_len < ST_MAX_NAME_SIZE);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
           trg.ind = &ind;
@@ -11661,6 +11637,203 @@ runForceGCPWait(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * Testcase CreateManyDataFiles : Check if error code 1517 is
+ * returned when DiskPageBufferMemory is exhausted.
+ *
+ * Provoke lack of DiskPageBufferMemory when creating data files
+ * by reconfiguring it to the allowed minimum. Save the original
+ * config value and reinstate it when runCreateManyDataFiles
+ * creating many files is finished.
+ */
+static int
+changeStartDiskPageBufMem(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Config conf;
+  NdbRestarter restarter;
+  Uint64 new_diskpage_buffer = 4 * 1024 * 1024; // Configured minimum value
+  Uint64 start_disk_page_buffer = ctx->getProperty("STARTDISKPAGEBUFFER",
+                                                (Uint64)new_diskpage_buffer);
+
+  NdbMgmd mgmd;
+  Uint64 saved_old_value = 0;
+  CHECK3(mgmd.change_config(start_disk_page_buffer, &saved_old_value,
+                            CFG_SECTION_NODE,
+                            CFG_DB_DISK_PAGE_BUFFER_MEMORY),
+         "Change config failed");
+
+  // Save old config value in the test case context
+  ctx->setProperty("STARTDISKPAGEBUFFER", Uint64(saved_old_value));
+
+  g_err << "Restarting nodes to apply config change from "
+        << saved_old_value << " to " << start_disk_page_buffer << endl;
+
+  CHECK3(restarter.restartAll() == 0,
+         "Restart all failed");
+  CHECK3(restarter.waitClusterStarted(120) == 0,
+         "Cluster has not started");
+  g_err << "Nodes restarted with new config." << endl;
+  return NDBT_OK;
+}
+
+/**
+ * If not exists, create LogfileGroup DEFAULT-LG and
+ * create a tablespace DEFAULT-TS.
+ * Save in test context whether log file group or
+ * table space is created in this test case.
+ */
+int
+runCreateLogFileGroupTableSpace(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+
+  // Create a new LFG, if not exixts already
+  bool log_file_group_created = false;
+  NdbDictionary::LogfileGroup lg = pDict->getLogfileGroup("DEFAULT-LG");
+  if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
+  {
+    lg.setName("DEFAULT-LG");
+    lg.setUndoBufferSize(1*1024*1024);
+
+    CHECK3(pDict->createLogfileGroup(lg) == 0, pDict->getNdbError());
+    log_file_group_created = true;
+  }
+  // Save the info about the test created the log file group
+  // "DEFAULT-LG" in the test case context.
+  ctx->setProperty("LOGFILEGROUPCREATED", Uint32(log_file_group_created));
+
+  // Create a tablespace, if not exists
+  bool ts_created = false;
+  NdbDictionary::Tablespace ts = pDict->getTablespace("DEFAULT-TS");
+  if (strcmp(ts.getName(), "DEFAULT-TS") != 0)
+  {
+    const char * tsName  = "DEFAULT-TS";
+    NdbDictionary::Tablespace ts;
+    ts.setName(tsName);
+    ts.setExtentSize(1024*1024);
+    ts.setDefaultLogfileGroup("DEFAULT-LG");
+
+    CHECK3((pDict->createTablespace(ts)) == 0, pNdb->getNdbError());
+    ts_created = true;
+  }
+  // Save the info about the test created the table space
+  // "DEFAULT-TS" in the test case context.
+  ctx->setProperty("TABLESPACECREATED", Uint32(ts_created));
+  return NDBT_OK;
+}
+
+/**
+ * Drop DEFAULT-TS and DEFAULT-LG if the test case created them.
+ * This info is saved in the test context.
+ */
+int
+runDropTableSpaceLG(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  // Read the info about the test created the table space
+  // "DEFAULT-TS" from the test case context.
+  Uint32 ts_created =
+    ctx->getProperty("TABLESPACECREATED", (Uint32)0);
+
+  if (ts_created)
+  {
+    // tablespace was created by this test case, remove it.
+    if (pNdb->getDictionary()->dropTablespace(
+          pNdb->getDictionary()->getTablespace("DEFAULT-TS")) != 0)
+    {
+      g_err << " Dropping table space DEFAULT-TS failed with "
+            << pNdb->getDictionary()->getNdbError() << endl;
+      // Don't return NDBT_FAILED, continue clean up log file group
+    }
+  }
+
+  // Read the info about the test created the log file group
+  // "DEFAULT-LG" from the test case context.
+  Uint32 log_file_group_created =
+    ctx->getProperty("LOGFILEGROUPCREATED", (Uint32)0);
+
+  if (log_file_group_created)
+  {
+    // Log file group was created by this test case, remove it.
+    CHECK3(pNdb->getDictionary()->dropLogfileGroup(
+             pNdb->getDictionary()->getLogfileGroup("DEFAULT-LG")) == 0,
+           pNdb->getDictionary()->getNdbError());
+  }
+  return NDBT_OK;
+}
+
+/**
+ * Create upto the number of data files given in the test case until
+ * DiskPageBufferMemory gets exhausted, indicated by error code 1517.
+ *
+ * Drop data files.
+ *
+ * Test succeeds if the DiskPageBufferMemory gets exhausted,
+ *      fails otherwise.
+ */
+int
+runCreateManyDataFiles(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  int result = NDBT_FAILED;
+
+  // Add many data files until disk page buffer gets filled
+  Uint32 data_files_to_create = ctx->getProperty("DATAFILES",
+                                                 (Uint32)200);
+  NdbDictionary::Datafile df;
+  uint created_files = 0; // How many files are created so far
+  char datafilename[256];
+
+  for (Uint32 datafile=0; datafile < data_files_to_create; ++datafile)
+  {
+    BaseString::snprintf(datafilename, sizeof(datafilename),
+                         "datafile%d", datafile);
+    df.setPath(datafilename);
+    df.setSize(1*1024*1024);
+    df.setTablespace("DEFAULT-TS");
+
+    int res = pDict->createDatafile(df);
+    if(res != 0)
+    {
+      int error = pDict->getNdbError().code;
+      if (error == 1517)
+      {
+        // Error 1517 indicates DiskPageBufferMemory exhaustion.
+        // Stop creating more data files.
+        result =  NDBT_OK;
+      }
+      else
+      {
+        g_err << "Failed to create datafile " << datafilename
+              << endl << pDict->getNdbError() << endl;
+      }
+      break;
+    }
+    created_files++;
+  }
+
+  // Clean up : remove the data files created
+  for (uint datafile=0; datafile < created_files; ++datafile)
+  {
+    BaseString::snprintf(datafilename, sizeof(datafilename),
+                         "datafile%d", datafile);
+    df.setPath(datafilename);
+
+    if (pNdb->getDictionary()->dropDatafile(
+          pNdb->getDictionary()->getDatafile(0, datafilename)) != 0)
+    {
+        g_err << "Failed to create datafile " << datafilename
+              << pNdb->getDictionary()->getNdbError() << endl;
+        // Continue dropping rest of the data files
+    }
+  }
+
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -11804,10 +11977,6 @@ TESTCASE("GetPrimaryKey",
 	 "It should return true only if the column is part of \n"
 	 "the primary key in the table"){
   INITIALIZER(runGetPrimaryKey);
-}
-TESTCASE("StoreFrmError", 
-	 "Test that a frm file with too long length can't be stored."){
-  INITIALIZER(runStoreFrmError);
 }
 TESTCASE("StoreExtraMetadata",
          "Test that extra metadata can be stored as part of the\n"
@@ -12092,6 +12261,17 @@ TESTCASE("forceGCPWait", "test dictsignal timeout in FORCE_GCP_WAIT")
 {
   INITIALIZER(runForceGCPWait);
 }
+TESTCASE("CreateManyDataFiles", "Test lack of DiskPageBufferMemory "
+         "when creating data files")
+{
+  INITIALIZER(changeStartDiskPageBufMem);
+  INITIALIZER(runCreateLogFileGroupTableSpace);
+  TC_PROPERTY("DATAFILES", (Uint32)200);
+  INITIALIZER(runCreateManyDataFiles);
+  FINALIZER(runDropTableSpaceLG);
+  FINALIZER(changeStartDiskPageBufMem);
+}
+
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){

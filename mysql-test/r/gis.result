@@ -3798,7 +3798,7 @@ CREATE TABLE t1 (a DECIMAL(54,20));
 INSERT INTO t1 VALUES (0);
 SELECT (SELECT MULTILINESTRING(d.a, d.a, d.a) FROM t1)
 FROM t1 AS d GROUP BY d.a;
-ERROR 22023: Invalid GIS data provided to function multilinestring.
+ERROR 22007: Illegal non geometric '`test`.`d`.`a`' value found during parsing
 DROP TABLE t1;
 #
 # Bug #23280574 ASSERTION FAILED: !NO_DATA(NBYTES) IN
@@ -4683,3 +4683,25 @@ DROP TABLE t1, t2;
 #
 DO ST_ASWKB(JSON_UNQUOTE(JSON_SET('{"a":""}', '$', '')));
 ERROR 22023: Invalid GIS data provided to function st_aswkb.
+#
+# Bug #29047811 ASSERTION FAILED:
+#               CURRENT_THD->IS_ERROR(), SQL\ITEM_GEOFUNC.CC, LINE 5358
+#
+CREATE TABLE t(a INT PRIMARY KEY) ENGINE=INNODB
+PARTITION BY KEY(a) PARTITIONS 10;
+INSERT t(a) VALUES(
+is_uuid(
+st_distance_sphere(
+multipoint(
+point(-6682,10942),
+point(-6033,-22659),
+point(-14161,-22192),
+point(3074,1.717753e+308),
+point(-12593,562949953421315)
+),
+point(2051,8192)
+)
+)
+);
+ERROR 22S02: Longitude -6682.000000 is out of range in function st_distance_sphere. It must be within (-180.000000, 180.000000].
+DROP TABLE t;

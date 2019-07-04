@@ -1,0 +1,4 @@
+!include ../my.cnf
+[cluster_config]
+SharedGlobalMemory=0
+MaxNoOfLocalOperations=1000

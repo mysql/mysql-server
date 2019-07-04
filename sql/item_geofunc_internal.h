@@ -1,7 +1,7 @@
 #ifndef GEOFUNC_INTERNAL_INCLUDED
 #define GEOFUNC_INTERNAL_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,14 +48,6 @@
 #include "sql/spatial.h"
 
 class String;
-
-// GCC requires typename whenever needing to access a type inside a template,
-// but MSVC forbids this.
-#ifdef HAVE_IMPLICIT_DEPENDENT_NAME_TYPING
-#define TYPENAME
-#else
-#define TYPENAME typename
-#endif
 
 #define GIS_ZERO 0.00000000001
 

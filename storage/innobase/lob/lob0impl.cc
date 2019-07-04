@@ -67,10 +67,13 @@ bool plist_base_node_t::validate() const {
 
 /** Allocate one node page. */
 buf_block_t *node_page_t::alloc(first_page_t &first_page, bool bulk) {
+  ut_ad(m_block == nullptr);
   page_no_t hint = FIL_NULL;
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_node_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_node_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -203,10 +206,11 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
   } else {
     /* Data can fit into a fragment page. */
     z_frag_page_t frag_page(mtr, index);
+    z_frag_entry_t frag_entry(mtr);
 
-    z_frag_entry_t frag_entry = first.find_frag_page(bulk, remain, frag_page);
+    frag_id = first.alloc_fragment(bulk, remain, frag_page, frag_entry);
 
-    if (frag_entry.is_null()) {
+    if (frag_id == FRAG_ID_NULL) {
       return (DB_OUT_OF_FILE_SPACE);
     }
 
@@ -216,9 +220,6 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     ut_ad(big_free_len_1 == big_free_len_2);
 #endif /* UNIV_DEBUG */
 
-    frag_id = frag_page.alloc_fragment(remain, frag_entry);
-    ut_ad(frag_id != FRAG_ID_NULL);
-
     frag_node_t node = frag_page.get_frag_node(frag_id);
     byte *ptr = node.frag_begin();
 
@@ -227,8 +228,6 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     /* copy data to the page. */
     mlog_write_string(ptr, lob_ptr, remain, mtr);
 
-    remain = 0;
-    lob_ptr += remain;
     start_page_no = frag_page.get_page_no();
 
     /* Update the frag entry. */
@@ -269,18 +268,16 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
   }
 
   if (remain > 0) {
-    ut_ad(remain < frag_max_payload);
+    ut_ad(remain <= frag_max_payload);
     ut_ad(frag_id == FRAG_ID_NULL);
     z_frag_page_t frag_page(mtr, index);
+    z_frag_entry_t frag_entry(mtr);
 
-    z_frag_entry_t frag_entry = first.find_frag_page(bulk, remain, frag_page);
+    frag_id = first.alloc_fragment(bulk, remain, frag_page, frag_entry);
 
-    if (frag_entry.is_null()) {
+    if (frag_id == FRAG_ID_NULL) {
       return (DB_OUT_OF_FILE_SPACE);
     }
-
-    ut_ad(frag_entry.get_big_free_len() >= remain);
-    ut_ad(frag_page.get_big_free_len() >= remain);
 
 #ifdef UNIV_DEBUG
     const ulint big_free_len_1 = frag_page.get_big_free_len();
@@ -288,17 +285,17 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     ut_ad(big_free_len_1 == big_free_len_2);
 #endif /* UNIV_DEBUG */
 
-    frag_id = frag_page.alloc_fragment(remain, frag_entry);
-    ut_ad(frag_id != FRAG_ID_NULL);
-
     frag_node_t node = frag_page.get_frag_node(frag_id);
     byte *ptr = node.frag_begin();
 
-    ut_ad(remain <= node.payload());
+#ifdef UNIV_DEBUG
+    {
+      const ulint pl = node.payload();
+      ut_ad(remain <= pl);
+    }
+#endif /* UNIV_DEBUG */
 
     mlog_write_string(ptr, lob_ptr, remain, mtr);
-    remain = 0;
-    lob_ptr += remain;
 
     /* Update the frag entry. */
     frag_entry.update(frag_page);
@@ -544,9 +541,13 @@ dberr_t z_print_info(const dict_index_t *index, const lob::ref_t &ref,
                         false otherwise.
 @return the allocated buffer block. */
 buf_block_t *z_frag_page_t::alloc(page_no_t hint, bool bulk) {
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
+  /* The m_block member could point to valid block.  Overwriting it is
+  good enough. */
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -596,10 +597,10 @@ buf_block_t *z_frag_node_page_t::alloc(z_first_page_t &first, bool bulk) {
   ut_ad(m_block == nullptr);
   page_no_t hint = FIL_NULL;
 
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
-
   DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_node_page_failed",
-                  m_block = nullptr;);
+                  return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -617,8 +618,6 @@ buf_block_t *z_frag_node_page_t::alloc(z_first_page_t &first, bool bulk) {
   return (m_block);
 }
 
-/** Allocate a fragment with the given payload.
-@return the frag_id of the allocated fragment. */
 frag_id_t z_frag_page_t::alloc_fragment(ulint size, z_frag_entry_t &entry) {
   plist_base_node_t free_lst = free_list();
 
@@ -688,13 +687,11 @@ frag_id_t z_frag_page_t::alloc_fragment(ulint size, z_frag_entry_t &entry) {
       set_nth_dir_entry(frag_id, frag.addr());
       entry.update(*this);
       return (frag_id);
-    } else {
-      ut_error;
     }
   }
 
   ut_ad(visited_big_frag);
-  ut_error;
+  return (FRAG_ID_NULL);
 }
 
 /** Grow the frag directory by one entry.
@@ -1191,9 +1188,11 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
   ut_ad(m_block == nullptr);
   page_no_t hint = FIL_NULL;
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_z_index_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_z_index_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -1218,9 +1217,11 @@ buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
 @return the allocated buffer block. */
 buf_block_t *z_data_page_t::alloc(page_no_t hint, bool bulk) {
   ut_ad(m_block == nullptr);
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_z_data_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_z_data_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);

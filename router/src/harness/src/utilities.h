@@ -33,6 +33,7 @@
 #include "my_compiler.h"
 
 #include "harness_export.h"
+#include "mysql/harness/utility/string.h"
 #include "router_config.h"
 
 namespace mysql_harness {
@@ -186,8 +187,6 @@ std::string strip_copy(std::string str, const char *chars = " \t\n\r\f\v");
 MY_ATTRIBUTE((format(printf, 1, 2)))
 std::string string_format(const char *format, ...);
 
-std::vector<std::string> wrap_string(const std::string &to_wrap, size_t width,
-                                     size_t indent_size);
 bool matches_glob(const std::string &word, const std::string &pattern);
 std::string get_message_error(int errcode);
 

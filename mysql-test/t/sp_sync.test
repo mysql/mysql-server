@@ -156,12 +156,13 @@ DROP TABLES t0, t1;
 --enable_connect_log
 
 --echo # Case 1: Test case to verify MDL locking from concurrent SELECT and
---echo #         DROP FUNCTION operation with case insensitive routine name.
+--echo #         DROP FUNCTION operation with case & access insensitive routine
+--echo #         name.
 
 CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
 SET DEBUG_SYNC='after_shared_lock_pname SIGNAL locked WAIT_FOR continue';
---SEND SELECT mIxEdCaSe()
---echo # At this point we have a shared lock on 'mIxEdCaSe'
+--SEND SELECT mIxEdCaSé()
+--echo # At this point we have a shared lock on 'mIxEdCaSé'
 
 --CONNECT (con1, localhost, root)
 SET DEBUG_SYNC='now WAIT_FOR locked';
@@ -185,17 +186,18 @@ SET DEBUG_SYNC='now SIGNAL continue';
 --REAP
 
 --echo # Case 2: Test case to verify MDL locking from concurrent SHOW FUNCTION
---echo #         and DROP FUNCTION operation with case insensitive routine name.
+--echo #         and DROP FUNCTION operation with case and accent insensitive
+--echo #         function name.
 
 --CONNECTION default
 CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
 SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
---SEND DROP FUNCTION mIxEdCaSe;
---echo # At this point we have a exclusive lock on 'mIxEdCaSe'
+--SEND DROP FUNCTION mIxEdCaSé;
+--echo # At this point we have a exclusive lock on 'mIxEdCaSé'
 
 --CONNECTION con1
 SET DEBUG_SYNC='now WAIT_FOR locked';
---SEND SHOW CREATE FUNCTION MiXeDcAsE
+--SEND SHOW CREATE FUNCTION MiXéDcAsE
 --echo # This statement request for shared lock and it is blocked till DROP
 --echo # statement releases lock.
 
@@ -214,13 +216,13 @@ SET DEBUG_SYNC='now SIGNAL continue';
 --REAP
 
 --echo # Case 3: Test case to verify MDL locking from concurrent DDL operations
---echo #         with case insensitive routine name.
+--echo #         with case and accent insensitive function name.
 
 --CONNECTION default
 CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
 SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
---SEND DROP FUNCTION miXEDCAse
---echo # At this point we have a exclusive lock on 'miXEDCAse'
+--SEND DROP FUNCTION miXEDCAsé
+--echo # At this point we have a exclusive lock on 'miXEDCAsé'
 
 --CONNECTION con1
 SET DEBUG_SYNC='now WAIT_FOR locked';
@@ -242,8 +244,68 @@ SET DEBUG_SYNC='now SIGNAL continue';
 --error ER_SP_DOES_NOT_EXIST
 --REAP
 
+--echo # Case 4: Test case to verify MDL locking from concurrent SHOW PROCEDURE
+--echo #         and DROP PROCEDURE operation with case and accent insensitive
+--echo #         procedure name.
+
+--CONNECTION default
+CREATE PROCEDURE mIxEdCaSe() BEGIN END;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+--SEND DROP PROCEDURE mIxEdCaSé;
+--echo # At this point we have a exclusive lock on 'mIxEdCaSé'
+
+--CONNECTION con1
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--SEND SHOW CREATE PROCEDURE MiXéDcAsE
+--echo # This statement request for shared lock and it is blocked till DROP
+--echo # statement releases lock.
+
+--CONNECTION con2
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'SHOW CREATE PROCEDURE%' AND
+                     state='Waiting for stored procedure metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--CONNECTION default
+--REAP
+
+--CONNECTION con1
+--error ER_SP_DOES_NOT_EXIST
+--REAP
+
+--echo # Case 5: Test case to verify MDL locking from concurrent DDL operations
+--echo #         with case & accent insensitive procedure name.
+
+--CONNECTION default
+CREATE PROCEDURE mIxEdCaSe() BEGIN END;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+--SEND DROP PROCEDURE miXEDCAsé
+--echo # At this point we have a exclusive lock on 'miXEDCAsé'
+
+--CONNECTION con1
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--SEND ALTER PROCEDURE mixedcase COMMENT "comment_string";
+--echo # This statement request for exclusive lock and it is blocked till DROP
+--echo # statement releases lock.
+
+--CONNECTION con2
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'ALTER PROCEDURE mixedcase%' AND
+                     state='Waiting for stored procedure metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--CONNECTION default
+--REAP
+
+--CONNECTION con1
+--error ER_SP_DOES_NOT_EXIST
+--REAP
+
 # Cleanup
 --CONNECTION default
+SET DEBUG_SYNC='RESET';
 DISCONNECT con1;
 DISCONNECT con2;
 --disable_connect_log

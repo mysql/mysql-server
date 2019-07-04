@@ -18,6 +18,41 @@ call mtr.add_suppression("option 'thread_stack':");
 
 --source include/gtid_utils.inc
 
+--echo #### Max values for built-in functions ####
+eval SELECT GTID_SUBSET(CONCAT('$uuida:1-', (1 << 63) - 2), '');
+eval SELECT GTID_SUBSET('', CONCAT('$uuida:1-', (1 << 63) - 2));
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBSET(CONCAT('$uuida:1-', (1 << 63) - 1), '');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBSET('', CONCAT('$uuida:1-', (1 << 63) - 1));
+
+eval SELECT GTID_SUBTRACT(CONCAT('$uuida:1-', (1 << 63) - 2), '');
+eval SELECT GTID_SUBTRACT('', CONCAT('$uuida:1-', (1 << 63) - 2));
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT(CONCAT('$uuida:1-', (1 << 63) - 1), '');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT('', CONCAT('$uuida:1-', (1 << 63) - 1));
+
+--echo #### Min values for built-in functions ####
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBSET('$uuida:0-1', '');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBSET('', '$uuida:0-1');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBSET('$uuida:0', '');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBSET('', '$uuida:0');
+
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT('$uuida:0-1', '');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT('', '$uuida:0-1');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT('$uuida:0', '');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT('', '$uuida:0');
+
+--echo #### Functionality of user-defined functions in gtid_utils.inc ####
 eval SELECT GTID_IS_EQUAL('$uuida:1,$uuidb:3:2:1', '$uuidb:1-3,$uuida:1');
 eval SELECT GTID_IS_EQUAL('$uuida:1,$uuidb:3:2:1', '$uuidb:1:3,$uuida:1');
 
@@ -44,11 +79,16 @@ eval SELECT GTID_SYMMETRIC_DIFFERENCE('$uuida:1-3', '$uuidb:1-3');
 eval SELECT GTID_SUBTRACT_UUID('$uuida:1-3,$uuidb:1-3,$uuidc:1-3', '$uuidb');
 eval SELECT GTID_SUBTRACT_UUID('$uuida:1-3,$uuidc:1-3', '$uuidb');
 eval SELECT GTID_SUBTRACT_UUID('$uuidb:1-3', '$uuidb');
-eval SELECT GTID_SUBTRACT_UUID(CONCAT('$uuida:1-', 1 << 63 - 1), '$uuida');
+eval SELECT GTID_SUBTRACT_UUID(CONCAT('$uuida:1-', (1 << 63) - 2), '$uuida');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_SUBTRACT_UUID(CONCAT('$uuida:1-', (1 << 63) - 1), '$uuida');
 
 eval SELECT GTID_INTERSECTION_WITH_UUID('$uuida:1-3,$uuidb:1-3,$uuidc:1-3', '$uuidb');
 eval SELECT GTID_INTERSECTION_WITH_UUID('$uuida:1-3,$uuidc:1-3', '$uuidb');
 eval SELECT GTID_INTERSECTION_WITH_UUID('$uuidb:1-3', '$uuidb');
+eval SELECT GTID_INTERSECTION_WITH_UUID(CONCAT('$uuida:1-', (1 << 63) - 2), '$uuida');
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+eval SELECT GTID_INTERSECTION_WITH_UUID(CONCAT('$uuida:1-', (1 << 63) - 1), '$uuida');
 
 eval SELECT GTID_COUNT('');
 eval SELECT GTID_COUNT('$uuida:1');

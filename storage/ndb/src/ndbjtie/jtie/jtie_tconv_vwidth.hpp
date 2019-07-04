@@ -1,6 +1,5 @@
 /*
- Copyright 2010 Sun Microsystems, Inc.
- Use is subject to license terms.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates.  All rights reserved
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -58,23 +57,23 @@ static_assert(CHAR_BIT == 8);
  */
 
 #ifdef JTIE_JNI_SHORT_T
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_SHORT_T, signed short, short);
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_SHORT_T, unsigned short, ushort);
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_SHORT_T, signed short, short)
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_SHORT_T, unsigned short, ushort)
 #endif
 #ifdef JTIE_JNI_INT_T
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_INT_T, signed int, int);
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_INT_T, unsigned int, uint);
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_INT_T, signed int, int)
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_INT_T, unsigned int, uint)
 #endif
 #ifdef JTIE_JNI_LONG_T
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONG_T, signed long, long);
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONG_T, unsigned long, ulong);
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONG_T, signed long, long)
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONG_T, unsigned long, ulong)
 #endif
 #ifdef JTIE_JNI_LONGLONG_T
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, signed long long, longlong);
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, unsigned long long, ulonglong);
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, signed long long, longlong)
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, unsigned long long, ulonglong)
 #endif
 #ifdef JTIE_JNI_LONGDOUBLE_T
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGDOUBLE_T, long double, longdouble);
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGDOUBLE_T, long double, longdouble)
 #endif
 
 // ---------------------------------------------------------------------------

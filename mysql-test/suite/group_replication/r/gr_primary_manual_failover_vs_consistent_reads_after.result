@@ -1,0 +1,76 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create a table on the group.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+# 2. Join server2 to group and lock table t1 to block the
+#    the backlog apply on server2 once it is elected the
+#    primary.
+[connection server_2]
+include/start_group_replication.inc
+LOCK TABLES t1 READ;
+
+############################################################
+# 3. Execute a transaction on the primary server (server1),
+#    server2 will be unable to apply it since table t1 is
+#    locked.
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+############################################################
+# 4. Validate that server2 did certify but did not apply the
+#    transaction.
+[connection server2]
+
+############################################################
+# 5. Switch primary to server2.
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+
+############################################################
+# 6. Validate that primary election is executing
+[connection server2]
+
+############################################################
+# 7. A transaction with consistency level BEFORE, AFTER and
+#    BEFORE_AND_AFTER on the new primary will be put on hold
+#    until the backlog is applied.
+SET @@SESSION.group_replication_consistency= 'AFTER';
+SELECT COUNT(*) FROM t1;
+
+############################################################
+# 8. Validate transaction is on hold
+[connection server_2]
+
+############################################################
+# 9. UNLOCK tables to allow backlog to be applied on server2
+[connection server_2]
+UNLOCK TABLES;
+
+############################################################
+# 10. The hold SELECT will now be done and will return the
+#     correct value 1.
+[connection server2]
+COUNT(*)
+1
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+############################################################
+# 11. Reap with success the primary switch.
+[connection server1]
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+
+############################################################
+# 12. Cleanup
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

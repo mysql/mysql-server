@@ -791,7 +791,6 @@ EXPLAIN
               "rows_examined_per_scan": 5,
               "rows_produced_per_join": 25,
               "filtered": "100.00",
-              "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "0.25",
@@ -2196,9 +2195,9 @@ b	count(a)	sum(a)	avg(a)	std(a)	min(a)	max(a)	bit_and(a)	bit_or(a)
 a	1	9	9.0000	0	9	9	9	9
 b	1	2	2.0000	0	2	2	2	2
 c	3	10	3.3333	0.4714045207910316	3	4	0	7
-select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_mem_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-internal_tmp_disk_storage_engine	InnoDB
+internal_tmp_mem_storage_engine	TempTable
 select 1 union distinct select 1 union all select 1;
 1
 1
@@ -2697,7 +2696,6 @@ EXPLAIN
               "rows_examined_per_scan": 5,
               "rows_produced_per_join": 25,
               "filtered": "100.00",
-              "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "0.25",
@@ -4021,9 +4019,9 @@ b	count(a)	sum(a)	avg(a)	std(a)	min(a)	max(a)	bit_and(a)	bit_or(a)
 a	1	9	9.0000	0	9	9	9	9
 b	1	2	2.0000	0	2	2	2	2
 c	3	10	3.3333	0.4714045207910316	3	4	0	7
-select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_mem_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-internal_tmp_disk_storage_engine	InnoDB
+internal_tmp_mem_storage_engine	TempTable
 select 1 union distinct select 1 union all select 1;
 1
 1

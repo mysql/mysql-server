@@ -83,7 +83,7 @@ create table t2 (
   b int not null,
   c int not null,
   unique key uniquet2a(a),
-  foreign key fkt2ab(a,b) references t1(a,b)
+  constraint fkt2ab foreign key (a,b) references t1(a,b)
 ) engine=ndbcluster;
 
 --echo #verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
@@ -108,11 +108,11 @@ show create table t2;
 
 --echo #try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
 --error ER_FK_NO_INDEX_PARENT
-alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+alter table t2 add constraint fkt2abc foreign key (a,b,c) references t1(a,b,c);
 
 --echo #now add a unique key but on a different column order and try again
 alter table t1 add constraint uniquet1abc unique (c,a,b);
-alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+alter table t2 add constraint fkt2abc foreign key (a,b,c) references t1(a,b,c);
 --echo #verify the presence of new fk
 --disable_warnings
 show create table t2;

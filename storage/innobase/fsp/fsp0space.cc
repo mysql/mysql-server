@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -127,9 +127,7 @@ dberr_t Tablespace::open_or_create(bool is_temp) {
     if (it == begin) {
       /* First data file. */
 
-      ulint flags;
-
-      flags = fsp_flags_set_page_size(0, univ_page_size);
+      uint32_t flags = fsp_flags_set_page_size(0, univ_page_size);
 
       /* Create the tablespace entry for the multi-file
       tablespace in the tablespace manager. */
@@ -196,7 +194,7 @@ dberr_t Tablespace::add_datafile(const char *datafile_added) {
   /* The path provided ends in ".ibd".  This was assured by
   validate_create_tablespace_info() */
   ut_d(const char *dot = strrchr(datafile_added, '.'));
-  ut_ad(dot != NULL && Fil_path::has_ibd_suffix(dot));
+  ut_ad(dot != NULL && Fil_path::has_suffix(IBD, dot));
 
   std::string filepath{datafile_added};
 

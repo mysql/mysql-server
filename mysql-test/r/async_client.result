@@ -1,0 +1,95 @@
+#
+# WL#11381: Add asynchronous support into the mysql protocol
+#
+# case1: default connection with default authentication plugin
+CREATE DATABASE wl11381;
+CREATE USER caching_sha2@localhost IDENTIFIED BY 'caching';
+GRANT ALL ON *.* TO caching_sha2@localhost;
+# connect as caching_sha2
+SELECT USER(), DATABASE();
+USER()	DATABASE()
+caching_sha2@localhost	wl11381
+USE wl11381;
+CREATE TABLE t1(i INT, j VARCHAR(2048));
+INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
+SELECT * FROM t1;
+i	j
+1	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	defdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdefdef
+# case2: request a large packet
+SET GLOBAL max_allowed_packet=4*1024;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SELECT SPACE(@@global.max_allowed_packet);
+SPACE(@@global.max_allowed_packet)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+SET GLOBAL max_allowed_packet=default;
+# connect with wrong password
+connect(localhost,caching_sha2,caching1,wl11381,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'caching_sha2'@'localhost' (using password: YES)
+# check for timeout
+SELECT USER();
+USER()
+caching_sha2@localhost
+SET @@SESSION.wait_timeout = 2;
+SELECT SLEEP(10);
+SLEEP(10)
+0
+# Check that ssl_con has not disconnected
+SELECT 1;
+1
+1
+# lock the account
+ALTER USER caching_sha2@localhost ACCOUNT LOCK;
+# account is locked so connect should fail
+connect(localhost,caching_sha2,caching,wl11381,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Access denied for user 'caching_sha2'@'localhost'. Account is locked.
+# lock the account
+ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
+# account is unlocked so connect should pass
+SELECT "connect succeeded after account is unlocked";
+connect succeeded after account is unlocked
+connect succeeded after account is unlocked
+# restart: --ssl=off --loose-caching_sha2_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-caching_sha2_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+# connect as caching_sha2 with SSL disabled
+SELECT USER();
+USER()
+caching_sha2@localhost
+# change to empty password
+ALTER USER caching_sha2@localhost IDENTIFIED BY '';
+# connect as caching_sha2 with SSL disabled and empty password
+SELECT USER();
+USER()
+caching_sha2@localhost
+# case3: authenticate user with sha256_password
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
+# restart: --default-authentication-plugin=sha256_password
+# connect as sha256 
+SELECT USER();
+USER()
+sha256@localhost
+# change to empty password
+ALTER USER sha256@localhost IDENTIFIED BY '';
+# connect with empty password
+SELECT USER();
+USER()
+sha256@localhost
+# restart: --default-authentication-plugin=sha256_password --ssl=off --loose-sha256_password_private_key_path=MYSQL_TEST_DIR/std_data/rsa_private_key.pem --loose-sha256_password_public_key_path=MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+# connect with wrong password and SSL disabled
+connect(localhost,sha256,auth_string,test,MASTER_PORT,MASTER_SOCKET);
+Got one of the listed errors
+# case4: authenticate user with mysql_native_password
+CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'native';
+# restart: --default-authentication-plugin=mysql_native_password
+# connect as native_user
+SELECT USER();
+USER()
+native_user@localhost
+# Change to empty password
+ALTER USER native_user@localhost IDENTIFIED BY '';
+# connect as native_user with empty password
+SELECT USER();
+USER()
+native_user@localhost
+DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
+DROP DATABASE wl11381;

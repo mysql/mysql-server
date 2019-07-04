@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ config_v1::config_v1(Configuration * cf) :
   containers_map(0)
 {
   db.init(2);
-};
+}
 
 config_v1::~config_v1() {
   DEBUG_ENTER_METHOD("config_v1 destructor");

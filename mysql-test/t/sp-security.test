@@ -11,6 +11,9 @@ flush privileges;
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+# Turn Off the partial_revokes to test with wildcard grants
+SET GLOBAL partial_revokes= OFF;
 
 connect (con1root,localhost,root,,);
 
@@ -1081,7 +1084,7 @@ eval $select_parameters;
 --echo # This privielge can be used for privilege escalation.
 connection default;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
-GRANT SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+GRANT SYSTEM_USER,SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
 --connect (con1,localhost,u1,foo,)
 CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
 CALL p1();
@@ -1116,6 +1119,9 @@ drop table mysql.db_copy;
 
 SET GLOBAL sql_mode= @orig_sql_mode_global;
 SET SESSION sql_mode= @orig_sql_mode_session;
+--disable_warnings
+SET GLOBAL partial_revokes = @orig_partial_revokes;
+--enable_warnings
 
 # Wait till all disconnects are completed.
 --source include/wait_until_count_sessions.inc

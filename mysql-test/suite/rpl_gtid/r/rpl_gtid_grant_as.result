@@ -1,0 +1,117 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Case 1: With --partial_revokes
+[connection master]
+SET @save_partial_revokes_master = @@global.partial_revokes;
+SET GLOBAL partial_revokes=ON;
+[connection slave]
+SET @save_partial_revokes_slave = @@global.partial_revokes;
+SET GLOBAL partial_revokes=ON;
+[connection master]
+CREATE USER foo;
+CREATE ROLE r1, r2;
+GRANT INSERT ON *.* TO r1 WITH GRANT OPTION;
+REVOKE INSERT ON mysql.* FROM r1;
+GRANT SELECT ON *.* TO r2 WITH GRANT OPTION;
+REVOKE SELECT ON mysql.* FROM r2;
+GRANT r1, r2 TO foo;
+ALTER USER foo DEFAULT ROLE ALL;
+CREATE USER u1, u2, u3, u4, u5, u6, u7;
+GRANT INSERT, SELECT ON *.* TO u1 AS foo WITH ROLE r1, r2;
+GRANT INSERT, SELECT ON *.* TO u2 AS foo WITH ROLE ALL;
+GRANT INSERT, SELECT ON *.* TO u3 AS foo WITH ROLE ALL EXCEPT r1;
+GRANT INSERT, SELECT ON *.* TO u4 AS foo WITH ROLE DEFAULT;
+GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
+GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
+GRANT INSERT, SELECT ON *.* TO u7;
+[connection master]
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+[connection slave]
+include/stop_slave.inc
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+RESET MASTER;
+RESET SLAVE;
+[connection slave]
+include/start_slave.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+[connection master]
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+[connection master]
+SET @@global.partial_revokes = @save_partial_revokes_master;
+[connection slave]
+SET @@global.partial_revokes = @save_partial_revokes_slave;
+include/rpl_reset.inc
+# Case 2: Without --partial_revokes
+[connection master]
+SET @save_partial_revokes_master = @@global.partial_revokes;
+SET GLOBAL partial_revokes=OFF;
+[connection slave]
+SET @save_partial_revokes_slave = @@global.partial_revokes;
+SET GLOBAL partial_revokes=OFF;
+[connection master]
+CREATE USER foo;
+CREATE ROLE r1, r2;
+GRANT INSERT ON *.* TO r1 WITH GRANT OPTION;
+GRANT SELECT ON *.* TO r2 WITH GRANT OPTION;
+GRANT r1, r2 TO foo;
+ALTER USER foo DEFAULT ROLE ALL;
+CREATE USER u1, u2, u3, u4, u5, u6, u7;
+GRANT INSERT, SELECT ON *.* TO u1 AS foo WITH ROLE r1, r2;
+GRANT INSERT, SELECT ON *.* TO u2 AS foo WITH ROLE ALL;
+GRANT INSERT, SELECT ON *.* TO u3 AS foo WITH ROLE ALL EXCEPT r1;
+GRANT INSERT, SELECT ON *.* TO u4 AS foo WITH ROLE DEFAULT;
+GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
+GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
+GRANT INSERT, SELECT ON *.* TO u7;
+[connection master]
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+[connection slave]
+include/stop_slave.inc
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+RESET MASTER;
+RESET SLAVE;
+[connection slave]
+include/start_slave.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+[connection master]
+DROP USER u1, u2, u3, u4, u5, u6, u7;
+DROP ROLE r1, r2;
+DROP USER foo;
+[connection master]
+SET @@global.partial_revokes = @save_partial_revokes_master;
+[connection slave]
+SET @@global.partial_revokes = @save_partial_revokes_slave;
+include/rpl_end.inc

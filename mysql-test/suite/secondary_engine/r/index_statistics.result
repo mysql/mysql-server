@@ -1,0 +1,180 @@
+CREATE TABLE t1(id INT PRIMARY KEY, x INT, y INT, KEY (x))
+SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES
+(1, 1, 1),
+(2, 1, 1),
+(3, 1, 1),
+(4, 1, 1),
+(5, 1, 1),
+(6, 1, 1),
+(7, 1, 1),
+(8, 2, 2),
+(9, 2, 2),
+(10, 3, 3);
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` = 1)
+EXPLAIN SELECT * FROM t1 WHERE x = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 1)
+EXPLAIN SELECT * FROM t1 WHERE x = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 2)
+EXPLAIN SELECT * FROM t1 WHERE x = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 3)
+EXPLAIN SELECT * FROM t1 WHERE y = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`y` = 1)
+EXPLAIN SELECT * FROM t1 USE INDEX () WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` USE INDEX () where (`test`.`t1`.`id` = 1)
+EXPLAIN SELECT * FROM t1 USE INDEX () WHERE x = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` USE INDEX () where (`test`.`t1`.`x` = 1)
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` IGNORE INDEX (PRIMARY) where (`test`.`t1`.`id` = 1)
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` IGNORE INDEX (`x`) where (`test`.`t1`.`x` = 1)
+EXPLAIN SELECT * FROM t1 WHERE id = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` = 100)
+EXPLAIN SELECT * FROM t1 WHERE x = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 100)
+EXPLAIN SELECT * FROM t1 WHERE id = 3 OR id = 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`id` = 3) or (`test`.`t1`.`id` = 7))
+EXPLAIN SELECT * FROM t1 WHERE x = 2 OR x = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`x` = 2) or (`test`.`t1`.`x` = 3))
+EXPLAIN SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`x` = 1) or (`test`.`t1`.`x` = 2) or (`test`.`t1`.`x` = 3))
+EXPLAIN SELECT * FROM t1 WHERE id > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 0)
+EXPLAIN SELECT * FROM t1 WHERE id > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 1)
+EXPLAIN SELECT * FROM t1 WHERE id > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 3)
+EXPLAIN SELECT * FROM t1 WHERE id > 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 9)
+EXPLAIN SELECT * FROM t1 WHERE id > 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 10)
+EXPLAIN SELECT * FROM t1 WHERE id < 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 1)
+EXPLAIN SELECT * FROM t1 WHERE id < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 3)
+EXPLAIN SELECT * FROM t1 WHERE id < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 10)
+EXPLAIN SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` between 3 and 7)
+EXPLAIN SELECT * FROM t1 WHERE x < 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 1)
+EXPLAIN SELECT * FROM t1 WHERE x < 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 2)
+EXPLAIN SELECT * FROM t1 WHERE x < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 3)
+EXPLAIN SELECT * FROM t1 WHERE x < 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 4)
+EXPLAIN SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` between 1 and 2)
+EXPLAIN SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using secondary engine MOCK
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (Block Nested Loop); Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`x` AS `x`,`test`.`a`.`y` AS `y`,`test`.`b`.`id` AS `id`,`test`.`b`.`x` AS `x`,`test`.`b`.`y` AS `y` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`id` < `test`.`b`.`id`)
+DROP TABLE t1;
+CREATE TABLE geom(g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g))
+SECONDARY_ENGINE MOCK;
+INSERT INTO geom VALUES (POINT(1, 1)), (POINT(2, 2)), (POINT(3, 3));
+ALTER TABLE geom SECONDARY_LOAD;
+ANALYZE TABLE geom;
+Table	Op	Msg_type	Msg_text
+test.geom	analyze	status	OK
+EXPLAIN SELECT ST_AsText(g) FROM geom
+WHERE MBRContains(POLYGON(LINESTRING(POINT(0,0), POINT(3,0),
+POINT(3,3), POINT(0,0))),
+g);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	geom	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`geom`.`g`) AS `ST_AsText(g)` from `test`.`geom` where mbrcontains(<cache>(polygon(linestring(point(0,0),point(3,0),point(3,3),point(0,0)))),`test`.`geom`.`g`)
+DROP TABLE geom;

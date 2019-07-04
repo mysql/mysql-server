@@ -14,7 +14,7 @@ INSERT INTO t1 SELECT NULL FROM t1;
 # Error insert to pause backup.
 --exec $NDB_MGM -e'all error 10039' > /dev/null
 
---exec $NDB_MGM -e'start backup nowait' > /dev/null
+--exec $NDB_MGM -e 'start backup wait started' > /dev/null
 
 # Check if the error ER_GET_ERRMSG is thrown when
 # ALTER TABLE is executed while the backup is in progress.
@@ -38,4 +38,18 @@ while($mysql_errno)
   --error 0,1306
   DROP TABLE t1;
 }
+--echo Test for Bug#28563639: Backup aborts during cleanup of log-event-related triggers
+use test;
+create table t1(id int unsigned primary key, val varchar(100) unique, val2 varchar(100) unique, val3 varchar(100) unique, val4 varchar(100) unique, val5 varchar(100) unique, updates int unsigned) engine=ndb;
+
+--exec $NDB_MGM -e'all error 10049' > /dev/null
+--echo Start backup nowait
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+--exec $NDB_MGM -e'all error 0' > /dev/null
+
+--echo Wait for backup to complete
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+drop table t1;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <system_error>
 
 #include "common.h"
@@ -100,11 +101,13 @@ static void GetCurrentUserSid(SidPtr &pSID) {
 }
 
 /**
- * Makes a file fully accessible by the current process user and
- * read only for LocalService account (which is the account under which the
- * MySQL router runs as service). And not accessible for everyone else.
+ * Makes a file fully accessible by the current process user and (read only or
+ * read/write depending on the second argument) for LocalService account (which
+ * is the account under which the MySQL router runs as service). And not
+ * accessible for everyone else.
  */
-static void make_file_private_win32(const std::string &filename) {
+static void make_file_private_win32(const std::string &filename,
+                                    const bool read_only_for_local_service) {
   typedef std::unique_ptr<SECURITY_DESCRIPTOR, LocalFreeDeleter>
       SecurityDescriptorPtr;
   PACL new_dacl = NULL;
@@ -135,8 +138,14 @@ static void make_file_private_win32(const std::string &filename) {
   ea[0].grfInheritance = NO_INHERITANCE;
   ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
   ea[0].Trustee.ptstrName = reinterpret_cast<char *>(current_user.get());
-  // Read only access for LocalService account
-  ea[1].grfAccessPermissions = GENERIC_READ;
+
+  // Read only or read/write access for LocalService account
+  DWORD serviceRights = GENERIC_READ;
+  if (!read_only_for_local_service) {
+    serviceRights |= GENERIC_WRITE;
+  }
+  ea[1].grfAccessPermissions = serviceRights;
+
   ea[1].grfAccessMode = GRANT_ACCESS;
   ea[1].grfInheritance = NO_INHERITANCE;
   ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
@@ -296,15 +305,17 @@ void make_file_public(const std::string &file_name) {
 #endif
 }
 
-void make_file_private(const std::string &file_name) {
+void make_file_private(const std::string &file_name,
+                       const bool read_only_for_local_service) {
 #ifdef _WIN32
   try {
-    make_file_private_win32(file_name);
+    make_file_private_win32(file_name, read_only_for_local_service);
   } catch (const std::system_error &e) {
     throw std::system_error(e.code(), "Could not set permissions for file '" +
                                           file_name + "': " + e.what());
   }
 #else
+  (void)read_only_for_local_service;  // only relevant for Windows
   try {
     throwing_chmod(file_name, S_IRUSR | S_IWUSR);
   } catch (std::runtime_error &e) {

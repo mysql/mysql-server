@@ -2,6 +2,12 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+
+## MTR precheck connection doesn't disconnects immediately. It might be present
+#  at the start of the test. Lets wait until its disconnected.
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
 call mtr.add_suppression("Plugin mysqlx reported: .*Could not open internal MySQL session.");
 call mtr.add_suppression("Plugin mysqlx reported: ..: Error initializing session for connection: Could not open session.");
 call mtr.add_suppression("Plugin mysqlx reported: .Kill client: 1040 Too many connections.");
@@ -32,7 +38,6 @@ SHOW GRANTS FOR xuser@localhost;
 -->expecterror ER_X_SESSION,2006,2007
 -->newsession sixth_session	root
 EOF
-
 
 --exec $MYSQLXTEST -u xuser --password='xuser_pwd' -h127.0.0.1 --file=$MYSQL_TMP_DIR/clien_session.tmp 2>&1
 

@@ -248,4 +248,4 @@ std::ostream &index_entry_mem_t::print(std::ostream &out) const {
   return (out);
 }
 
-}; /* namespace lob */
+} /* namespace lob */

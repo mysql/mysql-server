@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,12 +39,8 @@
 #include "router_config.h"
 
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
-
-using std::make_tuple;
-using std::string;
-using std::tuple;
-using std::vector;
 
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
@@ -86,7 +82,9 @@ class MySQLRouter {
    */
   MySQLRouter()
       : can_start_(false),
-        showing_info_(false)
+        showing_info_(false),
+        out_stream_(std::cout),
+        err_stream_(std::cerr)
 #ifndef _WIN32
         ,
         sys_user_operations_(mysqlrouter::SysUserOperations::instance())
@@ -107,9 +105,14 @@ class MySQLRouter {
    *
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
+   * @param out_stream output stream representing "stdout"
+   * @param err_stream output stream representing "stderr"
    * @param sys_user_operations .oO( ... )
    */
-  MySQLRouter(const mysql_harness::Path &origin, const vector<string> &arguments
+  MySQLRouter(const mysql_harness::Path &origin,
+              const std::vector<std::string> &arguments,
+              std::ostream &out_stream = std::cout,
+              std::ostream &err_stream = std::cerr
 #ifndef _WIN32
               ,
               mysqlrouter::SysUserOperationsBase *sys_user_operations =
@@ -132,9 +135,12 @@ class MySQLRouter {
    *
    * @param argc number of arguments
    * @param argv pointer to first command line argument
+   * @param out_stream output stream representing "stdout"
+   * @param err_stream output stream representing "stderr"
    * @param sys_user_operations .oO( ... )
    */
-  MySQLRouter(const int argc, char **argv
+  MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
+              std::ostream &err_stream
 #ifndef _WIN32
               ,
               mysqlrouter::SysUserOperationsBase *sys_user_operations =
@@ -151,17 +157,19 @@ class MySQLRouter {
    * @param config Configuaration to be used to initialize logger
    * @param raw_mode If true, all messages are logged raw; if false, messages
    *        are subject formatting
+   * @param use_os_log If true, Windows EventLog will be used instead of STDERR;
+   *        Currently this option is only meaningful on Windows
    *
    * @throws std::runtime_error on:
-   * - failure to initialize file logger
+   * - failure to initialize file or OS logger
    * - bad configuration
    *
    * @note This function is static and public, because unlike
-   * init_plugin_loggers(), it's also meant to be called very early during
+   * create_plugin_loggers(), it's also meant to be called very early during
    * startup, close to main().
    */
   static void init_main_logger(mysql_harness::LoaderConfig &config,
-                               bool raw_mode = false);
+                               bool raw_mode = false, bool use_os_log = false);
 
   // Information member function
   std::string get_package_name() noexcept;
@@ -254,6 +262,31 @@ class MySQLRouter {
     return extra_config_files_;
   }
 
+  /** @brief Returns predefined (computed) default paths
+   *
+   * Returns a map of predefined default paths, which are computed based on
+   * `origin` argument. This argument serves as base directory for any
+   * predefined relative paths. The returned map consists of absolue paths.
+   *
+   * @param origin Base directory which will be prepended to any relative
+   *        predefined directories
+   *
+   * @throws std::invalid_argument (std::logic_error) if `origin` is empty
+   */
+  static std::map<std::string, std::string> get_default_paths(
+      const mysql_harness::Path &origin);
+
+  /** @brief Returns absolute path to mysqlrouter.exe currently running
+   *
+   * @param argv0 1th element of `argv` array passed to `main()` (i.e.
+   * `argv[0]`)
+   *
+   * @throws std::runtime_error, ...?
+   *
+   * @note argv0 is currently ignored on Windows platforms
+   */
+  static std::string find_full_path(const std::string &argv0);
+
 #if !defined(_MSC_VER) && !defined(UNIT_TESTS)
   // MSVC produces different symbols for private vs public methods, which mean
   // the #define private public trick for unit-testing private methods doesn't
@@ -305,7 +338,7 @@ class MySQLRouter {
    * application.
    */
   void parse_command_options(
-      const vector<string> &arguments);  // throws std::runtime_error
+      const std::vector<std::string> &arguments);  // throws std::runtime_error
 
   /** @brief Finds all valid configuration files
    *
@@ -406,6 +439,8 @@ class MySQLRouter {
 
   void init_keyring(mysql_harness::Config &config);
 
+  void init_dynamic_state(mysql_harness::Config &config);
+
   /**
    * @brief Initializes keyring using master-key-reader and master-key-writer.
    *
@@ -426,8 +461,6 @@ class MySQLRouter {
    * @throw std::runtime_error
    */
   void init_keyring_using_prompted_password();
-
-  void init_plugin_loggers(mysql_harness::LoaderConfig &config);
 
   // throws std::runtime_error
   void init_loader(mysql_harness::LoaderConfig &config);
@@ -452,7 +485,7 @@ class MySQLRouter {
   /** @brief Vector with configuration files passed through command line
    * arguments **/
   // TODO move these to class ConfigFiles
-  std::vector<string> config_files_;
+  std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
 
@@ -494,6 +527,9 @@ class MySQLRouter {
   mysql_harness::Path origin_;
 
   KeyringInfo keyring_info_;
+
+  std::ostream &out_stream_;
+  std::ostream &err_stream_;
 
 #ifndef _WIN32
   /** @brief Value of the --user parameter given on the command line if router

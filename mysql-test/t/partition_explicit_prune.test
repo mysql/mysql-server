@@ -513,7 +513,7 @@ FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 
 connection monitor;
---replace_regex /[0-9]*//
+--replace_regex /[0-9]+//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -784,7 +784,7 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
 
 connection monitor;
---replace_regex /[0-9]*//
+--replace_regex /[0-9]+//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -906,7 +906,7 @@ FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
 
 connection monitor;
---replace_regex /[0-9]*//
+--replace_regex /[0-9]+//
 --source include/get_handler_status_counts.inc
 connection default;
 --echo # Lots of extra lock acquisitions, reads and etc due to

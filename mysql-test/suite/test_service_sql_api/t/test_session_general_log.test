@@ -1,4 +1,7 @@
 
+# X plugin might add rows to general_log
+source include/xplugin_wait_for_interfaces.inc;
+
 --echo # Setting general_log to initial state empty
 TRUNCATE TABLE mysql.general_log;
 
@@ -50,7 +53,7 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_session_general.log' INT
 
 SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
 SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
-SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit') AND user_host NOT LIKE '%mysql.session%';
 
 --echo ##########################################
 --echo # Cleanup

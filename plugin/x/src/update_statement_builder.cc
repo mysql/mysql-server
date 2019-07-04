@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
@@ -37,7 +36,7 @@ void Update_statement_builder::build(const Update &msg) const {
   add_operation(msg.operation(), is_table_data_model(msg));
   add_filter(msg.criteria());
   add_order(msg.order());
-  add_limit(msg.limit(), true);
+  add_limit(msg, true);
 }
 
 void Update_statement_builder::add_operation(const Operation_list &operation,
@@ -171,8 +170,8 @@ void Update_statement_builder::add_document_operation(
   m_builder.put("doc")
       .put_each(
           operation,
-          ngs::bind(&Update_statement_builder::add_document_operation_item,
-                    this, ngs::placeholders::_1, &operation_id))
+          std::bind(&Update_statement_builder::add_document_operation_item,
+                    this, std::placeholders::_1, &operation_id))
       .put("),'$._id',JSON_EXTRACT(`doc`,'$._id'))");
 }
 
@@ -207,8 +206,8 @@ void Update_statement_builder::add_table_operation_items(
                               "Invalid column name to update");
       m_builder.put_list(
           begin, end,
-          ngs::bind(&Update_statement_builder::add_field_with_value, this,
-                    ngs::placeholders::_1));
+          std::bind(&Update_statement_builder::add_field_with_value, this,
+                    std::placeholders::_1));
       break;
 
     case Update_operation::ITEM_REMOVE:
@@ -216,8 +215,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_REMOVE(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_member, this,
-                              ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_member, this,
+                              std::placeholders::_1))
           .put(")");
       break;
 
@@ -226,8 +225,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_SET(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_member_with_value,
-                              this, ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_member_with_value,
+                              this, std::placeholders::_1))
           .put(")");
       break;
 
@@ -236,8 +235,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_REPLACE(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_member_with_value,
-                              this, ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_member_with_value,
+                              this, std::placeholders::_1))
           .put(")");
       break;
 
@@ -246,8 +245,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_MERGE_PRESERVE(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_value, this,
-                              ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_value, this,
+                              std::placeholders::_1))
           .put(")");
       break;
 
@@ -256,8 +255,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_ARRAY_INSERT(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_member_with_value,
-                              this, ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_member_with_value,
+                              this, std::placeholders::_1))
           .put(")");
       break;
 
@@ -266,8 +265,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_ARRAY_APPEND(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_member_with_value,
-                              this, ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_member_with_value,
+                              this, std::placeholders::_1))
           .put(")");
       break;
 
@@ -276,8 +275,8 @@ void Update_statement_builder::add_table_operation_items(
           .put("=JSON_MERGE_PATCH(")
           .put_identifier(begin->source().name())
           .put_each(begin, end,
-                    ngs::bind(&Update_statement_builder::add_value, this,
-                              ngs::placeholders::_1))
+                    std::bind(&Update_statement_builder::add_value, this,
+                              std::placeholders::_1))
           .put(")");
       break;
 

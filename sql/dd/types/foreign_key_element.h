@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class Foreign_key_element_impl;
 
 namespace tables {
 class Foreign_key_column_usage;
-};
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -47,7 +47,7 @@ class Foreign_key_element : virtual public Weak_object {
   typedef tables::Foreign_key_column_usage DD_table;
 
  public:
-  virtual ~Foreign_key_element(){};
+  virtual ~Foreign_key_element() {}
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key.

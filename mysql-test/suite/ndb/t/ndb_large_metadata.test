@@ -1,0 +1,174 @@
+--source include/have_ndb.inc
+
+# Create a table that will have metadata larger than 6,000 bytes even
+# when compressed. We do this by specifying more than 6,000 characters
+# of uncompressible random default values.
+#
+# Prior to wl#10665, expect error 1296:
+#   "Got error 1229 'Too long frm data supplied' from NDBCLUSTER"
+# After wl#10665, expect the statement to succeed.
+#
+# There is no point to copying the large statement to the result file,
+# so the query log is disabled.
+
+--disable_query_log
+CREATE TABLE t_big_metadata(
+  i int primary key not null,
+  j int,
+  c1 VARCHAR(800) NOT NULL DEFAULT
+	"8uA4CsAQmqiX5W3bmYyQY8KREPeBDEiZfMpCmxkD2eYnhVlrs2UEKn3KwPRG"
+	"iIOq7otFdFiYlcAkAIQcvg8cxEc0xb86bTUcxhuhbvPFBxNjvEv5lH3Ji7wo"
+	"5oiLkrOAXCEODPoMQDwaupT5AJdwthwKREwSNj20C7Eh08RsdoerIxtLswgC"
+	"imF7CQzAx7TYzE5rMSYu3Hf7FiYTFxnOruF4lWytFd6pvZamz9cMKUNIO614"
+	"pfycA1vCphFtwAY7x0b8M1IAEjD83K0PYfFPLRGyHfE1aS7OPLGNo0VVSOV6"
+	"2vKDg8hcjoTgXsYNJoalE9obfdIiWh7fwIka0ZDSFRpNAfr1rahnd1ZBRaYU"
+	"imuY5IzvyUqi4nRotdh1XVhluyxxAkMCSgx6iEonWh1pCdm7tkdWtPOoulMZ"
+	"mODaCe5JCk7ERHMFlNGwQuSctcOM97s85cVXGhpeB8jvppWklC8zxd7hwmGm"
+	"6nqf1DreGyKxVBJR5P7ly3WqWDOCUu9voyoPdxjsZQkqaZQUeCXy46XLj1Te"
+	"w2emE6x5IO42SrSYMKwj71mtGwn3YuuQQQVPoW5gxdlCHMnMzlOTyCVTqtz3"
+	"KWljegqnZYgwSSNtTCGm45i48pAytkZ6oXHKNzfCczx7Rwz59LWcOJOO8x4z"
+	"KKpKtqMVWUX0Ip5Dh37S5fdcC3PJ23qxo6aVdFZXQqEdH0Lh9FsHZw6hKIfw"
+	"hMx8BGFQViCsgUQVU6dMVQdlHD7NteKnCNU2Ahj5VE3R24vFm2BltC2wsLuc"
+	"biND6a2rjh4wbI3y0ttD",
+
+  c2 VARCHAR(800) NOT NULL DEFAULT
+	"00E1HfjKnBe0yUWFw5XdICrnKEL58I4wIpXfKvhcVPduBqpYaKXYiH1fsgMa"
+	"f4U8mETOczkt6foNFo1zuf11TO65TBGhba9JOsAwGCBW2f9CFexMcUMgCLPF"
+	"nxny0mtnsVggKycyZRAcZE5RMo3XubRGlcBCY4W4OPAcYKeplBr0RPCOVojS"
+	"3MZ4RK7qmJjyZ9Av5Psh9p1c6gQav75nduRic0mgkiRXySVC6oKgsexn6kKr"
+	"tqAJKYFUKcFbrOlglrF39azbLMW6svGDcPC17FER4NJ6M7nWc214ZFNhwuNX"
+	"1YHQQzrSsEl4LL4SBUvMMlcjDnBhZTApNQWXZaIAw2gMhKPFwzTObAeKNURR"
+	"3jT3rHVk9bGuj20n0mvo9G1WbjOr0Nq4S3vhsoQtPI7mPFoFBcWBNHKB8zbI"
+	"z1JwoqmS4cDM6eEVcM7bGhMxbNq07f5CADlLIwDNixYkwqIvTpNxPCoimNKx"
+	"vpGyUVnFsdcbdEmCrwuzk5QwgzkTpAwiylu4eJh1eqUDbDRpGtAVp8SxaMek"
+	"Bc0Zo04sTMyXRBilW47OCiOr5Zp4V6VsIUefukYRKHA1st6GeTrfed7AE6tM"
+	"sQj2OPsq8yast0XHDmJFpwHqkcBKEm0Ng67hi50z8tcMKGD1IYZWN5Bu4Ury"
+	"iOqaexc5Ba21VijFWqjR17oTpFipjJEu1m51cKrZuRjKs1bmbL0hAHF4pwLk"
+	"WSJpeVhp3kPyCu0PMpHpfdJGLIxviAYh2Y5tMB6AGr8xTONnngwlMmwgRjTH"
+	"JRLEJf63OLjW5rhvCoKA",
+
+  c3 VARCHAR(800) NOT NULL DEFAULT
+	"xxOB6sCllhh7NKuu7SS2yE02s0Hj2LpQuaY24tCmjN7vvaAp3tOnBSnEsR9Y"
+	"Sr7Pf3C4gVBWNMdnsThgtvcbDt92BlKXlHuyCaDaFgxLB3qaFcLJODTfAKUv"
+	"bvSBSRG3raW8PmdJ9yGE3kfyLC9prqq9QAtwZM77FLNCUfLQyDyIHojUyYk9"
+	"ayCPXIrnEkcFADU8hYhojYipZ2BAyfe0odZWUNdmAhKMuANEqgzhsCHMl58u"
+	"o213woGC8YsifbgEs2tMQjOUgcXDyeMZmyvFJw6QbbQBwJjT5YDkRFGln9Fr"
+	"kRn4fOw0o2swNQYqU10h8ucSelMgyJRL7WQHu0872PLfJ3HraBI1YFb9kl6t"
+	"OPTI9iZgkEssnwL0SYgj9mYC0kQeFNtaEJaTdnBGmv925IjsysnZ7SsD7q0o"
+	"jYHEHryfXAjDrlxxsMQyS1kQG215TGalSueG985ZkpKQi69MNLfrXTRJcrF2"
+	"Lwqrs1sJoUoL3m7itYozKWEw0MCBXvP4AuZ82XFwjDNC587vW1gpLiaSDyu0"
+	"E1RuOIP9wGqCU6jOJ4W8wxOnpjOLRSjaIhTIOkwxa3KvPKqHnD0i2exQphK7"
+	"tVvhQM5F7IFgmjHOOO3WjlIpvTd3WwTjzQKZWaylvjn00eielZGinPcoemG3"
+	"2YLnjkweB8gpTar6Lkj8AKPNvAvYjGLSn0baNTyBSErxYIBg3pPkKrhPl1EG"
+	"bBkZu4hRK6mgbUqdpsT9fptMqjD2DLOg6JwNQVcMl7NFuqUa3YTuQkGK6wa6"
+	"QMtwwDX6BHYC4HhqJpv5",
+
+  c4 VARCHAR(800) NOT NULL DEFAULT
+	"YJhn9RjAG9iOKZruiwxy30avbjZ6VZ8VPLKquD15WmmAijO3gwlPT8lOBG2W"
+	"cZkZibAsTvz94ARJUjzB4Gxj8SSBxr8thAYTPdNVItdJhcVVs8LUtD9nYC7e"
+	"HYbtfwYmb8oRDqFhAD7X6IMDFEVVPxBTg74tLW8tZXLjjMEAf5JnfcTlVIX9"
+	"gAAo8R8KDHVIe4GeJmN2VCeDvl1FfS4mdnOTutxzhsB1HuVk6xRDMr3c9c0J"
+	"GCYTSbmPXvkjhywu1tqzFhcGCSsyZtDGmkD0BZR88zKGvwOe0RrHg4L2Pw2N"
+	"OaXLDvRDI45HredtqKYfmkJjjfOYlhPLfE1mrLVYlnKEB7OFuqjByNPJvkhn"
+	"ysEsMLd3G0arFbQ45pNHe00WRVAI015HhzUE4MBaT8k6XNts14Yxznol4YVz"
+	"4LGT2wrQsxyaxkzM2n5kMy0kGtQbKjLkHEL8cS5VkraXsQrb44kwJl25seKd"
+	"dWpEXKyvvY2l0OGjpHcfXvKuW4TdRNg1H3cvkzT5VgGPqfLkm5Vlr1jnjvmC"
+	"BTeNQK5zGzEmQOuJmtnRdaWDWOTcaCnwWEbUiWLVQ31KpaxvHrpcr4545RZy"
+	"wavZFVZ3oDQDABBg2v7HuHBxQlDrE8htN53pvc5JYhTAsNt08zYY6ttZFqfz"
+	"Gx3oltyG1R3X5zUzyyLx9gyhQ3HDmYdnjEvgm4yjAxbJ6HpIm2JfzlY9TA1o"
+	"l8XU8riVI0u6RqEpGGLoaXhWb02NXhuTnmr7Qy5Z4xjaeJjxc4Tqqgn59wZ7"
+	"z6z70NtAqYwZcivGmLqo",
+
+  c5 VARCHAR(800) NOT NULL DEFAULT
+	"sCLcebb0JGmBGz9H5t1QOwqKFDuGdhFeT8oGW4PSu1OdyGRLFEkVy4hKB74M"
+	"coOPubnqkBiGUYhYMHtPcMNUMuHz1KS8VUGoEMZbzrV41fPd60hCYWnw503Q"
+	"zoFHSonDAzCYBfqM6I3OnWCFXR0pphNtKvuI3qYTONNKeQWaOLszjNzuoDPL"
+	"KawsDhuwMM29trzi3mV5Dgw9vkJGntYhWSjrtOd6nSoZ5ogGYDb3VI35dH8F"
+	"TArGUSvknTS3yds1m5x56kHhbXAW653hgJ2FadvRJHlv7WKBUdFxS8qHQQZN"
+	"PpzPYsKS4PKgLFK7i6EDcz3gt23nnBUAUixH9sokOAvjM6IihKMIdMZywgzI"
+	"NMZUSxvu3ECuMOzJ15RQGQK2dEEzQB84iOu8JzXnhw40rjHz1faFhfDeCLHO"
+	"8D3xIUkWvVVruR8OvjzYmNX5S94XeFE3I9t6cb2RXW90mAAqfsYFFN535nLj"
+	"lY0K7dUXfvgfPnmXaDx6lM1tp9CP43YAnzGUQjzOkpdT4gkxc25DxJU3nRZj"
+	"On5UHf0tUvGYR4ClPU7HTD5Aa79RXKbh7YJ25o1pO7FAIIWhCPrzvvdQ8zMs"
+	"RLMhO8HbXaDN5qBHXeqkftjIx7RZQxvbOtfAHOF9mMgtcWitcbvvTZPacpZ5"
+	"zOUohma0Z3TOn9cAHVECOktxUZIHfwgBXOOkoBHGk7s9L8BWGN1aaE9dcP6H"
+	"OTDaNKooBZdCXK4xGIIf77BAUL9LX2VvvrfNHMs2q5oYgydF1XKQUbuON6BJ"
+	"4MuStZPPezNYdZxGPQJ7",
+
+  c6 VARCHAR(800) NOT NULL DEFAULT
+	"9fdN6pZRCD9CYgQ4fNsGykyO9RVfbMQ4MyZnd9ZzHHDbclGIf7IefoigJFf6"
+	"STy4valMeol6K5uGBFf5UgT2rmtDlWtkUKbmbSDz75V0wgFNXa0KBJh8SsaR"
+	"nZAeDYU4Z6DYVKNrEOmxamxL79N1OoSsuqKZW4wPGT8r6ZSjQS7ctSETQ7R9"
+	"gCAfIeONsfNqa8nR4ubaE9ifVq7CUtIeesK744IcoT8ElDI4VkTEfQ4KSC0g"
+	"SbDWMMBp7ozcSsZ5EMwuIBiOsACF6zJldghV1AFD28XBze7wm5qncliW2xwL"
+	"sFdTrkk4BMvNNaC06X47ODg8Cxs8g8pPlGo6dZRi8LipkRanslHvnkew5QBH"
+	"4ZIRcbTuoxDi2LlLK5u1ElBk6sWb7qQZJkbk7OHGkcjNRq8AA9ZJq3yr75dr"
+	"d7msvmyqrUvjitBDxoBORXVCrqdtwaiJXf0mVPGEwsBRUW66wC4cSGsZAulh"
+	"BRVjT4wi68XJ0wreY9i5P9Z9rdlBqiYVSMInv9n50k0vxNEQ7qYKMqkNpf7Y"
+	"cyotmgm80cNxHEtAIDdNy0F7eKn9zzPfKt0xmt7XSZ1PQto00dBYmUFokp61"
+	"eKkiKfCHflDR4ph7pUWctpwsJMxyYKYxVVDvCA1mTLDGdPtgdKSwB8vHE3sw"
+	"A65qBCSHG5XbTaMkHTgEwZ2zGY4SA9l3oFZgJuzbNW3p1x6UoCY7KHBJmIRP"
+	"7UFbPzDIdkEjPOuvcVgcN0wjAWChiAKKqtJKVaQLlpvuIUM2M2edpMkav6po"
+	"2c7ivfYujEukYDkmBqnV",
+
+  c7 VARCHAR(800) NOT NULL DEFAULT
+	"xQnPyIwCmbR0HFA6mZGwE1DEBlxyC6wGMtmh6GMEulbRO3JnpJvdZ4fyFljM"
+	"i9JZMzE8IvIbEnV0CyHqO1jFg6Ab1o4i3ld4W1LffRoyWesNo89MBflpn5SN"
+	"SVypsDXje71et9LDTrp4QfByW2SRtcUTDRm2bnsCmzVXtnZf7V8ZyZ6CKTgq"
+	"kQOysLMOYsxAcEd5MN2ahwnF4VDKx0KTXIXzrLzYwTvSpM2jMC2PvbK4bZtI"
+	"zNc2oZdVOu763FnJ2a9d2JVTbGDl2m7Cj86k31vJPM1CnWiNmp3pa1iwReLz"
+	"Fr5wYJdB2ApxCy3zzmHHe2YIrKjceZMjVj3ZqWHrhEqmVFld9C26MXoeo91L"
+	"9LI2frpktk47gHlBPL5Inv5Tk43ILgRS96ZTWcXcAaCqDOa47cbSnXJNBpL2"
+	"PoRh4ZFlmL2BfnAd4g8HpQIHOjIOLm1RrT5si6Zzs6tUKe9A3KLPyb1Y21e2"
+	"JQiAwjVFVYhhbt2JYnucCNkIWz6eGobKm7b088GAfqcS5IvX2KK0ksc690xf"
+	"8QcAsqr2bLOlBWYs0VoZQDZJ3DYyttsC52KwwE5o0nbPPQJoudc2WhKGLQBb"
+	"6EZ0AmZdGAkmnxyDTqMw1p0yugDD7WVItEPvJIMMEKfpyfdxdKogqksAKzv8"
+	"OtBzSxAZrJ4GI2xJLZnvvXVwNrmJC18k4ANvvHb6scrock7r2Np7yA2QVhvJ"
+	"oz4HnY3QW5d6NWqXKM5816NTT6uMAOK521whF8XeN22W0aKAKviNylqSryXn"
+	"0zf6myR7wdBthYzDg6vw",
+
+  c8 VARCHAR(800) NOT NULL DEFAULT
+	"ZckjR1tNoJllwUL7xp0pNre7qbqjENkSLcTAn7UX5dQ5ST4BVG7iRSwoAsHX"
+	"J29CVs0PlpZq9dVOqGimnGxuc5QUK4U6rqyfqTAPHxIPlgXcF24chNNS5EQ4"
+	"USgZJHiEmB4OKjB0fbhcUbscrXK76LjcF58JAeIXZ6KN5scowHy9SrFufI9M"
+	"Ulc4WtW9aRpEwqo83CAkAsYWCxwhc4MDF6XV0gErNCsg6f0Jfr39nt6b75rr"
+	"u5AFTOXM1zc8altKSrO3DU6JrPCFnqEMmsxfc8mXaNDncMSL5pWaCkZpoOML"
+	"HUMgaAzaxEZNxpbOmcPej5t26jjUrR8ATocB3iqmGX4xEnpHhk4ZBwk9Kr6t"
+	"XF4wyY0Bsr8fvfDfQSO2R7Z8L0IqsAZalzbJ3ODyD4sOB1twF56n8Q3Ciepk"
+	"cj1lSmq9g8BUj6jXgqppRLUllqnk92ji8ja5lGBwrvxJqA8qrdYV6kCkVgop"
+	"XN16sCvzSsL2CrHdPFxeCEEUx4vSBfWjzHHV6UgW3abCv7AlcQ04mcq6YrQi"
+	"lckkyWpFPN2hWWcQXdxtHGOMzg1Rbe3vWOtRpxw1EGndkn8EV3R5U2ENDIdG"
+	"8qxZg75GJr4sPmbGHPznvq3TjdkIeNlzChxWG4rfBRyV3XHjVu14KTsfQNJy"
+	"pbiz9gqn6h33D3pYDCnOZavM7B8nKamRgb5L5blbCUFCoLPM421fcLgLBhYz"
+	"7a3wmzn8UDE38m8ttJEq2dwlsu401Oftr9gar2vQEjxZpGzPuiPzTQPzElxC"
+	"e0Wzc7xhhBMY9tOcTJFJ"
+) character set latin1 engine=ndb;
+--enable_query_log
+
+## Insert some rows
+#
+insert into t_big_metadata(i,j) values (1,101) , (2,102) , (3,103) ;
+
+## Delete a row
+#
+delete from t_big_metadata where i = 2;
+
+## Query against the table
+#
+select i,j from t_big_metadata where i = 1;
+
+## INPLACE ALTER TABLE
+#
+alter table t_big_metadata add index(j), algorithm=inplace;
+
+## COPYING ALTER TABLE
+#
+alter table t_big_metadata drop column c8, add column k int, algorithm=copy;
+
+## Index scan query
+#
+select i,j,k from t_big_metadata where j < 103;
+
+## DROP the table to clean up
+#
+drop table t_big_metadata;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ class Mts_submode_database : public Mts_submode {
                           Query_log_event *ev);
   Slave_worker *get_least_occupied_worker(Relay_log_info *,
                                           Slave_worker_array *ws, Log_event *);
-  ~Mts_submode_database(){};
+  ~Mts_submode_database() {}
   int wait_for_workers_to_finish(Relay_log_info *rli,
                                  Slave_worker *ignore = NULL);
 };
@@ -186,7 +186,7 @@ class Mts_submode_logical_clock : public Mts_submode {
   }
 
   longlong get_lwm_timestamp(Relay_log_info *rli, bool need_lock);
-  longlong estimate_lwm_timestamp() { return last_lwm_timestamp.load(); };
+  longlong estimate_lwm_timestamp() { return last_lwm_timestamp.load(); }
   ~Mts_submode_logical_clock() {}
 };
 

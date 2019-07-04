@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,10 @@ bool match_field_value(const Message &expected_msg, const Message &msg,
           parser::get_notice_message_from_text(
               static_cast<Mysqlx::Notice::Frame_Type>(expected_notice->type()),
               "", nullptr, true)};
+
+      if (nullptr == expected_notice_payload.get()) {
+        return nullptr == actual_notice_payload.get();
+      }
 
       if (!actual_notice_payload->ParsePartialFromString(notice->payload()))
         return false;

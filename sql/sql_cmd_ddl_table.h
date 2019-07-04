@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ class Sql_cmd_create_or_drop_index_base : public Sql_cmd_ddl_table {
  public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  virtual ~Sql_cmd_create_or_drop_index_base() = 0;  // force abstract class
+  ~Sql_cmd_create_or_drop_index_base() override = 0;  // force abstract class
 
   bool execute(THD *thd) override;
 };

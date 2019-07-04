@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,8 +50,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 DB_TABLESPACE_NOT_FOUND */
 static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
                                uint32 *space_id) {
-  if (tablespace.se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
-                                              space_id)) {
+  if (tablespace.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                       space_id)) {
     /* error, attribute not found */
     ut_ad(0);
     return (DB_ERROR);
@@ -110,8 +110,8 @@ bool dict_sdi_create(dd::Tablespace *tablespace) {
                                 << tablespace->name() << "," << tablespace->id()
                                 << ")";);
 
-  uint32 space_id;
-  if (tablespace->se_private_data().get_uint32("id", &space_id)) {
+  uint32 space_id = 0;
+  if (tablespace->se_private_data().get("id", &space_id)) {
     /* error, attribute not found */
     ut_ad(0);
     return (true);
@@ -133,8 +133,8 @@ bool dict_sdi_create(dd::Tablespace *tablespace) {
     ut_ad(space != nullptr);
 
     dd::Properties &p = tablespace->se_private_data();
-    p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-                 static_cast<uint32>(space->flags));
+    p.set(dd_space_key_strings[DD_SPACE_FLAGS],
+          static_cast<uint32>(space->flags));
 
     fil_space_release(space);
   }
@@ -172,7 +172,7 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace,
 #if 0 /* TODO: Enable in WL#9761 */
 	uint32	space_id;
 
-	if (dd_tablespace_get_discard(&tablespace)) {
+	if (dd_tablespace_is_discarded(&tablespace)) {
 		/* sdi_get_keys shouldn't be called on discarded tablespaces.*/
 		ut_ad(0);
 	}
@@ -224,7 +224,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace,
 			<< ")";
 	);
 
-	if (dd_tablespace_get_discard(&tablespace)) {
+	if (dd_tablespace_is_discarded(&tablespace)) {
 		/* sdi_get shouldn't be called on discarded tablespaces.*/
 		ut_ad(0);
 	}
@@ -308,7 +308,7 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
   /* Used for testing purpose for DDLs from Memcached */
   DBUG_EXECUTE_IF("skip_sdi", return (false););
 
-  if (dd_tablespace_get_discard(&tablespace)) {
+  if (dd_tablespace_is_discarded(&tablespace)) {
     /* Claim success. */
     return (false);
   }
@@ -415,7 +415,7 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
   /* Used for testing purpose for DDLs from Memcached */
   DBUG_EXECUTE_IF("skip_sdi", return (false););
 
-  if (dd_tablespace_get_discard(&tablespace)) {
+  if (dd_tablespace_is_discarded(&tablespace)) {
     /* Claim success. */
     return (false);
   }

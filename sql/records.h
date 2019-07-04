@@ -24,9 +24,12 @@
 
 #include <sys/types.h>
 #include <memory>
+#include <string>
 
 #include "my_alloc.h"
+#include "my_base.h"
 #include "sql/basic_row_iterators.h"
+#include "sql/composite_iterators.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"
@@ -71,6 +74,9 @@ struct READ_RECORD {
   // responsible for destroying the inner object, but the memory will still be
   // held in iterator_holder, so we can't put this in the union.
   char sort_holder[sizeof(SortingIterator)];
+
+  // Same, when we have sorting _and_ filtering.
+  char sort_condition_holder[sizeof(FilterIterator)];
 
   // Same technique as sort_holder, when we have an AlternativeIterator.
   char alternative_holder[sizeof(AlternativeIterator)];

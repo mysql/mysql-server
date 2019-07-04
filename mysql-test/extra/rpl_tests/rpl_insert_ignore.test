@@ -31,7 +31,7 @@ INSERT INTO t2 VALUES (3, 5);
 INSERT INTO t2 VALUES (4, 3);
 INSERT INTO t2 VALUES (5, 4);
 INSERT INTO t2 VALUES (6, 6);
---disable_warnings ONCE
+--disable_warnings ER_DUP_ENTRY,ER_BINLOG_UNSAFE_STATEMENT ONCE
 INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 --let $assert_cond= COUNT(*) = 6 FROM t1
 --let $assert_text= Count of elements in t1 should be 6.
@@ -51,7 +51,7 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
 --let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
 --let $statement_file=INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a
---disable_warnings ONCE
+--disable_warnings ER_DUP_ENTRY,ER_BINLOG_UNSAFE_STATEMENT ONCE
 --eval $statement_file
 
 --let $assert_cond= COUNT(*) = 6 FROM t1
@@ -100,7 +100,7 @@ INSERT INTO t2 VALUES (1);
 --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
 --let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
 --let $statement_file=INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 --eval $statement_file
 
 --let $assert_cond= SUM(a) = 1 FROM t1

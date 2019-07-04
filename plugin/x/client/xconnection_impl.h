@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,10 @@
 struct sockaddr_un;
 
 namespace xcl {
+
+namespace details {
+int make_vio_timeout(const int64_t value);
+}  // namespace details
 
 class Ssl_config;
 class Connection_config;

@@ -1,0 +1,15 @@
+RESET MASTER;
+CREATE TABLE t (f INT PRIMARY KEY) ENGINE=INNODB;
+INSERT INTO t VALUES (10);
+SET GLOBAL autocommit= 0;
+SET GLOBAL super_read_only= ON;
+# restart
+#
+# Verify that we can get correct gtid sets after server restarts
+#
+include/assert.inc [committed gtid set is MASTER_UUID:1-2]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	2
+DROP TABLE t;
+RESET MASTER;

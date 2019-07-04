@@ -60,13 +60,10 @@ class Sdi_wcontext;
 ///////////////////////////////////////////////////////////////////////////
 
 Tablespace_file_impl::Tablespace_file_impl()
-    : m_ordinal_position(0),
-      m_se_private_data(new Properties_impl()) {} /* purecov: tested */
+    : m_ordinal_position(0), m_se_private_data() {} /* purecov: tested */
 
 Tablespace_file_impl::Tablespace_file_impl(Tablespace_impl *tablespace)
-    : m_ordinal_position(0),
-      m_se_private_data(new Properties_impl()),
-      m_tablespace(tablespace) {}
+    : m_ordinal_position(0), m_se_private_data(), m_tablespace(tablespace) {}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -75,20 +72,6 @@ const Tablespace &Tablespace_file_impl::tablespace() const {
 }
 
 Tablespace &Tablespace_file_impl::tablespace() { return *m_tablespace; }
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Tablespace_file_impl::set_se_private_data_raw(
-    const String_type &se_private_data_raw) {
-  Properties *properties =
-      Properties_impl::parse_properties(se_private_data_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_se_private_data.reset(properties);
-  return false;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -144,8 +127,7 @@ bool Tablespace_file_impl::restore_attributes(const Raw_record &r) {
   m_ordinal_position = r.read_uint(Tablespace_files::FIELD_ORDINAL_POSITION);
   m_filename = r.read_str(Tablespace_files::FIELD_FILE_NAME);
 
-  m_se_private_data.reset(Properties_impl::parse_properties(
-      r.read_str(Tablespace_files::FIELD_SE_PRIVATE_DATA)));
+  set_se_private_data(r.read_str(Tablespace_files::FIELD_SE_PRIVATE_DATA));
 
   return false;
 }
@@ -156,8 +138,7 @@ bool Tablespace_file_impl::store_attributes(Raw_record *r) {
   return r->store(Tablespace_files::FIELD_ORDINAL_POSITION,
                   m_ordinal_position) ||
          r->store(Tablespace_files::FIELD_FILE_NAME, m_filename) ||
-         r->store(Tablespace_files::FIELD_SE_PRIVATE_DATA,
-                  *m_se_private_data) ||
+         r->store(Tablespace_files::FIELD_SE_PRIVATE_DATA, m_se_private_data) ||
          r->store(Tablespace_files::FIELD_TABLESPACE_ID, m_tablespace->id());
 }
 
@@ -190,7 +171,7 @@ void Tablespace_file_impl::debug_print(String_type &outb) const {
   ss << "TABLESPACE FILE OBJECT: { "
      << "m_ordinal_position: " << m_ordinal_position << "; "
      << "m_filename: " << m_filename << "; "
-     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
+     << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_tablespace {OID: " << m_tablespace->id() << "}";
 
   outb = ss.str();
@@ -214,8 +195,7 @@ Tablespace_file_impl::Tablespace_file_impl(const Tablespace_file_impl &src,
     : Weak_object(src),
       m_ordinal_position(src.m_ordinal_position),
       m_filename(src.m_filename),
-      m_se_private_data(Properties_impl::parse_properties(
-          src.m_se_private_data->raw_string())),
+      m_se_private_data(src.m_se_private_data),
       m_tablespace(parent) {}
 
 ///////////////////////////////////////////////////////////////////////////

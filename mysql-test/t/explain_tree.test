@@ -1,0 +1,260 @@
+#
+# Test of EXPLAIN FORMAT=tree, and more specifically, the transformation from
+# the existing optimizer structures to the new executor. It contains a number
+# of tests for various parts of the transformation, as well as some corner
+# cases that demonstrate odd or unexpected behavior.
+#
+
+set optimizer_switch='batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
+
+# Basic table scan.
+CREATE TABLE t1 ( f1 INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1;
+DROP TABLE t1;
+
+# Basic INSERT.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f1 INT );
+EXPLAIN FORMAT=tree INSERT INTO t2 SELECT * FROM t1;
+DROP TABLE t1, t2;
+
+# Multi-table UPDATE.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f2 INT );
+EXPLAIN FORMAT=tree UPDATE t1, t2 SET f1=f1+2, f2=f2+1 WHERE f1 = f2;
+DROP TABLE t1, t2;
+
+# Multi-table DELETE.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f2 INT );
+EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
+DROP TABLE t1, t2;
+
+# Subquery in SELECT list.
+CREATE TABLE t1 ( f1 INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3 FROM t1;
+DROP TABLE t1;
+
+# Index scan.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
+DROP TABLE t1;
+
+# Various form of grouping and aggregation.
+CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
+EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
+DROP TABLE t1;
+
+# Only const tables.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
+DROP TABLE t1;
+
+# A join (against a const table).
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+CREATE TABLE t2 ( f1 INT PRIMARY KEY );
+INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1 = 3;
+DROP TABLE t1, t2;
+
+# Right join against a const table.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+CREATE TABLE t2 AS SELECT * FROM t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t1.f1=2;
+DROP TABLE t1, t2;
+
+# Demonstrate that filters are put on the correct point with nested outer joins.
+# In particular, the isnull(t3.c) should be placed between the two left join iterators.
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT, b INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t2 VALUES ( 3 );
+INSERT INTO t3 VALUES ( 2, 0 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 USING (a) ) ON t3.b IS NULL;
+DROP TABLE t1, t2, t3;
+
+# Anti-join (due to f1 being not nullable, yet asking for NULL).
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+CREATE TABLE t2 AS SELECT * FROM t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
+DROP TABLE t1, t2;
+
+# Adding limit on the right side of joins.
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, c INT, KEY(a));
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
+(2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
+(3, 1), (3, 2), (3, 3), (3, 4), (3, 5),
+(4, 1), (4, 2), (4, 3), (4, 4), (4, 5);
+FLUSH STATUS;
+EXPLAIN FORMAT=tree SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
+DROP TABLE t1, t2;
+
+# Sort.
+CREATE TABLE t1 ( f1 INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
+DROP TABLE t1;
+
+# Pointless materialization.
+CREATE TABLE t1 ( a BLOB, b INT );
+INSERT INTO t1 VALUES ('a', 0);
+EXPLAIN FORMAT=tree SELECT 0 AS foo FROM t1 WHERE 0 = (SELECT group_concat(b) FROM t1 t GROUP BY t1.a) ;
+DROP TABLE t1;
+
+# A case where we use hash deduplication for a temporary table (due to the blob).
+# We don't show explicitly that it's using hash, though.
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+DROP TABLE t1;
+
+# Double limit, with unique on the way into materialization.
+CREATE TABLE t1 ( f1 VARCHAR(100) );
+INSERT INTO t1 VALUES ('abc');
+INSERT INTO t1 VALUES ('abc');
+INSERT INTO t1 VALUES ('def');
+INSERT INTO t1 VALUES ('def');
+INSERT INTO t1 VALUES ('ghi');
+EXPLAIN FORMAT=tree SELECT DISTINCT f1 FROM t1 LIMIT 2;
+DROP TABLE t1;
+
+# Pointless extra limit (pushed down into the temporary table, but not removed on the outside).
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 values (1), (2);
+EXPLAIN FORMAT=tree INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
+DROP TABLE t1;
+
+# Double materialization; one of them contains an unique, the other one is
+# pretty much useless.
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
+(1,3), (2,1), (1,5), (1,7), (3,1),
+(3,2), (3,1), (2,4);
+EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
+DROP TABLE t1;
+
+# A subquery within WHERE. Test both dependent and independent queries.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
+DROP TABLE t1;
+
+# A subquery in the SELECT list of a condition subquery.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT ( SELECT MIN(f1) FROM t1 AS ii WHERE ii.f1 > t1.f1 ) > i.f1 FROM t1 AS i ) ;
+DROP TABLE t1;
+
+# Deeply nested subqueries in the SELECT list.
+# The addition is to keep the optimizer from flattening out the queries.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
+DROP TABLE t1;
+
+# A subquery that contains a query we can't execute as iterators.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 LIMIT 1 ) FROM t1;
+DROP TABLE t1;
+
+# Condition pushed before filesort.
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
+(1,3), (2,1), (1,5), (1,7), (3,1),
+(3,2), (3,1), (2,4);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a > 3 ORDER BY b;
+DROP TABLE t1;
+
+# Single-table modifications don't have a JOIN, so are not explainable with a tree.
+CREATE TABLE t1 (i INT);
+EXPLAIN INSERT INTO t1 VALUES (10);
+EXPLAIN FORMAT=tree INSERT INTO t1 VALUES (10);
+DROP TABLE t1;
+
+# Limit pushed into filesort.
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
+(1,3), (2,1), (1,5), (1,7), (3,1),
+(3,2), (3,1), (2,4);
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY b LIMIT 3;
+DROP TABLE t1;
+
+# LATERAL, with two different invalidators. One of them is pushed up above
+# the join, because it's an outer join.
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING ( a ),
+	LATERAL ( SELECT * FROM t3 WHERE t3.a = t2.a LIMIT 1 ) t3d,
+	LATERAL ( SELECT * FROM t3 WHERE t3.a > t1.a LIMIT 1 ) t4d;
+DROP TABLE t1, t2, t3;
+
+# LATERAL, with a join that's pushed the same way as previously, but not
+# beyond the join involving t1.
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+CREATE TABLE t4 ( a INTEGER );
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (
+  t2 LEFT JOIN t3 USING ( a ) CROSS JOIN
+    LATERAL ( SELECT * FROM t4 WHERE t4.a = t3.a LIMIT 1 ) t4d
+) ON t1.a = t4d.a;
+DROP TABLE t1, t2, t3, t4;
+
+# Demonstrate a shortcoming in printing table iterators on MaterializeIterator;
+# we're not showing the sub-iterator for the WHERE subquery, just marking it as
+# “other sub-iterators not shown”. See MaterializeIterator::DebugString() for
+# more information.
+CREATE TABLE t1 ( f1 INTEGER );
+EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
+  WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
+DROP TABLE t1;
+
+# A non-recursive CTE. The case of multiple uses is tested in derived_correlated.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f1 INT );
+EXPLAIN format=tree WITH my_cte AS ( SELECT * FROM t1 LIMIT 3 ) SELECT * FROM my_cte, t2;
+DROP TABLE t1;
+DROP TABLE t2;

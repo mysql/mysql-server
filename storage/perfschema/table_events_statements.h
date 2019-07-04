@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -161,6 +161,9 @@ struct row_events_statements {
   ulonglong m_no_index_used;
   /** Column NO_GOOD_INDEX_USED. */
   ulonglong m_no_good_index_used;
+
+  /** Column STATEMENT_ID. */
+  ulonglong m_statement_id;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */

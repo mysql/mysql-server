@@ -82,7 +82,7 @@ class XRow_impl : public XRow {
                               size_t *out_data_length) const;
 
   std::unique_ptr<Row> m_row;
-  Metadata *m_metadata;
+  const Metadata *m_metadata;
   Context *m_context;
 };
 

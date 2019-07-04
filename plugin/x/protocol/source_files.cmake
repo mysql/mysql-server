@@ -35,5 +35,7 @@ FILE(GLOB MYSQLX_PROTOBUF_FILES
   "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_session.proto"
   "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_notice.proto"
   "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_resultset.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_cursor.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_prepare.proto"
 )
 

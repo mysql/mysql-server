@@ -1,5 +1,7 @@
 use test;
 SET @threadid = sys.ps_thread_id(NULL);
+Warnings:
+Note	1585	This function 'ps_thread_id' has the same name as a native function
 CREATE TABLE t1 (id INT PRIMARY KEY, val int);
 INSERT INTO test.t1 VALUES (1, 9);
 SET @digest.insert = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'INSERT INTO test.t1 VALUES (1, 9)');

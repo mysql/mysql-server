@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,14 +249,12 @@ bool Resource_group_mgr::acquire_shared_mdl_for_resource_group(
     MDL_ticket **ticket, bool try_acquire) {
   DBUG_ENTER("acquire_shared_mdl_for_resource_group");
 
-  char lc_name[NAME_CHAR_LEN + 1];
-  my_stpncpy(lc_name, res_grp_name, NAME_CHAR_LEN);
-  lc_name[NAME_CHAR_LEN] = '\0';
-  my_casedn_str(system_charset_info, lc_name);
+  MDL_key mdl_key;
+  dd::Resource_group::create_mdl_key(res_grp_name, &mdl_key);
 
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::RESOURCE_GROUPS, "", lc_name,
-                   MDL_INTENTION_EXCLUSIVE, lock_duration);
+  MDL_REQUEST_INIT_BY_KEY(&mdl_request, &mdl_key, MDL_INTENTION_EXCLUSIVE,
+                          lock_duration);
 
   bool res = try_acquire ? thd->mdl_context.acquire_lock(&mdl_request, 0)
                          : thd->mdl_context.acquire_lock(
@@ -430,9 +428,7 @@ bool Resource_group_mgr::move_resource_group(Resource_group *from_res_grp,
   ulonglong pfs_thread_id = 0;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  ulonglong unused_event_id MY_ATTRIBUTE((unused));
-
-  PSI_THREAD_CALL(get_thread_event_id)(&pfs_thread_id, &unused_event_id);
+  pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
 #endif
 
   m_resource_group_svc->set_thread_resource_group_by_id(

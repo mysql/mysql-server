@@ -23,6 +23,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
 extern void cb_xcom_logger(const int64_t level, const char *message);
 extern void cb_xcom_debugger(const char *format, ...);

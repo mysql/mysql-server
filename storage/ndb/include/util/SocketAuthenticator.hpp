@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ class SocketAuthenticator
 {
 public:
   SocketAuthenticator() {}
-  virtual ~SocketAuthenticator() {};
+  virtual ~SocketAuthenticator() {}
   virtual bool client_authenticate(NDB_SOCKET_TYPE sockfd) = 0;
   virtual bool server_authenticate(NDB_SOCKET_TYPE sockfd) = 0;
 };

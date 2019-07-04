@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 
 #include <stdio.h>
 #include <string.h>
-
+#include <sstream>
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql_com.h"
@@ -52,17 +52,25 @@ void print_version() {
   char version_buffer[SERVER_VERSION_LENGTH];
   strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
   printf("%s  Ver %s for %s on %s (%s)\n", my_progname, version_buffer,
-         SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+         SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT_SERVER);
 }
 
 void print_version_debug() {
   char version_buffer[SERVER_VERSION_LENGTH];
   strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
   printf("%s  Ver %s-debug for %s on %s (%s)\n", my_progname, version_buffer,
-         SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+         SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT_SERVER);
 }
 
 void print_explicit_version(const char *version) {
   printf("%s  Ver %s for %s on %s (%s)\n", my_progname, version, SYSTEM_TYPE,
-         MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+         MACHINE_TYPE, MYSQL_COMPILATION_COMMENT_SERVER);
+}
+
+void build_version(const std::string &progname, std::string *destination) {
+  std::ostringstream output_buffer;
+  output_buffer << progname << "  Ver " << MYSQL_SERVER_VERSION
+                << MYSQL_SERVER_SUFFIX_STR << " for " << SYSTEM_TYPE << " on "
+                << MACHINE_TYPE << " (" << MYSQL_COMPILATION_COMMENT << ")";
+  *destination = output_buffer.str();
 }

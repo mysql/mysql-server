@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -229,10 +229,16 @@ constexpr ulint INNODB_LOG_WRITE_MAX_SIZE_DEFAULT = 4096;
 /** Default value of innodb_log_checkpointer_every (in milliseconds). */
 constexpr ulong INNODB_LOG_CHECKPOINT_EVERY_DEFAULT = 1000;  // 1000ms = 1s
 
-/** Default value of innodb_log_writer_spin_delay (in spin rounds). */
-constexpr ulong INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT = 25000;
+/** Default value of innodb_log_writer_spin_delay (in spin rounds).
+We measured that 1000 spin round takes 4us. We decided to select 1ms
+as the maximum time for busy waiting. Therefore it corresponds to 250k
+spin rounds. Note that first wait on event takes 50us-100us (even if 10us
+is passed), so it is 5%-10% of the total time that we have already spent
+on busy waiting, when we fall back to wait on event. */
+constexpr ulong INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT = 250000;
 
-/** Default value of innodb_log_writer_timeout (in microseconds). */
+/** Default value of innodb_log_writer_timeout (in microseconds).
+Note that it will anyway take at least 50us. */
 constexpr ulong INNODB_LOG_WRITER_TIMEOUT_DEFAULT = 10;
 
 /** Default value of innodb_log_spin_cpu_abs_lwm.
@@ -243,13 +249,24 @@ constexpr ulong INNODB_LOG_SPIN_CPU_ABS_LWM_DEFAULT = 80;
 Expressed in percent (50 stands for 50%) of all CPU cores. */
 constexpr uint INNODB_LOG_SPIN_CPU_PCT_HWM_DEFAULT = 50;
 
-/** Default value of innodb_log_wait_for_write_spin_delay (in spin rounds). */
+/** Default value of innodb_log_wait_for_write_spin_delay (in spin rounds).
+Read about INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT.
+Number of spin rounds is calculated according to current usage of CPU cores.
+If the usage is smaller than lwm percents of single core, then max rounds = 0.
+If the usage is smaller than 50% of hwm percents of all cores, then max rounds
+is decreasing linearly from 10x innodb_log_writer_spin_delay to 1x (for 50%).
+Then in range from 50% of hwm to 100% of hwm, the max rounds stays equal to
+the innodb_log_writer_spin_delay, because it doesn't make sense to use too
+short waits. Hence this is minimum value for the max rounds when non-zero
+value is being used. */
 constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT = 25000;
 
 /** Default value of innodb_log_wait_for_write_timeout (in microseconds). */
 constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT = 1000;
 
-/** Default value of innodb_log_wait_for_flush_spin_delay (in spin rounds). */
+/** Default value of innodb_log_wait_for_flush_spin_delay (in spin rounds).
+Read about INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT. The same mechanism
+applies here (to compute max rounds). */
 constexpr ulong INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT = 25000;
 
 /** Default value of innodb_log_wait_for_flush_spin_hwm (in microseconds). */
@@ -258,10 +275,12 @@ constexpr ulong INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT = 400;
 /** Default value of innodb_log_wait_for_flush_timeout (in microseconds). */
 constexpr ulong INNODB_LOG_WAIT_FOR_FLUSH_TIMEOUT_DEFAULT = 1000;
 
-/** Default value of innodb_log_flusher_spin_delay (in spin rounds). */
-constexpr ulong INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT = 25000;
+/** Default value of innodb_log_flusher_spin_delay (in spin rounds).
+Read about INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT. */
+constexpr ulong INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT = 250000;
 
-/** Default value of innodb_log_flusher_timeout (in microseconds). */
+/** Default value of innodb_log_flusher_timeout (in microseconds).
+Note that it will anyway take at least 50us. */
 constexpr ulong INNODB_LOG_FLUSHER_TIMEOUT_DEFAULT = 10;
 
 /** Default value of innodb_log_write_notifier_spin_delay (in spin rounds). */
@@ -708,7 +727,7 @@ For detailed explanation - @see log0write.cc.
 @see @ref sect_redo_log_add_dirty_pages
 @param[in,out]	log   redo log
 @param[in]      lsn   lsn on which we wait (for any link: lsn -> x) */
-void log_wait_for_space_in_log_recent_closed(const log_t &log, lsn_t lsn);
+void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn);
 
 /** Waits until there is free space in the log buffer. The free space has to be
 available for range of sn values ending at the provided sn.
@@ -751,9 +770,9 @@ of changed concurrency limit).
 void log_update_limits(log_t &log);
 
 /** Waits until the redo log is written up to a provided lsn.
-@param[in]	log		redo log
-@param[in]	lsn		lsn to wait for
-@param[in]	flush_to_disk	true: wait until it is flushed
+@param[in]  log             redo log
+@param[in]  lsn             lsn to wait for
+@param[in]  flush_to_disk   true: wait until it is flushed
 @return statistics about waiting inside */
 Wait_stats log_write_up_to(log_t &log, lsn_t lsn, bool flush_to_disk);
 
@@ -776,10 +795,8 @@ redo log file header.
 @return true if success. */
 bool log_rotate_encryption();
 
-/** Try to enable the redo log encryption if it's set.
-It will try to enable the redo log encryption and write the metadata to
-redo log file header if the innodb_undo_log_encrypt is ON. */
-void log_enable_encryption_if_set();
+/** Rotate default master key for redo log encryption. */
+void redo_rotate_default_master_key();
 
 /** Requests a sharp checkpoint write for provided or greater lsn.
 @param[in,out]	log	redo log
@@ -790,8 +807,7 @@ void log_request_checkpoint(log_t &log, bool sync, lsn_t lsn);
 /** Requests a fuzzy checkpoint write (for lsn currently available
 for checkpointing).
 @param[in,out]	log	redo log
-@param[in]	sync	true -> wait until it is finished
-pages */
+@param[in]	sync	true -> wait until it is finished */
 void log_request_checkpoint(log_t &log, bool sync);
 
 /** Make a checkpoint at the current lsn. Reads current lsn and waits

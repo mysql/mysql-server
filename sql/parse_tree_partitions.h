@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,9 +54,9 @@ struct Partition_parse_context : public Parse_context,
                           partition_element *curr_part_elem,
                           bool is_add_or_reorganize_partition);
 
-  Partition_parse_context(THD *thd, partition_info *part_info,
+  Partition_parse_context(THD *thd_arg, partition_info *part_info_arg,
                           bool is_add_or_reorganize_partition)
-      : Partition_parse_context(thd, part_info, NULL, NULL,
+      : Partition_parse_context(thd_arg, part_info_arg, nullptr, nullptr,
                                 is_add_or_reorganize_partition) {}
 
   /**

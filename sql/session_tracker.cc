@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -234,7 +234,7 @@ static const unsigned int EXTRA_ALLOC = 1024;
 class Session_gtids_ctx_encoder {
  public:
   Session_gtids_ctx_encoder() {}
-  virtual ~Session_gtids_ctx_encoder(){};
+  virtual ~Session_gtids_ctx_encoder() {}
 
   /*
    This function SHALL encode the collected GTIDs into the buffer.

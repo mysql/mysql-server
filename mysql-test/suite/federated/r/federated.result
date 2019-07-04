@@ -2309,6 +2309,61 @@ DROP TABLE federated.child;
 DROP PROCEDURE add_child;
 DROP TABLE federated.child;
 DROP TABLE federated.parent;
+#
+# Bug#11748067: FEDERATED TABLES BLOB FIELD IS NOT CORRECTLY UPDATED
+#
+CREATE TABLE federated.t1(b BLOB);
+INSERT INTO federated.t1 VALUES ('ABC');
+CREATE TABLE federated.t1(b BLOB) ENGINE = FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SELECT * FROM federated.t1;
+b
+ABC
+UPDATE federated.t1 SET b = 'XYZ';
+SELECT * FROM federated.t1;
+b
+XYZ
+UPDATE federated.t1 SET b = 'jklm';
+SELECT * FROM federated.t1;
+b
+jklm
+UPDATE federated.t1 SET b = NULL;
+SELECT * FROM federated.t1;
+b
+NULL
+UPDATE federated.t1 SET b = 'abc';
+SELECT * FROM federated.t1;
+b
+abc
+UPDATE federated.t1 SET b = '';
+SELECT * FROM federated.t1;
+b
+
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
+#
+# Bug#28877215 CANNOT CREATE A JSON VALUE FROM A STRING WITH CHARACTER SET 'BINARY'
+#
+CREATE TABLE federated.t1(a JSON, b INT);
+INSERT INTO federated.t1 VALUES ('{}', 1);
+CREATE TABLE federated.t1(a JSON, b INT) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SELECT a, b FROM federated.t1;
+a	b
+{}	1
+UPDATE federated.t1 SET a = '[1]';
+SELECT a, b FROM federated.t1;
+a	b
+[1]	1
+UPDATE federated.t1 SET a = '[1, 2]' WHERE b = 1;
+SELECT a, b FROM federated.t1;
+a	b
+[1, 2]	1
+DELETE FROM federated.t1 WHERE b = 1;
+SELECT a, b FROM federated.t1;
+a	b
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 DROP TABLE IF EXISTS federated.t1;

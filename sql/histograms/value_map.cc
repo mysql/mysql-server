@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,8 +61,8 @@ bool Histogram_comparator::operator()(const String &lhs,
 template <>
 bool Histogram_comparator::operator()(const MYSQL_TIME &lhs,
                                       const MYSQL_TIME &rhs) const {
-  longlong lhs_packed = TIME_to_longlong_packed(&lhs);
-  longlong rhs_packed = TIME_to_longlong_packed(&rhs);
+  longlong lhs_packed = TIME_to_longlong_packed(lhs);
+  longlong rhs_packed = TIME_to_longlong_packed(rhs);
   return lhs_packed < rhs_packed;
 }
 
@@ -89,22 +89,13 @@ bool Value_map_base::add_values(const T &value, const ha_rows count) {
 
 template <class T>
 bool Value_map<T>::add_values(const T &value, const ha_rows count) {
-  auto found = std::lower_bound(m_value_map.begin(), m_value_map.end(), value,
-                                Histogram_comparator());
-
-  bool exists =
-      found != m_value_map.end() && !Histogram_comparator()(value, *found);
-  if (exists) {
-    found->second += count;
-  } else {
-    try {
-      m_value_map.emplace(found, value, count);
-    } catch (const std::bad_alloc &) {
-      // Out of memory.
-      return true;
-    }
+  try {
+    auto res = m_value_map.emplace(value, count);
+    if (!res.second) res.first->second += count;
+  } catch (const std::bad_alloc &) {
+    // Out of memory.
+    return true;
   }
-
   return false;
 }
 
@@ -121,26 +112,22 @@ bool Value_map<String>::add_values(const String &value, const ha_rows count) {
     reclaimed when the Value_map is destroyed.
   */
   String substring = value.substr(0, HISTOGRAM_MAX_COMPARE_LENGTH);
-  auto found = std::lower_bound(m_value_map.begin(), m_value_map.end(),
-                                substring, Histogram_comparator());
-
-  bool exists =
-      found != m_value_map.end() && !Histogram_comparator()(substring, *found);
-  if (exists) {
-    found->second += count;
-  } else {
+  auto found = m_value_map.find(substring);
+  if (found == m_value_map.end()) {
+    // Not found, insert a new value.
     try {
       char *string_data = substring.dup(&m_mem_root);
       if (string_data == nullptr) return true; /* purecov: deadcode */
 
       String string_dup(string_data, substring.length(), substring.charset());
-      m_value_map.emplace(found, string_dup, count);
+      m_value_map.emplace(string_dup, count);
     } catch (const std::bad_alloc &) {
       // Out of memory.
       return true;
     }
+  } else {
+    found->second += count;
   }
-
   return false;
 }
 
@@ -149,7 +136,7 @@ bool Value_map<T>::insert(typename value_map_type::const_iterator begin,
                           typename value_map_type::const_iterator end) {
   try {
     DBUG_ASSERT(m_value_map.empty());
-    m_value_map.insert(m_value_map.begin(), begin, end);
+    m_value_map.insert(begin, end);
   } catch (const std::bad_alloc &) {
     // Out of memory.
     return true;

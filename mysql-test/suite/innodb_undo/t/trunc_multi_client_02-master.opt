@@ -1,4 +1,3 @@
---innodb_undo_tablespaces=127
 --innodb_rollback_segments=128
 --innodb_undo_log_truncate=1
 --innodb_max_undo_log_size=10M

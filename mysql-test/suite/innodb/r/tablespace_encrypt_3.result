@@ -139,5 +139,9 @@ ERROR HY000: Can't find master key from keyring, please check in the server log 
 ###########
 # Cleanup #
 ###########
+# In order to drop these encrypted objects we need to restart with keyring pluging loaded.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+32
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;

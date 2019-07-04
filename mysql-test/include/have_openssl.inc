@@ -3,3 +3,4 @@ let $shavars= query_get_value("SHOW STATUS LIKE 'Rsa_public_key'", Variable_name
 if ($shavars != 'Rsa_public_key'){
   skip Need OpenSSL support;
 }
+--source include/allowed_ciphers.inc

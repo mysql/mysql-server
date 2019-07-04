@@ -1,0 +1,25 @@
+# The SSL library may fail initializing during this one
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+
+--echo ################## FR8: --ssl only applies to startups
+
+--echo # Check if ssl is off: must be off.
+--error 1
+--exec $MYSQL --ssl-mode=required -e "SELECT 1"
+
+--echo # reset and enable SSL
+ALTER INSTANCE RELOAD TLS;
+
+--echo # SSL must be enabled now despite the value of --ssl
+--exec $MYSQL --ssl-mode=required -e "SELECT 1"
+
+--echo # cleanup
+
+# Disables TLS by temporarily setting a wrong value, reloading TLS
+# and restoring the wrong value
+SET @orig_ssl_ca= @@global.ssl_ca;
+SET GLOBAL ssl_ca = 'gizmo';
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+
+--echo ################## End of dynamic SSL tests

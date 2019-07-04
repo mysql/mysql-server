@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,22 +68,9 @@
         <configuration>
           <forkmode>once</forkmode>
           <argLine>-Djava.library.path=${ndbj.jnilib}</argLine>
-<!-- The following line is for debugging
+          <!-- The following line is for debugging
           <argLine>-Djava.library.path=${ndbj.jnilib} -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8787</argLine>
           -->
-          <systemProperties>
-          </systemProperties>
-            <!-- The following doesn't work because system properties are set
-             ! only after the vm is forked, which is too late for the
-             ! property java.library.path.
-          <systemProperties>
-            <property>
-              <name>java.library.path</name>
-              <value>/Users/clr/ndb/clusterj/trunk/clusterj/target/classes/.libs</value>
-            </property>
-          </systemProperties>
-          <argValue>-Djava.util.logging.config.file=${logging.properties}</argValue>
-          !-->
         </configuration>
       </plugin>
      <plugin>

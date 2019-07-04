@@ -1,0 +1,260 @@
+--source include/no_valgrind_without_big.inc
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+--echo ###########################################################################
+--echo # Stop the default mtr server
+--echo ###########################################################################
+
+--echo # Stop DB server which was created by MTR default
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--echo ###########################################################################
+--echo # Setup the 5.7 data directory
+--echo ###########################################################################
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57.zip $MYSQL_TMP_DIR/data57.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--echo # These files are added to test error scenario, delete from for upgrade testing.
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.frm
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYD
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYI
+--echo # Remove myisam partitioned tables. There are used for negative testing.
+--remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
+--rmdir $MYSQL_TMP_DIR/data57/partitions
+--force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
+
+--echo ###########################################################################
+--echo # Test the --upgrade=NONE option with a 5.7 data directory
+--echo ###########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_no_upgrade.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --upgrade=NONE --log-error=$MYSQLD_LOG
+
+--let SEARCH_FILE= $MYSQLD_LOG
+--echo # Search for the error messege in the server error log.
+--let SEARCH_PATTERN= Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\.
+--source include/search_pattern.inc
+
+--echo ###########################################################################
+--echo # Test the --upgrade=MINIMAL option with a 5.7 data directory
+--echo ###########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_skip_upgrade.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --upgrade=MINIMAL  --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--let SEARCH_FILE= $MYSQLD_LOG
+--echo # Search for the error messege in the server error log.
+
+--let SEARCH_PATTERN= Table \'mysql.component\' doesn\'t exist
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= The mysql\.component table is missing or has an incorrect definition\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Storage engine \'MyISAM\' does not support system tables\. \[mysql\.user\]
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Storage engine \'MyISAM\' does not support system tables\. \[mysql\.db\]\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Storage engine \'MyISAM\' does not support system tables\. \[mysql\.tables_priv\]\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Storage engine \'MyISAM\' does not support system tables\. \[mysql\.columns_priv\]\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Storage engine \'MyISAM\' does not support system tables\. \[mysql\.procs_priv\]\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Storage engine \'MyISAM\' does not support system tables\. \[mysql\.proxies_priv\]\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Column count of mysql\.user is wrong\. Expected 51, found 45\. The table is probably corrupted
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= ACL table mysql\.role_edges missing\. Some operations may fail\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= ACL table mysql\.default_roles missing\. Some operations may fail\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= ACL table mysql\.global_grants missing\. Some operations may fail\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= ACL table mysql\.password_history missing\. Some operations may fail\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= The system table mysql\.global_grants is missing. Please perform the MySQL upgrade procedure\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= System table \'func\' is expected to be transactional\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Info table is not ready to be used\. Table \'mysql.slave_master_info\' cannot be opened\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in checking mysql\.slave_master_info repository info type of TABLE\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error creating master info\: Error checking repositories\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Slave: Failed to initialize the master info structure for channel \'\'; its record may still be present in \'mysql.slave_master_info\' table, consider deleting it\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Failed to create or recover replication info repositories\.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\.
+--source include/search_pattern.inc
+
+--echo ###########################################################################
+--echo # Test the --upgrade=NONE option with a 5.7 data directory with upgraded
+--echo # data dictionary but skipped server upgrade
+--echo ###########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_no_upgrade_after_skip.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --upgrade=NONE --log-error=$MYSQLD_LOG
+
+--let SEARCH_FILE= $MYSQLD_LOG
+--echo # Search for the error messege in the server error log.
+--let SEARCH_PATTERN= Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\.
+--source include/search_pattern.inc
+
+--echo ###########################################################################
+--echo # Complete the upgrade on a data directory that has an upgraded data
+--echo # dictionary but skipped server upgrade
+--echo ###########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_upgrade_after_skip.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # There should be no errors
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+# It should have created a file in the MySQL Servers datadir
+--let $MYSQLD_DATADIR= `select @@datadir`
+--file_exists $MYSQLD_DATADIR/mysql_upgrade_info
+
+--echo ###########################################################################
+--echo # Test upgrade of help tables
+--echo ###########################################################################
+
+--echo # Truncate a help table
+TRUNCATE TABLE mysql.help_topic;
+SELECT COUNT(*) = 0 FROM mysql.help_topic;
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_upgrade_help_tables.log
+--replace_result $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart: --upgrade=FORCE --log-error=$MYSQLD_LOG
+--let $wait_counter=10000
+--source include/restart_mysqld.inc
+
+SELECT COUNT(*) != 0 FROM mysql.help_topic;
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQL_TMP_DIR/data57
+--remove_file $MYSQL_TMP_DIR/data57.zip
+
+--echo ###########################################################################
+--echo # Setup 5.7 data directory
+--echo ###########################################################################
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57.zip $MYSQL_TMP_DIR/data57.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--echo # These files are added to test error scenario, delete from for upgrade testing.
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.frm
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYD
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYI
+--echo # Remove myisam partitioned tables. There are used for negative testing.
+--remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
+--rmdir $MYSQL_TMP_DIR/data57/partitions
+--force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
+
+--echo ###########################################################################
+--echo # Test complete upgrade on 5.7 data directory
+--echo ###########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_upgrade_complete.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # There should be no errors
+--let SEARCH_FILE= $MYSQLD_LOG
+# Server shutdown error can show up during high IO loads
+--let IGNORE_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Event Scheduler\: \[root@localhost\]\[events\.myevent\] (Unknown column \'c1\' in \'field list\'|Server shutdown in progress)
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+# It should have created a file in the MySQL Servers datadir
+--let $MYSQLD_DATADIR= `select @@datadir`
+--file_exists $MYSQLD_DATADIR/mysql_upgrade_info
+
+--echo ###########################################################################
+--echo # Bug#29365552: LEFTOVER SYSTEM TABLES AFTER 5.7 => 8.0 IN-PLACE UPGRADE
+--echo ###########################################################################
+
+# These files must not exist
+# $MYSQLD_DATADIR/mysql/innodb_index_stats_backup57.ibd
+# $MYSQLD_DATADIR/mysql/innodb_table_stats_backup57.ibd
+--list_files $MYSQLD_DATADIR/mysql
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/data57.zip
+
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc

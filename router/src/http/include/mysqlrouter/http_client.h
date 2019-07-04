@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,26 +25,173 @@
 #ifndef MYSQLROUTER_HTTP_CLIENT_INCLUDED
 #define MYSQLROUTER_HTTP_CLIENT_INCLUDED
 
+#include <openssl/ssl.h>
+
+#if defined(LIBWOLFSSL_VERSION_HEX) && defined(close)
+// wolfssl 3.14.0 has a 'define close(fd) closesocket(fd)' which interfers
+// with all other uses of close() like fstream::close()
+#undef close
+#endif
+
 #include "mysqlrouter/http_client_export.h"
 #include "mysqlrouter/http_common.h"
+#include "mysqlrouter/tls_client_context.h"
 
-class HTTP_CLIENT_EXPORT HttpClient {
+struct evhttp_connection;
+struct event_base;
+
+/**
+ * IO Context for network operations.
+ *
+ * wraps libevent's base
+ */
+class HTTP_CLIENT_EXPORT IOContext {
  public:
-  HttpClient();
-  ~HttpClient();
-  HttpClient(IOContext &io_ctx, const std::string &address, uint16_t port);
+  IOContext();
+  ~IOContext();
+
+  /**
+   * wait for events to fire and calls handlers.
+   *
+   * exits if no more pending events
+   *
+   * @returns false if no events were pending nor active, true otherwise
+   * @throws  std::runtime_error on internal, unexpected error
+   */
+  bool dispatch();
+
+ private:
+  class impl;
+
+  std::unique_ptr<impl> pImpl_;
+  friend class HttpClientConnectionBase;
+};
+
+class HTTP_CLIENT_EXPORT HttpClientConnectionBase {
+ public:
+  ~HttpClientConnectionBase();
 
   void make_request(HttpRequest *req, HttpMethod::type method,
                     const std::string &uri);
   void make_request_sync(HttpRequest *req, HttpMethod::type method,
                          const std::string &uri);
 
- private:
+  /**
+   * connection has an error.
+   *
+   * @see error_msg()
+   */
+  operator bool() const;
+
+  /**
+   * error-msg of the connection.
+   *
+   * @note may not be human friendly as it may come directly from openssl
+   */
+  std::string error_msg() const;
+
+  /**
+   * last socket errno.
+   */
+  std::error_code socket_errno() const { return socket_errno_; }
+
+ protected:
+  HttpClientConnectionBase(IOContext &io_ctx);
+
   class impl;
 
   std::unique_ptr<impl> pImpl_;
 
   IOContext &io_ctx_;
+
+  std::error_code socket_errno_;
+
+  /**
+   * event-base associated with this connection.
+   */
+  event_base *ev_base() const;
+};
+
+class HTTP_CLIENT_EXPORT HttpClientConnection
+    : public HttpClientConnectionBase {
+ public:
+  HttpClientConnection(IOContext &io_ctx, const std::string &address,
+                       uint16_t port);
+};
+
+class HTTP_CLIENT_EXPORT HttpsClientConnection
+    : public HttpClientConnectionBase {
+ public:
+  HttpsClientConnection(IOContext &io_ctx, TlsClientContext &tls_ctx,
+                        const std::string &address, uint16_t port);
+};
+
+class HTTP_CLIENT_EXPORT HttpClient {
+ public:
+  HttpClient(IOContext &io_ctx, const std::string &hostname, uint16_t port)
+      : io_ctx_{io_ctx}, hostname_{hostname}, port_{port} {}
+
+  virtual ~HttpClient();
+
+  /**
+   * initiate a request on the bound IOContext.
+   *
+   * allows to send out multiple requests on different clients
+   * and wait for them in parallel.
+   */
+  void make_request(HttpRequest *req, HttpMethod::type method,
+                    const std::string &uri);
+
+  /**
+   * make a request and wait for the response.
+   */
+  void make_request_sync(HttpRequest *req, HttpMethod::type method,
+                         const std::string &uri);
+
+  /**
+   * check if connection had an error.
+   *
+   * see: error_msg()
+   */
+  operator bool() const;
+
+  /**
+   * current error message.
+   *
+   * @see: HttpClientConnectionBase::error_msg()
+   */
+  std::string error_msg() const;
+
+  /**
+   * hostname to connect to.
+   */
+  std::string hostname() const { return hostname_; }
+
+  /**
+   * TCP port to connect to.
+   */
+  uint16_t port() const { return port_; }
+
+ protected:
+  virtual std::unique_ptr<HttpClientConnectionBase> make_connection();
+
+  IOContext &io_ctx_;
+  const std::string hostname_;
+  uint16_t port_;
+
+  std::unique_ptr<HttpClientConnectionBase> conn_;
+};
+
+class HTTP_CLIENT_EXPORT HttpsClient : public HttpClient {
+ public:
+  HttpsClient(IOContext &io_ctx, TlsClientContext &&tls_ctx,
+              const std::string &address, uint16_t port)
+      : HttpClient(io_ctx, address, port), tls_ctx_{std::move(tls_ctx)} {}
+
+ private:
+  std::unique_ptr<HttpClientConnectionBase> make_connection() override;
+
+  TlsClientContext tls_ctx_;
 };
 
 #endif

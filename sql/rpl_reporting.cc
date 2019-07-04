@@ -75,7 +75,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
     The slave can't be regarded as experiencing a temporary failure in cases of
     is_fatal_error is true, or if no error is in THD and error_arg is not set.
   */
-  if (thd->is_fatal_error || (!thd->is_error() && error_arg == 0))
+  if (thd->is_fatal_error() || (!thd->is_error() && error_arg == 0))
     DBUG_RETURN(0);
 
   error = (error_arg == 0) ? thd->get_stmt_da()->mysql_errno() : error_arg;

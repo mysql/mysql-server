@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/src/buffering_command_delegate.h"
+#include <functional>
 
-#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/buffering_command_delegate.h"
 
 namespace xpl {
 
 Buffering_command_delegate::Buffering_command_delegate()
     : Callback_command_delegate(
-          ngs::bind(&Buffering_command_delegate::begin_row_cb, this),
-          ngs::bind(&Buffering_command_delegate::end_row_cb, this,
-                    ngs::placeholders::_1)) {}
+          std::bind(&Buffering_command_delegate::begin_row_cb, this),
+          std::bind(&Buffering_command_delegate::end_row_cb, this,
+                    std::placeholders::_1)) {}
 
 void Buffering_command_delegate::reset() {
   m_resultset.clear();

@@ -218,7 +218,7 @@ select (@before:=unix_timestamp())*0;
 (@before:=unix_timestamp())*0
 0
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 begin;
 select * from t1 for update;
 insert into t2 values (20);
@@ -227,7 +227,7 @@ select (@after:=unix_timestamp())*0;
 (@after:=unix_timestamp())*0
 0
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select (@after-@before) >= 2;
 (@after-@before) >= 2
 1
@@ -455,7 +455,7 @@ is not null AS Loaded;
 Loaded
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select
 @a like "%#%error_code=0%ROLLBACK\n/*!*/;%" OR
 @a like "%#%error_code=0%ROLLBACK\r\n/*!*/;%",

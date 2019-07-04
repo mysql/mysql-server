@@ -1,9 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 #
 # Basic test for different types of loading data
 #

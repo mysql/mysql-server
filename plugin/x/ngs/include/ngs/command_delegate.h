@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,13 @@ class Command_delegate {
   };
   typedef std::vector<Field_type> Field_types;
 
-  Command_delegate() { reset(); }
+  Command_delegate() {}
   virtual ~Command_delegate() {}
+
+  Command_delegate(const Command_delegate &) = default;
+  Command_delegate(Command_delegate &&) = default;
+  Command_delegate &operator=(const Command_delegate &) = default;
+  Command_delegate &operator=(Command_delegate &&) = default;
 
   ngs::Error_code get_error() const {
     if (m_sql_errno == 0)
@@ -105,15 +110,15 @@ class Command_delegate {
  protected:
   Info m_info;
   Field_types m_field_types;
-  uint m_sql_errno;
+  uint m_sql_errno = 0;
   std::string m_err_msg;
   std::string m_sqlstate;
 
   st_command_service_cbs m_callbacks;
 
-  bool m_killed;
-  bool m_streaming_metadata;
-  bool m_got_eof;
+  bool m_killed = false;
+  bool m_streaming_metadata = false;
+  bool m_got_eof = false;
 
  public:
   /*** Getting metadata ***/
@@ -348,8 +353,8 @@ class Command_delegate {
     @param last_insert_id       Last insert id being assigned during execution
     @param message              A message from server
   */
-  virtual void handle_ok(uint server_status, uint statement_warn_count,
-                         ulonglong affected_rows, ulonglong last_insert_id,
+  virtual void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
+                         uint64_t affected_rows, uint64_t last_insert_id,
                          const char *const message) {
     m_info.server_status = server_status;
     m_info.num_warnings = statement_warn_count;
@@ -463,11 +468,15 @@ class Command_delegate {
                              uint statement_warn_count, ulonglong affected_rows,
                              ulonglong last_insert_id,
                              const char *const message) {
-    static_cast<Command_delegate *>(ctx)->m_got_eof = (message == NULL);
+    auto context = static_cast<Command_delegate *>(ctx);
 
-    static_cast<Command_delegate *>(ctx)->handle_ok(
-        server_status, statement_warn_count, affected_rows, last_insert_id,
-        message);
+    if (!context->m_got_eof) {
+      context->m_got_eof = !(
+          server_status & (SERVER_MORE_RESULTS_EXISTS | SERVER_PS_OUT_PARAMS));
+    }
+
+    context->handle_ok(server_status, statement_warn_count, affected_rows,
+                       last_insert_id, message);
   }
 
   static void call_handle_error(void *ctx, uint sql_errno,

@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1, t2, t3;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile_lg1_01.dat'
 INITIAL_SIZE 3M
@@ -168,9 +167,8 @@ ENGINE
 FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE="UNDO LOG" AND ENGINE="NDBCLUSTER"
 ORDER BY FILE_NAME;
 LOGFILE_GROUP_NAME	FILE_NAME	TOTAL_EXTENTS	INITIAL_SIZE	ENGINE
-lg1	NULL	NULL	NULL	ndbcluster
-lg1	undofile_lg1_01.dat	786432	3145728	ndbcluster
-lg1	undofile_lg1_02.dat	1572864	6291456	ndbcluster
+lg1	./undofile_lg1_01.dat	786432	3145728	ndbcluster
+lg1	./undofile_lg1_02.dat	1572864	6291456	ndbcluster
 SELECT DISTINCT
 TABLESPACE_NAME,
 LOGFILE_GROUP_NAME, 
@@ -180,10 +178,10 @@ INITIAL_SIZE,
 ENGINE
 FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE="DATAFILE" ORDER BY FILE_NAME;
 TABLESPACE_NAME	LOGFILE_GROUP_NAME	FILE_NAME	EXTENT_SIZE	INITIAL_SIZE	ENGINE
-ts1	lg1	datafile_ts1_01.dat	1048576	33554432	ndbcluster
-ts1	lg1	datafile_ts1_02.dat	1048576	3145728	ndbcluster
-ts2	lg1	datafile_ts2_01.dat	1048576	6291456	ndbcluster
-ts3	lg1	datafile_ts3_01.dat	1048576	12582912	ndbcluster
+ts1	lg1	./datafile_ts1_01.dat	1048576	33554432	ndbcluster
+ts1	lg1	./datafile_ts1_02.dat	1048576	3145728	ndbcluster
+ts2	lg1	./datafile_ts2_01.dat	1048576	6291456	ndbcluster
+ts3	lg1	./datafile_ts3_01.dat	1048576	12582912	ndbcluster
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 500
@@ -218,7 +216,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`a`),
   KEY `d` (`d`),
   KEY `f` (`f`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t order by a;
 a	b	c	d	e	f
 1	2	3	aaa1	bbb1	ccccc1
@@ -431,13 +429,13 @@ a	b	c	d	e	f
 100	101	102	aaa100	bbb100	ccccc100
 DROP TABLE test.t;
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile_ts1_01.dat';
+DROP DATAFILE './datafile_ts1_01.dat';
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile_ts1_02.dat';
+DROP DATAFILE './datafile_ts1_02.dat';
 ALTER TABLESPACE ts2 
-DROP DATAFILE 'datafile_ts2_01.dat';
+DROP DATAFILE './datafile_ts2_01.dat';
 ALTER TABLESPACE ts3 
-DROP DATAFILE 'datafile_ts3_01.dat';
+DROP DATAFILE './datafile_ts3_01.dat';
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 DROP TABLESPACE ts3;

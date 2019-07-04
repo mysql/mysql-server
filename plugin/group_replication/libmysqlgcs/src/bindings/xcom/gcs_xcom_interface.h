@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_interface.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
 /**
  * Keep track of the most recent XCom configuration the node will deliver
@@ -257,6 +256,17 @@ class Gcs_xcom_interface : public Gcs_interface {
   */
   void initialize_ssl();
 
+  /**
+   Used to initialize the unique identifier of the XCom instance.
+
+   @param node_information Information about the XCom node
+   @param xcom_proxy XCom proxy
+   @retval true if there was an error initialising the XCom identity
+   @retval false if operation was successful
+   */
+  bool set_xcom_identity(Gcs_xcom_node_information const &node_information,
+                         Gcs_xcom_proxy &xcom_proxy);
+
  private:
   /**
     Method to initialize the logging and debugging systems. If something
@@ -389,7 +399,7 @@ class Gcs_xcom_interface : public Gcs_interface {
 
   /**
     Indicates whether SSL has been initialized and if that initialization was
-    successfull.
+    successful.
   */
   int m_ssl_init_state;
 

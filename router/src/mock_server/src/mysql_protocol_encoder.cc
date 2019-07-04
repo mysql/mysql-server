@@ -26,6 +26,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 namespace server_mock {
 
@@ -59,6 +60,19 @@ MySQLProtocolEncoder::MsgBuffer MySQLProtocolEncoder::encode_error_message(
   append_byte(out_buffer, 0x23);  // "#"
   append_str(out_buffer, sql_state);
   append_str(out_buffer, error_msg);
+
+  encode_msg_end(out_buffer, seq_no);
+
+  return out_buffer;
+}
+
+MySQLProtocolEncoder::MsgBuffer MySQLProtocolEncoder::encode_auth_fast_message(
+    uint8_t seq_no) {
+  MsgBuffer out_buffer;
+
+  encode_msg_begin(out_buffer);
+
+  append_byte(out_buffer, 0x03);
 
   encode_msg_end(out_buffer, seq_no);
 

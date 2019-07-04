@@ -45,6 +45,8 @@ debian/extra/pfs_example_plugin_employee-plugin
 debian/extra/component_test_pfs_notification-plugin
 debian/extra/component_test_pfs_resource_group-plugin
 debian/extra/component_test_udf_registration-plugin
+debian/extra/component_test_host_application_signal-plugin
+debian/extra/component_test_mysql_runtime_error-plugin
 debian/extra/component_udf_reg_3_func-plugin
 debian/extra/component_udf_reg_avg_func-plugin
 debian/extra/component_udf_reg_int_func-plugin
@@ -65,6 +67,8 @@ debian/extra/component_test_status_var_service_str-plugin
 debian/extra/component_test_status_var_service_unreg_only-plugin
 debian/extra/component_test_system_variable_source-plugin
 debian/extra/component_validate_password-plugin
+debian/extra/component_audit_api_message_emit-plugin
+debian/extra/component_test_audit_api_message-plugin
 debian/extra/group_replication-plugin
 debian/extra/ha_example-plugin
 debian/extra/ha_mock-plugin
@@ -95,8 +99,10 @@ debian/extra/libtest_sql_stmt-plugin
 debian/extra/libtest_sql_sqlmode-plugin
 debian/extra/libtest_sql_stored_procedures_functions-plugin
 debian/extra/libtest_sql_views_triggers-plugin
+debian/extra/libtest_sql_reset_connection-plugin
 debian/extra/libtest_x_sessions_deinit-plugin
 debian/extra/libtest_x_sessions_init-plugin
+debian/extra/ddl_rewriter-plugin
 debian/extra/locking_service-plugin
 debian/extra/mypluglib-plugin
 debian/extra/mysql_no_login-plugin
@@ -113,6 +119,7 @@ debian/extra/test_udf_services-plugin
 debian/extra/udf_example-plugin
 debian/extra/test_security_context-plugin
 debian/extra/test_services_plugin_registry-plugin
+debian/extra/test_services_host_application_signal-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
 debian/extra/connection_control-plugin

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3490,6 +3490,8 @@ void Dbdih::stop_pause(Signal *signal)
   c_dequeue_lcp_rep_ongoing = true;
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
+
+  checkLcpCompletedLab(signal);
 }
 
 /**
@@ -10362,7 +10364,7 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
   m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
 
   setLocalNodefailHandling(signal, oldMasterId, NF_GCP_TAKE_OVER);
-}//Dbdih::handleNewMaster()
+}
 
 void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
 {
@@ -17409,6 +17411,8 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   }
   
   Uint32 masterRef = rep.senderRef;
+  const Uint64 gci = (Uint64(rep.gci_hi) << 32) | rep.gci_lo;
+
   if (m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE)
   {
     jam();
@@ -17424,11 +17428,26 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
 
   /**
-   * To handle multiple LDM instances, this need to be passed though
-   * each LQH...(so that no fire-trig-ord can arrive "too" late)
-   */
-  sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
-             signal->length(), JBB);
+    Ensure that SUB_GCP_COMPLETE_REP is send once per epoch to Dblqh.
+  */
+  ndbrequire(gci == m_micro_gcp.m_old_gci);
+#if defined(ERROR_INSERT) || defined(VM_TRACE)
+  /**
+    Detect if some test actually provoke a double send.
+    At point of writing no test have failed yet.
+  */
+  ndbrequire(gci > m_micro_gcp.m_last_sent_gci);
+#endif
+  if (gci > m_micro_gcp.m_last_sent_gci)
+  {
+    /**
+     * To handle multiple LDM instances, this need to be passed though
+     * each LQH...(so that no fire-trig-ord can arrive "too" late)
+     */
+    sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
+               signal->length(), JBB);
+    m_micro_gcp.m_last_sent_gci = gci;
+  }
 reply:
   Uint32 nodeId = refToNode(masterRef);
   if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))
@@ -21646,6 +21665,12 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
 
 void Dbdih::checkLcpCompletedLab(Signal* signal) 
 {
+  if (c_lcp_id_paused != RNIL)
+  {
+    jam();
+    return;
+  }
+
   if(c_lcpState.lcpStatus < LCP_TAB_COMPLETED)
   {
     jam();
@@ -21916,6 +21941,19 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     /* Handle case 7) above) */
     jam();
     ndbrequire(signal->length() == LcpCompleteRep::SignalLength);
+
+    /**
+     * During master takeover, some participant nodes could have been
+     * in IDLE state since they have already completed the lcpId under
+     * the old master before it failed. However, they may receive
+     * LCP_COMPLETE_REP again for the same lcpId from the new master.
+     */
+    if (c_lcpState.lcpStatus == LCP_STATUS_IDLE &&
+        c_lcpState.already_completed_lcp(lcpId, nodeId))
+    {
+      return;
+    }
+
     /**
      * Always allowed free pass through for signals from master that LCP is
      * completed.
@@ -22880,6 +22918,10 @@ dolocal:
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
 
   signal->theData[0] = 404;
+  signal->theData[1] = file1Ptr.p->fileRef;
+  EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
+  signal->theData[0] = DumpStateOrd::NdbfsDumpRequests;
   signal->theData[1] = file1Ptr.p->fileRef;
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
 

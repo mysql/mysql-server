@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,7 +158,7 @@ DECLARE_METHOD(bool, item_numeric_class, (log_item_class c));
 
 /**
   Set an integer value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -170,7 +170,7 @@ DECLARE_METHOD(bool, item_numeric_class, (log_item_class c));
 DECLARE_METHOD(bool, item_set_int, (log_item_data * lid, longlong i));
 /**
   Set a floating point value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -183,7 +183,7 @@ DECLARE_METHOD(bool, item_set_float, (log_item_data * lid, double f));
 
 /**
   Set a string value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -198,7 +198,7 @@ DECLARE_METHOD(bool, item_set_lexstring,
 
 /**
   Set a string value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -678,6 +678,23 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
 #define log_set_float log_item_set_float
 #define log_set_lexstring log_item_set_lexstring
 #define log_set_cstring log_item_set_cstring
+
+/**
+  Very long-running functions during server start-up can use this
+  function to check whether the time-out for buffered logging has
+  been reached. If so and we have urgent information, all buffered
+  log events will be flushed to the log using built-in default-logger
+  for the time being.  The information will be kept until start-up
+  completes in case it later turns out the user configured a loadable
+  logger, in which case we'll also flush the buffered information to
+  that logger later once the logger becomes available.
+
+  This function should only be used during start-up; once external
+  components are loaded by the component framework, this function
+  should no longer be called (as log events are no longer buffered,
+  but logged immediately).
+*/
+void log_sink_buffer_check_timeout(void);
 #endif  // LOG_H
 
 #ifndef DISABLE_ERROR_LOGGING

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ class DD_properties : public Object_table_impl {
         DBUG_ASSERT(false);
         return "";
     }
-  };
+  }
 
   /**
     Get the integer value of the property key.
@@ -186,9 +186,19 @@ class DD_properties : public Object_table_impl {
   */
   bool set(THD *thd, const String_type &key, const dd::Properties &properties);
 
+  /**
+    Remove a property key.
+
+    @param thd        Thread context.
+    @param key        Key name.
+
+    @returns false on success otherwise true.
+  */
+  bool remove(THD *thd, const String_type &key);
+
  private:
   // A cache of the table contents.
-  std::unique_ptr<Properties> m_properties;
+  Properties_impl m_properties;
 
   // Definitions of the valid property types. Used for internal validation.
   enum class Property_type { UNSIGNED_INT_32, CHARACTER_STRING, PROPERTIES };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ typedef int my_socket;
 #endif
 #endif /* MY_COMPILER_INCLUDED */
 
-#include "binary_log_types.h"
+#include "field_types.h"
 #include "my_list.h"
 #include "mysql_com.h"
 
@@ -207,7 +207,8 @@ enum mysql_option {
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
-  MYSQL_OPT_SSL_FIPS_MODE
+  MYSQL_OPT_SSL_FIPS_MODE,
+  MYSQL_OPT_TLS_CIPHERSUITES
 };
 
 /**
@@ -464,6 +465,20 @@ int STDCALL mysql_real_query(MYSQL *mysql, const char *q, unsigned long length);
 MYSQL_RES *STDCALL mysql_store_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_use_result(MYSQL *mysql);
 
+enum net_async_status STDCALL mysql_real_connect_nonblocking(
+    MYSQL *mysql, const char *host, const char *user, const char *passwd,
+    const char *db, unsigned int port, const char *unix_socket,
+    unsigned long clientflag);
+enum net_async_status STDCALL mysql_send_query_nonblocking(
+    MYSQL *mysql, const char *query, unsigned long length);
+enum net_async_status STDCALL mysql_real_query_nonblocking(
+    MYSQL *mysql, const char *query, unsigned long length);
+enum net_async_status STDCALL
+mysql_store_result_nonblocking(MYSQL *mysql, MYSQL_RES **result);
+enum net_async_status STDCALL mysql_next_result_nonblocking(MYSQL *mysql);
+enum net_async_status STDCALL mysql_select_db_nonblocking(MYSQL *mysql,
+                                                          const char *db,
+                                                          bool *error);
 void STDCALL mysql_get_character_set_info(MYSQL *mysql,
                                           MY_CHARSET_INFO *charset);
 
@@ -509,12 +524,16 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
 int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
                              const void *arg);
 void STDCALL mysql_free_result(MYSQL_RES *result);
+enum net_async_status STDCALL mysql_free_result_nonblocking(MYSQL_RES *result);
 void STDCALL mysql_data_seek(MYSQL_RES *result, my_ulonglong offset);
 MYSQL_ROW_OFFSET STDCALL mysql_row_seek(MYSQL_RES *result,
                                         MYSQL_ROW_OFFSET offset);
 MYSQL_FIELD_OFFSET STDCALL mysql_field_seek(MYSQL_RES *result,
                                             MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *result);
+enum net_async_status STDCALL mysql_fetch_row_nonblocking(MYSQL_RES *res,
+                                                          MYSQL_ROW *row);
+
 unsigned long *STDCALL mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD *STDCALL mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES *STDCALL mysql_list_fields(MYSQL *mysql, const char *table,

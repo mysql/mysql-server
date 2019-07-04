@@ -1,0 +1,6 @@
+!include suite/ndb_ddl/my.cnf
+
+[mysqld]
+# Don't allow mysqld to upgrade schema distribution table
+ndb-schema-dist-upgrade-allowed=false
+

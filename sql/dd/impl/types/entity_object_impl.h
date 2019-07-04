@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,6 @@ class Entity_object_impl : virtual public Entity_object,
                            public Weak_object_impl {
  public:
   Entity_object_impl() : m_id(INVALID_OBJECT_ID), m_has_new_primary_key(true) {}
-
-  virtual ~Entity_object_impl() {}
 
  public:
   virtual Object_id id() const override { return m_id; }

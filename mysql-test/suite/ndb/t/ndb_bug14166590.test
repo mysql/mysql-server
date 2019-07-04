@@ -47,3 +47,4 @@ commit;
 
 connection con1;
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

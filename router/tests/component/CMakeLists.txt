@@ -20,16 +20,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
-  MODULE "component"
-  INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src/http/include/
-  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS}
-  LIB_DEPENDS http_client;http_common;${LIBEVENT_LIBRARY}
-  )
-
 ADD_EXECUTABLE(master_key_test_writer ../helpers/master_key_test_writer.cc)
 SET_TARGET_PROPERTIES(master_key_test_writer PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
+
+ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
+add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+  MODULE "component"
+  INCLUDE_DIRS
+    ${PROJECT_SOURCE_DIR}/src/http/include/
+    ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
+  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+  LIB_DEPENDS mock_server_rest_client;http_client;http_common
+  DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
+          routing;metadata_cache;http_auth_realm;http_auth_backend
+  )
 
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.

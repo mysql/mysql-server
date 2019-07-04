@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,8 @@
 
 #include <string>
 
-#include "my_dbug.h"  // DBUG_ASSERT
+#include "my_dbug.h"      // DBUG_ASSERT
+#include "my_inttypes.h"  // MY_INT32_NUM_DECIMAL_DIGITS
 #include "sql/item_cmpfunc.h"
 #include "sql/item_strfunc.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
@@ -75,7 +76,8 @@
 */
 class Item_func_regexp : public Item_func {
  public:
-  Item_func_regexp(const POS &pos, PT_item_list *args) : Item_func(pos, args) {}
+  Item_func_regexp(const POS &pos, PT_item_list *opt_list)
+      : Item_func(pos, opt_list) {}
 
   /**
     Resolves the collation to use for comparison. The type resolution is done
@@ -178,7 +180,7 @@ class Item_func_regexp : public Item_func {
   double convert_str_to_real() {
     DBUG_ASSERT(fixed == 1);
     int err_not_used;
-    char *end_not_used;
+    const char *end_not_used;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0.0;
     return my_strntod(res->charset(), const_cast<char *>(res->ptr()),
@@ -224,8 +226,8 @@ class Item_func_regexp : public Item_func {
 
 class Item_func_regexp_instr : public Item_func_regexp {
  public:
-  Item_func_regexp_instr(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_instr(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_longlong();
   }
 
@@ -278,9 +280,9 @@ class Item_func_regexp_instr : public Item_func_regexp {
 
 class Item_func_regexp_like : public Item_func_regexp {
  public:
-  Item_func_regexp_like(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
-    set_data_type_longlong();
+  Item_func_regexp_like(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
+    set_data_type_bool();
   }
 
   Item_result result_type() const override { return INT_RESULT; }
@@ -317,8 +319,8 @@ class Item_func_regexp_like : public Item_func_regexp {
 
 class Item_func_regexp_replace : public Item_func_regexp {
  public:
-  Item_func_regexp_replace(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_replace(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_string_init();
   }
 
@@ -358,8 +360,8 @@ class Item_func_regexp_replace : public Item_func_regexp {
 
 class Item_func_regexp_substr : public Item_func_regexp {
  public:
-  Item_func_regexp_substr(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_substr(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_string_init();
   }
 

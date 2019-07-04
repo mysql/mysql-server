@@ -512,8 +512,8 @@ SELECT unique_constraint_name FROM information_schema.referential_constraints WH
 UNIQUE_CONSTRAINT_NAME
 pk
 # Parent definition should be aware of new child as well.
-# Doesn't work yet. Apparently some bug in InnoDB.
 DELETE FROM t4;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t4` (`pk`))
 UNLOCK TABLES;
 DROP TABLE t3, t4;
 #

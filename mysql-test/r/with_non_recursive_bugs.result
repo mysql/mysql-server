@@ -786,7 +786,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	outr2	NULL	ref	col_int_key	col_int_key	5	test.outr1.col_int	1	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.outr1.col_int	2	100.00	NULL
 3	SUBQUERY	innr1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using temporary
-3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
 2	DERIVED	alias2	NULL	range	PRIMARY,col_varchar_key	PRIMARY	4	NULL	2	100.00	Using where
 2	DERIVED	alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_key	1	100.00	Using index
 Warnings:
@@ -940,7 +940,7 @@ FROM aa AS innr1 JOIN cte AS innrcte
 ON innr1.pk = innrcte.field1
 WHERE outr1 . col_int_key <> 0
 ORDER BY innr1 . col_blob );
-ERROR 22007: Incorrect datetime value: 'g' for column 'field1' at row 1
+ERROR 22007: Incorrect datetime value: 'g' for column 'x' at row 1
 DROP VIEW view_c, view_bb;
 DROP TABLE aa,b,bb,c,e;
 #

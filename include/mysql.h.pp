@@ -1,8 +1,8 @@
 typedef unsigned long long my_ulonglong;
 typedef int my_socket;
-#include "binary_log_types.h"
-typedef enum enum_field_types {
-  MYSQL_TYPE_DECIMAL,
+#include "field_types.h"
+enum enum_field_types
+{ MYSQL_TYPE_DECIMAL,
   MYSQL_TYPE_TINY,
   MYSQL_TYPE_SHORT,
   MYSQL_TYPE_LONG,
@@ -32,8 +32,8 @@ typedef enum enum_field_types {
   MYSQL_TYPE_BLOB = 252,
   MYSQL_TYPE_VAR_STRING = 253,
   MYSQL_TYPE_STRING = 254,
-  MYSQL_TYPE_GEOMETRY = 255
-} enum_field_types;
+  MYSQL_TYPE_GEOMETRY = 255 };
+typedef enum enum_field_types enum_field_types;
 #include "my_list.h"
 typedef struct LIST {
   struct LIST *prev, *next;
@@ -82,6 +82,7 @@ enum enum_server_command {
   COM_DAEMON,
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION,
+  COM_CLONE,
   COM_END
 };
 enum SERVER_STATUS_flags_enum {
@@ -242,7 +243,7 @@ bool my_thread_init(void);
 void my_thread_end(void);
 unsigned long net_field_length(unsigned char **packet);
 unsigned long net_field_length_checked(unsigned char **packet,
-                                       unsigned long max_length);
+                                               unsigned long max_length);
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
@@ -263,16 +264,31 @@ struct MYSQL_PLUGIN_VIO_INFO {
   } protocol;
   int socket;
 };
+enum net_async_status {
+  NET_ASYNC_COMPLETE = 0,
+  NET_ASYNC_NOT_READY,
+  NET_ASYNC_ERROR,
+  NET_ASYNC_COMPLETE_NO_MORE_RESULTS
+};
 typedef struct MYSQL_PLUGIN_VIO {
   int (*read_packet)(struct MYSQL_PLUGIN_VIO *vio, unsigned char **buf);
   int (*write_packet)(struct MYSQL_PLUGIN_VIO *vio, const unsigned char *packet,
                       int packet_len);
   void (*info)(struct MYSQL_PLUGIN_VIO *vio,
                struct MYSQL_PLUGIN_VIO_INFO *info);
+  enum net_async_status (*read_packet_nonblocking)(struct MYSQL_PLUGIN_VIO *vio,
+                                                   unsigned char **buf,
+                                                   int *result);
+  enum net_async_status (*write_packet_nonblocking)(
+      struct MYSQL_PLUGIN_VIO *vio, const unsigned char *pkt, int pkt_len,
+      int *result);
 } MYSQL_PLUGIN_VIO;
 struct auth_plugin_t {
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
+  enum net_async_status (*authenticate_user_nonblocking)(MYSQL_PLUGIN_VIO *vio,
+                                                         struct MYSQL *mysql,
+                                                         int *result);
 };
 typedef struct auth_plugin_t st_mysql_client_plugin_AUTHENTICATION;
 struct st_mysql_client_plugin *mysql_load_plugin(struct MYSQL *mysql,
@@ -308,7 +324,7 @@ void init_client_errs(void);
 void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2064)
+  if (client_errno >= 2000 && client_errno <= 2065)
     return client_errors[client_errno - 2000];
   return client_errors[2000];
 }
@@ -392,7 +408,8 @@ enum mysql_option {
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
-  MYSQL_OPT_SSL_FIPS_MODE
+  MYSQL_OPT_SSL_FIPS_MODE,
+  MYSQL_OPT_TLS_CIPHERSUITES
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -559,6 +576,20 @@ int mysql_send_query(MYSQL *mysql, const char *q, unsigned long length);
 int mysql_real_query(MYSQL *mysql, const char *q, unsigned long length);
 MYSQL_RES * mysql_store_result(MYSQL *mysql);
 MYSQL_RES * mysql_use_result(MYSQL *mysql);
+enum net_async_status mysql_real_connect_nonblocking(
+    MYSQL *mysql, const char *host, const char *user, const char *passwd,
+    const char *db, unsigned int port, const char *unix_socket,
+                               unsigned long clientflag);
+enum net_async_status mysql_send_query_nonblocking(
+    MYSQL *mysql, const char *query, unsigned long length);
+enum net_async_status mysql_real_query_nonblocking(
+    MYSQL *mysql, const char *query, unsigned long length);
+enum net_async_status
+mysql_store_result_nonblocking(MYSQL *mysql, MYSQL_RES **result);
+enum net_async_status mysql_next_result_nonblocking(MYSQL *mysql);
+enum net_async_status mysql_select_db_nonblocking(MYSQL *mysql,
+                                                          const char *db,
+                                                          bool *error);
 void mysql_get_character_set_info(MYSQL *mysql,
                                           MY_CHARSET_INFO *charset);
 int mysql_session_track_get_first(MYSQL *mysql,
@@ -598,12 +629,15 @@ int mysql_options4(MYSQL *mysql, enum mysql_option option,
 int mysql_get_option(MYSQL *mysql, enum mysql_option option,
                              const void *arg);
 void mysql_free_result(MYSQL_RES *result);
+enum net_async_status mysql_free_result_nonblocking(MYSQL_RES *result);
 void mysql_data_seek(MYSQL_RES *result, my_ulonglong offset);
 MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES *result,
                                         MYSQL_ROW_OFFSET offset);
 MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result,
                                             MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW mysql_fetch_row(MYSQL_RES *result);
+enum net_async_status mysql_fetch_row_nonblocking(MYSQL_RES *res,
+                                                        MYSQL_ROW *row);
 unsigned long * mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD * mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES * mysql_list_fields(MYSQL *mysql, const char *table,

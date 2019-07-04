@@ -231,7 +231,8 @@ insert into t1 values(fn1());
 connection con1;
 
 delimiter |;
---error 1419 # only full-global-privs user can create a function
+# Only full-global-privs user can create a function
+--error 1419
 create function fn2()
        returns int
        no sql

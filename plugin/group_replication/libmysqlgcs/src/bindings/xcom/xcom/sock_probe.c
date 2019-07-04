@@ -41,25 +41,15 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.c"
 #endif
 
-/*
-  Get host name from host:port string.
-  name should be a buffer at least MAXHOSTNAMELEN+1 bytes.
-*/
-void get_host_name(char *a, char *name) {
-  if (!a || !name) return;
-  {
-    int i = 0;
-    while (a[i] != 0 && a[i] != ':' && i <= MAXHOSTNAMELEN) {
-      name[i] = a[i];
-      i++;
-    }
-    name[i] = 0;
-  }
-}
-
 /* compare two sockaddr */
-static bool_t sockaddr_default_eq(sockaddr *x, sockaddr *y) {
-  return 0 == memcmp(x, y, sizeof(*x));
+static bool_t sockaddr_default_eq(struct sockaddr *x, struct sockaddr *y) {
+  if (x->sa_family != y->sa_family) return 0;
+
+  size_t size_to_compare = x->sa_family == AF_INET
+                               ? sizeof(struct sockaddr_in)
+                               : sizeof(struct sockaddr_in6);
+
+  return 0 == memcmp(x, y, size_to_compare);
 }
 
 /* return index of this machine in node list, or -1 if no match */
@@ -72,7 +62,8 @@ port_matcher get_port_matcher() { return match_port; }
 node_no xcom_find_node_index(node_list *nodes) {
   node_no i;
   node_no retval = VOID_NODE_NO;
-  char *name = NULL;
+  char name[IP_MAX_SIZE];
+  xcom_port port = 0;
   struct addrinfo *addr = 0;
   struct addrinfo *saved_addr = 0;
 
@@ -83,47 +74,47 @@ node_no xcom_find_node_index(node_list *nodes) {
     return retval;
   }
 
-  /*
-    On some platform, MAXHOSTNAMELEN is sysconf(_SC_HOST_NAME_MAX).
-    so need to check if it is greater than 0.
-  */
-  if (MAXHOSTNAMELEN <= 0) return retval;
-
-  name = (char *)calloc((size_t)1, (size_t)(MAXHOSTNAMELEN + 1));
-
   /* For each node in list */
   for (i = 0; i < nodes->node_list_len; i++) {
+    /* Get host name from host:port string */
+    if (get_ip_and_port(nodes->node_list_val[i].address, name, &port)) {
+      G_DEBUG("Error parsing IP and Port. Passing to the next node.");
+      continue;
+    }
+
     /* See if port matches first */
     if (match_port) {
-      if (!match_port(xcom_get_port(nodes->node_list_val[i].address))) continue;
-    }
-    /* Get host name from host:port string */
-    get_host_name(nodes->node_list_val[i].address, name);
-    /* Get addresses of host */
-
-    checked_getaddrinfo(name, 0, 0, &addr);
-    saved_addr = addr;
-    MAY_DBG(FN; STREXP(name); PTREXP(addr));
-    /* getaddrinfo returns linked list of addrinfo */
-    while (addr) {
-      int j;
-      /* Match sockaddr of host with list of interfaces on this machine. Skip
-       * disabled interfaces */
-      for (j = 0; j < number_of_interfaces(s); j++) {
-        sockaddr tmp = get_sockaddr(s, j);
-        if (sockaddr_default_eq(addr->ai_addr, &tmp) && is_if_running(s, j)) {
-          retval = i;
-          if (saved_addr) freeaddrinfo(saved_addr);
-          goto end_loop;
-        }
+      if (!match_port(port)) {
+        continue;
       }
-      addr = addr->ai_next;
+
+      /* Get addresses of host */
+
+      checked_getaddrinfo(name, 0, 0, &addr);
+      saved_addr = addr;
+      MAY_DBG(FN; STREXP(name); PTREXP(addr));
+      /* getaddrinfo returns linked list of addrinfo */
+      while (addr) {
+        int j;
+        /* Match sockaddr of host with list of interfaces on this machine. Skip
+         * disabled interfaces */
+        for (j = 0; j < number_of_interfaces(s); j++) {
+          struct sockaddr *tmp_sockaddr = NULL;
+          get_sockaddr_address(s, j, &tmp_sockaddr);
+          if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
+              is_if_running(s, j)) {
+            retval = i;
+            if (saved_addr) freeaddrinfo(saved_addr);
+            goto end_loop;
+          }
+        }
+        addr = addr->ai_next;
+      }
     }
   }
 /* Free resources and return result */
 end_loop:
-  free(name);
-  delete_sock_probe(s);
+  close_sock_probe(s);
   return retval;
 }
 
@@ -147,11 +138,13 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
     /* getaddrinfo returns linked list of addrinfo */
     while (addr) {
       int j;
-      /* Match sockaddr of host with list of interfaces on this machine. Skip
-       * disabled interfaces */
+      /* Match sockaddr of host with list of interfaces on this machine.
+       * Skip disabled interfaces */
       for (j = 0; j < number_of_interfaces(s); j++) {
-        sockaddr tmp = get_sockaddr(s, j);
-        if (sockaddr_default_eq(addr->ai_addr, &tmp) && is_if_running(s, j)) {
+        struct sockaddr *tmp_sockaddr = NULL;
+        get_sockaddr_address(s, j, &tmp_sockaddr);
+        if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
+            is_if_running(s, j)) {
           retval = 1;
           goto end_loop;
         }
@@ -161,7 +154,7 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
   /* Free resources and return result */
   end_loop:
     if (saved_addr) freeaddrinfo(saved_addr);
-    delete_sock_probe(s);
+    close_sock_probe(s);
   }
   return retval;
 }

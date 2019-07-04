@@ -113,6 +113,7 @@
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/thr_malloc.h"  // int_sql_alloc
 #include "storage/myisam/ha_myisam.h"
+#include "storage/myisam/myisamdef.h"
 #include "storage/myisammrg/myrg_def.h"
 #include "typelib.h"
 
@@ -1383,7 +1384,7 @@ int ha_myisammrg::create(const char *name, TABLE *, HA_CREATE_INFO *create_info,
 void ha_myisammrg::append_create_info(String *packet) {
   const char *current_db;
   size_t db_length;
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   TABLE_LIST *open_table, *first;
 
   if (file->merge_insert_method != MERGE_INSERT_DISABLED) {

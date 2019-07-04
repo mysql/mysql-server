@@ -282,6 +282,12 @@ class QEP_shared {
   void set_type(enum join_type t) { m_type = t; }
   Item *condition() const { return m_condition; }
   void set_condition(Item *c) { m_condition = c; }
+  bool condition_is_pushed_to_sort() const {
+    return m_condition_is_pushed_to_sort;
+  }
+  void mark_condition_as_pushed_to_sort() {
+    m_condition_is_pushed_to_sort = true;
+  }
   Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records = r; }
@@ -399,6 +405,16 @@ class QEP_shared {
   Item *m_condition;
 
   /**
+    Whether the condition in m_condition is evaluated in front of a sort,
+    so that it does not need to be evaluated again (unless it is outer to
+    an inner join; see the relevant comments in SortingIterator::Init().
+
+    Note that m_condition remains non-nullptr in this case, for purposes
+    of the (non-tree) EXPLAIN and for filesort to build up its read maps.
+  */
+  bool m_condition_is_pushed_to_sort = false;
+
+  /**
      All keys with can be used.
      Used by add_key_field() (optimization time) and execution of dynamic
      range (DynamicRangeIterator), and EXPLAIN.
@@ -485,6 +501,12 @@ class QEP_shared_owner {
   void set_type(enum join_type t) { return m_qs->set_type(t); }
   Item *condition() const { return m_qs->condition(); }
   void set_condition(Item *to) { return m_qs->set_condition(to); }
+  bool condition_is_pushed_to_sort() const {
+    return m_qs->condition_is_pushed_to_sort();
+  }
+  void mark_condition_as_pushed_to_sort() {
+    m_qs->mark_condition_as_pushed_to_sort();
+  }
   Key_map &keys() { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }

@@ -141,3 +141,23 @@ SELECT @@GLOBAL.validate_password_length;
 RESET PERSIST;
 UNINSTALL plugin validate_password;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug #28823972: PERSISTED PLUGIN VARIABLE VALUE LOST AFTER
+--echo #                PLUGIN IS REINSTALLED
+--echo #
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+SELECT @@GLOBAL.validate_password_length;
+SET @@persist.validate_password_length= 15;
+UNINSTALL PLUGIN validate_password;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+# should report 15 not the default value
+SELECT @@GLOBAL.validate_password_length;
+
+# Cleanup
+RESET PERSIST;
+UNINSTALL plugin validate_password;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

@@ -1121,7 +1121,10 @@ DROP TABLE tab;
 # End of Testcase compress table with Auto_increment 
 
 # Test check constraint on spatial column
-CREATE TABLE tab(c1 POINT NOT NULL SRID 0,CONSTRAINT tab_const check(c1 > 0) ) ENGINE=InnoDB;
+CREATE TABLE tab(c1 POINT NOT NULL SRID 0,
+                 CONSTRAINT tab_const
+                 CHECK(ST_Equals(c1, ST_GeomFromText("POINT(0 0)") = FALSE))
+                ) ENGINE=InnoDB;
 
 CREATE SPATIAL INDEX idx1 ON tab(c1) ;
 

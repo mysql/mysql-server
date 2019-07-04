@@ -108,7 +108,7 @@ insert into child  values(1), (2), (3);
 show create table parent;
 
 --echo #Now create a foreign key dependency
-alter table child add foreign key fk1(ref) references parent(id);
+alter table child add constraint fk1 foreign key (ref) references parent(id);
 
 --echo #Now run a alter engine query.
 --echo #m_fk_data of parent should be reloaded now and the query should fail
@@ -179,9 +179,9 @@ create table test_fail (
 show warnings;
 
 --echo # Using distinct names should work
-alter table parent add foreign key fk_p2(b) references parent(a);
-alter table parent add foreign key fk_p3(c) references parent(a);
-alter table child  add foreign key fk_c2(b) references parent(a);
+alter table parent add constraint fk_p2 foreign key (b) references parent(a);
+alter table parent add constraint fk_p3 foreign key (c) references parent(a);
+alter table child  add constraint fk_c2 foreign key (b) references parent(a);
 
 --echo #Show create tables
 show create table parent;

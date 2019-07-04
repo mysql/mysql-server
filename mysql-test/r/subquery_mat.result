@@ -456,7 +456,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a2' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#5 */ select 1,1 from `test`.`t3` `t3c` where (<in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),<exists>(<index_lookup>(<cache>(`test`.`t3c`.`c1`) in t2i on it2i3 where (((`test`.`t2i`.`b2` > '0') or (`test`.`t2i`.`b2` = `test`.`t1`.`a2`)) and (<cache>(`test`.`t3c`.`c1`) = `test`.`t2i`.`b1`) and (<cache>(`test`.`t3c`.`c2`) = `test`.`t2i`.`b2`))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t3c`.`c1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t3c`.`c2`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#5 */ select 1,1 from `test`.`t3` `t3c` where (<in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),<exists>(<index_lookup>(<cache>(`test`.`t3c`.`c1`) in t2i on it2i3 where ((`test`.`t2i`.`b2` > '0') or (`test`.`t2i`.`b2` = `test`.`t1`.`a2`))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t3c`.`c1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t3c`.`c2`)))))
 explain
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -866,7 +866,7 @@ FROM t2);
 MIN(t2.pk)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
 
 EXPLAIN
 SELECT MIN(t2.pk)
@@ -879,7 +879,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
 Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where 0 having <in_optimizer>('m',<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 
 #
@@ -1006,7 +1006,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select '10' AS `i`,NULL AS `j` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select '10' AS `i`,NULL AS `j` from <constant table> left join `test`.`t2` on(<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t3` where (<cache>(NULL) = NULL))))
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 i	j
 10	NULL
@@ -1017,7 +1017,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select '10' AS `i`,NULL AS `j` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select '10' AS `i`,NULL AS `j` from <constant table> left join `test`.`t2` on(<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t3` having (<cache>(NULL) = <ref_null_helper>(max(NULL))))))
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 i	j
 10	NULL
@@ -1266,7 +1266,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select straight_join 'b' AS `col_varchar_nokey`,NULL AS `col_varchar_nokey` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select straight_join 'b' AS `col_varchar_nokey`,NULL AS `col_varchar_nokey` from <constant table> left join `test`.`t2` on(<in_optimizer>('b',<exists>(/* select#2 */ select 1 from `test`.`t3` where (<cache>('b') = NULL))))
 SELECT STRAIGHT_JOIN *
 FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
 FROM t3);
@@ -1321,7 +1321,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	innr	NULL	index	col_int_key	col_int_key	5	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from `test`.`t2` `table2` where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from <constant table> left join `test`.`t2` `table2` on((<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr` where (`test`.`innr`.`col_int_nokey` > `test`.`innr`.`col_int_nokey`) group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(NULL) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))) and multiple equal('1', NULL)))
 FLUSH STATUS;
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2
@@ -1820,7 +1820,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	innr2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	innr	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'x' AS `col_varchar_nokey`,`test`.`outr2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `outr2` where ((<in_optimizer>('x',<exists>(/* select#2 */ select 1 from `test`.`t1` `innr` where <if>(outer_field_is_not_null, ((<cache>('x') = NULL) or isnull(NULL)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))) xor ('1' < 6)) and (`test`.`outr2`.`col_varchar_nokey` > 'x'))
+Note	1003	/* select#1 */ select '1' AS `pk`,'x' AS `col_varchar_nokey`,`test`.`outr2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `outr2` where ((<in_optimizer>('x',<exists>(/* select#2 */ select 1 from <constant table> left join `test`.`t1` `innr` on(('8' >= NULL)) where <if>(outer_field_is_not_null, ((<cache>('x') = NULL) or isnull(NULL)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))) xor ('1' < 6)) and (`test`.`outr2`.`col_varchar_nokey` > 'x'))
 FLUSH STATUS;
 SELECT outr.pk, outr.col_varchar_nokey, outr2.col_varchar_nokey
 FROM t2 AS outr2
@@ -2050,22 +2050,22 @@ SET @str= repeat("a",450);
 SET @num=1000;
 INSERT INTO t1 VALUES (CONCAT((@num:=@num+1), @str));
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 32
@@ -2074,26 +2074,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 16384;
-set @saved_engine=@@internal_tmp_disk_storage_engine;
-set global internal_tmp_disk_storage_engine = 'myisam';
-EXPLAIN SELECT COUNT(*)
-FROM t1
-WHERE t1.a NOT IN (
-SELECT t2.a FROM t1 as t2
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using where
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where 1 having 1 ), <index_lookup>(`test`.`t1`.`a` in <temporary table> on <hash_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))))
-SELECT COUNT(*)
-FROM t1
-WHERE t1.a NOT IN (
-SELECT t2.a FROM t1 as t2
-);
-COUNT(*)
-0
-set global internal_tmp_disk_storage_engine = 'innodb';
 EXPLAIN SELECT COUNT(*)
 FROM t1
 WHERE t1.a NOT IN (
@@ -2112,7 +2092,6 @@ SELECT t2.a FROM t1 as t2
 COUNT(*)
 0
 DROP TABLE t1;
-set global internal_tmp_disk_storage_engine = @saved_engine;
 set @@max_heap_table_size= @save_heap_size;
 #
 # Bug#19805761 ASSERTION FAILURE IN SUBSELECT_HASH_SJ_ENGINE::EXEC WITH SUBQUERY IN LEFT ARGUME

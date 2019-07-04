@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,13 +48,13 @@ class ItemFuncRegexpTest : public ::testing::Test {
 
   template <typename Item_type>
   void test_print(const char *arg1, const char *arg2, const char *expected) {
-    auto args = new (*THR_MALLOC) Mock_pt_item_list{arg1, arg2};
+    auto args = new (thd()->mem_root) Mock_pt_item_list{arg1, arg2};
     Item *item = new Item_type(POS(), args);
     Parse_context pc(thd(), thd()->lex->select_lex);
     item->itemize(&pc, &item);
     item->fix_fields(thd(), nullptr);
     String buf;
-    item->print(&buf, QT_ORDINARY);
+    item->print(thd(), &buf, QT_ORDINARY);
     EXPECT_STREQ(expected, buf.c_ptr_safe());
   }
 };

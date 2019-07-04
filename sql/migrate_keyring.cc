@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,6 @@
 #include "violite.h"
 
 using std::string;
-
-/**
-  Standard constructor
-*/
 
 Migrate_keyring::Migrate_keyring() {
   m_source_plugin_handle = nullptr;
@@ -69,9 +65,6 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   string equal("=");
   string so(".so");
   string dll(".dll");
-
-  m_argc = argc;
-  m_argv = argv;
 
   if (!source_plugin) {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
@@ -131,14 +124,25 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
       DBUG_RETURN(true);
     }
   }
+
+  m_argc = argc;
+  m_argv = new char *[m_argc + 2];  // 1st for extra option and 2nd for nullptr
+  for (int cnt = 0; cnt < m_argc; ++cnt) {
+    m_argv[cnt] = argv[cnt];
+  }
+  /* add --loose_<plugin_name>_open_mode=1 option */
+  m_internal_option = "--loose_" + m_source_plugin_name + "_open_mode=1";
+  m_argv[m_argc] = const_cast<char *>(m_internal_option.c_str());
+  /* update m_argc, m_argv */
+  m_argv[++m_argc] = nullptr;
   DBUG_RETURN(false);
 }
 
 /**
   This function does the following in sequence:
-    1. Load source plugin.
-    2. Load destination plugin.
-    3. Disable access to keyring service APIs.
+    1. Disable access to keyring service APIs.
+    2. Load source plugin.
+    3. Load destination plugin.
     4. Fetch all keys from source plugin and upon
        sucess store in destination plugin.
     5. Enable access to keyring service APIs.
@@ -154,30 +158,37 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
 bool Migrate_keyring::execute() {
   DBUG_ENTER("Migrate_keyring::execute");
 
+  char **tmp_m_argv;
+
+  /* Disable access to keyring service APIs */
+  if (migrate_connect_options && disable_keyring_operations()) goto error;
+
   /* Load source plugin. */
   if (load_plugin(enum_plugin_type::SOURCE_PLUGIN)) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to initialize source keyring");
-    DBUG_RETURN(true);
+    goto error;
   }
 
-  /* Load destination source plugin. */
+  /* Load destination plugin. */
   if (load_plugin(enum_plugin_type::DESTINATION_PLUGIN)) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to initialize destination keyring");
-    DBUG_RETURN(true);
+    goto error;
   }
 
   /* skip program name */
   m_argc--;
-  m_argv++;
+  /* We use a tmp ptr instead of m_argv since if the latter gets changed, we
+   * lose access to the alloced mem and hence there would be leak */
+  tmp_m_argv = m_argv + 1;
   /* check for invalid options */
   if (m_argc > 1) {
     struct my_option no_opts[] = {
         {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
     my_getopt_skip_unknown = 0;
     my_getopt_use_args_separator = true;
-    if (handle_options(&m_argc, &m_argv, no_opts, NULL)) DBUG_RETURN(true);
+    if (handle_options(&m_argc, &tmp_m_argv, no_opts, NULL)) DBUG_RETURN(true);
 
     if (m_argc > 1) {
       LogErr(WARNING_LEVEL, ER_KEYRING_MIGRATION_EXTRA_OPTIONS);
@@ -185,15 +196,11 @@ bool Migrate_keyring::execute() {
     }
   }
 
-  /* Disable access to keyring service APIs */
-  if (migrate_connect_options && disable_keyring_operations()) goto error;
-
   /* Fetch all keys from source plugin and store into destination plugin. */
   if (fetch_and_store_keys()) goto error;
 
   /* Enable access to keyring service APIs */
   if (migrate_connect_options) enable_keyring_operations();
-
   DBUG_RETURN(false);
 
 error:
@@ -376,6 +383,8 @@ bool Migrate_keyring::enable_keyring_operations() {
 */
 Migrate_keyring::~Migrate_keyring() {
   if (mysql) {
+    delete[] m_argv;
+    m_argv = NULL;
     mysql_close(mysql);
     mysql = NULL;
     if (migrate_connect_options) vio_end();

@@ -1,4 +1,3 @@
-drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a int not null);
 insert into t1 values (1);
@@ -82,7 +81,6 @@ id	t2
 2	hotmail.com
 1	mysql.com
 drop table t1,t2;
-drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
 create table t1 (c int);
@@ -558,27 +556,36 @@ End of 5.0 tests.
 # Check that the number of warnings reported by
 # mysql_info() is correct.
 #
-drop table if exists t1;
 create table t1 (data varchar(4) not null);
 #
 # Demonstrate that the number of warnings matches
 # the information in mysql_info().
 #
-insert ignore t1 (data) values ('letter'), (1/0);
+prepare stmt from "insert ignore t1 (data) values ('letter'), (1/0)";
+affected rows: 0
+info: Statement prepared
+execute stmt;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 3
 Warnings:
 Warning	1265	Data truncated for column 'data' at row 1
 Warning	1365	Division by 0
 Warning	1048	Column 'data' cannot be null
-update ignore t1 set data='envelope' where 1/0 or 1;
-affected rows: 2
-info: Rows matched: 2  Changed: 2  Warnings: 3
+prepare stmt from "update ignore t1 set data='envelope' where 1/0 or 1";
+affected rows: 0
+info: Statement prepared
 Warnings:
 Warning	1365	Division by 0
+execute stmt;
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 2
+Warnings:
 Warning	1265	Data truncated for column 'data' at row 1
 Warning	1265	Data truncated for column 'data' at row 2
-insert ignore t1 (data) values (default), (1/0), ('dead beef');
+prepare stmt from "insert ignore t1 (data) values (default), (1/0), ('dead beef')";
+affected rows: 0
+info: Statement prepared
+execute stmt;
 affected rows: 3
 info: Records: 3  Duplicates: 0  Warnings: 4
 Warnings:
@@ -594,7 +601,6 @@ drop table t1;
 # Bug#54106 assert in Protocol::end_statement,
 #           INSERT IGNORE ... SELECT ... UNION SELECT ...
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 (a, a) VALUES (1, 1);
 ERROR 42000: Column 'a' specified twice
@@ -1007,3 +1013,34 @@ DROP VIEW  view_target2;
 DROP VIEW  view_target3;
 DROP USER  user20989@localhost;
 DROP DATABASE meow;
+#
+# Bug#28836669: Only first set of duplicate columns are reported for INSERT
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1(a, a) VALUES (1, 1);
+ERROR 42000: Column 'a' specified twice
+INSERT INTO t1(a, a, b, b) VALUES (1, 1, 2, 2);
+ERROR 42000: Column 'a' specified twice
+SHOW ERRORS;
+Level	Code	Message
+Error	1110	Column 'a' specified twice
+Error	1110	Column 'b' specified twice
+INSERT INTO t1(a, a, a, a) VALUES (1, 1, 1, 1);
+ERROR 42000: Column 'a' specified twice
+SHOW ERRORS;
+Level	Code	Message
+Error	1110	Column 'a' specified twice
+Error	1110	Column 'a' specified twice
+Error	1110	Column 'a' specified twice
+DROP TABLE t1;
+CREATE TABLE t1(a INT,
+b INT GENERATED ALWAYS AS (-a) VIRTUAL,
+c INT GENERATED ALWAYS AS (-a) STORED);
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t1(a,a) VALUES (1,1);
+ERROR 42000: Column 'a' specified twice
+INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
+ERROR 42000: Column 'a' specified twice
+INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
+ERROR 42000: Column 'b' specified twice
+DROP TABLE t1;

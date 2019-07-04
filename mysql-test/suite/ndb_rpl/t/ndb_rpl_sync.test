@@ -97,3 +97,4 @@ select * from mysql.ndb_apply_status;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

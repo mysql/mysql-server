@@ -1,0 +1,124 @@
+######### mysql-test\t\binlog_row_event_max_size_basic.test ###################
+#                                                                             #
+# Variable Name: binlog_row_event_max_size                                    #
+# Scope: GLOBAL                                                               #
+# Access Type: Read Only                                                      #
+# Data Type: Numeric                                                          #
+# Default Value: 8192                                                         #
+#                                                                             #
+# Creation Date: 2018-08-23                                                   #
+# Author:  Luis Soares                                                        #
+#                                                                             #
+# Description: Test Cases of RO System Variable "binlog_row_event_max_size"   #
+#              that checks behavior of this variable in the following ways    #
+#              * Default Value                                                #
+#              * Error when changing it                                       #
+#              * SET PERSIST_OLNY                                             #
+#              * SET PERSIST                                                  #
+#                                                                             #
+###############################################################################
+
+#################################################################
+#           START OF binlog_row_event_max_size TESTS            #
+#################################################################
+
+#########################################################################
+# Checking default value binlog_row_event_max_size                      #
+#########################################################################
+
+SET @start_value = @@global.binlog_row_event_max_size;
+SELECT @start_value;
+
+--let $assert_text= Assert that the default value is correct
+--let $assert_cond= @@global.binlog_row_event_max_size = 8192
+--source include/assert.inc
+
+#########################################################################
+#        Change the value of binlog_row_event_max_size                  #
+#########################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.binlog_row_event_max_size = 256;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.binlog_row_event_max_size = 256;
+
+#########################################################################
+#        SET PERSIST_ONLY binlog_row_event_max_size                     #
+#########################################################################
+
+SET @@persist_only.binlog_row_event_max_size = 256;
+
+--let $res= `SELECT COUNT(*) FROM performance_schema.persisted_variables WHERE variable_name = 'binlog_row_event_max_size'`
+--let $assert_text= Assert that the variable has been marked as persisted
+--let $assert_cond= $res = 1
+--source include/assert.inc
+
+RESET PERSIST binlog_row_event_max_size;
+
+--let $res= `SELECT COUNT(*) FROM performance_schema.persisted_variables WHERE variable_name = 'binlog_row_event_max_size'`
+--let $assert_text= Assert that the variable is not marked as persisted
+--let $assert_cond= $res = 0
+--source include/assert.inc
+
+#########################################################################
+#        SET PERSIST binlog_row_event_max_size                          #
+#########################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@persist.binlog_row_event_max_size = 256;
+
+#########################################################################
+#        binlog_row_event_max_size boundaries                           #
+#########################################################################
+
+--let $i = 1
+--let $min = 256
+--let $max = `SELECT ~0`
+--let $default = 8192
+--let $min_minus_one = `SELECT $min - 1`
+--let $overflow = 18446744073709551616
+
+--let $scope = persist_only
+--let $table = persisted_variables
+
+# min
+--replace_result $min MIN
+--eval SET @@$scope.binlog_row_event_max_size = $min
+--let $val = `SELECT variable_value FROM performance_schema.$table WHERE variable_name = 'binlog_row_event_max_size'`
+--let $assert_text= Assert that the variable is set to min
+--let $assert_cond= $val = $min
+--source include/assert.inc
+
+# min - 1  (by design or bug (?), set persist_only does not check variables ranges)
+--replace_result $min_minus_one MIN_MINUS_ONE
+--eval SET @@$scope.binlog_row_event_max_size = $min_minus_one
+--let $val = `SELECT variable_value FROM performance_schema.$table WHERE variable_name = 'binlog_row_event_max_size'`
+--let $assert_text= Assert that the variable is set to minimum minus one
+--let $assert_cond= $val = $min_minus_one
+--source include/assert.inc
+
+# max
+--replace_result $max MAX
+--eval SET @@$scope.binlog_row_event_max_size = $max
+--let $val = `SELECT variable_value FROM performance_schema.$table WHERE variable_name = 'binlog_row_event_max_size'`
+--let $assert_text= Assert that the variable is set to max
+--let $assert_cond= $val = $max
+--source include/assert.inc
+
+# max + 1 (error when setting it to the overflow value)
+--replace_result $overflow OVERFLOW
+--error ER_WRONG_TYPE_FOR_VAR
+--eval SET @@$scope.binlog_row_event_max_size = $overflow
+
+# default
+--eval SET @@$scope.binlog_row_event_max_size = DEFAULT
+--let $val = `SELECT variable_value FROM performance_schema.$table WHERE variable_name = 'binlog_row_event_max_size'`
+--let $assert_text= Assert that the variable is set to DEFAULT
+--let $assert_cond= $val = $default
+--source include/assert.inc
+
+RESET PERSIST binlog_row_event_max_size;
+
+###########################################################
+#              END OF binlog_row_event_max_size TESTS     #
+###########################################################

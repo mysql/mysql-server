@@ -1,0 +1,98 @@
+# === Purpose ===
+#
+# This test verifies that `PURGE BINARY LOGS TO` purges the binlog files
+# that have been moved to another location and their absolute path is
+# listed in the binlog index file.
+#
+# === Implementation ===
+#
+# 1. Generate binary logs.
+# 2. Move the binary logs to the tmp dir.
+# 3. Generate a new index file having the absolute path of the binlogs.
+# 4. Verify that `PURGE BINARY LOGS TO` purges the binlogs which are
+#    not in the data directory.
+#
+# === References ===
+# Bug #28284624	`PURGE BINARY LOGS TO` FAILS WHEN BINARY LOG SPECIFIED
+#               IS NOT IN BINLOG BASE DIR
+
+--source include/have_log_bin.inc
+# This test case is binlog_format agnostic
+--source include/have_binlog_format_row.inc
+
+RESET MASTER;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $INDEX=$MYSQLD_DATADIR/binlog.index
+
+--let $binlog_file1= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate binlog.000002
+FLUSH BINARY LOGS;
+--let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate binlog.000003
+FLUSH BINARY LOGS;
+--let $binlog_file3= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate binlog.000004
+FLUSH BINARY LOGS;
+--let $binlog_file4= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate binlog.000005
+FLUSH BINARY LOGS;
+--let $binlog_file5= query_get_value(SHOW MASTER STATUS, File, 1)
+
+# Move the binary logs to var/tmp/ directory
+
+--move_file $MYSQLD_DATADIR/$binlog_file1 $MYSQLTEST_VARDIR/tmp/$binlog_file1
+--move_file $MYSQLD_DATADIR/$binlog_file2 $MYSQLTEST_VARDIR/tmp/$binlog_file2
+--move_file $MYSQLD_DATADIR/$binlog_file3 $MYSQLTEST_VARDIR/tmp/$binlog_file3
+--move_file $MYSQLD_DATADIR/$binlog_file4 $MYSQLTEST_VARDIR/tmp/$binlog_file4
+
+# Generate a new index file having the absolute path of the binlogs
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file1 > $MYSQLD_DATADIR/binlog.index.tmp
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file2 >> $MYSQLD_DATADIR/binlog.index.tmp
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file3 >> $MYSQLD_DATADIR/binlog.index.tmp
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file4 >> $MYSQLD_DATADIR/binlog.index.tmp
+--exec echo ./$binlog_file5 >> $MYSQLD_DATADIR/binlog.index.tmp
+
+# Since the binlog index file has been opened by server, deleting/renaming
+# the index file will fail in Windows. So, shutdown the server, move the file
+# and restart the server.
+
+# Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--remove_file $INDEX
+--move_file $MYSQLD_DATADIR/binlog.index.tmp $INDEX
+
+# Restart the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Flush the binary log so that the index file is reopened.
+FLUSH BINARY LOGS;
+
+# Purge the first two binary logs
+--eval PURGE BINARY LOGS TO '$binlog_file3'
+
+# Verify that the purged binlogs do not exist.
+--let $file_does_not_exist= $MYSQLTEST_VARDIR/tmp/$binlog_file1
+--source include/file_does_not_exist.inc
+
+--let $file_does_not_exist= $MYSQLTEST_VARDIR/tmp/$binlog_file2
+--source include/file_does_not_exist.inc
+
+# Purge the next two binary logs
+--eval PURGE BINARY LOGS TO '$binlog_file5'
+
+# Verify that the purged binlogs do not exist.
+--let $file_does_not_exist= $MYSQLTEST_VARDIR/tmp/$binlog_file3
+--source include/file_does_not_exist.inc
+
+--let $file_does_not_exist= $MYSQLTEST_VARDIR/tmp/$binlog_file4
+--source include/file_does_not_exist.inc

@@ -58,29 +58,15 @@ typedef NdbImport::Error Error;
 #define TEST_NDBIMPORT
 #endif
 
-#define logN(x, n) \
-  do { \
-    if (unlikely(m_util.c_opt.m_log_level >= n)) \
-    { \
-      NdbMutex_Lock(m_util.c_logmutex); \
-      m_util.c_logtimer.stop(); \
-      *(m_util.c_log) << *this \
-                      << " " <<__LINE__ \
-                      << " " << m_util.c_logtimer \
-                      << ": " << x << endl; \
-      NdbMutex_Unlock(m_util.c_logmutex); \
-    } \
-  } while (0)
-
-#define log1(x) logN(x, 1)
-#define log_2(x) logN(x, 2)
+#define log_debug(n, x) \
+  if (unlikely(m_util.c_opt.m_log_level >= n)) \
+    (*m_util.c_log.out) << m_util.c_log.start << *this <<__LINE__ \
+                        << " " << x << m_util.c_log.stop
 
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORT)
-#define log3(x) logN(x, 3)
-#define log4(x) logN(x, 4)
+#define log_debug_3(x) log_debug(3, x)
 #else
-#define log3(x)
-#define log4(x)
+#define log_debug_3(x)
 #endif
 
 #define Inval_uint (~(uint)0)
@@ -128,7 +114,7 @@ public:
     Name(const char* s, uint t);
     operator const char*() const {
       return m_str.c_str();
-    };
+    }
     const char* str() const {
       return m_str.c_str();
     }
@@ -299,7 +285,7 @@ public:
       m_dowait = (timeout != 0);
       m_cnt_out = 0;
       m_bytes_out = 0;
-    };
+    }
     uint m_timeout;
     uint m_retries;
     bool m_dosignal;
@@ -855,10 +841,28 @@ public:
 
   // log
 
-  FileOutputStream* c_logfile;
-  NdbOut* c_log;
-  NdbMutex* c_logmutex;
-  Timer c_logtimer;
+  struct DebugLogger {
+    DebugLogger();
+    ~DebugLogger();
+
+    struct MessageStart {
+      Timer *timer;
+      NdbMutex *mutex;
+    };
+
+    struct MessageStop {
+      NdbMutex *mutex;
+    };
+
+    Timer timer;
+    MessageStart start;
+    MessageStop stop;
+    FileOutputStream* logfile;
+    NdbOut* out;
+    NdbMutex* mutex;
+  };
+
+  DebugLogger c_log;
 
   // error
 
@@ -912,6 +916,7 @@ NdbOut& operator<<(NdbOut& out, const NdbImportUtil::RowMap& rowmap);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Range& range);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Buf& buf);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Stats& stats);
-NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Timer& timer);
+NdbOut& operator<<(NdbOut& out, const NdbImportUtil::DebugLogger::MessageStart &);
+NdbOut& operator<<(NdbOut& out, const NdbImportUtil::DebugLogger::MessageStop &);
 
 #endif

@@ -89,7 +89,7 @@
 --echo ##############################################
 --echo # Tests for mysql_config_editor's help command
 --echo ##############################################
---replace_regex /.*mysql_config_editor.*// /.*Output debug log.*// /.*This is a non.debug version.*//
+--replace_regex /.*mysql_config_editor.*\n// /.*Output debug log.*\n// /.*This is a non.debug version.*\n//
 --exec $MYSQL_CONFIG_EDITOR help 2>&1
 --echo # done..
 

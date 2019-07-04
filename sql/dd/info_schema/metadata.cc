@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include <string>
 #include <vector>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -52,10 +52,11 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // dd::get_sql_type_by_field_info
-#include "sql/dd/impl/bootstrapper.h"        // dd::Column
-#include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
-#include "sql/dd/impl/system_registry.h"     // dd::System_views
-#include "sql/dd/properties.h"               // dd::Properties
+#include "sql/dd/impl/bootstrap/bootstrapper.h"  // dd::Column
+#include "sql/dd/impl/dictionary_impl.h"         // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"         // dd::System_views
+#include "sql/dd/impl/utils.h"                   // dd::System_views
+#include "sql/dd/properties.h"                   // dd::Properties
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"  // dd::Column
 #include "sql/dd/types/schema.h"
@@ -223,9 +224,9 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
   dd::Properties *view_options = &view_obj->options();
   if (version != UNKNOWN_PLUGIN_VERSION)
-    view_options->set_uint32(PLUGIN_VERSION_STRING, version);
+    view_options->set(PLUGIN_VERSION_STRING, version);
   else
-    view_options->set_bool(SERVER_I_S_TABLE_STRING, true);
+    view_options->set(SERVER_I_S_TABLE_STRING, true);
 
   /*
     Fill columns details
@@ -247,7 +248,6 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
     uint32 fl = fields_info->field_length;
     if (fields_info->field_type == MYSQL_TYPE_STRING) {
       ft = MYSQL_TYPE_VARCHAR;
-      fl = fields_info->field_length * cs->mbmaxlen;
     }
 
     col_obj->set_type(dd::get_new_field_type(ft));
@@ -408,9 +408,9 @@ bool update_plugins_I_S_metadata(THD *thd) {
     plugin_ref plugin = my_plugin_lock_by_name(thd, plugin_name,
                                                MYSQL_INFORMATION_SCHEMA_PLUGIN);
     if (plugin != nullptr) {
-      unsigned int plugin_version;
+      unsigned int plugin_version = 0;
       st_plugin_int *plugin_int = plugin_ref_to_int(plugin);
-      view_options->get_uint32(PLUGIN_VERSION_STRING, &plugin_version);
+      view_options->get(PLUGIN_VERSION_STRING, &plugin_version);
 
       // Testing to make sure we update plugins when version changes.
       DBUG_EXECUTE_IF("test_i_s_metadata_version",
@@ -563,7 +563,7 @@ bool create_system_views(THD *thd) {
 
     // Build the CREATE VIEW DDL statement and execute it.
     if (view_def == nullptr ||
-        execute_query(thd, view_def->build_ddl_create_view())) {
+        dd::execute_query(thd, view_def->build_ddl_create_view())) {
       error = true;
       break;
     }

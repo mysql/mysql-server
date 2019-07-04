@@ -87,7 +87,7 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY
   )
 include_directories(
-  SYSTEM ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+  BEFORE SYSTEM ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
   )
 
 #============================================================================

@@ -161,6 +161,8 @@ class page_id_t {
   page_id_t(space_id_t space, page_no_t page_no)
       : m_space(space), m_page_no(page_no), m_fold(ULINT_UNDEFINED) {}
 
+  page_id_t(const page_id_t &) = default;
+
   /** Retrieve the tablespace id.
   @return tablespace id */
   inline space_id_t space() const { return (m_space); }
@@ -224,7 +226,7 @@ class page_id_t {
   mutable ulint m_fold;
 
   /* Disable implicit copying. */
-  void operator=(const page_id_t &);
+  void operator=(const page_id_t &) = delete;
 
   /** Declare the overloaded global operator<< as a friend of this
   class. Refer to the global declaration for further details.  Print

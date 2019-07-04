@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1869,12 +1869,12 @@ PSI_DATA_LOCK_CALL(unregister_data_lock)(...)
 @endverbatim
 
   Implemented as:
-  - [1] #pfs_start_statement_v1(), #pfs_end_statement_v1()
+  - [1] #pfs_start_statement_v2(), #pfs_end_statement_v2()
        (1a, 1b) is an aggregation by EVENT_NAME,
         (1c, 1d, 1e) is an aggregation by TIME,
         (1f) is an aggregation by DIGEST
         all of these are orthogonal,
-        and implemented in #pfs_end_statement_v1().
+        and implemented in #pfs_end_statement_v2().
   - [2] #pfs_delete_thread_v1(), #aggregate_thread_statements()
   - [3] @c PFS_account::aggregate_statements()
   - [4] @c PFS_host::aggregate_statements()
@@ -2348,7 +2348,7 @@ void pfs_register_cond_v1(const char *category, PSI_cond_info_v1 *info,
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::register_thread.
 */
-void pfs_register_thread_v1(const char *category, PSI_thread_info_v1 *info,
+void pfs_register_thread_v2(const char *category, PSI_thread_info *info,
                             int count) {
   REGISTER_BODY_V1(PSI_thread_key, thread_instrument_prefix,
                    register_thread_class);
@@ -2401,8 +2401,8 @@ void pfs_register_stage_v1(const char *category, PSI_stage_info_v1 **info_array,
   return;
 }
 
-void pfs_register_statement_v1(const char *category,
-                               PSI_statement_info_v1 *info, int count) {
+void pfs_register_statement_v2(const char *category, PSI_statement_info *info,
+                               int count) {
   char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
   size_t prefix_length;
   size_t len;
@@ -2529,7 +2529,7 @@ void pfs_destroy_cond_v1(PSI_cond *cond) {
 */
 PSI_table_share *pfs_get_table_share_v1(bool temporary, TABLE_SHARE *share) {
   /* Ignore temporary tables, views and secondary tables. */
-  if (temporary || share->is_view || share->is_secondary()) {
+  if (temporary || share->is_view || share->is_secondary_engine()) {
     return NULL;
   }
   /* An instrumented thread is required, for LF_PINS. */
@@ -2841,9 +2841,9 @@ static void *pfs_spawn_thread(void *arg) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::spawn_thread.
+  @sa PSI_v2::spawn_thread.
 */
-int pfs_spawn_thread_v1(PSI_thread_key key, my_thread_handle *thread,
+int pfs_spawn_thread_v2(PSI_thread_key key, my_thread_handle *thread,
                         const my_thread_attr_t *attr,
                         void *(*start_routine)(void *), void *arg) {
   PFS_spawn_thread_arg *psi_arg;
@@ -2892,9 +2892,9 @@ int pfs_spawn_thread_v1(PSI_thread_key key, my_thread_handle *thread,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::new_thread.
+  @sa PSI_v2::new_thread.
 */
-PSI_thread *pfs_new_thread_v1(PSI_thread_key key, const void *identity,
+PSI_thread *pfs_new_thread_v2(PSI_thread_key key, const void *identity,
                               ulonglong processlist_id) {
   PFS_thread *pfs;
 
@@ -2914,9 +2914,9 @@ PSI_thread *pfs_new_thread_v1(PSI_thread_key key, const void *identity,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_id.
+  @sa PSI_v2::set_thread_id.
 */
-void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id) {
+void pfs_set_thread_id_v2(PSI_thread *thread, ulonglong processlist_id) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == NULL)) {
     return;
@@ -2926,9 +2926,43 @@ void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_THD.
+  @sa PSI_v2::get_current_thread_internal_id.
 */
-void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd) {
+ulonglong pfs_get_current_thread_internal_id_v2() {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  if (unlikely(pfs == nullptr)) {
+    return 0;
+  }
+  return pfs->m_thread_internal_id;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::get_thread_internal_id.
+*/
+ulonglong pfs_get_thread_internal_id_v2(PSI_thread *thread) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (unlikely(pfs == nullptr)) {
+    return 0;
+  }
+  return pfs->m_thread_internal_id;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::get_thread_by_id.
+*/
+PSI_thread *pfs_get_thread_by_id_v2(ulonglong processlist_id) {
+  PFS_thread *pfs = find_thread_by_processlist_id(processlist_id);
+  PSI_thread *psi = reinterpret_cast<PSI_thread *>(pfs);
+  return psi;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::set_thread_THD.
+*/
+void pfs_set_thread_THD_v2(PSI_thread *thread, THD *thd) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == NULL)) {
     return;
@@ -2938,9 +2972,9 @@ void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_os_thread_id.
+  @sa PSI_v2::set_thread_os_thread_id.
 */
-void pfs_set_thread_os_id_v1(PSI_thread *thread) {
+void pfs_set_thread_os_id_v2(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == NULL)) {
     return;
@@ -2950,18 +2984,18 @@ void pfs_set_thread_os_id_v1(PSI_thread *thread) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::get_thread_id.
+  @sa PSI_v2::get_thread.
 */
-PSI_thread *pfs_get_thread_v1(void) {
+PSI_thread *pfs_get_thread_v2(void) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
   return reinterpret_cast<PSI_thread *>(pfs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_user.
+  @sa PSI_v2::set_thread_user.
 */
-void pfs_set_thread_user_v1(const char *user, int user_len) {
+void pfs_set_thread_user_v2(const char *user, int user_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
@@ -3010,9 +3044,9 @@ void pfs_set_thread_user_v1(const char *user, int user_len) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_account.
+  @sa PSI_v2::set_thread_account.
 */
-void pfs_set_thread_account_v1(const char *user, int user_len, const char *host,
+void pfs_set_thread_account_v2(const char *user, int user_len, const char *host,
                                int host_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
@@ -3069,9 +3103,9 @@ void pfs_set_thread_account_v1(const char *user, int user_len, const char *host,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_db.
+  @sa PSI_v2::set_thread_db.
 */
-void pfs_set_thread_db_v1(const char *db, int db_len) {
+void pfs_set_thread_db_v2(const char *db, int db_len) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   DBUG_ASSERT((db != NULL) || (db_len == 0));
@@ -3091,9 +3125,9 @@ void pfs_set_thread_db_v1(const char *db, int db_len) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_command.
+  @sa PSI_v2::set_thread_command.
 */
-void pfs_set_thread_command_v1(int command) {
+void pfs_set_thread_command_v2(int command) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   DBUG_ASSERT(command >= 0);
@@ -3105,10 +3139,10 @@ void pfs_set_thread_command_v1(int command) {
 }
 
 /**
-Implementation of the thread instrumentation interface.
-@sa PSI_v1::set_thread_connection_type.
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::set_thread_connection_type.
 */
-void pfs_set_connection_type_v1(opaque_vio_type conn_type) {
+void pfs_set_connection_type_v2(opaque_vio_type conn_type) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   DBUG_ASSERT(conn_type >= FIRST_VIO_TYPE);
@@ -3121,9 +3155,9 @@ void pfs_set_connection_type_v1(opaque_vio_type conn_type) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_start_time.
+  @sa PSI_v2::set_thread_start_time.
 */
-void pfs_set_thread_start_time_v1(time_t start_time) {
+void pfs_set_thread_start_time_v2(time_t start_time) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   if (likely(pfs != NULL)) {
@@ -3140,9 +3174,9 @@ void pfs_set_thread_state_v1(const char *) { /* DEPRECATED. */
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_info.
+  @sa PSI_v2::set_thread_info.
 */
-void pfs_set_thread_info_v1(const char *info, uint info_len) {
+void pfs_set_thread_info_v2(const char *info, uint info_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
@@ -3200,9 +3234,9 @@ int set_thread_resource_group(PFS_thread *pfs, const char *group_name,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_resource_group
+  @sa PSI_v2::set_thread_resource_group
 */
-int pfs_set_thread_resource_group_v1(const char *group_name, int group_name_len,
+int pfs_set_thread_resource_group_v2(const char *group_name, int group_name_len,
                                      void *user_data) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
   return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
@@ -3210,16 +3244,16 @@ int pfs_set_thread_resource_group_v1(const char *group_name, int group_name_len,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_resource_group_by_id
+  @sa PSI_v2::set_thread_resource_group_by_id
 */
-int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+int pfs_set_thread_resource_group_by_id_v2(PSI_thread *thread,
                                            ulonglong thread_id,
                                            const char *group_name,
                                            int group_name_len,
                                            void *user_data) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (pfs == NULL) {
-    pfs = find_thread(thread_id);
+    pfs = find_thread_by_internal_id(thread_id);
   }
   return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
 }
@@ -3302,84 +3336,95 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::get_thread_system_attrs.
+  @sa PSI_v2::get_thread_system_attrs.
 */
-int pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs) {
+int pfs_get_thread_system_attrs_v2(PSI_thread_attrs *thread_attrs) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
   return get_thread_attributes(pfs, true, thread_attrs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::get_thread_system_attrs_by_id.
+  @sa PSI_v2::get_thread_system_attrs_by_id.
 */
-int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+int pfs_get_thread_system_attrs_by_id_v2(PSI_thread *thread,
                                          ulonglong thread_id,
                                          PSI_thread_attrs *thread_attrs) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (pfs == NULL) {
-    pfs = find_thread(thread_id);
+    pfs = find_thread_by_internal_id(thread_id);
   }
   return get_thread_attributes(pfs, false, thread_attrs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::register_notification.
+  @sa PSI_v2::register_notification.
 */
-int pfs_register_notification_v1(const PSI_notification *callbacks,
+int pfs_register_notification_v2(const PSI_notification *callbacks,
                                  bool with_ref_count) {
   return pfs_register_notification(callbacks, with_ref_count);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::unregister_notification.
+  @sa PSI_v2::unregister_notification.
 */
-int pfs_unregister_notification_v1(int handle) {
+int pfs_unregister_notification_v2(int handle) {
   return pfs_unregister_notification(handle);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::notify_session_connect.
+  @sa PSI_v2::notify_session_connect.
 */
-void pfs_notify_session_connect_v1(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_connect_v2(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   pfs_notify_session_connect(thread);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::notify_session_disconnect.
+  @sa PSI_v2::notify_session_disconnect.
 */
-void pfs_notify_session_disconnect_v1(
+void pfs_notify_session_disconnect_v2(
     PSI_thread *thread MY_ATTRIBUTE((unused))) {
   pfs_notify_session_disconnect(thread);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::notify_session_change_user.
+  @sa PSI_v2::notify_session_change_user.
 */
-void pfs_notify_session_change_user_v1(
+void pfs_notify_session_change_user_v2(
     PSI_thread *thread MY_ATTRIBUTE((unused))) {
   pfs_notify_session_change_user(thread);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread.
+  @sa PSI_v2::set_thread.
 */
-void pfs_set_thread_v1(PSI_thread *thread) {
+void pfs_set_thread_v2(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   my_thread_set_THR_PFS(pfs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::delete_current_thread.
+  @sa PSI_v2::aggregate_thread_status.
 */
-void pfs_delete_current_thread_v1(void) {
+void pfs_aggregate_thread_status_v2(PSI_thread *thread) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs != NULL) {
+    aggregate_thread_status(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::delete_current_thread.
+*/
+void pfs_delete_current_thread_v2(void) {
   PFS_thread *thread = my_thread_get_THR_PFS();
   if (thread != NULL) {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
@@ -3391,9 +3436,9 @@ void pfs_delete_current_thread_v1(void) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::delete_thread.
+  @sa PSI_v2::delete_thread.
 */
-void pfs_delete_thread_v1(PSI_thread *thread) {
+void pfs_delete_thread_v2(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
 
   if (pfs != NULL) {
@@ -5620,7 +5665,7 @@ void pfs_end_stage_v1() {
   }
 }
 
-PSI_statement_locker *pfs_get_thread_statement_locker_v1(
+PSI_statement_locker *pfs_get_thread_statement_locker_v2(
     PSI_statement_locker_state *state, PSI_statement_key key,
     const void *charset, PSI_sp_share *sp_share) {
   DBUG_ASSERT(state != NULL);
@@ -5666,6 +5711,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v1(
       PFS_events_statements *pfs =
           &pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
       pfs->m_thread_internal_id = pfs_thread->m_thread_internal_id;
+      pfs->m_statement_id = 0;
       pfs->m_event_id = event_id;
       pfs->m_event_type = EVENT_TYPE_STATEMENT;
       pfs->m_end_event_id = 0;
@@ -5810,7 +5856,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v1(
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
-PSI_statement_locker *pfs_refine_statement_v1(PSI_statement_locker *locker,
+PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
                                               PSI_statement_key key) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -5858,7 +5904,7 @@ PSI_statement_locker *pfs_refine_statement_v1(PSI_statement_locker *locker,
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
-void pfs_start_statement_v1(PSI_statement_locker *locker, const char *db,
+void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
                             uint db_len, const char *src_file, uint src_line) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -5901,7 +5947,7 @@ void pfs_start_statement_v1(PSI_statement_locker *locker, const char *db,
   state->m_query_sample_truncated = false;
 }
 
-void pfs_set_statement_text_v1(PSI_statement_locker *locker, const char *text,
+void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
                                uint text_len) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -5971,83 +6017,102 @@ void pfs_set_statement_text_v1(PSI_statement_locker *locker, const char *text,
   }                                                                      \
   return;
 
-void pfs_set_statement_lock_time_v1(PSI_statement_locker *locker,
+void pfs_set_statement_query_id_v2(PSI_statement_locker *locker,
+                                   ulonglong query_id) {
+  PSI_statement_locker_state *state;
+  state = reinterpret_cast<PSI_statement_locker_state *>(locker);
+  if (unlikely(state == NULL)) {
+    return;
+  }
+  if (state->m_discarded) {
+    return;
+  }
+  if (state->m_flags & STATE_FLAG_EVENT) {
+    PFS_events_statements *pfs;
+    pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement);
+    DBUG_ASSERT(pfs != NULL);
+    pfs->m_statement_id = query_id;
+  }
+  return;
+}
+
+void pfs_set_statement_lock_time_v2(PSI_statement_locker *locker,
                                     ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_lock_time, count);
 }
 
-void pfs_set_statement_rows_sent_v1(PSI_statement_locker *locker,
+void pfs_set_statement_rows_sent_v2(PSI_statement_locker *locker,
                                     ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_rows_sent, count);
 }
 
-void pfs_set_statement_rows_examined_v1(PSI_statement_locker *locker,
+void pfs_set_statement_rows_examined_v2(PSI_statement_locker *locker,
                                         ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_rows_examined, count);
 }
 
-void pfs_inc_statement_created_tmp_disk_tables_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_created_tmp_disk_tables_v2(PSI_statement_locker *locker,
                                                   ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_disk_tables, count);
 }
 
-void pfs_inc_statement_created_tmp_tables_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_created_tmp_tables_v2(PSI_statement_locker *locker,
                                              ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_tables, count);
 }
 
-void pfs_inc_statement_select_full_join_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_select_full_join_v2(PSI_statement_locker *locker,
                                            ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_join, count);
 }
 
-void pfs_inc_statement_select_full_range_join_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_select_full_range_join_v2(PSI_statement_locker *locker,
                                                  ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_range_join, count);
 }
 
-void pfs_inc_statement_select_range_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_select_range_v2(PSI_statement_locker *locker,
                                        ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range, count);
 }
 
-void pfs_inc_statement_select_range_check_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_select_range_check_v2(PSI_statement_locker *locker,
                                              ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range_check, count);
 }
 
-void pfs_inc_statement_select_scan_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_select_scan_v2(PSI_statement_locker *locker,
                                       ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_scan, count);
 }
 
-void pfs_inc_statement_sort_merge_passes_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_sort_merge_passes_v2(PSI_statement_locker *locker,
                                             ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_merge_passes, count);
 }
 
-void pfs_inc_statement_sort_range_v1(PSI_statement_locker *locker,
+void pfs_inc_statement_sort_range_v2(PSI_statement_locker *locker,
                                      ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_range, count);
 }
 
-void pfs_inc_statement_sort_rows_v1(PSI_statement_locker *locker, ulong count) {
+void pfs_inc_statement_sort_rows_v2(PSI_statement_locker *locker, ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_rows, count);
 }
 
-void pfs_inc_statement_sort_scan_v1(PSI_statement_locker *locker, ulong count) {
+void pfs_inc_statement_sort_scan_v2(PSI_statement_locker *locker, ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_scan, count);
 }
 
-void pfs_set_statement_no_index_used_v1(PSI_statement_locker *locker) {
+void pfs_set_statement_no_index_used_v2(PSI_statement_locker *locker) {
   SET_STATEMENT_ATTR_BODY(locker, m_no_index_used, 1);
 }
 
-void pfs_set_statement_no_good_index_used_v1(PSI_statement_locker *locker) {
+void pfs_set_statement_no_good_index_used_v2(PSI_statement_locker *locker) {
   SET_STATEMENT_ATTR_BODY(locker, m_no_good_index_used, 1);
 }
 
-void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da) {
+void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   Diagnostics_area *da = reinterpret_cast<Diagnostics_area *>(stmt_da);
@@ -6454,7 +6519,7 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type) {
   Implementation of the stored program instrumentation interface.
   @sa PSI_v1::get_sp_share.
 */
-static PSI_sp_share *pfs_get_sp_share_v1(uint sp_type, const char *schema_name,
+static PSI_sp_share *pfs_get_sp_share_v2(uint sp_type, const char *schema_name,
                                          uint schema_name_length,
                                          const char *object_name,
                                          uint object_name_length) {
@@ -6478,12 +6543,12 @@ static PSI_sp_share *pfs_get_sp_share_v1(uint sp_type, const char *schema_name,
   return reinterpret_cast<PSI_sp_share *>(pfs_program);
 }
 
-static void pfs_release_sp_share_v1(PSI_sp_share *) {
+static void pfs_release_sp_share_v2(PSI_sp_share *) {
   /* Unused */
   return;
 }
 
-static PSI_sp_locker *pfs_start_sp_v1(PSI_sp_locker_state *state,
+static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
                                       PSI_sp_share *sp_share) {
   DBUG_ASSERT(state != NULL);
   if (!flag_global_instrumentation) {
@@ -6521,7 +6586,7 @@ static PSI_sp_locker *pfs_start_sp_v1(PSI_sp_locker_state *state,
   return reinterpret_cast<PSI_sp_locker *>(state);
 }
 
-static void pfs_end_sp_v1(PSI_sp_locker *locker) {
+static void pfs_end_sp_v2(PSI_sp_locker *locker) {
   PSI_sp_locker_state *state = reinterpret_cast<PSI_sp_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
 
@@ -6542,7 +6607,7 @@ static void pfs_end_sp_v1(PSI_sp_locker *locker) {
   }
 }
 
-static void pfs_drop_sp_v1(uint sp_type, const char *schema_name,
+static void pfs_drop_sp_v2(uint sp_type, const char *schema_name,
                            uint schema_name_length, const char *object_name,
                            uint object_name_length) {
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
@@ -6999,7 +7064,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
   }
 }
 
-struct PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker) {
+struct PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker) {
   PSI_statement_locker_state *statement_state;
   statement_state = reinterpret_cast<PSI_statement_locker_state *>(locker);
   DBUG_ASSERT(statement_state != NULL);
@@ -7015,7 +7080,7 @@ struct PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker) {
   return NULL;
 }
 
-void pfs_digest_end_v1(PSI_digest_locker *locker,
+void pfs_digest_end_v2(PSI_digest_locker *locker,
                        const sql_digest_storage *digest) {
   PSI_statement_locker_state *state;
   state = reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -7061,7 +7126,7 @@ void pfs_digest_end_v1(PSI_digest_locker *locker,
   }
 }
 
-static PSI_prepared_stmt *pfs_create_prepared_stmt_v1(
+static PSI_prepared_stmt *pfs_create_prepared_stmt_v2(
     void *identity, uint stmt_id, PSI_statement_locker *locker,
     const char *stmt_name, size_t stmt_name_length, const char *sql_text,
     size_t sql_text_length) {
@@ -7091,7 +7156,7 @@ static PSI_prepared_stmt *pfs_create_prepared_stmt_v1(
   return reinterpret_cast<PSI_prepared_stmt *>(pfs);
 }
 
-static void pfs_execute_prepared_stmt_v1(PSI_statement_locker *locker,
+static void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
                                          PSI_prepared_stmt *ps) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -7101,14 +7166,14 @@ static void pfs_execute_prepared_stmt_v1(PSI_statement_locker *locker,
   state->m_in_prepare = false;
 }
 
-static void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt *prepared_stmt) {
+static void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
-static void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt *prepared_stmt) {
+static void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat = &pfs_prepared_stmt->m_reprepare_stat;
@@ -7119,7 +7184,7 @@ static void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt *prepared_stmt) {
   return;
 }
 
-void pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
+void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
                                    const char *text, uint text_len) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
@@ -7138,9 +7203,9 @@ void pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
 
 /**
   Implementation of the thread attribute connection interface
-  @sa PSI_v1::set_thread_connect_attr.
+  @sa PSI_v2::set_thread_connect_attr.
 */
-int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
+int pfs_set_thread_connect_attrs_v2(const char *buffer, uint length,
                                     const void *from_cs) {
   PFS_thread *thd = my_thread_get_THR_PFS();
 
@@ -7207,11 +7272,38 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
 
 /**
   Implementation of the get event id interface
+  @sa PSI_v2::get_thread_event_id.
+*/
+void pfs_get_current_thread_event_id_v2(ulonglong *internal_thread_id,
+                                        ulonglong *event_id) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (pfs != NULL) {
+    *internal_thread_id = pfs->m_thread_internal_id;
+    *event_id = pfs->m_event_id;
+  } else {
+    *internal_thread_id = 0;
+    *event_id = 0;
+  }
+}
+
+/**
+  Implementation of the get event id interface
   @sa PSI_v1::get_thread_event_id.
 */
 void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
                                 ulonglong *event_id) {
-  PFS_thread *pfs = my_thread_get_THR_PFS();
+  /* Renamed in V2. */
+  return pfs_get_current_thread_event_id_v2(internal_thread_id, event_id);
+}
+
+/**
+  Implementation of the get event id interface
+  @sa PSI_v1::get_thread_event_id.
+*/
+void pfs_get_thread_event_id_v2(PSI_thread *psi, ulonglong *internal_thread_id,
+                                ulonglong *event_id) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
 
   if (pfs != NULL) {
     *internal_thread_id = pfs->m_thread_internal_id;
@@ -7789,70 +7881,109 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1) = {
 
 /**
   Implementation of the instrumentation interface.
-  @sa PSI_thread_service_v1
+  @sa PSI_thread_service_v2
 */
-PSI_thread_service_v1 pfs_thread_service_v1 = {
+PSI_thread_service_v2 pfs_thread_service_v2 = {
     /* Old interface, for plugins. */
-    pfs_register_thread_v1,
-    pfs_spawn_thread_v1,
-    pfs_new_thread_v1,
-    pfs_set_thread_id_v1,
-    pfs_set_thread_THD_v1,
-    pfs_set_thread_os_id_v1,
-    pfs_get_thread_v1,
-    pfs_set_thread_user_v1,
-    pfs_set_thread_account_v1,
-    pfs_set_thread_db_v1,
-    pfs_set_thread_command_v1,
-    pfs_set_connection_type_v1,
-    pfs_set_thread_start_time_v1,
-    pfs_set_thread_state_v1,
-    pfs_set_thread_info_v1,
-    pfs_set_thread_resource_group_v1,
-    pfs_set_thread_resource_group_by_id_v1,
-    pfs_set_thread_v1,
-    pfs_delete_current_thread_v1,
-    pfs_delete_thread_v1,
-    pfs_set_thread_connect_attrs_v1,
-    pfs_get_thread_event_id_v1,
-    pfs_get_thread_system_attrs_v1,
-    pfs_get_thread_system_attrs_by_id_v1,
-    pfs_register_notification_v1,
-    pfs_unregister_notification_v1,
-    pfs_notify_session_connect_v1,
-    pfs_notify_session_disconnect_v1,
-    pfs_notify_session_change_user_v1};
+    pfs_register_thread_v2,
+    pfs_spawn_thread_v2,
+    pfs_new_thread_v2,
+    pfs_set_thread_id_v2,
+    pfs_get_current_thread_internal_id_v2,
+    pfs_get_thread_internal_id_v2,
+    pfs_get_thread_by_id_v2,
+    pfs_set_thread_THD_v2,
+    pfs_set_thread_os_id_v2,
+    pfs_get_thread_v2,
+    pfs_set_thread_user_v2,
+    pfs_set_thread_account_v2,
+    pfs_set_thread_db_v2,
+    pfs_set_thread_command_v2,
+    pfs_set_connection_type_v2,
+    pfs_set_thread_start_time_v2,
+    pfs_set_thread_info_v2,
+    pfs_set_thread_resource_group_v2,
+    pfs_set_thread_resource_group_by_id_v2,
+    pfs_set_thread_v2,
+    pfs_aggregate_thread_status_v2,
+    pfs_delete_current_thread_v2,
+    pfs_delete_thread_v2,
+    pfs_set_thread_connect_attrs_v2,
+    pfs_get_current_thread_event_id_v2,
+    pfs_get_thread_event_id_v2,
+    pfs_get_thread_system_attrs_v2,
+    pfs_get_thread_system_attrs_by_id_v2,
+    pfs_register_notification_v2,
+    pfs_unregister_notification_v2,
+    pfs_notify_session_connect_v2,
+    pfs_notify_session_disconnect_v2,
+    pfs_notify_session_change_user_v2};
 
 SERVICE_TYPE(psi_thread_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v1) = {
     /* New interface, for components. */
-    pfs_register_thread_v1,
-    pfs_spawn_thread_v1,
-    pfs_new_thread_v1,
-    pfs_set_thread_id_v1,
-    pfs_set_thread_THD_v1,
-    pfs_set_thread_os_id_v1,
-    pfs_get_thread_v1,
-    pfs_set_thread_user_v1,
-    pfs_set_thread_account_v1,
-    pfs_set_thread_db_v1,
-    pfs_set_thread_command_v1,
-    pfs_set_connection_type_v1,
-    pfs_set_thread_start_time_v1,
-    pfs_set_thread_state_v1,
-    pfs_set_thread_info_v1,
-    pfs_set_thread_v1,
-    pfs_delete_current_thread_v1,
-    pfs_delete_thread_v1,
-    pfs_set_thread_connect_attrs_v1,
-    pfs_get_thread_event_id_v1,
-    pfs_get_thread_system_attrs_v1,
-    pfs_get_thread_system_attrs_by_id_v1,
-    pfs_register_notification_v1,
-    pfs_unregister_notification_v1,
-    pfs_notify_session_connect_v1,
-    pfs_notify_session_disconnect_v1,
-    pfs_notify_session_change_user_v1};
+    pfs_register_thread_v2,
+    pfs_spawn_thread_v2,
+    pfs_new_thread_v2,
+    pfs_set_thread_id_v2,
+    pfs_set_thread_THD_v2,
+    pfs_set_thread_os_id_v2,
+    pfs_get_thread_v2,
+    pfs_set_thread_user_v2,
+    pfs_set_thread_account_v2,
+    pfs_set_thread_db_v2,
+    pfs_set_thread_command_v2,
+    pfs_set_connection_type_v2,
+    pfs_set_thread_start_time_v2,
+    pfs_set_thread_state_v1, /* V1 only, removed in V2 */
+    pfs_set_thread_info_v2,
+    pfs_set_thread_v2,
+    pfs_delete_current_thread_v2,
+    pfs_delete_thread_v2,
+    pfs_set_thread_connect_attrs_v2,
+    pfs_get_thread_event_id_v1, /* V1, modified in V2 */
+    pfs_get_thread_system_attrs_v2,
+    pfs_get_thread_system_attrs_by_id_v2,
+    pfs_register_notification_v2,
+    pfs_unregister_notification_v2,
+    pfs_notify_session_connect_v2,
+    pfs_notify_session_disconnect_v2,
+    pfs_notify_session_change_user_v2};
+
+SERVICE_TYPE(psi_thread_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v2) = {
+    /* New interface, for components. */
+    pfs_register_thread_v2,
+    pfs_spawn_thread_v2,
+    pfs_new_thread_v2,
+    pfs_set_thread_id_v2,
+    pfs_get_current_thread_internal_id_v2,
+    pfs_get_thread_internal_id_v2,
+    pfs_get_thread_by_id_v2,
+    pfs_set_thread_THD_v2,
+    pfs_set_thread_os_id_v2,
+    pfs_get_thread_v2,
+    pfs_set_thread_user_v2,
+    pfs_set_thread_account_v2,
+    pfs_set_thread_db_v2,
+    pfs_set_thread_command_v2,
+    pfs_set_connection_type_v2,
+    pfs_set_thread_start_time_v2,
+    pfs_set_thread_info_v2,
+    pfs_set_thread_v2,
+    pfs_aggregate_thread_status_v2,
+    pfs_delete_current_thread_v2,
+    pfs_delete_thread_v2,
+    pfs_set_thread_connect_attrs_v2,
+    pfs_get_current_thread_event_id_v2,
+    pfs_get_thread_event_id_v2,
+    pfs_get_thread_system_attrs_v2,
+    pfs_get_thread_system_attrs_by_id_v2,
+    pfs_register_notification_v2,
+    pfs_unregister_notification_v2,
+    pfs_notify_session_connect_v2,
+    pfs_notify_session_disconnect_v2,
+    pfs_notify_session_change_user_v2};
 
 PSI_mutex_service_v1 pfs_mutex_service_v1 = {
     /* Old interface, for plugins. */
@@ -7995,80 +8126,120 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_stage_v1) = {
     pfs_register_stage_v1, pfs_start_stage_v1,
     pfs_get_current_stage_progress_v1, pfs_end_stage_v1};
 
-PSI_statement_service_v1 pfs_statement_service_v1 = {
+PSI_statement_service_v2 pfs_statement_service_v2 = {
     /* Old interface, for plugins. */
-    pfs_register_statement_v1,
-    pfs_get_thread_statement_locker_v1,
-    pfs_refine_statement_v1,
-    pfs_start_statement_v1,
-    pfs_set_statement_text_v1,
-    pfs_set_statement_lock_time_v1,
-    pfs_set_statement_rows_sent_v1,
-    pfs_set_statement_rows_examined_v1,
-    pfs_inc_statement_created_tmp_disk_tables_v1,
-    pfs_inc_statement_created_tmp_tables_v1,
-    pfs_inc_statement_select_full_join_v1,
-    pfs_inc_statement_select_full_range_join_v1,
-    pfs_inc_statement_select_range_v1,
-    pfs_inc_statement_select_range_check_v1,
-    pfs_inc_statement_select_scan_v1,
-    pfs_inc_statement_sort_merge_passes_v1,
-    pfs_inc_statement_sort_range_v1,
-    pfs_inc_statement_sort_rows_v1,
-    pfs_inc_statement_sort_scan_v1,
-    pfs_set_statement_no_index_used_v1,
-    pfs_set_statement_no_good_index_used_v1,
-    pfs_end_statement_v1,
-    pfs_create_prepared_stmt_v1,
-    pfs_destroy_prepared_stmt_v1,
-    pfs_reprepare_prepared_stmt_v1,
-    pfs_execute_prepared_stmt_v1,
-    pfs_set_prepared_stmt_text_v1,
-    pfs_digest_start_v1,
-    pfs_digest_end_v1,
-    pfs_get_sp_share_v1,
-    pfs_release_sp_share_v1,
-    pfs_start_sp_v1,
-    pfs_end_sp_v1,
-    pfs_drop_sp_v1};
+    pfs_register_statement_v2,
+    pfs_get_thread_statement_locker_v2,
+    pfs_refine_statement_v2,
+    pfs_start_statement_v2,
+    pfs_set_statement_text_v2,
+    pfs_set_statement_query_id_v2,
+    pfs_set_statement_lock_time_v2,
+    pfs_set_statement_rows_sent_v2,
+    pfs_set_statement_rows_examined_v2,
+    pfs_inc_statement_created_tmp_disk_tables_v2,
+    pfs_inc_statement_created_tmp_tables_v2,
+    pfs_inc_statement_select_full_join_v2,
+    pfs_inc_statement_select_full_range_join_v2,
+    pfs_inc_statement_select_range_v2,
+    pfs_inc_statement_select_range_check_v2,
+    pfs_inc_statement_select_scan_v2,
+    pfs_inc_statement_sort_merge_passes_v2,
+    pfs_inc_statement_sort_range_v2,
+    pfs_inc_statement_sort_rows_v2,
+    pfs_inc_statement_sort_scan_v2,
+    pfs_set_statement_no_index_used_v2,
+    pfs_set_statement_no_good_index_used_v2,
+    pfs_end_statement_v2,
+    pfs_create_prepared_stmt_v2,
+    pfs_destroy_prepared_stmt_v2,
+    pfs_reprepare_prepared_stmt_v2,
+    pfs_execute_prepared_stmt_v2,
+    pfs_set_prepared_stmt_text_v2,
+    pfs_digest_start_v2,
+    pfs_digest_end_v2,
+    pfs_get_sp_share_v2,
+    pfs_release_sp_share_v2,
+    pfs_start_sp_v2,
+    pfs_end_sp_v2,
+    pfs_drop_sp_v2};
 
 SERVICE_TYPE(psi_statement_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1) = {
     /* New interface, for components. */
-    pfs_register_statement_v1,
-    pfs_get_thread_statement_locker_v1,
-    pfs_refine_statement_v1,
-    pfs_start_statement_v1,
-    pfs_set_statement_text_v1,
-    pfs_set_statement_lock_time_v1,
-    pfs_set_statement_rows_sent_v1,
-    pfs_set_statement_rows_examined_v1,
-    pfs_inc_statement_created_tmp_disk_tables_v1,
-    pfs_inc_statement_created_tmp_tables_v1,
-    pfs_inc_statement_select_full_join_v1,
-    pfs_inc_statement_select_full_range_join_v1,
-    pfs_inc_statement_select_range_v1,
-    pfs_inc_statement_select_range_check_v1,
-    pfs_inc_statement_select_scan_v1,
-    pfs_inc_statement_sort_merge_passes_v1,
-    pfs_inc_statement_sort_range_v1,
-    pfs_inc_statement_sort_rows_v1,
-    pfs_inc_statement_sort_scan_v1,
-    pfs_set_statement_no_index_used_v1,
-    pfs_set_statement_no_good_index_used_v1,
-    pfs_end_statement_v1,
-    pfs_create_prepared_stmt_v1,
-    pfs_destroy_prepared_stmt_v1,
-    pfs_reprepare_prepared_stmt_v1,
-    pfs_execute_prepared_stmt_v1,
-    pfs_set_prepared_stmt_text_v1,
-    pfs_digest_start_v1,
-    pfs_digest_end_v1,
-    pfs_get_sp_share_v1,
-    pfs_release_sp_share_v1,
-    pfs_start_sp_v1,
-    pfs_end_sp_v1,
-    pfs_drop_sp_v1};
+    pfs_register_statement_v2,
+    pfs_get_thread_statement_locker_v2,
+    pfs_refine_statement_v2,
+    pfs_start_statement_v2,
+    pfs_set_statement_text_v2,
+    pfs_set_statement_lock_time_v2,
+    pfs_set_statement_rows_sent_v2,
+    pfs_set_statement_rows_examined_v2,
+    pfs_inc_statement_created_tmp_disk_tables_v2,
+    pfs_inc_statement_created_tmp_tables_v2,
+    pfs_inc_statement_select_full_join_v2,
+    pfs_inc_statement_select_full_range_join_v2,
+    pfs_inc_statement_select_range_v2,
+    pfs_inc_statement_select_range_check_v2,
+    pfs_inc_statement_select_scan_v2,
+    pfs_inc_statement_sort_merge_passes_v2,
+    pfs_inc_statement_sort_range_v2,
+    pfs_inc_statement_sort_rows_v2,
+    pfs_inc_statement_sort_scan_v2,
+    pfs_set_statement_no_index_used_v2,
+    pfs_set_statement_no_good_index_used_v2,
+    pfs_end_statement_v2,
+    pfs_create_prepared_stmt_v2,
+    pfs_destroy_prepared_stmt_v2,
+    pfs_reprepare_prepared_stmt_v2,
+    pfs_execute_prepared_stmt_v2,
+    pfs_set_prepared_stmt_text_v2,
+    pfs_digest_start_v2,
+    pfs_digest_end_v2,
+    pfs_get_sp_share_v2,
+    pfs_release_sp_share_v2,
+    pfs_start_sp_v2,
+    pfs_end_sp_v2,
+    pfs_drop_sp_v2};
+
+SERVICE_TYPE(psi_statement_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v2) = {
+    /* New interface, for components. */
+    pfs_register_statement_v2,
+    pfs_get_thread_statement_locker_v2,
+    pfs_refine_statement_v2,
+    pfs_start_statement_v2,
+    pfs_set_statement_text_v2,
+    pfs_set_statement_query_id_v2,
+    pfs_set_statement_lock_time_v2,
+    pfs_set_statement_rows_sent_v2,
+    pfs_set_statement_rows_examined_v2,
+    pfs_inc_statement_created_tmp_disk_tables_v2,
+    pfs_inc_statement_created_tmp_tables_v2,
+    pfs_inc_statement_select_full_join_v2,
+    pfs_inc_statement_select_full_range_join_v2,
+    pfs_inc_statement_select_range_v2,
+    pfs_inc_statement_select_range_check_v2,
+    pfs_inc_statement_select_scan_v2,
+    pfs_inc_statement_sort_merge_passes_v2,
+    pfs_inc_statement_sort_range_v2,
+    pfs_inc_statement_sort_rows_v2,
+    pfs_inc_statement_sort_scan_v2,
+    pfs_set_statement_no_index_used_v2,
+    pfs_set_statement_no_good_index_used_v2,
+    pfs_end_statement_v2,
+    pfs_create_prepared_stmt_v2,
+    pfs_destroy_prepared_stmt_v2,
+    pfs_reprepare_prepared_stmt_v2,
+    pfs_execute_prepared_stmt_v2,
+    pfs_set_prepared_stmt_text_v2,
+    pfs_digest_start_v2,
+    pfs_digest_end_v2,
+    pfs_get_sp_share_v2,
+    pfs_release_sp_share_v2,
+    pfs_start_sp_v2,
+    pfs_end_sp_v2,
+    pfs_drop_sp_v2};
 
 PSI_transaction_service_v1 pfs_transaction_service_v1 = {
     /* Old interface, for plugins. */
@@ -8133,7 +8304,9 @@ static void *get_system_interface(int version) {
 static void *get_thread_interface(int version) {
   switch (version) {
     case PSI_THREAD_VERSION_1:
-      return &pfs_thread_service_v1;
+      return NULL;
+    case PSI_THREAD_VERSION_2:
+      return &pfs_thread_service_v2;
     default:
       return NULL;
   }
@@ -8223,7 +8396,44 @@ static void *get_stage_interface(int version) {
 static void *get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
-      return &pfs_statement_service_v1;
+      /*
+        Obsolete.
+
+        In theory, PLUGIN should use
+
+        extern MYSQL_PLUGIN_IMPORT PSI_statement_bootstrap *psi_statement_hook;
+
+        and then
+
+        psi_statement_hook->get_interface(PSI_STATEMENT_VERSION_CURRENT)
+
+        to obtain the proper instrumentation to use,
+        and define their own
+
+        #define PSI_STATEMENT_CALL(M)
+
+        to use the -- safe and of the proper version -- reference obtained,
+        stored in a -- per plugin -- global variable.
+
+        In practice, PLUGIN are using directly the default
+
+        PSI_STATEMENT_CALL(M) psi_statement_service->M
+
+        macro, the therefore depends on the -- server -- global variable,
+        which is by definition unsafe (it may not be the proper version).
+
+        This is because this mechanism was never deployed in full to plug-ins,
+        as binary compatibility with the server as a whole is not supported,
+        for PLUGIN.
+
+        There is no point in supporting PSI_STATEMENT_VERSION_1 here,
+        it will never be called.
+
+        For COMPONENTS, the service is properly versioned.
+      */
+      return NULL;
+    case PSI_STATEMENT_VERSION_2:
+      return &pfs_statement_service_v2;
     default:
       return NULL;
   }
@@ -8316,12 +8526,34 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_rwlock_v1),
     PROVIDES_SERVICE(performance_schema, psi_socket_v1),
     PROVIDES_SERVICE(performance_schema, psi_stage_v1),
+    /* Deprecated, use psi_statement_v2. */
     PROVIDES_SERVICE(performance_schema, psi_statement_v1),
+    PROVIDES_SERVICE(performance_schema, psi_statement_v2),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
+    /* Deprecated, use psi_thread_v2. */
     PROVIDES_SERVICE(performance_schema, psi_thread_v1),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v2),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
+    /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_table_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_tiny_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_small_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_medium_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_integer_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_bigint_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_decimal_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_float_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_double_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_string_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_blob_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_enum_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_date_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_time_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_datetime_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(performance_schema) END_COMPONENT_REQUIRES();

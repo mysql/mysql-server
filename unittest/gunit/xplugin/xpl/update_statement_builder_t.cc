@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -52,41 +52,26 @@ class Update_statement_builder_test : public ::testing::Test {
   }
 
   Update_statement_builder::Update msg;
-  Expression_generator::Args &args = *msg.mutable_args();
+  Expression_generator::Arg_list &args = *msg.mutable_args();
   Query_string_builder query;
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
   std::unique_ptr<Update_statement_builder_stub> stub;
 
   Update_operation::Update_type operation_id =
-      static_cast<Update_operation::Update_type>(-1);
+      Update_operation::Base::ITEM_REMOVE;
 
   enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 
-  void fill_table_msg() {
-    msg.set_data_model(Mysqlx::Crud::TABLE);
-    *msg.mutable_collection() = Collection("xtable", "xschema");
-    *msg.mutable_operation() =
-        Operation_list{{Update_operation::Base::SET, ColumnIdentifier("yfield"),
-                        Scalar("booom")}};
-    *msg.mutable_criteria() =
-        Filter(Operator(">", ColumnIdentifier("xfield"), Scalar(1.0)));
-    *msg.mutable_order() =
-        Order_list{{ColumnIdentifier("xfield"), Order::Base::DESC}};
+  void fill_table_msg(const Limit &limit) {
+    msg = Update({"xtable", "xschema"}, Mysqlx::Crud::TABLE)
+              .operation({Update_operation::Base::SET,
+                          Column_identifier{"yfield"}, Scalar{"booom"}})
+              .criteria(Operator(">", Column_identifier{"xfield"}, Scalar{1.0}))
+              .order({Column_identifier("xfield"), Order::Base::DESC})
+              .limit(limit);
   }
-
-  void fill_doc_msg() {
-    msg.set_data_model(Mysqlx::Crud::DOCUMENT);
-    *msg.mutable_collection() = Collection("xtable", "xschema");
-    *msg.mutable_operation() =
-        Operation_list{{Update_operation::Base::ITEM_SET,
-                        Document_path{"first"}, Scalar(1.0)}};
-    *msg.mutable_criteria() = Filter(
-        Operator(">", ColumnIdentifier(Document_path{"second"}), Scalar(1.0)));
-    *msg.mutable_order() = Order_list{
-        {ColumnIdentifier(Document_path{"third"}), Order::Base::DESC}};
-  }
-};
+};  // namespace test
 
 TEST_F(Update_statement_builder_test, add_operation_empty_list) {
   EXPECT_THROW(builder().add_operation(Operation_list(), DM_TABLE),
@@ -94,15 +79,16 @@ TEST_F(Update_statement_builder_test, add_operation_empty_list) {
 }
 
 TEST_F(Update_statement_builder_test, add_table_operation_one_item) {
-  EXPECT_NO_THROW(builder().add_table_operation(Operation_list{
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)}}));
+  EXPECT_NO_THROW(builder().add_table_operation(
+      Operation_list{{Update_operation::Base::SET, Column_identifier("xfield"),
+                      Scalar(1.0)}}));
   EXPECT_STREQ("`xfield`=1", query.get().c_str());
 }
 
 TEST_F(Update_statement_builder_test, add_table_operation_two_items) {
   EXPECT_NO_THROW(builder().add_table_operation(Operation_list{
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)},
-      {Update_operation::Base::SET, ColumnIdentifier("yfield"),
+      {Update_operation::Base::SET, Column_identifier("xfield"), Scalar(1.0)},
+      {Update_operation::Base::SET, Column_identifier("yfield"),
        Scalar("two")}}));
   EXPECT_STREQ("`xfield`=1,`yfield`='two'", query.get().c_str());
 }
@@ -110,19 +96,19 @@ TEST_F(Update_statement_builder_test, add_table_operation_two_items) {
 TEST_F(Update_statement_builder_test,
        add_table_operation_two_items_same_source) {
   EXPECT_NO_THROW(builder().add_table_operation(Operation_list{
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)},
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"),
+      {Update_operation::Base::SET, Column_identifier("xfield"), Scalar(1.0)},
+      {Update_operation::Base::SET, Column_identifier("xfield"),
        Scalar("two")}}));
   EXPECT_STREQ("`xfield`=1,`xfield`='two'", query.get().c_str());
 }
 
 TEST_F(Update_statement_builder_test,
        add_table_operation_two_items_placeholder) {
-  args = Expression_args{2.2};
+  args = Expression_list{2.2};
 
   EXPECT_NO_THROW(builder().add_table_operation(Operation_list{
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)},
-      {Update_operation::Base::SET, ColumnIdentifier("yfield"),
+      {Update_operation::Base::SET, Column_identifier("xfield"), Scalar(1.0)},
+      {Update_operation::Base::SET, Column_identifier("yfield"),
        Placeholder(0)}}));
   EXPECT_STREQ("`xfield`=1,`yfield`=2.2", query.get().c_str());
 }
@@ -130,7 +116,7 @@ TEST_F(Update_statement_builder_test,
 TEST_F(Update_statement_builder_test, add_table_operation_empty_name) {
   EXPECT_THROW(
       builder().add_table_operation(Operation_list{
-          {Update_operation::Base::SET, ColumnIdentifier(""), Scalar(1.0)}}),
+          {Update_operation::Base::SET, Column_identifier(""), Scalar(1.0)}}),
       ngs::Error_code);
 }
 
@@ -138,7 +124,7 @@ TEST_F(Update_statement_builder_test,
        add_table_operation_item_name_with_table) {
   EXPECT_THROW(builder().add_table_operation(Operation_list{
                    {Update_operation::Base::SET,
-                    ColumnIdentifier("xfield", "xtable"), Scalar(1.0)}}),
+                    Column_identifier("xfield", "xtable"), Scalar(1.0)}}),
                ngs::Error_code);
 }
 
@@ -147,21 +133,20 @@ TEST_F(Update_statement_builder_test,
   EXPECT_THROW(
       builder().add_table_operation(Operation_list{
           {Update_operation::Base::SET,
-           ColumnIdentifier("xfield", "xtable", "xschema"), Scalar(1.0)}}),
+           Column_identifier("xfield", "xtable", "xschema"), Scalar(1.0)}}),
       ngs::Error_code);
 }
 
 TEST_F(Update_statement_builder_test, add_operation_one_item_for_table) {
   EXPECT_NO_THROW(builder().add_operation(
-      Operation_list{{Update_operation::Base::SET, ColumnIdentifier("xfield"),
+      Operation_list{{Update_operation::Base::SET, Column_identifier("xfield"),
                       Scalar(1.0)}},
       DM_TABLE));
   EXPECT_STREQ(" SET `xfield`=1", query.get().c_str());
 }
 
 TEST_F(Update_statement_builder_test, build_update_for_table) {
-  fill_table_msg();
-  *msg.mutable_limit() = Limit(2);
+  fill_table_msg(Limit(2));
   EXPECT_NO_THROW(builder().build(msg));
   EXPECT_STREQ(
       "UPDATE `xschema`.`xtable`"
@@ -174,8 +159,7 @@ TEST_F(Update_statement_builder_test, build_update_for_table) {
 
 TEST_F(Update_statement_builder_test,
        build_update_for_table_forrbiden_offset_in_limit) {
-  fill_table_msg();
-  *msg.mutable_limit() = Limit(2, 5);
+  fill_table_msg(Limit(2, 5));
   EXPECT_THROW(builder().build(msg), ngs::Error_code);
 }
 
@@ -278,7 +262,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_twice) {
 
 TEST_F(Update_statement_builder_test,
        add_document_operation_set_twice_placeholder) {
-  args = Expression_args{2.2};
+  args = Expression_list{2.2};
   EXPECT_NO_THROW(builder().add_document_operation(Operation_list{
       {Update_operation::Base::ITEM_SET, Document_path{"first"}, Scalar(1.0)},
       {Update_operation::Base::ITEM_SET, Document_path{"second"},
@@ -341,7 +325,7 @@ TEST_F(Update_statement_builder_test,
        add_document_operation_item_forbiden_column) {
   ASSERT_THROW(builder().add_document_operation_item(
                    Update_operation(Update_operation::Base::ITEM_SET,
-                                    ColumnIdentifier("xcolumn"), Scalar(-3)),
+                                    Column_identifier("xcolumn"), Scalar(-3)),
                    &operation_id),
                ngs::Error_code);
   ASSERT_EQ(Update_operation::Base::ITEM_SET, operation_id);
@@ -352,7 +336,7 @@ TEST_F(Update_statement_builder_test,
   ASSERT_THROW(
       builder().add_document_operation_item(
           Update_operation(Update_operation::Base::ITEM_SET,
-                           ColumnIdentifier("", "", "xschema"), Scalar(-3)),
+                           Column_identifier("", "", "xschema"), Scalar(-3)),
           &operation_id),
       ngs::Error_code);
   ASSERT_EQ(Update_operation::Base::ITEM_SET, operation_id);
@@ -360,11 +344,12 @@ TEST_F(Update_statement_builder_test,
 
 TEST_F(Update_statement_builder_test,
        add_document_operation_item_forbiden_table) {
-  ASSERT_THROW(builder().add_document_operation_item(
-                   Update_operation(Update_operation::Base::ITEM_SET,
-                                    ColumnIdentifier("", "xtable"), Scalar(-3)),
-                   &operation_id),
-               ngs::Error_code);
+  ASSERT_THROW(
+      builder().add_document_operation_item(
+          Update_operation(Update_operation::Base::ITEM_SET,
+                           Column_identifier("", "xtable"), Scalar(-3)),
+          &operation_id),
+      ngs::Error_code);
   ASSERT_EQ(Update_operation::Base::ITEM_SET, operation_id);
 }
 
@@ -382,7 +367,7 @@ TEST_F(Update_statement_builder_test,
        add_document_operation_item_empty_document_path) {
   operation_id = Update_operation::Base::ITEM_SET;
   ASSERT_NO_THROW(builder().add_document_operation_item(
-      Update_operation(Update_operation::Base::ITEM_SET, ColumnIdentifier(),
+      Update_operation(Update_operation::Base::ITEM_SET, Column_identifier(),
                        Scalar(-3)),
       &operation_id));
   ASSERT_EQ(Update_operation::Base::ITEM_SET, operation_id);
@@ -464,8 +449,14 @@ TEST_F(Update_statement_builder_test, add_operation_one_item_for_document) {
 }
 
 TEST_F(Update_statement_builder_test, build_update_for_document) {
-  fill_doc_msg();
-  *msg.mutable_limit() = Limit(2);
+  msg =
+      Update({"xtable", "xschema"}, Mysqlx::Crud::DOCUMENT)
+          .operation({Update_operation::Base::ITEM_SET, Document_path{"first"},
+                      Scalar(1.0)})
+          .criteria(Operator(">", Column_identifier{Document_path{"second"}},
+                             Scalar{1.0}))
+          .order({Column_identifier{Document_path{"third"}}, Order::Base::DESC})
+          .limit({2});
   EXPECT_NO_THROW(builder().build(msg));
   EXPECT_STREQ(
       "UPDATE `xschema`.`xtable`"
@@ -491,7 +482,7 @@ TEST_F(Update_statement_builder_test,
   ASSERT_THROW(
       builder().add_table_operation(Operation_list{
           {Update_operation::Base::SET,
-           ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}),
+           Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}),
       ngs::Error_code);
 }
 
@@ -499,23 +490,23 @@ TEST_F(Update_statement_builder_test,
        add_table_operation_item_set_missing_doc_path) {
   ASSERT_THROW(builder().add_table_operation(
                    Operation_list{{Update_operation::Base::ITEM_SET,
-                                   ColumnIdentifier("xfield"), Scalar(1.0)}}),
+                                   Column_identifier("xfield"), Scalar(1.0)}}),
                ngs::Error_code);
 }
 
 TEST_F(Update_statement_builder_test, add_table_operation_item_set) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}));
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}));
   EXPECT_STREQ("`xfield`=JSON_SET(`xfield`,'$.first',1)", query.get().c_str());
 }
 
 TEST_F(Update_statement_builder_test, add_table_operation_item_set_twice) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")}}));
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")}}));
   EXPECT_STREQ("`xfield`=JSON_SET(`xfield`,'$.first',1,'$.second','two')",
                query.get().c_str());
 }
@@ -524,9 +515,9 @@ TEST_F(Update_statement_builder_test,
        add_table_operation_item_set_twice_but_different) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "yfield"), Scalar("two")}}));
+       Column_identifier(Document_path{"second"}, "yfield"), Scalar("two")}}));
   EXPECT_STREQ(
       "`xfield`=JSON_SET(`xfield`,'$.first',1),"
       "`yfield`=JSON_SET(`yfield`,'$.second','two')",
@@ -536,11 +527,11 @@ TEST_F(Update_statement_builder_test,
 TEST_F(Update_statement_builder_test, add_table_operation_item_set_triple) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")},
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"third"}, "xfield"), Scalar(-3)}}));
+       Column_identifier(Document_path{"third"}, "xfield"), Scalar(-3)}}));
   EXPECT_STREQ(
       "`xfield`=JSON_SET(`xfield`,'$.first',1,'$.second','two','$.third',-3)",
       query.get().c_str());
@@ -548,11 +539,11 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_set_triple) {
 
 TEST_F(Update_statement_builder_test, add_table_operation_item_set_mix_first) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)},
+      {Update_operation::Base::SET, Column_identifier("xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")},
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"third"}, "xfield"), Scalar(-3)}}));
+       Column_identifier(Document_path{"third"}, "xfield"), Scalar(-3)}}));
   EXPECT_STREQ(
       "`xfield`=1,"
       "`xfield`=JSON_SET(`xfield`,'$.second','two','$.third',-3)",
@@ -562,10 +553,11 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_set_mix_first) {
 TEST_F(Update_statement_builder_test, add_table_operation_item_set_mix_last) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")},
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"third"}, "xfield"), Scalar(-3)},
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)}}));
+       Column_identifier(Document_path{"third"}, "xfield"), Scalar(-3)},
+      {Update_operation::Base::SET, Column_identifier("xfield"),
+       Scalar(1.0)}}));
   EXPECT_STREQ(
       "`xfield`=JSON_SET(`xfield`,'$.second','two','$.third',-3),"
       "`xfield`=1",
@@ -575,10 +567,10 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_set_mix_last) {
 TEST_F(Update_statement_builder_test, add_table_operation_item_set_mix_middle) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")},
-      {Update_operation::Base::SET, ColumnIdentifier("xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")},
+      {Update_operation::Base::SET, Column_identifier("xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"third"}, "xfield"), Scalar(-3)}}));
+       Column_identifier(Document_path{"third"}, "xfield"), Scalar(-3)}}));
   EXPECT_STREQ(
       "`xfield`=JSON_SET(`xfield`,'$.second','two'),"
       "`xfield`=1,"
@@ -589,13 +581,13 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_set_mix_middle) {
 TEST_F(Update_statement_builder_test, add_table_operation_item_set_fourth) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")},
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"first"}, "yfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "yfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_SET,
-       ColumnIdentifier(Document_path{"second"}, "yfield"), Scalar("two")}}));
+       Column_identifier(Document_path{"second"}, "yfield"), Scalar("two")}}));
   EXPECT_STREQ(
       "`xfield`=JSON_SET(`xfield`,'$.first',1,'$.second','two'),"
       "`yfield`=JSON_SET(`yfield`,'$.first',1,'$.second','two')",
@@ -605,16 +597,16 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_set_fourth) {
 TEST_F(Update_statement_builder_test, add_table_operation_item_remove_one) {
   ASSERT_NO_THROW(builder().add_table_operation(
       Operation_list{{Update_operation::Base::ITEM_REMOVE,
-                      ColumnIdentifier(Document_path{"first"}, "xfield")}}));
+                      Column_identifier(Document_path{"first"}, "xfield")}}));
   EXPECT_STREQ("`xfield`=JSON_REMOVE(`xfield`,'$.first')", query.get().c_str());
 }
 
 TEST_F(Update_statement_builder_test, add_table_operation_item_remove_twice) {
   ASSERT_NO_THROW(builder().add_table_operation(
       Operation_list{{Update_operation::Base::ITEM_REMOVE,
-                      ColumnIdentifier(Document_path{"first"}, "xfield")},
+                      Column_identifier(Document_path{"first"}, "xfield")},
                      {Update_operation::Base::ITEM_REMOVE,
-                      ColumnIdentifier(Document_path{"second"}, "xfield")}}));
+                      Column_identifier(Document_path{"second"}, "xfield")}}));
   EXPECT_STREQ("`xfield`=JSON_REMOVE(`xfield`,'$.first','$.second')",
                query.get().c_str());
 }
@@ -622,7 +614,7 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_remove_twice) {
 TEST_F(Update_statement_builder_test, add_table_operation_item_replace_one) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_REPLACE,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}));
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}));
   EXPECT_STREQ("`xfield`=JSON_REPLACE(`xfield`,'$.first',1)",
                query.get().c_str());
 }
@@ -630,9 +622,9 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_replace_one) {
 TEST_F(Update_statement_builder_test, add_table_operation_item_replace_twice) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ITEM_REPLACE,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ITEM_REPLACE,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")}}));
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")}}));
   EXPECT_STREQ("`xfield`=JSON_REPLACE(`xfield`,'$.first',1,'$.second','two')",
                query.get().c_str());
 }
@@ -640,7 +632,7 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_replace_twice) {
 TEST_F(Update_statement_builder_test, add_table_operation_array_insert_one) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ARRAY_INSERT,
-       ColumnIdentifier(Document_path{0}, "xfield"), Scalar(1.0)}}));
+       Column_identifier(Document_path{0}, "xfield"), Scalar(1.0)}}));
   EXPECT_STREQ("`xfield`=JSON_ARRAY_INSERT(`xfield`,'$[0]',1)",
                query.get().c_str());
 }
@@ -648,9 +640,9 @@ TEST_F(Update_statement_builder_test, add_table_operation_array_insert_one) {
 TEST_F(Update_statement_builder_test, add_table_operation_array_insert_twice) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ARRAY_INSERT,
-       ColumnIdentifier(Document_path{0}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{0}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ARRAY_INSERT,
-       ColumnIdentifier(Document_path{1}, "xfield"), Scalar("two")}}));
+       Column_identifier(Document_path{1}, "xfield"), Scalar("two")}}));
   EXPECT_STREQ("`xfield`=JSON_ARRAY_INSERT(`xfield`,'$[0]',1,'$[1]','two')",
                query.get().c_str());
 }
@@ -658,7 +650,7 @@ TEST_F(Update_statement_builder_test, add_table_operation_array_insert_twice) {
 TEST_F(Update_statement_builder_test, add_table_operation_array_append_one) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ARRAY_APPEND,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}));
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)}}));
   EXPECT_STREQ("`xfield`=JSON_ARRAY_APPEND(`xfield`,'$.first',1)",
                query.get().c_str());
 }
@@ -666,9 +658,9 @@ TEST_F(Update_statement_builder_test, add_table_operation_array_append_one) {
 TEST_F(Update_statement_builder_test, add_table_operation_array_append_twice) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ARRAY_APPEND,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ARRAY_APPEND,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Scalar("two")}}));
+       Column_identifier(Document_path{"second"}, "xfield"), Scalar("two")}}));
   EXPECT_STREQ(
       "`xfield`=JSON_ARRAY_APPEND(`xfield`,'$.first',1,'$.second','two')",
       query.get().c_str());
@@ -676,12 +668,12 @@ TEST_F(Update_statement_builder_test, add_table_operation_array_append_twice) {
 
 TEST_F(Update_statement_builder_test,
        add_table_operation_array_append_twice_placeholder) {
-  args = Expression_args{2.2};
+  args = Expression_list{2.2};
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
       {Update_operation::Base::ARRAY_APPEND,
-       ColumnIdentifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
+       Column_identifier(Document_path{"first"}, "xfield"), Scalar(1.0)},
       {Update_operation::Base::ARRAY_APPEND,
-       ColumnIdentifier(Document_path{"second"}, "xfield"), Placeholder(0)}}));
+       Column_identifier(Document_path{"second"}, "xfield"), Placeholder(0)}}));
   EXPECT_STREQ(
       "`xfield`=JSON_ARRAY_APPEND(`xfield`,'$.first',1,'$.second',2.2)",
       query.get().c_str());
@@ -717,7 +709,7 @@ TEST_P(Update_statement_builder_op_merge_test,
        add_document_operation_set_merge) {
   EXPECT_NO_THROW(builder().add_document_operation(Operation_list{
       {Update_operation::Base::ITEM_SET, Document_path{"first"}, Scalar(1.0)},
-      {GetParam().m_type, ColumnIdentifier(), Scalar("{\"three\": 3.0}")}}));
+      {GetParam().m_type, Column_identifier(), Scalar("{\"three\": 3.0}")}}));
   EXPECT_EQ("doc=JSON_SET(" + GetParam().m_function +
                 "(JSON_SET(doc,'$.first',1),"
                 "'{\\\"three\\\": 3.0}'),'$._id',JSON_EXTRACT(`doc`,'$._id'))",
@@ -736,9 +728,9 @@ TEST_P(Update_statement_builder_op_merge_test, add_document_operation_merge) {
 TEST_P(Update_statement_builder_op_merge_test,
        add_table_operation_item_merge_twice) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
-      {GetParam().m_type, ColumnIdentifier(Document_path{"first"}, "xfield"),
+      {GetParam().m_type, Column_identifier(Document_path{"first"}, "xfield"),
        Scalar(1.0)},
-      {GetParam().m_type, ColumnIdentifier(Document_path{"second"}, "xfield"),
+      {GetParam().m_type, Column_identifier(Document_path{"second"}, "xfield"),
        Scalar("two")}}));
   EXPECT_EQ("`xfield`=" + GetParam().m_function + "(`xfield`,1,'two')",
             query.get().c_str());
@@ -747,7 +739,7 @@ TEST_P(Update_statement_builder_op_merge_test,
 TEST_P(Update_statement_builder_op_merge_test,
        add_table_operation_item_merge_one) {
   ASSERT_NO_THROW(builder().add_table_operation(Operation_list{
-      {GetParam().m_type, ColumnIdentifier(Document_path{"first"}, "xfield"),
+      {GetParam().m_type, Column_identifier(Document_path{"first"}, "xfield"),
        Scalar(1.0)}}));
   EXPECT_EQ("`xfield`=" + GetParam().m_function + "(`xfield`,1)",
             query.get().c_str());

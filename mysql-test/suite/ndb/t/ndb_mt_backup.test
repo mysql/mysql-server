@@ -1,0 +1,32 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+let $backup_parts = 4;
+
+--echo Case 1: multithreaded backup + multithreaded restore
+let $snapshotstart = 0;
+let $serialrestore = 0; # restore all parts together
+--source ndb_backup_restore.inc
+
+--echo Case 2: multithreaded snapshotstart backup + multithreaded restore
+let $snapshotstart = 1;
+let $serialrestore = 0; # restore all parts together
+--source ndb_backup_restore.inc
+
+--echo Case 3: multithreaded backup + single-threaded restore
+let $snapshotstart = 0;
+let $serialrestore = 1; # restore serially part by part
+--source ndb_backup_restore.inc
+
+--echo Case 4: multithreaded snapshotstart backup + single-threaded restore
+let $snapshotstart = 1 ;
+let $serialrestore = 1; # restore serially part by part
+--source ndb_backup_restore.inc
+
+--echo Case 5: restore backup with missing part
+--error 1
+--exec $NDB_RESTORE --core-file=0 -b 1 -n 2 -e $NDB_SAVED_BACKUPS/missing_part >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

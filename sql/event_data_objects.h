@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ void init_scheduler_psi_keys(void);
 
 class Event_queue_element_for_exec {
  public:
-  Event_queue_element_for_exec(){};
+  Event_queue_element_for_exec() {}
   ~Event_queue_element_for_exec();
 
   bool init(LEX_STRING dbname, LEX_STRING name);
@@ -145,7 +145,7 @@ class Event_timed : public Event_queue_element {
   virtual bool fill_event_info(THD *thd, const dd::Event &event,
                                const char *schema_name);
 
-  int get_create_event(THD *thd, String *buf);
+  int get_create_event(const THD *thd, String *buf);
 
   Event_timed(const Event_timed &) = delete;
   void operator=(Event_timed &) = delete;

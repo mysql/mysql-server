@@ -292,7 +292,7 @@ SELECT ((@id := id) - id) from information_schema.processlist where processlist.
 ((@id := id) - id)
 0
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 kill @id;
 DROP TABLE raw_mode_exit;
 End of tests

@@ -1,0 +1,103 @@
+SET @start_global_value = @@global.innodb_spin_wait_pause_multiplier;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+select @@global.innodb_spin_wait_pause_multiplier >=0;
+select @@global.innodb_spin_wait_pause_multiplier;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_spin_wait_pause_multiplier;
+show global variables like 'innodb_spin_wait_pause_multiplier';
+show session variables like 'innodb_spin_wait_pause_multiplier';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_spin_wait_pause_multiplier';
+select * from performance_schema.session_variables where variable_name='innodb_spin_wait_pause_multiplier';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_spin_wait_pause_multiplier=10;
+select @@global.innodb_spin_wait_pause_multiplier;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_spin_wait_pause_multiplier';
+select * from performance_schema.session_variables where variable_name='innodb_spin_wait_pause_multiplier';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_spin_wait_pause_multiplier=1;
+
+#
+# check the default value
+#
+set global innodb_spin_wait_pause_multiplier=DEFAULT;
+select @@global.innodb_spin_wait_pause_multiplier;
+
+#
+# valid values
+#
+set global innodb_spin_wait_pause_multiplier=0;
+select @@global.innodb_spin_wait_pause_multiplier;
+set global innodb_spin_wait_pause_multiplier=3;
+select @@global.innodb_spin_wait_pause_multiplier;
+set global innodb_spin_wait_pause_multiplier=100;
+select @@global.innodb_spin_wait_pause_multiplier;
+#
+# values of valid type by too large
+#
+set global innodb_spin_wait_pause_multiplier=101;
+select @@global.innodb_spin_wait_pause_multiplier;
+set global innodb_spin_wait_pause_multiplier=65535;
+select @@global.innodb_spin_wait_pause_multiplier;
+set global innodb_spin_wait_pause_multiplier=4294967295;
+select @@global.innodb_spin_wait_pause_multiplier;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_pause_multiplier=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_pause_multiplier=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_pause_multiplier="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_pause_multiplier=' ';
+select @@global.innodb_spin_wait_pause_multiplier;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_pause_multiplier=" ";
+select @@global.innodb_spin_wait_pause_multiplier;
+set global innodb_spin_wait_pause_multiplier=-7;
+select @@global.innodb_spin_wait_pause_multiplier;
+set global innodb_spin_wait_pause_multiplier=-1024;
+select @@global.innodb_spin_wait_pause_multiplier;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_spin_wait_pause_multiplier';
+--enable_warnings
+
+#
+# Check for out of bounds
+#
+
+# With a 64 bit mysqld:18446744073709551615,with a 32 bit mysqld: 4294967295
+--disable_warnings
+SET @@global.innodb_spin_wait_pause_multiplier = 4294967296;
+--enable_warnings
+SELECT @@global.innodb_spin_wait_pause_multiplier IN (4294967296,4294967295);
+
+--disable_warnings
+SET @@global.innodb_spin_wait_pause_multiplier = 12345678901;
+--enable_warnings
+SELECT @@global.innodb_spin_wait_pause_multiplier IN (12345678901,4294967295);
+
+--disable_warnings
+SET @@global.innodb_spin_wait_pause_multiplier = 18446744073709551615;
+--enable_warnings
+SELECT @@global.innodb_spin_wait_pause_multiplier IN (18446744073709551615,4294967295);
+
+#
+# cleanup
+#
+SET @@global.innodb_spin_wait_pause_multiplier = @start_global_value;
+SELECT @@global.innodb_spin_wait_pause_multiplier;

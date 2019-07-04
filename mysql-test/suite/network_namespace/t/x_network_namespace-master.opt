@@ -1,0 +1,3 @@
+--mysqlx
+$MYSQLXGLOBALRESET_OPT
+--default_authentication_plugin=mysql_native_password

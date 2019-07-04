@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ static void BM_LookupAllCollations(size_t num_iterations) {
     }
   }
 }
-BENCHMARK(BM_LookupAllCollations);
+BENCHMARK(BM_LookupAllCollations)
 
 static std::vector<std::string> charsets = {
     "armscii8", "ascii",   "big5",   "binary",  "cp1250",  "cp1251",
@@ -96,6 +96,6 @@ static void BM_LookupAllCharsets(size_t num_iterations) {
     EXPECT_NE(lookup_charset(charset.c_str(), MY_CS_BINSORT), nullptr);
   }
 }
-BENCHMARK(BM_LookupAllCharsets);
+BENCHMARK(BM_LookupAllCharsets)
 
 }  // namespace collation_loader_unittest

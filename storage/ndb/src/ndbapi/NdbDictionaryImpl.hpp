@@ -163,6 +163,9 @@ public:
   NdbTableImpl(NdbDictionary::Table &);
   ~NdbTableImpl();
   
+  static SimpleProperties::IndirectReader IndirectReader;
+  static SimpleProperties::IndirectWriter IndirectWriter;
+
   void init();
   int setName(const char * name);
   const char * getName() const;
@@ -237,11 +240,11 @@ public:
   Uint64 m_max_rows;
   Uint64 m_min_rows;
   Uint32 m_default_no_part_flag;
+  Uint32 m_row_checksum;
   bool m_linear_flag;
   bool m_logging;
   bool m_temporary;
   bool m_row_gci;
-  bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
   bool m_read_backup;
@@ -454,7 +457,7 @@ public:
     ndbout_c("NdbEventImpl: id=%d, key=%d",
 	     m_eventId,
 	     m_eventKey);
-  };
+  }
 
   Uint32 m_eventId;
   Uint32 m_eventKey;

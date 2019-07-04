@@ -12,16 +12,8 @@
 
 # Begin clean up test section
 connection master;
---disable_warnings
---error 0,1360
-DROP TRIGGER test.t1_bi_t2;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-
-
 eval CREATE TABLE test.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT, d FLOAT, PRIMARY KEY(n))ENGINE=$engine_type;
 eval CREATE TABLE test.t2 (n MEDIUMINT NOT NULL, f FLOAT, PRIMARY KEY(n))ENGINE=$engine_type;
-
 
 delimiter //;
 CREATE TRIGGER test.t1_bi_t2 BEFORE INSERT ON test.t2 FOR EACH ROW INSERT INTO test.t1 VALUES (NULL, 1.234)//

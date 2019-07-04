@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,9 @@
 */
 
 #include "pattern_matcher.h"
-#include <my_sys.h>
+
+#include "my_dbug.h"
+#include "my_sys.h"
 
 /**
   @brief Parses concatenated patterns and adds them to internal pattern list

@@ -22,7 +22,7 @@ SET DEBUG ='-d, simulate_max_char_col';
 --echo # INNODB_FILE_PER_TABLE TABLESPACE
 --echo #
 
---echo "Try creating temporary table with innodb_file_per_table option with STRICT mode"
+--echo # Try creating temporary table with innodb_file_per_table option with STRICT mode
 # Enable STRICT mode
 SET innodb_strict_mode = ON;
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -32,15 +32,19 @@ CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
 --error ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM t1;
 
---echo "Try creating temporary table with innodb_file_per_table option without STRICT mode"
+--echo # Try creating temporary table with innodb_file_per_table option without STRICT mode
 # Disable STRICT mode
 SET innodb_strict_mode = OFF;
 CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
-
 SHOW WARNINGS;
 
 # Validate temporary table exists
 SELECT COUNT(*) FROM t1;
+
+--echo # Try to create a table name that has the form of an FTS auxilliary table name.
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE fts_0000000000000424_config (id int);
+SHOW WARNINGS;
 
 # Reset STRICT mode to default
 SET innodb_strict_mode = default;

@@ -169,7 +169,13 @@ inline space_id_t trx_rseg_id_to_space_id(ulint id, bool is_temp) {
   reserved space_ids and RSEG_ARRAY pages. */
   ut_ad(!undo::spaces->empty());
 
-  return (undo::num2id(static_cast<space_id_t>(id)));
+  /* The space_id_bank for this slot cannot change since this call is done
+  by purge or MVCC. This space_id can only change during truncate when
+  there are no more undo logs in this undo tablespace. */
+  space_id_t space_id = undo::num2id(static_cast<space_id_t>(id));
+  ut_ad(space_id != SPACE_UNKNOWN);
+
+  return (space_id);
 }
 
 /** Get a pointer to the rollback segment directory header and x-latches its

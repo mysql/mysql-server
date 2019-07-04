@@ -39,12 +39,15 @@ class HTTP_SERVER_EXPORT BaseRequestHandler {
 
   virtual void handle_request(HttpRequest &req) = 0;
 
+  BaseRequestHandler() = default;
+  explicit BaseRequestHandler(const BaseRequestHandler &) = delete;
+  BaseRequestHandler &operator=(const BaseRequestHandler &) = delete;
   virtual ~BaseRequestHandler();
 };
 
 class HTTP_SERVER_EXPORT HttpServerComponent {
  public:
-  static HttpServerComponent &getInstance();
+  static HttpServerComponent &get_instance();
   void init(std::shared_ptr<HttpServer> srv);
   void add_route(const std::string &url_regex,
                  std::unique_ptr<BaseRequestHandler> cb);

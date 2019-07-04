@@ -8,14 +8,8 @@ connect (ddl,localhost,root,,test);
 
 select @@session.optimizer_switch;
 
---disable_warnings
-connection ddl;
-drop table if exists t1,t2,t3,t4;
---enable_warnings
-
 connection spj;
 # Save old mysqld counter values.
---disable_warnings ONCE
 create temporary table server_counts_at_startup
        select * from performance_schema.global_status 
        where variable_name in 
@@ -412,6 +406,27 @@ from t1_myisam as t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a=2 and t1.b=2;
+
+## Bug#28898811 INCORRECTLY REJECT JOIN TO BE PUSHED DOWN
+##
+## .. also served to detect (also see ndb_endian.test):
+## Bug#29010641 FAILS TO HANDLE DIFFERENT ENDIANNESS FORMATS IN PUSHED JOIN KEYS
+##
+## Tables not beings considered in the join pushdown analysis,
+## e.g. a table not being a ndb table, where also incorrectly
+## excluded as a table which could be referred in the join conditions
+## from a pushed child table (on .. t3.b = t1.b <-, below)
+##
+explain
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.b and t3.b = t1.b;
+--sorted_result
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.b and t3.b = t1.b;
 
 connection ddl;
 drop table t1_myisam;
@@ -2952,7 +2967,6 @@ select * from t1 t1, t1 t2
 
 # Save old counter values.
 # Save old mysqld counter values.
---disable_warnings ONCE
 create temporary table server_counts
        select * from performance_schema.global_status 
        where variable_name in 
@@ -2981,7 +2995,6 @@ select count(*) from t1 t1, t1 t2
        	     t2.a = t1.c and t2.b = t1.c; 
 
 # Calculate the change in mysqld counters.
---disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts as old,
          performance_schema.global_status as new
@@ -4523,7 +4536,7 @@ echo;
 # This will hit the actuall limit of 64K and will be
 # detected by API which will drop this pushed condition.
 #   'Warning 4294 Scan filter is too large, discarded'
-# (Evaluated by mysql instead)
+# (Pushed condition evaluated by ha_ndbcluster handler instead)
 #
 let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
@@ -4715,7 +4728,6 @@ insert into t1 values (1,NULL,1,1);
 explain select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b;
 
 # Record value before query.
---disable_warnings ONCE
 create temporary table scan_count
        select * from performance_schema.global_status 
        where variable_name = 'Ndb_scan_count';
@@ -4725,7 +4737,6 @@ create temporary table scan_count
 select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b; 
 
 # Bug causes value to increase by 3 rather than 2.
---disable_warnings ONCE
 select scan_count.VARIABLE_NAME,
        old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
        from scan_count, performance_schema.global_status as old 
@@ -5251,7 +5262,6 @@ DROP TABLE ndb_order_test, ndb_user_test;
 connection spj;
 
 # Calculate the change in mysqld counters.
---disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts_at_startup as old,
          performance_schema.global_status as new

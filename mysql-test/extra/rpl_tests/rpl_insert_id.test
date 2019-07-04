@@ -77,7 +77,7 @@ eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t2 (c) select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 --source include/sync_slave_sql_with_master.inc
@@ -175,14 +175,14 @@ begin
 end|
 delimiter ;|
 
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t1 (last_id) values (0);
 
 drop trigger t1_bi;
 
 # Check that nested call doesn't affect outer context.
 select last_insert_id();
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 select bug15728_insert();
 select last_insert_id();
 insert into t1 (last_id) values (bug15728());
@@ -191,7 +191,7 @@ select last_insert_id();
 
 # BUG#20339 - stored procedure using LAST_INSERT_ID() does not
 # replicate statement-based
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists foo;
 delimiter |;
 create procedure foo()
@@ -252,7 +252,7 @@ select * from t1 order by n;
 # table's counter, the counter for next row is bigger than the
 # after-value of the updated row.
 connection master;
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
 select * from t1 order by n;
 --source include/sync_slave_sql_with_master.inc
@@ -271,7 +271,7 @@ delete from t1 where b <> 100;
 select * from t1 order by n;
 
 connection master;
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t1 values(null,100),(null,350) on duplicate key update n=2;
 select * from t1 order by n;
 --source include/sync_slave_sql_with_master.inc
@@ -289,7 +289,7 @@ connection master;
 # testcase with INSERT VALUES
 eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
                       UNIQUE(b)) ENGINE=$engine_type;
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1 ORDER BY a;
 --source include/sync_slave_sql_with_master.inc
@@ -440,7 +440,7 @@ delimiter ;|
 
 INSERT INTO t1 VALUES (NULL, -1);
 CALL p1();
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 SELECT f1();
 INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
                       (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
@@ -510,13 +510,13 @@ insert into t2 (id) values(1),(2),(3);
 delete from t2;
 set sql_log_bin=1;
 #inside SELECT, then inside INSERT
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 select insid();
 set sql_log_bin=0;
 insert into t2 (id) values(5),(6),(7);
 delete from t2 where id>=5;
 set sql_log_bin=1;
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t1 select insid();
 select * from t1 order by id;
 select * from t2 order by id;
@@ -541,7 +541,7 @@ begin
   insert into t2 values(null,3);
 end|
 delimiter ;|
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 call foo();
 select * from t1 order by n;
 select * from t2 order by id;

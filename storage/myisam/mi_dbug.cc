@@ -24,6 +24,7 @@
 
 #include <sys/types.h>
 
+#include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "storage/myisam/myisamdef.h"
 

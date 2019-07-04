@@ -85,9 +85,6 @@ DESCRIBE INFORMATION_SCHEMA.ROUTINES;
 #                     I_S.ROUTINES view
 ###############################################################################
 -- echo # ========== routines.2 ==========
---disable_warnings ONCE
-DROP DATABASE IF EXISTS i_s_routines_test;
-
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
@@ -105,7 +102,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 #                                     function / procedure
 ###############################################################################
 -- echo # ========== routines.3 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 CREATE DATABASE i_s_routines_test;
@@ -127,7 +123,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 #                    stored procedure
 ################################################################################
 -- echo # ========== routines.4 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 CREATE DATABASE i_s_routines_test;
@@ -153,7 +148,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'testproc';
 #                    for CHAR functions
 ################################################################################
 -- echo # ========== routines.5 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 CREATE DATABASE i_s_routines_test;
@@ -175,7 +169,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 #                    for numeric functions
 ################################################################################
 -- echo # ========== routines.6 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 CREATE DATABASE i_s_routines_test;
@@ -193,7 +186,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func2';
 #                    or time data
 ################################################################################
 -- echo # ========== routines.7 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 CREATE DATABASE i_s_routines_test;
@@ -211,7 +203,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 #                     I_S.ROUTINES.COMMENT
 ###############################################################################
 -- echo # ========== routines.8 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 CREATE DATABASE i_s_routines_test;
@@ -234,7 +225,6 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 #                     Normally both values are equal
 ###############################################################################
 -- echo # ========== routines.9 ==========
---disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
 
 

@@ -26,15 +26,15 @@
 
 #include "plugin/x/ngs/include/ngs/log.h"
 
-using namespace ngs;
+namespace ngs {
 
 Server_client_timeout::Server_client_timeout(
-    const chrono::time_point &release_all_before_time)
+    const xpl::chrono::Time_point &release_all_before_time)
     : m_release_all_before_time(release_all_before_time) {}
 
 void Server_client_timeout::validate_client_state(
-    ngs::shared_ptr<Client_interface> client) {
-  const chrono::time_point client_accept_time = client->get_accept_time();
+    std::shared_ptr<Client_interface> client) {
+  const xpl::chrono::Time_point client_accept_time = client->get_accept_time();
   const Client_interface::Client_state state = client->get_state();
 
   if (Client_interface::Client_accepted == state ||
@@ -46,13 +46,15 @@ void Server_client_timeout::validate_client_state(
       return;
     }
 
-    if (!chrono::is_valid(m_oldest_client_accept_time) ||
+    if (!xpl::chrono::is_valid(m_oldest_client_accept_time) ||
         m_oldest_client_accept_time > client_accept_time) {
       m_oldest_client_accept_time = client_accept_time;
     }
   }
 }
 
-chrono::time_point Server_client_timeout::get_oldest_client_accept_time() {
+xpl::chrono::Time_point Server_client_timeout::get_oldest_client_accept_time() {
   return m_oldest_client_accept_time;
 }
+
+}  // namespace ngs

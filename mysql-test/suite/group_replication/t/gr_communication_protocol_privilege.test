@@ -1,0 +1,48 @@
+###############################################################################
+# WL#11610
+# The user must have GROUP_REPLICATION_ADMIN privileges to modify the group's
+# "communication protocol."
+#
+# Test:
+#   0. One server is enough for this test
+#   1. Create user without GROUP_REPLICATION_ADMIN privileges
+#   2. Connect to server using under-privileged user
+#   3. Modifying the group's "communication protocol" should fail due to lack of
+#      privileges
+#   4. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 1. Create user without GROUP_REPLICATION_ADMIN privileges
+
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+--connect (con_group_rpl_user,127.0.0.1,group_rpl_user,,test,$MASTER_MYPORT,,)
+
+--echo
+--echo # 2. Connect to server using group_rpl_user
+
+--let $rpl_connection_name= con_group_rpl_user
+--source include/rpl_connection.inc
+
+--echo
+--echo # 3. group_replication_set_communication_protocol should fail due to lack of privileges
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_set_communication_protocol("8.0.14");
+
+--echo
+--echo # 4. Cleanup
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+
+--disconnect con_group_rpl_user
+DROP USER group_rpl_user;
+
+--source include/group_replication_end.inc

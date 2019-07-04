@@ -33,8 +33,8 @@
 #include "my_rapidjson_size_t.h"
 #endif
 
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/stringbuffer.h"
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
 Plugin_info::Plugin_info(const Plugin_v1 &plugin)
     : abi_version(plugin.abi_version),

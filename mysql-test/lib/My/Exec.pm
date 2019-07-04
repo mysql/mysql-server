@@ -108,7 +108,13 @@ sub exec_print_on_error {
 
   if ($? == 0) {
     # Test program suceeded
-    return 1;
+    # Remove log file and return
+    if (unlink($logfile_name) == 1) {
+      return 1;
+    } else {
+      print "Failed to remove log file at '$logfile_name'\n";
+      return 0;
+    }
   }
 
   # Test program failed

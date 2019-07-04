@@ -1,0 +1,108 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap group on server 1 and create table t1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a int primary key);
+INSERT INTO t1 VALUES (1);
+
+# 2. Join server2 to group and lock tables t1
+[connection server_2]
+include/start_group_replication.inc
+LOCK TABLES t1 READ;
+
+# 3. Execute transaction on primary server
+[connection server1]
+INSERT INTO t1 VALUES (2);
+
+# 4. Server2 will certify transaction but won't apply due lock tables
+[connection server2]
+
+# 5. Execute group_replication_set_as_primary to appoint server2 as
+#    primary
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+
+# 6. Validate that primary election is executing
+[connection server2]
+
+# 7. A read statement to new primary will be put on hold until all
+#    backlog's are applied
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+SELECT COUNT(*)=1 FROM t1 WHERE a = 2;
+
+# 8. Validate statement is on hold
+[connection server_2]
+# 9. Statements aren't held when executed on a secondary
+[connection server_1]
+SELECT * FROM t1;
+a
+1
+2
+
+# 10. UNLOCK tables to allow backlog to be applied
+[connection server_2]
+UNLOCK TABLES;
+
+# 11. Reap with success read of last value inserted on group
+[connection server2]
+COUNT(*)=1
+1
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+# 12. Reap with success execution of set as primary server2
+[connection server1]
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+
+# 13. Lock tables on next primary to have backlog to apply
+[connection server_1]
+LOCK TABLES t1 READ;
+
+# 14. Insert data on table to create backlog on server1
+[connection server2]
+INSERT INTO t1 VALUES (3);
+
+# 15. Server1 will certify transaction but won't apply due lock tables
+[connection server1]
+
+# 16. Execute set as primary to run a primary election
+[connection server2]
+SELECT group_replication_set_as_primary("MEMBER1_UUID");
+
+# 17. Validate an primary election is executing
+[connection server1]
+
+# 18. A write statement to new primary will be put on hold until apply all
+#     backlog
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+INSERT INTO t1 VALUES (4);;
+
+# 19. Validate statement is on hold
+[connection server_1]
+# 20. Statements aren't held when executed on a secondary
+[connection server_2]
+SELECT * FROM t1;
+a
+1
+2
+3
+
+# 21. UNLOCK tables to allow apply backlog
+[connection server_1]
+UNLOCK TABLES;
+
+# 22. Reap with success insert after backlog is applied
+[connection server1]
+
+# 23. Cleanup
+SET @@SESSION.group_replication_consistency= DEFAULT;
+DROP TABLE t1;
+[connection server2]
+group_replication_set_as_primary("MEMBER1_UUID")
+Primary server switched to: MEMBER1_UUID
+include/group_replication_end.inc

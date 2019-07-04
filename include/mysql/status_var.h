@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,12 @@ enum enum_mysql_show_type {
   SHOW_LONG_NOFLUSH,
   SHOW_LONGLONG_STATUS,
   SHOW_LEX_STRING,
-  SHOW_SIGNED_LONG
+  /*
+    Support for signed values are extended for plugins.
+  */
+  SHOW_SIGNED_INT,
+  SHOW_SIGNED_LONG,
+  SHOW_SIGNED_LONGLONG
 };
 
 /**

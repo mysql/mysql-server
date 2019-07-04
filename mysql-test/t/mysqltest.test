@@ -4225,3 +4225,583 @@ EOF
 
 --error 1,0
 --remove_file $MYSQLTEST_VARDIR/tmp/bug28358835.tmp
+
+--echo #
+--echo # WL11832: MTR: Enhance [disable|enable]_warnings commands to
+--echo #          disable or enable a specific list of warnings
+--echo #
+
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+CREATE TABLE t1 (
+  c1 DOUBLE NOT NULL AUTO_INCREMENT,
+  c2 INT,
+  c3 DECIMAL(2) UNSIGNED,
+  c4 DECIMAL,
+  PRIMARY KEY (c1)
+);
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# disable_warnings should disable all the warnings
+--disable_warnings
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# enable_warning should enable all the disable warnings
+--enable_warnings
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# disable_warnings with warning list argument, should suppress only
+# the specified warnings.
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# If there exist disabled warnings, new disabled warnings specified
+# will get appended to the existing list of disabled_warnings.
+# All three warnings should be disabled now.
+--disable_warnings ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# enable_warnings with warning list argument, should enable only
+# the specified warnings.
+--enable_warnings ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# Enable all the warnings
+--enable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# Disable all the warnings
+--disable_warnings
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# enable_warnings with warning list argument
+--enable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# If there exist enabled warnings, new enabled warnings specified
+# will get appended to the existing list of enabled_warnings.
+# All three warnings should be enabled now.
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+--enable_warnings
+
+# disable_warnings with "ONCE" argument
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# enable_warnings with "ONCE" argument
+--disable_warnings
+--enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+--enable_warnings
+
+# Disabling a warning more than once WILL NOT have any effect, attempts
+# to disable it after the first one WILL be ignored.
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# ER_WARN_DATA_OUT_OF_RANGE is disaled twice, enabling it ONLY ONCE is
+# enough since disabling of the same warning again will be ignored.
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $DISABLED_WARNINGS_LIST contains list of currently disabled warnings.
+# All the warnings are enabled, $DISABLED_WARNINGS_LIST should be empty
+--echo $DISABLED_WARNINGS_LIST
+
+# Disable ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE warnings
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $DISABLED_WARNINGS_LIST should contains 2 warnings
+--echo $DISABLED_WARNINGS_LIST
+
+# Disable ER_TRUNCATED_WRONG_VALUE_FOR_FIELD warning
+--disable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $DISABLED_WARNINGS_LIST should contains 3 warnings now
+--echo $DISABLED_WARNINGS_LIST
+
+# ER_WARN_DATA_OUT_OF_RANGE warning is enabled, $DISABLED_WARNINGS_LIST
+# should contain only 2 warnings now.
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE
+--echo $DISABLED_WARNINGS_LIST
+
+# $DISABLED_WARNINGS_LIST variable can be used with enable_warnings command
+# to enable all the currently disabled warnings.
+--enable_warnings $DISABLED_WARNINGS_LIST
+
+# All the warnings are enabled, $DISABLED_WARNINGS_LIST should be empty
+--echo $DISABLED_WARNINGS_LIST
+
+# Disabling warnings only once, $DISABLED_WARNINGS_LIST value should get
+# updated after the execution of the next statement.
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
+--echo $DISABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $DISABLED_WARNINGS_LIST should be empty now
+--echo $DISABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $ENABLED_WARNINGS_LIST contains list of currently enabled warnings.
+# All the warning are enabled, $ENABLED_WARNINGS_LIST should be empty.
+--echo $ENABLED_WARNINGS_LIST
+
+--disable_warnings
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# Enable ER_WARN_DATA_OUT_OF_RANGE warning
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $ENABLED_WARNINGS_LIST should contain ER_WARN_DATA_OUT_OF_RANGE
+--echo $ENABLED_WARNINGS_LIST
+
+# Enable ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--enable_warnings ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $ENABLED_WARNINGS_LIST should contain 3 warnings
+--echo $ENABLED_WARNINGS_LIST
+
+# $ENABLED_WARNINGS_LIST variable can be used with disable_warnings command
+# to disable all the currently enabled warnings.
+--disable_warnings $ENABLED_WARNINGS_LIST
+
+# All the warnings are disabled, $ENABLED_WARNINGS_LIST should be empty
+--echo $ENABLED_WARNINGS_LIST
+
+# Enabling warnings only once, $ENABLED_WARNINGS_LIST value should get
+# updated after the execution of the next statement.
+--disable_warnings
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# $ENABLED_WARNINGS_LIST should be empty now
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+--enable_warnings
+
+# Varables containing warning names as arguments to disable/enable_warnings
+# command.
+--let $warning_1 = ER_WARN_DATA_OUT_OF_RANGE
+--let $warning_2 = ER_TRUNCATED_WRONG_VALUE
+--disable_warnings $warning_1,$warning_2
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--enable_warnings $warning_1
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--enable_warnings $warning_2
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+
+# Cleanup
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1;
+
+# More scenarios
+--write_file $MYSQL_TMP_DIR/mtr.test
+--disable_warnings ER_BAD_TABLE_ERROR
+DROP TABLE IF EXISTS t1;
+--let $include_filename = mtr.test
+--source include/begin_include_file.inc
+--source $MYSQL_TMP_DIR/mtr.inc
+--source include/end_include_file.inc
+DROP TABLE IF EXISTS t1;
+--enable_warnings ER_BAD_TABLE_ERROR
+EOF
+
+--write_file $MYSQL_TMP_DIR/mtr.inc
+--enable_warnings ER_BAD_TABLE_ERROR ONCE
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings ER_BAD_TABLE_ERROR
+DROP TABLE IF EXISTS t1;
+EOF
+
+--exec $MYSQL_TEST -x $MYSQL_TMP_DIR/mtr.test 2>&1
+--remove_file $MYSQL_TMP_DIR/mtr.inc
+--remove_file $MYSQL_TMP_DIR/mtr.test
+
+#################
+
+--write_file $MYSQL_TMP_DIR/mtr.test
+--disable_warnings
+--enable_warnings ER_BAD_TABLE_ERROR
+DROP TABLE IF EXISTS t1;
+--let $include_filename = mtr.test
+--source include/begin_include_file.inc
+--source $MYSQL_TMP_DIR/mtr.inc
+--source include/end_include_file.inc
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+EOF
+
+--write_file $MYSQL_TMP_DIR/mtr.inc
+--disable_warnings ER_BAD_TABLE_ERROR ONCE
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+--disable_warnings ER_BAD_TABLE_ERROR
+DROP TABLE IF EXISTS t1;
+EOF
+
+--exec $MYSQL_TEST -x $MYSQL_TMP_DIR/mtr.test 2>&1
+--remove_file $MYSQL_TMP_DIR/mtr.inc
+--remove_file $MYSQL_TMP_DIR/mtr.test
+
+# Invalid scenarios
+
+# Error numbers are not allowed in warning list argument for both
+# disabled_warnings and enable_warnings command.
+--error 1
+--exec echo "disable_warnings 1264;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings ER_TRUNCATED_WRONG_VALUE,1264;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings ERR_TRUNCATED_WRONG_VALUE;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings; enable_warnings 1264;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings; enable_warnings ER_TRUNCATED_WRONG_VALUE,1264;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings; enable_warnings ERR_TRUNCATED_WRONG_VALUE;" | $MYSQL_TEST 2>&1
+
+# Test shouldn't end with disabled warnings
+--error 1
+--exec echo "disable_warnings;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings ER_TRUNCATED_WRONG_VALUE;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings; enable_warnings ER_TRUNCATED_WRONG_VALUE;" | $MYSQL_TEST 2>&1
+
+# If there exist disabled warnings, then a query should generate any of
+# the disabled warnings.
+--error 1
+--exec echo "disable_warnings ER_TRUNCATED_WRONG_VALUE; DROP TABLE IF EXISTS t2;" | $MYSQL_TEST 2>&1
+
+# Second argument to disable/enable_warnings command should always
+# be "ONCE" keyword.
+--error 1
+--exec echo "disable_warnings ER_WARN_DATA_OUT_OF_RANGE ONE;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings; enable_warnings ER_WARN_DATA_OUT_OF_RANGE TWICE;" | $MYSQL_TEST 2>&1
+
+# Warning list argument to disable/enable_warnings command can't
+# be an empty string
+--error 1
+--exec echo "disable_warnings \$ENABLED_WARNINGS_LIST;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "disable_warnings; enable_warnings \$DISABLED_WARNINGS_LIST;" | $MYSQL_TEST 2>&1
+
+# Query didn't generate any of the expected warning(s)
+--error 1
+--exec echo "disable_warnings ER_YES; DROP TABLE IF EXISTS t_unknown; enable_warnings;" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # BUG#28218057: ENABLE_WARNINGS WORKS WITH "ONCE" WITH FIRST ARGUMENT
+--echo #               OF WARNING LIST AS EMPTY
+--echo #
+
+--write_file $MYSQL_TMP_DIR/bug28218057.test
+--disable_warnings ER_NON_UNIQ_ERROR,ER_BAD_TABLE_ERROR
+--echo $DISABLED_WARNINGS_LIST
+DROP TABLE IF EXISTS t1;
+
+--enable_warnings $DISABLED_WARNINGS_LIST
+DROP TABLE IF EXISTS t1;
+
+# All the warnings are enabled, $DISABLED_WARNINGS_LIST should be empty
+--echo $DISABLED_WARNINGS_LIST
+
+# Warning list argument to command 'enable_warnings' can't be an empty string
+--enable_warnings $DISABLED_WARNINGS_LIST ONCE
+EOF
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQL_TMP_DIR/bug28218057.test 2>&1
+--remove_file $MYSQL_TMP_DIR/bug28218057.test
+
+--echo #
+--echo # BUG#28759823: DISABLE/ENABLE_WARNINGS COMMANDS SHOULDN'T ALLOW COMMA
+--echo #               AT THE END
+--echo #
+
+--error 1
+--exec echo "disable_warnings ER_YES,ER_NO,;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "enable_warnings ER_YES,ER_NO,;" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # BUG#28765320: REPEATED "--DISABLE_WARNINGS <WARN_1> ONCE" STATEMENT RESULTS
+--echo #               --DISABLE_WARNINGS
+--echo #
+
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+CREATE TABLE t1 (
+  c1 DOUBLE NOT NULL AUTO_INCREMENT,
+  c2 INT,
+  c3 DECIMAL(2) UNSIGNED,
+  c4 DECIMAL,
+  PRIMARY KEY (c1)
+);
+
+# Only ER_TRUNCATED_WRONG_VALUE should be disabled ONCE.
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE ONCE
+--disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE should be
+# disabled for the first INSERT statement.
+--disable_warnings ER_WARN_DATA_OUT_OF_RANGE
+--disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# Only ER_WARN_DATA_OUT_OF_RANGE should be disabled.
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+--enable_warnings
+
+# Only ER_TRUNCATED_WRONG_VALUE should be enabled.
+--disable_warnings
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE ONCE
+--enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE should be
+# enabled for the first INSERT statement.
+--enable_warnings ER_WARN_DATA_OUT_OF_RANGE
+--enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+# Only ER_WARN_DATA_OUT_OF_RANGE should be enabled.
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+
+--enable_warnings
+
+# Cleanup
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28235844: REPLACE THE HENRY SPENCER REGEX LIBRARY WITH STD::REGEX
+--echo #               IN MYSQLTEST
+--echo #
+
+# Some common regex errors :-
+
+# Disabling result log since the actual error message displayed
+# might vary on some platforms.
+--disable_result_log
+
+# Unclosed parenthesis, brackets or braces
+--error 1
+--exec echo "replace_regex /(a// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /a{b// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /(?:a()// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /[a-b][a// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+# Invalid use of quantifiers
+--error 1
+--exec echo "replace_regex /?/#/ ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /*/#/ ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /+/#/ ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+# Invalid ranges
+--error 1
+--exec echo "replace_regex /a{2,1}// ; SELECT 'a'; " | $MYSQL_TEST  2>&1
+
+--enable_result_log
+
+# Miscellaneous use cases
+
+# Using '-', '$', '.'  or '*' inside a character class with a non-range
+# context matches them literally
+--replace_regex /[a-]/#/
+SELECT 'b-','ab';
+--replace_regex /[.*$]/?/
+SELECT "$,*,." as escape_chars;
+
+# Using parenthesis as literals should be fine
+--replace_regex /\(/parenthesis/
+SELECT "(";
+
+--replace_regex /\[/bracket/
+SELECT "[";
+
+# Even null character and non-printable characters should
+# be matchable in replace_regex
+--replace_regex /\0/nul/ /[^ -~]/#/
+SELECT 0x00, 0xff;
+
+--replace_regex /\x00/nul/ /\xff/#/
+SELECT 0x00, 0xff;
+
+--replace_regex /\u0000/nul/
+SELECT 0x00;
+
+# Matching square brackets literally.
+--replace_regex /\[[^\]]+\]/#/
+SELECT "[ MY-012345 ]" as err;
+
+# Removing backslash needs escaping
+--replace_regex /[\\]/\//
+SELECT CONCAT('winpath','\\');
+
+# Patterns with assertions
+--replace_regex /^mt/#/
+SELECT "mtr";
+
+--replace_regex /^tr/#/
+SELECT "mtr";
+
+--replace_regex /tr$/#/
+SELECT "mtr";
+
+--replace_regex /mt$/#/
+SELECT "mtr";
+
+--replace_regex /ab(?=c)/#/
+SELECT "abc", "abd";
+
+--replace_regex /ab(?!c)/#/
+SELECT "abc", "abd";
+
+--replace_regex /words\b/#/ /for\b/#/
+SELECT "many words form a sentence" as text;
+
+--replace_regex /words\B/#/ /for\B/#/
+SELECT "many words form a sentence" as text;
+
+# Pattern with an alternative
+--replace_regex /(ab|ac)/#/
+SELECT "absolute", "accent";
+
+# Patterns with POSIX classes
+--replace_regex /[[:digit:]]/<digit>/ /^[[:upper:]]{3}$/<uppercase>/
+SELECT 1 as num, "abc" as lc, "ABC" as uc;
+
+--replace_regex /^[[:print:]]$/@/ /[^[:print:]]/#/
+SELECT 'a' as letter, 0x00 as nullchar, 0xff as nonprintable;
+
+--echo #
+--echo # BUG#28936083: MYSQLTEST.CC DOES NOT HANDLE MULTILINE SEND_EVAL CORRECTLY
+--echo #
+
+--let $my_stmt = SELECT 100 AS res
+
+--send_eval $my_stmt
+--reap
+
+--send_eval
+$my_stmt;
+--reap
+
+--send_eval
+--let $my_stmt = SELECT 200 AS res
+$my_stmt;
+--reap
+
+--let $val = 100
+
+--send_eval SELECT $val AS res;
+--reap
+
+--send_eval
+SELECT $val AS res;
+--reap
+
+--send_eval
+--let $val = 200
+SELECT $val AS res;
+--reap

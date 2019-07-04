@@ -83,7 +83,7 @@ class Sasl_challenge_response_auth : public ngs::Authentication_interface {
 
   ngs::Authentication_info get_authentication_info() const override {
     return m_auth_info;
-  };
+  }
 
  private:
   Account_verification_handler_ptr m_verification_handler;

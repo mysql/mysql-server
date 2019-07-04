@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,12 +55,16 @@
 #ifdef _WIN32
 
 #include <errno.h>
+#include <fcntl.h>
+#include <io.h>
 #include <share.h>
 #include <sys/stat.h>
 
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysys_priv.h"
 
 /* Associates a file descriptor with an existing operating-system file handle.*/

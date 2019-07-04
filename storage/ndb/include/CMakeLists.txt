@@ -100,12 +100,12 @@ SET(NDB_MGMAPI_HEADERS
 
 INSTALL(FILES ${NDB_GENERAL_HEADERS}
         DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
-        COMPONENT Developement)
+        COMPONENT Development)
 
 INSTALL(FILES ${NDB_NDBAPI_HEADERS}
         DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/ndbapi
-        COMPONENT Developement)
+        COMPONENT Development)
 
 INSTALL(FILES ${NDB_MGMAPI_HEADERS}
         DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
-        COMPONENT Developement)
+        COMPONENT Development)

@@ -1,15 +1,4 @@
-USE test;
-DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
-SHOW TABLES;
-Tables_in_test
-t_datetime
-t_gis
-t_num
-t_string_1
-t_string_2
-t_string_3
-t_string_4
-t_string_5
+# restart
 SHOW CREATE TABLE t_num;
 Table	Create Table
 t_num	CREATE TABLE `t_num` (
@@ -28,17 +17,14 @@ t_num	CREATE TABLE `t_num` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_datetime;
-Table	Create Table
-t_datetime	CREATE TABLE `t_datetime` (
-  `t_pk` int(11) NOT NULL,
-  `t_test` int(11) DEFAULT NULL,
-  `t_date` date DEFAULT NULL,
-  `t_datetime` datetime DEFAULT NULL,
-  `t_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `t_time` time DEFAULT NULL,
-  `t_year` year(4) DEFAULT NULL,
-  PRIMARY KEY (`t_pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t_datetime' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SHOW CREATE TABLE t_string_1;
 Table	Create Table
 t_string_1	CREATE TABLE `t_string_1` (
@@ -78,7 +64,7 @@ t_gis	CREATE TABLE `t_gis` (
   `t_multipoint` multipoint DEFAULT NULL,
   `t_multilinestring` multilinestring DEFAULT NULL,
   `t_multipolygon` multipolygon DEFAULT NULL,
-  `t_geometrycollection` geometrycollection DEFAULT NULL,
+  `t_geometrycollection` geomcollection DEFAULT NULL,
   `t_geometry` geometry DEFAULT NULL,
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -109,9 +95,14 @@ t_string_5	CREATE TABLE `t_string_5` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t_datetime ORDER by t_pk;
-t_pk	t_test	t_date	t_datetime	t_timestamp	t_time	t_year
-1	1	1998-01-01	2006-08-10 10:11:12	2002-10-29 16:51:06	19:38:34	2155
-2	1	1998-01-01	2006-08-10 10:11:12	2002-10-29 16:51:06	19:38:34	2155
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t_datetime' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SELECT t_pk,t_test,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num ORDER by t_pk;
 t_pk	t_test	hex(t_bit)	t_tinyint	t_bool	t_smallint	t_mediumint	t_int	t_bigint	t_float	t_double	t_decimal
 1	1	AAAAAAAAAAAAAAAA	125	1	32765	8388606	2147483647	9223372036854775807	1e20	1e150	331.0000000000000000
@@ -153,23 +144,13 @@ SELECT t_pk,LENGTH(t_longblob),LENGTH(t_longtext) FROM t_string_5 ORDER BY t_pk;
 t_pk	LENGTH(t_longblob)	LENGTH(t_longtext)
 1	131072	131072
 2	131072	131072
-DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
+DROP TABLE t_num,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat';
 DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
-ENGINE =NDB;
-USE test;
-SHOW TABLES;
-Tables_in_test
-t_datetime
-t_gis
-t_num
-t_string_1
-t_string_2
-t_string_3
-t_string_4
-t_string_5
+ENGINE NDB;
+# restart
 SHOW CREATE TABLE t_num;
 Table	Create Table
 t_num	CREATE TABLE `t_num` (
@@ -188,17 +169,14 @@ t_num	CREATE TABLE `t_num` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_datetime;
-Table	Create Table
-t_datetime	CREATE TABLE `t_datetime` (
-  `t_pk` int(11) NOT NULL,
-  `t_test` int(11) DEFAULT NULL,
-  `t_date` date DEFAULT NULL,
-  `t_datetime` datetime DEFAULT NULL,
-  `t_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `t_time` time DEFAULT NULL,
-  `t_year` year(4) DEFAULT NULL,
-  PRIMARY KEY (`t_pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t_datetime' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SHOW CREATE TABLE t_string_1;
 Table	Create Table
 t_string_1	CREATE TABLE `t_string_1` (
@@ -238,7 +216,7 @@ t_gis	CREATE TABLE `t_gis` (
   `t_multipoint` multipoint DEFAULT NULL,
   `t_multilinestring` multilinestring DEFAULT NULL,
   `t_multipolygon` multipolygon DEFAULT NULL,
-  `t_geometrycollection` geometrycollection DEFAULT NULL,
+  `t_geometrycollection` geomcollection DEFAULT NULL,
   `t_geometry` geometry DEFAULT NULL,
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -269,9 +247,14 @@ t_string_5	CREATE TABLE `t_string_5` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t_datetime ORDER by t_pk;
-t_pk	t_test	t_date	t_datetime	t_timestamp	t_time	t_year
-1	1	1998-01-01	2006-08-10 10:11:12	2002-10-29 16:51:06	19:38:34	2155
-2	1	1998-01-01	2006-08-10 10:11:12	2002-10-29 16:51:06	19:38:34	2155
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
+Error	1146	Table 'test.t_datetime' doesn't exist
+Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 SELECT t_pk,t_test,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num ORDER by t_pk;
 t_pk	t_test	hex(t_bit)	t_tinyint	t_bool	t_smallint	t_mediumint	t_int	t_bigint	t_float	t_double	t_decimal
 1	1	AAAAAAAAAAAAAAAA	125	1	32765	8388606	2147483647	9223372036854775807	1e20	1e150	331.0000000000000000
@@ -313,9 +296,9 @@ SELECT t_pk,LENGTH(t_longblob),LENGTH(t_longtext) FROM t_string_5 ORDER BY t_pk;
 t_pk	LENGTH(t_longblob)	LENGTH(t_longtext)
 1	131072	131072
 2	131072	131072
-DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
+DROP TABLE t_num,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat';
 DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
-ENGINE =NDB;
+ENGINE NDB;

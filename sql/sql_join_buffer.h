@@ -1,7 +1,7 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -492,7 +492,7 @@ class JOIN_CACHE : public QEP_operation {
   }
 
   /// Join records from the join buffer with records from the next join table.
-  enum_nested_loop_state end_send() { return join_records(false); };
+  enum_nested_loop_state end_send() { return join_records(false); }
   enum_nested_loop_state join_records(bool skip_last);
 
   enum_op_type type() { return OT_CACHE; }

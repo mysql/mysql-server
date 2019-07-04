@@ -1,7 +1,7 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,12 +168,7 @@ class Inplace_vector {
                objects at the tail are removed and destroyed. If greater,
                new objects are added with default value.
     @param val default value assigned to extended slots in the vector. Unused
-               if the vector is shrinked. We have to define a const reference
-               instead of passing by value because MSVC on 32bit Windows
-               doesn't allow formal parameter to have alignment specification
-               (error C2719) as defined in my_aligned_storage but in
-               Geometry_buffer and potentially more classes in future,
-               we do use alignement specification.
+               if the vector is shrinked.
     @return true if out of memory; false if successful.
     */
   bool resize(size_t new_size, const objtype &val = objtype()) {

@@ -1,0 +1,95 @@
+########################################################################
+# This test scripts covers meta data related aspects of upgrade
+# after 8.0. For upgrade from 5.7 to 8.0, see dd_upgrade_test.
+########################################################################
+########################################################################
+# Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS
+#               SQL_MODE ALLOW_INVALID_DATES
+########################################################################
+########################################################################
+# Copy and unzip the datadir, and stop the server.
+########################################################################
+########################################################################
+# Restart the server to trigger upgrade.
+########################################################################
+########################################################################
+# Verify that the entities have retained the SQL mode.
+########################################################################
+USE test;
+SHOW CREATE EVENT eve;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+eve	ALLOW_INVALID_DATES	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `eve` ON SCHEDULE EVERY 1 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE p;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`(OUT t DATETIME)
+SELECT now() INTO t	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE TRIGGER trg;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+trg	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` TRIGGER `trg` BEFORE INSERT ON `t` FOR EACH ROW SET @i = 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+########################################################################
+# Stop the server and do cleanup.
+########################################################################
+# restart
+#-----------------------------------------------------------------------
+# WL#929: CHECK Constraint
+#         Test case to verify upgrade from version before check
+#         constraint suppport.
+#-----------------------------------------------------------------------
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop DB server which was created by MTR default
+# Start the DB server
+USE test;
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
+# After upgrade CHECK_CONSTRAINTS table should be present and should list
+# check constraints.
+SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
+def	test	t1_chk_1	(`f1` < 10)
+# After upgrade TABLE_CONSTRAINTS should list check constraints.
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test	t1_chk_1	test	t1	CHECK	YES
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (100);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+# Stop the server and do cleanup
+# Remove copied files
+# Restart the server with default options.
+# restart
+#
+# Bug#28901821 - AFTER UPGRADE TO 8.0.13, SYS SCHEMA VIEWS ARE LISTED AS INVALID
+#                IN I_S.TABLES
+#
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop DB server which was created by MTR default
+# Start the DB server
+# Without fix, following views are listed as invalid.
+SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 'schema_auto_increment_columns' OR
+TABLE_NAME = 'schema_object_overview' OR
+TABLE_NAME = 'schema_redundant_indexes' OR
+TABLE_NAME = 'schema_unused_indexes' OR
+TABLE_NAME = 'x$schema_flattened_keys'
+         ORDER BY TABLE_NAME;
+TABLE_NAME	TABLE_COMMENT
+schema_auto_increment_columns	VIEW
+schema_object_overview	VIEW
+schema_redundant_indexes	VIEW
+schema_unused_indexes	VIEW
+x$schema_flattened_keys	VIEW
+# Stop the server and do cleanup.
+# Remove copied files
+# Restart the server with default options.
+# restart

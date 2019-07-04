@@ -56,6 +56,7 @@ TODO:
 #include <algorithm>
 
 #include "map_helpers.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
@@ -479,13 +480,12 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
       chain_alloced(0),
       chain_size(DEFAULT_CHAIN_LENGTH),
       local_data_file_version(0),
-      records_is_known(0) {
+      records_is_known(0),
+      blobroot(csv_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE) {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, &my_charset_bin);
   chain = chain_buffer;
   file_buff = new Transparent_file();
-  init_alloc_root(csv_key_memory_blobroot, &blobroot, BLOB_MEMROOT_ALLOC_SIZE,
-                  0);
 }
 
 /*
@@ -604,7 +604,8 @@ int ha_tina::find_current_row(uchar *buf) {
   bool read_all;
   DBUG_ENTER("ha_tina::find_current_row");
 
-  free_root(&blobroot, MYF(0));
+  // Clear BLOB data from the previous row.
+  blobroot.ClearForReuse();
 
   /*
     We do not read further then local_saved_data_file_length in order
@@ -744,17 +745,19 @@ int ha_tina::find_current_row(uchar *buf) {
         if (!is_enum) goto err;
       }
       if ((*field)->flags & BLOB_FLAG) {
-        Field_blob *blob = *(Field_blob **)field;
-        uchar *src, *tgt;
-        uint length, packlength;
-
-        packlength = blob->pack_length_no_ptr();
-        length = blob->get_length(blob->ptr);
-        memcpy(&src, blob->ptr + packlength, sizeof(char *));
-        if (src) {
-          tgt = (uchar *)alloc_root(&blobroot, length);
-          memmove(tgt, src, length);
-          memcpy(blob->ptr + packlength, &tgt, sizeof(char *));
+        Field_blob *blob_field = down_cast<Field_blob *>(*field);
+        size_t length = blob_field->get_length(blob_field->ptr);
+        // BLOB data is not stored inside buffer. It only contains a
+        // pointer to it. Copy the BLOB data into a separate memory
+        // area so that it is not overwritten by subsequent calls to
+        // Field::store() after moving the offset.
+        if (length > 0) {
+          unsigned char *old_blob;
+          blob_field->get_ptr(&old_blob);
+          unsigned char *new_blob = new (&blobroot) unsigned char[length];
+          if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+          memcpy(new_blob, old_blob, length);
+          blob_field->set_ptr(length, new_blob);
         }
       }
     }
@@ -1198,7 +1201,7 @@ int ha_tina::rnd_end() {
   my_off_t file_buffer_start = 0;
   DBUG_ENTER("ha_tina::rnd_end");
 
-  free_root(&blobroot, MYF(0));
+  blobroot.Clear();
   records_is_known = 1;
 
   if ((chain_ptr - chain) > 0) {
@@ -1373,7 +1376,7 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
     current_position = next_position;
   }
 
-  free_root(&blobroot, MYF(0));
+  blobroot.Clear();
 
   my_free(buf);
 
@@ -1566,7 +1569,7 @@ int ha_tina::check(THD *thd, HA_CHECK_OPT *) {
     current_position = next_position;
   }
 
-  free_root(&blobroot, MYF(0));
+  blobroot.Clear();
 
   my_free(buf);
   thd_proc_info(thd, old_proc_info);

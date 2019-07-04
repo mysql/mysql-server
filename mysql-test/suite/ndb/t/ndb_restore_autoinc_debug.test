@@ -1,0 +1,70 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--echo Check some behaviours around restoring autoinc
+--echo tables where autoinc values are used in the log
+
+use test;
+
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+
+insert into test.t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+insert into test.t2 (b) values (1), (2);
+
+--echo Cause backup stall
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+insert into test.t1 (b) values (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+insert into test.t2 (b) values (3), (4);
+
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+drop table test.t1;
+drop table test.t2;
+
+--echo Recreate tables in opposite order so they swap table ids
+
+create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+
+--echo Restore data in order 1,2
+--echo Node 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--echo Node 2
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Check restored auto-inc metadata :
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+
+drop table test.t1;
+drop table test.t2;
+
+--echo Recreate tables in opposite order so they swap table ids
+
+create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+
+--echo Restore data in order 2,1
+--echo Node 2
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--echo Node 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Check restored auto-inc metadata :
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+
+drop table test.t1;
+drop table test.t2;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

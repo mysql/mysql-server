@@ -37,6 +37,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
+#include "violite.h"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>

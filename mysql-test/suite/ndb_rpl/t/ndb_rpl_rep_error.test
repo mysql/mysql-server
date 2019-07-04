@@ -448,10 +448,8 @@ drop database europesouth;
 drop database usnorth;
 drop database ussouth;
 
+# cleanup
 --disable_query_log
---sync_slave_with_master
-stop slave;
 drop table mysql.ndb_replication;
---connection master
-drop table mysql.ndb_replication;
+--source include/rpl_end.inc
 --enable_query_log

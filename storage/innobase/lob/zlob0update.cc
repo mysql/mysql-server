@@ -331,4 +331,4 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   DBUG_RETURN(ret);
 }
 
-}; /* namespace lob */
+} /* namespace lob */

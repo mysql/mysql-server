@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-// ensure windows.h doesn't expose min() nor max()
-#define NOMINMAX
-#endif
-
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
@@ -35,11 +30,12 @@
 #include "my_rapidjson_size_t.h"
 #endif
 
+#include <rapidjson/document.h>
 #include "dim.h"
 #include "gmock/gmock.h"
+#include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql_session.h"
-#include "rapidjson/document.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -47,8 +43,6 @@
 
 Path g_origin_path;
 
-static constexpr const char kMockServerGlobalsRestUri[] =
-    "/api/v1/mock_server/globals/";
 static constexpr const char kMockServerConnectionsRestUri[] =
     "/api/v1/mock_server/connections/";
 static constexpr const char kMockServerInvalidRestUri[] =
@@ -73,7 +67,7 @@ class RestMockServerTest : public RouterComponentTest, public ::testing::Test {
   RestMockServerTest() {
     set_origin(g_origin_path);
 
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 
   /**
@@ -128,8 +122,8 @@ class RestMockServerScriptTest : public RestMockServerTest {
         << server_mock_.get_full_output();
   }
 
-  const unsigned server_port_;
-  const unsigned http_port_;
+  const uint16_t server_port_;
+  const uint16_t http_port_;
   const std::string json_stmts_;
 
   RouterComponentTest::CommandHandle server_mock_;
@@ -137,7 +131,7 @@ class RestMockServerScriptTest : public RestMockServerTest {
 
 class RestMockServerScriptsWorkTest
     : public RestMockServerTest,
-      public ::testing::WithParamInterface<std::tuple<const char *>> {};
+      public ::testing::WithParamInterface<std::string> {};
 
 class RestMockServerScriptsThrowsTest
     : public RestMockServerTest,
@@ -209,6 +203,105 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
   json_doc.Parse(json_payload.c_str());
 
   EXPECT_TRUE(!json_doc.HasParseError()) << json_payload;
+}
+
+template <typename T>
+std::string unit();
+
+template <>
+std::string unit<std::chrono::seconds>() {
+  return "s";
+}
+
+template <>
+std::string unit<std::chrono::milliseconds>() {
+  return "ms";
+}
+
+template <>
+std::string unit<std::chrono::microseconds>() {
+  return "us";
+}
+
+template <>
+std::string unit<std::chrono::nanoseconds>() {
+  return "ns";
+}
+
+// must be defined in the same namespace as the type we want to convert
+namespace std {
+
+// add to-stream method for all durations for pretty printing
+template <class Rep, class Per>
+void PrintTo(const chrono::duration<Rep, Per> &span, std::ostream *os) {
+  *os << span.count() << unit<typename std::decay<decltype(span)>::type>();
+}
+
+}  // namespace std
+
+/**
+ * test handshake's exec_time can be set via globals.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  // handshake exec_time to test
+  const auto kDelay = std::chrono::milliseconds{100};
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname, http_port_);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
+                                           kMockServerMaxRestEndpointWaitTime))
+      << server_mock_.get_full_output();
+
+  SCOPED_TRACE("// make a http connections");
+  auto req = rest_client.request_sync(
+      HttpMethod::Put, http_uri,
+      "{\"connect_exec_time\": " + std::to_string(kDelay.count()) + "}");
+
+  SCOPED_TRACE("// checking HTTP response");
+  ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
+                   << std::to_string(http_port_)
+                   << " failed (early): " << req.error_msg() << std::endl
+                   << server_mock_.get_full_output() << std::endl;
+
+  ASSERT_GT(req.get_response_code(), 0u)
+      << "HTTP Request to " << http_hostname << ":"
+      << std::to_string(http_port_) << " failed: " << req.error_msg()
+      << std::endl
+      << server_mock_.get_full_output() << std::endl;
+
+  EXPECT_EQ(req.get_response_code(), 204u);
+
+  auto resp_body = req.get_input_buffer();
+  EXPECT_EQ(resp_body.length(), 0u);
+
+  SCOPED_TRACE("// slow connect");
+  auto start_tp = std::chrono::steady_clock::now();
+  {
+    mysqlrouter::MySQLSession client;
+
+    SCOPED_TRACE("// connecting via mysql protocol");
+    ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
+                                   "password", "", ""))
+        << server_mock_.get_full_output();
+  }
+
+  // this test is very vague on how to write a stable test:
+  //
+  // on a slow box creating the TCP connection itself may be slow
+  // which may make the test positive even though exec_time was not honoured.
+  //
+  // On the other side we can't compare the timespan against
+  // a non-delayed connect as the external connect time depends
+  // on what else happens on the system while the tests are running
+  EXPECT_GT(std::chrono::steady_clock::now() - start_tp, kDelay);
 }
 
 /**
@@ -855,6 +948,15 @@ TEST_F(RestMockServerRestServerMockTest, select_port) {
   });
 }
 
+// make pretty param-names
+static std::string sanitize_param_name(const std::string &name) {
+  std::string p{name};
+  for (auto &c : p) {
+    if (!isalpha(c) && !isdigit(c)) c = '_';
+  }
+  return p;
+}
+
 /**
  * ensure connect returns error.
  *
@@ -894,8 +996,16 @@ INSTANTIATE_TEST_CASE_P(
                         "expected 'stmts' to be"),  // WL11861 TS-1_4
         std::make_tuple("js_test_empty_file.js",
                         "expected statement handler to return an object, got "
-                        "primitive, undefined")  // WL11861 TS-1_4
-        ));
+                        "primitive, undefined"),  // WL11861 TS-1_4
+        std::make_tuple("js_test_handshake_greeting_exec_time_is_empty.js",
+                        "exec_time must be a number, if set. Is object"),
+        std::make_tuple(
+            "js_test_handshake_is_string.js",
+            "handshake must be a object, if set. Is primitive, string")),
+    [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
+           &info) -> std::string {
+      return sanitize_param_name(std::get<0>(info.param));
+    });
 
 /**
  * ensure int fields in 'columns' can't be negative.
@@ -943,7 +1053,11 @@ INSTANTIATE_TEST_CASE_P(
                         "repeat is not supported"),  // WL11861 TS-1_5
         std::make_tuple("js_test_stmts_is_empty.js",
                         "executing statement failed: Unsupported command in "
-                        "handle_statement()")));
+                        "handle_statement()")),
+    [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
+           &info) -> std::string {
+      return sanitize_param_name(std::get<0>(info.param));
+    });
 
 /**
  * ensure script works.
@@ -956,8 +1070,7 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
 
   const unsigned server_port = port_pool_.get_next_available();
   const unsigned http_port = port_pool_.get_next_available();
-  const std::string json_stmts =
-      get_data_dir().join(std::get<0>(GetParam())).str();
+  const std::string json_stmts = get_data_dir().join(GetParam()).str();
   auto server_mock =
       launch_mysql_server_mock(json_stmts, server_port, false, http_port);
 
@@ -979,11 +1092,16 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
 
 INSTANTIATE_TEST_CASE_P(
     ScriptsWork, RestMockServerScriptsWorkTest,
-    ::testing::Values(std::make_tuple("metadata_3_secondaries.js"),
-                      std::make_tuple("simple-client.js"),
-                      std::make_tuple("js_test_stmts_is_array.js"),
-                      std::make_tuple("js_test_stmts_is_coroutine.js"),
-                      std::make_tuple("js_test_stmts_is_function.js")));
+    ::testing::Values("metadata_3_secondaries.js", "simple-client.js",
+                      "js_test_handshake_is_empty.js",
+                      "js_test_handshake_greeting_is_empty.js",
+                      "js_test_handshake_greeting_exec_time_is_number.js",
+                      "js_test_stmts_is_array.js",
+                      "js_test_stmts_is_coroutine.js",
+                      "js_test_stmts_is_function.js"),
+    [](const ::testing::TestParamInfo<std::string> &info) -> std::string {
+      return sanitize_param_name(info.param);
+    });
 
 static void init_DIM() {
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
@@ -998,12 +1116,11 @@ static void init_DIM() {
   );
   mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
-  mysql_harness::logging::g_HACK_default_log_level = "warning";
-  mysql_harness::Config config;
-  mysql_harness::logging::init_loggers(
-      registry, config, {mysql_harness::logging::kMainLogger, "sql"},
+  mysql_harness::logging::create_module_loggers(
+      registry, mysql_harness::logging::LogLevel::kWarning,
+      {mysql_harness::logging::kMainLogger, "sql"},
       mysql_harness::logging::kMainLogger);
-  mysql_harness::logging::create_main_logfile_handler(registry, "", "", true);
+  mysql_harness::logging::create_main_log_handler(registry, "", "", true);
 
   registry.set_ready();
 }

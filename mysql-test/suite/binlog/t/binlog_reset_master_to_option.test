@@ -3,14 +3,17 @@
 # This test will pass a new parameter to the already exisiting command
 # RESET MASTER, and will test the expected output and the corner cases.
 #
-# ==== Related Worklog ====
+# ==== References ====
 #
-# WL9110:Add RESET MASTER TO x to allow specification of binlog file number
-#
+# WL9110: Add RESET MASTER TO x to allow specification of binlog file number
+# Bug#28980788: RESET MASTER TO ALLOWS INVALID INPUT WITHOUT ERROR'S,
+#               CAN LEAD TO SERVER HALTS
+
 # This test case is binary log format agnostic
 --source include/have_binlog_format_mixed.inc
+--source include/force_restart.inc
 
-# This is to suppress the warning while testing with binlog index number 2147483645
+# This is to suppress the warnings generated after extension boundary value is reached.
 call mtr.add_suppression("Next log extension.* Remaining log filename extensions.");
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -44,15 +47,23 @@ RESET MASTER TO 1.023;
 --error ER_PARSE_ERROR
 RESET MASTER TO -123;
 
-# 3) Test with numbers > 2^31 - 1, as that is the limit for binary log file index
+# 3) Test with 2 billion, as that is the limit for binary log file index
 # Check with numbers around the upper limit to show it passes.
-RESET MASTER TO 2147483647;
---let $binlog_number= 2147483647
+RESET MASTER TO 2000000000;
+--let $binlog_number= 2000000000
 --source suite/binlog/include/binlog_reset_master_to_option.inc
 
-# Checking with 2^31 - 1
--- error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
-RESET MASTER TO 2147483648;
+# Checking with 2000000001
+--error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+RESET MASTER TO 2000000001;
+
+# Checking with a value > 32 bit
+--error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+RESET MASTER TO 5000000000;
+
+# Checking with a value > 64 bit
+--error ER_PARSE_ERROR
+RESET MASTER TO 20000000000000000000;
 
 # 4) Test with 0
 --error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
@@ -100,15 +111,27 @@ RESET MASTER TO 0xFFFF;
 --let $binlog_number= 065535
 --source suite/binlog/include/binlog_reset_master_to_option.inc
 
+-- error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
 RESET MASTER TO 0x7FFFFFFF;
---let $binlog_number= 2147483647
---source suite/binlog/include/binlog_reset_master_to_option.inc
 
 # 9) Check with function
 
 CREATE FUNCTION f1(a int) RETURNS INT RETURN (a+10);
 --error ER_PARSE_ERROR
 RESET MASTER TO f1(3);
+
+# Verify that warnings are printed in the error log after extension
+# boundary value is reached.
+RESET MASTER TO 2000000000;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+
+--let $assert_only_after=CURRENT_TEST: binlog.binlog_reset_master_to_option
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/binlog_reset_master_to_option.err
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Next log extension: .* Please consider archiving some logs.
+--let $assert_text= Found the expected log exhaustion warnings in the error log.
+--let $assert_count= 2
+--source include/assert_grep.inc
 
 # Clean Up
 DROP USER 'user1'@'localhost';

@@ -146,7 +146,6 @@ INSERT INTO t2(ParId) VALUES(1), (2), (3);
 
 select * from t2;
 
---disable_warnings ONCE
 UPDATE t2, t1 SET t2.tst = t1.tst, t2.tst1 = t1.tst1 WHERE t2.ParId = t1.Id;
 
 select * from t2;
@@ -309,7 +308,6 @@ drop table t1,t2;
 
 create table t1 (a int not null auto_increment primary key, b int not null);
 insert into t1 (b) values (1),(2),(3),(4);
---disable_warnings ONCE
 update t1, t1 as t2 set t1.b=t2.b+1 where t1.a=t2.a;
 select * from t1;
 drop table t1;
@@ -367,7 +365,6 @@ create table `t2` (`c2_id` int(10) unsigned NOT NULL auto_increment, `c2_p_id` i
 insert into t1 values (0,'A01-Comp',1);
 insert into t1 values (0,'B01-Comp',1);
 insert into t2 values (0,1,'A Note',1);
---disable_warnings ONCE
 update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2;
 select * from t1;
 select * from t2;
@@ -653,11 +650,20 @@ set @@optimizer_switch=@optimizer_switch_saved;
 set @optimizer_switch_saved=@@optimizer_switch;
 set optimizer_switch='derived_merge=off';
 
-CREATE FUNCTION f1 () RETURNS BLOB RETURN 1;
+# Updated the test case with another one provided in the bug report
+# as the previous case returns error now, due to invalid date
+
+CREATE FUNCTION f1 () RETURNS BLOB RETURN '2011-01-01';
 CREATE TABLE t1 (f1 DATE);
 INSERT INTO t1 VALUES('2001-01-01');
-UPDATE IGNORE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
+UPDATE IGNORE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = '2011-01-01';
 DROP FUNCTION f1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a TEXT, FULLTEXT(a)) engine = blackhole;
+--disable_warnings
+UPDATE IGNORE (SELECT 1 FROM t1 WHERE(MATCH(a) AGAINST(''))) `x`,`t1` SET a = 1;
+--enable_warnings
 DROP TABLE t1;
 
 set @@optimizer_switch=@optimizer_switch_saved;

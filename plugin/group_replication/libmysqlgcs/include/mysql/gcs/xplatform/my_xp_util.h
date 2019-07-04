@@ -173,14 +173,14 @@ class My_xp_socket_util {
 
   virtual int disable_nagle_in_socket(int fd) = 0;
 
-  virtual ~My_xp_socket_util(){};
+  virtual ~My_xp_socket_util() {}
 };
 
 class My_xp_socket_util_impl : public My_xp_socket_util {
  public:
   int disable_nagle_in_socket(int fd);
-  explicit My_xp_socket_util_impl(){};
-  ~My_xp_socket_util_impl(){};
+  explicit My_xp_socket_util_impl() {}
+  ~My_xp_socket_util_impl() {}
 };
 
 #endif  // MY_XP_UTIL_INCLUDED

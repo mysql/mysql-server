@@ -1,7 +1,6 @@
 #ifndef NT_SERVC_INCLUDED
 #define NT_SERVC_INCLUDED
 
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #ifdef StartService
@@ -51,26 +50,26 @@ class NTService {
   int nError;
   DWORD dwState;
 
-  BOOL GetOS();  // returns TRUE if WinNT
+  BOOL GetOS() noexcept;  // returns TRUE if WinNT
   BOOL IsNT() { return bOsNT; }
   // init service entry point
   long Init(LPCSTR szInternName, void *ServiceThread,
-            void (*fpReqAppShutdownCb)());
+            void (*fpReqAppShutdownCb)()) noexcept;
 
   // application shutdown event
-  void SetShutdownEvent(HANDLE hEvent) { hShutdownEvent = hEvent; }
+  void SetShutdownEvent(HANDLE hEvent) noexcept { hShutdownEvent = hEvent; }
 
   // service install / un-install
   BOOL Install(int startType, LPCSTR szInternName, LPCSTR szDisplayName,
                LPCSTR szFullPath, LPCSTR szAccountName = NULL,
-               LPCSTR szPassword = NULL);
+               LPCSTR szPassword = NULL) noexcept;
   BOOL SeekStatus(LPCSTR szInternName, int OperationType);
   BOOL Remove(LPCSTR szInternName);
   BOOL is_super_user();
 
   // running
   BOOL got_service_option(char **argv, char *service_option);
-  BOOL IsService(LPCSTR ServiceName);
+  static BOOL IsService(LPCSTR ServiceName) noexcept;
 
   /*
     SetRunning() is to be called by the application

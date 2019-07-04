@@ -146,7 +146,9 @@ TABLE_INFO
 PartitionCount: 8
 Table: test.t6
 HashMap: DEFAULT-HASHMAP-3840-8
+
 HashMap: DEFAULT-HASHMAP-3840-8
+
 HashMap: DEFAULT-HASHMAP-3840-8
 *  1006: Illegal reply from server
 *        error: -2

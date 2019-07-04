@@ -125,15 +125,27 @@ int Server_ongoing_transactions_handler::
   return error;
 }
 
+/*
+  These methods are necessary to fulfil the Group_transaction_listener
+  interface.
+*/
+/* purecov: begin inspected */
+int Server_ongoing_transactions_handler::before_transaction_begin(
+    my_thread_id, ulong, ulong, enum_rpl_channel_type) {
+  return 0;
+}
+
 int Server_ongoing_transactions_handler::before_commit(
     my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0; /* purecov: inspected */
+  return 0;
 }
 
 int Server_ongoing_transactions_handler::before_rollback(
     my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0; /* purecov: inspected */
+  return 0;
 }
+/* purecov: end */
+
 int Server_ongoing_transactions_handler::after_rollback(
     my_thread_id thread_id) {
   mysql_mutex_lock(&query_wait_lock);
@@ -141,7 +153,8 @@ int Server_ongoing_transactions_handler::after_rollback(
   mysql_mutex_unlock(&query_wait_lock);
   return 0;
 }
-int Server_ongoing_transactions_handler::after_commit(my_thread_id thread_id) {
+int Server_ongoing_transactions_handler::after_commit(my_thread_id thread_id,
+                                                      rpl_sidno, rpl_gno) {
   mysql_mutex_lock(&query_wait_lock);
   thread_ids_finished.push(thread_id);
   mysql_mutex_unlock(&query_wait_lock);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
 #define PLUGIN_PROTOCOL_INCLUDED
 
 #ifndef MYSQL_ABI_CHECK
-#include "binary_log_types.h" /* enum_field_types */
-#include "mysql_com.h"        /* mysql_enum_shutdown_level */
+#include "field_types.h" /* enum_field_types */
+#include "mysql_com.h"   /* mysql_enum_shutdown_level */
 #endif
 
 /**

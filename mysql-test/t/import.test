@@ -191,7 +191,9 @@ EOF
 --echo # Copy SDI file back into data dir
 --copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1_.sdi
 
---error ER_IMP_INCOMPATIBLE_SDI_VERSION
+# List error twice to avoid echoing error message, which will contain the
+# current server version number
+--error ER_IMP_INCOMPATIBLE_SDI_VERSION,ER_IMP_INCOMPATIBLE_SDI_VERSION
 IMPORT TABLE FROM 't1_.sdi';
 DROP TABLE t1;
 --remove_files_wildcard $EXPORT_DIR *
@@ -646,6 +648,20 @@ IMPORT TABLE FROM 't1_*.sdi';
 SET SESSION sql_require_primary_key= OFF;
 --echo # Clean SDI files in \$EXPORT_DIR
 --remove_files_wildcard $EXPORT_DIR t*
+
+--echo #-----------------------------------------------------------------------
+--echo # WL#929 - Check constraint.
+--echo # Test case to verify check constraint import from SDI.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10)) ENGINE=MyISAM;
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $MYSQL_TMP_DIR/ t*
+DROP TABLE t1;
+--copy_files_wildcard $MYSQL_TMP_DIR/ $MYSQLD_DATADIR/test/ t*
+IMPORT TABLE FROM 'test/t1*.sdi';
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--remove_files_wildcard $MYSQL_TMP_DIR/ t*
 
 --echo # Remove 'export' folder created at the beginning of test file.
 --force-rmdir $EXPORT_DIR

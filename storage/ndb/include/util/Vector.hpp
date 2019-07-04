@@ -37,7 +37,7 @@ public:
 
   T& operator[](unsigned i);
   const T& operator[](unsigned i) const;
-  unsigned size() const { return m_size; };
+  unsigned size() const { return m_size; }
   
   int push_back(const T &);
   int push(const T&, unsigned pos);
@@ -321,7 +321,7 @@ public:
 
   T& operator[](unsigned i);
   const T& operator[](unsigned i) const;
-  unsigned size() const { return m_size; };
+  unsigned size() const { return m_size; }
   
   int push_back(const T &);
   int push_back(const T &, bool lockMutex);

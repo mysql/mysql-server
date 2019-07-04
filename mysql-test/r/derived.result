@@ -544,12 +544,12 @@ m
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 # Ref access to the derived table should be used.
-EXPLAIN SELECT table1 . o1 
-FROM C table1  
-JOIN ( C table2  
-JOIN ( SELECT * FROM cc ) table3  
-ON table3 .`i1`  = table2 .o1  
-) ON table3 .`i2`  = table2 .o1   
+EXPLAIN SELECT table1 . o1
+FROM C table1
+JOIN ( C table2
+JOIN ( SELECT * FROM cc ) table3
+ON table3 .`i1`  = table2 .o1
+) ON table3 .`i2`  = table2 .o1
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -558,6 +558,18 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	cc	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 'm' AS `o1` from (/* select#2 */ select `test`.`cc`.`i1` AS `i1`,`test`.`cc`.`i2` AS `i2` from `test`.`cc`) `table3` where ((`table3`.`i2` = 'm') and (`table3`.`i1` = 'm'))
+EXPLAIN FORMAT=tree SELECT table1 . o1
+FROM C table1
+JOIN ( C table2
+JOIN ( SELECT * FROM cc ) table3
+ON table3 .`i1`  = table2 .o1
+) ON table3 .`i2`  = table2 .o1
+;
+EXPLAIN
+-> Index lookup on table3 using <auto_key0> (i1='m', i2='m')
+    -> Materialize
+        -> Table scan on cc
+
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE cc;
 DROP TABLE C;
@@ -1482,7 +1494,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk` from ((/* select#3 */ select count(`test`.`t2`.`col_varchar_nokey`) AS `COUNT(col_varchar_nokey)` from `test`.`t2`) `d`) where (`d`.`COUNT(col_varchar_nokey)` = 2)
+Note	1003	/* select#1 */ select '1' AS `pk` from <constant table> semi join ((/* select#3 */ select count(`test`.`t2`.`col_varchar_nokey`) AS `COUNT(col_varchar_nokey)` from `test`.`t2`) `d`) where (`d`.`COUNT(col_varchar_nokey)` = 2)
 DROP TABLE t1,t2;
 #
 #
@@ -2009,7 +2021,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'grandparent.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'grandparent.col_int_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `grandparent`.`col_varchar_nokey` AS `g1` from (/* select#2 */ select `test`.`t3`.`col_int_key` AS `col_int_key`,`test`.`t3`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t3`) `grandparent` semi join ((/* select#6 */ select 'r' AS `col_varchar_key`,'r' AS `col_varchar_nokey` from dual) `child1` left join (/* select#7 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `child2` on((`child1`.`col_varchar_nokey` <> `child2`.`col_varchar_key`)) join (/* select#4 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `parent`) where ((`parent`.`col_varchar_key` = `grandparent`.`col_varchar_nokey`) and (`child1`.`col_varchar_key` = `grandparent`.`col_varchar_key`) and isnull(`grandparent`.`col_int_key`)) order by `grandparent`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `grandparent`.`col_varchar_nokey` AS `g1` from (/* select#2 */ select `test`.`t3`.`col_int_key` AS `col_int_key`,`test`.`t3`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t3`) `grandparent` semi join ((/* select#6 */ select 'r' AS `col_varchar_key`,'r' AS `col_varchar_nokey` from dual) `child1` left join (/* select#7 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `child2` on((`child1`.`col_varchar_nokey` <> `child2`.`col_varchar_key`)) join (/* select#4 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `parent`) where ((`child1`.`col_varchar_key` = `grandparent`.`col_varchar_key`) and (`parent`.`col_varchar_key` = `grandparent`.`col_varchar_nokey`) and isnull(`grandparent`.`col_int_key`)) order by `grandparent`.`col_varchar_nokey`
 SELECT grandparent.col_varchar_nokey AS g1
 FROM (SELECT * FROM t3) AS grandparent
 WHERE grandparent.col_varchar_nokey IN
@@ -2356,7 +2368,7 @@ a	b	a	b	@c:= a+b
 1	10	1	100	101
 2	20	2	200	202
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 explain SELECT *
 FROM t1 JOIN (SELECT a, b, @c:= a+b FROM t2) AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2364,7 +2376,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b`,`dt`.`@c:= a+b` AS `@c:= a+b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,(@c:=(`test`.`t2`.`a` + `test`.`t2`.`b`)) AS `@c:= a+b` from `test`.`t2`) `dt` where (`dt`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt;
@@ -2675,7 +2687,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 4	DEPENDENT SUBQUERY	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col_date_key` AS `x` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`)) where (<in_optimizer>((`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from dual where ((('1900-01-01' is not null) xor ('b' > 'p')) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or isnull('10')), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or isnull('10')), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>('10'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('10'), true)))) xor ((`test`.`t2`.`col_int_nokey` < 2) or (`test`.`t2`.`col_int_key` is not null))) order by `test`.`t2`.`col_int_key`,`test`.`t2`.`pk`
+Note	1003	/* select#1 */ select `test`.`t2`.`col_date_key` AS `x` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`)) where (<in_optimizer>((`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from dual where ((1 xor ('b' > 'p')) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or isnull('10')), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or isnull('10')), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>('10'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('10'), true)))) xor ((`test`.`t2`.`col_int_nokey` < 2) or (`test`.`t2`.`col_int_key` is not null))) order by `test`.`t2`.`col_int_key`,`test`.`t2`.`pk`
 SELECT outr.col_date_key AS x
 FROM (SELECT * FROM t1) AS outr2 LEFT JOIN (SELECT * FROM t2) AS outr
 ON outr2.col_varchar_key = outr.col_varchar_nokey
@@ -3912,8 +3924,14 @@ DROP TABLE users;
 #              aggr_select != removed_select
 CREATE TABLE t(a INTEGER) engine=innodb;
 INSERT INTO t VALUES(1);
+# Per MySQL rules, SUM(1) is aggregated in top query
+# (can't be in WHERE, in FROM)
 SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
-ERROR HY000: Invalid use of group function
+(SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t)
+1
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(0)) AS t);
+(SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(0)) AS t)
+NULL
 DROP TABLE t;
 # Bug#23074801: Delete from joined tables with where using derived table
 #               fails with error 1093
@@ -4039,17 +4057,6 @@ EXECUTE yy;
 alias2
 1
 DROP TABLE t1;
-#
-# Bug#25907510 CRASH IN HA_MYISAM::IDX_COND_PUSH WITH INTERNAL_TMP_DISK_STORAGE_ENGINE=MYISAM
-#
-set global internal_tmp_disk_storage_engine=myisam;
-create table t (a bit(1),b int) engine=innodb;
-create table s (a int) engine=innodb;
-select 1 from t natural right outer join
-(select a,@q from s limit 2) w where b;
-1
-drop table t,s;
-set global internal_tmp_disk_storage_engine=default;
 #
 # Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'
 #               FAILED IN ITEM_FUNC

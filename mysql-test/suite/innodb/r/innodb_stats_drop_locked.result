@@ -43,3 +43,4 @@ innodb_stats_drop_locked
 innodb_stats_drop_locked
 innodb_stats_drop_locked
 innodb_stats_drop_locked
+SET autocommit=1;

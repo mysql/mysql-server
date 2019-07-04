@@ -151,7 +151,7 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   std::vector<Command_arguments *> constraints;
 
   ngs::Error_code error;
-  if (name_space == Admin_command_handler::MYSQLX_NAMESPACE)
+  if (name_space == Admin_command_handler::k_mysqlx_namespace)
     error = args->string_arg({"schema"}, &schema)
                 .string_arg({"collection"}, &collection)
                 .string_arg({"name"}, &index_name)
@@ -670,7 +670,7 @@ Admin_command_index::Index_field::create(const std::string &name_space,
   std::string path, type{default_type};
   uint64_t options{MAX_UINT64}, srid{MAX_UINT64};
   bool is_required{false};
-  if (name_space == Admin_command_handler::MYSQLX_NAMESPACE)
+  if (name_space == Admin_command_handler::k_mysqlx_namespace)
     *error = constraint->docpath_arg({"field", "member"}, &path)
                  .string_arg({"type"}, &type, true)
                  .bool_arg({"required"}, &is_required)

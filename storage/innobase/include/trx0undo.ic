@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Build a roll pointer.
 @param[in]	is_insert	TRUE if insert undo log
 @param[in]	space_id	space ID of the rollback segment
-@param[in]	rseg_id		rollback segment id
 @param[in]	page_no		page number
 @param[in]	offset		offset of the undo entry within page
 @return roll pointer */

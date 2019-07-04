@@ -94,7 +94,7 @@ void print_where(Item *cond, const char *info, enum_query_type query_type) {
   char buff[256];
   String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
-  if (cond) cond->print(&str, query_type);
+  if (cond) cond->print(current_thd, &str, query_type);
   str.append('\0');
 
   DBUG_LOCK_FILE;

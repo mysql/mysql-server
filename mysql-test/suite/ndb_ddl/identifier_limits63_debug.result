@@ -1,0 +1,35 @@
+set @save_debug = @@global.debug;
+# Testing schema identifier with length 64
+# NOTE! ndb_schema identifier length limit used to be 63 bytes,
+# use dbug keyword to emulate old limit
+#
+set global debug='+d,ndb_schema_dist_63byte_limit';
+should_be_64_bytes	should_be_64_characters
+64	64
+# Create database suceeds but generates a warning as well as
+# prints a message to log.
+CREATE DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
+Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+# Verify database existence
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+# Create non NDB table
+CREATE TABLE t1 (
+a int
+);
+# Create NDB table should fail
+CREATE TABLE t2 (
+a int
+) ENGINE=NDB;
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+show warnings;
+Level	Code	Message
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
+Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+Error	1031	Table storage engine for 't2' doesn't have this option
+DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+Warnings:
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
+Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+set @@global.debug = @save_debug;

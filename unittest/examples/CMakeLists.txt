@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,3 +26,13 @@ FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t mytap)
 ENDFOREACH()
+
+# Simple executable which links only with libmytime. Not intended to
+# be *used* for anything (hence SKIP_INSTALL), but still serves two
+# purposes:
+# 1: Can be used as a "hello world" example for applications
+#    wishing to link with libmytime
+# 2. Verifies that the library is actually independent (on platforms
+#    where even unused symbols must be defined)
+MYSQL_ADD_EXECUTABLE(mytime_client-t mytime_client-t.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(mytime_client-t mytime ${LIBRT})

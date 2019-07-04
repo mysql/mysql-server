@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,21 +41,20 @@ struct Key_metadata {
 
 class IKeys_container : public Keyring_alloc {
  public:
-  IKeys_container() : keyring_io(NULL) {}
+  IKeys_container() {}
 
   virtual bool init(IKeyring_io *keyring_io,
                     std::string keyring_storage_url) = 0;
   virtual bool store_key(IKey *key) = 0;
   virtual IKey *fetch_key(IKey *key) = 0;
+  /** Internal function, returns the key from the internal hash, no locks */
+  virtual IKey *get_key_from_hash(IKey *key) = 0;
   virtual bool remove_key(IKey *key) = 0;
   virtual std::string get_keyring_storage_url() = 0;
   virtual void set_keyring_io(IKeyring_io *keyring_io) = 0;
   virtual std::vector<Key_metadata> get_keys_metadata() = 0;
 
-  virtual ~IKeys_container(){};
-
- protected:
-  IKeyring_io *keyring_io;
+  virtual ~IKeys_container() {}
 };
 
 }  // namespace keyring

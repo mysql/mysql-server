@@ -1,0 +1,92 @@
+#
+# WL#12261 - Test in replication environment.
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Start the master with default_table_encryption=off
+[connection master]
+CREATE DATABASE db1;
+CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
+CREATE DATABASE db3 DEFAULT ENCRYPTION='y';
+SHOW CREATE DATABASE db1;
+Database	Create Database
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE DATABASE db2;
+Database	Create Database
+db2	CREATE DATABASE `db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE DATABASE db3;
+Database	Create Database
+db3	CREATE DATABASE `db3` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='Y' */
+CREATE TABLESPACE ts1 ADD DATAFILE 'df_e1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'df_e2.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts3 ADD DATAFILE 'df_e3.ibd' ENCRYPTION='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME LIKE 'ts_';
+NAME	ENCRYPTION
+ts1	N
+ts2	N
+ts3	Y
+CREATE TABLE db1.t1 (f1 INT);
+CREATE TABLE db2.t1 (f1 INT);
+CREATE TABLE db3.t1 (f1 INT);
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db3.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+# Start the slave with default_table_encryption=on
+# The 'table_encryption_privilege_check' setting does not affect the
+# slave thread operations.
+include/sync_slave_sql_with_master.inc
+# Make sure encryption type for following objects are same as master.
+SHOW CREATE DATABASE db1;
+Database	Create Database
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE DATABASE db2;
+Database	Create Database
+db2	CREATE DATABASE `db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE DATABASE db3;
+Database	Create Database
+db3	CREATE DATABASE `db3` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='Y' */
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME LIKE 'ts_';
+NAME	ENCRYPTION
+ts1	N
+ts2	N
+ts3	Y
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db3.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+[connection master]
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+include/rpl_end.inc

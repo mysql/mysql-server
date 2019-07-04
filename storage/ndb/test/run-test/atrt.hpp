@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
 
+#include <NDBT_ReturnCodes.h>
 #include <mgmapi.h>
 #include <my_default.h>
 #include <my_dir.h>
@@ -46,7 +47,15 @@ enum ErrorCodes {
   ERR_MAX_TIME_ELAPSED = 103,
   ERR_COMMAND_FAILED = 104,
   ERR_FAILED_TO_START = 105,
-  ERR_NDB_AND_SERVERS_FAILED = 106
+  ERR_NDB_AND_SERVERS_FAILED = 106,
+  ERR_TEST_FAILED = NDBT_FAILED << 8,
+  ERR_TEST_SKIPPED = NDBT_SKIPPED << 8
+};
+
+enum AtrtExitCodes {
+  TESTSUITE_SUCCESS = 0,
+  TESTSUITE_FAILURES = 1,
+  ATRT_FAILURE = 2
 };
 
 struct atrt_host {
@@ -86,6 +95,7 @@ struct atrt_process {
   } m_type;
 
   SimpleCpcClient::Process m_proc;
+  bool m_atrt_stopped;
 
   NdbMgmHandle m_ndb_mgm_handle;    // if type == ndb_mgm
   atrt_process* m_mysqld;           // if type == client
@@ -126,6 +136,8 @@ struct atrt_testcase {
   time_t m_max_time;
   BaseString m_name;
   BaseString m_mysqld_options;
+  int m_max_retries;
+  bool m_force_cluster_restart;
 
   struct Command {
     atrt_process::Type m_cmd_type;
@@ -173,7 +185,7 @@ bool setup_hosts(atrt_config&);
 
 bool do_command(atrt_config& config);
 
-bool start_process(atrt_process& proc);
+bool start_process(atrt_process& proc, bool run_setup = true);
 bool stop_process(atrt_process& proc);
 
 bool connect_mysqld(atrt_process& proc);
@@ -228,7 +240,6 @@ extern const char* g_ndbmtd_bin_path;
 extern const char* g_mysqld_bin_path;
 extern const char* g_mysql_install_db_bin_path;
 extern const char* g_libmysqlclient_so_path;
-
 extern const char* g_search_path[];
 
 #ifdef _WIN32

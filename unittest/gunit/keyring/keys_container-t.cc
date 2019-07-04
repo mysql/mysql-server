@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,8 +158,6 @@ TEST_F(Keys_container_test, InitWithFileWithCorrect_2_0_Struct) {
   delete sample_key;  // unused in this test
 }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
 TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion) {
   const char *keyring_incorrect_version = "./keyring_incorrect_version";
   remove(keyring_incorrect_version);
@@ -174,7 +172,6 @@ TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion) {
   remove(keyring_incorrect_version);
   delete sample_key;  // unused in this test
 }
-#endif  // HAVE_UBSAN
 
 TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG) {
   const char *keyring_incorrect_tag = "./keyring_incorrect_tag";
@@ -318,8 +315,8 @@ TEST_F(Keys_container_test, StoreTwiceTheSame) {
 class Buffered_file_io_20 : public Buffered_file_io {
  public:
   Buffered_file_io_20(ILogger *logger) : Buffered_file_io(logger) {}
-  void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
-    this->memory_needed_for_buffer = memory_needed_for_buffer;
+  void set_memory_needed_for_buffer(size_t memory_needed) {
+    memory_needed_for_buffer = memory_needed;
   }
 };
 
@@ -881,7 +878,7 @@ void Keys_container_with_mocked_io_test::expect_calls_on_init() {
   Mock_serialized_object *mock_serialized_object = new Mock_serialized_object;
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   EXPECT_CALL(*keyring_io, get_serialized_object(_))
       .WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(false)));
   EXPECT_CALL(*mock_serialized_object, has_next_key())
@@ -897,7 +894,7 @@ TEST_F(Keys_container_with_mocked_io_test,
   keys_container = new Keys_container(logger);
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(Return(true));
   EXPECT_CALL(*logger,
               log(ERROR_LEVEL, StrEq("Error while loading keyring content. The "
@@ -922,7 +919,7 @@ TEST_F(Keys_container_with_mocked_io_test,
   Mock_serialized_object *mock_serialized_object = new Mock_serialized_object;
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   {
     InSequence dummy;
     EXPECT_CALL(*keyring_io, get_serialized_object(_))
@@ -961,7 +958,7 @@ TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInitInvalidKey) {
   buffer->position = 0;  // rewind buffer
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   {
     InSequence dummy;
     EXPECT_CALL(*keyring_io, get_serialized_object(_))

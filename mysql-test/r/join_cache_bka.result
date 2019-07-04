@@ -675,7 +675,7 @@ WHERE
 country.Population > 10000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
-1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	132	world.country.Code,const	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	132	world.country.Code,const	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`country`.`Name` AS `Name`,if(isnull(`world`.`countrylanguage`.`Country`),NULL,`world`.`countrylanguage`.`Percentage`) AS `IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)` from `world`.`country` left join `world`.`countrylanguage` on(((`world`.`countrylanguage`.`Language` = 'English') and (`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`))) where (`world`.`country`.`Population` > 10000000)
 SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)
@@ -1332,14 +1332,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t7	NULL	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	100.00	Using index
 1	SIMPLE	t8	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	t4	NULL	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	4	const	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	4	const	1	100.00	Using index condition; Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	50.00	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	t9	NULL	ref	PRIMARY,t9_subgenreid,t9_metaid	t9_metaid	4	test.t1.metaid	2	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t10	NULL	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t11	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t3	NULL	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`uniquekey` AS `uniquekey`,`test`.`t1`.`xml` AS `affiliateXml`,`test`.`t8`.`name` AS `artistName`,`test`.`t8`.`artistid` AS `artistid`,`test`.`t11`.`name` AS `genreName`,`test`.`t11`.`genreid` AS `genreid`,`test`.`t11`.`priority` AS `genrePriority`,`test`.`t10`.`subgenreid` AS `subgenreid`,`test`.`t10`.`name` AS `subgenreName`,`test`.`t2`.`name` AS `metaName`,`test`.`t2`.`metaid` AS `metaid`,`test`.`t2`.`xml` AS `metaXml`,((`test`.`t4`.`priority` + `test`.`t5`.`priority`) + '0') AS `overallPriority`,`test`.`t3`.`path` AS `path`,`test`.`t3`.`mediaid` AS `mediaid`,`test`.`t4`.`formatid` AS `formatid`,`test`.`t4`.`name` AS `formatName`,`test`.`t5`.`formatclassid` AS `formatclassid`,`test`.`t5`.`name` AS `formatclassName`,'2' AS `formattypeid`,'Ringtones' AS `formattypeName` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t7` join `test`.`t8` join `test`.`t9` join `test`.`t10` join `test`.`t11` where ((`test`.`t5`.`formattypeid` = 2) and (`test`.`t4`.`canaddtocapability` = 'Y') and (`test`.`t5`.`formatclassid` = `test`.`t4`.`formatclassid`) and (`test`.`t3`.`formatid` = `test`.`t4`.`formatid`) and (`test`.`t11`.`genreid` = `test`.`t10`.`genreid`) and (`test`.`t10`.`subgenreid` = `test`.`t9`.`subgenreid`) and (`test`.`t8`.`artistid` = `test`.`t7`.`artistid`) and (`test`.`t2`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t7`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t9`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t3`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t4`.`formatid` in (31,8,76)) and (`test`.`t1`.`affiliateid` = '2'))
+Note	1003	/* select#1 */ select `test`.`t1`.`uniquekey` AS `uniquekey`,`test`.`t1`.`xml` AS `affiliateXml`,`test`.`t8`.`name` AS `artistName`,`test`.`t8`.`artistid` AS `artistid`,`test`.`t11`.`name` AS `genreName`,`test`.`t11`.`genreid` AS `genreid`,`test`.`t11`.`priority` AS `genrePriority`,`test`.`t10`.`subgenreid` AS `subgenreid`,`test`.`t10`.`name` AS `subgenreName`,`test`.`t2`.`name` AS `metaName`,`test`.`t2`.`metaid` AS `metaid`,`test`.`t2`.`xml` AS `metaXml`,((`test`.`t4`.`priority` + `test`.`t5`.`priority`) + '0') AS `overallPriority`,`test`.`t3`.`path` AS `path`,`test`.`t3`.`mediaid` AS `mediaid`,`test`.`t4`.`formatid` AS `formatid`,`test`.`t4`.`name` AS `formatName`,`test`.`t5`.`formatclassid` AS `formatclassid`,`test`.`t5`.`name` AS `formatclassName`,'2' AS `formattypeid`,'Ringtones' AS `formattypeName` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t7` join `test`.`t8` join `test`.`t9` join `test`.`t10` join `test`.`t11` where ((`test`.`t5`.`formattypeid` = 2) and (`test`.`t4`.`canaddtocapability` = 'Y') and (`test`.`t5`.`formatclassid` = `test`.`t4`.`formatclassid`) and (`test`.`t3`.`formatid` = `test`.`t4`.`formatid`) and (`test`.`t11`.`genreid` = `test`.`t10`.`genreid`) and (`test`.`t10`.`subgenreid` = `test`.`t9`.`subgenreid`) and (`test`.`t8`.`artistid` = `test`.`t7`.`artistid`) and (`test`.`t2`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t7`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t9`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t3`.`metaid` = `test`.`t1`.`metaid`) and (`test`.`t4`.`formatid` in (31,8,76)) and (`test`.`t1`.`affiliateid` = 2))
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
 t8.name AS artistName, t8.artistid, 
 t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
@@ -1575,7 +1575,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((1 = 0)) where (`test`.`t1`.`a` = 40)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on(0) where (`test`.`t1`.`a` = 40)
 select * from t1 left join t2 on (1=0) where a=40;
 a	b
 40	NULL
@@ -2108,11 +2108,11 @@ LEFT JOIN t4 ON 1 )
 ON 1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` left join (`test`.`t1` join `test`.`t3` left join `test`.`t4` on(1)) on(((`test`.`t3`.`pk` = `test`.`t1`.`a`) and 1)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` left join (`test`.`t1` join `test`.`t3` left join `test`.`t4` on(1)) on(((`test`.`t3`.`pk` = `test`.`t1`.`a`))) where 1
 SELECT 1
 FROM t2 LEFT JOIN
 ((t1 JOIN t3 ON t1.a = t3.pk)
@@ -2474,6 +2474,22 @@ KEY k1 (c1)
 ) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (NULL), (NULL);
 set @old_opt_switch=@@optimizer_switch;
+
+explain format=tree SELECT t3.c1 FROM t3
+WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+EXPLAIN
+-> Filter: (<in_optimizer>(t3.c1,<exists>(select #2)) xor TRUE)
+    -> Index scan on t3 using k1
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Nested loop inner join
+                -> Filter: <if>(outer_field_is_not_null, (<cache>(t3.c1) = t1.c2_key), true)
+                    -> Alternative plans for IN subquery: Index lookup unless c2_key IS NULL
+                        -> Index lookup on t1 using col_int_key (c2_key=<cache>(t3.c1))
+                        -> Table scan on t1
+                -> Filter: (t2.pk < t1.c1)
+                    -> Index range scan on t2 (re-planned for each iteration)
 
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
@@ -2846,7 +2862,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.parent1.col_datetime_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`parent1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` `parent1` left join `test`.`t1` on((`test`.`t1`.`col_int_nokey` = `test`.`parent1`.`col_int_nokey`)) where <in_optimizer>(`test`.`parent1`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`parent1`.`col_varchar_key`) in t2 on col_varchar_key where ((`test`.`parent1`.`col_datetime_nokey` = '0000-00-00 00:00:00') and isnull(`test`.`t1`.`col_int_nokey`) and (<cache>(`test`.`parent1`.`col_varchar_key`) = `test`.`child1`.`col_varchar_key`)))))
+Note	1003	/* select#1 */ select `test`.`parent1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` `parent1` left join `test`.`t1` on((`test`.`t1`.`col_int_nokey` = `test`.`parent1`.`col_int_nokey`)) where <in_optimizer>(`test`.`parent1`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`parent1`.`col_varchar_key`) in t2 on col_varchar_key where ((`test`.`parent1`.`col_datetime_nokey` = TIMESTAMP'0000-00-00 00:00:00') and isnull(`test`.`t1`.`col_int_nokey`)))))
 SELECT parent1.col_varchar_key
 FROM t2 AS parent1 LEFT JOIN t1 USING (col_int_nokey)
 WHERE parent1.col_varchar_key IN

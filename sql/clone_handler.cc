@@ -20,11 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-@file clone_handler.cc
-Clone handler implementation
-*/
-
 #include "sql/clone_handler.h"
 
 #include <string.h>
@@ -43,6 +38,7 @@ Clone handler implementation
 #include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql_string.h"      // to_lex_cstring
+#include "violite.h"
 
 class THD;
 
@@ -52,10 +48,6 @@ Clone_handler *clone_handle = nullptr;
 /** Clone plugin name */
 const char *clone_plugin_nm = "clone";
 
-/** Clone handler interface for local clone.
-@param[in]	thd		server thread handle
-@param[in]	data_dir	cloned data directory
-@return error code */
 int Clone_handler::clone_local(THD *thd, const char *data_dir) {
   int error;
   char dir_name[FN_REFLEN];
@@ -69,25 +61,34 @@ int Clone_handler::clone_local(THD *thd, const char *data_dir) {
   return error;
 }
 
-/** Clone handler interface for remote clone client.
-TODO: Create remote connection: wl#9210
-@param[in]	thd		server thread handle
-@param[in]	data_dir	cloned data directory
-@return error code */
-int Clone_handler::clone_remote_client(THD *thd, const char *data_dir) {
-  return m_plugin_handle->clone_client(thd, data_dir, 0);
+int Clone_handler::clone_remote_client(THD *thd, const char *remote_host,
+                                       uint remote_port,
+                                       const char *remote_user,
+                                       const char *remote_passwd,
+                                       const char *data_dir,
+                                       enum mysql_ssl_mode ssl_mode) {
+  int error;
+  char dir_name[FN_REFLEN];
+
+  error = validate_dir(data_dir, dir_name);
+
+  int mode = static_cast<int>(ssl_mode);
+
+  if (error == 0) {
+    error = m_plugin_handle->clone_client(thd, remote_host, remote_port,
+                                          remote_user, remote_passwd, dir_name,
+                                          mode);
+  }
+
+  return error;
 }
 
-/** Clone handler interface for remote clone server.
-@param[in]	thd	server thread handle
-@param[in]	socket	network socket to remote client
-@return error code */
-int Clone_handler::clone_remote_server(THD *thd, my_socket socket) {
-  return m_plugin_handle->clone_server(thd, socket);
+int Clone_handler::clone_remote_server(THD *thd, MYSQL_SOCKET socket) {
+  auto err = m_plugin_handle->clone_server(thd, socket);
+
+  return err;
 }
 
-/** Initialize plugin handle
-@return error code */
 int Clone_handler::init() {
   plugin_ref plugin;
 
@@ -105,10 +106,6 @@ int Clone_handler::init() {
   return 0;
 }
 
-/** Validate clone data directory and convert to os format
-@param[in]	in_dir	user specified clone directory
-@param[out]	out_dir	data directory in native os format
-@return error code */
 int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
   MY_STAT stat_info;
 
@@ -172,10 +169,6 @@ int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
   return 0;
 }
 
-/** Create clone handle to  access the clone interfaces from server.
-Called when Clone plugin is installed.
-@param[in]	plugin_name	clone plugin name
-@return error code */
 int clone_handle_create(const char *plugin_name) {
   if (clone_handle != nullptr) {
     LogErr(ERROR_LEVEL, ER_CLONE_HANDLER_EXISTS);
@@ -192,8 +185,6 @@ int clone_handle_create(const char *plugin_name) {
   return clone_handle->init();
 }
 
-/** Drop clone handle. Called when Clone plugin is uninstalled.
-@return error code */
 int clone_handle_drop() {
   if (clone_handle == nullptr) {
     return 1;
@@ -206,11 +197,6 @@ int clone_handle_drop() {
   return 0;
 }
 
-/** Check if the clone plugin is installed and lock. If the plugin is ready,
-return the handler to caller.
-@param[in]	thd	server thread handle
-@param[out]	plugin	plugin reference
-@return clone handler on success otherwise NULL */
 Clone_handler *clone_plugin_lock(THD *thd, plugin_ref *plugin) {
   *plugin = my_plugin_lock_by_name(thd, to_lex_cstring(clone_plugin_nm),
                                    MYSQL_CLONE_PLUGIN);
@@ -231,9 +217,6 @@ Clone_handler *clone_plugin_lock(THD *thd, plugin_ref *plugin) {
   return nullptr;
 }
 
-/** Unlock the clone plugin.
-@param[in]	thd	server thread handle
-@param[out]	plugin	plugin reference */
 void clone_plugin_unlock(THD *thd, plugin_ref plugin) {
   plugin_unlock(thd, plugin);
 }

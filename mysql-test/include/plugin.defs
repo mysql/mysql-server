@@ -53,6 +53,7 @@ libmemcached                            plugin_output_directory DAEMON_MEMCACHED
 innodb_engine      			plugin_output_directory INNODB_ENGINE
 validate_password  			plugin_output_directory VALIDATE_PASSWORD validate_password
 rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
+ddl_rewriter                            plugin_output_directory DDL_REWRITER
 rewriter           			plugin_output_directory REWRITER
 mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  			plugin_output_directory TESTUDFSERVICES
@@ -86,6 +87,7 @@ libtest_sql_sqlmode                     plugin_output_directory TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin_output_directory TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin_output_directory TEST_SQL_ERRORS
 libtest_sql_stmt                        plugin_output_directory TEST_SQL_STMT
+libtest_sql_reset_connection            plugin_output_directory TEST_SQL_RESET_CONNECTION
 connection_control                      plugin_output_directory  CONNECTION_CONTROL_PLUGIN    connection_control
 # Test component
 component_example_component1    plugin_output_directory  EXAMPLE_COMPONENT_1
@@ -108,6 +110,7 @@ pfs_example_plugin_employee    plugin_output_directory  PFS_EXAMPLE_PLUGIN_EMPLO
 component_pfs_example_component_population    plugin_output_directory PFS_EXAMPLE_COMPONENT_POPULATION
 
 component_test_udf_registration    plugin_output_directory  TEST_UDF_REGISTRATION
+component_audit_api_message_emit    plugin_output_directory  AUDIT_API_MESSAGE_EMIT component_audit_api_message_emit
 component_udf_reg_3_func   plugin_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
 component_udf_reg_only_3_func plugin_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
 component_udf_unreg_3_func   plugin_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func
@@ -124,3 +127,10 @@ component_test_system_variable_source plugin_output_directory TEST_SYSTEM_VARIAB
 
 # password validation component
 component_validate_password     plugin_output_directory  VALIDATE_PASSWORD_COMPONENT
+
+# test application signal
+component_test_host_application_signal  plugin_output_directory  TEST_HOST_APPLICATION_SIGNAL_COMPONENT
+test_services_host_application_signal  plugin_output_directory  TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN
+
+# test mysql_runtime_error service
+component_test_mysql_runtime_error  plugin_output_directory  TEST_MYSQL_RUNTIME_ERROR_COMPONENT

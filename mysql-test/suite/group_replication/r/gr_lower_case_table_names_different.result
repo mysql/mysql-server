@@ -21,11 +21,15 @@ call mtr.add_suppression("lower_case_table_names was set to 2, .*");
 set session sql_log_bin=1;
 
 ## 3A. Test GR does not start on boot when lower_case_table_names
-##     does not match.
+##     does not match. And verifies only one member is shown in the
+##     group as the join failed.
 
-# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2
+# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2 --loose-debug=+d,group_replication_wait_before_leave_on_error
 include/rpl_reconnect.inc
-include/rpl_gr_wait_for_number_of_members.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
+include/assert.inc ['Assert group has one member']
+include/assert.inc ['Assert server-2 is OFFLINE']
+SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 
 ## 3B. Test GR does not start with command when lower_case_table_names
 ##     does not match.

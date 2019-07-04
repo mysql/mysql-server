@@ -247,7 +247,7 @@ class Table_statistics {
   */
   void store_error_message(const String &db_name, const String &table_name,
                            const char *partition_name,
-                           const String_type error_msg) {
+                           const String_type &error_msg) {
     m_stats = {};
     m_checksum = 0;
     m_error = error_msg;

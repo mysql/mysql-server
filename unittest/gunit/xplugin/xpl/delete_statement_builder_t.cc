@@ -38,7 +38,7 @@ class Delete_statement_builder_test : public ::testing::Test {
         expr_gen(&query, args, schema, true),
         builder(expr_gen) {}
   Delete_statement_builder::Delete msg;
-  Expression_generator::Args &args;
+  Expression_generator::Arg_list &args;
   Query_string_builder query;
   std::string schema;
   Expression_generator expr_gen;
@@ -46,13 +46,10 @@ class Delete_statement_builder_test : public ::testing::Test {
 };
 
 TEST_F(Delete_statement_builder_test, build_table) {
-  msg.set_data_model(Mysqlx::Crud::TABLE);
-  *msg.mutable_collection() = Collection("xtable", "xschema");
-  *msg.mutable_criteria() =
-      Filter(Operator(">", ColumnIdentifier("delta"), Scalar(1.0)));
-  *msg.mutable_order() =
-      Order_list{{ColumnIdentifier("gamma"), Order::Base::DESC}};
-  *msg.mutable_limit() = Limit(2);
+  msg = Delete({"xtable", "xschema"}, Mysqlx::Crud::TABLE)
+            .criteria(Operator(">", Column_identifier{"delta"}, Scalar{1.0}))
+            .order({Column_identifier("gamma"), Order::Base::DESC})
+            .limit({2});
   ASSERT_NO_THROW(builder.build(msg));
   EXPECT_STREQ(
       "DELETE FROM `xschema`.`xtable` "
@@ -63,13 +60,12 @@ TEST_F(Delete_statement_builder_test, build_table) {
 }
 
 TEST_F(Delete_statement_builder_test, build_document) {
-  msg.set_data_model(Mysqlx::Crud::DOCUMENT);
-  *msg.mutable_collection() = Collection("xcoll", "xschema");
-  *msg.mutable_criteria() = Filter(
-      Operator(">", ColumnIdentifier(Document_path{"delta"}), Scalar(1.0)));
-  *msg.mutable_order() =
-      Order_list{{ColumnIdentifier(Document_path{"gamma"}), Order::Base::DESC}};
-  *msg.mutable_limit() = Limit(2);
+  msg =
+      Delete({"xcoll", "xschema"}, Mysqlx::Crud::DOCUMENT)
+          .criteria(Operator(">", Column_identifier{Document_path{"delta"}},
+                             Scalar{1.0}))
+          .order({Column_identifier{Document_path{"gamma"}}, Order::Base::DESC})
+          .limit({2});
   ASSERT_NO_THROW(builder.build(msg));
   EXPECT_STREQ(
       "DELETE FROM `xschema`.`xcoll` "

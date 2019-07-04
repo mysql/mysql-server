@@ -37,6 +37,7 @@ unlock tables;
 
 drop database many_tables;
 --enable_query_log
+--enable_warnings
 --echo all done
 
 

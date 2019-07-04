@@ -25,7 +25,7 @@
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+#include "plugin/x/src/operations_factory.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace ngs {
@@ -42,7 +42,7 @@ using ::testing::StrictMock;
 using ::testing::_;
 
 ACTION_P2(SetSocketErrnoAndReturn, err, result) {
-  ngs::Operations_factory operations_factory;
+  xpl::Operations_factory operations_factory;
 
   operations_factory.create_system_interface()->set_socket_errno(err);
 
@@ -71,7 +71,7 @@ class Protocol_decoder_test_suite : public ::testing::Test {
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
   std::shared_ptr<Strict_mock_vio> m_mock_vio{new Strict_mock_vio()};
-  ngs::shared_ptr<Protocol_config> m_config{new Protocol_config()};
+  std::shared_ptr<Protocol_config> m_config{new Protocol_config()};
   Strict_mock_pmonitor m_mock_protocol_monitor;
   Strict_Mock_wait_for_io m_mock_wait_for_io;
 

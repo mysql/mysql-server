@@ -1,0 +1,41 @@
+#
+# TC1. Table `mysql.gtid_executed` read-only & rotate not triggered by `max_binlog_size`
+#
+SET DEBUG = "d,gtid_executed_readonly";
+CALL mtr.add_suppression("Unable to create a new binlog file.");
+CALL mtr.add_suppression(".Turning logging off for the whole duration of the MySQL server process.");
+CALL mtr.add_suppression(".Gtid table is not ready to be used.");
+include/rpl_log_file_max_number.inc
+FLUSH BINARY LOGS;
+ERROR HY000: Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.
+include/rpl_log_file_max_number.inc
+include/assert.inc ['FLUSH BINARY LOGS' failed to rotate binlog]
+include/assert_grep.inc [ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY found in server log]
+#
+# TC2. Table `mysql.gtid_executed` read-only & rotate triggered by `max_binlog_size` & `binlog_error_action` is `IGNORE_ERROR`
+#
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
+include/rpl_log_file_max_number.inc
+FLUSH BINARY LOGS;
+ERROR HY000: Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.
+include/rpl_log_file_max_number.inc
+include/assert.inc ['FLUSH BINARY LOGS' failed to rotate binlog]
+include/assert_grep.inc [ER_BINLOG_CANT_OPEN_FOR_LOGGING found in server log]
+#
+# TC3. Table `mysql.gtid_executed` read-only & rotate triggered by `max_binlog_size` & `binlog_error_action` is `ABORT_SERVER`
+#
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+CALL mtr.add_suppression("Unable to create a new binlog file.");
+CALL mtr.add_suppression(".Turning logging off for the whole duration of the MySQL server process.");
+CALL mtr.add_suppression(".Gtid table is not ready to be used.");
+CALL mtr.add_suppression(".");
+SET DEBUG = "d,gtid_executed_readonly,simulate_max_binlog_size";
+include/rpl_log_file_max_number.inc
+FLUSH BINARY LOGS;
+ERROR HY000: Binary logging not possible. Message: Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened., while rotating the binlog. Aborting the server
+include/rpl_log_file_max_number.inc
+include/assert.inc ['FLUSH BINARY LOGS' failed to rotate binlog but as the server restarts, the binary log is rotated]
+include/assert_grep.inc [ER_BINLOG_LOGGING_IMPOSSIBLE found in server log]
+SET DEBUG = INITIAL_DEBUG;
+SET GLOBAL binlog_error_action = INITIAL_ERROR_ACTION;

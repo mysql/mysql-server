@@ -27,14 +27,39 @@ XA START 'xid1';
 INSERT INTO t1 VALUES (1);
 XA END 'xid1';
 XA PREPARE 'xid1';
+
+let $connection_id= `SELECT CONNECTION_ID()`;
+
 --disconnect server1_conn2
 
+--echo # Waiting for the connection server1_conn2 disappeared on the server side
+--connection default
+let $wait_condition =
+ SELECT COUNT(*) = 0
+ FROM information_schema.processlist
+ WHERE  id = '$connection_id';
+--source include/wait_condition.inc
 
 --echo
 --echo ############################################################
 --echo # 3. Force a local failure in before_commit listener on the
 --echo #    XA COMMIT.
 --connection default
+
+--echo # Wait until a record about a prepared XA transaction be found in output of XA RECOVER.
+--echo # Having two conditions satisfied (first one for disappeared connection server1_conn2
+--echo # and the second one for presence of the prepared XA transaction with xid value equaled xid1)
+--echo # guarantees that the connection server1_conn2 was really closed and a prepared XA transaction
+--echo # with xid1 was really placed into an internal server cache of prepared XA transactions.
+--let $wait_timeout= 5
+--let $show_statement = XA RECOVER
+--let $field = 'data'
+--let $condition = ='xid1'
+--source include/wait_show_condition.inc
+
+--echo # Output result of XA RECOVER into result file for sanity check.
+XA RECOVER;
+
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,simulate_failure_in_before_commit_hook';
 

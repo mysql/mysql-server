@@ -1,0 +1,43 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group on server 1 faking that it is a
+#    server that does not have the option default_table_encryption,
+#    thence it will not send it to group on join the handshake.
+[connection server1]
+SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_default_table_encryption';
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Try join a member with
+#    GLOBAL.default_table_encryption = ON
+#    to the group, it shall fail.
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The member is configured with a default_table_encryption option value '1' different from the group '0'. The member will now exit the group.");
+SET SESSION sql_log_bin = 1;
+SET @table_encryption_default= @@GLOBAL.default_table_encryption;
+SET @@GLOBAL.default_table_encryption = ON;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
+# 3. Try join a member with
+#    GLOBAL.default_table_encryption = OFF
+#    to the group, it shall succeed.
+SET @@GLOBAL.default_table_encryption = OFF;
+include/start_group_replication.inc
+
+############################################################
+# 4. Clean up.
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_skip_encode_default_table_encryption';
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.default_table_encryption= @table_encryption_default;
+include/group_replication_end.inc

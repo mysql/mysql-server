@@ -33,6 +33,7 @@
 #include <atomic>
 #include <chrono>
 #include <ctime>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -55,15 +56,17 @@ class METADATA_API MetadataCache
   /**
    * Initialize a connection to the MySQL Metadata server.
    *
-   * @param bootstrap_servers The servers that store the metadata.
+   * @param group_replication_id id of the replication group
+   * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
-   * @param ttl The TTL of the cached data.
+   * @param ttl The TTL of the cached data
    * @param ssl_options SSL related options for connection
    * @param cluster_name The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
    */
   MetadataCache(
-      const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
+      const std::string &group_replication_id,
+      const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
       const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name,
@@ -81,6 +84,8 @@ class METADATA_API MetadataCache
    */
   void stop() noexcept;
 
+  using metadata_servers_list_t = std::vector<metadata_cache::ManagedInstance>;
+
   /** @brief Returns list of managed servers in a replicaset
    *
    * Returns list of managed servers in a replicaset.
@@ -88,8 +93,7 @@ class METADATA_API MetadataCache
    * @param replicaset_name The ID of the replicaset being looked up
    * @return std::vector containing ManagedInstance objects
    */
-  std::vector<metadata_cache::ManagedInstance> replicaset_lookup(
-      const std::string &replicaset_name);
+  metadata_servers_list_t replicaset_lookup(const std::string &replicaset_name);
 
   /** @brief Update the status of the instance
    *
@@ -154,9 +158,15 @@ class METADATA_API MetadataCache
   /** @brief Fetches metadata from the metadata server we are currently
    * connected to.
    *
+   * @param instance        object representing the metadata server we are
+   * currently connected to
+   * @param [out] changed   true if the metadata read from the server has
+   * changed since the last update, false otherwise
+   *
    * @return true if the operation succeeded, false otherwise
    */
-  bool fetch_metadata_from_connected_instance();
+  bool fetch_metadata_from_connected_instance(
+      const metadata_cache::ManagedInstance &instance, bool &changed);
 
   // Called each time the metadata has changed and we need to notify
   // the subscribed observers
@@ -169,9 +179,12 @@ class METADATA_API MetadataCache
   // The name of the cluster in the topology.
   std::string cluster_name_;
 
+  // Group Replication ID
+  const std::string group_replication_id_;
+
   // The list of servers that contain the metadata about the managed
   // topology.
-  std::vector<metadata_cache::ManagedInstance> metadata_servers_;
+  metadata_servers_list_t metadata_servers_;
 
   // The time to live of the metadata cache.
   std::chrono::milliseconds ttl_;
@@ -191,11 +204,9 @@ class METADATA_API MetadataCache
   // with the changes in the metadata due to a cache refresh.
   std::mutex cache_refreshing_mutex_;
 
-#if 0  // not used so far
   // This mutex ensures that a refresh of the servers that contain the metadata
   // is consistent with the use of the server list.
   std::mutex metadata_servers_mutex_;
-#endif
 
   // Contains a set of replicaset names that have at least one unreachable
   // (primary or secondary) node appearing in the routing table
@@ -204,7 +215,11 @@ class METADATA_API MetadataCache
   std::mutex replicasets_with_unreachable_nodes_mtx_;
 
   // Flag used to terminate the refresh thread.
-  std::atomic_bool terminate_;
+  //
+  // note: should be <void> as no value is needed, but sun-cc 12.5 fails to link
+  // as it can't find the move-constructor of std::future<void> in that case.
+  std::promise<int> terminator_;
+  std::future<int> terminated_;
 
   // map of lists (per each replicaset name) of registered callbacks to be
   // called on selected replicaset instances change event
@@ -219,6 +234,7 @@ class METADATA_API MetadataCache
   FRIEND_TEST(FailoverTest, primary_failover);
   FRIEND_TEST(MetadataCacheTest2, basic_test);
   FRIEND_TEST(MetadataCacheTest2, metadata_server_connection_failures);
+  friend class MetadataCacheTest;
 #endif
 };
 

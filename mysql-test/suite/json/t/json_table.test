@@ -12,6 +12,7 @@ let $query=select * from
   ) as tt;
 eval $query;
 eval explain $query; 
+eval explain format=tree $query;   # Tests printing of MaterializedTableFunctionIterator.
 
 --error ER_INVALID_DEFAULT
 select * from
@@ -1114,6 +1115,30 @@ WHERE column_name = "col2";
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#28254268: JSON_TABLE() FUNCTION REJECTS SELECT PERMISSIONS
+--echo #
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1 (c JSON);
+INSERT INTO t1 VALUES('[1,2,3]');
+
+CREATE USER user1@localhost;
+GRANT SELECT ON db2.t1 TO user1@localhost;
+
+connect (conn1,localhost,user1,,);
+connection conn1;
+USE db2;
+SELECT t1.c FROM t1;
+SELECT jt.* FROM t1, JSON_TABLE(t1.c, '$[*]' COLUMNS (num INT PATH '$[0]'))
+AS jt;
+
+disconnect conn1;
+connection default;
+
+DROP USER user1@localhost;
+DROP DATABASE db2;
+
+--echo #
 --echo # Bug#27856835 JSON_TABLE RETURNS WRONG DATATYPE WHEN INT-VALUE IS GRATER
 --echo #              THAN (2^31-1)
 --echo #
@@ -1139,6 +1164,7 @@ SELECT id FROM JSON_TABLE('[{"id":"2147483648"}]', '$[*]' COLUMNS
 (id INT UNSIGNED PATH '$.id')) AS json;
 
 --echo # Check that we preserve the signedness of the columns.
+USE test;
 CREATE TABLE t1 AS SELECT id, value FROM
   JSON_TABLE('[{"id":9223372036854775808, "value":9223372036854775807}]',
              '$[*]' COLUMNS (id BIGINT UNSIGNED PATH '$.id',
@@ -1206,3 +1232,50 @@ connection default;
 disconnect con1;
 DROP USER foo@localhost;
 DROP SCHEMA my_schema;
+
+--echo #
+--echo # Bug#28538315: JSON_TABLE() COLUMN TYPES DON'T SUPPORT COLLATE CLAUSE
+--echo #
+
+CREATE TABLE t1 SELECT *
+  FROM JSON_TABLE('"test"', '$' COLUMNS(x VARCHAR(10)
+                                CHARSET utf8mb4
+                                PATH '$')) AS jt1;
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 SELECT *
+  FROM JSON_TABLE('"test"', '$' COLUMNS(x VARCHAR(10)
+                                CHARSET utf8mb4 COLLATE utf8mb4_bin
+                                PATH '$')) AS jt1;
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 AS SELECT *
+  FROM JSON_TABLE('"a"', '$' COLUMNS (a VARCHAR(10)
+                             COLLATE ascii_bin
+                             PATH '$')) jt;
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#28643862 JSON_TABLE'S "COLUMNS" CLAUSE USES
+--echo #              GLOBAL.CHARACTER_SET_RESULTS DEFAULT CHARSET
+--echo #
+
+SET @@SESSION.character_set_connection = ascii;
+
+CREATE TABLE t1 SELECT a.col
+  FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+
+SHOW CREATE TABLE t1;
+
+SET @@SESSION.collation_connection = latin1_bin;
+
+CREATE TABLE t2 SELECT a.col
+  FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+SET @@SESSION.character_set_connection = DEFAULT;

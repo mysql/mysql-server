@@ -1,5 +1,5 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ extern "C" {
 #define MYSQL_CLIENT_AUTHENTICATION_PLUGIN 2
 #define MYSQL_CLIENT_TRACE_PLUGIN 3
 
-#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION 0x0100
+#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION 0x0101
 #define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION 0x0100
 
 #define MYSQL_CLIENT_MAX_PLUGINS 4
@@ -113,6 +113,9 @@ struct MYSQL;
 struct auth_plugin_t {
   MYSQL_CLIENT_PLUGIN_HEADER
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
+  enum net_async_status (*authenticate_user_nonblocking)(MYSQL_PLUGIN_VIO *vio,
+                                                         struct MYSQL *mysql,
+                                                         int *result);
 };
 
 // Needed for the mysql_declare_client_plugin() macro. Do not use elsewhere.

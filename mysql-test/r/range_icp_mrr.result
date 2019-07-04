@@ -25,6 +25,16 @@ INSERT INTO t1 VALUES ('1999-07-10',100100,24), ('1999-07-11',100100,25),
 ('1999-08-24',100600,3), ('1999-08-24',100600,32), ('1999-08-27',100500,43),
 ('1999-08-31',100600,33), ('1999-09-17',100100,37), ('1999-09-18',100100,37),
 ('1999-09-19',100100,37), ('2000-12-18',100700,38);
+explain select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	7	NULL	6	19.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where ((`test`.`t1`.`event_date` >= DATE'1999-07-01') and (`test`.`t1`.`event_date` < DATE'1999-07-15') and ((`test`.`t1`.`type` = 100600) or (`test`.`t1`.`type` = 100100))) order by `test`.`t1`.`event_date`
+explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+EXPLAIN
+-> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))
+    -> Index range scan on t1 using PRIMARY
+
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 event_date	type	event_id
 1999-07-10	100100	24
@@ -621,36 +631,36 @@ insert into t1 select 18446744073709551615;
 insert into t1 select 18446744073709551614;
 explain select * from t1 where a <> -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <> <cache>(-(1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` is not null)
 select * from t1 where a <> -1;
 a
 18446744073709551614
 18446744073709551615
 explain select * from t1 where a > -1 or a < -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	75.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > <cache>(-(1))) or (`test`.`t1`.`a` < <cache>(-(1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` is not null)
 select * from t1 where a > -1 or a < -1;
 a
 18446744073709551614
 18446744073709551615
 explain select * from t1 where a > -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	t1i	t1i	9	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` is not null)
 select * from t1 where a > -1;
 a
 18446744073709551614
 18446744073709551615
 explain select * from t1 where a < -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < -(1))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
 select * from t1 where a < -1;
 a
 drop table t1;
@@ -1142,7 +1152,7 @@ select count(*) from (select @a:=concat(@a, ',', a) from t2 ) Z;
 count(*)
 1000
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 set @a=concat(@a, ')');
 insert into t2 values (11),(13),(15);
 set @b= concat("explain ", @a);
@@ -1205,6 +1215,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	100.00	Using sort_union(idx1,idx2); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (0 not between `test`.`t1`.`b` and `test`.`t1`.`c`)
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+EXPLAIN
+-> Filter: (0 not between t1.b and t1.c)
+    -> Index range scan on t1 using sort_union(idx1,idx2)
+
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
 item char(20) NOT NULL default '',                          
@@ -1218,36 +1233,18 @@ INSERT INTO t1 VALUES
 ('A1','2005-12-12 08:00:00',3000),
 ('A2','2005-12-01 08:00:00',1000);
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	80	const	2	33.33	Using index condition
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`item` AS `item`,`test`.`t1`.`started` AS `started`,`test`.`t1`.`price` AS `price` from `test`.`t1` where ((`test`.`t1`.`item` = 'A1') and (`test`.`t1`.`started` <= '2005-12-01 24:00:00'))
+ERROR HY000: Incorrect DATETIME value: '2005-12-01 24:00:00'
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
-item	started	price
-A1	2005-11-01 08:00:00	1000.000
-A1	2005-11-15 00:00:00	2000.000
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+ERROR HY000: Incorrect DATETIME value: '2005-12-01 24:00:00'
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 item	started	price
 A1	2005-11-01 08:00:00	1000.000
 A1	2005-11-15 00:00:00	2000.000
 DROP INDEX `PRIMARY` ON t1;
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`item` AS `item`,`test`.`t1`.`started` AS `started`,`test`.`t1`.`price` AS `price` from `test`.`t1` where ((`test`.`t1`.`item` = 'A1') and (`test`.`t1`.`started` <= '2005-12-01 24:00:00'))
+ERROR HY000: Incorrect DATETIME value: '2005-12-01 24:00:00'
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
-item	started	price
-A1	2005-11-01 08:00:00	1000.000
-A1	2005-11-15 00:00:00	2000.000
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+ERROR HY000: Incorrect DATETIME value: '2005-12-01 24:00:00'
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 item	started	price
 A1	2005-11-01 08:00:00	1000.000
@@ -1271,7 +1268,7 @@ explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	dateval	dateval	4	NULL	2	100.00	Using index condition; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`dateval` AS `dateval` from `test`.`t1` where ((`test`.`t1`.`dateval` >= '2007-01-01 00:00:00') and (`test`.`t1`.`dateval` <= '2007-01-02 23:59:59'))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`dateval` AS `dateval` from `test`.`t1` where ((`test`.`t1`.`dateval` >= DATE'2007-01-01') and (`test`.`t1`.`dateval` <= DATE'2007-01-02'))
 drop table t1;
 CREATE TABLE t1 (
 a varchar(32), index (a)
@@ -1718,22 +1715,15 @@ a
 # The former may give errors for the truncated values, while the latter
 # gives warnings. The purpose of this test is not to interfere, and only
 # preserve existing behavior.
+# This case was made obsolete after the changes applied by
+# Bug#28940878 WRONG RESULT WHEN COMPARING DATE[TIME] WITH STRING
+# as we don't fallback anymore to string comparison if the date is invalid.
 SELECT str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
 str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20';
-str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
-str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20'
-1
-Warnings:
-Warning	1292	Truncated incorrect date value: ''
+ERROR HY000: Incorrect DATE value: ''
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
 str_to_date('2007-20-00', '%Y-%m-%d') <= '';
-str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
-str_to_date('2007-20-00', '%Y-%m-%d') <= ''
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: ''
-Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
-Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+ERROR HY000: Incorrect DATE value: ''
 SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
 str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
@@ -1826,7 +1816,7 @@ SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	i4_uq	i4_uq	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where ('10' between 10 and 10)
+Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where 1
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 pk	i4
 1	10
@@ -1835,7 +1825,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	i4_uq	i4_uq	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where (10 between '10' and '10')
+Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where 1
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 pk	i4
 1	10
@@ -1864,7 +1854,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN 10 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1`
 SELECT * FROM t1 WHERE 10 BETWEEN 10 AND 10;
 pk	i4
 1	10
@@ -1930,6 +1920,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`pk` between `test`.`t1`.`i4` and `test`.`t1`.`i4`)
+EXPLAIN FORMAT=tree
+SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t1
+    -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)
+
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
 EXPLAIN
@@ -2068,7 +2065,6 @@ c1
 2
 3
 Warnings:
-Warning	1366	Incorrect decimal value: 'A' for column 'c1' at row 1
 Warning	1292	Truncated incorrect DECIMAL value: 'A'
 DROP TABLE t1;
 create table t1 (a int,b int,key (b),key (a),key (b,a));
@@ -2200,6 +2196,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ref	PRIMARY,col_int_key	col_int_key	5	test.t1.col_int	1	33.33	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
+EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+EXPLAIN
+-> Nested loop inner join
+    -> Filter: (t1.col_int is not null)
+        -> Table scan on t1
+    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)
+
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk
@@ -2213,6 +2217,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	6	33.33	Range checked for each record (index map: 0x3)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
+EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t1
+    -> Filter: ((t2.col_int_key = t1.col_int) and (t2.pk < t1.pk))
+        -> Index range scan on t2 (re-planned for each iteration)
+
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk
@@ -3007,14 +3019,16 @@ DROP FUNCTION f1;
 EXPLAIN
 SELECT a, b
 FROM t1 AS t1o
-WHERE EXISTS ( SELECT 1 FROM t1 WHERE (a, b) IN ((t1o.a, t1o.b)) );
+WHERE EXISTS (SELECT /*+ NO_SEMIJOIN() */ 1
+FROM t1
+WHERE (a, b) IN ((t1o.a, t1o.b)) );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1o	NULL	index	NULL	x	10	NULL	4098	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ref	x	x	10	test.t1o.a,test.t1o.b	410	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t1o.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1o.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1o`.`a` AS `a`,`test`.`t1o`.`b` AS `b` from `test`.`t1` `t1o` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1o`.`a`) and (`test`.`t1`.`b` = `test`.`t1o`.`b`)))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t1o`.`a` AS `a`,`test`.`t1o`.`b` AS `b` from `test`.`t1` `t1o` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1o`.`a`) and (`test`.`t1`.`b` = `test`.`t1o`.`b`)))
 #
 # Tests of dynamic range access
 #
@@ -3761,7 +3775,7 @@ GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	transactions	NULL	range	tbl_id_idx,created_idx,trans_type_created_idx	created_idx	4	NULL	#	#	Using index condition; Using where; Using MRR; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select '2017-10-23 01:01:01' AS `2017-10-23 01:01:01`,hour(`test`.`transactions`.`created`) AS `HOUR(created)`,`test`.`transactions`.`source_lvl1` AS `source_lvl1`,`test`.`transactions`.`source_lvl2` AS `source_lvl2`,count(distinct `test`.`transactions`.`app_trans_id`) AS `COUNT(DISTINCT(app_trans_id))` from `test`.`transactions` where ((`test`.`transactions`.`trans_type` = 3) and (`test`.`transactions`.`tbl` = 1) and (`test`.`transactions`.`created` > '2017-10-23 01:01:01')) group by '2017-10-23 01:01:01',hour(`test`.`transactions`.`created`),`test`.`transactions`.`source_lvl1`,`test`.`transactions`.`source_lvl2`
+Note	1003	/* select#1 */ select '2017-10-23 01:01:01' AS `2017-10-23 01:01:01`,hour(`test`.`transactions`.`created`) AS `HOUR(created)`,`test`.`transactions`.`source_lvl1` AS `source_lvl1`,`test`.`transactions`.`source_lvl2` AS `source_lvl2`,count(distinct `test`.`transactions`.`app_trans_id`) AS `COUNT(DISTINCT(app_trans_id))` from `test`.`transactions` where ((`test`.`transactions`.`trans_type` = 3) and (`test`.`transactions`.`tbl` = 1) and (`test`.`transactions`.`created` > TIMESTAMP'2017-10-23 01:01:01')) group by '2017-10-23 01:01:01',hour(`test`.`transactions`.`created`),`test`.`transactions`.`source_lvl1`,`test`.`transactions`.`source_lvl2`
 SET optimizer_trace="enabled=on";
 SELECT '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2,
 COUNT(DISTINCT(app_trans_id))
@@ -3777,4 +3791,53 @@ SELECT @trace RLIKE "range_uses_more_keyparts";
 SET optimizer_trace="enabled=off";
 DROP PROCEDURE p;
 DROP TABLE t1, transactions;
+#
+# Bug #28086754: OPTIMIZER SKIP THE RANG SCAN ON SECOND COLUMN IN A
+#                 COMPOSITE INDEX
+#
+CREATE TABLE test_ref (
+a INT PRIMARY KEY,
+b VARCHAR(20),
+c VARCHAR(20) DEFAULT NULL,
+d VARCHAR(3) DEFAULT NULL,
+id INT DEFAULT NULL,
+KEY idx1 (id, c),
+KEY idx2 (id, d)) ENGINE=INNODB ;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Table 'test.t1' doesn't exist
+test.t1	analyze	status	Operation failed
+EXPLAIN SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	88	NULL	25	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+a	b	c	d	id
+34876	D003	gheennse	S	3
+EXPLAIN SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	88	NULL	25	100.00	Using index condition; Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` desc limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+LIMIT 1;
+a	b	c	d	id
+1770649	D003	gheennse	S	3
+DROP TABLE test_ref;
 set optimizer_switch=default;

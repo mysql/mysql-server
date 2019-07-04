@@ -59,7 +59,12 @@ static pax_msg *init_pax_msg(pax_msg *p, int refcnt, synode_no synode,
   p->to = VOID_NODE_NO;
   p->op = initial_op;
   init_ballot(&p->reply_to, 0, nodeno);
-  init_ballot(&p->proposal, 0, nodeno);
+  /*
+   -1 ensures ballot (-1,nodeno) is less than any ballot used by any proposer.
+   Leader will use reserved ballot (0,_) for its initial 2-phase Paxos round.
+   Remaining rounds will use ballot (1+,_) and the vanilla 3-phase Paxos.
+   */
+  init_ballot(&p->proposal, -1, nodeno);
   p->synode = synode;
   p->msg_type = normal;
   p->receivers = NULL;

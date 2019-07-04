@@ -224,12 +224,14 @@ void* async_local_log_func(void* args)
     if((bytes = logBuf->get(buf, get_bytes)))
     {
       fwrite(buf, bytes, 1, f);
+      fflush(f);
     }
   }
 
   while((bytes = logBuf->get(buf, get_bytes, 1)))// flush remaining logs
   {
     fwrite(buf, bytes, 1, f);
+    fflush(f);
   }
 
   // print lost count in the end, if any
@@ -237,6 +239,7 @@ void* async_local_log_func(void* args)
   if(lost_count)
   {
     fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fflush(f);
   }
 
   return NULL;
@@ -400,6 +403,7 @@ static int mgmd_main(int argc, char** argv)
 
   while (!g_StopServer)
   {
+    NdbOut_Init();
     mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");

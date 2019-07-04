@@ -212,38 +212,25 @@ z_frag_entry_t z_first_page_t::alloc_frag_entry(bool bulk) {
   return (entry);
 }
 
-/** Find a fragment page, that has space to store len bytes of data. If
-necessary, allocate a new fragment page.
-@param[in]	bulk		true if it is bulk operation
-                                (OPCODE_INSERT_BULK), false otherwise.
-@param[in]	len		length of data to be stored in fragment page.
-@param[out]	frag_page	the fragment page with the needed free space.
-@return a reference to the fragment page.  The reference would return true
-        for is_null() if page could not be allocated. */
-z_frag_entry_t z_first_page_t::find_frag_page(bool bulk, ulint len,
-                                              z_frag_page_t &frag_page) {
+frag_id_t z_first_page_t::alloc_fragment(bool bulk, ulint len,
+                                         z_frag_page_t &frag_page,
+                                         z_frag_entry_t &entry) {
   ut_ad(m_mtr != nullptr);
+
+  frag_id_t frag_id = FRAG_ID_NULL;
 
   frag_page.set_mtr(m_mtr);
   frag_page.set_index(m_index);
   frag_page.set_block_null();
-
-  z_frag_entry_t entry(m_mtr);
 
   const page_no_t first_page_no = get_page_no();
 
   /* Make sure that there will be some extra space for page directory
   entry and meta data.  Adding a margin to provide for this.  This is
   for exact fit. */
-  const ulint look_size_1 = len + frag_node_t::overhead();
+  const ulint look_size = len + frag_node_t::header_size();
 
-  /* If the fragment node is split into two, then ensure that atleast
-  1 byte can be stored in the other frag node. */
-  const ulint look_size_2 = len + (2 * frag_node_t::overhead()) + 1;
-
-  ut_ad(look_size_1 <= z_frag_page_t::max_payload(m_index));
-  ut_ad(look_size_1 <= z_frag_page_t::max_payload(m_index) ||
-        look_size_2 <= z_frag_page_t::max_payload(m_index));
+  ut_ad(look_size <= z_frag_page_t::max_payload(m_index));
 
   flst_base_node_t *frag_lst = frag_list();
 
@@ -256,7 +243,7 @@ z_frag_entry_t z_first_page_t::find_frag_page(bool bulk, ulint len,
 
     ulint big_free = entry.get_big_free_len();
 
-    if (big_free == look_size_1 || big_free >= look_size_2) {
+    if (big_free >= look_size) {
       /* Double check if the information in the index
       entry matches with the fragment page. If not, update
       the index entry. */
@@ -266,15 +253,21 @@ z_frag_entry_t z_first_page_t::find_frag_page(bool bulk, ulint len,
       const ulint big_free_len_2 = entry.get_big_free_len();
 
       if (big_free_len_1 == big_free_len_2) {
-        break;
+        frag_id = frag_page.alloc_fragment(len, entry);
+        if (frag_id != FRAG_ID_NULL) {
+          break;
+        }
       } else {
         entry.update(frag_page);
 
         /* Check again */
         big_free = entry.get_big_free_len();
 
-        if (big_free == look_size_1 || big_free >= look_size_2) {
-          break;
+        if (big_free >= look_size) {
+          frag_id = frag_page.alloc_fragment(len, entry);
+          if (frag_id != FRAG_ID_NULL) {
+            break;
+          }
         }
       }
     }
@@ -283,19 +276,22 @@ z_frag_entry_t z_first_page_t::find_frag_page(bool bulk, ulint len,
     entry.reset(nullptr);
   }
 
+  if (frag_id != FRAG_ID_NULL) {
+    return (frag_id);
+  }
+
   if (fil_addr_is_null(loc)) {
     /* Need to allocate a new fragment page. */
     buf_block_t *tmp_block = frag_page.alloc(first_page_no + 1, bulk);
 
     if (tmp_block == nullptr) {
-      entry.set_null();
-      return (entry);
+      return (FRAG_ID_NULL);
     }
 
     entry = alloc_frag_entry(bulk);
 
     if (entry.is_null()) {
-      return (entry);
+      return (FRAG_ID_NULL);
     }
 
     entry.set_page_no(frag_page.get_page_no());
@@ -316,11 +312,15 @@ z_frag_entry_t z_first_page_t::find_frag_page(bool bulk, ulint len,
   const ulint big_free_len_2 = entry.get_big_free_len();
   ut_ad(big_free_len_1 == big_free_len_2);
 
-  ut_ad(big_free_len_1 == look_size_1 || big_free_len_1 >= look_size_2);
+  ut_ad(big_free_len_1 >= look_size);
   ut_ad(big_free_len_1 > len);
 #endif /* UNIV_DEBUG */
 
-  return (entry);
+  frag_id = frag_page.alloc_fragment(len, entry);
+
+  ut_ad(frag_id != FRAG_ID_NULL);
+
+  return (frag_id);
 }
 
 /** Print the page. */
@@ -518,4 +518,4 @@ void z_first_page_t::import(trx_id_t trx_id) {
   }
 }
 
-}; /* namespace lob */
+} /* namespace lob */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,9 +89,9 @@ public:
   Uint32 get_mgmd_port() const;
   const char *get_mgmd_host() const;
   const char *get_connectstring(char *buf, int buf_sz) const;
-  NdbMgmHandle get_mgmHandle() { return m_handle; };
-  NdbMgmHandle* get_mgmHandlePtr() { return &m_handle; };
-  void end_session(bool end) { m_end_session= end; };
+  NdbMgmHandle get_mgmHandle() { return m_handle; }
+  NdbMgmHandle* get_mgmHandlePtr() { return &m_handle; }
+  void end_session(bool end) { m_end_session= end; }
 
   Uint32 get_configuration_nodeid() const;
 private:

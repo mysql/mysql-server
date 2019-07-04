@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,8 +114,13 @@ THD *Gtid_table_access_context::create_thd() {
   */
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
-
+  thd->set_skip_readonly_check();
   return (thd);
+}
+
+void Gtid_table_access_context::drop_thd(THD *thd) {
+  thd->reset_skip_readonly_check();
+  System_table_access::drop_thd(thd);
 }
 
 void Gtid_table_access_context::before_open(THD *) {
@@ -134,6 +139,10 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write) {
   DBUG_ENTER("Gtid_table_access_context::init");
 
   if (!(*thd)) *thd = m_drop_thd_object = this->create_thd();
+  if (!(*thd)->is_cmd_skip_readonly()) {
+    (*thd)->set_skip_readonly_check();
+    this->m_skip_readonly_set = true;
+  }
   m_is_write = is_write;
   if (m_is_write) {
     /* Disable binlog temporarily */
@@ -196,6 +205,10 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
   /* Reenable binlog */
   if (m_is_write)
     thd->variables.option_bits = m_tmp_disable_binlog__save_options;
+  if (this->m_skip_readonly_set) {
+    thd->reset_skip_readonly_check();
+    this->m_skip_readonly_set = false;
+  }
   if (m_drop_thd_object) this->drop_thd(m_drop_thd_object);
 
   DBUG_RETURN(err);

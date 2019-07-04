@@ -32,7 +32,7 @@ namespace member_version_unittest {
 
 class MemberVersionTest : public ::testing::Test {
  protected:
-  MemberVersionTest(){};
+  MemberVersionTest() {}
 
   virtual void SetUp() {
     version = new Member_version(0x010206);  // version: 1.2.6

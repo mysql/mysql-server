@@ -1,0 +1,147 @@
+--source include/have_multi_ndb.inc
+
+--echo MySQL Server 1
+
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile1.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+# Create tablespaces using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile1.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE=NDB;
+
+CREATE TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile1.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE=NDB;
+
+CREATE TABLESPACE ts3
+  ADD DATAFILE 'ts3_datafile1.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE=NDB;
+
+connection server2;
+--echo MySQL Server 2
+
+# Time to run some ALTER queries. This tests the ALTER ADD UNDO/DATAFILE
+# functionality and also proves that the CREATE queries have been
+# successfully distributed
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE=NDB;
+
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile3.dat'
+  ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+
+ALTER TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile2.dat';
+
+ALTER TABLESPACE ts3
+  ADD DATAFILE 'ts3_datafile2.dat';
+
+connection server1;
+--echo MySQL Server 1
+
+# Check if the previous ALTER's have been distributed. This is done by repeating
+# the previous queries which should now fail
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE=NDB;
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile3.dat'
+  ENGINE=NDB;
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile2.dat';
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts3
+  ADD DATAFILE 'ts3_datafile2.dat';
+SHOW WARNINGS;
+
+# More ALTER queries, this time with the DROP DATAFILE variant
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile1.dat';
+
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile1.dat';
+
+ALTER TABLESPACE ts3
+  DROP DATAFILE 'ts3_datafile1.dat';
+
+connection server2;
+--echo MySQL Server 2
+
+# Check if the latest ALTER queries have been distributed
+--error ER_MISSING_TABLESPACE_FILE
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile1.dat';
+
+--error ER_MISSING_TABLESPACE_FILE
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile1.dat';
+
+--error ER_MISSING_TABLESPACE_FILE
+ALTER TABLESPACE ts3
+  DROP DATAFILE 'ts3_datafile1.dat';
+
+# And finally time to drop everything
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat';
+
+DROP TABLESPACE ts1;
+
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile2.dat';
+
+DROP TABLESPACE ts2;
+
+ALTER TABLESPACE ts3
+  DROP DATAFILE 'ts3_datafile2.dat';
+
+DROP TABLESPACE ts3;
+
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;
+
+connection server1;
+--echo MySQL Server 1
+
+# Finish up by confirming that the DROP queries have been distributed
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE ts1;
+
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE ts2;
+
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE ts3;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;
+SHOW WARNINGS;

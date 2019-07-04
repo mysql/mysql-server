@@ -67,8 +67,8 @@ class Callback_command_delegate : public ngs::Command_delegate {
     void clone_fields(const Row_data &other);
   };
 
-  typedef ngs::function<Row_data *()> Start_row_callback;
-  typedef ngs::function<bool(Row_data *)> End_row_callback;
+  typedef std::function<Row_data *()> Start_row_callback;
+  typedef std::function<bool(Row_data *)> End_row_callback;
 
   Callback_command_delegate();
   Callback_command_delegate(Start_row_callback start_row,
@@ -85,7 +85,7 @@ class Callback_command_delegate : public ngs::Command_delegate {
  private:
   Start_row_callback m_start_row;
   End_row_callback m_end_row;
-  Row_data *m_current_row;
+  Row_data *m_current_row = nullptr;
 
  private:
   virtual int start_row();

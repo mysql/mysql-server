@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.TimeAsSqlTimeTypes;
 
@@ -105,14 +105,14 @@ public class TimeAsSqlTimeTypesTest extends AbstractClusterJModelTest {
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
         failOnError();
-   }
+    }
 
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
-   }
+    }
 
-   static ColumnDescriptor not_null_hash = new ColumnDescriptor
+    static ColumnDescriptor not_null_hash = new ColumnDescriptor
             ("time_not_null_hash", new InstanceHandler() {
         public void setFieldValue(IdBase instance, Object value) {
             ((TimeAsSqlTimeTypes)instance).setTime_not_null_hash((Time)value);

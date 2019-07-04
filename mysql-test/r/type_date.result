@@ -117,7 +117,7 @@ select @d:=1111;
 @d:=1111
 1111
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 2000	11	11	2000-11-11
@@ -125,7 +125,7 @@ select @d:=011111;
 @d:=011111
 11111
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 2001	11	11	2001-11-11
@@ -133,7 +133,7 @@ select @d:=1311;
 @d:=1311
 1311
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 NULL	NULL	NULL	NULL
@@ -223,75 +223,47 @@ INSERT IGNORE INTO t2 VALUES ('0000-00-00'),('0000-00-00');
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1264	Out of range value for column 'a' at row 2
+SET sql_mode = 'ALLOW_INVALID_DATES';
 SELECT * FROM t1 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i	i	4	const	2	100.00	Using index
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '0000-00-00')
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 SELECT * FROM t1 WHERE a = '0000-00-00';
-a
-0000-00-00
-0000-00-00
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 SELECT * FROM t2 WHERE a = '0000-00-00';
-a
-0000-00-00
-0000-00-00
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 INSERT INTO t1 VALUES ('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1,t2;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 CREATE TABLE t1 (a DATE);
 CREATE TABLE t2 (a DATE);
 CREATE INDEX i ON t1 (a);
 INSERT IGNORE INTO t1 VALUES ('1000-00-00'),('1000-00-00');
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
 INSERT IGNORE INTO t2 VALUES ('1000-00-00'),('1000-00-00');
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
 SELECT * FROM t1 WHERE a = '1000-00-00';
 a
-Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
+1000-00-00
+1000-00-00
 SELECT * FROM t2 WHERE a = '1000-00-00';
 a
-Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
+1000-00-00
+1000-00-00
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '1000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i	i	4	const	1	100.00	Using index
-Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '1000-00-00')
+ERROR HY000: Incorrect DATE value: '1000-00-00'
 SELECT * FROM t1 WHERE a = '1000-00-00';
-a
-Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
+ERROR HY000: Incorrect DATE value: '1000-00-00'
 SELECT * FROM t2 WHERE a = '1000-00-00';
-a
-Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
+ERROR HY000: Incorrect DATE value: '1000-00-00'
 INSERT INTO t1 VALUES ('1000-00-00');
 ERROR 22007: Incorrect date value: '1000-00-00' for column 'a' at row 1
 SET SQL_MODE=DEFAULT;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,16 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
         .WillRepeatedly(Return(false));
     EXPECT_CALL(m_mock_connection, connect(_, _, _))
         .WillRepeatedly(Return(XError{0, ""}));
+    EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
+                                                     Handler_priority_low))
+        .WillOnce(Return(3));
+    EXPECT_CALL(*m_mock_protocol, remove_notice_handler(3));
+    EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
+    EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
+    EXPECT_CALL(m_mock_connection, set_read_timeout(_))
+        .WillRepeatedly(Return(XError{}));
+    EXPECT_CALL(m_mock_connection, set_write_timeout(_))
+        .WillRepeatedly(Return(XError{}));
   }
 
   void set_ssl_state(bool is_enabled) {

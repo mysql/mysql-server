@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ struct Result_collector {
 
   ngs::Scheduler_dynamic::Task *new_task(const T &value) {
     return new ngs::Scheduler_dynamic::Task(
-        ngs::bind(&Result_collector::task, this, value));
+        std::bind(&Result_collector::task, this, value));
   }
 
   void wait(size_t task_count) {
@@ -56,16 +56,16 @@ struct Result_collector {
       m_check_task_count_cond.wait(m_check_task_count_mutex);
   }
 
-  xpl::Mutex m_check_task_count_mutex;
-  xpl::Cond m_check_task_count_cond;
-  xpl::Mutex m_result_mutex;
+  Mutex m_check_task_count_mutex{PSI_NOT_INSTRUMENTED};
+  Cond m_check_task_count_cond{PSI_NOT_INSTRUMENTED};
+  Mutex m_result_mutex{PSI_NOT_INSTRUMENTED};
   std::vector<T> m_result;
 };
 
 TEST(xpl_scheduler_dynamic, DISABLED_run_1000_tasks) {
   const unsigned int TASK_COUNT = 1000;
 
-  ngs::Scheduler_dynamic scheduler("name");
+  ngs::Scheduler_dynamic scheduler("name", PSI_NOT_INSTRUMENTED);
   Result_collector<unsigned int> result_set;
 
   scheduler.launch();

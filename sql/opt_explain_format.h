@@ -60,16 +60,12 @@ enum Extra_tag {
   ET_USING_INDEX_CONDITION,
   ET_USING,
   ET_RANGE_CHECKED_FOR_EACH_RECORD,
-  ET_USING_WHERE_WITH_PUSHED_CONDITION,
+  ET_USING_PUSHED_CONDITION,
   ET_USING_WHERE,
   ET_NOT_EXISTS,
   ET_USING_MRR,
   ET_USING_INDEX,
   ET_FULL_SCAN_ON_NULL_KEY,
-  ET_SKIP_OPEN_TABLE,
-  ET_OPEN_FRM_ONLY,
-  ET_OPEN_FULL_TABLE,
-  ET_SCANNED_DATABASES,
   ET_USING_INDEX_FOR_GROUP_BY,
   ET_USING_INDEX_FOR_SKIP_SCAN,
   ET_DISTINCT,
@@ -91,6 +87,8 @@ enum Extra_tag {
   ET_RECURSIVE,
   ET_TABLE_FUNCTION,
   ET_SKIP_RECORDS_IN_RANGE,
+  ET_USING_SECONDARY_ENGINE,
+  ET_REMATERIALIZE,
   //------------------------------------
   ET_total
 };
@@ -520,6 +518,8 @@ class Explain_format {
     @retval false       Traditional explain
   */
   virtual bool is_hierarchical() const = 0;
+
+  virtual bool is_tree() const { return false; }
 
   /**
     Send EXPLAIN header item(s) to output stream

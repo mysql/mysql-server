@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
@@ -167,9 +168,8 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi) {
       /* STS will use SQL thread as workers on this table */
       if (mi->rli->get_worker_count() == 0) {
         PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
-        PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-        if (pfs) {
-          row.thread_id = pfs->m_thread_internal_id;
+        if (psi != nullptr) {
+          row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         }
       }
     }
@@ -196,9 +196,8 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(
     if (mi->rli->slave_running) {
       if (worker) {
         PSI_thread *psi = thd_get_psi(worker->info_thd);
-        PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-        if (pfs) {
-          row.thread_id = pfs->m_thread_internal_id;
+        if (psi != nullptr) {
+          row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         }
       }
     }
@@ -432,9 +431,8 @@ int table_replication_applier_status_by_worker::make_row(Master_info *mi) {
 
   if (mi->rli->slave_running) {
     PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-    if (pfs) {
-      m_row.thread_id = pfs->m_thread_internal_id;
+    if (psi != nullptr) {
+      m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
   }
@@ -482,9 +480,8 @@ int table_replication_applier_status_by_worker::make_row(Slave_worker *w) {
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::RUNNING) {
     PSI_thread *psi = thd_get_psi(w->info_thd);
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-    if (pfs) {
-      m_row.thread_id = pfs->m_thread_internal_id;
+    if (psi != nullptr) {
+      m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
   }

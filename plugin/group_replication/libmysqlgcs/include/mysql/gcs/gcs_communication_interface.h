@@ -23,8 +23,11 @@
 #ifndef GCS_COMMUNICATION_INTERFACE_INCLUDED
 #define GCS_COMMUNICATION_INTERFACE_INCLUDED
 
+#include <future>
+#include <utility>  // std::pair
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_event_listener.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 /**
   @class Gcs_communication_interface
@@ -128,6 +131,43 @@ class Gcs_communication_interface {
   */
 
   virtual void remove_event_listener(int event_listener_handle) = 0;
+
+  /**
+    Retrieves the current GCS protocol version in use.
+   */
+  virtual Gcs_protocol_version get_protocol_version() const = 0;
+
+  /**
+   * Modifies the GCS protocol version in use.
+   *
+   * The method is non-blocking. It returns a future on which the caller can
+   * wait for the action to finish.
+   *
+   * This method has the following requirements:
+   * - It must be called by all group members at the same logical instant, i.e.
+   *   it is part of the replicated state machine.
+   * - It must not be called concurrently, i.e. a new protocol change may only
+   *   begin after the previous one has finished.
+   *
+   * A GCS client must ensure the requirements are met.
+   * In the case of Group Replication, these requirements are ensured by
+   * initiating a GCS protocol change as part of a GR group action.
+   *
+   * @param new_version The desired GCS protocol version
+   *
+   * @retval {true, future} If successful
+   * @retval {false, _} If unsuccessful because @c new_version is unsupported
+   */
+  virtual std::pair<bool, std::future<void>> set_protocol_version(
+      Gcs_protocol_version new_version) = 0;
+
+  /**
+   * Get the maximum protocol version currently supported by the group.
+   *
+   * @returns the maximum protocol version currently supported by the group
+   */
+  virtual Gcs_protocol_version get_maximum_supported_protocol_version()
+      const = 0;
 
   virtual ~Gcs_communication_interface() {}
 };

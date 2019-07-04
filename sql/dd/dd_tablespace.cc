@@ -181,8 +181,8 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
       If user has specified special tablespace name like
       'innodb_file_per_table' then we read it from tablespace options.
     */
-    const dd::Properties *table_options = &obj->options();
-    table_options->get("tablespace", name);
+    if (obj->options().exists("tablespace"))
+      (void)obj->options().get("tablespace", &name);
   }
 
   *tablespace_name = NULL;
@@ -193,5 +193,26 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
 
   return false;
 }
+
+// The explicit instantiation of the template members below
+// is not handled well by doxygen, so we enclose this in a
+// cond/endcon block.
+
+/**
+ @cond
+*/
+
+template bool get_tablespace_name<dd::Partition>(THD *, dd::Partition const *,
+                                                 char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Partition_index>(
+    THD *, dd::Partition_index const *, char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Index>(THD *, dd::Index const *,
+                                             char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Table>(THD *, dd::Table const *,
+                                             char const **, MEM_ROOT *);
+
+/**
+ @endcond
+*/
 
 }  // namespace dd

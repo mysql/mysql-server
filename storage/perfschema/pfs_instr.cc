@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
 std::atomic<PFS_memory_shared_stat *> global_instr_class_memory_array{nullptr};
 
-static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
+static PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
@@ -609,11 +609,11 @@ PFS_thread *create_thread(PFS_thread_class *klass,
 }
 
 /**
-  Find a PFS thread given an internal thread id or a processlist id.
+  Find a PFS thread given an internal thread id.
   @param thread_id internal thread id
   @return pfs pointer if found, else NULL
 */
-PFS_thread *find_thread(ulonglong thread_id) {
+PFS_thread *find_thread_by_internal_id(ulonglong thread_id) {
   PFS_thread *pfs = NULL;
   uint index = 0;
 
@@ -623,6 +623,29 @@ PFS_thread *find_thread(ulonglong thread_id) {
     pfs = it.scan_next(&index);
     if (pfs != NULL) {
       if (pfs->m_thread_internal_id == thread_id) {
+        return pfs;
+      }
+    }
+  } while (pfs != NULL);
+
+  return NULL;
+}
+
+/**
+  Find a PFS thread given a processlist id.
+  @param processlist_id PROCESSLIST_ID
+  @return pfs pointer if found, else NULL
+*/
+PFS_thread *find_thread_by_processlist_id(ulonglong processlist_id) {
+  PFS_thread *pfs = NULL;
+  uint index = 0;
+
+  PFS_thread_iterator it = global_thread_container.iterate(index);
+
+  do {
+    pfs = it.scan_next(&index);
+    if (pfs != NULL) {
+      if (pfs->m_processlist_id == processlist_id) {
         return pfs;
       }
     }
@@ -1695,12 +1718,18 @@ void aggregate_all_memory(bool alive, PFS_memory_shared_stat *from_array,
 void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
                              PFS_user *safe_user, PFS_host *safe_host) {
   THD *thd = thread->m_thd;
+  bool aggregated = false;
 
   if (thd == NULL) {
     return;
   }
 
-  System_status_var *status_var = get_thd_status_var(thd);
+  System_status_var *status_var = get_thd_status_var(thd, &aggregated);
+
+  if (unlikely(aggregated)) {
+    /* THD is being closed, status has already been aggregated. */
+    return;
+  }
 
   if (likely(safe_account != NULL)) {
     safe_account->aggregate_status_stats(status_var);

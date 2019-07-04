@@ -25,6 +25,9 @@ select @primary_server_port:=(variable_value+0)
        where variable_name like 'port';
 let $PRIMARY_SERVER_PORT= query_get_value('select @primary_server_port as v', v,1);
 
+# Suppress warnings sometimes seen
+call mtr.add_suppression("Master is configured to log replication events with checksum");
+
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Gather port + serverid
 select @secondary_server_id:=(variable_value+0)
@@ -35,6 +38,9 @@ select @secondary_server_port:=(variable_value+0)
        from performance_schema.global_variables
        where variable_name like 'port';
 let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v', v,1);
+
+# Suppress warnings sometimes seen
+call mtr.add_suppression("Master is configured to log replication events with checksum");
 
 # Now set it up
 # Stop Slave @ Secondary
@@ -696,6 +702,8 @@ START SLAVE;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 
+# Debugging for bug#28840766
+--let $EXPECT_STABILITY=1
 --echo Now look at primary content and conflict counters
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 select * from test.t1 order by k;
@@ -705,7 +713,7 @@ select * from test.t1 order by k;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 select * from test.t1 order by k;
 --source suite/ndb_rpl/t/ndb_conflict_info_epoch2.inc
-
+--let $EXPECT_STABILITY=0
 
 --echo Now look at how row existence errors are handled
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,8 @@ ENDIF()
 ### Includes
 ###
 
-# rpcgen.cmake will store RPC_INCLUDE_DIR in the cache
-IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
-  INCLUDE_DIRECTORIES(SYSTEM /usr/include/tirpc)
-  ADD_DEFINITIONS(-DHAVE_TIRPC)
+IF(NOT WIN32)
+  MYSQL_CHECK_RPC()
 ENDIF()
 
 # Add the definition to build XCom with SSL support.
@@ -45,6 +43,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/xdr_gen
+  ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/interface
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
   ${CMAKE_SOURCE_DIR}/unittest/gunit/libmysqlgcs/include)
@@ -62,7 +61,8 @@ ENDIF()
 ###
 
 SET(GCS_INTERFACE_TESTS
-    interface/gcs_message)
+    interface/gcs_message
+    interface/gcs_tagged_lock)
 
 SET(GCS_XCOM_TESTS
     xcom/gcs_logging
@@ -79,6 +79,13 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_interface_unit
     xcom/gcs_xcom_statistics_interface
     xcom/gcs_xcom_group_member_information
+    xcom/gcs_mpsc_queue
+    xcom/gcs_xcom_input_queue
+    xcom/gcs_xcom_networking
+    xcom/gcs_xcom_xcom_base
+    xcom/gcs_xcom_xcom_transport
+    xcom/gcs_xcom_communication_protocol_changer
+    xcom/gcs_xcom_xcom_cache
    )
 
 ###
@@ -91,6 +98,10 @@ FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small ${GCS_LIBRARY} ${LZ4_LIBRARY})
   SET(GCS_UNIT_TESTS "${GCS_UNIT_TESTS}" "${test}-t")
 ENDFOREACH()
+
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+ENDIF()
 
 ADD_CUSTOM_TARGET(libmysqlgcs-tests
                   DEPENDS

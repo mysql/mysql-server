@@ -1,0 +1,18 @@
+--source include/have_debug.inc
+--source connect.inc
+
+#
+# Test ndb_schema table upgrade.
+#
+
+# The variable ndb-schema-dist-upgrade-allowed controls if ndbcluster
+# is allowed to upgrade the ndb_schema table. The variable can only be
+# set when starting MySQL Server.
+#
+# Check that variable is off when test start
+select @@ndb_schema_dist_upgrade_allowed;
+
+# Check that variable is readonly
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@ndb_schema_dist_upgrade_allowed = true;
+

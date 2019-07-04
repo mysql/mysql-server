@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.19"
+VERSION="autotest-run.sh version 1.22"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -80,7 +80,10 @@ do
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
                 --version) echo $VERSION; exit;;
 	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
+          --suite-suffix=*) suite_suffix=`echo $1 | sed s/--suite-suffix=//`;;
 	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
+          --custom-atrt=*) custom_atrt=`echo $1 | sed s/--custom-atrt=//`;;
+          --custom-cpcc=*) custom_cpcc=`echo $1 | sed s/--custom-cpcc=//`;;
 	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
 	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
 	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
@@ -96,6 +99,8 @@ do
                     atrt_defaults_group_suffix_arg="${1/#--atrt-/--}"
                     ;;
                 --site=*) site_arg="$1";;
+                --default-max-retries=*) default_max_retries_arg="$1";;
+                --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
         esac
         shift
 done
@@ -201,20 +206,39 @@ test_dir=$install_dir/mysql-test/ndb
 # Check if executables in $install_dir0 is executable at current
 # platform, they could be built for another kind of platform
 unset NDB_CPCC_HOSTS
-if ${install_dir}/bin/ndb_cpcc 2>/dev/null ; then
-  # Use atrt and ndb_cpcc from test build
+
+if [ -n "$custom_atrt" ];
+then
+  echo "Using custom atrt ${custom_atrt}"
+  atrt="${custom_atrt}"
+elif ${install_dir}/bin/ndb_cpcc 2>/dev/null
+then
+  echo "Using atrt from test build"
   atrt="${test_dir}/atrt"
+else
+  echo "Note: Cross platform testing, atrt used from server path" >&2
+  atrt=`which atrt`
+fi
+
+if [ -n "$custom_cpcc" ];
+then
+  echo "Using custom ndb_cpcc ${custom_cpcc}"
+  ndb_cpcc="${custom_cpcc}"
+elif ${install_dir}/bin/ndb_cpcc 2>/dev/null
+then
+  echo "Using ndb_cpcc from test build"
   ndb_cpcc="${install_dir}/bin/ndb_cpcc"
 else
-  echo "Note: Cross platform testing, atrt and ndb_cpcc is not used from test build" >&2
-  atrt=`which atrt`
+  echo "Note: Cross platform testing, ndb_cpcc used from server path" >&2
   ndb_cpcc=`which ndb_cpcc`
 fi
 
-test_file=$test_dir/$RUN-tests.txt
+if [ -n "${suite_suffix}" ]; then
+  suite_suffix="--${suite_suffix}"
+fi
 
-if [ ! -f "$test_file" ]
-then
+test_file="${test_dir}/${RUN}${suite_suffix}-tests.txt"
+if [ ! -f "$test_file" ]; then
     echo "Cant find testfile: $test_file"
     exit 1
 fi
@@ -385,6 +409,8 @@ if [ ${verbose} -gt 0 ] ; then
   verbose_arg=--verbose=${verbose}
 fi
 
+return_code=0
+
 # Setup configuration
 $atrt ${atrt_defaults_group_suffix_arg} Cdq \
    ${site_arg} \
@@ -396,19 +422,23 @@ $atrt ${atrt_defaults_group_suffix_arg} Cdq \
 
 atrt_conf_status=${PIPESTATUS[0]}
 if [ ${atrt_conf_status} -ne 0 ]; then
+    return_code=$atrt_conf_status
     echo "Setup configuration failure"
 else
     args="${atrt_defaults_group_suffix_arg}"
     args="$args --report-file=report.txt"
-    args="$args --testcase-file=$test_dir/$RUN-tests.txt"
+    args="$args --testcase-file=${test_file}"
     args="$args ${baseport_arg}"
     args="$args ${site_arg} ${clusters_arg}"
     args="$args $prefix"
     args="$args ${verbose_arg}"
+    args="$args ${default_max_retries_arg}"
+    args="$args ${default_force_cluster_restart_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}
     if [ $atrt_test_status -ne 0 ]; then
+        return_code=$atrt_test_status
         echo "ERROR: $atrt_test_status: $atrt $args my.cnf"
     fi
 fi
@@ -475,3 +505,5 @@ fi
 
 cd $p
 rm -rf $res_dir $run_dir
+
+exit $return_code

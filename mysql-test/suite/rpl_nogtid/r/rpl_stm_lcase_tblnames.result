@@ -10,6 +10,7 @@ show databases like 'BUG_37656';
 Database (BUG_37656)
 BUG_37656
 ******** [ SLAVE ] ********
+CALL mtr.add_suppression("The master\'s UUID has changed*");
 show databases like 'bug_37656';
 Database (bug_37656)
 bug_37656

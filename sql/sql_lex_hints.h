@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,16 +34,20 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/lex_symbol.h"
+#include "sql/lexer_yystype.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest_stream.h"
-#include "sql/sql_lex.h"
 #include "sql/sql_lex_hash.h"
 #include "sql_chars.h"
 
 // This must be last, due to bison 2.3 on OsX
+#ifndef YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
+#endif  // YYSTYPE_IS_DECLARED
 #include "sql/sql_hints.yy.h"
 
 class PT_hint_list;
+union YYSTYPE;
 
 void hint_lex_init_maps(CHARSET_INFO *cs, hint_lex_char_classes *hint_map);
 
@@ -446,7 +450,7 @@ class Hint_scanner {
   void add_digest(uint token) {
     if (digest_state == NULL) return;  // Digest buffer is full.
 
-    YYSTYPE fake_yylvalue;
+    Lexer_yystype fake_yylvalue;
     /*
       YYSTYPE::LEX_STRING is designed to accept non-constant "char *": there is
       a consideration, that the lexer returns MEM_ROOT-allocated string values
@@ -463,7 +467,8 @@ class Hint_scanner {
   }
 };
 
-inline int HINT_PARSER_lex(YYSTYPE *yylval, Hint_scanner *scanner) {
+inline int HINT_PARSER_lex(YYSTYPE *yacc_yylval, Hint_scanner *scanner) {
+  auto yylval = reinterpret_cast<Lexer_yystype *>(yacc_yylval);
   int ret = scanner->get_next_token();
   yylval->hint_string.str = scanner->yytext;
   yylval->hint_string.length = scanner->yyleng;

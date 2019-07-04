@@ -12,6 +12,10 @@
 # 1.0 OS dependent files
 # Below files are OS specific and tests will run only on selective platform
 # where conditions are met and skip on others.
+have_mac_os.inc
+not_mac_os.inc
+freebsd.inc
+not_freebsd.inc
 have_32bit.inc
 have_64bit.inc
 have_little_endian.inc
@@ -21,8 +25,12 @@ have_lowercase0.inc
 have_lowercase1.inc
 have_lowercase2.inc
 linux.inc
+linux_core_pattern.inc
+linux-version.inc
 windows.inc
+not_debian.inc
 not_windows.inc
+not_ubuntu.inc
 have_open_file_limit_more_than_5000.inc
 have_partition_open_file_limit.inc
 table_compress_2.test
@@ -64,8 +72,7 @@ have_ndb_error_insert.inc
 have_ndbapi_examples.inc
 have_ndb_debug.inc
 have_ndb_rqg.inc
-# Generated in var/tmp/ by run_ndbapitest.inc and then sourced
-run_ndbapitest_result.inc
+run_ndbapitest.inc
 
 # Java related var/tmp generated include files
 have_clusterj_result.inc
@@ -99,6 +106,9 @@ have_ssl.inc
 have_ssl_crypto_functs.inc
 not_openssl.inc
 check_openssl_version.inc
+have_tlsv13.inc
+not_have_tlsv13.inc
+not_min_protocol_tlsv12.inc
 
 # 4.5 Reason for inclusion: Tests should run only with supported innodb page
 # sizes and skip on others. However, this can be handled using a custom
@@ -124,6 +134,11 @@ have_lo0_local_scope.inc
 # http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.
 # html#sysvar_have_statement_timeout
 have_statement_timeout.inc
+
+# 4.8 Tests which include this will always fail if it uses a database that
+# contains more than 2 InnoDB undo tablespaces.  That can be done using
+# --bootstrap=--init-file=std_data/explicit_undo_32.sql
+have_innodb_default_undo_tablespaces.inc
 
 # 5.0 Different protocols
 # Reason for inclusion: Tests should run only with supported protocols and
@@ -156,8 +171,12 @@ have_blackhole_plugin.inc
 # is fixed.
 partition_value_innodb.test
 
-# 10.0 GNU grep not supported on Solaris and Windows
+# 10 Utilities
+# 10.1 GNU grep not supported on Solaris and Windows
 have_grep.inc
+# 10.2 Make sure we have sed. Note that MacOS and FreeBSD do not support
+# replacement patterns containing escape sequences, e.g. newline.
+have_util_sed.inc
 
 # 11.0
 # In mysql source, all the plugins might not be in the same location. Some MTR
@@ -177,6 +196,10 @@ not_group_replication_plugin.inc
 # Linux, Solaris and OS X platforms.
 have_memcached_plugin.inc
 
+# 13.1 NDB Memcached is not available on all PB2 builds. The ndb_memcache
+# suite should only be run if all required components have been found.
+have_memcache.inc
+
 # 14.0 MTR tests that runs only with specific rpl modes:
 
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
@@ -194,6 +217,8 @@ have_transaction_write_set_extraction.inc
 
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
+# 16.1 Some MEB tests can't run on MacOS debug
+not_mac_os_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
 
@@ -212,7 +237,6 @@ is_local_machine.inc
 have_thread_prio.inc
 have_not_thread_prio.inc
 resource_group_init.inc
-have_mac_os.inc
 
 # 20.0 Library dependent tests
 # This file skips test for certain features in versions of the library where

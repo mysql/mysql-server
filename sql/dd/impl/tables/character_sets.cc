@@ -53,13 +53,20 @@ const Character_sets &Character_sets::instance() {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Character_sets::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Character_sets::Character_sets() {
   m_target_def.set_table_name("character_sets");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
@@ -163,7 +170,7 @@ Charset *Character_sets::create_entity_object(const Raw_record &) const {
 
 bool Character_sets::update_object_key(Global_name_key *key,
                                        const String_type &charset_name) {
-  key->update(FIELD_NAME, charset_name);
+  key->update(FIELD_NAME, charset_name, name_collation());
   return false;
 }
 

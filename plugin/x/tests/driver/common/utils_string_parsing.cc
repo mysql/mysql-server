@@ -29,13 +29,13 @@ namespace aux {
 const std::string ALLOWED_HEX_CHARACTERS = "0123456789abcdef";
 
 int replace_all(std::string &input, const std::string &to_find,
-                const std::string &change_to) {
+                const std::string &change_to, int limit) {
   int replaced = 0;
   if (to_find.empty()) return 0;
 
   size_t position = input.find(to_find);
 
-  while (std::string::npos != position) {
+  while (std::string::npos != position && limit--) {
     input.replace(position, to_find.size(), change_to);
     position = input.find(to_find, position + change_to.size());
     ++replaced;

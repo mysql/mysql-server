@@ -28,7 +28,6 @@ Mysqlx_ssl_active	OFF
 # Hanging 'receive' command will cause wait_timeout
 Mysqlx.Notice.Frame {
   type: 1
-  scope: GLOBAL
   payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 1810\nmsg: \"IO Read error: read_timeout exceeded\"\n }"
 }
 
@@ -60,7 +59,6 @@ Mysqlx_ssl_active	ON
 # Hanging 'receive' command will cause wait_timeout
 Mysqlx.Notice.Frame {
   type: 1
-  scope: GLOBAL
   payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 1810\nmsg: \"IO Read error: read_timeout exceeded\"\n }"
 }
 

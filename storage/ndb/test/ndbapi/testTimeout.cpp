@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -642,7 +642,7 @@ TESTCASE("Error4012", ""){
   FINALIZER(runClearTable);
 }
 #endif
-NDBT_TESTSUITE_END(testTimeout);
+NDBT_TESTSUITE_END(testTimeout)
 
 int main(int argc, const char** argv){
   ndb_init();

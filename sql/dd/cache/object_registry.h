@@ -75,13 +75,19 @@ class Object_registry {
       m_spatial_reference_system_map;
   std::unique_ptr<Local_multi_map<Tablespace>> m_tablespace_map;
 
+  // Not inlined because it is big, and because it takes a lot of time
+  // for the compiler to instantiate. Defined in dd.cc, along the similar
+  // create_object() instantiations.
+  template <class T>
+  void create_map(std::unique_ptr<T> *map);
+
   /**
     Create a map instance unless it exists already.
   */
 
   template <typename T>
-  T *create_map(std::unique_ptr<T> *map) {
-    if (*map == nullptr) map->reset(new (std::nothrow) T);
+  T *create_map_if_needed(std::unique_ptr<T> *map) {
+    if (*map == nullptr) create_map(map);
     return map->get();
   }
 
@@ -92,7 +98,7 @@ class Object_registry {
   */
 
   Local_multi_map<Abstract_table> *m_map(Type_selector<Abstract_table>) {
-    return create_map(&m_abstract_table_map);
+    return create_map_if_needed(&m_abstract_table_map);
   }
 
   const Local_multi_map<Abstract_table> *m_map(
@@ -101,7 +107,7 @@ class Object_registry {
   }
 
   Local_multi_map<Charset> *m_map(Type_selector<Charset>) {
-    return create_map(&m_charset_map);
+    return create_map_if_needed(&m_charset_map);
   }
 
   const Local_multi_map<Charset> *m_map(Type_selector<Charset>) const {
@@ -109,7 +115,7 @@ class Object_registry {
   }
 
   Local_multi_map<Collation> *m_map(Type_selector<Collation>) {
-    return create_map(&m_collation_map);
+    return create_map_if_needed(&m_collation_map);
   }
 
   const Local_multi_map<Collation> *m_map(Type_selector<Collation>) const {
@@ -117,7 +123,7 @@ class Object_registry {
   }
 
   Local_multi_map<Column_statistics> *m_map(Type_selector<Column_statistics>) {
-    return create_map(&m_column_statistics_map);
+    return create_map_if_needed(&m_column_statistics_map);
   }
 
   const Local_multi_map<Column_statistics> *m_map(
@@ -126,7 +132,7 @@ class Object_registry {
   }
 
   Local_multi_map<Event> *m_map(Type_selector<Event>) {
-    return create_map(&m_event_map);
+    return create_map_if_needed(&m_event_map);
   }
 
   const Local_multi_map<Event> *m_map(Type_selector<Event>) const {
@@ -134,7 +140,7 @@ class Object_registry {
   }
 
   Local_multi_map<Resource_group> *m_map(Type_selector<Resource_group>) {
-    return create_map(&m_resource_group_map);
+    return create_map_if_needed(&m_resource_group_map);
   }
 
   const Local_multi_map<Resource_group> *m_map(
@@ -143,7 +149,7 @@ class Object_registry {
   }
 
   Local_multi_map<Routine> *m_map(Type_selector<Routine>) {
-    return create_map(&m_routine_map);
+    return create_map_if_needed(&m_routine_map);
   }
 
   const Local_multi_map<Routine> *m_map(Type_selector<Routine>) const {
@@ -151,7 +157,7 @@ class Object_registry {
   }
 
   Local_multi_map<Schema> *m_map(Type_selector<Schema>) {
-    return create_map(&m_schema_map);
+    return create_map_if_needed(&m_schema_map);
   }
 
   const Local_multi_map<Schema> *m_map(Type_selector<Schema>) const {
@@ -160,7 +166,7 @@ class Object_registry {
 
   Local_multi_map<Spatial_reference_system> *m_map(
       Type_selector<Spatial_reference_system>) {
-    return create_map(&m_spatial_reference_system_map);
+    return create_map_if_needed(&m_spatial_reference_system_map);
   }
 
   const Local_multi_map<Spatial_reference_system> *m_map(
@@ -169,7 +175,7 @@ class Object_registry {
   }
 
   Local_multi_map<Tablespace> *m_map(Type_selector<Tablespace>) {
-    return create_map(&m_tablespace_map);
+    return create_map_if_needed(&m_tablespace_map);
   }
 
   const Local_multi_map<Tablespace> *m_map(Type_selector<Tablespace>) const {

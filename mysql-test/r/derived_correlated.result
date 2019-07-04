@@ -1,0 +1,3330 @@
+set optimizer_trace_max_mem_size=10000000,@@session.optimizer_trace="enabled=on";
+# WL#461: allow outer references in derived tables and CTEs
+create table t1(a int, b int);
+insert into t1 (a) values(1),(2);
+create table t2 select * from t1;
+analyze table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+set optimizer_switch='derived_merge=on';
+# Deep nesting: all intermediate subqueries are marked DEPENDENT
+explain select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+5	DEPENDENT SUBQUERY	<derived6>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (/* select#2 */ select count(0) from `test`.`t1` `t2` where 1)
+select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
+a	b
+1	NULL
+2	NULL
+# If reference is removed, not DEPENDENT
+explain select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select 42) dt1))dt3)dt4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+5	SUBQUERY	<derived6>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 1
+select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select 42) dt1))dt3)dt4);
+a	b
+1	NULL
+2	NULL
+# Outer ref is in SELECT list of derived table's definition
+explain select
+(select dt.a from
+(select t1.a as a, t2.a as b from t2) dt where dt.b=t1.a)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `subq` from `test`.`t1`
+select
+(select dt.a from
+(select t1.a as a, t2.a as b from t2) dt where dt.b=t1.a)
+as subq
+from t1;
+subq
+1
+2
+# In WHERE
+explain select
+(select dt.b from
+(select t2.a as b from t2 where t1.a=t2.a) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select t2.a as b from t2 where t1.a=t2.a) dt)
+as subq
+from t1;
+subq
+1
+2
+# In GROUP BY
+explain select
+(select dt.b from
+(select sum(t2.a) as b from t2 group by t1.a) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select sum(`test`.`t2`.`a`) AS `b` from `test`.`t2` group by `test`.`t1`.`a`) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select sum(t2.a) as b from t2 group by t1.a) dt)
+as subq
+from t1;
+subq
+3
+3
+# In HAVING
+explain select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-1) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select sum(`test`.`t2`.`a`) AS `b` from `test`.`t2` having (`test`.`t1`.`a` = (sum(`test`.`t2`.`a`) - 1))) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-1) dt)
+as subq
+from t1;
+subq
+NULL
+3
+explain select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-2) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select sum(`test`.`t2`.`a`) AS `b` from `test`.`t2` having (`test`.`t1`.`a` = (sum(`test`.`t2`.`a`) - 2))) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-2) dt)
+as subq
+from t1;
+subq
+3
+NULL
+# In ORDER BY
+explain select
+(select dt.b from
+(select t2.a as b from t2 order by if(t1.a=1,t2.a,-t2.a) limit 1) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select `test`.`t2`.`a` AS `b` from `test`.`t2` order by if((`test`.`t1`.`a` = 1),`test`.`t2`.`a`,-(`test`.`t2`.`a`)) limit 1) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select t2.a as b from t2 order by if(t1.a=1,t2.a,-t2.a) limit 1) dt)
+as subq
+from t1;
+subq
+1
+2
+# In window functions
+explain select
+(select dt.b from
+(select t2.a, sum(t1.a*10+t2.a) over (order by if(t1.a=1,t2.a,-t2.a)) as b
+from t2) dt where dt.a=1)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	const	1	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select `test`.`t2`.`a` AS `a`,sum(((`test`.`t1`.`a` * 10) + `test`.`t2`.`a`)) OVER (ORDER BY if((`test`.`t1`.`a` = 1),`test`.`t2`.`a`,-(`test`.`t2`.`a`)) )  AS `b` from `test`.`t2`) `dt` where (`dt`.`a` = 1)) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select t2.a, sum(t1.a*10+t2.a) over (order by if(t1.a=1,t2.a,-t2.a)) as b
+from t2) dt where dt.a=1)
+as subq
+from t1;
+subq
+11
+43
+# CTE referenced twice
+explain select
+(with dt as (select t1.a as a, t2.a as b from t2)
+select dt2.a from dt dt1, dt dt2 where dt1.b=t1.a and dt2.b=dt1.b)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a` from `test`.`t2` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) AS `subq` from `test`.`t1`
+select
+(with dt as (select t1.a as a, t2.a as b from t2)
+select dt2.a from dt dt1, dt dt2 where dt1.b=t1.a and dt2.b=dt1.b)
+as subq
+from t1;
+subq
+1
+2
+Recursive CTE
+select
+(with recursive dt as
+(select t1.a as a union select a+1 from dt where a<10)
+select dt1.a from dt dt1 where dt1.a=t1.a
+) as subq
+from t1;
+subq
+1
+2
+select
+(with recursive dt as
+(select t1.a as a union select a+1 from dt where a<10)
+select concat(count(*), ' - ', avg(dt.a)) from dt
+) as subq
+from t1;
+subq
+10 - 5.5000
+9 - 6.0000
+select
+(with recursive dt as
+(select t1.a as a union all select a+1 from dt where a<10)
+select concat(count(*), ' - ', avg(dt.a)) from dt
+) as subq
+from t1;
+subq
+10 - 5.5000
+9 - 6.0000
+select
+(with dt as (select t1.a as a, t2.a as b from t2)
+select dt2.a from dt dt1, dt dt2 where dt1.b=t1.a and dt2.b=dt1.b)
+as subq
+from t1;
+subq
+1
+2
+# Two references to same CTE at different levels of nesting.
+explain select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	func	2	100.00	Using where; Using index
+4	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t2` limit 1) /* select#2 */ select `dt1`.`a` from `dt` `dt1` where (`dt1`.`a` = (/* select#4 */ select `dt2`.`a` from `dt` `dt2`))) AS `subq` from `test`.`t1`
+explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+EXPLAIN
+-> Table scan on t1
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (dt1.a = (select #4))
+        -> Index lookup on dt1 using <auto_key0> (a=(select #4))
+            -> Materialize CTE dt if needed
+                -> Limit: 1 row(s)
+                    -> Table scan on t2
+        -> Select #4 (subquery in condition; dependent)
+            -> Table scan on dt2
+                -> Materialize CTE dt if needed (query plan printed elsewhere)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #1
+select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+subq
+1
+2
+explain select (with dt as (select t2.a as a from t2 having t1.a=t2.a limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	func	2	100.00	Using where; Using index
+4	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 't1.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` having (`test`.`t1`.`a` = `test`.`t2`.`a`) limit 1) /* select#2 */ select `dt1`.`a` from `dt` `dt1` where (`dt1`.`a` = (/* select#4 */ select `dt2`.`a` from `dt` `dt2`))) AS `subq` from `test`.`t1`
+select (with dt as (select t2.a as a from t2 having t1.a=t2.a limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+subq
+1
+2
+# Scope of outer ref in CTE
+select (select * from (select t1.a) cte) from t1;
+(select * from (select t1.a) cte)
+1
+2
+select (with cte as (select t1.a) select * from cte) from t1;
+(with cte as (select t1.a) select * from cte)
+1
+2
+with cte as (select t1.a) select (select * from cte) from t1;
+ERROR 42S02: Unknown table 't1' in field list
+# NOT IN(subquery using derived), handled with subquery materialization
+explain select * from t1
+where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`test`.`t2`.`a` + 1)) or isnull((`test`.`t2`.`a` + 1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`a` + 1)), true)))))
+select * from t1
+where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
+a	b
+1	NULL
+# Now put an outer reference inside derived table:
+# subquery is properly seen as correlated and subquery
+# materialization is thus not used.
+explain select * from t1
+where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)) or isnull((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)), true)))))
+select * from t1
+where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
+a	b
+1	NULL
+# Verify that a non-lateral derived table with an outer
+# reference makes the semijoin be correlated and thus blocks
+# semijoin-materialization-scan.
+create table t11 (a int);
+insert into t11
+with recursive cte as (select 1 as a union all select a+1 from cte where a<124)
+select * from cte;
+alter table t11 add index(a);
+create table t12 like t11;
+analyze table t11,t12;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+# No outer ref: mat-scan chosen
+explain select
+/*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */
+* from t11 where a in (select /*+ QB_NAME(subq1) NO_MERGE(dt) */ *
+from (select t12.a from t12) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	PRIMARY	t11	NULL	ref	a	a	5	<subquery2>.a	1	100.00	Using index
+2	MATERIALIZED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DERIVED	t12	NULL	index	NULL	a	5	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_MERGE(`dt`@`subq1`) */ `test`.`t11`.`a` AS `a` from `test`.`t11` semi join ((/* select#3 */ select `test`.`t12`.`a` AS `a` from `test`.`t12`) `dt`) where (`test`.`t11`.`a` = `<subquery2>`.`a`)
+# outer ref: mat-scan not chosen
+explain select
+/*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */
+* from t11 where a in (select /*+ QB_NAME(subq1) NO_MERGE(dt) */ *
+from (select t12.a+0*t11.a from t12) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t11	NULL	index	a	a	5	NULL	124	100.00	Using where; Using index; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.t11.a	2	100.00	Using where; Using index; Start temporary; End temporary
+3	DEPENDENT DERIVED	t12	NULL	index	NULL	a	5	NULL	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.t11.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_MERGE(`dt`@`subq1`) */ `test`.`t11`.`a` AS `a` from `test`.`t11` semi join (lateral (/* select#3 */ select (`test`.`t12`.`a` + (0 * `test`.`t11`.`a`)) AS `t12.a+0*t11.a` from `test`.`t12`) `dt`) where (`test`.`t11`.`a` = `dt`.`t12.a+0*t11.a`)
+DROP TABLE t11,t12;
+LATERAL
+# prevents join buffer
+explain select dt.a from t1, lateral (select t1.a from t2) dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2`
+# no right join
+explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt'
+# no bad left join either
+explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
+ERROR 42S22: Unknown column 't1.a' in 'field list'
+# more complex case
+explain SELECT * FROM t1
+LEFT JOIN
+lateral (select t1.a) as dt ON t1.a=dt.a
+RIGHT JOIN
+lateral (select dt.a) as dt1 ON dt.a=dt1.a;
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt1'
+# LATERAL DT depending on LATERAL DT
+explain SELECT * FROM t1
+JOIN
+lateral (select t1.a) as dt ON t1.a=dt.a
+JOIN
+lateral (select dt.a) as dt1 ON dt.a=dt1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'dt.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt1`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select `dt`.`a` AS `a`) `dt1` where ((`dt`.`a` = `test`.`t1`.`a`) and (`dt1`.`a` = `test`.`t1`.`a`))
+# Placing lateral outer ref in SELECT list then HAVING
+select t1.a, dt.a from t1, lateral (select t1.a+t2.a as a from t2) dt;
+a	a
+1	2
+2	3
+1	3
+2	4
+select t1.a, dt.a from t1, lateral (select t2.a as a from t2 having t1.a) dt;
+a	a
+1	1
+1	2
+2	1
+2	2
+# Inside view
+create view v1 as
+select t1.a as f1, dt.a as f2
+from t1, lateral (select t1.a+t2.a as a from t2) dt;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `f1`,`dt`.`a` AS `f2` from (`t1` join lateral (select (`t1`.`a` + `t2`.`a`) AS `a` from `t2`) `dt`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+f1	f2
+1	2
+2	3
+1	3
+2	4
+drop view v1;
+# Coverage for various branches in Item_ref::fix_fields
+SELECT COUNT(*) FROM t1 GROUP BY t1.a  HAVING t1.a IN (SELECT t3.a
+FROM t1 AS t3 WHERE t3.b IN (SELECT b FROM t2, lateral (select t1.a) dt));
+COUNT(*)
+create view v1 as select a, b from t1;
+select vq1.b,dt.b from v1 vq1, lateral (select vq1.b) dt;
+b	b
+NULL	NULL
+NULL	NULL
+select b from v1 vq1, lateral (select count(*) from v1 vq2 having vq1.b = 3) dt;
+b
+drop view v1;
+SELECT
+/*+ SET_VAR(optimizer_switch = 'materialization=off,semijoin=off') */
+* FROM t1 AS ta, lateral (select 1 WHERE ta.a IN (SELECT b FROM t2 AS tb                WHERE tb.b >= SOME(SELECT SUM(tc.a) as sg FROM t1 as tc                                   GROUP BY tc.b                                   HAVING ta.a=tc.b))) dt;
+a	b	1
+select (select dt.a from   (select 1 as a, t2.a as b from t2 having
+t1.a) dt where dt.b=t1.a) as subq from t1;
+subq
+1
+1
+select (select dt.a from   (select 1 as a, 3 as b from t2 having t1.a)
+dt where dt.b=t1.a) as subq from t1;
+subq
+NULL
+NULL
+# Aggregation in outer context
+select (select f from (select max(t1.a) as f) as dt) as g from t1;
+g
+2
+select (select f from lateral (select max(t1.a) as f) as dt) as g from t1;
+g
+2
+# LATERAL doesn't allow an aggregate to resolve to the
+# immediate parent (because reading of FROM tables happens
+# before aggregation). So it resolves in the derived table, so
+# the outer query doesn't produce a single-row result.
+select t1.a, f from t1, lateral (select max(t1.a) as f) as dt;
+a	f
+1	1
+2	2
+# We support CTE inside derived table
+select * from t1,
+lateral (with qn as (select t1.a) select (select max(a) from qn)) as dt;
+a	b	(select max(a) from qn)
+1	NULL	1
+2	NULL	2
+# Coverage for crash in Item_ident::fix_after_pullout:
+# when we merge a derived table contained in a derived table,
+# and the merged one contains an outer ref to the top query.
+select (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) from t1;
+(select * from (select * from (select t1.a from t2) as dt limit 1) dt2)
+1
+2
+# Semijoin containing a correlated derived table, DT must
+# become LATERAL
+explain select a from t1 where a in (select a from (select t1.a) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (lateral (/* select#3 */ select `test`.`t1`.`a` AS `a`) `dt`) where (`dt`.`a` = `test`.`t1`.`a`)
+select a from t1 where a in (select a from (select t1.a) dt);
+a
+1
+2
+create table t3 as with recursive cte as (select 1 as a union select a+1 from cte where a<20) select * from cte;
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+explain select min(a),max(a) from t3 where a in (select /*+ no_merge() */ a from (select t3.a from t1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.t3.a	2	100.00	Using index; FirstMatch(t3)
+3	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#2`) */ min(`test`.`t3`.`a`) AS `min(a)`,max(`test`.`t3`.`a`) AS `max(a)` from `test`.`t3` semi join (lateral (/* select#3 */ select `test`.`t3`.`a` AS `a` from `test`.`t1`) `dt`) where (`dt`.`a` = `test`.`t3`.`a`)
+select min(a),max(a) from t3 where a in (select /*+ no_merge() */ a from (select t3.a from t1) dt);
+min(a)	max(a)
+1	20
+drop table t3;
+# DT containing a correlated DT which must become LATERAL
+explain format=tree select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
+EXPLAIN
+-> Nested loop inner join
+    -> Invalidate materialized tables (row from t1)
+        -> Table scan on t1
+    -> Table scan on dt2
+        -> Materialize (invalidate on row from t1)
+            -> Limit: 1 row(s)
+                -> Table scan on t2
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+explain select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt2`.`a` AS `a` from `test`.`t1` join lateral (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t2` limit 1) `dt2`
+select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
+a	b	a
+1	NULL	1
+2	NULL	2
+explain select * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived4>)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t0.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`dt2`.`a` AS `a` from `test`.`t1` `t0` join `test`.`t1` join lateral (/* select#4 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` limit 1) `dt2`
+select * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+a	b	a
+1	NULL	1
+1	NULL	1
+2	NULL	2
+2	NULL	2
+explain select /*+ no_merge() */ * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+4	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t0.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#1`) */ `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`dt4`.`a` AS `a` from `test`.`t1` `t0` join lateral (/* select#2 */ select `dt2`.`a` AS `a` from `test`.`t1` join (/* select#4 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` limit 1) `dt2`) `dt4`
+select /*+ no_merge() */ * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+a	b	a
+1	NULL	1
+1	NULL	1
+2	NULL	2
+2	NULL	2
+explain select * from t1, lateral (select * from (select 42) t1, (select t1.a) dt2) dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived4>)
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,'42' AS `42`,`dt2`.`a` AS `a` from `test`.`t1` join lateral (/* select#4 */ select `test`.`t1`.`a` AS `a`) `dt2`
+select * from t1, lateral (select * from (select 42) t1, (select t1.a) dt2) dt3;
+a	b	42	a
+1	NULL	42	1
+2	NULL	42	2
+without semijoin: index_subquery needs to re-materialize
+explain select a from t1 where a in (select /*+ no_semijoin() */ a from (select t1.a) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in dt on <auto_key0>)))
+select a from t1 where a in (select /*+ no_semijoin() */ a from (select t1.a) dt);
+a
+1
+2
+select a from t1 where a in (with cte as (select t1.a)
+select /*+ no_semijoin() */ a from cte);
+a
+1
+2
+# Count rematerializations
+# In all three plans, handler_write is 2, showing that we
+# rematerialize only when necessary (when row of t1 changes)
+explain select straight_join * from t1, t2, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t1` join `test`.`t2` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select straight_join * from t1, t2, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+1	NULL	2	NULL	1
+2	NULL	1	NULL	2
+2	NULL	2	NULL	2
+# when a row of t1 produces two rows of t2 passed to "dt",
+# it still makes one materialization.
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+explain select straight_join * from t1, lateral (select t1.a) as dt, t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join `test`.`t2`
+flush status;
+select straight_join * from t1, lateral (select t1.a) as dt, t2;
+a	b	a	a	b
+1	NULL	1	1	NULL
+2	NULL	2	1	NULL
+1	NULL	1	2	NULL
+2	NULL	2	2	NULL
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+explain select straight_join * from t2, t1, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select straight_join * from t2, t1, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+2	NULL	1	NULL	1
+1	NULL	2	NULL	2
+2	NULL	2	NULL	2
+# Due to join buffer, order t2-t1 produces rows as a
+# non-buffered t1-t2 plan: t1 buffers all rows of t2, then for
+# each row of t1 it's joined to all rows of t2 and passed to t2;
+# when a row of t1 produces two rows of t2 passed to "dt",
+# it still makes one materialization.
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# Let the planner find the best plan.
+# It doesn't work so well, because of
+# optimizer_prune_level=1 (see bug#28629788): order specified by
+# the user is sorted by number of rows, which leaves it
+# unchanged (Card(t1)=Card(t2)=Card(dt)); then it is the first
+# explored plan so it's explored in full, and later t1-dt is rejected as
+# more expensive than t1-t2. Whereas if t1-dt had been explored
+# deeper, we'd see t1-dt-t2 is actually the cheapest, because
+# it reads dt the least number of times (and dt has a high read
+# cost because Temptable::scan_time() is incredibly high but
+# that's another issue; see bug#28631100).
+# t2 cannot use join buffering as between "dt" and its
+# dependency t1: join buffering would interlace rows of t1
+# thus cause more rematerializations.
+explain select * from t1, t2, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t1` join `test`.`t2` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select * from t1, t2, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+1	NULL	2	NULL	1
+2	NULL	1	NULL	2
+2	NULL	2	NULL	2
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# This one finds the best plan. Yes we simply swapped tables in the query,
+# and it yields a different plan. This is because the order specified by
+# the user is sorted by number of rows, which leaves it
+# unchanged (Card(t1)=Card(t2)=Card(dt), then it is the first
+# explored plan so it's explored in full and so is never pruned by
+# prune_level=1, and it is the best plan. Best as: it reads
+# "dt" less, and t2 uses join buffering (which is ok as it's
+# after "dt").
+# If prune_level=0, all 3 variants here produce this plan.
+explain select * from t1, lateral (select t1.a) as dt, t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join `test`.`t2`
+flush status;
+select * from t1, lateral (select t1.a) as dt, t2;
+a	b	a	a	b
+1	NULL	1	1	NULL
+2	NULL	2	1	NULL
+1	NULL	1	2	NULL
+2	NULL	2	2	NULL
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# This one is intermediate: t1 uses join buffer (good), but
+# "dt" is last (bad, as it has high scan cost).
+explain select * from t2, t1, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select * from t2, t1, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+2	NULL	1	NULL	1
+1	NULL	2	NULL	2
+2	NULL	2	NULL	2
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# Show the trace of planning of lateral derived tables
+explain select * from t1, lateral (select t1.a from t2 as t3, t2 as t4) as dt, t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` `t3` join `test`.`t2` `t4` join `test`.`t2`
+select trace from information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`a` AS `a` from `t2` `t3` join `t2` `t4`"
+                }
+              ]
+            }
+          },
+          {
+            "derived": {
+              "table": "``.`` `dt`",
+              "select#": 2,
+              "merged": true
+            }
+          },
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`a` AS `a`,`t2`.`a` AS `a`,`t2`.`b` AS `b` from `t1` join (`t2` `t3` join `t2` `t4`) join `t2`"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`a` AS `a`,`t2`.`a` AS `a`,`t2`.`b` AS `b` from `t1` join `t2` `t3` join `t2` `t4` join `t2`"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "table": "`t2` `t3`",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "table": "`t2` `t4`",
+                "row_may_be_null": false,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "table": "`t2`",
+                "row_may_be_null": false,
+                "map_bit": 3,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 0.25
+                }
+              },
+              {
+                "table": "`t2` `t3`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 0.25
+                }
+              },
+              {
+                "table": "`t2` `t4`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 0.25
+                }
+              },
+              {
+                "table": "`t2`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 1,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t1`"
+                    ],
+                    "table": "`t2` `t3`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ],
+                          "final_filtering_effect": 1,
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "resulting_rows": 2,
+                          "cost": 0.65,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    "condition_filtering_pct": 100,
+                    "rows_for_plan": 4,
+                    "cost_for_plan": 1.1,
+                    "rest_of_plan": [
+                      {
+                        "plan_prefix": [
+                          "`t1`",
+                          "`t2` `t3`"
+                        ],
+                        "table": "`t2` `t4`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "rows_to_scan": 2,
+                              "filtering_effect": [
+                              ],
+                              "final_filtering_effect": 1,
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "buffers_needed": 1,
+                              "resulting_rows": 2,
+                              "cost": 1.05,
+                              "chosen": true
+                            }
+                          ]
+                        },
+                        "condition_filtering_pct": 100,
+                        "rows_for_plan": 8,
+                        "cost_for_plan": 2.1501,
+                        "rest_of_plan": [
+                          {
+                            "plan_prefix": [
+                              "`t1`",
+                              "`t2` `t3`",
+                              "`t2` `t4`"
+                            ],
+                            "table": "`t2`",
+                            "best_access_path": {
+                              "considered_access_paths": [
+                                {
+                                  "rows_to_scan": 2,
+                                  "access_type": "scan",
+                                  "using_join_cache": true,
+                                  "buffers_needed": 1,
+                                  "resulting_rows": 2,
+                                  "cost": 1.8501,
+                                  "chosen": true
+                                }
+                              ]
+                            },
+                            "condition_filtering_pct": 100,
+                            "rows_for_plan": 16,
+                            "cost_for_plan": 4.0001,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      {
+                        "plan_prefix": [
+                          "`t1`",
+                          "`t2` `t3`"
+                        ],
+                        "table": "`t2`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "rows_to_scan": 2,
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "buffers_needed": 1,
+                              "resulting_rows": 2,
+                              "cost": 1.05,
+                              "chosen": true
+                            }
+                          ]
+                        },
+                        "condition_filtering_pct": 100,
+                        "rows_for_plan": 8,
+                        "cost_for_plan": 2.1501,
+                        "pruned_by_heuristic": true
+                      }
+                    ]
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t1`"
+                    ],
+                    "table": "`t2` `t4`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ],
+                          "final_filtering_effect": 1,
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "resulting_rows": 2,
+                          "cost": 0.65,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    "condition_filtering_pct": 100,
+                    "rows_for_plan": 4,
+                    "cost_for_plan": 1.1,
+                    "pruned_by_heuristic": true
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t1`"
+                    ],
+                    "table": "`t2`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "rows_to_scan": 2,
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "resulting_rows": 2,
+                          "cost": 0.65,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    "condition_filtering_pct": 100,
+                    "rows_for_plan": 4,
+                    "cost_for_plan": 1.1,
+                    "pruned_by_heuristic": true
+                  }
+                ]
+              },
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t2` `t3`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 1,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
+                "pruned_by_heuristic": true
+              },
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t2` `t4`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 1,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
+                "pruned_by_heuristic": true
+              },
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t2`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
+                "pruned_by_heuristic": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                },
+                {
+                  "table": "`t2` `t3`",
+                  "attached": null
+                },
+                {
+                  "table": "`t2` `t4`",
+                  "attached": null
+                },
+                {
+                  "table": "`t2`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              },
+              {
+                "table": "`t2` `t3`"
+              },
+              {
+                "table": "`t2` `t4`"
+              },
+              {
+                "table": "`t2`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}
+# LDT depending on const table only
+create table t3(a int) engine=myisam;
+insert into t3 values(3);
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+explain select * from t3, lateral (select t3.a+1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '3' AS `a`,`dt`.`t3.a+1` AS `t3.a+1` from lateral (/* select#2 */ select ('3' + 1) AS `t3.a+1`) `dt`
+select * from t3, lateral (select t3.a+1) as dt;
+a	t3.a+1
+3	4
+drop table t3;
+# Two LDTs depending on different tables
+explain select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t2.a) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived3>)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt2`.`a` AS `a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select `test`.`t2`.`a` AS `a`) `dt2`
+select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t2.a) as dt2;
+a	b	a	b	a	a
+1	NULL	1	NULL	1	1
+1	NULL	2	NULL	2	1
+2	NULL	1	NULL	1	2
+2	NULL	2	NULL	2	2
+# Two LDTs depending on one same table
+explain select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t1.a+1) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>,<derived3>); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt2`.`t1.a+1` AS `t1.a+1` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select (`test`.`t1`.`a` + 1) AS `t1.a+1`) `dt2`
+explain format=json select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t1.a+1) as dt2;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "34.10"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.45",
+            "data_read_per_join": "32"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
+          "filtered": "100.00",
+          "rematerialize": "dt,dt2",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.40",
+            "prefix_cost": "1.10",
+            "data_read_per_join": "64"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "dt",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 8,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "10.30",
+            "eval_cost": "0.80",
+            "prefix_cost": "12.20",
+            "data_read_per_join": "128"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": true,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 2,
+              "message": "No tables used"
+            }
+          }
+        }
+      },
+      {
+        "table": {
+          "table_name": "dt2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 16,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "20.30",
+            "eval_cost": "1.60",
+            "prefix_cost": "34.10",
+            "data_read_per_join": "256"
+          },
+          "used_columns": [
+            "t1.a+1"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": true,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 3,
+              "message": "No tables used"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt2`.`t1.a+1` AS `t1.a+1` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select (`test`.`t1`.`a` + 1) AS `t1.a+1`) `dt2`
+select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t1.a+1) as dt2;
+a	b	a	b	a	t1.a+1
+1	NULL	1	NULL	1	2
+2	NULL	1	NULL	1	2
+1	NULL	2	NULL	2	3
+2	NULL	2	NULL	2	3
+# One LDT depending on two tables. The "rematerialize" tag is
+# properly added to the 2nd dependency only.
+explain select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`t1.a+t2.a` AS `t1.a+t2.a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select (`test`.`t1`.`a` + `test`.`t2`.`a`) AS `t1.a+t2.a`) `dt`
+explain format=json select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "12.45"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.45",
+            "data_read_per_join": "32"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
+          "filtered": "100.00",
+          "rematerialize": "dt",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.40",
+            "prefix_cost": "1.35",
+            "data_read_per_join": "64"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "dt",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 8,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "10.30",
+            "eval_cost": "0.80",
+            "prefix_cost": "12.45",
+            "data_read_per_join": "128"
+          },
+          "used_columns": [
+            "t1.a+t2.a"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": true,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 2,
+              "message": "No tables used"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`t1.a+t2.a` AS `t1.a+t2.a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select (`test`.`t1`.`a` + `test`.`t2`.`a`) AS `t1.a+t2.a`) `dt`
+select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+a	b	a	b	t1.a+t2.a
+1	NULL	1	NULL	2
+1	NULL	2	NULL	3
+2	NULL	1	NULL	3
+2	NULL	2	NULL	4
+select json_extract(trace,"$.steps[*].join_optimization.steps[*].refine_plan") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].join_optimization.steps[*].refine_plan")
+[[{"table": "`t2`"}, {"table": "`t1`"}, {"table": " `dt`", "rematerialized_for_each_row_of": "t1"}]]
+# Test when a dependency of LDT uses BKA: BKA code must
+# refresh LDT's content when it provides a row.
+set @old_opt_switch=@@optimizer_switch;
+set @@optimizer_switch="batched_key_access=on,mrr_cost_based=off";
+CREATE TABLE t11 (t11a int, t11b int);
+INSERT INTO t11 VALUES (99, NULL),(99, 3),(99,0);
+CREATE TABLE t12 (t12a int, t12b int, KEY idx (t12b));
+INSERT INTO t12 VALUES (100,0),(150,200),(999, 0),(999, NULL);
+ANALYZE TABLE t11,t12;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+explain SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
+JOIN LATERAL (SELECT t12a) dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	t12	NULL	ref	idx	idx	5	test.t11.t11b	1	100.00	Rematerialize (<derived2>); Using join buffer (Batched Key Access)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t12.t12a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where 1
+flush status;
+SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
+JOIN LATERAL (SELECT t12a) dt;
+t11a	t11b	t12a	t12b	t12a
+99	0	100	0	100
+99	0	999	0	999
+99	NULL	NULL	NULL	NULL
+99	3	NULL	NULL	NULL
+show status like "handler_write";
+Variable_name	Value
+Handler_write	3
+DROP TABLE t11,t12;
+set @@optimizer_switch=@old_opt_switch;
+# Test that with an auto_key on the lateral DT, the index is
+# properly emptied and re-filled when re-materializing.
+# If index weren't emptied, we'd see too many "11" matches for 2nd
+# row of t1; and if not re-filled, we'd see no matches for that.
+create table t3 (a int, b int);
+insert into t3 values(1, 10), (1, 11), (2, 10), (2, 11);
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+# Note the auto_key with "Using index", to test the index as
+# much as possible.
+explain select * from t1, lateral (select t3.b from t3 where t3.a=t1.a) dt
+where dt.b=t1.a+9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t3`.`b` AS `b` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`b` = (`test`.`t1`.`a` + 9)))
+select * from t1, lateral (select t3.b from t3 where t3.a=t1.a) dt
+where dt.b=t1.a+9;
+a	b	b
+1	NULL	10
+2	NULL	11
+drop table t3;
+set optimizer_switch='derived_merge=off';
+# Deep nesting: all intermediate subqueries are marked DEPENDENT
+explain select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+5	DEPENDENT SUBQUERY	<derived6>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (/* select#2 */ select count(0) from (/* select#3 */ select `dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` where (2 = (/* select#5 */ select 2 from (/* select#6 */ select `test`.`t1`.`a` AS `a`) `dt1`))) `dt3`) `dt4`)
+select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
+a	b
+1	NULL
+2	NULL
+# If reference is removed, not DEPENDENT
+explain select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select 42) dt1))dt3)dt4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+5	SUBQUERY	<derived6>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 1
+select * from t1 where
+(select count(*) from (select * from (select * from t1 t2
+where 2=(select 2 from (select 42) dt1))dt3)dt4);
+a	b
+1	NULL
+2	NULL
+# Outer ref is in SELECT list of derived table's definition
+explain select
+(select dt.a from
+(select t1.a as a, t2.a as b from t2) dt where dt.b=t1.a)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`a` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t2`) `dt` where (`dt`.`b` = `test`.`t1`.`a`)) AS `subq` from `test`.`t1`
+select
+(select dt.a from
+(select t1.a as a, t2.a as b from t2) dt where dt.b=t1.a)
+as subq
+from t1;
+subq
+1
+2
+# In WHERE
+explain select
+(select dt.b from
+(select t2.a as b from t2 where t1.a=t2.a) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select `test`.`t2`.`a` AS `b` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select t2.a as b from t2 where t1.a=t2.a) dt)
+as subq
+from t1;
+subq
+1
+2
+# In GROUP BY
+explain select
+(select dt.b from
+(select sum(t2.a) as b from t2 group by t1.a) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select sum(`test`.`t2`.`a`) AS `b` from `test`.`t2` group by `test`.`t1`.`a`) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select sum(t2.a) as b from t2 group by t1.a) dt)
+as subq
+from t1;
+subq
+3
+3
+# In HAVING
+explain select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-1) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select sum(`test`.`t2`.`a`) AS `b` from `test`.`t2` having (`test`.`t1`.`a` = (sum(`test`.`t2`.`a`) - 1))) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-1) dt)
+as subq
+from t1;
+subq
+NULL
+3
+explain select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-2) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select sum(`test`.`t2`.`a`) AS `b` from `test`.`t2` having (`test`.`t1`.`a` = (sum(`test`.`t2`.`a`) - 2))) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select sum(t2.a) as b from t2 having t1.a=sum(t2.a)-2) dt)
+as subq
+from t1;
+subq
+3
+NULL
+# In ORDER BY
+explain select
+(select dt.b from
+(select t2.a as b from t2 order by if(t1.a=1,t2.a,-t2.a) limit 1) dt)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select `test`.`t2`.`a` AS `b` from `test`.`t2` order by if((`test`.`t1`.`a` = 1),`test`.`t2`.`a`,-(`test`.`t2`.`a`)) limit 1) `dt`) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select t2.a as b from t2 order by if(t1.a=1,t2.a,-t2.a) limit 1) dt)
+as subq
+from t1;
+subq
+1
+2
+# In window functions
+explain select
+(select dt.b from
+(select t2.a, sum(t1.a*10+t2.a) over (order by if(t1.a=1,t2.a,-t2.a)) as b
+from t2) dt where dt.a=1)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	const	1	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`b` from (/* select#3 */ select `test`.`t2`.`a` AS `a`,sum(((`test`.`t1`.`a` * 10) + `test`.`t2`.`a`)) OVER (ORDER BY if((`test`.`t1`.`a` = 1),`test`.`t2`.`a`,-(`test`.`t2`.`a`)) )  AS `b` from `test`.`t2`) `dt` where (`dt`.`a` = 1)) AS `subq` from `test`.`t1`
+select
+(select dt.b from
+(select t2.a, sum(t1.a*10+t2.a) over (order by if(t1.a=1,t2.a,-t2.a)) as b
+from t2) dt where dt.a=1)
+as subq
+from t1;
+subq
+11
+43
+# CTE referenced twice
+explain select
+(with dt as (select t1.a as a, t2.a as b from t2)
+select dt2.a from dt dt1, dt dt2 where dt1.b=t1.a and dt2.b=dt1.b)
+as subq
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using where
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t2`) /* select#2 */ select `dt2`.`a` from `dt` `dt1` join `dt` `dt2` where ((`dt2`.`b` = `dt1`.`b`) and (`dt1`.`b` = `test`.`t1`.`a`))) AS `subq` from `test`.`t1`
+select
+(with dt as (select t1.a as a, t2.a as b from t2)
+select dt2.a from dt dt1, dt dt2 where dt1.b=t1.a and dt2.b=dt1.b)
+as subq
+from t1;
+subq
+1
+2
+Recursive CTE
+select
+(with recursive dt as
+(select t1.a as a union select a+1 from dt where a<10)
+select dt1.a from dt dt1 where dt1.a=t1.a
+) as subq
+from t1;
+subq
+1
+2
+select
+(with recursive dt as
+(select t1.a as a union select a+1 from dt where a<10)
+select concat(count(*), ' - ', avg(dt.a)) from dt
+) as subq
+from t1;
+subq
+10 - 5.5000
+9 - 6.0000
+select
+(with recursive dt as
+(select t1.a as a union all select a+1 from dt where a<10)
+select concat(count(*), ' - ', avg(dt.a)) from dt
+) as subq
+from t1;
+subq
+10 - 5.5000
+9 - 6.0000
+select
+(with dt as (select t1.a as a, t2.a as b from t2)
+select dt2.a from dt dt1, dt dt2 where dt1.b=t1.a and dt2.b=dt1.b)
+as subq
+from t1;
+subq
+1
+2
+# Two references to same CTE at different levels of nesting.
+explain select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	func	2	100.00	Using where; Using index
+4	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t2` limit 1) /* select#2 */ select `dt1`.`a` from `dt` `dt1` where (`dt1`.`a` = (/* select#4 */ select `dt2`.`a` from `dt` `dt2`))) AS `subq` from `test`.`t1`
+explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+EXPLAIN
+-> Table scan on t1
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (dt1.a = (select #4))
+        -> Index lookup on dt1 using <auto_key0> (a=(select #4))
+            -> Materialize CTE dt if needed
+                -> Limit: 1 row(s)
+                    -> Table scan on t2
+        -> Select #4 (subquery in condition; dependent)
+            -> Table scan on dt2
+                -> Materialize CTE dt if needed (query plan printed elsewhere)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #1
+select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+subq
+1
+2
+explain select (with dt as (select t2.a as a from t2 having t1.a=t2.a limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	func	2	100.00	Using where; Using index
+4	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 't1.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` having (`test`.`t1`.`a` = `test`.`t2`.`a`) limit 1) /* select#2 */ select `dt1`.`a` from `dt` `dt1` where (`dt1`.`a` = (/* select#4 */ select `dt2`.`a` from `dt` `dt2`))) AS `subq` from `test`.`t1`
+select (with dt as (select t2.a as a from t2 having t1.a=t2.a limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
+subq
+1
+2
+# Scope of outer ref in CTE
+select (select * from (select t1.a) cte) from t1;
+(select * from (select t1.a) cte)
+1
+2
+select (with cte as (select t1.a) select * from cte) from t1;
+(with cte as (select t1.a) select * from cte)
+1
+2
+with cte as (select t1.a) select (select * from cte) from t1;
+ERROR 42S02: Unknown table 't1' in field list
+# NOT IN(subquery using derived), handled with subquery materialization
+explain select * from t1
+where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where 1 having 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))))))
+select * from t1
+where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
+a	b
+1	NULL
+# Now put an outer reference inside derived table:
+# subquery is properly seen as correlated and subquery
+# materialization is thus not used.
+explain select * from t1
+where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from (/* select#3 */ select ((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) AS `f` from `test`.`t2`) `dt` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`dt`.`f` + 1)) or isnull((`dt`.`f` + 1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`dt`.`f` + 1)), true)))))
+select * from t1
+where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
+a	b
+1	NULL
+# Verify that a non-lateral derived table with an outer
+# reference makes the semijoin be correlated and thus blocks
+# semijoin-materialization-scan.
+create table t11 (a int);
+insert into t11
+with recursive cte as (select 1 as a union all select a+1 from cte where a<124)
+select * from cte;
+alter table t11 add index(a);
+create table t12 like t11;
+analyze table t11,t12;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+# No outer ref: mat-scan chosen
+explain select
+/*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */
+* from t11 where a in (select /*+ QB_NAME(subq1) NO_MERGE(dt) */ *
+from (select t12.a from t12) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	PRIMARY	t11	NULL	ref	a	a	5	<subquery2>.a	1	100.00	Using index
+2	MATERIALIZED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DERIVED	t12	NULL	index	NULL	a	5	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_MERGE(`dt`@`subq1`) */ `test`.`t11`.`a` AS `a` from `test`.`t11` semi join ((/* select#3 */ select `test`.`t12`.`a` AS `a` from `test`.`t12`) `dt`) where (`test`.`t11`.`a` = `<subquery2>`.`a`)
+# outer ref: mat-scan not chosen
+explain select
+/*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */
+* from t11 where a in (select /*+ QB_NAME(subq1) NO_MERGE(dt) */ *
+from (select t12.a+0*t11.a from t12) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t11	NULL	index	a	a	5	NULL	124	100.00	Using where; Using index; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.t11.a	2	100.00	Using where; Using index; Start temporary; End temporary
+3	DEPENDENT DERIVED	t12	NULL	index	NULL	a	5	NULL	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.t11.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_MERGE(`dt`@`subq1`) */ `test`.`t11`.`a` AS `a` from `test`.`t11` semi join (lateral (/* select#3 */ select (`test`.`t12`.`a` + (0 * `test`.`t11`.`a`)) AS `t12.a+0*t11.a` from `test`.`t12`) `dt`) where (`test`.`t11`.`a` = `dt`.`t12.a+0*t11.a`)
+DROP TABLE t11,t12;
+LATERAL
+# prevents join buffer
+explain select dt.a from t1, lateral (select t1.a from t2) dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `dt`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t2`) `dt`
+# no right join
+explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt'
+# no bad left join either
+explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
+ERROR 42S22: Unknown column 't1.a' in 'field list'
+# more complex case
+explain SELECT * FROM t1
+LEFT JOIN
+lateral (select t1.a) as dt ON t1.a=dt.a
+RIGHT JOIN
+lateral (select dt.a) as dt1 ON dt.a=dt1.a;
+ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt1'
+# LATERAL DT depending on LATERAL DT
+explain SELECT * FROM t1
+JOIN
+lateral (select t1.a) as dt ON t1.a=dt.a
+JOIN
+lateral (select dt.a) as dt1 ON dt.a=dt1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'dt.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt1`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select `dt`.`a` AS `a`) `dt1` where ((`dt`.`a` = `test`.`t1`.`a`) and (`dt1`.`a` = `test`.`t1`.`a`))
+# Placing lateral outer ref in SELECT list then HAVING
+select t1.a, dt.a from t1, lateral (select t1.a+t2.a as a from t2) dt;
+a	a
+1	2
+1	3
+2	3
+2	4
+select t1.a, dt.a from t1, lateral (select t2.a as a from t2 having t1.a) dt;
+a	a
+1	1
+1	2
+2	1
+2	2
+# Inside view
+create view v1 as
+select t1.a as f1, dt.a as f2
+from t1, lateral (select t1.a+t2.a as a from t2) dt;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `f1`,`dt`.`a` AS `f2` from (`t1` join lateral (select (`t1`.`a` + `t2`.`a`) AS `a` from `t2`) `dt`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+f1	f2
+1	2
+1	3
+2	3
+2	4
+drop view v1;
+# Coverage for various branches in Item_ref::fix_fields
+SELECT COUNT(*) FROM t1 GROUP BY t1.a  HAVING t1.a IN (SELECT t3.a
+FROM t1 AS t3 WHERE t3.b IN (SELECT b FROM t2, lateral (select t1.a) dt));
+COUNT(*)
+create view v1 as select a, b from t1;
+select vq1.b,dt.b from v1 vq1, lateral (select vq1.b) dt;
+b	b
+NULL	NULL
+NULL	NULL
+select b from v1 vq1, lateral (select count(*) from v1 vq2 having vq1.b = 3) dt;
+b
+drop view v1;
+SELECT
+/*+ SET_VAR(optimizer_switch = 'materialization=off,semijoin=off') */
+* FROM t1 AS ta, lateral (select 1 WHERE ta.a IN (SELECT b FROM t2 AS tb                WHERE tb.b >= SOME(SELECT SUM(tc.a) as sg FROM t1 as tc                                   GROUP BY tc.b                                   HAVING ta.a=tc.b))) dt;
+a	b	1
+select (select dt.a from   (select 1 as a, t2.a as b from t2 having
+t1.a) dt where dt.b=t1.a) as subq from t1;
+subq
+1
+1
+select (select dt.a from   (select 1 as a, 3 as b from t2 having t1.a)
+dt where dt.b=t1.a) as subq from t1;
+subq
+NULL
+NULL
+# Aggregation in outer context
+select (select f from (select max(t1.a) as f) as dt) as g from t1;
+g
+2
+select (select f from lateral (select max(t1.a) as f) as dt) as g from t1;
+g
+2
+# LATERAL doesn't allow an aggregate to resolve to the
+# immediate parent (because reading of FROM tables happens
+# before aggregation). So it resolves in the derived table, so
+# the outer query doesn't produce a single-row result.
+select t1.a, f from t1, lateral (select max(t1.a) as f) as dt;
+a	f
+1	1
+2	2
+# We support CTE inside derived table
+select * from t1,
+lateral (with qn as (select t1.a) select (select max(a) from qn)) as dt;
+a	b	(select max(a) from qn)
+1	NULL	1
+2	NULL	2
+# Coverage for crash in Item_ident::fix_after_pullout:
+# when we merge a derived table contained in a derived table,
+# and the merged one contains an outer ref to the top query.
+select (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) from t1;
+(select * from (select * from (select t1.a from t2) as dt limit 1) dt2)
+1
+2
+# Semijoin containing a correlated derived table, DT must
+# become LATERAL
+explain select a from t1 where a in (select a from (select t1.a) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (lateral (/* select#3 */ select `test`.`t1`.`a` AS `a`) `dt`) where (`dt`.`a` = `test`.`t1`.`a`)
+select a from t1 where a in (select a from (select t1.a) dt);
+a
+1
+2
+create table t3 as with recursive cte as (select 1 as a union select a+1 from cte where a<20) select * from cte;
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+explain select min(a),max(a) from t3 where a in (select /*+ no_merge() */ a from (select t3.a from t1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.t3.a	2	100.00	Using index; FirstMatch(t3)
+3	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#2`) */ min(`test`.`t3`.`a`) AS `min(a)`,max(`test`.`t3`.`a`) AS `max(a)` from `test`.`t3` semi join (lateral (/* select#3 */ select `test`.`t3`.`a` AS `a` from `test`.`t1`) `dt`) where (`dt`.`a` = `test`.`t3`.`a`)
+select min(a),max(a) from t3 where a in (select /*+ no_merge() */ a from (select t3.a from t1) dt);
+min(a)	max(a)
+1	20
+drop table t3;
+# DT containing a correlated DT which must become LATERAL
+explain format=tree select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
+EXPLAIN
+-> Nested loop inner join
+    -> Invalidate materialized tables (row from t1)
+        -> Table scan on t1
+    -> Table scan on dt3
+        -> Materialize (invalidate on row from t1)
+            -> Table scan on dt2
+                -> Temporary table
+                    -> Limit: 1 row(s)
+                        -> Table scan on dt
+                            -> Temporary table
+                                -> Table scan on t2
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+explain select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt3`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select `dt2`.`a` AS `a` from (/* select#3 */ select `dt`.`a` AS `a` from (/* select#4 */ select `test`.`t1`.`a` AS `a` from `test`.`t2`) `dt` limit 1) `dt2`) `dt3`
+select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
+a	b	a
+1	NULL	1
+2	NULL	2
+explain select * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DEPENDENT DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+5	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t0.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`dt4`.`a` AS `a` from `test`.`t1` `t0` join lateral (/* select#2 */ select `dt3`.`a` AS `a` from `test`.`t1` join (/* select#3 */ select `dt2`.`a` AS `a` from (/* select#4 */ select `dt`.`a` AS `a` from (/* select#5 */ select `test`.`t0`.`a` AS `a` from `test`.`t2`) `dt` limit 1) `dt2`) `dt3`) `dt4`
+select * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+a	b	a
+1	NULL	1
+1	NULL	1
+2	NULL	2
+2	NULL	2
+explain select /*+ no_merge() */ * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DEPENDENT DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+5	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t0.a' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#1`) */ `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`dt4`.`a` AS `a` from `test`.`t1` `t0` join lateral (/* select#2 */ select `dt3`.`a` AS `a` from `test`.`t1` join (/* select#3 */ select `dt2`.`a` AS `a` from (/* select#4 */ select `dt`.`a` AS `a` from (/* select#5 */ select `test`.`t0`.`a` AS `a` from `test`.`t2`) `dt` limit 1) `dt2`) `dt3`) `dt4`
+select /*+ no_merge() */ * from t1 as t0,
+lateral
+(select dt3.* from t1, lateral (select * from (select * from (select t0.a
+from t2) as dt limit 1) dt2) dt3) dt4;
+a	b	a
+1	NULL	1
+1	NULL	1
+2	NULL	2
+2	NULL	2
+explain select * from t1, lateral (select * from (select 42) t1, (select t1.a) dt2) dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+4	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt3`.`42` AS `42`,`dt3`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select '42' AS `42`,`dt2`.`a` AS `a` from (/* select#4 */ select `test`.`t1`.`a` AS `a`) `dt2`) `dt3`
+select * from t1, lateral (select * from (select 42) t1, (select t1.a) dt2) dt3;
+a	b	42	a
+1	NULL	42	1
+2	NULL	42	2
+without semijoin: index_subquery needs to re-materialize
+explain select a from t1 where a in (select /*+ no_semijoin() */ a from (select t1.a) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in dt on <auto_key0>)))
+select a from t1 where a in (select /*+ no_semijoin() */ a from (select t1.a) dt);
+a
+1
+2
+select a from t1 where a in (with cte as (select t1.a)
+select /*+ no_semijoin() */ a from cte);
+a
+1
+2
+# Count rematerializations
+# In all three plans, handler_write is 2, showing that we
+# rematerialize only when necessary (when row of t1 changes)
+explain select straight_join * from t1, t2, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t1` join `test`.`t2` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select straight_join * from t1, t2, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+1	NULL	2	NULL	1
+2	NULL	1	NULL	2
+2	NULL	2	NULL	2
+# when a row of t1 produces two rows of t2 passed to "dt",
+# it still makes one materialization.
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+explain select straight_join * from t1, lateral (select t1.a) as dt, t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join `test`.`t2`
+flush status;
+select straight_join * from t1, lateral (select t1.a) as dt, t2;
+a	b	a	a	b
+1	NULL	1	1	NULL
+2	NULL	2	1	NULL
+1	NULL	1	2	NULL
+2	NULL	2	2	NULL
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+explain select straight_join * from t2, t1, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select straight_join * from t2, t1, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+2	NULL	1	NULL	1
+1	NULL	2	NULL	2
+2	NULL	2	NULL	2
+# Due to join buffer, order t2-t1 produces rows as a
+# non-buffered t1-t2 plan: t1 buffers all rows of t2, then for
+# each row of t1 it's joined to all rows of t2 and passed to t2;
+# when a row of t1 produces two rows of t2 passed to "dt",
+# it still makes one materialization.
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# Let the planner find the best plan.
+# It doesn't work so well, because of
+# optimizer_prune_level=1 (see bug#28629788): order specified by
+# the user is sorted by number of rows, which leaves it
+# unchanged (Card(t1)=Card(t2)=Card(dt)); then it is the first
+# explored plan so it's explored in full, and later t1-dt is rejected as
+# more expensive than t1-t2. Whereas if t1-dt had been explored
+# deeper, we'd see t1-dt-t2 is actually the cheapest, because
+# it reads dt the least number of times (and dt has a high read
+# cost because Temptable::scan_time() is incredibly high but
+# that's another issue; see bug#28631100).
+# t2 cannot use join buffering as between "dt" and its
+# dependency t1: join buffering would interlace rows of t1
+# thus cause more rematerializations.
+explain select * from t1, t2, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t1` join `test`.`t2` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select * from t1, t2, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+1	NULL	2	NULL	1
+2	NULL	1	NULL	2
+2	NULL	2	NULL	2
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# This one finds the best plan. Yes we simply swapped tables in the query,
+# and it yields a different plan. This is because the order specified by
+# the user is sorted by number of rows, which leaves it
+# unchanged (Card(t1)=Card(t2)=Card(dt), then it is the first
+# explored plan so it's explored in full and so is never pruned by
+# prune_level=1, and it is the best plan. Best as: it reads
+# "dt" less, and t2 uses join buffering (which is ok as it's
+# after "dt").
+# If prune_level=0, all 3 variants here produce this plan.
+explain select * from t1, lateral (select t1.a) as dt, t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join `test`.`t2`
+flush status;
+select * from t1, lateral (select t1.a) as dt, t2;
+a	b	a	a	b
+1	NULL	1	1	NULL
+2	NULL	2	1	NULL
+1	NULL	1	2	NULL
+2	NULL	2	2	NULL
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# This one is intermediate: t1 uses join buffer (good), but
+# "dt" is last (bad, as it has high scan cost).
+explain select * from t2, t1, lateral (select t1.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt`
+flush status;
+select * from t2, t1, lateral (select t1.a) as dt;
+a	b	a	b	a
+1	NULL	1	NULL	1
+2	NULL	1	NULL	1
+1	NULL	2	NULL	2
+2	NULL	2	NULL	2
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+# Show the trace of planning of lateral derived tables
+explain select * from t1, lateral (select t1.a from t2 as t3, t2 as t4) as dt, t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t2` `t3` join `test`.`t2` `t4`) `dt` join `test`.`t2`
+select trace from information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`a` AS `a` from `t2` `t3` join `t2` `t4`"
+                }
+              ]
+            }
+          },
+          {
+            "derived": {
+              "table": " `dt`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`dt`.`a` AS `a`,`t2`.`a` AS `a`,`t2`.`b` AS `b` from `t1` join lateral (/* select#2 */ select `t1`.`a` AS `a` from `t2` `t3` join `t2` `t4`) `dt` join `t2`"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "`t2` `t3`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    },
+                    {
+                      "table": "`t2` `t4`",
+                      "row_may_be_null": false,
+                      "map_bit": 1,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "`t2` `t3`",
+                      "table_scan": {
+                        "rows": 2,
+                        "cost": 0.25
+                      }
+                    },
+                    {
+                      "table": "`t2` `t4`",
+                      "table_scan": {
+                        "rows": 2,
+                        "cost": 0.25
+                      }
+                    }
+                  ]
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": "`t2` `t3`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 2,
+                            "filtering_effect": [
+                            ],
+                            "final_filtering_effect": 1,
+                            "access_type": "scan",
+                            "resulting_rows": 2,
+                            "cost": 0.45,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 2,
+                      "cost_for_plan": 0.45,
+                      "rest_of_plan": [
+                        {
+                          "plan_prefix": [
+                            "`t2` `t3`"
+                          ],
+                          "table": "`t2` `t4`",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "rows_to_scan": 2,
+                                "filtering_effect": [
+                                ],
+                                "final_filtering_effect": 1,
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "buffers_needed": 1,
+                                "resulting_rows": 2,
+                                "cost": 0.65,
+                                "chosen": true
+                              }
+                            ]
+                          },
+                          "condition_filtering_pct": 100,
+                          "rows_for_plan": 4,
+                          "cost_for_plan": 1.1,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    {
+                      "plan_prefix": [
+                      ],
+                      "table": "`t2` `t4`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "rows_to_scan": 2,
+                            "filtering_effect": [
+                            ],
+                            "final_filtering_effect": 1,
+                            "access_type": "scan",
+                            "resulting_rows": 2,
+                            "cost": 0.45,
+                            "chosen": true
+                          }
+                        ]
+                      },
+                      "condition_filtering_pct": 100,
+                      "rows_for_plan": 2,
+                      "cost_for_plan": 0.45,
+                      "pruned_by_heuristic": true
+                    }
+                  ]
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ],
+                    "attached_conditions_summary": [
+                      {
+                        "table": "`t2` `t3`",
+                        "attached": null
+                      },
+                      {
+                        "table": "`t2` `t4`",
+                        "attached": null
+                      }
+                    ]
+                  }
+                },
+                {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "`t2` `t3`"
+                    },
+                    {
+                      "table": "`t2` `t4`"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "table": " `dt`",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ]
+              },
+              {
+                "table": "`t2`",
+                "row_may_be_null": false,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 0.25
+                }
+              },
+              {
+                "table": " `dt`",
+                "table_scan": {
+                  "rows": 4,
+                  "cost": 2.55
+                }
+              },
+              {
+                "table": "`t2`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 1,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t1`"
+                    ],
+                    "table": "`t2`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "rows_to_scan": 2,
+                          "access_type": "scan",
+                          "resulting_rows": 2,
+                          "cost": 0.9,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    "condition_filtering_pct": 100,
+                    "rows_for_plan": 4,
+                    "cost_for_plan": 1.35,
+                    "rest_of_plan": [
+                      {
+                        "plan_prefix": [
+                          "`t1`",
+                          "`t2`"
+                        ],
+                        "table": " `dt`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "lateral_materialization": {
+                                "cost_for_one_run_of_inner_query": 1.099,
+                                "cost_for_writing_to_tmp_table": 0.4,
+                                "count_of_runs": 2,
+                                "total_cost": 2.998,
+                                "cost_per_read": 0.7495
+                              }
+                            },
+                            {
+                              "rows_to_scan": 4,
+                              "access_type": "scan",
+                              "resulting_rows": 4,
+                              "cost": 11.8,
+                              "chosen": true
+                            }
+                          ]
+                        },
+                        "condition_filtering_pct": 100,
+                        "rows_for_plan": 16,
+                        "cost_for_plan": 13.899,
+                        "chosen": true
+                      }
+                    ]
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t1`"
+                    ],
+                    "table": " `dt`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "lateral_materialization": {
+                            "cost_for_one_run_of_inner_query": 1.099,
+                            "cost_for_writing_to_tmp_table": 0.4,
+                            "count_of_runs": 2,
+                            "total_cost": 2.998,
+                            "cost_per_read": 1.499
+                          }
+                        },
+                        {
+                          "rows_to_scan": 4,
+                          "access_type": "scan",
+                          "resulting_rows": 4,
+                          "cost": 5.9,
+                          "chosen": true
+                        }
+                      ]
+                    },
+                    "condition_filtering_pct": 100,
+                    "rows_for_plan": 8,
+                    "cost_for_plan": 7.849,
+                    "pruned_by_heuristic": true
+                  }
+                ]
+              },
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t2`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
+                "pruned_by_heuristic": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                },
+                {
+                  "table": "`t2`",
+                  "attached": null
+                },
+                {
+                  "table": " `dt`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              },
+              {
+                "table": "`t2`"
+              },
+              {
+                "table": " `dt`",
+                "rematerialized_for_each_row_of": "t1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": " `dt`",
+                "in_plan_at_position": 2,
+                "columns": 1,
+                "row_length": 5,
+                "key_length": 0,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "join_explain": {
+              "select#": 2,
+              "steps": [
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+# LDT depending on const table only
+create table t3(a int) engine=myisam;
+insert into t3 values(3);
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+explain select * from t3, lateral (select t3.a+1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '3' AS `a`,`dt`.`t3.a+1` AS `t3.a+1` from lateral (/* select#2 */ select ('3' + 1) AS `t3.a+1`) `dt`
+select * from t3, lateral (select t3.a+1) as dt;
+a	t3.a+1
+3	4
+drop table t3;
+# Two LDTs depending on different tables
+explain select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t2.a) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived3>)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt2`.`a` AS `a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select `test`.`t2`.`a` AS `a`) `dt2`
+select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t2.a) as dt2;
+a	b	a	b	a	a
+1	NULL	1	NULL	1	1
+1	NULL	2	NULL	2	1
+2	NULL	1	NULL	1	2
+2	NULL	2	NULL	2	2
+# Two LDTs depending on one same table
+explain select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t1.a+1) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>,<derived3>); Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt2`.`t1.a+1` AS `t1.a+1` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select (`test`.`t1`.`a` + 1) AS `t1.a+1`) `dt2`
+explain format=json select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t1.a+1) as dt2;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "34.10"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.45",
+            "data_read_per_join": "32"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
+          "filtered": "100.00",
+          "rematerialize": "dt,dt2",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.40",
+            "prefix_cost": "1.10",
+            "data_read_per_join": "64"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "dt",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 8,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "10.30",
+            "eval_cost": "0.80",
+            "prefix_cost": "12.20",
+            "data_read_per_join": "128"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": true,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 2,
+              "message": "No tables used"
+            }
+          }
+        }
+      },
+      {
+        "table": {
+          "table_name": "dt2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 16,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "20.30",
+            "eval_cost": "1.60",
+            "prefix_cost": "34.10",
+            "data_read_per_join": "256"
+          },
+          "used_columns": [
+            "t1.a+1"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": true,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 3,
+              "message": "No tables used"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt2`.`t1.a+1` AS `t1.a+1` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a`) `dt` join lateral (/* select#3 */ select (`test`.`t1`.`a` + 1) AS `t1.a+1`) `dt2`
+select * from t2, t1, lateral (select t1.a) as dt,
+lateral (select t1.a+1) as dt2;
+a	b	a	b	a	t1.a+1
+1	NULL	1	NULL	1	2
+2	NULL	1	NULL	1	2
+1	NULL	2	NULL	2	3
+2	NULL	2	NULL	2	3
+# One LDT depending on two tables. The "rematerialize" tag is
+# properly added to the 2nd dependency only.
+explain select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`t1.a+t2.a` AS `t1.a+t2.a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select (`test`.`t1`.`a` + `test`.`t2`.`a`) AS `t1.a+t2.a`) `dt`
+explain format=json select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "12.45"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.45",
+            "data_read_per_join": "32"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
+          "filtered": "100.00",
+          "rematerialize": "dt",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.40",
+            "prefix_cost": "1.35",
+            "data_read_per_join": "64"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "dt",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 8,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "10.30",
+            "eval_cost": "0.80",
+            "prefix_cost": "12.45",
+            "data_read_per_join": "128"
+          },
+          "used_columns": [
+            "t1.a+t2.a"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": true,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 2,
+              "message": "No tables used"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`t1.a+t2.a` AS `t1.a+t2.a` from `test`.`t2` join `test`.`t1` join lateral (/* select#2 */ select (`test`.`t1`.`a` + `test`.`t2`.`a`) AS `t1.a+t2.a`) `dt`
+select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+a	b	a	b	t1.a+t2.a
+1	NULL	1	NULL	2
+1	NULL	2	NULL	3
+2	NULL	1	NULL	3
+2	NULL	2	NULL	4
+select json_extract(trace,"$.steps[*].join_optimization.steps[*].refine_plan") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].join_optimization.steps[*].refine_plan")
+[[{"table": "`t2`"}, {"table": "`t1`"}, {"table": " `dt`", "rematerialized_for_each_row_of": "t1"}]]
+# Test when a dependency of LDT uses BKA: BKA code must
+# refresh LDT's content when it provides a row.
+set @old_opt_switch=@@optimizer_switch;
+set @@optimizer_switch="batched_key_access=on,mrr_cost_based=off";
+CREATE TABLE t11 (t11a int, t11b int);
+INSERT INTO t11 VALUES (99, NULL),(99, 3),(99,0);
+CREATE TABLE t12 (t12a int, t12b int, KEY idx (t12b));
+INSERT INTO t12 VALUES (100,0),(150,200),(999, 0),(999, NULL);
+ANALYZE TABLE t11,t12;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+explain SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
+JOIN LATERAL (SELECT t12a) dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	t12	NULL	ref	idx	idx	5	test.t11.t11b	1	100.00	Rematerialize (<derived2>); Using join buffer (Batched Key Access)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t12.t12a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where 1
+flush status;
+SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
+JOIN LATERAL (SELECT t12a) dt;
+t11a	t11b	t12a	t12b	t12a
+99	0	100	0	100
+99	0	999	0	999
+99	NULL	NULL	NULL	NULL
+99	3	NULL	NULL	NULL
+show status like "handler_write";
+Variable_name	Value
+Handler_write	3
+DROP TABLE t11,t12;
+set @@optimizer_switch=@old_opt_switch;
+# Test that with an auto_key on the lateral DT, the index is
+# properly emptied and re-filled when re-materializing.
+# If index weren't emptied, we'd see too many "11" matches for 2nd
+# row of t1; and if not re-filled, we'd see no matches for that.
+create table t3 (a int, b int);
+insert into t3 values(1, 10), (1, 11), (2, 10), (2, 11);
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+# Note the auto_key with "Using index", to test the index as
+# much as possible.
+explain select * from t1, lateral (select t3.b from t3 where t3.a=t1.a) dt
+where dt.b=t1.a+9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	func	2	100.00	Using where; Using index
+2	DEPENDENT DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`b` AS `b` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t3`.`b` AS `b` from `test`.`t3` where (`test`.`t3`.`a` = `test`.`t1`.`a`)) `dt` where (`dt`.`b` = (`test`.`t1`.`a` + 9))
+select * from t1, lateral (select t3.b from t3 where t3.a=t1.a) dt
+where dt.b=t1.a+9;
+a	b	b
+1	NULL	10
+2	NULL	11
+drop table t3;
+set optimizer_switch='derived_merge=off';
+# Reserved word
+create table lateral(a int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'lateral(a int)' at line 1
+drop table t1,t2;
+#
+# Bug#28723670 RECENT REGRESSION: CRASH/ASSERTION IN FIND_FIELD_IN_TABLE_REF
+#
+CREATE TABLE t(x INT);
+# Don't search for 'y' in top SELECT
+SELECT 1 FROM
+(SELECT 1 FROM (SELECT (SELECT y FROM t) FROM t) AS a) AS b;
+ERROR 42S22: Unknown column 'y' in 'field list'
+DROP TABLE t;
+#
+# Bug#28976533 ASSERTION `JOIN->BEST_READ < DOUBLE(1.79769313486231570814527423731704357E+308L)
+#
+CREATE TABLE bb (
+pk INTEGER AUTO_INCREMENT,
+col_int INTEGER ,
+col_int_key INTEGER ,
+col_time_key TIME ,
+col_time TIME ,
+col_datetime_key DATETIME ,
+col_datetime DATETIME ,
+col_varchar_key VARCHAR(20) ,
+col_varchar VARCHAR(20) ,
+PRIMARY KEY (pk DESC),
+KEY (col_time_key),
+KEY (col_time_key DESC)
+);
+SET SQL_MODE='';
+EXPLAIN SELECT
+grandparent1.col_varchar_key AS g1 FROM bb AS grandparent1
+LEFT JOIN bb AS grandparent2 USING ( col_time )
+WHERE grandparent1.col_int_key IN
+(
+WITH qn AS (
+SELECT  parent1.col_int AS p1
+FROM bb AS parent1 LEFT JOIN bb AS parent2 USING ( col_varchar )
+WHERE parent1.col_varchar_key IN
+(
+WITH qn1 AS (
+SELECT DISTINCT child1.col_varchar_key AS C1
+FROM bb AS child1 LEFT JOIN bb AS child2
+ON child1.col_varchar_key <= child2.col_varchar
+WHERE child1.col_time > grandparent1.col_datetime
+)
+SELECT  * FROM qn1
+)
+AND parent1.col_time_key BETWEEN '2008-03-18' AND
+'2004-11-14'
+             )
+SELECT /*+ MERGE(qn) */ * FROM qn
+)
+GROUP BY grandparent1.col_int;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+5	DEPENDENT DERIVED	child1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using temporary
+5	DEPENDENT DERIVED	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.grandparent1.col_datetime' of SELECT #5 was resolved in SELECT #1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#2`) */ `test`.`grandparent1`.`col_varchar_key` AS `g1` from `test`.`bb` `grandparent1` semi join (`qn1` join `test`.`bb` `parent1` left join `test`.`bb` `parent2` on((`test`.`parent1`.`col_varchar` = `test`.`parent2`.`col_varchar`))) left join `test`.`bb` `grandparent2` on(multiple equal(`test`.`grandparent1`.`col_time`, `test`.`grandparent2`.`col_time`)) where ((`test`.`parent1`.`col_time_key` between '2008-03-18' and '2004-11-14') and multiple equal(`test`.`grandparent1`.`col_int_key`, `test`.`parent1`.`col_int`) and multiple equal(`test`.`parent1`.`col_varchar_key`, `qn1`.`C1`)) group by `test`.`grandparent1`.`col_int`
+SELECT
+grandparent1.col_varchar_key AS g1 FROM bb AS grandparent1
+LEFT JOIN bb AS grandparent2 USING ( col_time )
+WHERE grandparent1.col_int_key IN
+(
+WITH qn AS (
+SELECT  parent1.col_int AS p1
+FROM bb AS parent1 LEFT JOIN bb AS parent2 USING ( col_varchar )
+WHERE parent1.col_varchar_key IN
+(
+WITH qn1 AS (
+SELECT DISTINCT child1.col_varchar_key AS C1
+FROM bb AS child1 LEFT JOIN bb AS child2
+ON child1.col_varchar_key <= child2.col_varchar
+WHERE child1.col_time > grandparent1.col_datetime
+)
+SELECT  * FROM qn1
+)
+AND parent1.col_time_key BETWEEN '2008-03-18' AND
+'2004-11-14'
+             )
+SELECT /*+ MERGE(qn) */ * FROM qn
+)
+GROUP BY grandparent1.col_int;
+g1
+Warnings:
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+DROP TABLE bb;
+SET SQL_MODE=DEFAULT;
+#
+# Bug#28954838 ASSERTION `(REMAINING_TABLES_AFTER != 0) || ((CUR_EMBEDDING_MAP == 0) && (JOIN->
+#
+CREATE TABLE t1 (
+pk INTEGER,
+col_int INT not null,
+col_int_key INT not null,
+col_time_gckey TIME,
+col_varchar VARCHAR(20) not null,
+col_varchar_key VARCHAR(15)  not null
+);
+CREATE TABLE t2 (
+pk INTEGER,
+col_int INT not null,
+col_varchar VARCHAR(20) not null,
+col_varchar_key VARCHAR(15) not null
+);
+SET OPTIMIZER_SWITCH='derived_merge=off';
+SELECT table1.col_varchar_key AS field1,
+table2.col_time_gckey AS field2
+FROM t2 AS table1 STRAIGHT_JOIN t1 AS table2
+ON table2.col_varchar_key = table1.col_varchar_key
+WHERE table2.col_int_key IN
+(WITH qn AS
+(SELECT sq1_t1.col_int AS sq1_field1
+FROM t2 AS sq1_t1
+WHERE sq1_t1.col_varchar_key = table2.col_varchar OR
+EXISTS (WITH qn1 AS
+(SELECT c_sq1_t1.col_int_key AS c_sq1_field1
+FROM t1 AS c_sq1_t1
+WHERE c_sq1_t1.col_varchar_key > sq1_t1.col_varchar OR
+c_sq1_t1.col_int <> c_sq1_t1.pk
+)
+SELECT * FROM qn1
+)
+)
+SELECT * FROM qn
+) AND
+EXISTS (WITH qn AS
+(SELECT sq2_t1.col_varchar AS sq2_field1
+FROM t1 AS sq2_t1 STRAIGHT_JOIN
+t2 AS sq2_t2 INNER JOIN t1 AS sq2_t3
+ON sq2_t3.col_varchar = sq2_t2.col_varchar_key
+ON sq2_t3.col_int = sq2_t2.pk
+)
+SELECT * FROM qn
+) AND
+table2.col_varchar_key <> 'j';
+field1	field2
+SET OPTIMIZER_SWITCH=DEFAULT;
+DROP TABLE t1,t2;
+#
+# Bug#28955358 VIRTUAL LONGLONG FIELD_NEWDATE::VAL_DATE_TEMPORAL(): ASSERTION `!TABLE || (!TAB
+#
+CREATE TABLE t1 (
+pk INTEGER, col_int_key INTEGER NOT NULL,
+col_date_key DATE NOT NULL, col_datetime DATETIME NOT NULL
+);
+INSERT INTO t1 VALUES (0, 0, '2006-07-18', '2001-09-06 02:13:59.021506');
+SELECT /*+ no_merge() */  outr.pk AS x
+FROM ( SELECT * FROM  t1  ) AS  outr
+WHERE outr.col_int_key  IN
+( SELECT /*+ no_merge() no_semijoin() */ 2
+FROM (SELECT 1 AS x FROM t1 AS  innr WHERE outr.col_date_key ) AS
+qn )
+ORDER BY outr.col_datetime;
+x
+SELECT /*+ no_merge() */  outr.pk AS x
+FROM ( SELECT * FROM  t1  ) AS  outr
+WHERE outr.col_int_key  IN
+( SELECT /*+ no_merge() no_semijoin() */ id
+FROM JSON_TABLE( IF(outr.col_date_key<>NOW(),
+'[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+'') ,
+'$[*]' columns (id for ordinality,
+jpath varchar(100) path '$.a',
+jexst int exists path '$.b')   ) AS
+qn )
+ORDER BY outr.col_datetime;
+x
+DROP TABLE t1;
+CREATE TABLE t1(pk INT PRIMARY KEY, a INT);
+EXPLAIN SELECT pk FROM t1 GROUP BY a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT (SELECT pk FROM (SELECT t1.pk) dt) FROM t1 GROUP BY a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1;
+#
+# Bug#28960857 ASSERTION FAILED: !TR->DERIVED_WHERE_COND || TR->DERIVED_WHERE_COND->FIXED
+# Bug#28960789 ASSERTION FAILED: TRANSL->ITEM->FIXED,
+#
+CREATE TABLE t0007 (
+c0008 date NOT NULL,
+c0009 char(234) NOT NULL
+);
+CREATE TABLE t0008 (
+c0005 tinytext NOT NULL
+);
+CREATE TABLE t0009 (
+c0000 time NOT NULL
+);
+SET SQL_MODE=0;
+SELECT (SELECT t0007.c0009         FROM (SELECT t0007.c0008 AS c0003
+FROM t0009                   ) AS t0005                 ) FROM t0007
+GROUP BY -23;
+(SELECT t0007.c0009         FROM (SELECT t0007.c0008 AS c0003
+FROM t0009                   ) AS t0005                 )
+SELECT (SELECT c0009
+FROM (SELECT 1 AS c0003
+FROM t0009 INNER JOIN t0008
+ON t0008.c0005
+WHERE t0007.c0008
+) AS t0005
+GROUP BY c0008
+),
+COUNT(c0009)
+FROM t0007
+GROUP BY 1, 1;
+(SELECT c0009
+FROM (SELECT 1 AS c0003
+FROM t0009 INNER JOIN t0008
+ON t0008.c0005
+WHERE t0007.c0008
+) AS t0005
+GROUP BY c0008
+)	COUNT(c0009)
+DROP TABLE t0007, t0008, t0009;
+SET SQL_MODE=DEFAULT;

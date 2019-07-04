@@ -53,6 +53,8 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 8.3452;
 SET PERSIST sql_require_primary_key= true;
+SET PERSIST default_table_encryption= true;
+SET PERSIST table_encryption_privilege_check= true;
 # Restart server
 # after restart
 SELECT @@global.max_connections;
@@ -73,11 +75,19 @@ SELECT @@global.long_query_time;
 SELECT @@global.sql_require_primary_key;
 @@global.sql_require_primary_key
 1
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+1
+SELECT @@global.table_encryption_privilege_check;
+@@global.table_encryption_privilege_check
+1
 # modify existing persisted variables
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
 SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 SET PERSIST sql_require_primary_key= false;
+SET PERSIST default_table_encryption= false;
+SET PERSIST table_encryption_privilege_check= false;
 # Restart server
 # after restart
 SELECT @@global.max_connections;
@@ -98,6 +108,12 @@ SELECT @@global.long_query_time;
 SELECT @@global.sql_require_primary_key;
 @@global.sql_require_primary_key
 0
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+0
+SELECT @@global.table_encryption_privilege_check;
+@@global.table_encryption_privilege_check
+0
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
 0
@@ -109,6 +125,8 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
 SET PERSIST sql_require_primary_key= true;
+SET PERSIST default_table_encryption= true;
+SET PERSIST table_encryption_privilege_check= true;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 # Restart server
 # after restart
@@ -133,12 +151,20 @@ SELECT @@global.long_query_time;
 SELECT @@global.sql_require_primary_key;
 @@global.sql_require_primary_key
 1
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+1
+SELECT @@global.table_encryption_privilege_check;
+@@global.table_encryption_privilege_check
+1
 # reset persisted variables
 RESET PERSIST sort_buffer_size;
 RESET PERSIST max_heap_table_size;
 RESET PERSIST max_execution_time;
 RESET PERSIST max_user_connections;
 RESET PERSIST sql_require_primary_key;
+RESET PERSIST default_table_encryption;
+RESET PERSIST table_encryption_privilege_check;
 # Restart server
 # after restart
 SELECT @@global.sort_buffer_size;
@@ -170,6 +196,12 @@ SELECT @@global.concurrent_insert;
 AUTO
 SELECT @@global.sql_require_primary_key;
 @@global.sql_require_primary_key
+0
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+0
+SELECT @@global.table_encryption_privilege_check;
+@@global.table_encryption_privilege_check
 0
 # reset persisted variables and add new
 RESET PERSIST slave_net_timeout;

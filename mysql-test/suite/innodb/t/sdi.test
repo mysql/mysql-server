@@ -38,7 +38,7 @@ CREATE DATABASE test;
 EOF
 
 # Set the bootstrap parameters with undo log encryption enabled
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL  </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL  </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
@@ -46,7 +46,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Run the bootstrap command
 --exec $NEW_CMD
 
---let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR --innodb_log_file_size=$LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2"
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR --innodb_log_file_size=$LOG_FILE_SIZE --innodb_log_files_in_group=2"
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE
 --source include/start_mysqld.inc
 
@@ -447,7 +447,8 @@ CREATE TABLE sdi.t1(i int) TABLESPACE ts1;
 ALTER TABLE sdi.t1 ADD COLUMN j INT;
 --error ER_TABLESPACE_MISSING
 ALTER TABLE sdi.t1 RENAME COLUMN i to j;
---error ER_TABLESPACE_MISSING
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1 RENAME to ts2;
+SHOW WARNINGS;
 DROP DATABASE sdi;
 DROP TABLESPACE ts1;

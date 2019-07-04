@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -48,14 +48,14 @@ Record::Record(int ncol) : ncolumns(ncol), rec_size(0), ndb_record(0),
 {
   for(int i = 0 ; i < COL_MAX_COLUMNS; i++)
     map[i] = tmap[i] = -1;
-};
+}
 
 Record::~Record() {
   if(ndb_record) 
     m_dict->releaseRecord(ndb_record);
   delete[] handlers;
   delete[] specs;
-};
+}
 
 
 /*
@@ -116,7 +116,7 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
   index += 1;
 
   rec_size += column->getSizeInBytes();
-};
+}
 
 
 void Record::build_null_bitmap() {

@@ -75,12 +75,12 @@ bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
 #endif /* UNIV_DEBUG */
 }
 
-/** Retrieves the error_info field from a trx.
- @return the error info */
+/** Retrieves the index causing error from a trx.
+@param[in]	trx	trx object
+@return the error index */
 UNIV_INLINE
-const dict_index_t *trx_get_error_info(const trx_t *trx) /*!< in: trx object */
-{
-  return (trx->error_info);
+const dict_index_t *trx_get_error_index(const trx_t *trx) {
+  return (trx->error_index);
 }
 
 /** Retrieves transaction's que state in a human readable string. The string
@@ -118,11 +118,8 @@ trx_id_t trx_get_id_for_print(const trx_t *trx) {
   they will eventually do a WRITE) don't have trx_t::id assigned (it is
   0 for those transactions). Transaction IDs in
   information_schema.innodb_trx.trx_id,
-  performance_schema.data_locks.engine_lock_id,
   performance_schema.data_locks.engine_transaction_id,
-  performance_schema.data_lock_waits.requesting_engine_lock_id,
   performance_schema.data_lock_waits.requesting_engine_transaction_id,
-  performance_schema.data_lock_waits.blocking_engine_lock_id,
   performance_schema.data_lock_waits.blocking_engine_transaction_id
   should match because those tables
   could be used in an SQL JOIN on those columns. Also trx_t::id is

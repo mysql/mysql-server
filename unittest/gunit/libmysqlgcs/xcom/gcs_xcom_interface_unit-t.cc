@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,8 @@
 using std::vector;
 
 extern void do_cb_xcom_receive_data(synode_no message_id,
-                                    Gcs_xcom_nodes *xcom_nodes, u_int size,
+                                    Gcs_xcom_nodes *xcom_nodes,
+                                    synode_no last_removed, u_int size,
                                     char *data);
 
 namespace gcs_interface_unittest {
@@ -80,7 +81,7 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
   gcs->initialize(if_params);
 
   // invoke the callback with a message with size zero
-  do_cb_xcom_receive_data(null_synode, NULL, 0, NULL);
+  do_cb_xcom_receive_data(null_synode, NULL, null_synode, 0, NULL);
 
   // finalize the interface
   gcs->finalize();
@@ -88,4 +89,49 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
   // fake factory cleanup member function
   static_cast<Gcs_xcom_interface *>(gcs)->cleanup();
 }
+
+TEST_F(GcsInterfaceTest, InvalidCacheSize) {
+  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
+
+  Gcs_interface_parameters if_params;
+  if_params.add_parameter("group_name", "ola");
+  if_params.add_parameter("peer_nodes", "127.0.0.1:12345");
+  if_params.add_parameter("local_node", "127.0.0.1:12345");
+  if_params.add_parameter("bootstrap_group", "true");
+  // Check for wrong value.
+  if_params.add_parameter("xcom_cache_size", "100");
+
+  enum_gcs_error initialized = gcs->initialize(if_params);
+  ASSERT_EQ(GCS_NOK, initialized);
+
+  Gcs_interface_parameters cfg_params;
+  cfg_params.add_parameter("group_name", "ola");
+  cfg_params.add_parameter("peer_nodes", "127.0.0.1:12345");
+  cfg_params.add_parameter("local_node", "127.0.0.1:12345");
+  cfg_params.add_parameter("bootstrap_group", "true");
+  // Check for out of range value.
+  cfg_params.add_parameter("xcom_cache_size", "100000000000000000000");
+
+  initialized = gcs->initialize(cfg_params);
+  ASSERT_EQ(GCS_NOK, initialized);
+
+  Gcs_interface_parameters cfg_params_valid;
+  cfg_params_valid.add_parameter("group_name", "ola");
+  cfg_params_valid.add_parameter("peer_nodes", "127.0.0.1:12345");
+  cfg_params_valid.add_parameter("local_node", "127.0.0.1:12345");
+  cfg_params_valid.add_parameter("bootstrap_group", "true");
+
+  // Finally, set a valid one.
+  cfg_params_valid.add_parameter("xcom_cache_size", "4000000000");
+  // And verify that GCS initializes correctly.
+  initialized = gcs->initialize(cfg_params_valid);
+  ASSERT_EQ(GCS_OK, initialized);
+
+  // Finalize the interface.
+  gcs->finalize();
+
+  // Fake factory cleanup member function.
+  static_cast<Gcs_xcom_interface *>(gcs)->cleanup();
+}
+
 }  // namespace gcs_interface_unittest

@@ -1,0 +1,27 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test the behaviour of `SELECT` based
+# statements that acquire table write-locks on regards to `GTID_NEXT` and
+# `GTID_EXECUTED` state, when `GTID_MODE` is set to `OFF_PERMISSIVE`.
+#
+# ==== References ====
+#
+# binlog_gtid.binlog_gtid_select_taking_write_locks
+#
+# BUG#27903848 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `GTID_NEXT_TYPE ==
+# ANONYMOUS_GTID' FAILED.
+#
+
+--let $current_mode=`SELECT @@GLOBAL.GTID_MODE`
+--let $current_enforce_consistency=`SELECT FIND_IN_SET(@@GLOBAL.ENFORCE_GTID_CONSISTENCY, 'OFF,ON,WARN') - 1`
+
+--let $rpl_gtid_mode=OFF_PERMISSIVE
+--let $rpl_set_enforce_gtid_consistency=0
+--source include/rpl_set_gtid_mode.inc
+
+--source extra/binlog_tests/binlog_select_taking_write_locks.inc
+
+--let $rpl_gtid_mode=$current_mode
+--let $rpl_set_enforce_gtid_consistency=$current_enforce_consistency
+--let $no_extra_info=1
+--source include/rpl_set_gtid_mode.inc

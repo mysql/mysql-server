@@ -1,0 +1,96 @@
+###########################################################################
+# Stop the default mtr server
+###########################################################################
+# Stop DB server which was created by MTR default
+###########################################################################
+# Setup the 5.7 data directory
+###########################################################################
+# Set different paths for --datadir
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# These files are added to test error scenario, delete from for upgrade testing.
+# Remove myisam partitioned tables. There are used for negative testing.
+###########################################################################
+# Test the --upgrade=NONE option with a 5.7 data directory
+###########################################################################
+# Search for the error messege in the server error log.
+Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\." found
+###########################################################################
+# Test the --upgrade=MINIMAL option with a 5.7 data directory
+###########################################################################
+# Search for the error messege in the server error log.
+Pattern "Table \'mysql.component\' doesn\'t exist" found
+Pattern "The mysql\.component table is missing or has an incorrect definition\." found
+Pattern "Storage engine \'MyISAM\' does not support system tables\. \[mysql\.user\]" found
+Pattern "Storage engine \'MyISAM\' does not support system tables\. \[mysql\.db\]\." found
+Pattern "Storage engine \'MyISAM\' does not support system tables\. \[mysql\.tables_priv\]\." found
+Pattern "Storage engine \'MyISAM\' does not support system tables\. \[mysql\.columns_priv\]\." found
+Pattern "Storage engine \'MyISAM\' does not support system tables\. \[mysql\.procs_priv\]\." found
+Pattern "Storage engine \'MyISAM\' does not support system tables\. \[mysql\.proxies_priv\]\." found
+Pattern "Column count of mysql\.user is wrong\. Expected 51, found 45\. The table is probably corrupted" found
+Pattern "ACL table mysql\.role_edges missing\. Some operations may fail\." found
+Pattern "ACL table mysql\.default_roles missing\. Some operations may fail\." found
+Pattern "ACL table mysql\.global_grants missing\. Some operations may fail\." found
+Pattern "ACL table mysql\.password_history missing\. Some operations may fail\." found
+Pattern "The system table mysql\.global_grants is missing. Please perform the MySQL upgrade procedure\." found
+Pattern "System table \'func\' is expected to be transactional\." found
+Pattern "Info table is not ready to be used\. Table \'mysql.slave_master_info\' cannot be opened\." found
+Pattern "Error in checking mysql\.slave_master_info repository info type of TABLE\." found
+Pattern "Error creating master info\: Error checking repositories\." found
+Pattern "Slave: Failed to initialize the master info structure for channel \'\'; its record may still be present in \'mysql.slave_master_info\' table, consider deleting it\." found
+Pattern "Failed to create or recover replication info repositories\." found
+Pattern "Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\." found
+###########################################################################
+# Test the --upgrade=NONE option with a 5.7 data directory with upgraded
+# data dictionary but skipped server upgrade
+###########################################################################
+# Search for the error messege in the server error log.
+Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\." found
+###########################################################################
+# Complete the upgrade on a data directory that has an upgraded data
+# dictionary but skipped server upgrade
+###########################################################################
+# There should be no errors
+Pattern "\[ERROR\]" not found
+###########################################################################
+# Test upgrade of help tables
+###########################################################################
+# Truncate a help table
+TRUNCATE TABLE mysql.help_topic;
+SELECT COUNT(*) = 0 FROM mysql.help_topic;
+COUNT(*) = 0
+1
+# restart: --upgrade=FORCE --log-error=MYSQLD_LOG
+SELECT COUNT(*) != 0 FROM mysql.help_topic;
+COUNT(*) != 0
+1
+###########################################################################
+# Cleanup
+###########################################################################
+###########################################################################
+# Setup 5.7 data directory
+###########################################################################
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# These files are added to test error scenario, delete from for upgrade testing.
+# Remove myisam partitioned tables. There are used for negative testing.
+###########################################################################
+# Test complete upgrade on 5.7 data directory
+###########################################################################
+# There should be no errors
+Pattern "\[ERROR\]" not found
+###########################################################################
+# Bug#29365552: LEFTOVER SYSTEM TABLES AFTER 5.7 => 8.0 IN-PLACE UPGRADE
+###########################################################################
+general_log.CSM
+general_log.CSV
+general_log_470.sdi
+slow_log.CSM
+slow_log.CSV
+slow_log_472.sdi
+###########################################################################
+# Cleanup
+###########################################################################
+# restart:

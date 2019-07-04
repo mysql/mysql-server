@@ -1,5 +1,4 @@
 --disable_ps_protocol
---disable_warnings
 
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Could not create keyring directory The keyring_file will stay unusable until correct path to the keyring directory gets provided");
@@ -12,7 +11,9 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_fil
 eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/new_keyring_file';
 
 --replace_regex /\.dll/.so/
+--disable_warnings
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+--enable_warnings
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/new_keyring_file';
@@ -21,4 +22,5 @@ eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/new_keyring_file';
 eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/mysecret_keyring';
 UNINSTALL PLUGIN keyring_file;
 
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --source include/force_restart.inc

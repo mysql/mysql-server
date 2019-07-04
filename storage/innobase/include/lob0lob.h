@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,6 +81,13 @@ namespace lob {
 
 /** The maximum size possible for an LOB */
 const ulint MAX_SIZE = UINT32_MAX;
+
+/** The compressed LOB is stored as a collection of zlib streams.  The
+ * uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
+ * these chunks are compressed individually and stored as compressed LOB.
+data. */
+#define KB128 (128 * 1024)
+#define Z_CHUNK_SIZE KB128
 
 /** The reference in a field for which data is stored on a different page.
 The reference is at the end of the 'locally' stored part of the field.
@@ -199,6 +206,14 @@ struct ref_t {
   @param[in]	ptr	Pointer to the external field reference. */
   explicit ref_t(byte *ptr) : m_ref(ptr) {}
 
+  /** For compressed LOB, if the length is less than or equal to Z_CHUNK_SIZE
+  then use the older single z stream format to store the LOB.  */
+  bool use_single_z_stream() const { return (length() <= Z_CHUNK_SIZE); }
+
+  /** For compressed LOB, if the length is less than or equal to Z_CHUNK_SIZE
+  then use the older single z stream format to store the LOB.  */
+  static bool use_single_z_stream(ulint len) { return (len <= Z_CHUNK_SIZE); }
+
   /** Check if this LOB is big enough to do partial update.
   @param[in]	page_size	the page size
   @param[in]	lob_length	the size of BLOB in bytes.
@@ -267,6 +282,24 @@ struct ref_t {
   /** Check if the field reference is made of zeroes.
   @return true if field reference is made of zeroes, false otherwise. */
   bool is_null() const { return (memcmp(field_ref_zero, m_ref, SIZE) == 0); }
+
+#ifdef UNIV_DEBUG
+  /** Check if the LOB reference is null (all zeroes) except the "is being
+  modified" bit.
+  @param[in]    ref   the LOB reference.
+  @return true if the LOB reference is null (all zeros) except the "is being
+  modified" bit, false otherwise. */
+  static bool is_null_relaxed(const byte *ref) {
+    return (is_null(ref) || memcmp(field_ref_almost_zero, ref, SIZE) == 0);
+  }
+
+  /** Check if the LOB reference is null (all zeroes).
+  @param[in]    ref   the LOB reference.
+  @return true if the LOB reference is null (all zeros), false otherwise. */
+  static bool is_null(const byte *ref) {
+    return (memcmp(field_ref_zero, ref, SIZE) == 0);
+  }
+#endif /* UNIV_DEBUG */
 
   /** Set the ownership flag in the blob reference.
   @param[in]	owner	whether to own or disown.  if owner, unset
@@ -348,6 +381,21 @@ struct ref_t {
     const ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
     return (byte_val & BTR_EXTERN_INHERITED_FLAG);
   }
+
+#ifdef UNIV_DEBUG
+  /** Read the space id from the given blob reference.
+  @param[in]   ref   the blob reference.
+  @return the space id */
+  static space_id_t space_id(const byte *ref) {
+    return (mach_read_from_4(ref));
+  }
+
+  /** Read the page no from the blob reference.
+  @return the page no */
+  static page_no_t page_no(const byte *ref) {
+    return (mach_read_from_4(ref + BTR_EXTERN_PAGE_NO));
+  }
+#endif /* UNIV_DEBUG */
 
   /** Read the space id from the blob reference.
   @return the space id */
@@ -438,6 +486,12 @@ struct ref_t {
     ut_ad(block != NULL);
     return (true);
   }
+
+  /** Check if the space_id in the LOB reference is equal to the
+  space_id of the index to which it belongs.
+  @param[in]  index  the index to which LOB belongs.
+  @return true if space is valid in LOB reference, false otherwise. */
+  bool check_space_id(dict_index_t *index) const;
 #endif /* UNIV_DEBUG */
 
   /** Check if the LOB can be partially updated. This is done by loading
@@ -846,7 +900,7 @@ class BtrContext {
     space_id_t space_id = space();
     page_id_t page_id(space_id, m_btr_page_no);
     page_size_t page_size(dict_table_page_size(table()));
-    page_cur_t *page_cur = &m_pcur->btr_cur.page_cur;
+    page_cur_t *page_cur = &m_pcur->m_btr_cur.page_cur;
 
     mtr_x_lock(dict_index_get_lock(index()), m_mtr);
 
@@ -863,7 +917,7 @@ class BtrContext {
 
   /** Restore the position of the persistent cursor. */
   void restore_position() {
-    ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
+    ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
     bool ret = btr_pcur_restore_position(BTR_MODIFY_LEAF | BTR_MODIFY_EXTERNAL,
                                          m_pcur, m_mtr);
 
@@ -1311,7 +1365,7 @@ struct DeleteContext : public BtrContext {
   @return true if tablespace has atomic blobs. */
   bool has_atomic_blobs() const {
     space_id_t space_id = m_blobref.space_id();
-    ulint flags = fil_space_get_flags(space_id);
+    uint32_t flags = fil_space_get_flags(space_id);
     return (DICT_TF_HAS_ATOMIC_BLOBS(flags));
   }
 
@@ -1521,6 +1575,17 @@ id to the given import trx id.
 @param[in]	field_ref	the lob reference.
 @param[in]	trx_id		the import trx id. */
 void import(const dict_index_t *index, byte *field_ref, trx_id_t trx_id);
+
+#ifdef UNIV_DEBUG
+/** Check if all the LOB references in the given clustered index record has
+valid space_id in it.
+@param[in]    index   the index to which the LOB belongs.
+@param[in]    rec     the clust_rec in which the LOB references are checked.
+@param[in]    offsets the field offets of the given rec.
+@return true if LOB references have valid space_id, false otherwise. */
+bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
+                               const ulint *offsets);
+#endif /* UNIV_DEBUG */
 
 }  // namespace lob
 

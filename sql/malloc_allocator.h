@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,10 +52,10 @@
   memory expects it. Otherwise these functions will try to use the memory,
   leading to segfaults if memory allocation was not successful.
 
-  @note This allocator cannot be used for std::basic_string before GCC 5
-  because of this libstdc++ bug:
-  http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437
-  "basic_string assumes that allocators are default-constructible"
+  @note This allocator cannot be used for std::basic_string with RHEL 6/7
+  because of this bug:
+  https://bugzilla.redhat.com/show_bug.cgi?id=1546704
+  "Define _GLIBCXX_USE_CXX11_ABI gets ignored by gcc in devtoolset-7"
 */
 
 template <class T = void *>
@@ -88,8 +88,6 @@ class Malloc_allocator {
       const Malloc_allocator<U> &other MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(m_key == other.psi_key());  // Don't swap key.
   }
-
-  ~Malloc_allocator() {}
 
   pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
     if (n == 0) return NULL;

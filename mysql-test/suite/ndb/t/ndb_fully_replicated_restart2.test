@@ -37,3 +37,4 @@ connection default;
 --let $restart_type=SRTO
 --source ndb_fully_replicated_restart2.inc
 
+--remove_file $NDB_TOOLS_OUTPUT

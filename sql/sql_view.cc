@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,7 @@
 #include "sql/sql_parse.h"  // create_default_definer
 #include "sql/sql_show.h"   // append_identifier
 #include "sql/sql_table.h"  // write_bin_log
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -252,8 +253,8 @@ static void make_valid_column_names(LEX *lex) {
 static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view) {
   const char *cache_key;
   size_t cache_key_length = get_table_def_key(view, &cache_key);
-  TABLE_LIST decoy;
-  decoy = *view;
+
+  TABLE_LIST decoy = *view;
   /*
     It's not clear what the above assignment actually wants to
     accomplish. What we do know is that it does *not* want to copy the MDL
@@ -533,6 +534,10 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       res = true;
       goto err;
+    } else if (sctx->can_operate_with({lex->definer}, consts::system_user,
+                                      true)) {
+      res = true;
+      goto err;
     } else {
       if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str)) {
         push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
@@ -740,7 +745,7 @@ err_with_rollback:
 err:
   THD_STAGE_INFO(thd, stage_end);
   lex->link_first_table_back(view, link_to_local);
-  unit->cleanup(true);
+  unit->cleanup(thd, true);
 
   DBUG_RETURN(res || thd->is_error());
 }
@@ -894,9 +899,10 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     // view definition.
     Sql_mode_parse_guard parse_guard(thd);
 
-    lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
-    lex->unit->print(&is_query, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                                QT_WITHOUT_INTRODUCERS));
+    lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
+    lex->unit->print(
+        thd, &is_query,
+        enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
   }
   DBUG_PRINT("info",
              ("View: %*.s", (int)view_query.length(), view_query.ptr()));
@@ -904,8 +910,8 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure (NOTE: TABLE_LIST::source will be removed) */
   view->source = thd->lex->create_view_select;
 
-  if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
-                            view_query.length(), false)) {
+  if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
+                         view_query.length())) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
   }
@@ -966,11 +972,11 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     frm-file.
   */
 
-  lex_string_set(&view->view_client_cs_name,
-                 view->view_creation_ctx->get_client_cs()->csname);
+  lex_cstring_set(&view->view_client_cs_name,
+                  view->view_creation_ctx->get_client_cs()->csname);
 
-  lex_string_set(&view->view_connection_cl_name,
-                 view->view_creation_ctx->get_connection_cl()->name);
+  lex_cstring_set(&view->view_connection_cl_name,
+                  view->view_creation_ctx->get_connection_cl()->name);
 
   /*
     Our parser allows incorrect invalid UTF8 characters in literals.
@@ -987,8 +993,8 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
                         system_charset_info))
     DBUG_RETURN(true);
 
-  if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
-                            is_query.length(), false)) {
+  if (lex_string_strmake(thd->mem_root, &view->view_body_utf8, is_query.ptr(),
+                         is_query.length())) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
   }
@@ -1535,15 +1541,21 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
       For suid views prepare a security context for checking underlying
       objects of the view.
     */
-    if (!(view_ref->view_sctx = (Security_context *)thd->stmt_arena->mem_calloc(
-              sizeof(Security_context)))) {
+    try {
+      DBUG_ASSERT(thd->stmt_arena->mem_root);
+      void *view_sctx_memory =
+          alloc_root(thd->stmt_arena->mem_root, sizeof(Security_context));
+      if (view_sctx_memory == nullptr) {
+        result = true;
+        DBUG_RETURN(true);
+      }
+      view_ref->view_sctx =
+          new (view_sctx_memory) Security_context(thd->stmt_arena->mem_root);
+    } catch (...) {
       result = true;
       DBUG_RETURN(true);
     }
-    // TODO Do we need to initialize this context to get the correct active
-    // roles (ie the default roles)
     security_ctx = view_ref->view_sctx;
-    security_ctx->init();
     DBUG_PRINT("info",
                ("Allocated suid view. Active roles: %lu",
                 (ulong)view_ref->view_sctx->get_active_roles()->size()));
@@ -1649,6 +1661,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
     DBUG_RETURN(true);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  Security_context *sctx = thd->security_context();
 
   // First check which views exist
   String non_existant_views;
@@ -1716,6 +1729,16 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
 
     DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW ||
                 at->type() == dd::enum_table_type::USER_VIEW);
+
+    const dd::View *vw = dynamic_cast<const dd::View *>(at);
+    DBUG_ASSERT(vw);
+    /*
+      If definer has the SYSTEM_USER privilege then invoker can drop view
+      only if latter also has same privilege.
+    */
+    Auth_id definer(vw->definer_user().c_str(), vw->definer_host().c_str());
+    if (sctx->can_operate_with(definer, consts::system_user, true))
+      DBUG_RETURN(true);
 
     Uncommitted_tables_guard uncommitted_tables(thd);
     /*

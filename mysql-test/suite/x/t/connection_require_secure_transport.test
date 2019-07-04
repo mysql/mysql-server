@@ -6,6 +6,8 @@
 --source include/xplugin_create_user.inc
 
 --write_file $MYSQL_TMP_DIR/check_plain_connection.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Session.AuthenticateStart {
     mech_name: "PLAIN"
     auth_data: "\0x_root\0"
@@ -17,8 +19,8 @@ EOF
 EOF
 
 --write_file $MYSQL_TMP_DIR/check_ssl_plain_connection.tmp
--->import ssl.macro
-
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Enable_ssl_on_xprotocol_and_transmision_layer
 
 Mysqlx.Session.AuthenticateStart {

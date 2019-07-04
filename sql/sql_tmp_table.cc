@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@
 #include <algorithm>
 #include <cstring>
 #include <new>
+#include <vector>
 
-#include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -45,7 +45,6 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "myisam.h"  // MI_COLUMNDEF
 #include "mysql/plugin.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -54,7 +53,6 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/filesort.h"  // filesort_free_buffers
-#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item_func.h"  // Item_func
 #include "sql/item_sum.h"   // Item_sum
@@ -481,15 +479,12 @@ class Cache_temp_engine_properties {
  public:
   static uint HEAP_MAX_KEY_LENGTH;
   static uint TEMPTABLE_MAX_KEY_LENGTH;
-  static uint MYISAM_MAX_KEY_LENGTH;
   static uint INNODB_MAX_KEY_LENGTH;
   static uint HEAP_MAX_KEY_PART_LENGTH;
   static uint TEMPTABLE_MAX_KEY_PART_LENGTH;
-  static uint MYISAM_MAX_KEY_PART_LENGTH;
   static uint INNODB_MAX_KEY_PART_LENGTH;
   static uint HEAP_MAX_KEY_PARTS;
   static uint TEMPTABLE_MAX_KEY_PARTS;
-  static uint MYISAM_MAX_KEY_PARTS;
   static uint INNODB_MAX_KEY_PARTS;
 
   static void init(THD *thd);
@@ -516,15 +511,6 @@ void Cache_temp_engine_properties::init(THD *thd) {
   TEMPTABLE_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
   plugin_unlock(0, db_plugin);
-  // Cache MYISAM engine's
-  db_plugin = ha_lock_engine(0, myisam_hton);
-  handler =
-      get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, myisam_hton);
-  MYISAM_MAX_KEY_LENGTH = handler->max_key_length();
-  MYISAM_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
-  MYISAM_MAX_KEY_PARTS = handler->max_key_parts();
-  destroy(handler);
-  plugin_unlock(0, db_plugin);
   // Cache INNODB engine's
   db_plugin = ha_lock_engine(0, innodb_hton);
   handler =
@@ -548,15 +534,12 @@ void Cache_temp_engine_properties::init(THD *thd) {
 
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH = 0;
 uint Cache_temp_engine_properties::TEMPTABLE_MAX_KEY_LENGTH = 0;
-uint Cache_temp_engine_properties::MYISAM_MAX_KEY_LENGTH = 0;
 uint Cache_temp_engine_properties::INNODB_MAX_KEY_LENGTH = 0;
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH = 0;
 uint Cache_temp_engine_properties::TEMPTABLE_MAX_KEY_PART_LENGTH = 0;
-uint Cache_temp_engine_properties::MYISAM_MAX_KEY_PART_LENGTH = 0;
 uint Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH = 0;
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS = 0;
 uint Cache_temp_engine_properties::TEMPTABLE_MAX_KEY_PARTS = 0;
-uint Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS = 0;
 uint Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS = 0;
 
 /**
@@ -587,31 +570,14 @@ void get_max_key_and_part_length(uint *max_key_length,
   // Make sure these cached properties are initialized.
   DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH);
 
-  switch (internal_tmp_disk_storage_engine) {
-    case TMP_TABLE_MYISAM:
-      *max_key_length =
-          std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH,
-                   Cache_temp_engine_properties::MYISAM_MAX_KEY_LENGTH);
-      *max_key_part_length =
-          std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH,
-                   Cache_temp_engine_properties::MYISAM_MAX_KEY_PART_LENGTH);
-      *max_key_parts =
-          std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS,
-                   Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS);
-      break;
-    case TMP_TABLE_INNODB:
-    default:
-      *max_key_length =
-          std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH,
-                   Cache_temp_engine_properties::INNODB_MAX_KEY_LENGTH);
-      *max_key_part_length =
-          std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH,
-                   Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH);
-      *max_key_parts =
-          std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS,
-                   Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS);
-      break;
-  }
+  *max_key_length =
+      std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH,
+               Cache_temp_engine_properties::INNODB_MAX_KEY_LENGTH);
+  *max_key_part_length =
+      std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH,
+               Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH);
+  *max_key_parts = std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS,
+                            Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS);
 }
 
 /**
@@ -671,25 +637,14 @@ static void set_real_row_type(TABLE *table) {
   table->s->real_row_type = table->file->get_real_row_type(&create_info);
 }
 
-bool Func_ptr::set_contains_alias_of_expr(const SELECT_LEX *select) {
-  // We cast 'const' away, but the walker will not modify '*select'.
-  uchar *walk_arg =
-      const_cast<uchar *>(reinterpret_cast<const uchar *>(select));
-  return m_contains_alias_of_expr =
-             m_func->walk(&Item::contains_alias_of_expr,
-                          Item::enum_walk(Item::WALK_PREFIX |
-                                          // ref to alias might be in a subquery
-                                          Item::WALK_SUBQUERY),
-                          walk_arg);
-}
-
 /**
   Moves to the end of the 'copy_func' array the elements which contain a
-  reference to an alias of an expression of the SELECT list of 'select'.
+  reference to an expression of the SELECT list of 'select'.
   @param[in,out]  copy_func  array to sort
   @param          select     query block to search in.
 */
-void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
+static void sort_copy_func(const SELECT_LEX *select,
+                           Func_ptr_array *copy_func) {
   /*
     In the select->all_fields list, there are hidden elements first, then
     non-hidden. Non-hidden are those of the SELECT list. Hidden ones are:
@@ -697,8 +652,13 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
     (b) those which have been extracted from higher-level elements (of the
     SELECT, GROUP BY, etc) by split_sum_func() (when aggregates are
     involved).
+
     Note that the clauses in (a) are allowed to reference a non-hidden
-    expression through an alias (e.g. "SELECT a+2 AS x GROUP BY x+3"),
+    expression through an alias (e.g. "SELECT a+2 AS x GROUP BY x+3"). The
+    clauses in (b) can reference non-hidden expressions without aliases if they
+    have been generated in a query transformation (for example when transforming
+    an IN subquery to a correlated EXISTS subquery ("(x, y) IN (SELECT expr1,
+    expr2 ...)" -> "EXISTS (SELECT * ... HAVING x = expr1 AND y = expr2 ...").
 
     Let's go through the process of writing to the tmp table
     (e.g. end_write(), end_write_group()). We also include here the
@@ -737,11 +697,13 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
     the tmp table. It is thus important that this column has been filled
     already. So the order of evaluation of expressions by copy_funcs() must
     respect "dependencies".
-    It is correct to evaluate elements of (b) first, as they are inner to
-    others. But it is incorrect to evaluate elements of (a) first if they
-    refer to non-hidden elements through aliases.
-    So, we sort elements below, putting to the end the ones which use
-    aliases. We use a stable sort, to not disturb any dependence already
+
+    It is incorrect to evaluate elements of (a) first if they refer to
+    non-hidden elements through aliases. It is incorrect to evaluate elements of
+    (b) first if they refer to non-hidden elements. So, we partition the
+    elements below, moving to the end the ones which reference other expressions
+    in the same query block. We use a stable partitioning
+    (std::stable_partition), to avoid disturbing any dependency already
     reflected in the order.
 
     A simpler and more robust solution would be to break the design that
@@ -772,21 +734,22 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
     leave it at the beginning of the copy_func array. Except if it contains
     an alias to an expression of the SELECT list: in that case, the sorting
     will move it to the end, but will also move the aliased expression, and
-    their relative order will remain unchanged thanks to stable sort, so
+    their relative order will remain unchanged thanks to stable_partition, so
     their evaluation will be in the right order.
 
-    So we walk each item to copy, and record if it uses an alias. If we
-    found such items, we sort.
+    So we walk each item to copy, put the ones that don't reference other
+    expressions in the query block first, and put those that reference other
+    expressions last.
   */
-  bool need_sort = false;
-  for (uint i = 0; i < copy_func->size(); i++)
-    need_sort |= copy_func->at(i).set_contains_alias_of_expr(select);
-  if (need_sort)
-    std::stable_sort(copy_func->begin(), copy_func->end(),
-                     [](const Func_ptr &lhs, const Func_ptr &rhs) {
-                       return !lhs.contains_alias_of_expr() &&
-                              rhs.contains_alias_of_expr();
-                     });
+  const auto without_reference_to_select_expr = [select](const Func_ptr &ptr) {
+    // We cast 'const' away, but the walker will not modify '*select'.
+    uchar *walk_arg = const_cast<uchar *>(pointer_cast<const uchar *>(select));
+    return !ptr.func()->walk(&Item::references_select_expr_of,
+                             // the reference might be in a subquery
+                             enum_walk::SUBQUERY_PREFIX, walk_arg);
+  };
+  std::stable_partition(copy_func->begin(), copy_func->end(),
+                        without_reference_to_select_expr);
 }
 
 /**
@@ -844,9 +807,7 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
                                 be used for name resolving; can be "".
 
     @remark mysql_create_view() checks that views have less than
-            MAX_FIELDS columns. This prevents any MyISAM temp table
-            made when materializing the view from hitting the 64k
-            MyISAM header size limit.
+            MAX_FIELDS columns.
 
     @remark We may actually end up with a table without any columns at all.
             See comment below: We don't have to store this.
@@ -886,7 +847,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint *blob_field;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
-  MI_COLUMNDEF *recinfo;
   /*
     total_uneven_bit_length is uneven bit length for visible fields
     hidden_uneven_bit_length is uneven bit length for hidden fields
@@ -951,9 +911,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           sizeof(uint) * (field_count + 2), &from_field,
           sizeof(Field *) * (field_count + 1), &param->keyinfo,
           sizeof(*param->keyinfo), &key_part_info,
-          sizeof(*key_part_info) * (param->group_parts + 1),
-          &param->start_recinfo,
-          sizeof(*param->recinfo) * (field_count * 2 + 4), &group_buff,
+          sizeof(*key_part_info) * (param->group_parts + 1), &group_buff,
           (group && !using_unique_constraint ? param->group_length : 0),
           &bitmaps, bitmap_buffer_size(field_count + 1) * 3, NullS)) {
     DBUG_RETURN(NULL); /* purecov: inspected */
@@ -1027,7 +985,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         }
       }
       if (item->m_is_window_function) {
-        if (!param->m_window) {
+        if (!param->m_window || param->m_window_frame_buffer) {
           /*
             A pre-windowing table; no point in storing WF.
             Or a window's frame buffer:
@@ -1046,11 +1004,10 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         /*
           A non-WF expression containing a WF conservatively requires all
           windows to have been processed, and is not stored in any of
-          windowing tables. Note that if the tmp table belongs to an even
-          later step - materialization of a query's result - then
-          not_all_columns==false and we store the expression.
+          windowing tables until the last one.
         */
-        goto update_hidden;
+        if (param->m_window == nullptr || !param->m_window->is_last())
+          goto update_hidden;
       }
       if (item->const_item() && (int)hidden_field_count <= 0)
         continue;  // We don't have to store this
@@ -1136,7 +1093,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                      item->is_result_field()));
 
       if (!new_field) {
-        DBUG_ASSERT(thd->is_fatal_error);
+        DBUG_ASSERT(thd->is_fatal_error());
         goto err;  // Got OOM
       }
       /*
@@ -1348,7 +1305,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field) {
       /* purecov: begin inspected */
-      DBUG_ASSERT(thd->is_fatal_error);
+      DBUG_ASSERT(thd->is_fatal_error());
       goto err;  // Got OOM
       /* purecov: end */
     }
@@ -1407,23 +1364,14 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   sort_copy_func(thd->lex->current_select(), copy_func);
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
-  recinfo = param->start_recinfo;
   null_flags = table->record[0];
   pos = table->record[0] + null_pack_length;
-  if (null_pack_length) {
-    memset(recinfo, 0, sizeof(*recinfo));
-    recinfo->type = FIELD_NORMAL;
-    recinfo->length = null_pack_length;
-    recinfo++;
-  }
   null_count = (blob_count == 0) ? 1 : 0;
   hidden_field_count = param->hidden_field_count;
   DBUG_ASSERT((uint)hidden_field_count <= field_count);
-  for (i = 0, reg_field = table->field; i < field_count;
-       i++, reg_field++, recinfo++) {
+  for (i = 0, reg_field = table->field; i < field_count; i++, reg_field++) {
     Field *field = *reg_field;
     uint length;
-    memset(recinfo, 0, sizeof(*recinfo));
 
     if (!(field->flags & NOT_NULL_FLAG)) {
       if (field->flags & GROUP_FLAG && !using_unique_constraint) {
@@ -1432,13 +1380,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           as this is updated by 'end_update()'
         */
         *pos++ = 0;  // Null is stored here
-        recinfo->length = 1;
-        recinfo->type = FIELD_NORMAL;
-        recinfo++;
-        memset(recinfo, 0, sizeof(*recinfo));
-      } else {
-        recinfo->null_bit = (uint8)1 << (null_count & 7);
-        recinfo->null_pos = null_count / 8;
       }
     }
     relocate_field(field, pos, null_flags, &null_count);
@@ -1487,18 +1428,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     length = field->pack_length();
     pos += length;
 
-    /* Make entry for create table */
-    recinfo->length = length;
-    if (field->flags & BLOB_FLAG)
-      recinfo->type = (int)FIELD_BLOB;
-    else if (use_packed_rows && field->real_type() == MYSQL_TYPE_STRING &&
-             length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
-      recinfo->type = FIELD_SKIP_ENDSPACE;
-    else if (use_packed_rows && field->real_type() == MYSQL_TYPE_VARCHAR &&
-             length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
-      recinfo->type = FIELD_VARCHAR;
-    else
-      recinfo->type = FIELD_NORMAL;
     if (!--hidden_field_count)
       null_count = (null_count + 7) & ~7;  // move to next byte
 
@@ -1506,7 +1435,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     field->table_name = &table->alias;
   }
 
-  param->recinfo = recinfo;
   store_record(table, s->default_values);  // Make empty default record
 
   /*
@@ -1596,16 +1524,13 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     param->keyinfo = hash_key;
   }
 
-  if (thd->is_fatal_error)  // If end of memory
-    goto err;               /* purecov: inspected */
+  if (thd->is_fatal_error())  // If end of memory
+    goto err;                 /* purecov: inspected */
 
   set_real_row_type(table);
 
   if (!param->skip_create_table) {
-    if (instantiate_tmp_table(thd, table, param->keyinfo, param->start_recinfo,
-                              &param->recinfo, select_options,
-                              thd->variables.big_tables))
-      goto err;
+    if (instantiate_tmp_table(thd, table)) goto err;
   }
 
   thd->mem_root = mem_root_save;
@@ -1666,7 +1591,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   uchar *group_buff;
   uchar *bitmaps;
   uint *blob_field;
-  MI_COLUMNDEF *recinfo, *start_recinfo;
   bool using_unique_constraint = false;
   Field *field, *key_field;
   uint null_pack_length;
@@ -1692,9 +1616,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
           &own_root, &table, sizeof(*table), &share, sizeof(*share), &reg_field,
           sizeof(Field *) * (1 + 2), &blob_field, sizeof(uint) * 3, &keyinfo,
           sizeof(*keyinfo), &key_part_info, sizeof(*key_part_info) * 2,
-          &start_recinfo, sizeof(*recinfo) * (1 * 2 + 2), &group_buff,
-          (!using_unique_constraint ? uniq_tuple_length_arg : 0), &bitmaps,
-          bitmap_buffer_size(1) * 3, NullS)) {
+          &group_buff, (!using_unique_constraint ? uniq_tuple_length_arg : 0),
+          &bitmaps, bitmap_buffer_size(1) * 3, NullS)) {
     DBUG_RETURN(NULL);
   }
 
@@ -1715,7 +1638,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     Field_longlong *field = new (&share->mem_root)
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field) {
-      DBUG_ASSERT(thd->is_fatal_error);
+      DBUG_ASSERT(thd->is_fatal_error());
       goto err;  // Got OOM
     }
     // Mark hash_field as NOT NULL
@@ -1733,8 +1656,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
       For the sake of uniformity, always use Field_varstring (altough we could
       use Field_string for shorter keys)
     */
-    field = new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, false,
-                                              "rowids", share, &my_charset_bin);
+    field = new (thd->mem_root) Field_varstring(
+        uniq_tuple_length_arg, false, "rowids", share, &my_charset_bin);
     if (!field) DBUG_RETURN(0);
     field->table = table;
     field->auto_flags = Field::NONE;
@@ -1767,35 +1690,17 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   if (alloc_record_buffers(table)) goto err;
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
-  recinfo = start_recinfo;
   null_flags = table->record[0];
 
   pos = table->record[0] + null_pack_length;
-  if (null_pack_length) {
-    memset(recinfo, 0, sizeof(*recinfo));
-    recinfo->type = FIELD_NORMAL;
-    recinfo->length = null_pack_length;
-    recinfo++;
-  }
   null_count = 1;
-  for (i = 0, reg_field = table->field; i < share->fields;
-       i++, reg_field++, recinfo++) {
+  for (i = 0, reg_field = table->field; i < share->fields; i++, reg_field++) {
     Field *field = *reg_field;
     uint length;
-    /* Table description for the concatenated rowid column */
-    memset(recinfo, 0, sizeof(*recinfo));
 
     relocate_field(field, pos, null_flags, &null_count);
     length = field->pack_length();
     pos += length;
-
-    /*
-      Don't care about packing the VARCHAR since it's only a
-      concatenation of rowids. @see create_tmp_table() for how
-      packed VARCHARs can be achieved
-    */
-    recinfo->length = length;
-    recinfo->type = FIELD_NORMAL;
 
     // fix table name in field entry
     field->table_name = &table->alias;
@@ -1841,17 +1746,12 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     table->key_info->name = (char *)"weedout_key";
   }
 
-  if (thd->is_fatal_error)  // If end of memory
+  if (thd->is_fatal_error())  // If end of memory
     goto err;
 
   set_real_row_type(table);
 
-  if (instantiate_tmp_table(thd, table, table->key_info, start_recinfo,
-                            &recinfo, 0, 0))
-    goto err;
-
-  sjtbl->start_recinfo = start_recinfo;
-  sjtbl->recinfo = recinfo;
+  if (instantiate_tmp_table(thd, table)) goto err;
 
   thd->mem_root = mem_root_save;
   DBUG_RETURN(table);
@@ -2016,7 +1916,7 @@ error:
 
   @param table            table to allocate SE for
   @param select_options   current select's options
-  @param force_disk_table true <=> Use MyISAM or InnoDB
+  @param force_disk_table true <=> Use InnoDB
   @param mem_engine       Selected in-memory storage engine.
 
   @return
@@ -2034,10 +1934,14 @@ static bool use_tmp_disk_storage_engine(
     return true;
   }
 
-  /* During bootstrap, the heap engine is not available, so we force using
+  /*
+    During bootstrap, the heap engine is not available, so we force using
     disk storage engine. This is especially hit when creating a I_S system
-    view definition with a UNION in it. */
-  if (opt_initialize) {
+    view definition with a UNION in it AND is also when upgrading from
+    older DD tables which involves execution of UPDATE queries to adjust
+    metadata of DD tables.
+  */
+  if (opt_initialize || thd->is_dd_system_thread()) {
     return true;
   }
 
@@ -2063,7 +1967,7 @@ static bool use_tmp_disk_storage_engine(
 
   @param table            table to allocate SE for
   @param select_options   current select's options
-  @param force_disk_table true <=> Use MyISAM or InnoDB
+  @param force_disk_table true <=> Use InnoDB
   @param schema_table     whether the table is a schema table
 
   @returns
@@ -2089,21 +1993,9 @@ static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
     mem_engine = TMP_TABLE_MEMORY;
   }
 
-  if (select_options & TMP_TABLE_FORCE_MYISAM) {
-    share->db_plugin = ha_lock_engine(0, myisam_hton);
-  } else if (use_tmp_disk_storage_engine(table, select_options,
-                                         force_disk_table, mem_engine)) {
-    switch (internal_tmp_disk_storage_engine) {
-      case TMP_TABLE_MYISAM:
-        share->db_plugin = ha_lock_engine(0, myisam_hton);
-        break;
-      case TMP_TABLE_INNODB:
-        share->db_plugin = ha_lock_engine(0, innodb_hton);
-        break;
-      default:
-        DBUG_ASSERT(0); /* purecov: deadcode */
-        share->db_plugin = ha_lock_engine(0, innodb_hton);
-    }
+  if (use_tmp_disk_storage_engine(table, select_options, force_disk_table,
+                                  mem_engine)) {
+    share->db_plugin = ha_lock_engine(0, innodb_hton);
   } else {
     share->db_plugin = nullptr;
     switch (mem_engine) {
@@ -2150,7 +2042,13 @@ static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
 static bool alloc_record_buffers(TABLE *table) {
   TABLE_SHARE *share = table->s;
   THD *thd = table->in_use;
-  uint alloc_length = ALIGN_SIZE(share->reclength + MI_UNIQUE_HASH_LENGTH + 1);
+  /*
+    Same as MI_UNIQUE_HASH_LENGTH,
+    allows to exclude "myisam.h" from include files.
+  */
+  const int TMP_TABLE_UNIQUE_HASH_LENGTH = 4;
+  uint alloc_length =
+      ALIGN_SIZE(share->reclength + TMP_TABLE_UNIQUE_HASH_LENGTH + 1);
   share->rec_buff_length = alloc_length;
   /*
     Note that code in open_table_from_share() relies on the fact that
@@ -2201,112 +2099,6 @@ bool open_tmp_table(TABLE *table) {
   table->set_created();
   table->s->tmp_handler_count++;
   return false;
-}
-
-/*
-  Create MyISAM temporary table
-
-  SYNOPSIS
-    create_myisam_tmp_table()
-      table           Table object that descrimes the table to be created
-      keyinfo         Description of the index (there is always one index)
-      start_recinfo   MyISAM's column descriptions
-      recinfo INOUT   End of MyISAM's column descriptions
-      options         Option bits
-
-  DESCRIPTION
-    Create a MyISAM temporary table according to passed description. The is
-    assumed to have one unique index or constraint.
-
-    The passed array or MI_COLUMNDEF structures must have this form:
-
-      1. 1-byte column (afaiu for 'deleted' flag) (note maybe not 1-byte
-         when there are many nullable columns)
-      2. Table columns
-      3. One free MI_COLUMNDEF element (*recinfo points here)
-
-    This function may use the free element to create hash column for unique
-    constraint.
-
-   RETURN
-     false - OK
-     true  - Error
-*/
-
-static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
-                                    MI_COLUMNDEF *start_recinfo,
-                                    MI_COLUMNDEF **recinfo, ulonglong options,
-                                    bool big_tables) {
-  int error;
-  MI_KEYDEF keydef;
-  MI_UNIQUEDEF uniquedef;
-  TABLE_SHARE *share = table->s;
-  DBUG_ENTER("create_myisam_tmp_table");
-
-  if (share->keys) {  // Get keys for ni_create
-    if (share->keys > 1) {
-      DBUG_ASSERT(0);  // This code can't handle more than 1 key
-      share->keys = 1;
-    }
-    HA_KEYSEG *seg = (HA_KEYSEG *)alloc_root(
-        &table->s->mem_root, sizeof(*seg) * keyinfo->user_defined_key_parts);
-    if (!seg) goto err;
-
-    memset(seg, 0, sizeof(*seg) * keyinfo->user_defined_key_parts);
-
-    /* Create an unique key */
-    memset(&keydef, 0, sizeof(keydef));
-    keydef.flag = static_cast<uint16>(keyinfo->flags);
-    keydef.keysegs = keyinfo->user_defined_key_parts;
-    keydef.seg = seg;
-
-    for (uint i = 0; i < keyinfo->user_defined_key_parts; i++, seg++) {
-      Field *field = keyinfo->key_part[i].field;
-      seg->flag = 0;
-      seg->language = field->charset()->number;
-      seg->length = keyinfo->key_part[i].length;
-      seg->start = keyinfo->key_part[i].offset;
-      if (field->flags & BLOB_FLAG) {
-        seg->type = ((keyinfo->key_part[i].bin_cmp) ? HA_KEYTYPE_VARBINARY2
-                                                    : HA_KEYTYPE_VARTEXT2);
-        seg->bit_start =
-            (uint8)(field->pack_length() - portable_sizeof_char_ptr);
-        seg->flag = HA_BLOB_PART;
-        seg->length = 0;  // Whole blob in unique constraint
-      } else {
-        seg->type = keyinfo->key_part[i].type;
-        /* Tell handler if it can do suffic space compression */
-        if (field->real_type() == MYSQL_TYPE_STRING &&
-            keyinfo->key_part[i].length > 4)
-          seg->flag |= HA_SPACE_PACK;
-      }
-      if (!(field->flags & NOT_NULL_FLAG)) {
-        seg->null_bit = field->null_bit;
-        seg->null_pos = field->null_offset();
-      }
-    }
-  }
-  MI_CREATE_INFO create_info;
-  memset(&create_info, 0, sizeof(create_info));
-
-  if (big_tables && !(options & SELECT_SMALL_RESULT))
-    create_info.data_file_length = ~(ulonglong)0;
-
-  if ((error = mi_create(share->table_name.str, share->keys, &keydef,
-                         (uint)(*recinfo - start_recinfo), start_recinfo, 0,
-                         &uniquedef, &create_info,
-                         HA_CREATE_TMP_TABLE | HA_CREATE_INTERNAL_TABLE |
-                             ((share->db_create_options & HA_OPTION_PACK_RECORD)
-                                  ? HA_PACK_RECORD
-                                  : 0)))) {
-    table->file->print_error(error, MYF(0)); /* purecov: inspected */
-    table->db_stat = 0;
-    goto err;
-  }
-  table->in_use->inc_status_created_tmp_disk_tables();
-  DBUG_RETURN(0);
-err:
-  DBUG_RETURN(1);
 }
 
 /**
@@ -2360,11 +2152,8 @@ static bool create_tmp_table_with_fallback(TABLE *table) {
       table->file->create(share->table_name.str, table, &create_info, nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL &&
       table->s->db_type() == temptable_hton) {
-    auto &disk_hton = internal_tmp_disk_storage_engine == TMP_TABLE_INNODB
-                          ? innodb_hton
-                          : myisam_hton;
     table->file =
-        get_new_handler(table->s, false, &table->s->mem_root, disk_hton);
+        get_new_handler(table->s, false, &table->s->mem_root, innodb_hton);
     error = table->file->create(share->table_name.str, table, &create_info,
                                 nullptr);
   }
@@ -2397,13 +2186,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
       .add("makes_grouped_rows", table->group != nullptr)
       .add("cannot_insert_duplicates", table->is_distinct);
 
-  if (s->db_type() == myisam_hton) {
-    trace_tmp.add_alnum("location", "disk (MyISAM)");
-    if (s->db_create_options & HA_OPTION_PACK_RECORD)
-      trace_tmp.add_alnum("record_format", "packed");
-    else
-      trace_tmp.add_alnum("record_format", "fixed");
-  } else if (s->db_type() == innodb_hton) {
+  if (s->db_type() == innodb_hton) {
     trace_tmp.add_alnum("location", "disk (InnoDB)");
     if (s->db_create_options & HA_OPTION_PACK_RECORD)
       trace_tmp.add_alnum("record_format", "packed");
@@ -2425,11 +2208,6 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   @param  thd             Thread handler
   @param  table           Table object that describes the table to be
                           instantiated
-  @param  keyinfo         Description of the index (there is always one index)
-  @param  start_recinfo   Column descriptions
-  @param[in,out]  recinfo End of column descriptions
-  @param  options         Option bits
-  @param  big_tables
 
   @details
     Creates tmp table and opens it.
@@ -2439,9 +2217,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
      true  - Error
 */
 
-bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
-                           MI_COLUMNDEF *start_recinfo, MI_COLUMNDEF **recinfo,
-                           ulonglong options, bool big_tables) {
+bool instantiate_tmp_table(THD *thd, TABLE *table) {
   TABLE_SHARE *const share = table->s;
 #ifndef DBUG_OFF
   for (uint i = 0; i < share->fields; i++)
@@ -2454,13 +2230,6 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     if (create_tmp_table_with_fallback(table)) return true;
   } else if (share->db_type() == innodb_hton) {
     if (create_tmp_table_with_fallback(table)) return true;
-    // Make empty record so random data is not written to disk
-    empty_record(table);
-  } else if (share->db_type() == myisam_hton) {
-    DBUG_ASSERT(start_recinfo && recinfo);
-    if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo, options,
-                                big_tables))
-      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2557,8 +2326,6 @@ void free_tmp_table(THD *thd, TABLE *entry) {
 
   @param thd             THD reference
   @param wtable          Table reference being written to
-  @param start_recinfo   Engine's column descriptions
-  @param [in,out] recinfo End of engine's column descriptions
   @param error           Reason why inserting into MEMORY table failed.
   @param ignore_last_dup If true, ignore duplicate key error for last
                          inserted key (see detailed description below).
@@ -2610,9 +2377,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
   @returns true if error.
 */
 
-bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
-                             MI_COLUMNDEF *start_recinfo,
-                             MI_COLUMNDEF **recinfo, int error,
+bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
                              bool ignore_last_dup, bool *is_duplicate) {
   int write_err = 0;
 #ifndef DBUG_OFF
@@ -2622,14 +2387,28 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   bool table_on_disk = false;
   DBUG_ENTER("create_ondisk_from_heap");
 
-  if ((wtable->s->db_type() != heap_hton) ||
-      (error != HA_ERR_RECORD_FILE_FULL)) {
+  if (error != HA_ERR_RECORD_FILE_FULL) {
     /*
       We don't want this error to be converted to a warning, e.g. in case of
       INSERT IGNORE ... SELECT.
     */
     wtable->file->print_error(error, MYF(ME_FATALERROR));
     DBUG_RETURN(1);
+  }
+
+  if (wtable->s->db_type() != heap_hton) {
+    if (wtable->s->db_type() != temptable_hton || temptable_use_mmap) {
+      /* Do not convert in-memory temporary tables to on-disk
+      temporary tables if the storage engine is anything other
+      than the temptable engine or if the user has set the variable
+      temptable_use_mmap to true to use mmap'ed files for temporary
+      tables. */
+      wtable->file->print_error(error, MYF(ME_FATALERROR));
+      DBUG_RETURN(1);
+    }
+
+    /* If we are here, then the in-memory temporary tables need
+    to be converted into on-disk temporary tables */
   }
 
   const char *save_proc_info = thd->proc_info;
@@ -2640,21 +2419,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   TABLE_SHARE share = std::move(*old_share);
   DBUG_ASSERT(share.ha_share == nullptr);
 
-  switch (internal_tmp_disk_storage_engine) {
-    case TMP_TABLE_MYISAM:
-      if (!start_recinfo) {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MyISAM for table functions");
-        DBUG_RETURN(true);
-      }
-      share.db_plugin = ha_lock_engine(thd, myisam_hton);
-      break;
-    case TMP_TABLE_INNODB:
-      share.db_plugin = ha_lock_engine(thd, innodb_hton);
-      break;
-    default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
-      share.db_plugin = ha_lock_engine(thd, innodb_hton);
-  }
+  share.db_plugin = ha_lock_engine(thd, innodb_hton);
 
   TABLE_LIST *const wtable_list = wtable->pos_in_table_list;
   Derived_refs_iterator ref_it(wtable_list);
@@ -2724,16 +2489,9 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
     set_real_row_type(&new_table);
 
     if (!table_on_disk) {
-      if (share.db_type() == myisam_hton) {
-        if (create_myisam_tmp_table(&new_table, share.key_info, start_recinfo,
-                                    recinfo,
-                                    thd->lex->select_lex->active_options(),
-                                    thd->variables.big_tables))
-          goto err_after_alloc; /* purecov: inspected */
-      } else if (share.db_type() == innodb_hton) {
-        if (create_tmp_table_with_fallback(&new_table))
-          goto err_after_alloc; /* purecov: inspected */
-      }
+      if (create_tmp_table_with_fallback(&new_table))
+        goto err_after_alloc; /* purecov: inspected */
+
       table_on_disk = true;
     }
 
@@ -2822,11 +2580,21 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
         DBUG_ASSERT(rows_on_disk);
         (void)table->file->ha_rnd_end();
         rec_ref_w_open_cursor = true;
-        psi_batch_started = table->file->end_psi_batch_mode_if_started();
       }
 
-      // Closing the MEMORY table drops it if its ref count is down to zero.
-      (void)table->file->ha_close();
+      psi_batch_started = table->file->end_psi_batch_mode_if_started();
+
+      // Close the in-memory table
+      if (table->s->db_type() == temptable_hton) {
+        /* Drop the in-memory temptable.
+        This code can execute only if mmap'ed temporary
+        files were disabled using temptable_use_mmap variable */
+        DBUG_ASSERT(temptable_use_mmap == false);
+        table->file->ha_drop_table(table->s->table_name.str);
+      } else {
+        // Closing the MEMORY table drops it if its ref count is down to zero
+        (void)table->file->ha_close();
+      }
       share.tmp_handler_count--;
     }
 

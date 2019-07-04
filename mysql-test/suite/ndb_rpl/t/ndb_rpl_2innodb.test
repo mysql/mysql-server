@@ -20,7 +20,7 @@ set @@global.slave_exec_mode= 'IDEMPOTENT';
 
 # Silence warning about Innodb not supporting HASH index algorithm
 # when creating mysql.ndb_apply_status
-disable_warnings ONCE;
+--disable_warnings ER_UNSUPPORTED_INDEX_ALGORITHM ONCE
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
                    epoch BIGINT UNSIGNED NOT NULL,

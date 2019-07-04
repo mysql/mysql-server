@@ -51,3 +51,4 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+include/rpl_end.inc

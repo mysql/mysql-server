@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +127,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
-    {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME}};
+    {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
+    {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME}};
 
 #ifdef HAVE_PSI_INTERFACE
 void MDL_key::init_psi_keys() {
@@ -174,7 +175,7 @@ class MDL_map {
   void lock_object_unused(MDL_context *ctx, LF_PINS *pins) {
     /*
       Use thread local copy of unused locks counter for performance/
-      scalability reasons. It is updated on both successfull and failed
+      scalability reasons. It is updated on both successful and failed
       attempts to delete unused MDL_lock objects in order to avoid infinite
       loops,
     */
@@ -796,6 +797,30 @@ class MDL_lock {
   inline static void destroy(MDL_lock *lock);
 
   inline MDL_context *get_lock_owner() const;
+
+  /**
+    Get MDL lock strategy corresponding to MDL key.
+
+    @param key Reference to MDL_key object
+
+    @return the type of strategy scoped or object corresponding to MDL key.
+  */
+
+  inline static const MDL_lock_strategy *get_strategy(const MDL_key &key) {
+    switch (key.mdl_namespace()) {
+      case MDL_key::GLOBAL:
+      case MDL_key::TABLESPACE:
+      case MDL_key::SCHEMA:
+      case MDL_key::COMMIT:
+      case MDL_key::BACKUP_LOCK:
+      case MDL_key::RESOURCE_GROUPS:
+      case MDL_key::FOREIGN_KEY:
+      case MDL_key::CHECK_CONSTRAINT:
+        return &m_scoped_lock_strategy;
+      default:
+        return &m_object_lock_strategy;
+    }
+  }
 
  public:
   /**
@@ -1566,20 +1591,7 @@ void MDL_lock::destroy(MDL_lock *lock) { delete lock; }
 
 inline void MDL_lock::reinit(const MDL_key *mdl_key) {
   key.mdl_key_init(mdl_key);
-  switch (mdl_key->mdl_namespace()) {
-    case MDL_key::GLOBAL:
-    case MDL_key::TABLESPACE:
-    case MDL_key::SCHEMA:
-    case MDL_key::COMMIT:
-    case MDL_key::BACKUP_LOCK:
-    case MDL_key::RESOURCE_GROUPS:
-    case MDL_key::FOREIGN_KEY:
-      m_strategy = &m_scoped_lock_strategy;
-      break;
-    default:
-      m_strategy = &m_object_lock_strategy;
-      break;
-  }
+  m_strategy = MDL_lock::get_strategy(*mdl_key);
   m_hog_lock_count = 0;
   m_piglet_lock_count = 0;
   m_current_waiting_incompatible_idx = 0;
@@ -1603,17 +1615,8 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key) {
 
 MDL_lock::fast_path_state_t MDL_lock::get_unobtrusive_lock_increment(
     const MDL_request *request) {
-  switch (request->key.mdl_namespace()) {
-    case MDL_key::GLOBAL:
-    case MDL_key::TABLESPACE:
-    case MDL_key::SCHEMA:
-    case MDL_key::COMMIT:
-    case MDL_key::BACKUP_LOCK:
-    case MDL_key::FOREIGN_KEY:
-      return m_scoped_lock_strategy.m_unobtrusive_lock_increment[request->type];
-    default:
-      return m_object_lock_strategy.m_unobtrusive_lock_increment[request->type];
-  }
+  return MDL_lock::get_strategy(request->key)
+      ->m_unobtrusive_lock_increment[request->type];
 }
 
 /**
@@ -1724,7 +1727,7 @@ uint MDL_ticket::get_deadlock_weight() const {
 
 /** Construct an empty wait slot. */
 
-MDL_wait::MDL_wait() : m_wait_status(EMPTY) {
+MDL_wait::MDL_wait() : m_wait_status(WS_EMPTY) {
   mysql_mutex_init(key_MDL_wait_LOCK_wait_status, &m_LOCK_wait_status, NULL);
   mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status);
 }
@@ -1744,7 +1747,7 @@ MDL_wait::~MDL_wait() {
 bool MDL_wait::set_status(enum_wait_status status_arg) {
   bool was_occupied = true;
   mysql_mutex_lock(&m_LOCK_wait_status);
-  if (m_wait_status == EMPTY) {
+  if (m_wait_status == WS_EMPTY) {
     was_occupied = false;
     m_wait_status = status_arg;
     mysql_cond_signal(&m_COND_wait_status);
@@ -1767,7 +1770,7 @@ MDL_wait::enum_wait_status MDL_wait::get_status() {
 
 void MDL_wait::reset_status() {
   mysql_mutex_lock(&m_LOCK_wait_status);
-  m_wait_status = EMPTY;
+  m_wait_status = WS_EMPTY;
   mysql_mutex_unlock(&m_LOCK_wait_status);
 }
 
@@ -1803,7 +1806,7 @@ MDL_wait::enum_wait_status MDL_wait::timed_wait(
   }
   thd_wait_end(NULL);
 
-  if (m_wait_status == EMPTY) {
+  if (m_wait_status == WS_EMPTY) {
     /*
       Wait has ended not due to a status being set from another
       thread but due to this connection/statement being killed or a
@@ -3338,7 +3341,30 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx,
 */
 
 bool MDL_context::acquire_lock(MDL_request *mdl_request,
-                               ulong lock_wait_timeout) {
+                               Timeout_type lock_wait_timeout) {
+  if (lock_wait_timeout == 0) {
+    /*
+      Resort to try_acquire_lock() in case of zero timeout.
+
+      This allows to avoid unnecessary deadlock detection attempt and "fake"
+      deadlocks which might result from it.
+      In case of failure to acquire lock, try_acquire_lock() preserves
+      invariants by updating MDL_lock::fast_path_state and obtrusive locks
+      count. It also performs SE notification if needed.
+    */
+    if (try_acquire_lock(mdl_request)) return true;
+
+    if (!mdl_request->ticket) {
+      /* We have failed to acquire lock instantly. */
+      DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
+      my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+      return true;
+    }
+    return false;
+  }
+
+  /* Normal, non-zero timeout case. */
+
   MDL_lock *lock;
   MDL_ticket *ticket;
   struct timespec abs_timeout;
@@ -3355,32 +3381,6 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
       accordingly, so we can simply return success.
     */
     return false;
-  }
-
-  /*
-    Return early if we did not get the lock and are not willing to wait.
-    This way we avoid reporting "fake" deadlock for lock_wait_timeout == 0.
-  */
-  if (lock_wait_timeout == 0) {
-    /*
-      Lock acquired inside try_acquire_lock_impl(). Release before
-      leaving scope.
-    */
-    mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
-
-    /*
-      If SEs were notified about impending lock acquisition, the failure
-      to acquire it requires the same notification as lock release.
-    */
-    if (ticket->m_hton_notified) {
-      mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
-      m_owner->notify_hton_post_release_exclusive(&mdl_request->key);
-    }
-    DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
-
-    MDL_ticket::destroy(ticket);
-    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-    return true;
   }
 
   /*
@@ -3425,14 +3425,14 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   if (lock->needs_notification(ticket) || lock->needs_connection_check()) {
     struct timespec abs_shortwait;
     set_timespec(&abs_shortwait, 1);
-    wait_status = MDL_wait::EMPTY;
+    wait_status = MDL_wait::WS_EMPTY;
 
     while (cmp_timespec(&abs_shortwait, &abs_timeout) <= 0) {
       /* abs_timeout is far away. Wait a short while and notify locks. */
       wait_status = m_wait.timed_wait(m_owner, &abs_shortwait, false,
                                       mdl_request->key.get_wait_state_name());
 
-      if (wait_status != MDL_wait::EMPTY) break;
+      if (wait_status != MDL_wait::WS_EMPTY) break;
 
       if (lock->needs_connection_check() && !m_owner->is_connected()) {
         /*
@@ -3458,7 +3458,7 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
 
       set_timespec(&abs_shortwait, 1);
     }
-    if (wait_status == MDL_wait::EMPTY)
+    if (wait_status == MDL_wait::WS_EMPTY)
       wait_status = m_wait.timed_wait(m_owner, &abs_timeout, true,
                                       mdl_request->key.get_wait_state_name());
   } else {
@@ -3569,7 +3569,7 @@ class MDL_request_cmp : public std::binary_function<const MDL_request *,
 */
 
 bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
-                                ulong lock_wait_timeout) {
+                                Timeout_type lock_wait_timeout) {
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **p_req;
   MDL_savepoint mdl_svp = mdl_savepoint();
@@ -3677,7 +3677,7 @@ bool MDL_context::clone_tickets(const MDL_context *ticket_owner,
 
 bool MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
                                       enum_mdl_type new_type,
-                                      ulong lock_wait_timeout) {
+                                      Timeout_type lock_wait_timeout) {
   MDL_request mdl_new_lock_request;
   MDL_savepoint mdl_svp = mdl_savepoint();
   bool is_new_ticket;
@@ -3850,7 +3850,7 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
     for it. To avoid races this has to be done under protection of
     MDL_lock::m_rwlock lock.
   */
-  if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY) {
+  if (src_ctx->m_wait.get_status() != MDL_wait::WS_EMPTY) {
     result = false;
     goto end;
   }
@@ -4443,7 +4443,7 @@ void MDL_context::release_transactional_locks() {
 }
 
 void MDL_context::release_statement_locks() {
-  DBUG_ENTER("MDL_context::release_transactional_locks");
+  DBUG_ENTER("MDL_context::release_statement_locks");
   release_locks_stored_before(MDL_STATEMENT, NULL);
   DBUG_VOID_RETURN;
 }
@@ -4710,6 +4710,23 @@ void MDL_ticket_store::move_all_to_explicit_duration() {
   MDL_ticket *ticket;
 
   /*
+    It is assumed that at this point all the locks in the context are
+    materialized. So the next call to MDL_context::materialize_fast_path_locks()
+    will not be considering these locks. m_mat_front is valid for the current
+    list of tickets with explicit duration and if we had added all the tickets
+    which previously had transaction duration at the front, it would still be
+    valid. But since we are using the swap-trick below, all the previously
+    transactional tickets end up at the tail end of the list, and the order of
+    the already explicit tickets is reversed when they are moved (remove pops
+    from the front and push_front adds to the front). So unless all the tickets
+    were already materialized we're guaranteed that m_mat_front is wrong after
+    the swapping and moving. Hence we set m_mat_front of tickets with explicit
+    duration to null so that the next call to
+    MDL_context::materialize_fast_path_locks() will set it appropriately.
+  */
+  m_durations[MDL_EXPLICIT].m_mat_front = nullptr;
+
+  /*
     In the most common case when this function is called list
     of transactional locks is bigger than list of locks with
     explicit duration. So we start by swapping these two lists
@@ -4729,14 +4746,6 @@ void MDL_ticket_store::move_all_to_explicit_duration() {
       m_durations[i].m_ticket_list.remove(ticket);
       m_durations[MDL_EXPLICIT].m_ticket_list.push_front(ticket);
     }
-    /*
-      Note that we do not update m_durations[MDL_EXPLICIT].m_mat_front
-      here. That is ok, since it is only to be used as an optimization
-      for MDL_context::materialize_fast_path_locks(). So if the tickets
-      being added are already materialized it does not break an
-      invariant, and m_mat_front will be updated the next time
-      MDL_context::materialize_fast_path_locks() runs.
-    */
   }
 
 #ifndef DBUG_OFF

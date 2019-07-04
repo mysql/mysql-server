@@ -179,7 +179,7 @@ alter table t1 add constraint foreign key fk(d) references t2(a);
 if ($support_virtual_index)
 {
 --error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
-alter table t1 add constraint foreign key fk(b) references t2(a);
+alter table t1 add constraint fk foreign key (b) references t2(a);
 }
 --error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
@@ -674,3 +674,86 @@ ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 --disable_info
 DROP TABLE t1;
 --enable_warnings
+
+
+if(! $testing_ndb) {
+--echo #
+--echo # Bug#28836543 "DUPLICATE HANDLING OF GENERATION EXPRESSION CHANGE IN
+--echo #               FILL_ALTER_INPLACE_INFO".
+--echo #
+--echo # For ALTER TABLE statements which do not modify generated column type,
+--echo # expression and storage type INPLACE algorithm should be supported.
+--echo # ALTER TABLE statements which modify generated column expression or
+--echo # type should require COPY algorithm. Change of storage type of
+--echo # generated column is not supported.
+CREATE TABLE t1 (a INT, g INT GENERATED ALWAYS AS (a + 1) VIRTUAL);
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 2) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY g BIGINT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+DROP TABLE t1;
+CREATE TABLE t2 (a INT, g INT GENERATED ALWAYS AS (a + 1) STORED);
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 2) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+--echo # InnoDB has special error message for change of column type
+--error ER_ALTER_OPERATION_NOT_SUPPORTED,ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2 MODIFY g BIGINT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+DROP TABLE t2;
+}
+
+
+if(! $testing_ndb) {
+--echo #
+--echo # Bug #28848265 "CHANGING DEFAULT BY MAKING COLUMN NULLABLE DOESN'T
+--echo #                UPDATE GENERATED COLUMN".
+--echo #
+
+--echo # Test for original issue.
+CREATE TABLE t1(a INT NOT NULL DEFAULT 4, gc INT AS (a + DEFAULT(a)) STORED);
+INSERT INTO t1 (a) VALUES (1);
+ALTER TABLE t1 MODIFY COLUMN a INT NULL;
+INSERT INTO t1 (a) VALUES (2);
+--echo # Generated stored column value must reflect new default (i.e. NULL).
+SELECT *, a + DEFAULT(a) FROM t1;
+
+--echo # Check that change of default on which generated column depends
+--echo # can't be done in-place.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY COLUMN a INT NULL DEFAULT 0, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 0, ALGORITHM=INPLACE;
+
+--echo # However, changing default of some other column can be done
+--echo # in-place.
+ALTER TABLE t1 ADD b INT;
+ALTER TABLE t1 MODIFY COLUMN b INT DEFAULT 0, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT 1, ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+if ($support_virtual_index)
+{
+--echo # Same tests for virtual indexed column.
+CREATE TABLE t1(a INT NOT NULL DEFAULT 4, gc INT AS (a + DEFAULT(a)) VIRTUAL, KEY k(gc));
+INSERT INTO t1 (a) VALUES (1);
+ALTER TABLE t1 MODIFY COLUMN a INT NULL;
+INSERT INTO t1 (a) VALUES (2);
+--echo # Select only virtual column value so its index is used.
+SELECT gc, a + DEFAULT(a) FROM t1;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY COLUMN a INT NULL DEFAULT 0, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 0, ALGORITHM=INPLACE;
+
+ALTER TABLE t1 ADD b INT;
+ALTER TABLE t1 MODIFY COLUMN b INT DEFAULT 0, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT 1, ALGORITHM=INPLACE;
+DROP TABLE t1;
+}
+}

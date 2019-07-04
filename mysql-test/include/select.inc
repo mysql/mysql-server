@@ -1763,7 +1763,7 @@ select max(t2nr) from t3 where price=983543950;
 # Test of alias
 #
 
-select t1.period from t3 = t1 limit 1;
+select t1.period from t3 t1 limit 1;
 select t1.period from t1 as t1 limit 1;
 select t1.period as "Nuvarande period" from t1 as t1 limit 1;
 select period as ok_period from t1 limit 1;
@@ -1831,6 +1831,7 @@ CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned d
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
 # Disable PS becasue we get more warnings from PS than from normal execution
 --disable_ps_protocol
+--error ER_WRONG_VALUE
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 --enable_ps_protocol
 # Testing the same select with NULL's instead of invalid datetime values
@@ -2804,11 +2805,14 @@ insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
   (4,'2005-10-01'),(5,'2005-12-30');
 # should return all records
 select * from t1 where f2 >= 0            order by f2;
+--error ER_WRONG_VALUE
 select * from t1 where f2 >= '0000-00-00' order by f2;
 # should return 4,5
+--error ER_WRONG_VALUE
 select * from t1 where f2 >= '2005-09-31' order by f2;
 select * from t1 where f2 >= '2005-09-3a' order by f2;
 # should return 1,2,3
+--error ER_WRONG_VALUE
 select * from t1 where f2 <= '2005-09-31' order by f2;
 select * from t1 where f2 <= '2005-09-3a' order by f2;
 drop table t1;
@@ -3563,6 +3567,7 @@ DROP VIEW v1;
 select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT';
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
+--error ER_WRONG_VALUE
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
 
 # We have all we need -- and trailing garbage:
@@ -3586,16 +3591,21 @@ select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 12:00:00';
 select str_to_date('2007-10-01 12','%Y-%m-%d %H') = '2007-10-01 12:00:00';
 # succeed, but warn for "trailing garbage" (":34"):
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00';
-# invalid date (Feb 30) succeeds
-select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34';
+# invalid date (Feb 30) succeeds because date comparison fails and
+# it falls back to string comparison
+--error ER_WRONG_VALUE
+select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00';
 # 0-day for both, just works in default SQL mode.
+--error ER_WRONG_VALUE
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 # 0-day, succeed
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
                                                 and '2007/10/20 00:00:00';
 set SQL_MODE=TRADITIONAL;
 # 0-day throws warning in traditional mode, and fails
+--error ER_WRONG_VALUE
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
+--error ER_WRONG_VALUE
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 # different code-path: get_datetime_value() with 0-day
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
@@ -3606,10 +3616,14 @@ select str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20';
 select str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20';
 select str_to_date('','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 select str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34';
+--error ER_WRONG_VALUE
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '';
 
+--error ER_WRONG_VALUE
 select str_to_date('1','%Y-%m-%d') = '1';
+--error ER_WRONG_VALUE
 select str_to_date('1','%Y-%m-%d') = '1';
+--error ER_WRONG_VALUE
 select str_to_date('','%Y-%m-%d') = '';
 
 # these three should work!
@@ -3961,7 +3975,8 @@ INSERT IGNORE INTO C VALUES
 SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
 
 SELECT COUNT(DISTINCT 1) FROM C 
-  WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk; 
+  WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk;
+--error ER_WRONG_VALUE
 SELECT date_nokey FROM C 
   WHERE int_key IN (SELECT 1 FROM A) 
   HAVING date_nokey = '10:41:7' 

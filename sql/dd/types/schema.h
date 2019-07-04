@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,12 @@ namespace tables {
 class Schemata;
 }
 
+/////////////////////////////////////////////////////////////////////////
+// enum_encryption_type.
+/////////////////////////////////////////////////////////////////////////
+
+enum class enum_encryption_type { ET_NO = 1, ET_YES };
+
 ///////////////////////////////////////////////////////////////////////////
 
 class Schema : virtual public Entity_object {
@@ -76,14 +82,19 @@ class Schema : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  virtual ~Schema(){};
-
   /////////////////////////////////////////////////////////////////////////
   // Default collation.
   /////////////////////////////////////////////////////////////////////////
 
   virtual Object_id default_collation_id() const = 0;
   virtual void set_default_collation_id(Object_id default_collation_id) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Default encryption.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool default_encryption() const = 0;
+  virtual void set_default_encryption(bool default_encryption) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created

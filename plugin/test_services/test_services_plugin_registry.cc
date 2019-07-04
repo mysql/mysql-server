@@ -47,7 +47,7 @@ SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 /** Declare the interface to our own service. Usually comes from a svc header */
 BEGIN_SERVICE_DEFINITION(test_services_plugin_registry_service)
 DECLARE_BOOL_METHOD(test1, (int a1, int a2, int *outres));
-END_SERVICE_DEFINITION(test_services_plugin_registry_service);
+END_SERVICE_DEFINITION(test_services_plugin_registry_service)
 
 /**
   Implementation of test1 method

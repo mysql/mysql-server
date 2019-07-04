@@ -268,3 +268,9 @@ void Thd_ndb::push_ndb_error_warning(const NdbError& ndberr) const {
                         ndberr.message, "NDB");
   }
 }
+
+void Thd_ndb::set_ndb_error(const NdbError& ndberr,
+                            const char* message) const {
+  push_ndb_error_warning(ndberr);
+  my_printf_error(ER_GET_ERRMSG, "%s", MYF(0), message);
+}

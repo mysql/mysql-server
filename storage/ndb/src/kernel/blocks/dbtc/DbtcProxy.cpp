@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "DbtcProxy.hpp"
 #include "Dbtc.hpp"
+#include "portlib/NdbMem.h"
 
 #define JAM_FILE_ID 352
 
@@ -95,6 +96,7 @@ DbtcProxy::~DbtcProxy()
 SimulatedBlock*
 DbtcProxy::newWorker(Uint32 instanceNo)
 {
+//  return new (NdbMem_AlignedAlloc(64, sizeof(Dbtc))) Dbtc(m_ctx, instanceNo);
   return new Dbtc(m_ctx, instanceNo);
 }
 

@@ -1,0 +1,277 @@
+Case 1: single-threaded backup + single-threaded restore
+"Create tables for backup"
+
+"Starting backup as nowait"
+Starting backup
+Backup started
+"Update tables during backup"
+
+"Wait for backup to complete"
+Waiting for backup to complete
+Backup completed
+"Drop tables after backup completes"
+"Restoring metadata"
+"Restoring backup on node 1"
+"Restoring backup on node 2"
+"Print restored rows"
+use test;
+select * from t0 order by id;
+id	val
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	12345
+select * from t1 order by val;
+val
+NULL
+2
+3
+4
+5
+6
+7
+8
+9
+11
+select * from t2 order by id;
+id
+1
+3
+4
+5
+6
+7
+8
+9
+10
+22
+select * from t3 order by id;
+id	val
+1	9
+2	8
+3	33
+4	6
+5	5
+6	4
+7	3
+8	2
+9	1
+10	NULL
+select * from t4 order by id;
+id	val
+1	11001
+2	11001
+3	11001
+4	44
+5	11001
+6	11001
+7	11001
+8	11001
+9	11001
+10	11001
+select id, sha1(val) from t5 order by id;
+id	sha1(val)
+1	0b35a3e0949353117c55151be416c64481dc9778
+2	0f5f3d3783159438eff81e6b3c8911480daf7eac
+3	7b48e60fd747fc37363da73d3140ba0a41ae862a
+4	ea7dffff542a062f6e41c69afac9576d7e97634c
+5	266d8973914802f093f698a58224566ca2a664bc
+6	4a8284d4be6c4c063a910760610c8754ca1234a3
+7	c1bd312a4dd67884e66d15671d38c854e99c8021
+8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
+9	139101d8480a9a68e4e1256ed300aad365725fbc
+10	NULL
+select * from t6 order by id;
+id	val
+1	1
+2	2
+3	3
+4	4
+5	5
+6	66
+7	7
+8	8
+9	9
+10	NULL
+select * from t7 order by id;
+id	val1	val2
+1	9	9
+2	8	8
+3	7	7
+4	6	6
+5	5	5
+6	4	4
+7	77	3
+8	2	2
+9	1	1
+10	10	NULL
+select id, sha1(val) from t8 order by id;
+id	sha1(val)
+1	fd7d9e6b83b0d8c82065d03cb3aa7fd9004b1be3
+2	bc6d3732391be0cf937c126aedd201348b77eb73
+3	558ea7eaf6bc169cf132d8b79fa3cb24d256b43d
+4	b940efa7f439709e3a9f6f7ae7a139a0ffc4615c
+5	28f701601814c80158537b932009ee46e2f7ceda
+6	7aaa4f2845f274d843997517f64e0f613cbb8439
+7	d13462051501e81028a3aafcf1359af394493cba
+8	b37f6ddcefad7e8657837d3177f9ef2462f98acf
+9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
+10	NULL
+select * from t9 order by auto;
+auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
+1	bbbb	bbbb	-22	-22	-22	-22	-22	22.2	22.2200	22.2200	22	00022	22	22	22		two	two	1922-02-22	1922	22:22:22	1922-02-22 22:22:22
+2	8888	8888	-8	-8	-8	-8	-8	8.8	8.8000	8.8000	8	00008	8	8	8		one	one	1988-08-08	1988	08:08:08	1988-08-08 08:08:08
+3	7777	7777	-7	-7	-7	-7	-7	7.7	7.7000	7.7000	7	00007	7	7	7		one	one	1977-07-07	1977	07:07:07	1977-07-07 07:07:07
+4	6666	6666	-6	-6	-6	-6	-6	6.6	6.6000	6.6000	6	00006	6	6	6		one	one	1966-06-06	1966	06:06:06	1966-06-06 06:06:06
+5	5555	5555	-5	-5	-5	-5	-5	5.5	5.5000	5.5000	5	00005	5	5	5		one	one	1955-05-05	1955	05:05:05	1955-05-05 05:05:05
+6	4444	4444	-4	-4	-4	-4	-4	4.4	4.4000	4.4000	4	00004	4	4	4		one	one	1944-04-04	1944	04:04:04	1944-04-04 04:04:04
+7	3333	3333	-3	-3	-3	-3	-3	3.3	3.3000	3.3000	3	00003	3	3	3		one	one	1933-03-03	1933	03:03:03	1933-03-03 03:03:03
+8	2222	2222	-2	-2	-2	-2	-2	2.2	2.2000	2.2000	2	00002	2	2	2		one	one	1922-02-02	1922	02:02:02	1922-02-02 02:02:02
+9	1111	1111	-1	-1	-1	-1	-1	1.1	1.1000	1.1000	1	00001	1	1	1		one	one	1911-01-01	1911	01:01:01	1911-01-01 01:01:01
+10	NULL	NULL	10	10	10	10	10	10.1	NULL	NULL	10	00010	10	10	10	NULL	two	two	NULL	NULL	NULL	NULL
+"Drop tables after backup completes"
+Case 2: single-threaded snapshotstart backup + single-threaded restore
+"Create tables for backup"
+
+"Starting backup as nowait,snapshotstart"
+Starting backup
+Backup started
+"Update tables during backup"
+
+"Wait for backup to complete"
+Waiting for backup to complete
+Backup completed
+"Drop tables after backup completes"
+"Restoring metadata"
+"Restoring backup on node 1"
+"Restoring backup on node 2"
+"Print restored rows"
+use test;
+select * from t0 order by id;
+id	val
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	NULL
+select * from t1 order by val;
+val
+NULL
+1
+2
+3
+4
+5
+6
+7
+8
+9
+select * from t2 order by id;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+select * from t3 order by id;
+id	val
+1	9
+2	8
+3	7
+4	6
+5	5
+6	4
+7	3
+8	2
+9	1
+10	NULL
+select * from t4 order by id;
+id	val
+1	11001
+2	11001
+3	11001
+4	11001
+5	11001
+6	11001
+7	11001
+8	11001
+9	11001
+10	11001
+select id, sha1(val) from t5 order by id;
+id	sha1(val)
+1	0b35a3e0949353117c55151be416c64481dc9778
+2	0f5f3d3783159438eff81e6b3c8911480daf7eac
+3	7b48e60fd747fc37363da73d3140ba0a41ae862a
+4	ea7dffff542a062f6e41c69afac9576d7e97634c
+5	8a96558c6361531c5f387582e5f6cd732332262b
+6	4a8284d4be6c4c063a910760610c8754ca1234a3
+7	c1bd312a4dd67884e66d15671d38c854e99c8021
+8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
+9	139101d8480a9a68e4e1256ed300aad365725fbc
+10	NULL
+select * from t6 order by id;
+id	val
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	NULL
+select * from t7 order by id;
+id	val1	val2
+1	9	9
+2	8	8
+3	7	7
+4	6	6
+5	5	5
+6	4	4
+7	3	3
+8	2	2
+9	1	1
+10	10	NULL
+select id, sha1(val) from t8 order by id;
+id	sha1(val)
+1	fd7d9e6b83b0d8c82065d03cb3aa7fd9004b1be3
+2	bc6d3732391be0cf937c126aedd201348b77eb73
+3	558ea7eaf6bc169cf132d8b79fa3cb24d256b43d
+4	b940efa7f439709e3a9f6f7ae7a139a0ffc4615c
+5	28f701601814c80158537b932009ee46e2f7ceda
+6	7aaa4f2845f274d843997517f64e0f613cbb8439
+7	d13462051501e81028a3aafcf1359af394493cba
+8	b6632b5c953bfe0c9dbec96f99374ab2acc842ea
+9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
+10	NULL
+select * from t9 order by auto;
+auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
+1	9999	9999	-9	-9	-9	-9	-9	9.9	9.9000	9.9000	9	00009	9	9	9		one	one	1999-09-09	1999	09:09:09	1999-09-09 09:09:09
+2	8888	8888	-8	-8	-8	-8	-8	8.8	8.8000	8.8000	8	00008	8	8	8		one	one	1988-08-08	1988	08:08:08	1988-08-08 08:08:08
+3	7777	7777	-7	-7	-7	-7	-7	7.7	7.7000	7.7000	7	00007	7	7	7		one	one	1977-07-07	1977	07:07:07	1977-07-07 07:07:07
+4	6666	6666	-6	-6	-6	-6	-6	6.6	6.6000	6.6000	6	00006	6	6	6		one	one	1966-06-06	1966	06:06:06	1966-06-06 06:06:06
+5	5555	5555	-5	-5	-5	-5	-5	5.5	5.5000	5.5000	5	00005	5	5	5		one	one	1955-05-05	1955	05:05:05	1955-05-05 05:05:05
+6	4444	4444	-4	-4	-4	-4	-4	4.4	4.4000	4.4000	4	00004	4	4	4		one	one	1944-04-04	1944	04:04:04	1944-04-04 04:04:04
+7	3333	3333	-3	-3	-3	-3	-3	3.3	3.3000	3.3000	3	00003	3	3	3		one	one	1933-03-03	1933	03:03:03	1933-03-03 03:03:03
+8	2222	2222	-2	-2	-2	-2	-2	2.2	2.2000	2.2000	2	00002	2	2	2		one	one	1922-02-02	1922	02:02:02	1922-02-02 02:02:02
+9	1111	1111	-1	-1	-1	-1	-1	1.1	1.1000	1.1000	1	00001	1	1	1		one	one	1911-01-01	1911	01:01:01	1911-01-01 01:01:01
+10	NULL	NULL	10	10	10	10	10	10.1	NULL	NULL	10	00010	10	10	10	NULL	two	two	NULL	NULL	NULL	NULL
+"Drop tables after backup completes"
+Case 3: start backup wait completed

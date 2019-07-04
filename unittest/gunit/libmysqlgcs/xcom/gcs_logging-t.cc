@@ -39,7 +39,7 @@ class Mock_Logger : public Logger_interface {
 
 class LoggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
-  LoggingInfrastructureTest() : logger(NULL){};
+  LoggingInfrastructureTest() : logger(NULL) {}
 
   virtual void SetUp() { logger = new Mock_Logger(); }
 
@@ -85,7 +85,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
 class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
   DebuggingInfrastructureTest()
-      : debugger(NULL), sink(NULL), saved_options(GCS_DEBUG_NONE){};
+      : debugger(NULL), sink(NULL), saved_options(GCS_DEBUG_NONE) {}
 
   virtual void SetUp() {
     sink = new Gcs_async_buffer(new Gcs_output_sink());
@@ -258,6 +258,12 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSettingStringOptions) {
   Gcs_debug_manager::unset_debug_options("gcs_debug_all");
   Gcs_debug_manager::set_debug_options("gcs_debug_basic,gcs_invalid_debug,,");
   ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options("gcs_invalid_debug"));
+  ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
+  Gcs_debug_manager::get_current_debug_options(res_debug_options);
+  ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
+
+  Gcs_debug_manager::set_debug_options(",,,");
+  ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options(",,,"));
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);

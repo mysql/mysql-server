@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "sql/ndb_table_map.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
+#include "sql/strfunc.h"
 #include "sql/table.h"
 
 
@@ -169,7 +170,7 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
   if ((error = open_table_def(thd, shadow_table_share, *table_def)) ||
       (error = open_table_from_share(
            thd, shadow_table_share, "", 0,
-           (uint)(OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL), 0,
+           (uint)(SKIP_NEW_HANDLER | DELAYED_OPEN | READ_ALL), 0,
            shadow_table, false, table_def))) {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d", error));
     free_table_share(shadow_table_share);
@@ -182,8 +183,8 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
 
   // Allocate strings for db and table_name for shadow_table
   // in event_data's MEM_ROOT(where the shadow_table itself is allocated)
-  lex_string_copy(&mem_root, &shadow_table->s->db, db);
-  lex_string_copy(&mem_root, &shadow_table->s->table_name, table_name);
+  lex_string_strmake(&mem_root, &shadow_table->s->db, db, strlen(db));
+  lex_string_strmake(&mem_root, &shadow_table->s->table_name, table_name, strlen(table_name));
 
   shadow_table->in_use = owner_thd;
 
@@ -250,7 +251,7 @@ Ndb_event_data* Ndb_event_data::create_event_data(
 
 void Ndb_event_data::destroy(const Ndb_event_data* event_data)
 {
-  DBUG_ENTER("delete_event_data");
+  DBUG_ENTER("Ndb_event_data::destroy");
 
   delete event_data;
 

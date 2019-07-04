@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,8 +122,8 @@ static bool handle_bootstrap_impl(THD *thd) {
 
   thd->thread_stack = (char *)&thd;
   thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
-  thd->security_context()->assign_priv_user("", 0);
-  thd->security_context()->assign_priv_host("", 0);
+  thd->security_context()->skip_grants("", "");
+
   /*
     Make the "client" handle multiple results. This is necessary
     to enable stored procedures with SELECTs and Dynamic SQL
@@ -275,7 +275,7 @@ static bool handle_bootstrap_impl(THD *thd) {
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-    mysql_parse(thd, &parser_state, true);
+    mysql_parse(thd, &parser_state);
     thd->pop_internal_handler();
 
     bootstrap_error = thd->is_error();
@@ -328,13 +328,13 @@ static void *handle_bootstrap(void *arg) {
 
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack = (char *)&thd;
-  if (my_thread_init() || thd->store_globals()) {
+  if (my_thread_init()) {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    thd->fatal_error();
     bootstrap_error = true;
     thd->get_protocol_classic()->end_net();
     thd->release_resources();
   } else {
+    thd->store_globals();
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
 
@@ -364,7 +364,8 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   THD *thd = new THD;
   thd->system_thread = thread_type;
   thd->get_protocol_classic()->init_net(NULL);
-  thd->security_context()->set_master_access(~(ulong)0);
+  // Skip grants and set the system_user flag in THD.
+  thd->security_context()->skip_grants();
 
   thd->set_new_thread_id();
 
@@ -383,6 +384,12 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   */
   thd->variables.explicit_defaults_for_timestamp =
       intern_find_sys_var("explicit_defaults_for_timestamp", 0)->get_default();
+
+  /*
+    The global table encryption default setting applies to user threads.
+    Setting it false for system threads.
+  */
+  thd->variables.default_table_encryption = false;
 
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);

@@ -388,6 +388,7 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -402,6 +403,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_servers.h"  // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"
+#include "unsafe_string_append.h"
 
 using std::max;
 using std::min;
@@ -914,6 +916,9 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
 
   lengths = mysql_fetch_lengths(result);
 
+  // Clear BLOB data from the previous row.
+  m_blob_root.ClearForReuse();
+
   for (field = table->field; *field; field++, row++, lengths++) {
     /*
       index variable to move us through the row at the
@@ -928,7 +933,31 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
     } else {
       if (bitmap_is_set(table->read_set, (*field)->field_index)) {
         (*field)->set_notnull();
-        (*field)->store(*row, *lengths, &my_charset_bin);
+
+        // Field_json::store expects the incoming data to be in utf8mb4_bin, so
+        // we override the character set in those cases.
+        if ((*field)->type() == MYSQL_TYPE_JSON) {
+          (*field)->store(*row, *lengths, &my_charset_utf8mb4_bin);
+        } else {
+          (*field)->store(*row, *lengths, &my_charset_bin);
+        }
+
+        if ((*field)->flags & BLOB_FLAG) {
+          Field_blob *blob_field = down_cast<Field_blob *>(*field);
+          size_t length = blob_field->get_length(blob_field->ptr);
+          // BLOB data is not stored inside record. It only contains a
+          // pointer to it. Copy the BLOB data into a separate memory
+          // area so that it is not overwritten by subsequent calls to
+          // Field::store() after moving the offset.
+          if (length > 0) {
+            unsigned char *old_blob;
+            blob_field->get_ptr(&old_blob);
+            unsigned char *new_blob = new (&m_blob_root) unsigned char[length];
+            if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+            memcpy(new_blob, old_blob, length);
+            blob_field->set_ptr(length, new_blob);
+          }
+        }
       }
     }
     (*field)->move_field_offset(-old_ptr);
@@ -2038,10 +2067,20 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
       else {
         bool needs_quote = (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
+
+        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
+        if (is_json) {
+          where_string.append("CAST(");
+        }
+
         (*field)->val_str(&field_value, (old_data + (*field)->offset(record)));
         if (needs_quote) where_string.append(value_quote_char);
         field_value.print(&where_string);
         if (needs_quote) where_string.append(value_quote_char);
+
+        if (is_json) {
+          where_string.append(" AS JSON)");
+        }
         field_value.length(0);
       }
       where_string.append(STRING_WITH_LEN(" AND "));
@@ -2114,10 +2153,20 @@ int ha_federated::delete_row(const uchar *) {
       } else {
         bool needs_quote = cur_field->str_needs_quotes();
         delete_string.append(STRING_WITH_LEN(" = "));
+
+        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
+        if (is_json) {
+          delete_string.append("CAST(");
+        }
+
         cur_field->val_str(&data_string);
         if (needs_quote) delete_string.append(value_quote_char);
         data_string.print(&delete_string);
         if (needs_quote) delete_string.append(value_quote_char);
+
+        if (is_json) {
+          delete_string.append(" AS JSON)");
+        }
       }
       delete_string.append(STRING_WITH_LEN(" AND "));
     }
@@ -2401,6 +2450,7 @@ int ha_federated::index_end(void) {
   DBUG_ENTER("ha_federated::index_end");
   free_result();
   active_index = MAX_KEY;
+  m_blob_root.Clear();
   DBUG_RETURN(0);
 }
 
@@ -2622,16 +2672,16 @@ int ha_federated::info(uint flag) {
       delete_length = ?
     */
     if (row[4] != NULL)
-      stats.records = (ha_rows)my_strtoll10(row[4], (char **)0, &error);
+      stats.records = (ha_rows)my_strtoll10(row[4], nullptr, &error);
     if (row[5] != NULL)
-      stats.mean_rec_length = (ulong)my_strtoll10(row[5], (char **)0, &error);
+      stats.mean_rec_length = (ulong)my_strtoll10(row[5], nullptr, &error);
 
     stats.data_file_length = stats.records * stats.mean_rec_length;
 
     if (row[12] != NULL)
-      stats.update_time = (ulong)my_strtoll10(row[12], (char **)0, &error);
+      stats.update_time = (ulong)my_strtoll10(row[12], nullptr, &error);
     if (row[13] != NULL)
-      stats.check_time = (ulong)my_strtoll10(row[13], (char **)0, &error);
+      stats.check_time = (ulong)my_strtoll10(row[13], nullptr, &error);
 
     /*
       size of IO operations (This is based on a good guess, no high science
@@ -2919,7 +2969,7 @@ int ha_federated::real_connect() {
                        static_cast<ulong>(sql_query.length()))) {
     sql_query.length(0);
     sql_query.append("error: ");
-    sql_query.qs_append(mysql_errno(mysql));
+    qs_append(mysql_errno(mysql), &sql_query);
     sql_query.append("  '");
     sql_query.append(mysql_error(mysql));
     sql_query.append("'");
@@ -2975,7 +3025,7 @@ bool ha_federated::get_error_message(int error, String *buf) {
   DBUG_PRINT("enter", ("error: %d", error));
   if (error == HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM) {
     buf->append(STRING_WITH_LEN("Error on remote system: "));
-    buf->qs_append(remote_error_number);
+    qs_append(remote_error_number, buf);
     buf->append(STRING_WITH_LEN(": "));
     buf->append(remote_error_buf);
 

@@ -47,7 +47,7 @@ class AuthenticationTestSuite : public Test {
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _))
         .WillByDefault(Return(default_error));
     EXPECT_CALL(mock_connection, get_type())
-        .WillRepeatedly(Return(ngs::Connection_tls));
+        .WillRepeatedly(Return(Connection_tls));
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_session, data_context())

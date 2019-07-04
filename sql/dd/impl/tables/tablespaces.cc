@@ -45,10 +45,21 @@ Tablespaces::Tablespaces() {
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-  // We allow name lengths up to 259 bytes, which may be needed for InnoDB
-  // implicit tablespaces (schema + table + partition + subpartition).
-  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(259) NOT NULL COLLATE utf8_bin");
+  /*
+    We allow name lengths up to 268 bytes, which is needed for InnoDB
+    tablespace naming convention. The following explains the name format,
+
+      <dbname> +'/'+ <tablename> +'#p#'+ <partitionname>
+               +'#sp#'+ <subpartion_name> +'#tmp'
+    Note: #tmp is appended during ALTER TABLE.
+
+    Which accounts to total of 268 characters, considering the identifier
+    names as 64 characters.
+  */
+  m_target_def.add_field(
+      FIELD_NAME, "FIELD_NAME",
+      "name VARCHAR(268) NOT NULL COLLATE " +
+          String_type(Object_table_definition_impl::name_collation()->name));
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
   m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");
@@ -71,7 +82,8 @@ Tablespace *Tablespaces::create_entity_object(const Raw_record &) const {
 
 bool Tablespaces::update_object_key(Global_name_key *key,
                                     const String_type &tablespace_name) {
-  key->update(FIELD_NAME, tablespace_name);
+  key->update(FIELD_NAME, tablespace_name,
+              Object_table_definition_impl::name_collation());
   return false;
 }
 

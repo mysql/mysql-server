@@ -90,6 +90,13 @@ class Primary_election_primary_process : public Group_event_observer {
   */
   int primary_election_process_handler();
 
+  /**
+    Sets the component stop timeout.
+
+    @param[in]  timeout      the timeout
+  */
+  void set_stop_wait_timeout(ulong timeout);
+
  private:
   // The listeners for group events
 
@@ -142,6 +149,9 @@ class Primary_election_primary_process : public Group_event_observer {
 
   /** The stage handler for progress reporting */
   Plugin_stage_monitor_handler *stage_handler;
+
+  /* Component stop timeout on shutdown */
+  ulong stop_wait_timeout;
 
   // Run thread locks and conditions
 

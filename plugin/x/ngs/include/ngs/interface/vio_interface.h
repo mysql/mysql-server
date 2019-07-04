@@ -32,7 +32,7 @@
 #include "mysql/psi/psi_socket.h"
 #include "violite.h"
 
-#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/io/connection_type.h"
 
 namespace ngs {
 
@@ -50,7 +50,7 @@ class Vio_interface {
   virtual void set_thread_owner() = 0;
 
   virtual my_socket get_fd() = 0;
-  virtual Connection_type get_type() = 0;
+  virtual xpl::Connection_type get_type() = 0;
   virtual sockaddr_storage *peer_addr(std::string &address, uint16 &port) = 0;
 
   virtual int shutdown() = 0;

@@ -218,12 +218,26 @@ class partition_info {
 
   /*
     If there is no subpartitioning, use only this func to get partition ids.
-    If there is subpartitioning, use the this func to get partition id when
-    you have both partition and subpartition fields.
+
+    If there is subpartitioning use this to get the partition_id which will
+    consider the subpartition as well. See the below example
+
+    A table with 3 partition and 0 subpartition then the return value will
+    lie in the range of [0, 2]
+
+    A table with 3 partition and 3 subpartition then the return value will
+    lie in the range of [0, 8(no of partition X no of sub_partition -1)].
   */
   get_part_id_func get_partition_id;
 
-  /* Get partition id when we don't have subpartition fields */
+  /* Get partition id when we don't have subpartitioning
+     OR
+     Have both partition and subpartition fields but we don't want to consider
+     the subpartitions.
+     For example:
+     A table with 3 partition and 3 subpartition then the return value will
+     lie in the range of [0, 2].
+  */
   get_part_id_func get_part_partition_id;
 
   /*
@@ -275,7 +289,7 @@ class partition_info {
   Item *part_expr;
   Item *subpart_expr;
 
-  Item *item_free_list;
+  Item *item_list;
 
   /*
     Bitmaps of partitions used by the current query.
@@ -297,7 +311,7 @@ class partition_info {
       locked, so that it can unlock them later). In case of LOCK TABLES it will
       lock all partitions, and keep them locked while lock_partitions can
       change for each statement under LOCK TABLES.
-    * Freed at the same time item_free_list is freed.
+    * Freed at the same time item_list is freed.
   */
   MY_BITMAP read_partitions;
   MY_BITMAP lock_partitions;
@@ -411,7 +425,7 @@ class partition_info {
         restore_subpart_field_ptrs(NULL),
         part_expr(NULL),
         subpart_expr(NULL),
-        item_free_list(NULL),
+        item_list(NULL),
         bitmaps_are_initialized(false),
         list_array(NULL),
         err_value(0),
@@ -452,7 +466,6 @@ class partition_info {
     part_field_list.empty();
     subpart_field_list.empty();
   }
-  ~partition_info() {}
 
   partition_info *get_clone(THD *thd, bool reset = false);
   partition_info *get_full_clone(THD *thd);

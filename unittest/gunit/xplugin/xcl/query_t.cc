@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -245,125 +245,153 @@ class Query_active_test_suite : public Query_test_suite {
   }
 };
 
+using Done_messages = ::testing::Types<::Mysqlx::Resultset::FetchDone,
+                                       ::Mysqlx::Resultset::FetchSuspended>;
+
+template <typename T>
 class Query_active_destructor_cleanup_test_suite
     : public Query_active_test_suite {};
 
-TEST_F(Query_active_destructor_cleanup_test_suite, consumes_stmt_execute_ok) {
+TYPED_TEST_CASE(Query_active_destructor_cleanup_test_suite, Done_messages);
+
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_stmt_execute_ok) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite, consumes_done_and_ok) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite, consumes_done_and_ok) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite,
-       consumes_meta_data_and_done_and_ok) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_meta_data_and_done_and_ok) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite,
-       consumes_meta_data_and_row_and_done_and_ok) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_meta_data_and_row_and_done_and_ok) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite, consumes_two_resultsets) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_two_resultsets) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
-  expect_recv_message<::Mysqlx::Resultset::FetchDoneMoreResultsets>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreResultsets>("");
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111'");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite,
-       consumes_resultset_outparams) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_resultset_outparams) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
-  expect_recv_message<::Mysqlx::Resultset::FetchDoneMoreOutParams>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreOutParams>("");
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111'");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite,
-       consumes_multiple_resultset_outparams) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_multiple_resultset_outparams) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
       "type:SINT name:'first'");
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
       "type:UINT name:'second'");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1' field:'2'");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'3' field:'4'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDoneMoreResultsets>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'1' field:'2'");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'3' field:'4'");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreResultsets>("");
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
       "type:SINT name:'next_1'");
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
       "type:UINT name:'next_2'");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'5' field:'6'");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'8' field:'8'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDoneMoreOutParams>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'5' field:'6'");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'8' field:'8'");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreOutParams>("");
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'2'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDoneMoreOutParams>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'2'");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreOutParams>("");
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'2'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'2'");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite, consumes_error) {
-  expect_recv_message<::Mysqlx::Error>("code:1 sql_state:'' msg:'error'");
-  expect_query_finish();
+TYPED_TEST(Query_active_destructor_cleanup_test_suite, consumes_error) {
+  this->template expect_recv_message<::Mysqlx::Error>(
+      "code:1 sql_state:'' msg:'error'");
+  this->expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite, consumes_error_after_meta) {
+TYPED_TEST(Query_active_destructor_cleanup_test_suite,
+           consumes_error_after_meta) {
   InSequence s;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
       "type:SINT name:'first'");
-  expect_recv_message<::Mysqlx::Error>("code:1 sql_state:'' msg:'error'");
-  expect_query_finish();
+  this->template expect_recv_message<::Mysqlx::Error>(
+      "code:1 sql_state:'' msg:'error'");
+  this->expect_query_finish();
 }
 
 using Unexpected_messages =
@@ -461,94 +489,256 @@ TEST_F(Query_active_test_suite, no_resultset_at_call_get_next_row) {
   verifyQuery_state_is_done();
 }
 
-TEST_F(Query_active_test_suite, fetch_one_resultset) {
+template <typename T>
+class Query_active_test_suite_typed_param : public Query_active_test_suite {};
+
+TYPED_TEST_CASE(Query_active_test_suite_typed_param, Done_messages);
+
+TYPED_TEST(Query_active_test_suite_typed_param, fetch_one_resultset) {
   InSequence s;
   XError out_error;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111'");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:''");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111'");
+  this->template expect_recv_message<TypeParam>("");
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
 
-  expect_query_finish();
+  this->expect_query_finish();
 
-  ASSERT_TRUE(m_sut->has_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
   ASSERT_FALSE(out_error);
-  ASSERT_EQ(2, m_sut->get_metadata(&out_error).size());
-  ASSERT_FALSE(out_error);
-
-  ASSERT_NE(nullptr, m_sut->get_next_row(&out_error));
-  ASSERT_FALSE(out_error);
-
-  ASSERT_NE(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_EQ(2, this->m_sut->get_metadata(&out_error).size());
   ASSERT_FALSE(out_error);
 
-  ASSERT_EQ(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
   ASSERT_FALSE(out_error);
 
-  ASSERT_FALSE(m_sut->next_resultset(&out_error));
-  ASSERT_FALSE(m_sut->has_resultset(&out_error));
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
 
-  verifyMocks();
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
 
-  verifyQuery_state_is_done();
+  ASSERT_FALSE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+
+  this->verifyMocks();
+
+  this->verifyQuery_state_is_done();
 }
 
-TEST_F(Query_active_test_suite, fetch_two_resultsetss) {
+TYPED_TEST(Query_active_test_suite_typed_param, fetch_two_resultsets) {
   InSequence s;
   XError out_error;
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'' field:''");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'1111' field:''");
-  expect_recv_message<::Mysqlx::Resultset::FetchDoneMoreResultsets>("");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreResultsets>();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
 
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:DOUBLE");
-  expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:UINT");
-  expect_recv_message<::Mysqlx::Resultset::Row>("field:'' field:'' field:''");
-  expect_recv_message<::Mysqlx::Resultset::FetchDone>("");
+  this->expect_query_finish();
 
-  expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(out_error);
+  ASSERT_EQ(0, this->m_sut->get_metadata(&out_error).size());
+  ASSERT_FALSE(out_error);
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
 
-  expect_query_finish();
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+
+  ASSERT_TRUE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
+
+  ASSERT_FALSE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
+
+  this->verifyMocks();
+
+  this->verifyQuery_state_is_done();
+}
+
+TYPED_TEST(Query_active_test_suite_typed_param,
+           fetch_empty_resultset_and_empty_out_param) {
+  InSequence s;
+  XError out_error;
+
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreOutParams>();
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+
+  this->expect_query_finish();
+
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
+  ASSERT_FALSE(out_error);
+  ASSERT_EQ(0, this->m_sut->get_metadata(&out_error).size());
+  ASSERT_FALSE(out_error);
+
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+
+  ASSERT_TRUE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->is_out_parameter_resultset());
+
+  ASSERT_FALSE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+
+  this->verifyMocks();
+
+  this->verifyQuery_state_is_done();
+}
+
+TYPED_TEST(Query_active_test_suite_typed_param,
+           fetch_resultset_and_empty_out_param) {
+  InSequence s;
+  XError out_error;
+
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'2'");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreOutParams>();
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+
+  this->expect_query_finish();
+
+  ASSERT_TRUE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->is_out_parameter_resultset());
+  ASSERT_FALSE(out_error);
+  ASSERT_EQ(1, this->m_sut->get_metadata(&out_error).size());
+  ASSERT_FALSE(out_error);
+
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+
+  ASSERT_TRUE(this->m_sut->next_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->has_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->is_out_parameter_resultset());
+
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+
+  ASSERT_FALSE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+
+  this->verifyMocks();
+
+  this->verifyQuery_state_is_done();
+}
+
+TYPED_TEST(Query_active_test_suite_typed_param,
+           fetch_resultset_and_empty_out_param_skip_data) {
+  InSequence s;
+  XError out_error;
+
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'2'");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreOutParams>();
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>("field:'1'");
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+
+  this->expect_query_finish();
+
+  ASSERT_TRUE(this->m_sut->has_resultset(&out_error));
+  ASSERT_FALSE(out_error);
+
+  ASSERT_TRUE(this->m_sut->next_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->has_resultset(&out_error));
+
+  ASSERT_FALSE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+
+  this->verifyMocks();
+
+  this->verifyQuery_state_is_done();
+}
+
+TYPED_TEST(Query_active_test_suite_typed_param, fetch_two_resultsetss) {
+  InSequence s;
+  XError out_error;
+
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'' field:''");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'1111' field:''");
+  this->template expect_recv_message<
+      ::Mysqlx::Resultset::FetchDoneMoreResultsets>("");
+
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:SINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:DOUBLE");
+  this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
+      "type:UINT");
+  this->template expect_recv_message<::Mysqlx::Resultset::Row>(
+      "field:'' field:'' field:''");
+  this->template expect_recv_message<TypeParam>("");
+
+  this->template expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
+
+  this->expect_query_finish();
 
   // First resultset
-  ASSERT_TRUE(m_sut->has_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->has_resultset(&out_error));
   ASSERT_FALSE(out_error);
-  ASSERT_EQ(2, m_sut->get_metadata(&out_error).size());
-  ASSERT_FALSE(out_error);
-
-  ASSERT_NE(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_EQ(2, this->m_sut->get_metadata(&out_error).size());
   ASSERT_FALSE(out_error);
 
-  ASSERT_NE(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
   ASSERT_FALSE(out_error);
 
-  ASSERT_EQ(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
+
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
   ASSERT_FALSE(out_error);
 
   // Second resultset
-  ASSERT_TRUE(m_sut->next_resultset(&out_error));
+  ASSERT_TRUE(this->m_sut->next_resultset(&out_error));
   ASSERT_FALSE(out_error);
-  ASSERT_EQ(3, m_sut->get_metadata(&out_error).size());
-  ASSERT_FALSE(out_error);
-
-  ASSERT_NE(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_EQ(3, this->m_sut->get_metadata(&out_error).size());
   ASSERT_FALSE(out_error);
 
-  ASSERT_EQ(nullptr, m_sut->get_next_row(&out_error));
+  ASSERT_NE(nullptr, this->m_sut->get_next_row(&out_error));
   ASSERT_FALSE(out_error);
 
-  ASSERT_FALSE(m_sut->next_resultset(&out_error));
-  ASSERT_FALSE(m_sut->has_resultset(&out_error));
+  ASSERT_EQ(nullptr, this->m_sut->get_next_row(&out_error));
+  ASSERT_FALSE(out_error);
 
-  verifyMocks();
-  verifyQuery_state_is_done();
+  ASSERT_FALSE(this->m_sut->next_resultset(&out_error));
+  ASSERT_FALSE(this->m_sut->has_resultset(&out_error));
+
+  this->verifyMocks();
+  this->verifyQuery_state_is_done();
 }
 
 }  // namespace test

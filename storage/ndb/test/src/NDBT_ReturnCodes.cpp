@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,9 @@ const char* rcodeToChar(int rcode){
   case NDBT_TEMPORARY:
     return "Temporary error";
     break;
-    
+  case NDBT_SKIPPED:
+    return "Skipped";
+    break;
   default:
     return "Unknown";
     break;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "my_systime.h"  // get_date
 #include "my_thread_local.h"
 #include "mysys_err.h"
 #include "storage/myisam/myisam_sys.h"
@@ -131,8 +132,7 @@ int my_copystat(const char *from, const char *to, int MyFlags) {
     struct utimbuf timep;
     timep.actime = statbuf.st_atime;
     timep.modtime = statbuf.st_mtime;
-    (void)utime((char *)to,
-                &timep); /* Update last accessed and modified times */
+    (void)utime(to, &timep); /* Update last accessed and modified times */
   }
 
   return 0;

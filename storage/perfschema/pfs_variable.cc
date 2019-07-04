@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+    DEBUG_SYNC(m_current_thd, "materialize_session_variable_array_THD_locked");
     for (Show_var_array::iterator show_var = m_show_var_array.begin();
          show_var->value && (show_var != m_show_var_array.end()); show_var++) {
       /* Resolve value, convert to text, add to cache. */
@@ -930,6 +931,9 @@ bool PFS_status_variable_cache::can_aggregate(
     case SHOW_INT:
     case SHOW_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_INT:
+    case SHOW_SIGNED_LONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_DOUBLE:
     /* Server only */
     case SHOW_HAVE:
@@ -941,7 +945,6 @@ bool PFS_status_variable_cache::can_aggregate(
     case SHOW_DOUBLE_STATUS:
     case SHOW_HA_ROWS:
     case SHOW_LONG_NOFLUSH:
-    case SHOW_SIGNED_LONG:
     default:
       return false;
       break;
@@ -1365,8 +1368,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
   for (const SHOW_VAR *show_var_iter = show_var_array;
        show_var_iter && show_var_iter->name; show_var_iter++) {
     // work buffer, must be aligned to handle long/longlong values
-    my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE + 1, MY_ALIGNOF(longlong)>
-        value_buf;
+    alignas(longlong) char value_buf[SHOW_VAR_FUNC_BUFF_SIZE + 1];
     SHOW_VAR show_var_tmp;
     const SHOW_VAR *show_var_ptr = show_var_iter; /* preserve array pointer */
 
@@ -1383,7 +1385,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
       */
       for (const SHOW_VAR *var = show_var_ptr; var->type == SHOW_FUNC;
            var = &show_var_tmp) {
-        ((mysql_show_var_func)(var->value))(thd, &show_var_tmp, value_buf.data);
+        ((mysql_show_var_func)(var->value))(thd, &show_var_tmp, value_buf);
       }
       show_var_ptr = &show_var_tmp;
     }
@@ -1513,8 +1515,6 @@ void reset_pfs_status_stats() {
   reset_status_by_account();
   reset_status_by_user();
   reset_status_by_host();
-  /* Clear again, updated by previous aggregations. */
-  reset_global_status();
 }
 
 /**

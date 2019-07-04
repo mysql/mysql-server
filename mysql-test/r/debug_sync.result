@@ -242,12 +242,12 @@ connection default
 DROP USER mysqltest_1@localhost;
 CREATE USER mysqltest_2@localhost;
 GRANT ALL ON *.* TO mysqltest_2@localhost;
-REVOKE SUPER,SYSTEM_VARIABLES_ADMIN ON *.* FROM mysqltest_2@localhost;
+REVOKE SUPER,SYSTEM_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN ON *.* FROM mysqltest_2@localhost;
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
 connection con1, mysqltest_2
 SET DEBUG_SYNC= 'RESET';
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 connection default
 DROP USER mysqltest_2@localhost;
 SET DEBUG_SYNC= 'RESET';

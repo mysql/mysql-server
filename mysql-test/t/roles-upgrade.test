@@ -1,20 +1,4 @@
 -- source include/no_valgrind_without_big.inc
--- source include/mysql_upgrade_preparation.inc
-
-#
-# Basic test that we can run mysql_upgrde and that it finds the
-# expected binaries it uses.
-#
---echo Run mysql_upgrade once
-# Filter out ndb_binlog_index to mask differences due to running with or without
-# ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
-
-# It should have created a file in the MySQL Servers datadir
-let $MYSQLD_DATADIR= `select @@datadir`;
-file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 --echo #
 --echo # Bug#24447771 ACL_INIT() RETURNS TRUE ON 5.7 DATA DIRECTORY
@@ -34,7 +18,7 @@ let restart_parameters=restart:--log-error=$server_log;
 # $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
-let SEARCH_FILE= $server_log;
+--let SEARCH_FILE= $server_log
 
 --let SEARCH_PATTERN= ACL table mysql.role_edges missing. Some operations may fail.
 --source include/search_pattern.inc
@@ -55,8 +39,10 @@ GRANT SELECT ON *.* TO u1;
 --echo # Run mysql_upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or without
 # ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$server_log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 SHOW CREATE TABLE mysql.role_edges;
 SHOW CREATE TABLE mysql.default_roles;

@@ -3,7 +3,6 @@ set @@global.concurrent_insert= 0;
 SET @old_log_output = @@global.log_output;
 SET GLOBAL LOG_OUTPUT = 'FILE';
 flush status;
-DROP VIEW IF EXISTS v1;
 CREATE VIEW v1 AS SELECT VARIABLE_NAME AS NAME, CONVERT(VARIABLE_VALUE, UNSIGNED) AS VALUE FROM performance_schema.global_status;
 SELECT VALUE INTO @tc FROM v1 WHERE NAME = 'Threads_connected';
 SELECT NAME FROM v1 WHERE NAME = 'Threads_created' AND VALUE < @tc;

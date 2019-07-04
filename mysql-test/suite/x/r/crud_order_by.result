@@ -1,34 +1,31 @@
-RUN drop schema if exists xtest
-
-0 rows affected
 RUN create schema xtest
 
 1 rows affected
 RUN use xtest
 
 0 rows affected
-RUN create table xcoll (doc JSON)
+RUN create table xtable (doc JSON)
 
 0 rows affected
-RUN insert into xcoll (doc) values ('{"numeric": 2, "string": "2"}')
+RUN insert into xtable (doc) values ('{"numeric": 2, "string": "2"}')
 
 1 rows affected
-RUN insert into xcoll (doc) values ('{"numeric": 70, "string": "70"}')
+RUN insert into xtable (doc) values ('{"numeric": 70, "string": "70"}')
 
 1 rows affected
-RUN insert into xcoll (doc) values ('{"numeric": 5, "string": "5"}')
+RUN insert into xtable (doc) values ('{"numeric": 5, "string": "5"}')
 
 1 rows affected
-RUN insert into xcoll (doc) values ('{"numeric": 10, "string": "10"}')
+RUN insert into xtable (doc) values ('{"numeric": 10, "string": "10"}')
 
 1 rows affected
-RUN insert into xcoll (doc) values ('{"numeric": 1, "string": "1"}')
+RUN insert into xtable (doc) values ('{"numeric": 1, "string": "1"}')
 
 1 rows affected
-RUN insert into xcoll (doc) values ('{"numeric": 30, "string": "30"}')
+RUN insert into xtable (doc) values ('{"numeric": 30, "string": "30"}')
 
 1 rows affected
-RUN SELECT * FROM xtest.xcoll
+RUN SELECT * FROM xtest.xtable
 doc
 {"string": "2", "numeric": 2}
 {"string": "70", "numeric": 70}
@@ -39,7 +36,7 @@ doc
 0 rows affected
 send Mysqlx.Crud.Find {
   collection {
-    name: "xcoll"
+    name: "xtable"
     schema: "xtest"
   }
   data_model: TABLE
@@ -66,7 +63,7 @@ doc
 command ok
 send Mysqlx.Crud.Find {
   collection {
-    name: "xcoll"
+    name: "xtable"
     schema: "xtest"
   }
   data_model: TABLE
@@ -91,10 +88,8 @@ doc
 {"string": "5", "numeric": 5}
 {"string": "70", "numeric": 70}
 command ok
-RUN drop schema if exists xtest
-
-1 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+drop schema if exists xtest;

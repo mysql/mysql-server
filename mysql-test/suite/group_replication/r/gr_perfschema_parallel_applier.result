@@ -59,6 +59,7 @@ HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
+NETWORK_NAMESPACE	
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -253,6 +254,7 @@ HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
+NETWORK_NAMESPACE	
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

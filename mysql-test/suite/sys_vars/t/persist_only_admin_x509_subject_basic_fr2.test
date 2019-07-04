@@ -1,0 +1,37 @@
+-- source include/have_ssl.inc
+-- source include/have_openssl.inc
+
+--echo #
+--echo # Tests for WL#12086: Cryptographically signed SET statements
+--echo #
+
+--echo # Testing FR2
+
+--echo # must be /C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
+SELECT @@GLOBAL.persist_only_admin_x509_subject;
+let $persist_only_admin_x509_subject_vars_result= 0;
+source ../inc/persist_only_admin_x509_subject_vars.inc;
+
+--let $MYSQL_DATA_DIR = `select @@datadir`
+
+--echo # Cleanup
+RESET PERSIST;
+--remove_file $MYSQL_DATA_DIR/mysqld-auto.cnf
+
+--echo #
+--echo # BUG#28589736: PID_FILE OPTION MUST NOT HAVE DEFAULT VALUE AS NULL
+--echo #
+
+--let $MYSQL_DATA_DIR = `SELECT @@datadir`
+--let $PID_FILE = `SELECT @@pid_file`
+SET PERSIST_ONLY pid_file = DEFAULT;
+
+--let $assert_file = $MYSQL_DATA_DIR/mysqld-auto.cnf
+--let $assert_text = Check mysqld-auto.cnf for "pid_file" value
+--let $assert_select = $PID_FILE
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # Cleanup
+RESET PERSIST;
+--remove_file $MYSQL_DATA_DIR/mysqld-auto.cnf

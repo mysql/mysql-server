@@ -39,7 +39,10 @@ call mtr.add_suppression("Access denied for user .*");
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp
--->import ssl.macro
+-->import connection.macro
+-->noquery_result
+-->recvmessage Mysqlx.Notice.Frame {type:5}
+-->query_result
 Mysqlx.Connection.CapabilitiesGet {
 }
 -->recv capabilities[0]
@@ -56,6 +59,9 @@ EOF
 --write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
 -->echo # setting read/write tls param with possible invalid data types:
 -->echo # V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING
+-->noquery_result
+-->recvmessage Mysqlx.Notice.Frame {type:5}
+-->query_result
 Mysqlx.Connection.CapabilitiesGet {
 }
 -->recv capabilities[0]

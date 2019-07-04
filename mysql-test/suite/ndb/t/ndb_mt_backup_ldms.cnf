@@ -1,0 +1,32 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+ndbd=,,,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+
+[cluster_config.ndbd.1.1]
+NoOfFragmentLogParts = 4
+ThreadConfig=main={count=1},tc={count=3},ldm={count=2},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+[cluster_config.ndbd.2.1]
+NoOfFragmentLogParts = 4
+ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+[cluster_config.ndbd.3.1]
+NoOfFragmentLogParts = 8
+ThreadConfig=main={count=1},tc={count=3},ldm={count=6},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+[cluster_config.ndbd.4.1]
+NoOfFragmentLogParts = 8
+ThreadConfig=main={count=1},tc={count=3},ldm={count=8},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+[cluster_config.ndbd.5.1]
+NoOfFragmentLogParts = 16
+ThreadConfig=main={count=1},tc={count=3},ldm={count=10},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+[cluster_config.ndbd.6.1]
+NoOfFragmentLogParts = 16
+ThreadConfig=main={count=1},tc={count=3},ldm={count=12},io={count=1},rep={count=1},recv={count=2},send={count=2}

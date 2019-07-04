@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_class.h>
 #include "btr0bulk.h"
 #include "dict0crea.h"
+#include "dict0dd.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "handler0alter.h"
@@ -58,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0stage.h"
 
 #include "my_dbug.h"
+#include "sql/table.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32

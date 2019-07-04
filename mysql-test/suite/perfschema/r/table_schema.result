@@ -185,6 +185,7 @@ def	performance_schema	events_statements_current	NO_GOOD_INDEX_USED	38	NULL	NO	b
 def	performance_schema	events_statements_current	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	performance_schema	events_statements_current	STATEMENT_ID	42	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	DIGEST	2	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
@@ -240,6 +241,7 @@ def	performance_schema	events_statements_history	NO_GOOD_INDEX_USED	38	NULL	NO	b
 def	performance_schema	events_statements_history	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	performance_schema	events_statements_history	STATEMENT_ID	42	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
@@ -281,6 +283,7 @@ def	performance_schema	events_statements_history_long	NO_GOOD_INDEX_USED	38	NULL
 def	performance_schema	events_statements_history_long	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	performance_schema	events_statements_history_long	STATEMENT_ID	42	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	HOST	2	NULL	YES	char	60	240	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(60)			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
@@ -821,6 +824,9 @@ def	performance_schema	host_cache	FIRST_SEEN	26	0000-00-00 00:00:00	NO	timestamp
 def	performance_schema	host_cache	LAST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	host_cache	LAST_ERROR_SEEN	29	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	keyring_keys	KEY_ID	1	NULL	NO	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	keyring_keys	KEY_OWNER	2	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	keyring_keys	BACKEND_KEY_ID	3	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	varchar(255)			select,insert,update,references			NULL
 def	performance_schema	log_status	SERVER_UUID	1	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	log_status	LOCAL	2	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references			NULL
 def	performance_schema	log_status	REPLICATION	3	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references			NULL
@@ -1024,6 +1030,7 @@ def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	1
 def	performance_schema	replication_connection_configuration	TLS_VERSION	19	NULL	NO	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	PUBLIC_KEY_PATH	20	NULL	NO	varchar	512	2048	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(512)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	GET_PUBLIC_KEY	21	NULL	NO	enum	3	12	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('YES','NO')			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	NETWORK_NAMESPACE	22	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL

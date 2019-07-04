@@ -134,8 +134,6 @@ switches to loop with sleeps. The sleep time is multiplied by two after
 every k-sleeps, until it reaches 100ms (starting at provided value).
 @param[in]	spins_limit		maximum iterations without sleep
 @param[in]	sleep			initial sleep time in microseconds
-@param[in]	sleep_mul2_every	number of sleeps every which sleep
-                                        is multiplied by two
 @param[in]	condition		returns true when condition is
                                         satisfied
 @return		number of loops with sleep that have been used */

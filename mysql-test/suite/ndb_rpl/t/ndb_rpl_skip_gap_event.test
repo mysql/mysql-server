@@ -36,6 +36,10 @@ call mtr.add_suppression("mysqld startup An incident event has been written");
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
+# Reconnect all clients configured by rpl_init
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
 # When mysqld starts up again it will:
 # - rotate the binary log(thus switching to second log)
 # - ndbcluster binlog injector will write the special incident
@@ -78,9 +82,5 @@ select count(*) from t1;
 --connection master
 drop table t1;
 
---sync_slave_with_master
-
-# NOTE: rpl_end.inc doesnt seem to work after having used restart_mysqld.inc
-# or something like that...probably needs investigation
---connection slave
---source include/stop_slave.inc
+# Cleanup Replication
+--source include/rpl_end.inc

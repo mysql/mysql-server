@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <functional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #ifndef _WIN32
@@ -188,42 +189,6 @@ std::pair<std::string, uint16_t> split_addr_port(const std::string data);
  */
 uint16_t get_tcp_port(const std::string &data);
 
-/** @brief Splits a string using a delimiter
- *
- * Splits a string using the given delimiter. When allow_empty
- * is true (default), tokens can be empty, and will be included
- * as empty in the result.
- *
- * @param data a string to split
- * @param delimiter a char used as delimiter
- * @param allow_empty whether to allow empty tokens or not (default true)
- * @return std::vector<string> containing tokens
- */
-std::vector<std::string> split_string(const std::string &data,
-                                      const char delimiter,
-                                      bool allow_empty = true);
-
-/**
- * Removes leading whitespaces from the string
- *
- * @param str the string to be trimmed
- */
-void left_trim(std::string &str);
-
-/**
- * Removes trailing whitespaces from the string
- *
- * @param str the string to be trimmed
- */
-void right_trim(std::string &str);
-
-/**
- * Removes both leading and trailing whitespaces from the string
- *
- * @param str the string to be trimmed
- */
-void trim(std::string &str);
-
 /** @brief Dumps buffer as hex values
  *
  * Debugging function which dumps the given buffer as hex values
@@ -266,6 +231,10 @@ void set_prompt_password(
 bool is_running_as_service();
 
 /** @brief Writes to the Windows event log.
+ *
+ * @param msg Message to log
+ *
+ * @throws std::runtime_error in case of an error
  */
 void write_windows_event_log(const std::string &msg);
 
@@ -319,8 +288,6 @@ std::vector<std::string> wrap_string(const std::string &str, size_t width,
                                      size_t indent);
 
 bool my_check_access(const std::string &path);
-
-int mkdir(const std::string &dir, perm_mode mode);
 
 /** @brief Copy contents of one file to another.
  *

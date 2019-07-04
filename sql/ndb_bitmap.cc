@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,3 +23,22 @@
 */
 
 #include "sql/ndb_bitmap.h"
+
+#include <sstream>
+#include <iomanip>
+
+std::string ndb_bitmap_to_hex_string(const MY_BITMAP *bitmap) {
+  std::ostringstream os;
+  os << "{";
+
+  const char* separator = "";
+  // The MY_BITMAP buffer size is always rounded up to 32 bit words, print
+  // word by word
+  for (size_t i = no_words_in_map(bitmap); i-- > 0;) {
+    os << separator << std::hex << std::setw(8) << std::setfill('0')
+       << bitmap->bitmap[i];
+    separator = " ";
+  }
+  os << "}";
+  return os.str();
+}

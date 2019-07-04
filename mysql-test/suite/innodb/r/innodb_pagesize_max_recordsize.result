@@ -2,7 +2,7 @@
 # create bootstrap file
 # Run the bootstrap command with page size 32k
 # Start the DB server with page size 32k
-# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2
 SET innodb_strict_mode=ON;
 SELECT @@innodb_page_size;
 @@innodb_page_size
@@ -129,14 +129,14 @@ DROP TABLE tab5;
 # Check Server startup failure when page size 64K
 Pattern "\[Warning\] .*MY-\d+.* innodb-page-size has been changed from the default value 16384 to 32768" found
 # Restart the DB server with datadir1 with same 32k page size 
-# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 32768
 # Stop DB server which was created by page size 32k
 # Run the bootstrap command with page size 64k
 # Start the DB server with page size 64K
-# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 65536

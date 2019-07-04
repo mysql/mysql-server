@@ -154,7 +154,6 @@ show variables like 'max_error_count';
 Variable_name	Value
 max_error_count	0
 update ignore t1 set b='hi';
-Warnings:
 select @@warning_count;
 @@warning_count
 50

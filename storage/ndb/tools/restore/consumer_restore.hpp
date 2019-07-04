@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,21 +61,13 @@ struct PromotionRules {
 class BackupRestore : public BackupConsumer 
 {
 public:
-  BackupRestore(const char* ndb_connectstring,
-                int ndb_nodeid,
+  BackupRestore(Ndb_cluster_connection *conn,
                 NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
-                int backup_nodeid,
-                Uint32 parallelism,
-                int ndb_connect_retry_delay,
-                int ndb_connect_retries
-                ) :
+                const char *instance_name,
+                Uint32 parallelism) :
     m_ndb(NULL),
-    m_cluster_connection(NULL),
-    m_ndb_connectstring(ndb_connectstring),
-    m_ndb_connect_retry_delay(ndb_connect_retry_delay),
-    m_ndb_connect_retries(ndb_connect_retries),
-    m_ndb_nodeid(ndb_nodeid)
+    m_cluster_connection(conn)
   {
     m_nodegroup_map = ng_map;
     m_nodegroup_map_len = ng_map_len;
@@ -86,11 +78,12 @@ public:
     m_n_tables = 0;
     m_logBytes = m_dataBytes = 0;
     m_logCount = m_dataCount = 0;
+    m_metadata_work_requested = 0;
     m_restore = false;
     m_restore_meta = false;
     m_no_restore_disk = false;
+    m_restore_epoch_requested = false;
     m_restore_epoch = false;
-    m_backup_nodeid = backup_nodeid;
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -102,6 +95,7 @@ public:
     m_cache.m_old_table = 0;
     m_disable_indexes = false;
     m_rebuild_indexes = false;
+    snprintf(m_instance_name, BackupRestore::INSTANCE_ID_LEN, "%s", instance_name);
   }
   
   virtual ~BackupRestore();
@@ -116,8 +110,6 @@ public:
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
   virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
-  virtual int restoreAutoIncrement(restore_callback_t *cb,
-                                    Uint32 tableId, Uint64 value);
   virtual void cback(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
   virtual void exitHandler();
@@ -213,19 +205,30 @@ public:
   get_convert_func(const NDBCOL::Type &old_type,
                    const NDBCOL::Type &new_type);
 
+  void update_next_auto_val(Uint32 orig_table_id,
+                            Uint64 next_val);
+
+
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
-  const char* m_ndb_connectstring;
-  int m_ndb_connect_retry_delay;
-  int m_ndb_connect_retries;
-  int m_ndb_nodeid;
+
   bool m_restore;
+
+  // flags set on all threads to indicate that metadata/epoch restore
+  // was requested - will ensure all threads init data needed by later
+  // stages of ndb_restore
+  bool m_metadata_work_requested;
+  bool m_restore_epoch_requested;
+
+  // flags set only on thread 1 to indicate that thread 1 must
+  // do restore work, like restoring epoch/rebuilding indices
   bool m_restore_meta;
-  bool m_no_restore_disk;
   bool m_restore_epoch;
-  bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
   bool m_disable_indexes;
   bool m_rebuild_indexes;
+
+  bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
+  bool m_no_restore_disk;
   Uint32 m_tableChangesMask;
   static bool m_preserve_trailing_spaces;
 
@@ -241,7 +244,9 @@ public:
   Uint32 m_logCount;
   Uint32 m_dataCount;
 
-  int m_backup_nodeid;
+  static const Uint32 INSTANCE_ID_LEN = 20;
+  char m_instance_name[INSTANCE_ID_LEN];
+
   Uint32 m_parallelism;
   volatile Uint32 m_transactions;
 
@@ -261,6 +266,7 @@ public:
   } m_cache;
   const NdbDictionary::Table* get_table(const TableS &);
 
+  Vector<Uint64> m_auto_values;
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<Vector<NdbDictionary::Index *> > m_index_per_table; //
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id

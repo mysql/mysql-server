@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <string>
 #include <utility>
 
+#include <sql/ssl_acceptor_context.h>
 #include "keycache.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -64,6 +65,7 @@
 #include "sql/keycaches.h"  // get_key_cache
 #include "sql/lock.h"       // acquire_shared_global_read_lock()
 #include "sql/log.h"
+#include "sql/log_event.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"             // key_file_misc
 #include "sql/partition_element.h"  // PART_ADMIN
@@ -875,7 +877,13 @@ static bool mysql_admin_table(
 
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM)) {
-      if ((check_table_for_old_types(table->table) == HA_ADMIN_NEEDS_ALTER) ||
+      // Check for old temporal format if avoid_temporal_upgrade is disabled.
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      const bool check_temporal_upgrade = !avoid_temporal_upgrade;
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+
+      if ((check_table_for_old_types(table->table, check_temporal_upgrade) ==
+           HA_ADMIN_NEEDS_ALTER) ||
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER)) {
         DBUG_PRINT("admin", ("recreating table"));
@@ -1584,12 +1592,58 @@ bool Sql_cmd_shutdown::execute(THD *thd) {
   DBUG_RETURN(res);
 }
 
+class Alter_instance_reload_tls : public Alter_instance {
+ public:
+  explicit Alter_instance_reload_tls(THD *thd, bool force = false)
+      : Alter_instance(thd), force_(force) {}
+
+  bool execute() {
+    Security_context *sctx = m_thd->security_context();
+    if (!sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "CONNECTION_ADMIN");
+      return true;
+    }
+
+    bool res = false;
+    enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
+    SslAcceptorContext::singleton_flush(&error, force_);
+    if (error != SSL_INITERR_NOERROR) {
+      const char *error_text = sslGetErrString(error);
+      if (force_) {
+        push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                            ER_SSL_LIBRARY_ERROR,
+                            ER_THD(m_thd, ER_SSL_LIBRARY_ERROR), error_text);
+        LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
+      } else {
+        my_error(ER_SSL_LIBRARY_ERROR, MYF(0), error_text);
+        res = true;
+      }
+    }
+
+    if (!res) my_ok(m_thd);
+    return res;
+  }
+  ~Alter_instance_reload_tls() {}
+
+ protected:
+  bool force_;
+};
+
 bool Sql_cmd_alter_instance::execute(THD *thd) {
   bool res = true;
   DBUG_ENTER("Sql_cmd_alter_instance::execute");
   switch (alter_instance_action) {
     case ROTATE_INNODB_MASTER_KEY:
       alter_instance = new Rotate_innodb_master_key(thd);
+      break;
+    case ALTER_INSTANCE_RELOAD_TLS:
+      alter_instance = new Alter_instance_reload_tls(thd, true);
+      break;
+    case ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR:
+      alter_instance = new Alter_instance_reload_tls(thd);
+      break;
+    case ROTATE_BINLOG_MASTER_KEY:
+      alter_instance = new Rotate_binlog_master_key(thd);
       break;
     default:
       DBUG_ASSERT(false);
@@ -1614,11 +1668,24 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
   DBUG_RETURN(res);
 }
 
-bool Sql_cmd_clone_local::execute(THD *thd) {
-  plugin_ref plugin;
+Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
+                             LEX_CSTRING data_dir)
+    : m_port(port), m_data_dir(data_dir), m_clone(), m_is_local(false) {
+  m_host = user_info->host;
+  m_user = user_info->user;
+  m_passwd = user_info->auth;
+}
 
-  DBUG_ENTER("Sql_cmd_clone_local::execute");
-  DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", clone_dir));
+bool Sql_cmd_clone::execute(THD *thd) {
+  DBUG_ENTER("Sql_cmd_clone::execute");
+
+  if (is_local()) {
+    DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", m_data_dir.str));
+
+  } else {
+    DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s",
+                         (m_data_dir.str == nullptr) ? "" : m_data_dir.str));
+  }
 
   auto sctx = thd->security_context();
 
@@ -1627,30 +1694,74 @@ bool Sql_cmd_clone_local::execute(THD *thd) {
     DBUG_RETURN(true);
   }
 
-  Clone_handler *clone = clone_plugin_lock(thd, &plugin);
+  if (m_data_dir.str == nullptr) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "clone to current data directory");
+    DBUG_RETURN(true);
+  }
 
-  if (clone == nullptr) {
+  DBUG_ASSERT(m_clone == nullptr);
+  m_clone = clone_plugin_lock(thd, &m_plugin);
+
+  if (m_clone == nullptr) {
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
     DBUG_RETURN(true);
   }
 
-  if (clone->clone_local(thd, clone_dir) != 0) {
-    clone_plugin_unlock(thd, plugin);
+  if (is_local()) {
+    auto err = m_clone->clone_local(thd, m_data_dir.str);
+    clone_plugin_unlock(thd, m_plugin);
+
+    if (err != 0) {
+      DBUG_RETURN(true);
+    }
+
+    my_ok(thd);
+    DBUG_RETURN(false);
+  }
+
+  DBUG_ASSERT(!is_local());
+
+  enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
+
+  if (thd->lex->ssl_type == SSL_TYPE_NONE) {
+    ssl_mode = SSL_MODE_DISABLED;
+  } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
+    ssl_mode = SSL_MODE_REQUIRED;
+  } else {
+    DBUG_ASSERT(thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED);
+    ssl_mode = SSL_MODE_PREFERRED;
+  }
+
+  auto err = m_clone->clone_remote_client(
+      thd, m_host.str, static_cast<uint>(m_port), m_user.str, m_passwd.str,
+      m_data_dir.str, ssl_mode);
+  clone_plugin_unlock(thd, m_plugin);
+  m_clone = nullptr;
+
+  /* Set active VIO as clone plugin might have reset it */
+  if (thd->is_classic_protocol()) {
+    NET *net = thd->get_protocol_classic()->get_net();
+    thd->set_active_vio(net->vio);
+  }
+
+  if (err != 0) {
     DBUG_RETURN(true);
   }
 
-  clone_plugin_unlock(thd, plugin);
+  /* Check for KILL after setting active VIO */
+  if (thd->killed != THD::NOT_KILLED) {
+    my_error(ER_QUERY_INTERRUPTED, MYF(0));
+    DBUG_RETURN(true);
+  }
 
   my_ok(thd);
   DBUG_RETURN(false);
 }
 
-bool Sql_cmd_clone_remote::execute(THD *thd) {
-  plugin_ref plugin;
-
-  DBUG_ENTER("Sql_cmd_clone_remote::execute");
-  DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s, FOR REPLICATION = %d",
-                       clone_dir, is_for_replication));
+bool Sql_cmd_clone::load(THD *thd) {
+  DBUG_ENTER("Sql_cmd_clone::load");
+  DBUG_ASSERT(m_clone == nullptr);
+  DBUG_ASSERT(!is_local());
 
   auto sctx = thd->security_context();
 
@@ -1659,22 +1770,99 @@ bool Sql_cmd_clone_remote::execute(THD *thd) {
     DBUG_RETURN(true);
   }
 
-  Clone_handler *clone = clone_plugin_lock(thd, &plugin);
+  m_clone = clone_plugin_lock(thd, &m_plugin);
 
-  if (clone == nullptr) {
+  if (m_clone == nullptr) {
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
     DBUG_RETURN(true);
   }
 
-  if (clone->clone_remote_client(thd, clone_dir)) {
-    clone_plugin_unlock(thd, plugin);
-    DBUG_RETURN(true);
-  }
-
-  clone_plugin_unlock(thd, plugin);
-
   my_ok(thd);
   DBUG_RETURN(false);
+}
+
+bool Sql_cmd_clone::execute_server(THD *thd) {
+  DBUG_ENTER("Sql_cmd_clone::execute_server");
+  DBUG_ASSERT(!is_local());
+
+  bool ret = false;
+  auto net = thd->get_protocol_classic()->get_net();
+  auto sock = net->vio->mysql_socket;
+
+  Diagnostics_area clone_da(false);
+
+  thd->push_diagnostics_area(&clone_da);
+
+  auto err = m_clone->clone_remote_server(thd, sock);
+
+  if (err == 0) {
+    my_ok(thd);
+  }
+
+  thd->pop_diagnostics_area();
+
+  if (err != 0) {
+    auto da = thd->get_stmt_da();
+
+    da->set_overwrite_status(true);
+
+    da->set_error_status(clone_da.mysql_errno(), clone_da.message_text(),
+                         clone_da.returned_sqlstate());
+    da->push_warning(thd, clone_da.mysql_errno(), clone_da.returned_sqlstate(),
+                     Sql_condition::SL_ERROR, clone_da.message_text());
+    ret = true;
+  }
+
+  clone_plugin_unlock(thd, m_plugin);
+  m_clone = nullptr;
+
+  DBUG_RETURN(ret);
+}
+
+void Sql_cmd_clone::rewrite(THD *thd) {
+  /* No password for local clone. */
+  if (is_local()) {
+    return;
+  }
+
+  String *rlb = &thd->rewritten_query;
+  rlb->append(STRING_WITH_LEN("CLONE INSTANCE FROM "));
+
+  /* Append user name. */
+  String user(m_user.str, m_user.length, system_charset_info);
+  append_query_string(thd, system_charset_info, &user, rlb);
+
+  /* Append host name. */
+  rlb->append(STRING_WITH_LEN("@"));
+  String host(m_host.str, m_host.length, system_charset_info);
+  append_query_string(thd, system_charset_info, &host, rlb);
+
+  /* Append port number. */
+  rlb->append(STRING_WITH_LEN(":"));
+  String num_buffer(42);
+  num_buffer.set((longlong)m_port, &my_charset_bin);
+  rlb->append(num_buffer);
+
+  /* Append password clause. */
+  rlb->append(STRING_WITH_LEN(" IDENTIFIED BY <secret>"));
+
+  /* Append data directory clause. */
+  if (m_data_dir.str != nullptr) {
+    rlb->append(STRING_WITH_LEN(" DATA DIRECTORY = "));
+    String dir(m_data_dir.str, m_data_dir.length, system_charset_info);
+    append_query_string(thd, system_charset_info, &dir, rlb);
+  }
+
+  /* Append SSL information. */
+  if (thd->lex->ssl_type == SSL_TYPE_NONE) {
+    rlb->append(STRING_WITH_LEN(" REQUIRES NO SSL"));
+
+  } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
+    rlb->append(STRING_WITH_LEN(" REQUIRES SSL"));
+  }
+
+  /* Set the query to be displayed in SHOW PROCESSLIST */
+  thd->set_query(rlb->c_ptr_safe(), rlb->length());
 }
 
 bool Sql_cmd_create_role::execute(THD *thd) {
@@ -1727,9 +1915,22 @@ bool Sql_cmd_create_role::execute(THD *thd) {
 
 bool Sql_cmd_drop_role::execute(THD *thd) {
   DBUG_ENTER("Sql_cmd_drop_role::execute");
+  /*
+    We want to do extra checks (if user login is disabled) when golding a
+    using DROP_ROLE privilege.
+    To do that we record if CREATE USER was granted.
+    Then if one of DROP ROLE or CREATE USER was granted (the original
+    requirement) and CREATE USER was not granted we know that it was DROP ROLE
+    that caused the check to pass.
+
+    Thus we raise the flag (drop_role) in this case.
+  */
+  bool on_create_user_priv =
+      thd->security_context()->check_access(CREATE_USER_ACL, "", true);
   if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
-  if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors))
+  if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors,
+                      !on_create_user_priv))
     DBUG_RETURN(true);
   my_ok(thd);
   DBUG_RETURN(false);
@@ -1737,7 +1938,7 @@ bool Sql_cmd_drop_role::execute(THD *thd) {
 
 bool Sql_cmd_set_role::execute(THD *thd) {
   DBUG_ENTER("Sql_cmd_set_role::execute");
-  int ret = 0;
+  bool ret = 0;
   switch (role_type) {
     case role_enum::ROLE_NONE:
       ret = mysql_set_active_role_none(thd);
@@ -1752,7 +1953,22 @@ bool Sql_cmd_set_role::execute(THD *thd) {
       ret = mysql_set_active_role(thd, role_list);
       break;
   }
-  DBUG_RETURN(ret != 0);
+
+  /*
+    1. In case of role_enum::ROLE_NONE -
+       User might have SYSTEM_USER privilege granted explicitly using GRANT
+       statement.
+    2. For other cases -
+       User may have got SYSTEM_USER privilege either through one of the roles
+       OR, privilege may have been granted explicitly using GRANT statement.
+    Therefore, update the THD accordingly.
+
+    Update the flag in THD if invoker has SYSTEM_USER privilege not if the
+    definer user has that privilege.
+  */
+  if (!ret) set_system_user_flag(thd, true);
+
+  DBUG_RETURN(ret);
 }
 
 bool Sql_cmd_grant_roles::execute(THD *thd) {
@@ -1800,7 +2016,7 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     LEX_USER current_user;
     get_default_definer(thd, &current_user);
     if (using_users == 0 || using_users->elements == 0) {
-      List_of_auth_id_refs *active_list =
+      const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
       DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list,
                                     show_mandatory_roles));

@@ -96,6 +96,8 @@ const char *cargo_type_to_str(cargo_type x) {
       return "get_event_horizon_type";
     case set_event_horizon_type:
       return "set_event_horizon_type";
+    case get_synode_app_data_type:
+      return "get_synode_app_data_type";
     default:
       return "???";
   }
@@ -224,6 +226,8 @@ const char *xcom_proto_to_str(xcom_proto x) {
       return "x_1_3";
     case x_1_4:
       return "x_1_4";
+    case x_1_5:
+      return "x_1_5";
     default:
       return "???";
   }

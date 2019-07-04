@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -154,6 +154,10 @@ const char *dict_sys_t::s_temp_space_file_name = "ibtmp1";
 
 /** The hard-coded tablespace name innodb_file_per_table. */
 const char *dict_sys_t::s_file_per_table_name = "innodb_file_per_table";
+
+/** These two undo tablespaces cannot be dropped. */
+const char *dict_sys_t::s_default_undo_space_name_1 = "innodb_undo_001";
+const char *dict_sys_t::s_default_undo_space_name_2 = "innodb_undo_002";
 
 /** the dictionary persisting structure */
 dict_persist_t *dict_persist = NULL;
@@ -780,8 +784,8 @@ void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
     dict_persist->mutex. Above update to AUTOINC would be either
     written back to DDTableBuffer or not. But the redo logs for
     current change won't be counted into current checkpoint.
-    See how log_sys->dict_suggest_checkpoint_lsn is set. So
-    even a crash after below redo log flushed, no change lost.
+    See how log_sys->dict_max_allowed_checkpoint_lsn is set.
+    So even a crash after below redo log flushed, no change lost.
 
     If that function sets the dirty_status after below checking,
     which means current change would be written back to
@@ -1565,6 +1569,16 @@ dberr_t dict_table_rename_in_cache(
 
       new_path = mem_strdup(new_ibd.c_str());
 
+      /* InnoDB adds the db directory to the data directory.
+      If the RENAME changes database, then it is possible that
+      the a directory named for the new db does not exist
+      in this remote location. */
+      err = os_file_create_subdirs_if_needed(new_path);
+      if (err != DB_SUCCESS) {
+        ut_free(old_path);
+        ut_free(new_path);
+        return (err);
+      }
     } else {
       new_path = Fil_path::make_ibd_from_table_name(new_name);
     }
@@ -1582,20 +1596,23 @@ dberr_t dict_table_rename_in_cache(
     std::string new_tablespace_name;
     dd_filename_to_spacename(new_name, &new_tablespace_name);
 
-    bool success = fil_rename_tablespace(table->space, old_path,
-                                         new_tablespace_name.c_str(), new_path);
+    dberr_t err = fil_rename_tablespace(table->space, old_path,
+                                        new_tablespace_name.c_str(), new_path);
 
     clone_mark_active();
 
     ut_free(old_path);
     ut_free(new_path);
 
-    if (!success) {
-      return (DB_ERROR);
+    if (err != DB_SUCCESS) {
+      return (err);
     }
   }
 
-  log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
+  err = log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
 
   /* Remove table from the hash tables of tables */
   HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
@@ -4819,18 +4836,10 @@ dtuple_t *dict_index_build_node_ptr(
   return (tuple);
 }
 
-/** Copies an initial segment of a physical record, long enough to specify an
- index entry uniquely.
- @return pointer to the prefix record */
-rec_t *dict_index_copy_rec_order_prefix(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to
-                               copy prefix */
-    ulint *n_fields,           /*!< out: number of fields copied */
-    byte **buf,                /*!< in/out: memory buffer for the
-                               copied prefix, or NULL */
-    ulint *buf_size)           /*!< in/out: buffer size */
-{
+rec_t *dict_index_copy_rec_order_prefix(const dict_index_t *index,
+                                        const rec_t *rec, ulint *n_fields,
+
+                                        byte **buf, size_t *buf_size) {
   ulint n;
 
   UNIV_PREFETCH_R(rec);
@@ -5448,17 +5457,11 @@ void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
   if (dict_sys == nullptr) {
-    log_sys->dict_suggest_checkpoint_lsn = 0;
+    log_sys->dict_max_allowed_checkpoint_lsn = 0;
     return;
   }
 
   mutex_enter(&dict_persist->mutex);
-
-  if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
-    mutex_exit(&dict_persist->mutex);
-    log_sys->dict_suggest_checkpoint_lsn = 0;
-    return;
-  }
 
   for (dict_table_t *table = UT_LIST_GET_FIRST(dict_persist->dirty_dict_tables);
        table != NULL;) {
@@ -5478,17 +5481,23 @@ void dict_persist_to_dd_table_buffer() {
 
   ut_ad(dict_persist->num_dirty_tables == 0);
 
-  if (persisted) {
-    /* Get this lsn with dict_persist->mutex held,
-    so no other concurrent dynamic metadata change logs
-    would be before this lsn. */
-    log_sys->dict_suggest_checkpoint_lsn = log_get_lsn(*log_sys);
-  }
+  /* Get this lsn with dict_persist->mutex held,
+  so no other concurrent dynamic metadata change logs
+  would be before this lsn. */
+  const lsn_t persisted_lsn = log_get_lsn(*log_sys);
+
+  /* As soon as we release the dict_persist->mutex, new dynamic
+  metadata changes could happen. They would be not persisted
+  until next call to dict_persist_to_dd_table_buffer.
+  We must not remove redo which could allow to deduce them.
+  Therefore the maximum allowed lsn for checkpoint is the
+  current lsn. */
+  log_sys->dict_max_allowed_checkpoint_lsn = persisted_lsn;
 
   mutex_exit(&dict_persist->mutex);
 
   if (persisted) {
-    log_buffer_flush_to_disk();
+    log_write_up_to(*log_sys, persisted_lsn, true);
   }
 }
 
@@ -6197,8 +6206,8 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-ulint dict_tf_to_fsp_flags(ulint table_flags) {
-  DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure", return (ULINT_UNDEFINED););
+uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) {
+  DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure", return (UINT32_UNDEFINED););
 
   bool has_atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(table_flags);
   page_size_t page_size = dict_tf_get_page_size(table_flags);
@@ -6213,8 +6222,8 @@ ulint dict_tf_to_fsp_flags(ulint table_flags) {
     has_atomic_blobs = false;
   }
 
-  ulint fsp_flags = fsp_flags_init(page_size, has_atomic_blobs, has_data_dir,
-                                   is_shared, false);
+  uint32_t fsp_flags = fsp_flags_init(page_size, has_atomic_blobs, has_data_dir,
+                                      is_shared, false);
 
   return (fsp_flags);
 }
@@ -7192,7 +7201,7 @@ Acquistion order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innobase_drop_tablespace()
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
    ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:
@@ -7221,7 +7230,7 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
   snprintf(tbl_buf, sizeof(tbl_buf), "SDI_" SPACE_ID_PF, space_id);
 
   /* Submit a higher than default lock wait timeout */
-  unsigned long int lock_wait_timeout = thd_lock_wait_timeout(thd);
+  auto lock_wait_timeout = thd_lock_wait_timeout(thd);
   if (lock_wait_timeout < 100000) {
     lock_wait_timeout += 100000;
   }
@@ -7249,7 +7258,7 @@ Acquistion order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innobase_drop_tablespace()
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
    ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:

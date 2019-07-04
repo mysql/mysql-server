@@ -70,8 +70,6 @@ class Spatial_reference_system_impl : public Entity_object_impl,
         m_parsed_definition(),
         m_description() {}
 
-  virtual ~Spatial_reference_system_impl() {}
-
  private:
   Spatial_reference_system_impl(const Spatial_reference_system_impl &srs)
       : Weak_object(srs),
@@ -226,6 +224,10 @@ class Spatial_reference_system_impl : public Entity_object_impl,
     } else {
       return 0.0;
     }
+  }
+
+  double linear_unit() const override {
+    return m_parsed_definition->linear_unit();
   }
 
   virtual double angular_unit() const override {

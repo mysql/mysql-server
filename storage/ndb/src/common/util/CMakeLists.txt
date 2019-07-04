@@ -55,7 +55,6 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             random.cpp
             ndb_rand.cpp
             version.cpp
-            strdup.cpp
             ConfigValues.cpp
             ndb_init.cpp
             ndb_opts.cpp

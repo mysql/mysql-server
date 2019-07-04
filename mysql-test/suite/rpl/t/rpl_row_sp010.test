@@ -13,14 +13,6 @@
 
 # Begin clean up test section
 connection master;
---disable_warnings
-DROP PROCEDURE IF EXISTS test.p1;
-DROP PROCEDURE IF EXISTS test.p2;
-DROP PROCEDURE IF EXISTS test.p3;
-DROP PROCEDURE IF EXISTS test.p4;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-
 
 # Begin test section 1 
 delimiter |;

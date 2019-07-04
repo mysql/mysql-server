@@ -86,6 +86,22 @@
       }
     },
     {
+      "stmt": "select @@group_replication_group_name",
+      "result": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "@@group_replication_group_name"
+          }
+        ],
+        "rows": [
+          [
+            "replication-1"
+          ]
+        ]
+      }
+    },
+    {
       "stmt": "show status like 'ssl_cipher'",
       "result": {
         "columns": [

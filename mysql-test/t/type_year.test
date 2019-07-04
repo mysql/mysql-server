@@ -208,3 +208,21 @@ INSERT INTO t VALUES (2155.0E00);
 INSERT INTO t VALUES (2.1550E+03);
 SELECT * FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#28562930 AVG(YEAR(DATETIME_FIELD)) MAKES AN ERROR RESULT BEACUSE OF OVERFLOW
+--echo #
+CREATE TABLE t1(id INT,
+                name VARCHAR(10),
+                class CHAR(10),
+                date1 DATETIME);
+
+INSERT INTO t1 VALUES (1,'zhangsan','class1','2014-01-14 15:32:17'),
+                      (2,'lisi','class1','2013-12-14 10:21:27'),
+                      (3,'wangwu','class2','2003-05-21 08:25:14'),
+                      (4,'zhaoliu','class2','2001-07-19 09:35:18');
+
+SELECT COUNT(DISTINCT name), AVG(YEAR(date1)) AS aa, class
+  FROM t1 GROUP BY class ORDER BY aa;
+
+DROP TABLE t1;

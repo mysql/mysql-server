@@ -1,4 +1,4 @@
--- Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,12 @@ CREATE USER 'mysql.session'@localhost IDENTIFIED WITH caching_sha2_password
  ACCOUNT LOCK;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;
 GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
-GRANT SELECT ON performance_schema.* TO 'mysql.session'@localhost;
+GRANT SELECT ON `performance_schema`.* TO 'mysql.session'@localhost;
 GRANT SUPER ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 
 -- Create an user that is definer for information_schema view
 CREATE USER 'mysql.infoschema'@localhost IDENTIFIED WITH caching_sha2_password

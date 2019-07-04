@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils)
 
 # a C++ API
 ADD_CONVENIENCE_LIBRARY(libmyapi myapi.cpp)
-# trick: link against c++ lib to generate C++ runtime symbols for this lib,
-# which are missing when compiling with CXX=gcc, even though this unit test
-# library has no dependencies upon other files:
-TARGET_LINK_LIBRARIES(libmyapi ndbgeneral)
 
 # a program testing the C++ API
 NDB_ADD_TEST(test_jtie_myapi-t myapi_test.cpp LIBS libmyapi)

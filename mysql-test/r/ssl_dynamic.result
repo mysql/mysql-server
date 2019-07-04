@@ -1,0 +1,213 @@
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+# Check if ssl is on
+SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
+WHERE VARIABLE_NAME='Ssl_cipher';
+LENGTH(VARIABLE_VALUE) > 0
+1
+################## FR1.1 and FR 1.4: ALTER INSTANCE RELOAD TLS
+ALTER INSTANCE RELOAD TLS;
+# Check if ssl is still turned on after reload
+SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
+WHERE VARIABLE_NAME='Ssl_cipher';
+LENGTH(VARIABLE_VALUE) > 0
+1
+# FR1.1: check if old sessions continue
+SET @must_be_present= 'present';
+ALTER INSTANCE RELOAD TLS;
+# Success criteria: value must be present
+SELECT @must_be_present;
+@must_be_present
+present
+# cleanup
+################## FR 1.2: check if new sessions get the new vals
+# Save the defaults
+SET @orig_ssl_cipher = @@global.ssl_cipher;
+SET @orig_tls_version = @@global.tls_version;
+# in ssl_con
+# check if the session has the original values
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	orig_cipher
+# in default connection
+# setting new values for ssl_cipher
+SET GLOBAL ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL tls_version = "TLSv1.2";
+ALTER INSTANCE RELOAD TLS;
+# in ssl_new_con
+# Save the new defaults
+# Check if the old and the new not afters differ
+# in ssl_con
+# the con session must have the original values
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	orig_cipher;
+# cleanup
+# in default connection
+SET GLOBAL ssl_cipher = @orig_ssl_cipher;
+SET GLOBAL tls_version = @orig_tls_version;
+ALTER INSTANCE RELOAD TLS;
+################## FR 1.5: new values effective only after RELOAD TLS
+# Save the defaults
+SET @orig_ssl_cipher = @@global.ssl_cipher;
+# setting new values for ssl_cipher
+SET GLOBAL ssl_cipher = "DHE-RSA-AES256-SHA256";
+# in ssl_con
+# Check if the old and the new not afters differ
+# cleanup
+# in default connection
+SET GLOBAL ssl_cipher = @orig_ssl_cipher;
+################## FR 1.7: CONNECTION_ADMIN will be required to execute
+#  ALTER INSTANCE RELOAD TLS
+CREATE USER test_connection_admin@localhost;
+# in ssl_con
+# Must fail
+ALTER INSTANCE RELOAD TLS;
+ERROR 42000: Access denied; you need (at least one of) the CONNECTION_ADMIN privilege(s) for this operation
+# in default connection
+GRANT SUPER ON *.* TO test_connection_admin@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# in ssl_con
+# Must fail
+ALTER INSTANCE RELOAD TLS;
+ERROR 42000: Access denied; you need (at least one of) the CONNECTION_ADMIN privilege(s) for this operation
+# in default connection
+REVOKE SUPER ON *.* FROM test_connection_admin@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT CONNECTION_ADMIN ON *.* TO test_connection_admin@localhost;
+# in ssl_con
+# Must pass
+ALTER INSTANCE RELOAD TLS;
+# cleanup
+# in default connection
+DROP USER test_connection_admin@localhost;
+################## FR 1.8 and 1.9: disable SSL on wrong values
+# Save the defaults
+SET @orig_ssl_ca= @@global.ssl_ca;
+# Seet CA to invalid value
+SET GLOBAL ssl_ca = 'gizmo';
+# Must fail and not change the SSL params
+ALTER INSTANCE RELOAD TLS;
+ERROR HY000: Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+# Must be 1
+SELECT COUNT(*) FROM performance_schema.session_status
+WHERE VARIABLE_NAME = 'Current_tls_ca' AND VARIABLE_VALUE = @orig_ssl_ca;
+COUNT(*)
+1
+# Must return gizmo
+SELECT @@global.ssl_ca;
+@@global.ssl_ca
+gizmo
+# Must connect successfully
+1
+1
+# Must pass with a warning and disable SSL
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+Warnings:
+Warning	10069	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+# Must be 1
+SELECT COUNT(*) FROM performance_schema.session_status
+WHERE VARIABLE_NAME = 'Current_tls_ca' AND VARIABLE_VALUE = 'gizmo';
+COUNT(*)
+1
+# Must fail to connect
+# cleanup
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+ALTER INSTANCE RELOAD TLS;
+# FR 1.9: Must connect successfully
+1
+1
+################## FR2 and FR6: --ssl-* variables settable at runtime.
+SET @orig_ssl_ca= @@global.ssl_ca;
+SET @orig_ssl_cert= @@global.ssl_cert;
+SET @orig_ssl_key= @@global.ssl_key;
+SET @orig_ssl_capath= @@global.ssl_capath;
+SET @orig_ssl_crl= @@global.ssl_crl;
+SET @orig_ssl_crlpath= @@global.ssl_crlpath;
+SET @orig_ssl_cipher= @@global.ssl_cipher;
+SET @orig_tls_cipher= @@global.tls_ciphersuites;
+SET @orig_tls_version= @@global.tls_version;
+# Must pass
+SET GLOBAL ssl_ca = 'gizmo';
+SET GLOBAL ssl_cert = 'gizmo';
+SET GLOBAL ssl_key = 'gizmo';
+SET GLOBAL ssl_capath = 'gizmo';
+SET GLOBAL ssl_crl = 'gizmo';
+SET GLOBAL ssl_crlpath = 'gizmo';
+SET GLOBAL ssl_cipher = 'gizmo';
+SET GLOBAL tls_ciphersuites = 'gizmo';
+SET GLOBAL tls_version = 'gizmo';
+# Must fail
+SET SESSION ssl_ca = 'gizmo';
+ERROR HY000: Variable 'ssl_ca' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ssl_cert = 'gizmo';
+ERROR HY000: Variable 'ssl_cert' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ssl_key = 'gizmo';
+ERROR HY000: Variable 'ssl_key' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ssl_capath = 'gizmo';
+ERROR HY000: Variable 'ssl_capath' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ssl_crl = 'gizmo';
+ERROR HY000: Variable 'ssl_crl' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ssl_crlpath = 'gizmo';
+ERROR HY000: Variable 'ssl_crlpath' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION ssl_cipher = 'gizmo';
+ERROR HY000: Variable 'ssl_cipher' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION tls_ciphersuites = 'gizmo';
+ERROR HY000: Variable 'tls_ciphersuites' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION tls_version = 'gizmo';
+ERROR HY000: Variable 'tls_version' is a GLOBAL variable and should be set with SET GLOBAL
+# FR6: Must return 9
+SELECT VARIABLE_NAME FROM performance_schema.session_status WHERE
+VARIABLE_NAME IN
+('Current_tls_ca', 'Current_tls_capath', 'Current_tls_cert',
+'Current_tls_key', 'Current_tls_version', 'Current_tls_cipher',
+'Current_tls_ciphersuites', 'Current_tls_crl', 'Current_tls_crlpath') AND
+VARIABLE_VALUE != 'gizmo'
+  ORDER BY VARIABLE_NAME;
+VARIABLE_NAME
+Current_tls_ca
+Current_tls_capath
+Current_tls_cert
+Current_tls_cipher
+Current_tls_ciphersuites
+Current_tls_crl
+Current_tls_crlpath
+Current_tls_key
+Current_tls_version
+# cleanup
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+SET GLOBAL ssl_cert = @orig_ssl_cert;
+SET GLOBAL ssl_key = @orig_ssl_key;
+SET GLOBAL ssl_capath = @orig_ssl_capath;
+SET GLOBAL ssl_crl = @orig_ssl_crl;
+SET GLOBAL ssl_crlpath = @orig_ssl_crlpath;
+SET GLOBAL ssl_cipher = @orig_ssl_cipher;
+SET GLOBAL tls_ciphersuites = @orig_tls_ciphersuites;
+SET GLOBAL tls_version = @orig_tls_version;
+################## FR8: X plugin do not follow
+# Save the defaults
+SET @orig_ssl_ca= @@global.ssl_ca;
+SET @orig_ssl_cert= @@global.ssl_cert;
+SET @orig_ssl_key= @@global.ssl_key;
+SET @orig_mysqlx_ssl_ca= @@global.mysqlx_ssl_ca;
+SET @orig_mysqlx_ssl_cert= @@global.mysqlx_ssl_cert;
+SET @orig_mysqlx_ssl_key= @@global.mysqlx_ssl_key;
+# setting new values for ssl_cert, ssl_key and ssl_ca
+SET GLOBAL ssl_cert = "MYSQL_TEST_DIR/std_data/server-cert-sha512.pem";
+SET GLOBAL ssl_key = "MYSQL_TEST_DIR/std_data/server-key-sha512.pem";
+SET GLOBAL ssl_ca = "MYSQL_TEST_DIR/std_data/ca-sha512.pem";
+ALTER INSTANCE RELOAD TLS;
+# Check that X variables match the initial ones
+SELECT @@global.mysqlx_ssl_ca = @orig_mysqlx_ssl_ca,
+@@global.mysqlx_ssl_cert = @orig_mysqlx_ssl_cert,
+@@global.mysqlx_ssl_key = @orig_mysqlx_ssl_key;
+@@global.mysqlx_ssl_ca = @orig_mysqlx_ssl_ca	1
+@@global.mysqlx_ssl_cert = @orig_mysqlx_ssl_cert	1
+@@global.mysqlx_ssl_key = @orig_mysqlx_ssl_key	1
+# cleanup
+SET GLOBAL ssl_cert = @orig_ssl_cert;
+SET GLOBAL ssl_key = @orig_ssl_key;
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+ALTER INSTANCE RELOAD TLS;
+################## End of dynamic SSL tests

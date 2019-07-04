@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* maintaince of mysql databases */
+// Maintenance of MySQL databases.
 
 #include <fcntl.h>
 #include <mysql.h>
@@ -402,7 +402,10 @@ int main(int argc, char *argv[]) {
     uint tmp = opt_connect_timeout;
     mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&tmp);
   }
-  SSL_SET_OPTIONS(&mysql);
+  if (SSL_SET_OPTIONS(&mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    return EXIT_FAILURE;
+  }
   if (opt_protocol)
     mysql_options(&mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 #if defined(_WIN32)
@@ -1393,8 +1396,7 @@ static void truncate_names() {
 
 static bool get_pidfile(MYSQL *mysql, char *pidfile) {
   MYSQL_RES *result;
-
-  if (mysql_query(mysql, "SHOW VARIABLES LIKE 'pid_file'")) {
+  if (mysql_query(mysql, "SELECT @@datadir, @@pid_file")) {
     my_printf_error(mysql_errno(mysql),
                     "The query to get the server's pid file failed,"
                     " error: '%s'. Continuing.",
@@ -1403,7 +1405,13 @@ static bool get_pidfile(MYSQL *mysql, char *pidfile) {
   result = mysql_store_result(mysql);
   if (result) {
     MYSQL_ROW row = mysql_fetch_row(result);
-    if (row) my_stpcpy(pidfile, row[1]);
+    if (row) {
+      char datadir[FN_REFLEN];
+      char pidfile_option[FN_REFLEN];
+      my_stpcpy(datadir, row[0]);
+      my_stpcpy(pidfile_option, row[1]);
+      (void)my_load_path(pidfile, pidfile_option, datadir);
+    }
     mysql_free_result(result);
     return row == 0; /* Error if row = 0 */
   }

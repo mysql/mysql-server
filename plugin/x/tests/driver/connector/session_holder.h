@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -40,6 +41,7 @@
 struct Connection_options {
   std::string socket;
   std::string host;
+  std::string network_namespace;
   int port{0};
 
   std::string user;
@@ -54,7 +56,8 @@ struct Connection_options {
   std::string ssl_cipher;
   std::string ssl_key;
   std::string allowed_tls;
-  int64_t io_timeout{-1};
+  std::int64_t io_timeout{-1};
+  std::int64_t session_connect_timeout{-1};
   bool dont_wait_for_disconnect{false};
   bool trace_protocol{false};
   xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};
@@ -77,6 +80,7 @@ class Session_holder {
 
   xcl::XSession *get_session();
 
+  void clear_received_messages();
   bool try_get_number_of_received_messages(const std::string message_name,
                                            uint64_t *value) const;
   void remove_notice_handler();

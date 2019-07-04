@@ -1171,3 +1171,26 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+##################################################
+# In bushy- / star-joins there could be duplicated
+# 'is not null'-predicates being added to the parent
+# table 'where condition'
+
+--echo # Bug#28727717: Duplicated 'is not null' predicates
+
+create table parent(a int primary key, b int, c int, d int) engine=innodb;
+create table eq_child(a int, b int, c int, d int, primary key(a,b)) engine=innodb;
+
+insert into parent values (1,1,1,1);
+insert into eq_child select * from parent;
+
+# Need JSON explain format in order to make the where condition visible.
+explain format=json select straight_join count(*) from parent
+ join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+ join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+ join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+ join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+;
+
+drop table parent, eq_child;

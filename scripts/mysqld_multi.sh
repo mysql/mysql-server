@@ -1,6 +1,6 @@
 #!@PERL_PATH@
 
-# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -331,7 +331,12 @@ sub start_mysqlds()
     $basedir_found= 0; # The default
     $mysqld_found= 1; # The default
     $mysqld_found= 0 if (!length($mysqld));
+
+    # Initialize the command.
     $com= "$mysqld";
+
+    # Initialize the command option list, process the options,
+    # reset command if relevant, append key options to command line.
     for ($j = 0, $tmp= ""; defined($options[$j]); $j++)
     {
       if ("--datadir=" eq substr($options[$j], 0, 10)) {
@@ -342,6 +347,9 @@ sub start_mysqlds()
           print "FATAL ERROR: Cannot create data directory $datadir: $!\n";
           exit(1);
         }
+        # Quote and append 'datadir' to command line.
+        $options[$j]= quote_shell_word($options[$j]);
+        $tmp.= " $options[$j]";
       }
       elsif ("--mysqladmin=" eq substr($options[$j], 0, 13))
       {
@@ -350,6 +358,7 @@ sub start_mysqlds()
       elsif ("--mysqld=" eq substr($options[$j], 0, 9))
       {
 	$options[$j]=~ s/\-\-mysqld\=//;
+        # Reset command.
 	$com= $options[$j];
         $mysqld_found= 1;
       }
@@ -358,11 +367,13 @@ sub start_mysqlds()
         $basedir= $options[$j];
         $basedir =~ s/^--basedir=//;
         $basedir_found= 1;
+        # Quote and append 'basedir' to command line.
         $options[$j]= quote_shell_word($options[$j]);
         $tmp.= " $options[$j]";
       }
       else
       {
+        # Quote and append additional options to command line.
 	$options[$j]= quote_shell_word($options[$j]);
 	$tmp.= " $options[$j]";
       }
@@ -376,6 +387,7 @@ sub start_mysqlds()
       print "wanted mysqld binary.\n\n";
       $info_sent= 1;
     }
+    # Prepare command line by appending command and option list, and redirect output.
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
     if (!$mysqld_found)
@@ -392,6 +404,7 @@ sub start_mysqlds()
       $curdir=getcwd();
       chdir($basedir) or die "Can't change to datadir $basedir";
     }
+    # Prepare datadir by initializing the server, unless this is already done.
     if (! -d $datadir."/mysql") {
       if (-w $datadir) {
         print "\n\nInstalling new database in $datadir\n\n";
@@ -411,6 +424,7 @@ sub start_mysqlds()
       print "data directory used: $datadir\n";
       exit(1);
     }
+    # Start the command in the background.
     system($com." &");
     if ($basedir_found)
     {

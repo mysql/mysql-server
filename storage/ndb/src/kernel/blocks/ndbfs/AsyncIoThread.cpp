@@ -1,4 +1,5 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -332,7 +333,6 @@ AsyncIoThread::attach(AsyncFile* file)
   m_current_file = file;
   theMemoryChannelPtr = &theMemoryChannel;
   file->attach(this);
-  m_fs.cnt_active_bound(1);
 }
 
 void
@@ -349,6 +349,41 @@ AsyncIoThread::detach(AsyncFile* file)
     m_current_file = 0;
     theMemoryChannelPtr = &m_fs.theToBoundThreads;
     file->detach(this);
-    m_fs.cnt_active_bound(-1);
+  }
+}
+
+
+const char*
+Request::actionName(Request::Action action)
+{
+  switch(action){
+  case Request::open:
+    return "open";
+  case Request::close:
+    return "close";
+  case Request::closeRemove:
+    return "closeRemove";
+  case Request::read:
+    return "read";
+  case Request::readv:
+    return "readv";
+  case Request::write:
+    return "write";
+  case Request::writev:
+    return "writev";
+  case Request::writeSync:
+    return "writeSync";
+  case Request::writevSync:
+    return "writevSync";
+  case Request::sync:
+    return "sync";
+  case Request::end:
+    return "end";
+  case Request::append:
+    return "append";
+  case Request::rmrf:
+    return "rmrf";
+  default:
+    return "Unknown action";
   }
 }

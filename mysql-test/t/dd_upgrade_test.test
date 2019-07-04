@@ -208,7 +208,7 @@ let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 --echo # Start the DB server. Server will create and populate Dictionary tables.
 --exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
 --echo # Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
@@ -242,11 +242,7 @@ INSERT INTO test123.t1 values(1);
 SELECT * FROM test123.t1;
 DROP SCHEMA test123;
 
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
+CHECK TABLE test.t_myisam_compressed2, test.t_myisam_compressed3 FOR UPGRADE;
 
 SHOW DATABASES;
 --echo # Check table structures
@@ -418,7 +414,7 @@ optimize table sakila.film_text;
 
 --echo # Check SDI from vt2.ibd
 --let JSON_FILE_PATH = $DEST_DIR/vt2.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/vt2.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/vt2.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/vt2.json $JSON_FILE_PATH
@@ -426,7 +422,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_json.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_json.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_json.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_json.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_json.json $JSON_FILE_PATH
@@ -434,7 +430,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_gen_stored.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_gen_stored.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_gen_stored.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_gen_stored.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_gen_stored.json $JSON_FILE_PATH
@@ -442,7 +438,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_dynamic.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_dynamic.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_dynamic.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_dynamic.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_dynamic.json $JSON_FILE_PATH
@@ -450,7 +446,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_compressed3.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_compressed3.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_compressed3.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_compressed3.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_compressed3.json $JSON_FILE_PATH
@@ -458,7 +454,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_compressed2.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_compressed2.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_compressed2.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_compressed2.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_compressed2.json $JSON_FILE_PATH
@@ -466,7 +462,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_compressed.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_compressed.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_compressed.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_compressed.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_compressed.json $JSON_FILE_PATH
@@ -474,7 +470,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_blob_myisam.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_blob_myisam.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_blob_myisam.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_blob_myisam.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_blob_myisam.json $JSON_FILE_PATH
@@ -482,7 +478,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t_blob.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t_blob.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t_blob.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/t_blob.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t_blob.json $JSON_FILE_PATH
@@ -490,7 +486,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from opening_lines.ibd
 --let JSON_FILE_PATH = $DEST_DIR/opening_lines.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/opening_lines.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/opening_lines.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/opening_lines.json $JSON_FILE_PATH
@@ -498,7 +494,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from jemp.ibd
 --let JSON_FILE_PATH = $DEST_DIR/jemp.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/jemp.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/jemp.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/jemp.json $JSON_FILE_PATH
@@ -506,7 +502,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from geom.ibd
 --let JSON_FILE_PATH = $DEST_DIR/geom.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/geom.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test/geom.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/geom.json $JSON_FILE_PATH
@@ -514,7 +510,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from store.ibd
 --let JSON_FILE_PATH = $DEST_DIR/store.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/store.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/store.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/store.json $JSON_FILE_PATH
@@ -522,7 +518,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from staff.ibd
 --let JSON_FILE_PATH = $DEST_DIR/staff.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/staff.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/staff.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/staff.json $JSON_FILE_PATH
@@ -530,7 +526,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from rental.ibd
 --let JSON_FILE_PATH = $DEST_DIR/rental.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/rental.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/rental.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/rental.json $JSON_FILE_PATH
@@ -538,7 +534,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from payment.ibd
 --let JSON_FILE_PATH = $DEST_DIR/payment.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/payment.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/payment.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/payment.json $JSON_FILE_PATH
@@ -546,7 +542,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from language.ibd
 --let JSON_FILE_PATH = $DEST_DIR/language.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/language.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/language.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/language.json $JSON_FILE_PATH
@@ -554,7 +550,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from inventory.ibd
 --let JSON_FILE_PATH = $DEST_DIR/inventory.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/inventory.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/inventory.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/inventory.json $JSON_FILE_PATH
@@ -562,7 +558,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from film_text.ibd
 --let JSON_FILE_PATH = $DEST_DIR/film_text.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/film_text.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/film_text.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/film_text.json $JSON_FILE_PATH
@@ -570,7 +566,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from film_category.ibd
 --let JSON_FILE_PATH = $DEST_DIR/film_category.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/film_category.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/film_category.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/film_category.json $JSON_FILE_PATH
@@ -578,7 +574,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from film_actor.ibd
 --let JSON_FILE_PATH = $DEST_DIR/film_actor.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/film_actor.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/film_actor.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/film_actor.json $JSON_FILE_PATH
@@ -586,7 +582,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from film.ibd
 --let JSON_FILE_PATH = $DEST_DIR/film.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/film.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/film.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/film.json $JSON_FILE_PATH
@@ -594,7 +590,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from customer.ibd
 --let JSON_FILE_PATH = $DEST_DIR/customer.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/customer.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/customer.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/customer.json $JSON_FILE_PATH
@@ -602,7 +598,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from country.ibd
 --let JSON_FILE_PATH = $DEST_DIR/country.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/country.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/country.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/country.json $JSON_FILE_PATH
@@ -610,7 +606,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from city.ibd
 --let JSON_FILE_PATH = $DEST_DIR/city.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/city.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/city.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/city.json $JSON_FILE_PATH
@@ -618,7 +614,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from category.ibd
 --let JSON_FILE_PATH = $DEST_DIR/category.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/category.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/category.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/category.json $JSON_FILE_PATH
@@ -626,7 +622,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from address.ibd
 --let JSON_FILE_PATH = $DEST_DIR/address.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/address.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/address.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/address.json $JSON_FILE_PATH
@@ -634,7 +630,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from actor.ibd
 --let JSON_FILE_PATH = $DEST_DIR/actor.json
---exec $IBD2SDI $MYSQLD_DATADIR/sakila/actor.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/sakila/actor.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/actor.json $JSON_FILE_PATH
@@ -642,7 +638,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from mysql.ibd
 --let JSON_FILE_PATH = $DEST_DIR/mysql.json
---exec $IBD2SDI $MYSQLD_DATADIR/mysql.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/mysql.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace_mysql.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/mysql.json $JSON_FILE_PATH
@@ -650,7 +646,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from ibdata1
 --let JSON_FILE_PATH = $DEST_DIR/ibdata1.json
---exec $IBD2SDI $MYSQLD_DATADIR/ibdata1 -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/ibdata1 -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace_system.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/ibdata1.json $JSON_FILE_PATH
@@ -658,7 +654,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from test_tablespace_3.ibd
 --let JSON_FILE_PATH = $DEST_DIR/test_tablespace_3.json
---exec $IBD2SDI $MYSQLD_DATADIR/test_tablespace_3.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test_tablespace_3.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/test_tablespace_3.json $JSON_FILE_PATH
@@ -666,7 +662,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from test_tablespace_2.ibd
 --let JSON_FILE_PATH = $DEST_DIR/test_tablespace_2.json
---exec $IBD2SDI $MYSQLD_DATADIR/test_tablespace_2.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/test_tablespace_2.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/test_tablespace_2.json $JSON_FILE_PATH
@@ -705,7 +701,7 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_2.log;
 # Test with --explicit-defaults-for-timestamp=0
 --exec echo "restart: --loose-skip-log-bin --explicit-defaults-for-timestamp=0 --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
 SHOW CREATE TABLE test.t_set;
@@ -752,7 +748,7 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug/data;
 --echo # Start the DB server
 --exec echo "restart: --default_time_zone="+01:00" --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
 --disable_query_log
@@ -766,5 +762,37 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --force-rmdir $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc
+
+--echo #
+--echo # Bug #28884503 UPGRADE FROM 5.7.23+ TO 8.0.11+ FAILS WHEN INNODB_PAGE_SIZE=4K
+--echo #
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data57_innodb_page_size_4k.log
+
+--echo # Zip file contains data directory of a clean 5.7 server.
+--echo #
+--echo # Copy zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_upgrade_innodb_4k.zip $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip -d $MYSQL_TMP_DIR/data57_upgrade_innodb_4k
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_innodb_4k/data57_upgrade_innodb_4k
+
+--echo # Restart DB server which was created by MTR default
+--replace_result $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG MYSQLD_LOG
+--let restart_parameters=restart: --datadir=$MYSQLD_DATADIR2 --innodb_page_size=4K --log-error=$MYSQLD_LOG
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_upgrade_innodb_4k
 
 --echo # end of test

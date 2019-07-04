@@ -1,0 +1,91 @@
+--source include/have_ndb.inc
+
+# Test parallel CREATE TABLE queries with the metadata check detection feature
+# running alongside
+
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+# Reduce the metadata check interval to 5 seconds
+SET GLOBAL ndb_metadata_check_interval = 5;
+
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+# Create tablespace using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 16M
+  ENGINE NDB;
+
+# To increase the number of times the MDL lock is acquired for tablespace
+# ts1, we run CREATE + DROP TABLE queries in parallel across 2 connections.
+# In addition to this the ndb_metadata_check_interval has been set to a low
+# value which means that the detection (which acquires locks of its own)
+# will run at some point along with the queries
+
+# Procedure p1 communicates through the `progress` table
+CREATE TABLE progress(
+  stop_flag int
+) ENGINE NDB;
+
+delimiter %;
+create procedure p1()
+begin
+  declare done int default 0;
+  repeat
+    CREATE TABLE t1 (
+      a int PRIMARY KEY,
+      b varchar(255)
+    )
+    ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+    DROP TABLE t1;
+    SELECT stop_flag INTO done FROM progress;
+  until done end repeat;
+end%
+delimiter ;%
+
+INSERT INTO progress value(0);
+
+--echo Start background load of CREATE + DROP TABLE t1 which uses tablespace ts1
+--send call p1()
+
+# Create another connection
+--connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--connection con2
+
+--echo Start CREATE + DROP TABLE t2 which uses tablespace ts1
+--disable_query_log
+--let $count = 1
+while ($count <= 100)
+{
+  CREATE TABLE t2 (
+    a int PRIMARY KEY,
+    b varchar(255)
+  )
+  ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+  DROP TABLE t2;
+  --inc $count
+}
+--enable_query_log
+
+# Signal procedure to stop background queries
+update progress set stop_flag=1;
+
+--connection default
+
+--echo Wait for background load to complete
+--reap
+
+# Cleanup
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+DROP PROCEDURE p1;
+DROP TABLE progress;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;

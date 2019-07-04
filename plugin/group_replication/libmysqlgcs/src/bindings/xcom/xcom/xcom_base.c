@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,8 +249,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 #ifndef _WIN32
+#include <arpa/inet.h>
 #include <net/if.h>
-#include <netdb.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #ifndef __linux__
@@ -263,6 +263,7 @@
 #endif
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/get_synode_app_data.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
@@ -349,6 +350,7 @@ static int proposer_task(task_arg arg);
 static int executor_task(task_arg arg);
 static int sweeper_task(task_arg arg);
 extern int alive_task(task_arg arg);
+extern int cache_manager_task(task_arg arg);
 extern int detector_task(task_arg arg);
 
 static int finished(pax_machine *p);
@@ -394,6 +396,7 @@ static task_env *sweeper = NULL;
 static task_env *retry = NULL;
 static task_env *proposer[PROPOSERS];
 static task_env *alive_t = NULL;
+static task_env *cache_task = NULL;
 
 static uint32_t my_id = 0;        /* Unique id of this instance */
 static synode_no current_message; /* Current message number */
@@ -872,6 +875,7 @@ static void init_tasks() {
   init_proposers();
   set_task(&alive_t, NULL);
   set_task(&sweeper, NULL);
+  set_task(&cache_task, NULL);
 }
 
 /* Initialize the xcom thread */
@@ -886,12 +890,13 @@ void xcom_thread_init() {
 
   init_xcom_base();
   init_tasks();
-  init_cache();
 
   /* Initialize input queue */
   channel_init(&prop_input_queue, type_hash("msg_link"));
   init_link_list();
   task_sys_init();
+
+  init_cache();
 }
 
 /* Empty the proposer input queue */
@@ -1024,6 +1029,8 @@ void start_run_tasks() {
                                XCOM_THREAD_DEBUG));
   set_task(&alive_t,
            task_new(alive_task, null_arg, "alive_task", XCOM_THREAD_DEBUG));
+  set_task(&cache_task, task_new(cache_manager_task, null_arg,
+                                 "cache_manager_task", XCOM_THREAD_DEBUG));
 }
 
 /* Create tasks and enter the task main loop */
@@ -1035,6 +1042,7 @@ int xcom_taskmain(xcom_port listen_port) {
 
   {
     result fd = {0, 0};
+
     if ((fd = announce_tcp(listen_port)).val < 0) {
       MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
       task_dump_err(fd.funerr);
@@ -1066,6 +1074,7 @@ static xcom_state_change_cb xcom_terminate_cb = 0;
 static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
 static xcom_state_change_cb xcom_expel_cb = 0;
+static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = NULL;
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
 
@@ -1077,6 +1086,168 @@ void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
 
 void set_xcom_expel_cb(xcom_state_change_cb x) { xcom_expel_cb = x; }
 
+void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
+  xcom_try_pop_from_input_cb = pop;
+}
+
+static xcom_port local_server_port = 0;
+
+static connection_descriptor *input_signal_connection = NULL;
+
+#ifdef XCOM_HAVE_OPENSSL
+static connection_descriptor *connect_xcom(const char *server, xcom_port port,
+                                           bool use_ssl);
+bool xcom_input_new_signal_connection() {
+  assert(local_server_port != 0);
+  assert(input_signal_connection == NULL);
+  input_signal_connection =
+      connect_xcom((char *)"::1", local_server_port, false);
+
+  if (input_signal_connection == NULL) {
+    input_signal_connection =
+        connect_xcom((char *)"127.0.0.1", local_server_port, false);
+  }
+
+  return (input_signal_connection != NULL);
+}
+#else
+static connection_descriptor *connect_xcom(const char *server, xcom_port port);
+void xcom_input_new_signal_connection(void) {
+  assert(local_server_port != 0);
+  assert(input_signal_connection == NULL);
+  input_signal_connection = connect_xcom((char *)"::1", local_server_port);
+  if (input_signal_connection == NULL) {
+    input_signal_connection =
+        connect_xcom((char *)"127.0.0.1", local_server_port, false);
+  }
+  assert(input_signal_connection != NULL);
+}
+#endif
+static int64_t socket_write(connection_descriptor *wfd, void *_buf, uint32_t n);
+bool xcom_input_signal() {
+  bool successful = false;
+  if (input_signal_connection != NULL) {
+    unsigned char tiny_buf[1] = {0};
+    int64_t error_code = socket_write(input_signal_connection, tiny_buf, 1);
+    successful = (error_code == 1);
+  }
+  return successful;
+}
+void xcom_input_free_signal_connection() {
+  if (input_signal_connection != NULL) {
+    xcom_close_client_connection(input_signal_connection);
+    input_signal_connection = NULL;
+  }
+}
+
+/* Listen for connections on socket and create a handler task */
+int local_server(task_arg arg) {
+  DECL_ENV
+  int fd;
+  connection_descriptor rfd;
+  unsigned char buf[1024];  // arbitrary size
+  int64_t nr_read;
+  xcom_input_request_ptr request;
+  xcom_input_request_ptr next_request;
+  pax_msg *request_pax_msg;
+  pax_msg *reply_payload;
+  linkage internal_reply_queue;
+  msg_link *internal_reply;
+  END_ENV;
+  TASK_BEGIN
+  assert(xcom_try_pop_from_input_cb != NULL);
+  assert(ep->fd >= 0);
+  ep->fd = get_int_arg(arg);
+  unblock_fd(ep->fd);
+  DBGOUT(FN; NDBG(ep->fd, d););
+  /* Wait for input signalling connection. */
+  TASK_CALL(accept_tcp(ep->fd, &ep->rfd.fd));
+#ifdef XCOM_HAVE_OPENSSL
+  ep->rfd.ssl_fd = 0;
+#endif
+  assert(ep->rfd.fd != -1);
+  /* Close the server socket. */
+  shut_close_socket(&ep->fd);
+  /* Make socket non-blocking and add socket to the event loop. */
+  unblock_fd(ep->rfd.fd);
+  set_nodelay(ep->rfd.fd);
+  wait_io(stack, ep->rfd.fd, 'r');
+  TASK_YIELD;
+  set_connected(&ep->rfd, CON_FD);
+  memset(ep->buf, 0, 1024);
+  ep->nr_read = 0;
+  ep->request = NULL;
+  ep->next_request = NULL;
+  ep->request_pax_msg = NULL;
+  ep->reply_payload = NULL;
+  link_init(&ep->internal_reply_queue, type_hash("msg_link"));
+  ep->internal_reply = NULL;
+
+  while (!xcom_shutdown) {
+    /* Wait for signal that there is work to consume from the queue. */
+    TASK_CALL(task_read(&ep->rfd, ep->buf, 1024, &ep->nr_read));
+    if (ep->nr_read == 0) {
+      /* purecov: begin inspected */
+      G_WARNING("local_server: client closed the signalling connection?");
+      break;
+      /* purecov: end */
+    } else if (ep->nr_read < 0) {
+      /* purecov: begin inspected */
+      DBGOUT(FN; NDBG64(ep->nr_read));
+      G_WARNING("local_server: error reading from the signalling connection?");
+      break;
+      /* purecov: end */
+    }
+    /* Pop, dispatch, and reply. */
+    ep->request = xcom_try_pop_from_input_cb();
+    while (ep->request != NULL) {
+      /* Take ownership of the tail of the list, otherwise we lose it when we
+         free ep->request. */
+      ep->next_request = xcom_input_request_extract_next(ep->request);
+      unchecked_replace_pax_msg(&ep->request_pax_msg,
+                                pax_msg_new_0(null_synode));
+      assert(ep->request_pax_msg->refcnt == 1);
+      ep->request_pax_msg->op = client_msg;
+      /* Take ownership of the request's app_data, otherwise the app_data is
+         freed with ep->request. */
+      ep->request_pax_msg->a = xcom_input_request_extract_app_data(ep->request);
+      ep->request_pax_msg->to = VOID_NODE_NO;
+      ep->request_pax_msg->force_delivery =
+          (ep->request_pax_msg->a->body.c_t == force_config_type);
+      dispatch_op(NULL, ep->request_pax_msg, &ep->internal_reply_queue);
+      if (!link_empty(&ep->internal_reply_queue)) {
+        ep->internal_reply =
+            (msg_link *)(link_extract_first(&ep->internal_reply_queue));
+        assert(ep->internal_reply->p);
+        assert(ep->internal_reply->p->refcnt == 1);
+        /* We are going to take ownership of the pax_msg which has the reply
+           payload, so we bump its reference count so that it is not freed by
+           msg_link_delete. */
+        ep->reply_payload = ep->internal_reply->p;
+        ep->reply_payload->refcnt++;
+        msg_link_delete(&ep->internal_reply);
+        // There should only have been one reply.
+        assert(link_empty(&ep->internal_reply_queue));
+      } else {
+        ep->reply_payload = NULL;
+      }
+      // Reply to the request.
+      xcom_input_request_reply(ep->request, ep->reply_payload);
+      xcom_input_request_free(ep->request);
+      ep->request = ep->next_request;
+    }
+  }
+  FINALLY
+  MAY_DBG(FN; STRLIT(" shutdown "); NDBG(ep->rfd.fd, d); NDBG(task_now(), f));
+  /* Close the signalling connection. */
+  shutdown_connection(&ep->rfd);
+  unchecked_replace_pax_msg(&ep->request_pax_msg, NULL);
+  DBGOUT(FN; NDBG(xcom_shutdown, d));
+  TASK_END;
+}
+
+static bool local_server_needed() { return xcom_try_pop_from_input_cb != NULL; }
+
 int xcom_taskmain2(xcom_port listen_port) {
   init_xcom_transport(listen_port);
 
@@ -1084,10 +1255,13 @@ int xcom_taskmain2(xcom_port listen_port) {
   ignoresig(SIGPIPE);
 
   {
-    result fd = {0, 0};
-    if ((fd = announce_tcp(listen_port)).val < 0) {
+    /* Setup tcp_server socket */
+    result tcp_fd = {0, 0};
+
+    if ((tcp_fd = announce_tcp(listen_port)).val < 0) {
+      /* purecov: begin inspected */
       MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
-      task_dump_err(fd.funerr);
+      task_dump_err(tcp_fd.funerr);
       g_critical("Unable to announce tcp port %d. Port already in use?",
                  listen_port);
       if (xcom_comms_cb) {
@@ -1097,6 +1271,46 @@ int xcom_taskmain2(xcom_port listen_port) {
         xcom_terminate_cb(0);
       }
       return 1;
+      /* purecov: end */
+    }
+
+    /* Setup local_server socket */
+    result local_fd = {0, 0};
+    if (local_server_needed()) {
+      if ((local_fd = announce_tcp_local_server()).val < 0) {
+        /* purecov: begin inspected */
+        MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
+        task_dump_err(local_fd.funerr);
+        g_critical("Unable to announce local tcp port %d. Port already in use?",
+                   listen_port);
+        if (xcom_comms_cb) {
+          xcom_comms_cb(XCOM_COMMS_ERROR);
+        }
+        if (xcom_terminate_cb) {
+          xcom_terminate_cb(0);
+        }
+        return 1;
+        /* purecov: end */
+      }
+      /* Get the port local_server bound to. */
+      struct sockaddr_in6 bound_addr;
+      socklen_t bound_addr_len = sizeof(bound_addr);
+      int const error_code = getsockname(
+          local_fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+      if (error_code != 0) {
+        /* purecov: begin inspected */
+        task_dump_err(error_code);
+        g_critical("Unable to retrieve the tcp port local_server bound to");
+        if (xcom_comms_cb) {
+          xcom_comms_cb(XCOM_COMMS_ERROR);
+        }
+        if (xcom_terminate_cb) {
+          xcom_terminate_cb(0);
+        }
+        return 1;
+        /* purecov: end */
+      }
+      local_server_port = ntohs(bound_addr.sin6_port);
     }
 
     if (xcom_comms_cb) {
@@ -1106,7 +1320,11 @@ int xcom_taskmain2(xcom_port listen_port) {
     MAY_DBG(FN; STRLIT("Creating tasks"));
     /* task_new(generator_task, null_arg, "generator_task", XCOM_THREAD_DEBUG);
      */
-    task_new(tcp_server, int_arg(fd.val), "tcp_server", XCOM_THREAD_DEBUG);
+    if (local_server_needed()) {
+      task_new(local_server, int_arg(local_fd.val), "local_server",
+               XCOM_THREAD_DEBUG);
+    }
+    task_new(tcp_server, int_arg(tcp_fd.val), "tcp_server", XCOM_THREAD_DEBUG);
     task_new(tcp_reaper_task, null_arg, "tcp_reaper_task", XCOM_THREAD_DEBUG);
     /* task_new(xcom_statistics, null_arg, "xcom_statistics",
      * XCOM_THREAD_DEBUG); */
@@ -1134,15 +1352,17 @@ static void prepare(pax_msg *p, pax_op op) {
 }
 
 /* Initialize a prepare_msg */
+void init_prepare_msg(pax_msg *p) { prepare(p, prepare_op); }
+
 static int prepare_msg(pax_msg *p) {
-  prepare(p, prepare_op);
+  init_prepare_msg(p);
   /* p->msg_type = normal; */
   return send_to_acceptors(p, "prepare_msg");
 }
 
 /* Initialize a noop_msg */
-static pax_msg *create_noop(pax_msg *p) {
-  prepare(p, prepare_op);
+pax_msg *create_noop(pax_msg *p) {
+  init_prepare_msg(p);
   p->msg_type = no_op;
   return p;
 }
@@ -1186,12 +1406,20 @@ static void set_unique_id(pax_msg *msg, synode_no synode) {
   }
 }
 
-static int propose_msg(pax_msg *p) {
+void init_propose_msg(pax_msg *p) {
   p->op = accept_op;
   p->reply_to = p->proposal;
   brand_app_data(p);
   /* set_unique_id(p, my_unique_id(synode)); */
+}
+
+static int send_propose_msg(pax_msg *p) {
   return send_to_acceptors(p, "propose_msg");
+}
+
+static int propose_msg(pax_msg *p) {
+  init_propose_msg(p);
+  return send_propose_msg(p);
 }
 
 static void set_learn_type(pax_msg *p) {
@@ -1200,27 +1428,34 @@ static void set_learn_type(pax_msg *p) {
 }
 
 /* purecov: begin deadcode */
-static int learn_msg(site_def const *site, pax_msg *p) {
+static void init_learn_msg(pax_msg *p) {
   set_learn_type(p);
   p->reply_to = p->proposal;
   brand_app_data(p);
+}
+
+static int send_learn_msg(site_def const *site, pax_msg *p) {
   MAY_DBG(FN; dbg_bitset(p->receivers, get_maxnodes(site)););
   return send_to_all_site(site, p, "learn_msg");
 }
 /* purecov: end */
-static int tiny_learn_msg(site_def const *site, pax_msg *p) {
-  int retval;
-  pax_msg *tmp = clone_pax_msg_no_app(p);
-  pax_machine *pm = get_cache(p->synode);
 
-  ref_msg(tmp);
-  tmp->msg_type = p->a ? normal : no_op;
-  tmp->op = tiny_learn_op;
-  tmp->reply_to = pm->proposer.bal;
-  brand_app_data(tmp);
+static pax_msg *create_tiny_learn_msg(pax_machine *pm, pax_msg *p) {
+  pax_msg *tiny_learn_msg = clone_pax_msg_no_app(p);
+
+  ref_msg(tiny_learn_msg);
+  tiny_learn_msg->msg_type = p->a ? normal : no_op;
+  tiny_learn_msg->op = tiny_learn_op;
+  tiny_learn_msg->reply_to = pm->proposer.bal;
+  brand_app_data(tiny_learn_msg);
+
+  return tiny_learn_msg;
+}
+
+static int send_tiny_learn_msg(site_def const *site, pax_msg *p) {
   MAY_DBG(FN; dbg_bitset(tmp->receivers, get_maxnodes(site)););
-  retval = send_to_all_site(site, tmp, "tiny_learn_msg");
-  unref_msg(&tmp);
+  int retval = send_to_all_site(site, p, "tiny_learn_msg");
+  unref_msg(&p);
   return retval;
 }
 
@@ -1228,10 +1463,11 @@ static int tiny_learn_msg(site_def const *site, pax_msg *p) {
 
 /* {{{ Proposer task */
 
-static void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
-                            synode_no msgno) {
+void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
+                     synode_no msgno, pax_msg_type msg_type) {
   MAY_DBG(FN; SYCEXP(msgno); NDBG(p->proposer.bal.cnt, d);
           NDBG(p->acceptor.promise.cnt, d));
+  BIT_ZERO(p->proposer.prep_nodeset);
   p->proposer.bal.node = get_nodeno(site);
   {
     int maxcnt = MAX(p->proposer.bal.cnt, p->acceptor.promise.cnt);
@@ -1239,9 +1475,11 @@ static void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
   }
   msg->synode = msgno;
   msg->proposal = p->proposer.bal;
+  msg->msg_type = msg_type;
+  msg->force_delivery = p->force_delivery;
 }
 
-static void push_msg_2p(site_def const *site, pax_machine *p) {
+void prepare_push_2p(site_def const *site, pax_machine *p) {
   assert(p->proposer.msg);
 
   BIT_ZERO(p->proposer.prop_nodeset);
@@ -1251,6 +1489,10 @@ static void push_msg_2p(site_def const *site, pax_machine *p) {
   p->proposer.msg->proposal = p->proposer.bal;
   p->proposer.msg->synode = p->synode;
   p->proposer.msg->force_delivery = p->force_delivery;
+}
+
+static void push_msg_2p(site_def const *site, pax_machine *p) {
+  prepare_push_2p(site, p);
   propose_msg(p->proposer.msg);
 }
 
@@ -1261,11 +1503,8 @@ static void push_msg_3p(site_def const *site, pax_machine *p, pax_msg *msg,
   }
 
   assert(msgno.msgno != 0);
-  prepare_push_3p(site, p, msg, msgno);
-  msg->msg_type = msg_type;
-  BIT_ZERO(p->proposer.prep_nodeset);
+  prepare_push_3p(site, p, msg, msgno, msg_type);
   assert(p->proposer.msg);
-  msg->force_delivery = p->force_delivery;
   prepare_msg(msg);
   MAY_DBG(FN; BALCEXP(msg->proposal); SYCEXP(msgno); STRLIT(" op ");
           STRLIT(pax_op_to_str(msg->op)));
@@ -1614,6 +1853,7 @@ static int proposer_task(task_arg arg) {
   double delay;
   site_def const *site;
   size_t size;
+  size_t nr_batched_app_data;
   END_ENV;
 
   TASK_BEGIN
@@ -1628,11 +1868,11 @@ static int proposer_task(task_arg arg) {
   ep->msgno = current_message;
   ep->site = 0;
   ep->size = 0;
+  ep->nr_batched_app_data = 0;
 
   MAY_DBG(FN; NDBG(ep->self, d); NDBG(task_now(), f));
 
   while (!xcom_shutdown) { /* Loop until no more work to do */
-    int MY_ATTRIBUTE((unused)) lock = 0;
     /* Wait for client message */
     assert(!ep->client_msg);
     CHANNEL_GET(&prop_input_queue, &ep->client_msg, msg_link);
@@ -1642,10 +1882,16 @@ static int proposer_task(task_arg arg) {
     /* Grab rest of messages in queue as well, but never batch config messages,
      * which need a unique number */
 
+    /* The batch is limited either by size or number of batched app_datas.
+     * We limit the number of elements because the XDR deserialization
+     * implementation is recursive, and batching too many app_datas will cause a
+     * call stack overflow. */
     if (!is_config(ep->client_msg->p->a->body.c_t) &&
         !is_view(ep->client_msg->p->a->body.c_t)) {
       ep->size = app_data_size(ep->client_msg->p->a);
+      ep->nr_batched_app_data = 1;
       while (AUTOBATCH && ep->size <= MAX_BATCH_SIZE &&
+             ep->nr_batched_app_data <= MAX_BATCH_APP_DATA &&
              !link_empty(&prop_input_queue
                               .data)) { /* Batch payloads into single message */
         msg_link *tmp;
@@ -1654,8 +1900,10 @@ static int proposer_task(task_arg arg) {
         CHANNEL_GET(&prop_input_queue, &tmp, msg_link);
         atmp = tmp->p->a;
         ep->size += app_data_size(atmp);
+        ep->nr_batched_app_data++;
         /* Abort batching if config or too big batch */
         if (is_config(atmp->body.c_t) || is_view(atmp->body.c_t) ||
+            ep->nr_batched_app_data > MAX_BATCH_APP_DATA ||
             ep->size > MAX_BATCH_SIZE) {
           channel_put_front(&prop_input_queue, &tmp->l);
           break;
@@ -1744,8 +1992,10 @@ static int proposer_task(task_arg arg) {
       assert(ep->p);
       if (ep->client_msg->p->force_delivery)
         ep->p->force_delivery = ep->client_msg->p->force_delivery;
-      lock = lock_pax_machine(ep->p);
-      assert(!lock);
+      {
+        int MY_ATTRIBUTE((unused)) lock = lock_pax_machine(ep->p);
+        assert(!lock);
+      }
 
       /* Set the client message as current proposal */
       assert(ep->client_msg->p);
@@ -1808,7 +2058,7 @@ static int proposer_task(task_arg arg) {
       }
       /* When we get here, we know the value for this message number,
          but it may not be the value we tried to push,
-         so loop until we have a successfull push. */
+         so loop until we have a successful push. */
       unlock_pax_machine(ep->p);
       MAY_DBG(FN; STRLIT(" found finished message "); SYCEXP(ep->msgno);
               STRLIT("seconds since last push ");
@@ -2045,7 +2295,6 @@ synode_no set_current_message(synode_no msgno) {
   return current_message = msgno;
 }
 
-static void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
 static void update_max_synode(pax_msg *p);
 
 #if TASK_DBUG_ON
@@ -2205,33 +2454,31 @@ static bool_t reconfigurable_event_horizon(xcom_proto protocol_version) {
   return protocol_version >= first_event_horizon_aware_protocol;
 }
 
-static bool_t config_unsafe_against_nr_cache_entries(
-    u_int nr_nodes, xcom_event_horizon event_horizon) {
-  return CACHED <= event_horizon * nr_nodes;
-}
-
-static bool_t add_node_unsafe_against_nr_cache_entries(app_data_ptr a) {
+static bool_t add_node_unsafe_against_ipv4_old_nodes(app_data_ptr a) {
   assert(a->body.c_t == add_node_type);
+
   site_def const *latest_config = get_site_def();
-  xcom_event_horizon const event_horizon = latest_config->event_horizon;
-  u_int const nr_nodes_in_config = latest_config->nodes.node_list_len;
+  if (latest_config && latest_config->x_proto >= minimum_ipv6_version())
+    return FALSE;
+
   u_int const nr_nodes_to_add = a->body.app_u_u.nodes.node_list_len;
-  u_int const nr_nodes_in_new_config = nr_nodes_in_config + nr_nodes_to_add;
-  if (config_unsafe_against_nr_cache_entries(nr_nodes_in_new_config,
-                                             event_horizon)) {
-    /*
-     * We should revisit the log message when add_node_type messages contain
-     * more than one address.
-     */
-    assert(a->body.app_u_u.nodes.node_list_len > 0);
-    G_INFO(
-        "The request to add %s to the group was rejected because the invariant "
-        "event_horizon * nr_members < nr_cache_entries would be violated: "
-        "%" PRIu32 " * %u < %d",
-        a->body.app_u_u.nodes.node_list_val[0].address, event_horizon,
-        nr_nodes_in_new_config, CACHED);
-    return TRUE;
+  node_address *nodes_to_add = a->body.app_u_u.nodes.node_list_val;
+
+  u_int i = 0;
+  xcom_port node_port = 0;
+  char node_addr[IP_MAX_SIZE];
+
+  for (; i < nr_nodes_to_add; i++) {
+    if (get_ip_and_port(nodes_to_add[i].address, node_addr, &node_port)) {
+      G_ERROR(
+          "Error parsing address from a joining node. Join operation will be "
+          "rejected");
+      return TRUE;
+    }
+
+    if (!is_node_v4_reachable(node_addr)) return TRUE;
   }
+
   return FALSE;
 }
 
@@ -2306,16 +2553,6 @@ site_def *handle_add_node(app_data_ptr a) {
     return NULL;
   }
 
-  if (add_node_unsafe_against_nr_cache_entries(a)) {
-    /*
-     * Note that the result of this function is only applicable to
-     * unused and not-fully-implemented code paths where add_node_type is used
-     * forcibly.
-     * Should this fact change, this obviously does not work.
-     */
-    return NULL;
-  }
-
   site_def *site = clone_site_def(get_site_def());
   DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
   MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
@@ -2350,8 +2587,7 @@ site_def *handle_add_node(app_data_ptr a) {
 enum allow_event_horizon_result {
   EVENT_HORIZON_ALLOWED,
   EVENT_HORIZON_INVALID,
-  EVENT_HORIZON_UNCHANGEABLE,
-  EVENT_HORIZON_UNSAFE_AGAINST_CACHE
+  EVENT_HORIZON_UNCHANGEABLE
 };
 typedef enum allow_event_horizon_result allow_event_horizon_result;
 
@@ -2371,14 +2607,6 @@ static void log_event_horizon_reconfiguration_failure(
                 "reconfiguring the event horizon",
                 attempted_event_horizon);
       break;
-    case EVENT_HORIZON_UNSAFE_AGAINST_CACHE:
-      G_WARNING("The event horizon was not reconfigured to %" PRIu32
-                " because the invariant "
-                "event_horizon * nr_members < nr_cache_entries would be "
-                "violated: %" PRIu32 " * %u < %d",
-                attempted_event_horizon, attempted_event_horizon,
-                get_site_def()->nodes.node_list_len, CACHED);
-      break;
     case EVENT_HORIZON_ALLOWED:
       break;
   }
@@ -2394,11 +2622,6 @@ static allow_event_horizon_result allow_event_horizon(
     assert(backwards_compatible(latest_config->event_horizon));
     return EVENT_HORIZON_UNCHANGEABLE;
   }
-
-  u_int const nr_nodes = latest_config->nodes.node_list_len;
-  if (config_unsafe_against_nr_cache_entries(nr_nodes, event_horizon))
-    return EVENT_HORIZON_UNSAFE_AGAINST_CACHE;
-
   return EVENT_HORIZON_ALLOWED;
 }
 
@@ -2411,7 +2634,6 @@ static bool_t unsafe_event_horizon_reconfiguration(app_data_ptr a) {
   switch (error_code) {
     case EVENT_HORIZON_INVALID:
     case EVENT_HORIZON_UNCHANGEABLE:
-    case EVENT_HORIZON_UNSAFE_AGAINST_CACHE:
       log_event_horizon_reconfiguration_failure(error_code, new_event_horizon);
       result = TRUE;
       break;
@@ -2419,6 +2641,41 @@ static bool_t unsafe_event_horizon_reconfiguration(app_data_ptr a) {
       break;
   }
   return result;
+}
+
+static bool_t are_there_dead_nodes_in_new_config(app_data_ptr a) {
+  assert(a->body.c_t == force_config_type);
+
+  u_int nr_nodes_to_add = a->body.app_u_u.nodes.node_list_len;
+  node_address *nodes_to_change = a->body.app_u_u.nodes.node_list_val;
+  uint32_t i;
+  G_DEBUG("Checking for dead nodes in Forced Configuration")
+  for (i = 0; i < nr_nodes_to_add; i++) {
+    node_no node = find_nodeno(get_site_def(), nodes_to_change[i].address);
+
+    if (node == get_nodeno(get_site_def()))
+      continue;  // No need to validate myself
+
+    if (node == VOID_NODE_NO) {
+      G_ERROR(
+          "%s is not in the current configuration."
+          "Only members in the current configuration can be present"
+          " in a forced configuration list",
+          nodes_to_change[i].address)
+      return true;
+    }
+
+    if (may_be_dead(get_site_def()->detected, node, task_now())) {
+      G_ERROR(
+          "%s is suspected to be failed."
+          "Only alive members in the current configuration should be present"
+          " in a forced configuration list",
+          nodes_to_change[i].address)
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -3160,9 +3417,8 @@ void request_values(synode_no find, synode_no end) {
   reply_msg(reply); \
   replace_pax_msg(&reply, NULL)
 
-static void teach_ignorant_node(site_def const *site, pax_machine *p,
-                                pax_msg *pm, synode_no synode,
-                                linkage *reply_queue) {
+static pax_msg *create_learn_msg_for_ignorant_node(pax_machine *p, pax_msg *pm,
+                                                   synode_no synode) {
   CREATE_REPLY(pm);
   DBGOUT(FN; SYCEXP(synode));
   reply->synode = synode;
@@ -3171,6 +3427,13 @@ static void teach_ignorant_node(site_def const *site, pax_machine *p,
   copy_app_data(&reply->a, p->learner.msg->a);
   set_learn_type(reply);
   /* set_unique_id(reply, p->learner.msg->unique_id); */
+  return reply;
+}
+
+static void teach_ignorant_node(site_def const *site, pax_machine *p,
+                                pax_msg *pm, synode_no synode,
+                                linkage *reply_queue) {
+  pax_msg *reply = create_learn_msg_for_ignorant_node(p, pm, synode);
   SEND_REPLY;
 }
 
@@ -3213,35 +3476,41 @@ static void miss_accept(site_def const *site, pax_msg *pm,
 
 #endif
 
-static void handle_simple_prepare(site_def const *site, pax_machine *p,
-                                  pax_msg *pm, synode_no synode,
-                                  linkage *reply_queue) {
+static pax_msg *create_ack_prepare_msg(pax_machine *p, pax_msg *pm,
+                                       synode_no synode) {
+  CREATE_REPLY(pm);
+  reply->synode = synode;
+  if (accepted(p)) { /* We have accepted a value */
+    reply->proposal = p->acceptor.msg->proposal;
+    reply->msg_type = p->acceptor.msg->msg_type;
+    copy_app_data(&reply->a, p->acceptor.msg->a);
+    MAY_DBG(FN; STRLIT(" already accepted value "); SYCEXP(synode));
+    reply->op = ack_prepare_op;
+  } else {
+    MAY_DBG(FN; STRLIT(" no value synode "); SYCEXP(synode));
+    reply->op = ack_prepare_empty_op;
+  }
+  return reply;
+}
+
+pax_msg *handle_simple_prepare(pax_machine *p, pax_msg *pm, synode_no synode) {
+  pax_msg *reply = NULL;
   if (finished(p)) { /* We have learned a value */
     MAY_DBG(FN; SYCEXP(synode); BALCEXP(pm->proposal); NDBG(finished(p), d));
-    teach_ignorant_node(site, p, pm, synode, reply_queue);
+    reply = create_learn_msg_for_ignorant_node(p, pm, synode);
   } else {
     int greater =
         gt_ballot(pm->proposal,
                   p->acceptor.promise); /* Paxos acceptor phase 1 decision */
     MAY_DBG(FN; SYCEXP(synode); BALCEXP(pm->proposal); NDBG(greater, d));
     if (greater || noop_match(p, pm)) {
-      CREATE_REPLY(pm);
-      reply->synode = synode;
-      if (greater)
+      if (greater) {
         p->acceptor.promise = pm->proposal; /* promise to not accept any less */
-      if (accepted(p)) {                    /* We have accepted a value */
-        reply->proposal = p->acceptor.msg->proposal;
-        reply->msg_type = p->acceptor.msg->msg_type;
-        copy_app_data(&reply->a, p->acceptor.msg->a);
-        MAY_DBG(FN; STRLIT(" already accepted value "); SYCEXP(synode));
-        reply->op = ack_prepare_op;
-      } else {
-        MAY_DBG(FN; STRLIT(" no value synode "); SYCEXP(synode));
-        reply->op = ack_prepare_empty_op;
       }
-      SEND_REPLY;
+      reply = create_ack_prepare_msg(p, pm, synode);
     }
   }
+  return reply;
 }
 
 /* Handle incoming prepare */
@@ -3260,37 +3529,45 @@ static void handle_prepare(site_def const *site, pax_machine *p,
           if (p->acceptor.msg) BALCEXP(p->acceptor.msg->proposal);
           STRLIT("type "); STRLIT(pax_msg_type_to_str(pm->msg_type)));
 
-  handle_simple_prepare(site, p, pm, pm->synode, reply_queue);
+  pax_msg *reply = handle_simple_prepare(p, pm, pm->synode);
+  if (reply != NULL) SEND_REPLY;
 }
 
-static void check_propose(site_def const *site, pax_machine *p) {
+bool_t check_propose(site_def const *site, pax_machine *p) {
   MAY_DBG(FN; SYCEXP(p->synode);
           COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
+  bool_t can_propose = FALSE;
   if (prep_majority(site, p)) {
     p->proposer.msg->proposal = p->proposer.bal;
     BIT_ZERO(p->proposer.prop_nodeset);
     p->proposer.msg->synode = p->synode;
-    propose_msg(p->proposer.msg);
+    init_propose_msg(p->proposer.msg);
     p->proposer.sent_prop = p->proposer.bal;
+    can_propose = TRUE;
   }
+  return can_propose;
 }
 
-static void check_learn(site_def const *site, pax_machine *p) {
+static pax_msg *check_learn(site_def const *site, pax_machine *p) {
   MAY_DBG(FN; SYCEXP(p->synode);
           COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
+  pax_msg *learn_msg = NULL;
   if (get_nodeno(site) != VOID_NODE_NO && prop_majority(site, p)) {
     p->proposer.msg->synode = p->synode;
     if (p->proposer.msg->receivers) free_bit_set(p->proposer.msg->receivers);
     p->proposer.msg->receivers = clone_bit_set(p->proposer.prep_nodeset);
     BIT_SET(get_nodeno(site), p->proposer.msg->receivers);
-    if (no_duplicate_payload)
-      tiny_learn_msg(site, p->proposer.msg);
-    else
-      learn_msg(site, p->proposer.msg);
+    if (no_duplicate_payload) {
+      learn_msg = create_tiny_learn_msg(p, p->proposer.msg);
+    } else {
+      init_learn_msg(p->proposer.msg);
+      learn_msg = p->proposer.msg;
+    }
     p->proposer.sent_learn = p->proposer.bal;
   }
+  return learn_msg;
 }
 
 static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
@@ -3315,10 +3592,21 @@ static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
   shrink_cache();
 }
 
-static void handle_simple_ack_prepare(
-    site_def const *site MY_ATTRIBUTE((unused)), pax_machine *p, pax_msg *m) {
+bool_t handle_simple_ack_prepare(site_def const *site, pax_machine *p,
+                                 pax_msg *m) {
   if (get_nodeno(site) != VOID_NODE_NO)
     BIT_SET(m->from, p->proposer.prep_nodeset);
+
+  bool_t can_propose = FALSE;
+  if (m->op == ack_prepare_op &&
+      gt_ballot(m->proposal, p->proposer.msg->proposal)) { /* greater */
+    replace_pax_msg(&p->proposer.msg, m);
+    assert(p->proposer.msg);
+  }
+  if (gt_ballot(m->reply_to, p->proposer.sent_prop)) {
+    can_propose = check_propose(site, p);
+  }
+  return can_propose;
 }
 
 /* Other node has already accepted a value */
@@ -3348,57 +3636,33 @@ static void handle_ack_prepare(site_def const *site, pax_machine *p,
 
   if (m->from != VOID_NODE_NO &&
       eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my prepare */
-    handle_simple_ack_prepare(site, p, m);
-    if (gt_ballot(m->proposal, p->proposer.msg->proposal)) { /* greater */
-      replace_pax_msg(&p->proposer.msg, m);
-      assert(p->proposer.msg);
-    }
-    if (gt_ballot(m->reply_to, p->proposer.sent_prop)) check_propose(site, p);
-  }
-}
-
-/* Other node has not already accepted a value */
-static void handle_ack_prepare_empty(site_def const *site, pax_machine *p,
-                                     pax_msg *m) {
-  ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
-             add_event(int_arg(m->from));
-             add_event(string_arg(pax_op_to_str(m->op))););
-#if 0
-	DBGOUT(FN;
-	    NDBG(m->from, d); NDBG(m->to, d);
-	    SYCEXP(m->synode);
-	    BALCEXP(m->proposal); BALCEXP(p->acceptor.promise));
-#endif
-  MAY_DBG(FN; if (p->proposer.msg) BALCEXP(p->proposer.msg->proposal);
-          BALCEXP(p->proposer.bal); BALCEXP(m->reply_to);
-          BALCEXP(p->proposer.sent_prop); SYCEXP(m->synode));
-  if (m->from != VOID_NODE_NO &&
-      eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my prepare */
-    handle_simple_ack_prepare(site, p, m);
-    if (gt_ballot(m->reply_to, p->proposer.sent_prop)) check_propose(site, p);
+    bool_t can_propose = handle_simple_ack_prepare(site, p, m);
+    if (can_propose) send_propose_msg(p->proposer.msg);
   }
 }
 
 /* #define AUTO_MSG(p,synode) {if(!(p)){replace_pax_msg(&(p),
  * pax_msg_new(synode, site));} */
 
-static void handle_simple_accept(site_def const *site, pax_machine *p,
-                                 pax_msg *m, synode_no synode,
-                                 linkage *reply_queue) {
+static pax_msg *create_ack_accept_msg(pax_msg *m, synode_no synode) {
+  CREATE_REPLY(m);
+  reply->op = ack_accept_op;
+  reply->synode = synode;
+  return reply;
+}
+
+pax_msg *handle_simple_accept(pax_machine *p, pax_msg *m, synode_no synode) {
+  pax_msg *reply = NULL;
   if (finished(p)) { /* We have learned a value */
-    teach_ignorant_node(site, p, m, synode, reply_queue);
+    reply = create_learn_msg_for_ignorant_node(p, m, synode);
   } else if (!gt_ballot(p->acceptor.promise,
                         m->proposal) || /* Paxos acceptor phase 2 decision */
              noop_match(p, m)) {
     MAY_DBG(FN; SYCEXP(m->synode); STRLIT("accept "); BALCEXP(m->proposal));
     replace_pax_msg(&p->acceptor.msg, m);
-    {
-      CREATE_REPLY(m);
-      reply->op = ack_accept_op;
-      reply->synode = synode;
-      SEND_REPLY;
-    }
+    reply = create_ack_accept_msg(m, synode);
   }
+  return reply;
 }
 
 /* Accecpt value if promise is not greater */
@@ -3411,10 +3675,23 @@ static void handle_accept(site_def const *site, pax_machine *p,
              add_event(int_arg(m->from));
              add_event(string_arg(pax_op_to_str(m->op))););
 
-  handle_simple_accept(site, p, m, m->synode, reply_queue);
+  pax_msg *reply = handle_simple_accept(p, m, m->synode);
+  if (reply != NULL) SEND_REPLY;
 }
 
 /* Handle answer to accept */
+pax_msg *handle_simple_ack_accept(site_def const *site, pax_machine *p,
+                                  pax_msg *m) {
+  pax_msg *learn_msg = NULL;
+  if (get_nodeno(site) != VOID_NODE_NO && m->from != VOID_NODE_NO &&
+      eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my accept */
+    BIT_SET(m->from, p->proposer.prop_nodeset);
+    if (gt_ballot(m->proposal, p->proposer.sent_learn)) {
+      learn_msg = check_learn(site, p);
+    }
+  }
+  return learn_msg;
+}
 static void handle_ack_accept(site_def const *site, pax_machine *p,
                               pax_msg *m) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
@@ -3426,10 +3703,38 @@ static void handle_ack_accept(site_def const *site, pax_machine *p,
   MAY_DBG(FN; SYCEXP(p->synode);
           if (p->acceptor.msg) BALCEXP(p->acceptor.msg->proposal);
           BALCEXP(p->proposer.bal); BALCEXP(m->reply_to););
-  if (get_nodeno(site) != VOID_NODE_NO && m->from != VOID_NODE_NO &&
-      eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my accept */
-    BIT_SET(m->from, p->proposer.prop_nodeset);
-    if (gt_ballot(m->proposal, p->proposer.sent_learn)) check_learn(site, p);
+
+  pax_msg *learn_msg = handle_simple_ack_accept(site, p, m);
+  if (learn_msg != NULL) {
+    if (learn_msg->op == tiny_learn_op) {
+      send_tiny_learn_msg(site, learn_msg);
+    } else {
+      assert(learn_msg->op == learn_op);
+      send_learn_msg(site, learn_msg);
+    }
+  }
+}
+
+/* Handle incoming learn. */
+static void activate_sweeper();
+void handle_tiny_learn(site_def const *site, pax_machine *pm, pax_msg *p) {
+  assert(p->msg_type != no_op);
+  if (pm->acceptor.msg) {
+    /* 			BALCEXP(pm->acceptor.msg->proposal); */
+    if (eq_ballot(pm->acceptor.msg->proposal, p->proposal)) {
+      pm->acceptor.msg->op = learn_op;
+      pm->last_modified = task_now();
+      update_max_synode(p);
+      activate_sweeper();
+      handle_learn(site, pm, pm->acceptor.msg);
+    } else {
+      send_read(p->synode);
+      DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode);
+             BALCEXP(pm->acceptor.msg->proposal); BALCEXP(p->proposal));
+    }
+  } else {
+    send_read(p->synode);
+    DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode); BALCEXP(p->proposal));
   }
 }
 
@@ -3484,7 +3789,7 @@ static void start_force_config(site_def *s, int enforcer) {
 }
 
 /* Learn this value */
-static void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
+void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
   MAY_DBG(FN; STRLIT("proposer nodeset ");
           dbg_bitset(p->proposer.prop_nodeset, get_maxnodes(site)););
   MAY_DBG(FN; STRLIT("receivers ");
@@ -3606,6 +3911,82 @@ static int accept_site(site_def const *site) {
 }
 #endif
 
+/* Handle incoming "need boot" message. */
+static inline void handle_boot(site_def const *site, pax_msg *p) {
+  /* This should never be true, but validate it instead of asserting. */
+  if (site == NULL || site->nodes.node_list_len < 1) {
+    G_DEBUG(
+        "handle_boot: Received an unexpected need_boot_op when site == NULL or "
+        "site->nodes.node_list_len < 1");
+    return;
+  }
+
+  if (should_handle_boot(site, p)) {
+    XCOM_FSM(xa_need_snapshot, void_arg(p));
+  } else {
+    G_DEBUG(
+        "Ignoring a need_boot_op message from an XCom incarnation that does "
+        "not belong to the group.");
+  }
+}
+bool should_handle_boot(site_def const *site, pax_msg *p) {
+  bool should_handle = false;
+  bool const sender_advertises_identity =
+      (p->a != NULL && p->a->body.c_t == xcom_boot_type);
+
+  /*
+   If the message advertises the sender's identity, check if it matches the
+   membership information.
+
+   The sender's identity may not match if, e.g.:
+
+     a. The member was already removed, or
+     b. It is a new incarnation of a crashed member that is yet to be removed.
+
+   ...or some other reason.
+
+   If it is due to reason (b), we do not want to boot the sender because XCom
+   only implements a simple fail-stop model. Allowing the sender to rejoin the
+   group without going through the full remove+add node path could violate
+   safety because the sender does not remember any previous Paxos acceptances it
+   acknowledged before crashing.
+   Since the pre-crash incarnation may have accepted a value for a given synod
+   but the post-crash incarnation has forgotten that fact, the post-crash
+   incarnation will fail to propagate the previously accepted value to a higher
+   ballot. Since majorities can overlap on a single node, if the overlap node
+   is the post-crash incarnation which has forgotten about the previously
+   accepted value, a higher ballot proposer may get a different value accepted,
+   leading to conflicting values to be accepted for different proposers, which
+   is a violation of the safety properties of the Paxos protocol.
+
+   If the sender does not advertise its identity, we boot it unconditionally.
+   This is for backwards compatibility.
+  */
+  if (sender_advertises_identity) {
+    bool const sender_advertises_one_identity =
+        (p->a->body.app_u_u.nodes.node_list_len == 1);
+
+    /* Defensively accept only messages with a single identity. */
+    if (sender_advertises_one_identity) {
+      node_address *sender_identity = p->a->body.app_u_u.nodes.node_list_val;
+      should_handle = node_exists_with_uid(sender_identity, &site->nodes);
+    }
+  } else {
+    should_handle = true;
+  }
+
+  return should_handle;
+}
+
+void init_need_boot_op(pax_msg *p, node_address *identity) {
+  p->op = need_boot_op;
+  if (identity != NULL) {
+    p->a = new_app_data();
+    p->a->body.c_t = xcom_boot_type;
+    init_node_list(1, identity, &p->a->body.app_u_u.nodes);
+  }
+}
+
 /* Handle incoming alive message */
 static double sent_alive = 0.0;
 static inline void handle_alive(site_def const *site, linkage *reply_queue,
@@ -3640,7 +4021,7 @@ static inline void handle_alive(site_def const *site, linkage *reply_queue,
     double t = task_now();
     if (t - sent_alive > 1.0) {
       CREATE_REPLY(pm);
-      reply->op = need_boot_op;
+      init_need_boot_op(reply, cfg_app_xcom_get_identity());
       SEND_REPLY;
       sent_alive = t;
       DBGOUT(FN; STRLIT("sent need_boot_op"););
@@ -3740,7 +4121,14 @@ static u_int allow_add_node(app_data_ptr a) {
 
   if (add_node_unsafe_against_event_horizon(a)) return 0;
 
-  if (add_node_unsafe_against_nr_cache_entries(a)) return 0;
+  if (add_node_unsafe_against_ipv4_old_nodes(a)) {
+    G_MESSAGE(
+        "This server is unable to join the group as the NIC used is configured "
+        "with IPv6 only and there are members in the group that are unable to "
+        "communicate using IPv6, only IPv4.Please configure this server to "
+        "join the group using an IPv4 address instead.");
+    return 0;
+  }
 
   u_int i = 0;
   for (; i < nr_nodes_to_add; i++) {
@@ -3890,6 +4278,10 @@ static client_reply_code can_execute_cfgchange(pax_msg *p) {
       unsafe_event_horizon_reconfiguration(a))
     return REQUEST_FAIL;
 
+  if (a && a->body.c_t == force_config_type &&
+      are_there_dead_nodes_in_new_config(a))
+    return REQUEST_FAIL;
+
   return REQUEST_OK;
 }
 
@@ -3907,6 +4299,61 @@ void dispatch_get_event_horizon(site_def const *site, pax_msg *p,
   CREATE_REPLY(p);
   reply->op = xcom_client_reply;
   reply->cli_err = xcom_get_event_horizon(&reply->event_horizon);
+  SEND_REPLY;
+}
+
+/*
+ * Log the result of the get_synode_app_data command.
+ */
+static void log_get_synode_app_data_failure(
+    xcom_get_synode_app_data_result error_code) {
+  switch (error_code) {
+    case XCOM_GET_SYNODE_APP_DATA_OK:
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_ERROR:
+      G_DEBUG("Could not reply successfully to request for synode data.");
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NOT_CACHED:
+      G_DEBUG(
+          "Could not reply successfully to request for synode data because "
+          "some of the requested synodes are no longer cached.");
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NOT_DECIDED:
+      G_DEBUG(
+          "Could not reply successfully to request for synode data because "
+          "some of the requested synodes are still undecided.");
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NO_MEMORY:
+      G_DEBUG(
+          "Could not reply successfully to request for synode data because "
+          "memory could not be allocated.");
+      break;
+  }
+}
+
+void dispatch_get_synode_app_data(site_def const *site, pax_msg *p,
+                                  linkage *reply_queue) {
+  DBGOUT(FN; STRLIT("Got get_synode_app_data from client"); SYCEXP(p->synode););
+
+  CREATE_REPLY(p);
+  reply->op = xcom_client_reply;
+
+  xcom_get_synode_app_data_result error_code;
+  error_code = xcom_get_synode_app_data(&p->a->body.app_u_u.synodes,
+                                        &reply->requested_synode_app_data);
+  switch (error_code) {
+    case XCOM_GET_SYNODE_APP_DATA_OK:
+      reply->cli_err = REQUEST_OK;
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NOT_CACHED:
+    case XCOM_GET_SYNODE_APP_DATA_NOT_DECIDED:
+    case XCOM_GET_SYNODE_APP_DATA_NO_MEMORY:
+    case XCOM_GET_SYNODE_APP_DATA_ERROR:
+      reply->cli_err = REQUEST_FAIL;
+      log_get_synode_app_data_failure(error_code);
+      break;
+  }
+
   SEND_REPLY;
 }
 
@@ -3958,7 +4405,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
         DBGOUT(FN; STRLIT("Got set_cache_limit from client");
                SYCEXP(p->synode););
         if (the_app_xcom_cfg) {
-          set_max_cache_size((size_t)p->a->body.app_u_u.cache_limit);
+          set_max_cache_size(p->a->body.app_u_u.cache_limit);
           reply->cli_err = REQUEST_OK;
         } else {
           reply->cli_err = REQUEST_FAIL;
@@ -3983,6 +4430,10 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       }
       if (p->a && (p->a->body.c_t == get_event_horizon_type)) {
         dispatch_get_event_horizon(site, p, reply_queue);
+        break;
+      }
+      if (p->a && (p->a->body.c_t == get_synode_app_data_type)) {
+        dispatch_get_synode_app_data(site, p, reply_queue);
         break;
       }
       if (p->a && (p->a->body.c_t == add_node_type ||
@@ -4050,25 +4501,37 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm->last_modified = task_now();
       MAY_DBG(FN; dbg_pax_msg(p));
 
-      if (client_boot_done) handle_alive(site, reply_queue, p);
+      /*
+       We can only be a productive Paxos Acceptor if we have been booted, i.e.
+       added to the group and received an up-to-date snapshot from some member.
 
-      handle_prepare(site, pm, reply_queue, p);
+       We do not allow non-booted members to participate in Paxos because they
+       might be a reincarnation of a member that crashed and was then brought up
+       without having gone through the remove+add node path.
+       Since the pre-crash incarnation may have accepted a value for a given
+       synod but the post-crash incarnation has forgotten that fact, the
+       post-crash incarnation will fail to propagate the previously accepted
+       value to a higher ballot. Since majorities can overlap on a single node,
+       if the overlap node is the post-crash incarnation which has forgotten
+       about the previously accepted value, the higher ballot proposer may get
+       a different value accepted, leading to conflicting values to be accepted
+       for different proposers, which is a violation of the safety requirements
+       of the Paxos protocol.
+      */
+      if (client_boot_done) {
+        handle_alive(site, reply_queue, p);
+
+        handle_prepare(site, pm, reply_queue, p);
+      }
       break;
     case ack_prepare_op:
-      if (in_front || !is_cached(p->synode)) break;
-      pm = get_cache(p->synode);
-      if (p->force_delivery) pm->force_delivery = 1;
-      if (!pm->proposer.msg) break;
-      assert(pm && pm->proposer.msg);
-      handle_ack_prepare(site, pm, p);
-      break;
     case ack_prepare_empty_op:
       if (in_front || !is_cached(p->synode)) break;
       pm = get_cache(p->synode);
       if (p->force_delivery) pm->force_delivery = 1;
       if (!pm->proposer.msg) break;
       assert(pm && pm->proposer.msg);
-      handle_ack_prepare_empty(site, pm, p);
+      handle_ack_prepare(site, pm, p);
       break;
     case accept_op:
       pm = get_cache(p->synode);
@@ -4077,9 +4540,28 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm->last_modified = task_now();
       MAY_DBG(FN; dbg_pax_msg(p));
 
-      handle_alive(site, reply_queue, p);
+      /*
+       We can only be a productive Paxos Acceptor if we have been booted, i.e.
+       added to the group and received an up-to-date snapshot from some member.
 
-      handle_accept(site, pm, reply_queue, p);
+       We do not allow non-booted members to participate in Paxos because they
+       might be a reincarnation of a member that crashed and was then brought up
+       without having gone through the remove+add node path.
+       Since the pre-crash incarnation may have accepted a value for a given
+       synod but the post-crash incarnation has forgotten that fact, the
+       post-crash incarnation will fail to propagate the previously accepted
+       value to a higher ballot. Since majorities can overlap on a single node,
+       if the overlap node is the post-crash incarnation which has forgotten
+       about the previously accepted value, the higher ballot proposer may get
+       a different value accepted, leading to conflicting values to be accepted
+       for different proposers, which is a violation of the safety requirements
+       of the Paxos protocol.
+      */
+      if (client_boot_done) {
+        handle_alive(site, reply_queue, p);
+
+        handle_accept(site, pm, reply_queue, p);
+      }
       break;
     case ack_accept_op:
       if (in_front || !is_cached(p->synode)) break;
@@ -4117,24 +4599,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm = get_cache(p->synode);
       assert(pm);
       if (p->force_delivery) pm->force_delivery = 1;
-      if (pm->acceptor.msg) {
-        /* 			BALCEXP(pm->acceptor.msg->proposal); */
-        if (eq_ballot(pm->acceptor.msg->proposal, p->proposal)) {
-          pm->acceptor.msg->op = learn_op;
-          pm->last_modified = task_now();
-          update_max_synode(p);
-          activate_sweeper();
-          handle_learn(site, pm, pm->acceptor.msg);
-        } else {
-          send_read(p->synode);
-          DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode);
-                 BALCEXP(pm->acceptor.msg->proposal); BALCEXP(p->proposal));
-        }
-      } else {
-        send_read(p->synode);
-        DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode);
-               BALCEXP(p->proposal));
-      }
+      handle_tiny_learn(site, pm, p);
       break;
     case skip_op:
       pm = get_cache(p->synode);
@@ -4151,7 +4616,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       break;
     case need_boot_op:
       /* purecov: begin deadcode */
-      XCOM_FSM(xa_need_snapshot, void_arg(p));
+      handle_boot(site, p);
       break;
     /* purecov: end */
     case snapshot_op:
@@ -4269,6 +4734,7 @@ int acceptor_learner_task(task_arg arg) {
   int errors;
   server *srv;
   site_def const *site;
+  int behind;
   END_ENV;
 
   TASK_BEGIN
@@ -4284,6 +4750,7 @@ int acceptor_learner_task(task_arg arg) {
   ep->buf = NULL;
   ep->errors = 0;
   ep->srv = 0;
+  ep->behind = FALSE;
 
   /* We have a connection, make socket non-blocking and wait for request */
   unblock_fd(ep->rfd.fd);
@@ -4335,7 +4802,7 @@ int acceptor_learner_task(task_arg arg) {
 
 again:
   while (!xcom_shutdown) {
-    int64_t n = 0;
+    int64_t n;
     ep->site = 0;
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
@@ -4367,26 +4834,29 @@ again:
       common to both the sender_task, reply_handler_task,  and the ac‐
       ceptor_learner_task.
     */
+    // Allow the previous server reference to be freed.
+    if (ep->srv) srv_unref(ep->srv);
     ep->srv = get_server(ep->site, ep->p->from);
+    // Prevent the new server reference from being freed.
+    if (ep->srv) srv_ref(ep->srv);
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
     receive_count[ep->p->op]++;
-    receive_bytes[ep->p->op] += (uint64_t)n + MSG_HDR_SIZE;
+    receive_bytes[ep->p->op] += n + MSG_HDR_SIZE;
     {
-      int behind = FALSE;
       if (get_maxnodes(ep->site) > 0) {
-        behind = ep->p->synode.msgno < delivered_msg.msgno;
+        ep->behind = ep->p->synode.msgno < delivered_msg.msgno;
       }
-      ADD_EVENTS(add_event(string_arg("before dispatch "));
-                 add_synode_event(ep->p->synode);
-                 add_event(string_arg("ep->p->from"));
-                 add_event(int_arg(ep->p->from));
-                 add_event(string_arg(pax_op_to_str(ep->p->op)));
-                 add_event(string_arg(pax_msg_type_to_str(ep->p->msg_type)));
-                 add_event(string_arg("is_cached(ep->p->synode)"));
-                 add_event(int_arg(is_cached(ep->p->synode)));
-                 add_event(string_arg("behind")); add_event(int_arg(behind)););
+      ADD_EVENTS(
+          add_event(string_arg("before dispatch "));
+          add_synode_event(ep->p->synode); add_event(string_arg("ep->p->from"));
+          add_event(int_arg(ep->p->from));
+          add_event(string_arg(pax_op_to_str(ep->p->op)));
+          add_event(string_arg(pax_msg_type_to_str(ep->p->msg_type)));
+          add_event(string_arg("is_cached(ep->p->synode)"));
+          add_event(int_arg(is_cached(ep->p->synode)));
+          add_event(string_arg("behind")); add_event(int_arg(ep->behind)););
       /* Special treatment to see if synode number is valid. Return no-op if
        * not. */
       if (ep->p->op == read_op || ep->p->op == prepare_op ||
@@ -4399,13 +4869,14 @@ again:
                      add_event(string_arg("site->nodes.node_list_len"));
                      add_event(int_arg(site->nodes.node_list_len)););
           if (ep->p->synode.node >= ep->site->nodes.node_list_len) {
-            CREATE_REPLY(ep->p);
-            ref_msg(reply);
-            create_noop(reply);
-            set_learn_type(reply);
-            SERIALIZE_REPLY(reply);
-            delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking
-                                      call which will lose value of reply */
+            {
+              CREATE_REPLY(ep->p);
+              create_noop(reply);
+              set_learn_type(reply);
+              SERIALIZE_REPLY(reply);
+              delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking
+                                        call which will lose value of reply */
+            }
             WRITE_REPLY;
             goto again;
           }
@@ -4414,7 +4885,7 @@ again:
       if (ep->p->msg_type == normal ||
           ep->p->synode.msgno == 0 || /* Used by i-am-alive and so on */
           is_cached(ep->p->synode) || /* Already in cache */
-          (!behind)) { /* Guard against cache pollution from other nodes */
+          (!ep->behind)) { /* Guard against cache pollution from other nodes */
 
         if (should_poll_cache(ep->p->op)) {
           pax_machine *pm;
@@ -4426,22 +4897,25 @@ again:
 
         /* Send replies on same fd */
         while (!link_empty(&ep->reply_queue)) {
-          msg_link *reply = (msg_link *)(link_extract_first(&ep->reply_queue));
-          MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_linkage(&ep->reply_queue));
-                  COPY_AND_FREE_GOUT(dbg_msg_link(reply));
-                  COPY_AND_FREE_GOUT(dbg_pax_msg(reply->p)););
-          assert(reply->p);
-          assert(reply->p->refcnt > 0);
-          SERIALIZE_REPLY(reply->p);
-          msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking
-                                      call which will lose value of reply */
+          {
+            msg_link *reply =
+                (msg_link *)(link_extract_first(&ep->reply_queue));
+            MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_linkage(&ep->reply_queue));
+                    COPY_AND_FREE_GOUT(dbg_msg_link(reply));
+                    COPY_AND_FREE_GOUT(dbg_pax_msg(reply->p)););
+            assert(reply->p);
+            assert(reply->p->refcnt > 0);
+            SERIALIZE_REPLY(reply->p);
+            msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking
+                                        call which will lose value of reply */
+          }
           WRITE_REPLY;
         }
       } else {
         DBGOUT(FN; STRLIT("rejecting "); STRLIT(pax_op_to_str(ep->p->op));
                NDBG(ep->p->from, d); NDBG(ep->p->to, d); SYCEXP(ep->p->synode);
                BALCEXP(ep->p->proposal));
-        if (xcom_booted() && behind) {
+        if (xcom_booted() && ep->behind) {
 #ifdef USE_EXIT_TYPE
           if (ep->p->op == prepare_op) {
             miss_prepare(ep->p, &ep->reply_queue);
@@ -4455,16 +4929,17 @@ again:
                    NDBG(ep->p->from, d); NDBG(ep->p->to, d);
                    SYCEXP(ep->p->synode); BALCEXP(ep->p->proposal));
             if (get_maxnodes(ep->site) > 0) {
-              pax_msg *np = NULL;
-              np = pax_msg_new(ep->p->synode, ep->site);
-              ref_msg(np);
-              np->op = die_op;
-              SERIALIZE_REPLY(np);
-              DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
-                     SYCEXP(executed_msg); SYCEXP(max_synode);
-                     SYCEXP(np->synode));
-              unref_msg(&np); /* Deallocate BEFORE potentially blocking call
-                                 which will lose value of np */
+              {
+                pax_msg *np = NULL;
+                np = pax_msg_new(ep->p->synode, ep->site);
+                np->op = die_op;
+                SERIALIZE_REPLY(np);
+                DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
+                       SYCEXP(executed_msg); SYCEXP(max_synode);
+                       SYCEXP(np->synode));
+                delete_pax_msg(np); /* Deallocate BEFORE potentially blocking
+                                   call which will lose value of np */
+              }
               WRITE_REPLY;
             }
           }
@@ -4484,6 +4959,8 @@ again:
   DBGOUT(FN; NDBG(xcom_shutdown, d));
   if (ep->buf) X_FREE(ep->buf);
   free(ep->in_buf);
+  // Allow the server reference to be freed.
+  if (ep->srv) srv_unref(ep->srv);
 
   TASK_END;
 }
@@ -4670,6 +5147,37 @@ app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id) {
   init_app_data(a);
   a->app_key.group_id = a->group_id = group_id;
   a->body.c_t = get_event_horizon_type;
+  return a;
+}
+
+app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size) {
+  init_app_data(a);
+  a->body.c_t = app_type;
+  a->body.app_u_u.data.data_val = payload; /* Takes ownership of payload. */
+  a->body.app_u_u.data.data_len = payload_size;
+  return a;
+}
+
+app_data_ptr init_terminate_command(app_data *a) {
+  init_app_data(a);
+  a->body.c_t = x_terminate_and_exit;
+  return a;
+}
+
+static app_data_ptr init_get_synode_app_data_msg(
+    app_data *a, uint32_t group_id, synode_no_array *const synodes) {
+  init_app_data(a);
+  a->app_key.group_id = a->group_id = group_id;
+  a->body.c_t = get_synode_app_data_type;
+  // Move synodes (as in C++ move semantics) into a->body.app_u_u.synodes.
+  synode_array_move(&a->body.app_u_u.synodes, synodes);
+  return a;
+}
+
+app_data_ptr init_set_cache_size_msg(app_data *a, uint64_t cache_limit) {
+  init_app_data(a);
+  a->body.c_t = set_cache_limit;
+  a->body.app_u_u.cache_limit = cache_limit;
   return a;
 }
 
@@ -4931,6 +5439,7 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
         if (action == xa_init) {
           xcom_shutdown = 0;
           sent_alive = 0.0;
+          if (state != 0) init_cache();
         }
         if (action == xa_u_boot) {
           /* purecov: begin deadcode */
@@ -5034,6 +5543,8 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
                                    XCOM_THREAD_DEBUG));
       set_task(&alive_t,
                task_new(alive_task, null_arg, "alive_task", XCOM_THREAD_DEBUG));
+      set_task(&cache_task, task_new(cache_manager_task, null_arg,
+                                     "cache_manager_task", XCOM_THREAD_DEBUG));
 
       for (;;) {
         if (action == xa_terminate) {
@@ -5051,6 +5562,8 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
           set_task(&detector, NULL);
           task_terminate(alive_t);
           set_task(&alive_t, NULL);
+          task_terminate(cache_task);
+          set_task(&cache_task, NULL);
 
           init_xcom_base(); /* Reset shared variables */
           free_site_defs();
@@ -5093,8 +5606,13 @@ void xcom_add_node(char *addr, xcom_port port, node_list *nl) {
 }
 
 void xcom_fsm_add_node(char *addr, node_list *nl) {
-  xcom_port node_port = xcom_get_port(addr);
-  char *node_addr = xcom_get_name(addr);
+  xcom_port node_port = 0;
+  char node_addr[IP_MAX_SIZE];
+
+  // We are not processing any error here since xcom_fsm_add_node does not
+  // have error processing. We will rely on error checking farther away from
+  // this execution.
+  get_ip_and_port(addr, node_addr, &node_port);
 
   if (xcom_mynode_match(node_addr, node_port)) {
     node_list x_nl;
@@ -5109,34 +5627,12 @@ void xcom_fsm_add_node(char *addr, node_list *nl) {
     a.nl = nl;
     XCOM_FSM(xa_add, void_arg(&a));
   }
-  free(node_addr);
 }
 /* purecov: end */
 
 void set_app_snap_handler(app_snap_handler x) { handle_app_snap = x; }
 
 void set_app_snap_getter(app_snap_getter x) { get_app_snap = x; }
-
-/* Initialize sockaddr based on server and port */
-static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
-                         socklen_t *sock_size, xcom_port port) {
-  /* Get address of server */
-  struct addrinfo *addr = 0;
-
-  checked_getaddrinfo(server, 0, 0, &addr);
-
-  if (addr == 0) {
-    return 0;
-  }
-
-  /* Copy first address */
-  memcpy(sock_addr, addr->ai_addr, addr->ai_addrlen);
-  *sock_size = (socklen_t)addr->ai_addrlen;
-  sock_addr->sin_port = htons(port);
-  freeaddrinfo(addr);
-
-  return 1;
-}
 
 static result checked_create_socket(int domain, int type, int protocol) {
   result retval = {0, 0};
@@ -5157,7 +5653,6 @@ static result checked_create_socket(int domain, int type, int protocol) {
     G_MESSAGE("Socket creation failed with error %d - %s.", retval.funerr,
               strerror(retval.funerr));
 #endif
-    abort();
   }
   return retval;
 }
@@ -5260,7 +5755,47 @@ static inline result xcom_shut_close_socket(int *sock) {
   ret_fd = -1;       \
   goto end
 
-static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
+/*
+
+*/
+
+/**
+  @brief Retreives a node IPv4 address, if it exists.
+
+  If a node is v4 reachable, means one of two:
+  - The raw address is V4
+  - a name was resolved to a V4/V6 address
+
+  If the later is the case, we are going to prefer the first v4
+  address in the list, since it is the common language between
+  old and new version. If you want exclusive V6, please configure your
+  DNS server to serve V6 names
+
+  @param retrieved a previously retrieved struct addrinfo
+  @return struct addrinfo* An addrinfo of the first IPv4 address. Else it will
+                           return the entry parameter.
+ */
+struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved) {
+  struct addrinfo *cycle = NULL;
+
+  int v4_reachable = is_node_v4_reachable_with_info(retrieved);
+
+  if (v4_reachable) {
+    cycle = retrieved;
+    while (cycle) {
+      if (cycle->ai_family == AF_INET) {
+        return cycle;
+      }
+      cycle = cycle->ai_next;
+    }
+  }
+
+  // If something goes really wrong... we fallback to avoid crashes
+  return retrieved;
+}
+
+static int timed_connect(int fd, struct sockaddr *sock_addr,
+                         socklen_t sock_size) {
   int timeout = 10000;
   int ret_fd = fd;
   int syserr;
@@ -5362,46 +5897,66 @@ end:
 }
 
 /* Connect to server on given port */
-static connection_descriptor *connect_xcom(char *server, xcom_port port) {
+#ifdef XCOM_HAVE_OPENSSL
+static connection_descriptor *connect_xcom(const char *server, xcom_port port,
+                                           bool use_ssl) {
+#else
+static connection_descriptor *connect_xcom(const char *server, xcom_port port) {
+#endif
   result fd = {0, 0};
   result ret = {0, 0};
-  struct sockaddr_in sock_addr;
+  connection_descriptor *cd = NULL;
+  int error = 0;
   socklen_t sock_size;
   char buf[SYS_STRERROR_SIZE];
+  int v4_reachable = 0;
 
   DBGOUT(FN; STREXP(server); NEXP(port, d));
   G_DEBUG("connecting to %s %d", server, port);
-  /* Create socket */
-  if ((fd = checked_create_socket(AF_INET, SOCK_STREAM, 0)).val < 0) {
-    G_DEBUG("Error creating sockets.");
-    return NULL;
+
+  struct addrinfo *addr = NULL, *from_ns = NULL;
+
+  char buffer[20];
+  sprintf(buffer, "%d", port);
+
+  checked_getaddrinfo(server, buffer, 0, &from_ns);
+
+  if (from_ns == NULL) {
+    G_ERROR("Error retrieving server information.");
+    goto end;
   }
 
-  /* Get address of server */
-  if (!init_sockaddr(server, &sock_addr, &sock_size, port)) {
-    xcom_close_socket(&fd.val);
-    G_DEBUG("Error initializing socket addresses.");
-    return NULL;
+  addr = does_node_have_v4_address(from_ns);
+
+  /* Create socket after knowing the family that we are dealing with
+     getaddrinfo returns a list of possible addresses. We will alays default
+     to the first one in the list, which is V4 if applicable.
+   */
+  if ((fd = checked_create_socket(addr->ai_family, SOCK_STREAM, IPPROTO_TCP))
+          .val < 0) {
+    G_ERROR("Error creating socket in local GR->GCS connection to address %s.",
+            server);
+    goto end;
   }
 
   /* Connect socket to address */
 
   SET_OS_ERR(0);
-  if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
+
+  if (timed_connect(fd.val, addr->ai_addr, addr->ai_addrlen) == -1) {
     fd.funerr = to_errno(GET_OS_ERR);
     G_DEBUG(
         "Connecting socket to address %s in port %d failed with error %d - "
         "%s.",
         server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
     xcom_close_socket(&fd.val);
-    return NULL;
+    goto end;
   }
   {
     int peer = 0;
     /* Sanity check before return */
     SET_OS_ERR(0);
-    ret.val = peer =
-        getpeername(fd.val, (struct sockaddr *)&sock_addr, &sock_size);
+    ret.val = peer = getpeername(fd.val, addr->ai_addr, &addr->ai_addrlen);
     ret.funerr = to_errno(GET_OS_ERR);
     if (peer >= 0) {
       ret = set_nodelay(fd.val);
@@ -5420,7 +5975,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
             "%s.",
             server, ret.funerr, strerror(ret.funerr));
 #endif
-        return NULL;
+        goto end;
       }
       G_DEBUG("client connected to %s %d fd %d", server, port, fd.val);
     } else {
@@ -5447,12 +6002,11 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
           "error %d -%s.",
           server, ret.funerr, strerror(ret.funerr));
 #endif
-      return NULL;
+      goto end;
     }
 
 #ifdef XCOM_HAVE_OPENSSL
-    if (xcom_use_ssl()) {
-      connection_descriptor *cd = 0;
+    if (use_ssl && xcom_use_ssl()) {
       SSL *ssl = SSL_new(client_ctx);
       G_DEBUG("Trying to connect using SSL.")
       SSL_set_fd(ssl, fd.val);
@@ -5468,7 +6022,8 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
         SSL_shutdown(ssl);
         SSL_free(ssl);
         xcom_shut_close_socket(&fd.val);
-        return NULL;
+
+        goto end;
       }
       DBGOUT(FN; STRLIT("ssl connected to "); STRLIT(server); NDBG(port, d);
              NDBG(fd.val, d); PTREXP(ssl));
@@ -5479,31 +6034,43 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
         SSL_shutdown(ssl);
         SSL_free(ssl);
         xcom_shut_close_socket(&fd.val);
-        return NULL;
+
+        goto end;
       }
 
       cd = new_connection(fd.val, ssl);
       set_connected(cd, CON_FD);
       G_DEBUG("Success connecting using SSL.")
-      return cd;
+
+      goto end;
     } else {
-      connection_descriptor *cd = new_connection(fd.val, 0);
+      cd = new_connection(fd.val, 0);
       set_connected(cd, CON_FD);
-      return cd;
+
+      goto end;
     }
 #else
     {
-      connection_descriptor *cd = new_connection(fd.val);
+      cd = new_connection(fd.val);
       set_connected(cd, CON_FD);
-      return cd;
+
+      goto end;
     }
 #endif
   }
+
+end:
+  if (from_ns) freeaddrinfo(from_ns);
+  return cd;
 }
 
-connection_descriptor *xcom_open_client_connection(char *server,
+connection_descriptor *xcom_open_client_connection(const char *server,
                                                    xcom_port port) {
+#ifdef XCOM_HAVE_OPENSSL
+  return connect_xcom(server, port, true);
+#else
   return connect_xcom(server, port);
+#endif
 }
 
 /* Send a protocol negotiation message on connection con */
@@ -5551,12 +6118,191 @@ static int xcom_recv_proto(connection_descriptor *rfd, xcom_proto *x_proto,
 
 enum { TAG_START = 313 };
 
-static int64_t xcom_send_client_app_data(connection_descriptor *fd,
-                                         app_data_ptr a, int force) {
+/**
+ * @brief Checks if a given app_data is from a given cargo_type.
+ *
+ * @param a the app_data
+ * @param t the cargo type
+ * @return int true (1) if app_data a is from cargo_type t
+ */
+
+static inline int is_cargo_type(app_data_ptr a, cargo_type t) {
+  return a ? (a->body.c_t == t) : 0;
+}
+
+/**
+ * @brief Retrieves the address that was used in the add_node request
+ *
+ * @param a app data containing the node to add
+ * @return char* a pointer to the address being added.
+ */
+static char *get_add_node_address(app_data_ptr a, unsigned int *member) {
+  if (!is_cargo_type(a, add_node_type)) return NULL;
+
+  char *retval = NULL;
+  if ((*member) < a->body.app_u_u.nodes.node_list_len) {
+    retval = a->body.app_u_u.nodes.node_list_val[(*member)].address;
+    (*member)++;
+  }
+
+  return retval;
+}
+
+int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info) {
+  int v4_reachable = 0;
+
+  // Verify if we are reachable either by V4 and by V6 with the provided
+  // address.
+  struct addrinfo *my_own_information_loop = NULL;
+
+  my_own_information_loop = retrieved_addr_info;
+  while (!v4_reachable && my_own_information_loop) {
+    if (my_own_information_loop->ai_family == AF_INET) {
+      v4_reachable = 1;
+    }
+    my_own_information_loop = my_own_information_loop->ai_next;
+  }
+
+  return v4_reachable;
+}
+
+int is_node_v4_reachable(char *node_address) {
+  int v4_reachable = 0;
+
+  // Verify if we are reachable either by V4 and by V6 with the provided
+  // address.
+  struct addrinfo *my_own_information = NULL;
+
+  checked_getaddrinfo(node_address, NULL, NULL, &my_own_information);
+  if (my_own_information == NULL) {
+    return v4_reachable;
+  }
+
+  v4_reachable = is_node_v4_reachable_with_info(my_own_information);
+
+  if (my_own_information) freeaddrinfo(my_own_information);
+
+  return v4_reachable;
+}
+
+int are_we_allowed_to_upgrade_to_v6(app_data_ptr a) {
+  // This should the address we used to present ourselves to other nodes.
+  unsigned int list_member = 0;
+  char *added_node = NULL;
+
+  int is_v4_reachable = 0;
+  while ((added_node = get_add_node_address(a, &list_member)) != NULL) {
+    xcom_port my_own_port;
+    char my_own_address[IP_MAX_SIZE];
+    int ip_and_port_error =
+        get_ip_and_port(added_node, my_own_address, &my_own_port);
+
+    if (ip_and_port_error) {
+      G_DEBUG("Error retrieving IP and Port information");
+      return 0;
+    }
+
+    // Verify if we are reachable either by V4 and by V6 with the provided
+    // address.
+    // This means that the other side won't be able to contact us since we
+    // do not provide a public V4 address
+    if (!(is_v4_reachable = is_node_v4_reachable(my_own_address))) {
+      G_ERROR(
+          "Unable to add node to a group of older nodes. Please "
+          "reconfigure "
+          "you local address to an IPv4 address or configure your DNS to "
+          "provide "
+          "an IPv4 address");
+      return 0;
+    }
+  }
+
+  return is_v4_reachable;
+}
+
+int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
+                                  int force) {
   pax_msg *msg = pax_msg_new(null_synode, 0);
   uint32_t buflen = 0;
   char *buf = 0;
   int64_t retval = 0;
+  int serialized = 0;
+
+  if (!proto_done(fd)) {
+    xcom_proto x_proto;
+    x_msg_type x_type;
+    unsigned int tag;
+    retval = xcom_send_proto(fd, my_xcom_version, x_version_req, TAG_START);
+    G_DEBUG("client sent negotiation request for protocol %d", my_xcom_version);
+    if (retval < 0) goto end;
+    retval = xcom_recv_proto(fd, &x_proto, &x_type, &tag);
+    if (retval < 0) goto end;
+    if (tag != TAG_START) {
+      retval = -1;
+      goto end;
+    }
+    if (x_type != x_version_reply) {
+      retval = -1;
+      goto end;
+    }
+
+    if (x_proto == x_unknown_proto) {
+      G_DEBUG("no common protocol, returning error");
+      retval = -1;
+      goto end;
+    }
+
+    // This code will check if, in case of an upgrade if:
+    // - We are a node able to speak IPv6.
+    // - If we are connecting to a group that does not speak IPv6.
+    // - If our address is IPv4-compatible in order for the old group to be able
+    // to contact us back.
+    if (is_cargo_type(a, add_node_type) && x_proto < minimum_ipv6_version() &&
+        !are_we_allowed_to_upgrade_to_v6(a)) {
+      retval = -1;
+      goto end;
+    }
+
+    G_DEBUG("client connection will use protocol version %d", x_proto);
+    DBGOUT(STRLIT("client connection will use protocol version ");
+           NDBG(x_proto, u); STRLIT(xcom_proto_to_str(x_proto)));
+    fd->x_proto = x_proto;
+    set_connected(fd, CON_PROTO);
+  }
+  msg->a = a;
+  msg->to = VOID_NODE_NO;
+  msg->op = client_msg;
+  msg->force_delivery = force;
+
+  serialized = serialize_msg(msg, fd->x_proto, &buflen, &buf);
+  if (serialized) {
+    retval = socket_write(fd, buf, buflen);
+    if (buflen != retval) {
+      DBGOUT(FN; STRLIT("write failed "); NDBG(fd->fd, d); NDBG(buflen, d);
+             NDBG64(retval));
+    }
+  } else {
+    // Failed to serialize, set retval accordingly.
+    retval = -1;
+  }
+  X_FREE(buf);
+end:
+  msg->a = 0; /* Do not deallocate a */
+  XCOM_XDR_FREE(xdr_pax_msg, msg);
+  return retval;
+}
+
+/* purecov: begin tested */
+/*
+ * Tested by TEST_F(XComMultinodeSmokeTest,
+ * 3_nodes_member_crashes_with_dieop_and_joins_again_immediately) GCS smoke test
+ */
+int64_t xcom_client_send_die(connection_descriptor *fd) {
+  uint32_t buflen = 0;
+  char *buf = 0;
+  int64_t retval = 0;
+  app_data a;
+  pax_msg *msg = pax_msg_new(null_synode, 0);
 
   if (!proto_done(fd)) {
     xcom_proto x_proto;
@@ -5587,32 +6333,6 @@ static int64_t xcom_send_client_app_data(connection_descriptor *fd,
     fd->x_proto = x_proto;
     set_connected(fd, CON_PROTO);
   }
-  msg->a = a;
-  msg->to = VOID_NODE_NO;
-  msg->op = client_msg;
-  msg->force_delivery = force;
-
-  serialize_msg(msg, fd->x_proto, &buflen, &buf);
-  if (buflen) {
-    retval = socket_write(fd, buf, buflen);
-    if (buflen != retval) {
-      DBGOUT(FN; STRLIT("write failed "); NDBG(fd->fd, d); NDBG(buflen, d);
-             NDBG64(retval));
-    }
-    X_FREE(buf);
-  }
-end:
-  msg->a = 0; /* Do not deallocate a */
-  XCOM_XDR_FREE(xdr_pax_msg, msg);
-  return retval;
-}
-
-int64_t xcom_client_send_die(connection_descriptor *fd) {
-  uint32_t buflen = 0;
-  char *buf = 0;
-  int64_t retval = 0;
-  app_data a;
-  pax_msg *msg = pax_msg_new(null_synode, 0);
   init_app_data(&a);
   a.body.c_t = app_type;
   msg->a = &a;
@@ -5627,13 +6347,19 @@ int64_t xcom_client_send_die(connection_descriptor *fd) {
   serialize_msg(msg, fd->x_proto, &buflen, &buf);
   if (buflen) {
     retval = socket_write(fd, buf, buflen);
+    if (buflen != retval) {
+      DBGOUT(FN; STRLIT("write failed "); NDBG(fd->fd, d); NDBG(buflen, d);
+             NDBG64(retval));
+    }
     X_FREE(buf);
   }
+  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+end:
   msg->a = 0;
   XCOM_XDR_FREE(xdr_pax_msg, msg);
-  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
-  return retval > 0 && retval == buflen ? retval : 0;
+  return retval > 0 && retval == buflen ? 1 : 0;
 }
+/* purecov: end */
 
 int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor *fd) {
@@ -5870,6 +6596,62 @@ int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
       fd, init_set_event_horizon_msg(&a, group_id, event_horizon), 0);
   my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
+}
+
+int xcom_client_get_synode_app_data(connection_descriptor *const fd,
+                                    uint32_t group_id,
+                                    synode_no_array *const synodes,
+                                    synode_app_data_array *const reply) {
+  bool_t const success = TRUE;
+  bool_t const failure = FALSE;
+  bool_t result = failure;
+  pax_msg p;
+  app_data a;
+  u_int const nr_synodes_requested = synodes->synode_no_array_len;
+
+  // This call moves, as in C++ move semantics, synodes into app_data a.
+  init_get_synode_app_data_msg(&a, group_id, synodes);
+
+  xcom_send_app_wait_result res = xcom_send_app_wait_and_get(fd, &a, 0, &p);
+  switch (res) {
+    case RECEIVE_REQUEST_FAILED:
+    case REQUEST_BOTCHED:
+    case RETRIES_EXCEEDED:
+    case SEND_REQUEST_FAILED:
+    case REQUEST_FAIL_RECEIVED: {
+      G_TRACE(
+          "xcom_client_get_synode_app_data: XCom did not have the required "
+          "%u "
+          "synodes.",
+          nr_synodes_requested);
+      break;
+    }
+    case REQUEST_OK_RECEIVED: {
+      u_int const nr_synodes_received =
+          p.requested_synode_app_data.synode_app_data_array_len;
+      G_TRACE(
+          "xcom_client_get_synode_app_data: Got %u synode payloads, we asked "
+          "for %u.",
+          nr_synodes_received, nr_synodes_requested);
+
+      /* This should always be true.
+       * But rather than asserting it, let's treat an unexpected number of
+       * synode payloads in the reply as a failure. */
+      bool_t const got_what_we_asked_for =
+          (nr_synodes_received == nr_synodes_requested);
+      if (got_what_we_asked_for) {
+        // Move (as in C++ move semantics) into reply
+        synode_app_data_array_move(reply, &p.requested_synode_app_data);
+        result = success;
+      }
+      break;
+    }
+  }
+
+  my_xdr_free((xdrproc_t)xdr_pax_msg, (char *)&p);
+  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+
+  return result;
 }
 
 #ifdef NOTDEF

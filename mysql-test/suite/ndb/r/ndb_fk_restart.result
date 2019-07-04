@@ -40,19 +40,19 @@ count(1)
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 -- Normal NR
 --- Wait for node to stop
@@ -60,19 +60,19 @@ delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 --- Startup node again
 --- Wait for node to recover
@@ -80,19 +80,19 @@ delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 -- Initial NR
 --- Wait for node to stop
@@ -100,19 +100,19 @@ delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 --- Startup node again
 --- Wait for node to recover
@@ -120,19 +120,19 @@ delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 -- System restart
 --- Wait for node to stop
@@ -143,19 +143,19 @@ delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from test.c1;
 delete from test.p1;
 drop table test.c2;

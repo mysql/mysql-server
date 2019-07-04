@@ -27,7 +27,9 @@
 #endif
 #include <m_ctype.h>
 #include <my_bit.h>
+#include "my_byteorder.h"
 #include "myisamdef.h"
+#include "sql/field.h"
 
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6

@@ -1,6 +1,5 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_plugin_auth.inc
---source include/mysql_upgrade_preparation.inc
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 
 # Official builds include separate debug enabled plugins to be used by
@@ -22,7 +21,8 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_con,localhost,plug,plug_dest);
 --enable_query_log
 
@@ -114,12 +114,15 @@ CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 
 --echo # ALL PRIVILEGES doesn't include PROXY
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
+REVOKE SYSTEM_USER ON *.* FROM grant_plug;
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(grant_plug_con,localhost,grant_plug,grant_plug_dest);
 --enable_query_log
 
---error ER_PARSE_ERROR : this should fail : can't combine PROXY
+# This should fail, can't combine PROXY
+--error ER_PARSE_ERROR
 GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
 
 --echo this should fail : can't combine PROXY
@@ -341,9 +344,6 @@ DROP DATABASE shared;
 --echo # Executing 'mysqldump'
 --exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
 
---echo # Executing 'mysql_upgrade'
---exec $MYSQL_UPGRADE -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT --skip-verbose --force --upgrade-system-tables
-
 --echo #
 --echo # Bug #59657: Move the client authentication_pam plugin into the 
 --echo #  server repository
@@ -354,7 +354,8 @@ CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
 
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(cleartext_fail_con,localhost,uplain,cleartext_test2,,,,CLEARTEXT);
 --enable_query_log
 
@@ -439,8 +440,9 @@ ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
@@ -628,7 +630,8 @@ CREATE USER user_name_len_22_0dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_user22,localhost,user_name_len_22_01234,user_name_len_22_0dest);
 --enable_query_log
 
@@ -654,7 +657,8 @@ CREATE USER очень_очень_очень_длинный_дест__ IDENTIFIE
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_user32,localhost,очень_очень_очень_длинный_юзер__,очень_очень_очень_длинный_дест__);
 --enable_query_log
 

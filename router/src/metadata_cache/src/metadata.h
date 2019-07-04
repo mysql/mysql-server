@@ -40,11 +40,18 @@ class METADATA_API MetaData {
   using ReplicaSetsByName =
       std::map<std::string, metadata_cache::ManagedReplicaSet>;
   virtual ReplicaSetsByName fetch_instances(
-      const std::string &cluster_name) = 0;
+      const std::string &cluster_name,
+      const std::string &group_replication_id) = 0;
 
   virtual bool connect(
       const metadata_cache::ManagedInstance &metadata_server) = 0;
   virtual void disconnect() = 0;
+
+  MetaData() = default;
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit MetaData(const MetaData &) = delete;
+  MetaData &operator=(const MetaData &) = delete;
   virtual ~MetaData() {}
 };
 

@@ -17,6 +17,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -54,10 +55,11 @@ set session sql_log_bin=1;
 
 --echo
 --echo ## 3A. Test GR does not start on boot when lower_case_table_names
---echo ##     does not match.
+--echo ##     does not match. And verifies only one member is shown in the
+--echo ##     group as the join failed.
 --echo
 
---let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2
+--let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2 --loose-debug="+d,group_replication_wait_before_leave_on_error"
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
@@ -65,12 +67,19 @@ set session sql_log_bin=1;
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 
-## Wait for server-2 to join group, needed to get group lower_case_table_names
---let $group_replication_number_of_members=2
---source include/gr_wait_for_number_of_members.inc
+# Wait for the debug sync to be reached.
+SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
 
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="OFFLINE"
---source include/wait_condition.inc
+--let $assert_text= 'Assert group has one member'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members]" = 1
+--source include/assert.inc
+
+--let $assert_text= 'Assert server-2 is OFFLINE'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"OFFLINE\"]" = 1
+--source include/assert.inc
+
+# now unblock debug sync point
+SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 
 --echo
 --echo ## 3B. Test GR does not start with command when lower_case_table_names

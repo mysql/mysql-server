@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1125,11 +1125,20 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   /* Force the log to the disk before writing the modified block */
   if (!srv_read_only_mode) {
-    Wait_stats wait_stats;
+    const lsn_t flush_to_lsn = bpage->newest_modification;
 
-    wait_stats = log_write_up_to(*log_sys, bpage->newest_modification, true);
+    /* Do the check before calling log_write_up_to() because in most
+    cases it would allow to avoid call, and because of that we don't
+    want those calls because they would have bad impact on the counter
+    of calls, which is monitored to save CPU on spinning in log threads. */
 
-    MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    if (log_sys->flushed_to_disk_lsn.load() < flush_to_lsn) {
+      Wait_stats wait_stats;
+
+      wait_stats = log_write_up_to(*log_sys, flush_to_lsn, true);
+
+      MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    }
   }
 
   switch (buf_page_get_state(bpage)) {
@@ -3509,7 +3518,9 @@ FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
   }
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: space_id=" << space_id
+                          << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
@@ -3521,14 +3532,16 @@ FlushObserver::~FlushObserver() {
   UT_DELETE(m_removed);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: space_id="
+                          << space_id << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
 /** Check whether trx is interrupted
 @return true if trx is interrupted */
 bool FlushObserver::check_interrupted() {
-  if (trx_is_interrupted(m_trx)) {
+  if (m_trx != nullptr && trx_is_interrupted(m_trx)) {
     interrupted();
 
     return (true);

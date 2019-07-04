@@ -74,7 +74,7 @@ class Spatial_reference_system : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  virtual ~Spatial_reference_system(){};
+  virtual ~Spatial_reference_system() {}
 
   /////////////////////////////////////////////////////////////////////////
   // created
@@ -129,6 +129,7 @@ class Spatial_reference_system : virtual public Entity_object {
 
   virtual double semi_major_axis() const = 0;
   virtual double semi_minor_axis() const = 0;
+  virtual double linear_unit() const = 0;
   virtual double angular_unit() const = 0;
   virtual double prime_meridian() const = 0;
   virtual bool positive_east() const = 0;

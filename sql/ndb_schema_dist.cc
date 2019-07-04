@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// Implements the functions defined in ndb_schema_dist.h
+// Implements the functions declared in ndb_schema_dist.h
 #include "sql/ndb_schema_dist.h"
 
 #include <atomic>
@@ -100,6 +100,10 @@ bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
     DBUG_RETURN(false);
   }
 
+  // Dimension max number of participants to what's supported by the slock
+  // column of ndb_schema
+  m_max_participants = schema_dist_table.get_slock_bits();
+
   // Schema distribution is ready
   DBUG_RETURN(true);
 }
@@ -121,6 +125,36 @@ bool Ndb_schema_dist_client::prepare_rename(const char* db, const char* tabname,
   m_prepared_keys.add_key(new_db, new_tabname);
 
   // Schema distribution is ready
+  DBUG_RETURN(true);
+}
+
+bool Ndb_schema_dist_client::check_identifier_limits(
+    std::string& invalid_identifier) {
+  DBUG_ENTER("Ndb_schema_dist_client::check_identifier_limits");
+
+  Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+  if (!schema_dist_table.open()) {
+    invalid_identifier = "<open failed>";
+    DBUG_RETURN(false);
+  }
+
+  // Check that identifiers does not exceed the limits imposed
+  // by the ndb_schema table layout
+  for (auto key: m_prepared_keys.keys())
+  {
+    // db
+    if (!schema_dist_table.check_column_identifier_limit(
+            Ndb_schema_dist_table::COL_DB, key.first)) {
+      invalid_identifier = key.first;
+      DBUG_RETURN(false);
+    }
+    // name
+    if (!schema_dist_table.check_column_identifier_limit(
+            Ndb_schema_dist_table::COL_NAME, key.second)) {
+      invalid_identifier = key.second;
+      DBUG_RETURN(false);
+    }
+  }
   DBUG_RETURN(true);
 }
 
@@ -165,8 +199,8 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client()
   which is unique in this node.
 */
 static std::atomic<uint32> schema_dist_id_sequence{0};
-int Ndb_schema_dist_client::unique_id() {
-  int id = ++schema_dist_id_sequence;
+uint32 Ndb_schema_dist_client::unique_id() const {
+  uint32 id = ++schema_dist_id_sequence;
   // Handle wraparound
   if (id == 0) {
     id = ++schema_dist_id_sequence;
@@ -180,17 +214,16 @@ int Ndb_schema_dist_client::unique_id() {
   does not have any global version from NDB. Use own nodeid
   which is unique in NDB.
 */
-int Ndb_schema_dist_client::unique_version() const {
-  Thd_ndb* thd_ndb = get_thd_ndb(m_thd);
-  const int ver = thd_ndb->connection->node_id();
+uint32 Ndb_schema_dist_client::unique_version() const {
+  const uint32 ver = m_thd_ndb->connection->node_id();
   DBUG_ASSERT(ver != 0);
   return ver;
 }
 
 bool Ndb_schema_dist_client::log_schema_op(const char* query,
                                            size_t query_length, const char* db,
-                                           const char* table_name, int id,
-                                           int version, SCHEMA_OP_TYPE type,
+                                           const char* table_name, uint32 id,
+                                           uint32 version, SCHEMA_OP_TYPE type,
                                            bool log_query_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op");
   DBUG_ASSERT(db && table_name);
@@ -226,10 +259,20 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
     DBUG_RETURN(true); // Ok, skipped
   }
 
+  // Verify identifier limits, this should already have been caught earlier
+  {
+    std::string invalid_identifier;
+    if (!check_identifier_limits(invalid_identifier))
+    {
+      m_thd_ndb->push_warning("INTERNAL ERROR: identifier limits exceeded");
+      DBUG_ASSERT(false); // Catch in debug
+      DBUG_RETURN(false);
+    }
+  }
+
   const int result = log_schema_op_impl(
-      m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name,
-      static_cast<uint32>(id), static_cast<uint32>(version), type,
-      log_query_on_participant);
+      m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name, id,
+      version, type, log_query_on_participant);
   if (result != 0) {
     // Schema distribution failed
     m_thd_ndb->push_warning("Schema distribution failed!");
@@ -367,6 +410,18 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
 bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
                                        const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::create_db");
+
+  // Checking identifier limits "late", there is no way to return
+  // an error to fail the CREATE DATABASE command
+  std::string invalid_identifier;
+  if (!check_identifier_limits(invalid_identifier))
+  {
+    // Check of db name limit failed
+    m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
+                            invalid_identifier.c_str());
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
                             unique_version(), SOT_CREATE_DB));
 }
@@ -374,12 +429,36 @@ bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
 bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
                                       const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_db");
+
+  // Checking identifier limits "late", there is no way to return
+  // an error to fail the ALTER DATABASE command
+  std::string invalid_identifier;
+  if (!check_identifier_limits(invalid_identifier))
+  {
+    // Check of db name limit failed
+    m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
+                            invalid_identifier.c_str());
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
                             unique_version(), SOT_ALTER_DB));
 }
 
 bool Ndb_schema_dist_client::drop_db(const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_db");
+
+  // Checking identifier limits "late", there is no way to return
+  // an error to fail the DROP DATABASE command
+  std::string invalid_identifier;
+  if (!check_identifier_limits(invalid_identifier))
+  {
+    // Check of db name limit failed
+    m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
+                            invalid_identifier.c_str());
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             db, "", unique_id(), unique_version(),
                             SOT_DROP_DB));
@@ -405,6 +484,57 @@ bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", logfilegroup_name, id, version,
                             SOT_LOGFILE_GROUP));
+}
+
+bool Ndb_schema_dist_client::create_tablespace(const char* tablespace_name,
+                                               int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::create_tablespace");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", tablespace_name, id, version,
+                            SOT_CREATE_TABLESPACE));
+}
+
+bool Ndb_schema_dist_client::alter_tablespace(const char* tablespace_name,
+                                              int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::alter_tablespace");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", tablespace_name, id, version,
+                            SOT_ALTER_TABLESPACE));
+}
+
+bool Ndb_schema_dist_client::drop_tablespace(const char* tablespace_name,
+                                             int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::drop_tablespace");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", tablespace_name, id, version,
+                            SOT_DROP_TABLESPACE));
+}
+
+bool
+Ndb_schema_dist_client::create_logfile_group(const char* logfile_group_name,
+                                             int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::create_logfile_group");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", logfile_group_name, id, version,
+                            SOT_CREATE_LOGFILE_GROUP));
+}
+
+bool
+Ndb_schema_dist_client::alter_logfile_group(const char* logfile_group_name,
+                                            int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::alter_logfile_group");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", logfile_group_name, id, version,
+                            SOT_ALTER_LOGFILE_GROUP));
+}
+
+bool
+Ndb_schema_dist_client::drop_logfile_group(const char* logfile_group_name,
+                                           int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::drop_logfile_group");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", logfile_group_name, id, version,
+                            SOT_DROP_LOGFILE_GROUP));
 }
 
 const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
@@ -445,6 +575,18 @@ const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
       return "grant/revoke";
     case SOT_REVOKE:
       return "revoke all";
+    case SOT_CREATE_TABLESPACE:
+      return "create tablespace";
+    case SOT_ALTER_TABLESPACE:
+      return "alter tablespace";
+    case SOT_DROP_TABLESPACE:
+      return "drop tablespace";
+    case SOT_CREATE_LOGFILE_GROUP:
+      return "create logfile group";
+    case SOT_ALTER_LOGFILE_GROUP:
+      return "alter logfile group";
+    case SOT_DROP_LOGFILE_GROUP:
+      return "drop logfile group";
     default:
       break;
   }
@@ -495,6 +637,18 @@ Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type)
     return "GRANT";
   case SOT_REVOKE:
     return "REVOKE";
+  case SOT_CREATE_TABLESPACE:
+    return "CREATE_TABLESPACE";
+  case SOT_ALTER_TABLESPACE:
+    return "ALTER_TABLESPACE";
+  case SOT_DROP_TABLESPACE:
+    return "DROP_TABLESPACE";
+  case SOT_CREATE_LOGFILE_GROUP:
+    return "CREATE_LOGFILE_GROUP";
+  case SOT_ALTER_LOGFILE_GROUP:
+    return "ALTER_LOGFILE_GROUP";
+  case SOT_DROP_LOGFILE_GROUP:
+    return "DROP_LOGFILE_GROUP";
   default:
     break;
   }

@@ -79,17 +79,17 @@ roll_ptr_t row_get_rec_roll_ptr(
  @retval NULL if the externally stored columns in the clustered index record
  are unavailable and ext != NULL, or row is missing some needed columns. */
 dtuple_t *row_build_index_entry_low(
-    const dtuple_t *row,  /*!< in: row which should be
-                          inserted or purged */
-    const row_ext_t *ext, /*!< in: externally stored column
-                          prefixes, or NULL */
-    dict_index_t *index,  /*!< in: index on the table */
-    mem_heap_t *heap,     /*!< in: memory heap from which
-                          the memory for the index entry
-                          is allocated */
-    ulint flag)           /*!< in: ROW_BUILD_NORMAL,
-                          ROW_BUILD_FOR_PURGE
-                          or ROW_BUILD_FOR_UNDO */
+    const dtuple_t *row,       /*!< in: row which should be
+                               inserted or purged */
+    const row_ext_t *ext,      /*!< in: externally stored column
+                               prefixes, or NULL */
+    const dict_index_t *index, /*!< in: index on the table */
+    mem_heap_t *heap,          /*!< in: memory heap from which
+                               the memory for the index entry
+                               is allocated */
+    ulint flag)                /*!< in: ROW_BUILD_NORMAL,
+                               ROW_BUILD_FOR_PURGE
+                               or ROW_BUILD_FOR_UNDO */
     MY_ATTRIBUTE((warn_unused_result));
 /** When an insert or purge to a table is performed, this function builds
  the entry to be inserted into or purged from an index on the table.
@@ -98,14 +98,14 @@ dtuple_t *row_build_index_entry_low(
  unavailable and ext != NULL */
 UNIV_INLINE
 dtuple_t *row_build_index_entry(
-    const dtuple_t *row,  /*!< in: row which should be
-                          inserted or purged */
-    const row_ext_t *ext, /*!< in: externally stored column
-                          prefixes, or NULL */
-    dict_index_t *index,  /*!< in: index on the table */
-    mem_heap_t *heap)     /*!< in: memory heap from which
-                          the memory for the index entry
-                          is allocated */
+    const dtuple_t *row,       /*!< in: row which should be
+                               inserted or purged */
+    const row_ext_t *ext,      /*!< in: externally stored column
+                               prefixes, or NULL */
+    const dict_index_t *index, /*!< in: index on the table */
+    mem_heap_t *heap)          /*!< in: memory heap from which
+                               the memory for the index entry
+                               is allocated */
     MY_ATTRIBUTE((warn_unused_result));
 /** An inverse function to row_build_index_entry. Builds a row from a
  record in a clustered index.
@@ -209,20 +209,20 @@ dtuple_t *row_rec_to_index_entry(
  search the clustered index record.
  @return own: row reference built; see the NOTE below! */
 dtuple_t *row_build_row_ref(
-    ulint type,          /*!< in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
-                         the former copies also the data fields to
-                         heap, whereas the latter only places pointers
-                         to data fields on the index page */
-    dict_index_t *index, /*!< in: secondary index */
-    const rec_t *rec,    /*!< in: record in the index;
-                         NOTE: in the case ROW_COPY_POINTERS
-                         the data fields in the row will point
-                         directly into this record, therefore,
-                         the buffer page of this record must be
-                         at least s-latched and the latch held
-                         as long as the row reference is used! */
-    mem_heap_t *heap)    /*!< in: memory heap from which the memory
-                         needed is allocated */
+    ulint type,                /*!< in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
+                               the former copies also the data fields to
+                               heap, whereas the latter only places pointers
+                               to data fields on the index page */
+    const dict_index_t *index, /*!< in: secondary index */
+    const rec_t *rec,          /*!< in: record in the index;
+                               NOTE: in the case ROW_COPY_POINTERS
+                               the data fields in the row will point
+                               directly into this record, therefore,
+                               the buffer page of this record must be
+                               at least s-latched and the latch held
+                               as long as the row reference is used! */
+    mem_heap_t *heap)          /*!< in: memory heap from which the memory
+                               needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));
 /** Builds from a secondary index record a row reference with which we can
  search the clustered index record. */
@@ -271,7 +271,7 @@ ibool row_search_on_row_ref(
 rec_t *row_get_clust_rec(
     ulint mode,                 /*!< in: BTR_MODIFY_LEAF, ... */
     const rec_t *rec,           /*!< in: record in a secondary index */
-    dict_index_t *index,        /*!< in: secondary index */
+    const dict_index_t *index,  /*!< in: secondary index */
     dict_index_t **clust_index, /*!< out: clustered index */
     mtr_t *mtr)                 /*!< in: mtr */
     MY_ATTRIBUTE((warn_unused_result));

@@ -12,8 +12,7 @@
  # Bug #24384561: 5.7.14 COMPLAINS ABOUT WRONG
  #                SLAVE_MASTER_INFO AFTER UPGRADE FROM 5.7.13
  #
-
---source include/mysql_upgrade_preparation.inc
+--source include/no_valgrind_without_big.inc
 
 USE test;
 
@@ -33,7 +32,9 @@ SELECT COLUMN_NAME, ORDINAL_POSITION
 --echo # Verify that the upgrade script works correctly when upgrading from the same version
 --echo # i.e. when both the columns Channel_name and Tls_version are in the correct order.
 --disable_result_log
---exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 --enable_result_log
 
 CREATE TABLE test.upgraded
@@ -56,7 +57,9 @@ ALTER TABLE mysql.slave_master_info
 
 --echo # Running mysql_upgrade to update slave_master_info table
 --disable_result_log
---exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 --enable_result_log
 
 --echo # Verify that the columns Channel_name and Tls_version are now in correct order.
@@ -103,7 +106,9 @@ CREATE TABLE `mysql`.`slave_master_info` (
 
 --echo #Running mysql_upgrade to update slave_master_info table
 --disable_result_log
---exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 --enable_result_log
 
 --echo #Verify that the columns Channel_name and Tls_version are added and are in correct order.
@@ -127,7 +132,7 @@ ALTER TABLE mysql.slave_master_info
 DROP TABLE test.slave_master_info_backup;
 DROP TABLE test.original;
 
---source include/mysql_upgrade_cleanup.inc
-
 --echo #Restart the server
+--let $restart_parameters = restart
 --source include/restart_mysqld.inc
+

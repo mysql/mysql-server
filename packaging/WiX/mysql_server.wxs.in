@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,15 +76,38 @@
 
 
     <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
-      <Property Id="VS14REDIST">
-        <RegistrySearch Id="FindRedistVS14"
+      <Property Id="VS14REDISTX64_64"> 
+        <RegistrySearch Id="FindRedistVS14_64"
             Root="HKLM"
-            Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
             Name="Version"
+            Win64="yes"
             Type="raw" />
       </Property>
-      <Condition Message="This application requires Visual Studio 2015 Redistributable. Please install the Redistributable then run this installer again.">
-        Installed OR VS14REDIST
+      <Property Id="VS14UPGRADE64_64">
+        <RegistrySearch Id="FindVS14Upgrade64_64"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UpgradeCodes\09A86F63C932FD435BC8463B1035EC53"
+            Win64="yes"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_32"> 
+        <RegistrySearch Id="FindRedistVS14_32"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Version"
+            Win64="no"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14UPGRADE64_32">
+        <RegistrySearch Id="FindVS14Upgrade64_32"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UpgradeCodes\09A86F63C932FD435BC8463B1035EC53"
+            Win64="no"
+            Type="raw" />
+      </Property>
+      <Condition Message="This application requires Visual Studio 2015 x64 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR VS14REDISTX64_64 OR VS14UPGRADE64_64 OR VS14REDISTX64_32 OR VS14UPGRADE64_32
       </Condition>
     <?endif?> 
  
@@ -133,10 +156,10 @@
     <InstallUISequence>
     <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
     </InstallUISequence>
-
+   
     <Property Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off &amp; for /F &quot;tokens=*&quot; %i in ('sc query ^| FIND &quot;SERVICE_NAME:&quot;') do (set j=%i &amp; set j=!j:~14! &amp; sc qc !j! | FIND &quot;C:\Program Files\MySQL\MySQL Server 8.0\bin\&quot; >NUL &amp; IF errorlevel 0 IF NOT errorlevel 1 (sc stop !j! > NUL &amp; ( for /L %k IN (1,1,20) do (sc query !j! | FIND &quot;STATE&quot; | FIND &quot;STOPPED&quot; >NUL &amp; (IF errorlevel 0 IF errorlevel 1 timeout /t 5 /nobreak >NUL)) )&amp; sc delete !j!  ) ) &quot;"/>
     <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="WixQuietExec"
-            Execute="deferred" Return="check" Impersonate="no"/>
+            Execute="deferred" Return="ignore" Impersonate="no"/>
     <InstallExecuteSequence>
       <Custom Action="QtRemoveService" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND (NOT MYSQL_INSTALLER="YES")</Custom>
     </InstallExecuteSequence>
@@ -191,5 +214,4 @@
     <!--CPACK_WIX_INCLUDES -->
     @CPACK_WIX_INCLUDES@
   </Product>
-
 </Wix>

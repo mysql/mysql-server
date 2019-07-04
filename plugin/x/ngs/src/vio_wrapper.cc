@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,13 @@
 #include "mysql/psi/mysql_socket.h"
 
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
-#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/io/connection_type.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
-Vio_wrapper::Vio_wrapper(Vio *vio) : m_vio(vio) {}
+Vio_wrapper::Vio_wrapper(Vio *vio)
+    : m_vio(vio), m_shutdown_mutex(KEY_mutex_x_vio_shutdown) {}
 
 ssize_t Vio_wrapper::read(uchar *buffer, ssize_t bytes_to_send) {
   return vio_read(m_vio, buffer, bytes_to_send);
@@ -78,8 +80,8 @@ void Vio_wrapper::set_thread_owner() {
 
 my_socket Vio_wrapper::get_fd() { return vio_fd(m_vio); }
 
-Connection_type Vio_wrapper::get_type() {
-  return Connection_type_helper::convert_type(vio_type(m_vio));
+xpl::Connection_type Vio_wrapper::get_type() {
+  return xpl::Connection_type_helper::convert_type(vio_type(m_vio));
 }
 
 sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {

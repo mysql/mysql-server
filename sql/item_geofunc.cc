@@ -47,6 +47,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "nullable.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -60,6 +61,7 @@
 #include "sql/gis/length.h"
 #include "sql/gis/simplify.h"
 #include "sql/gis/srid.h"
+#include "sql/gis/st_units_of_measure.h"
 #include "sql/gis/transform.h"
 #include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
@@ -75,6 +77,7 @@
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 #include "template_utils.h"
+#include "unsafe_string_append.h"
 
 class PT_item_list;
 struct TABLE;
@@ -537,7 +540,7 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE + temp.length())) return error_str();
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   str->append(temp);
 
   return str;
@@ -785,7 +788,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
     return error_str();
   }
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   str->append(temp);
   return str;
 }
@@ -930,7 +933,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
   }
   buf->set_charset(&my_charset_bin);
   buf->length(0);
-  buf->q_append(static_cast<uint32>(4326));
+  q_append(static_cast<uint32>(4326), buf);
 
   /*
     The rollback variable is used for detecting/accepting NULL objects inside
@@ -962,7 +965,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
 
   // Set the correct SRID for the geometry data.
   if (m_user_provided_srid) {
-    buf->write_at_position(0, m_user_srid);
+    write_at_position(0, m_user_srid, buf);
   } else if (m_srid_found_in_document > -1) {
     Srs_fetcher fetcher(current_thd);
     const dd::Spatial_reference_system *srs = nullptr;
@@ -979,7 +982,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
       return error_str();
     }
 
-    buf->write_at_position(0, static_cast<uint32>(m_srid_found_in_document));
+    write_at_position(0, static_cast<uint32>(m_srid_found_in_document), buf);
   }
 
   bool return_result = result_geometry->as_wkb(buf, false);
@@ -2683,7 +2686,7 @@ String *Item_func_geohash::val_str_ascii(String *str) {
       }
       even_bit = !even_bit;
     }
-    str->q_append(char_to_base32(current_char));
+    q_append(char_to_base32(current_char), str);
 
     /*
       If encoded values of latitude and longitude matches the supplied
@@ -3496,35 +3499,35 @@ String *Item_func_make_envelope::val_str(String *str) {
   if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
     return error_str();
 
-  str->q_append(srid);
-  str->q_append(static_cast<char>(Geometry::wkb_ndr));
+  q_append(srid, str);
+  q_append(static_cast<char>(Geometry::wkb_ndr), str);
 
   if (dim == 0) {
-    str->q_append(static_cast<uint32>(Geometry::wkb_point));
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
+    q_append(static_cast<uint32>(Geometry::wkb_point), str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
   } else if (dim == 1) {
-    str->q_append(static_cast<uint32>(Geometry::wkb_linestring));
-    str->q_append(static_cast<uint32>(2));
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
-    str->q_append(mbr.xmax);
-    str->q_append(mbr.ymax);
+    q_append(static_cast<uint32>(Geometry::wkb_linestring), str);
+    q_append(static_cast<uint32>(2), str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
+    q_append(mbr.xmax, str);
+    q_append(mbr.ymax, str);
   } else {
     DBUG_ASSERT(dim == 2);
-    str->q_append(static_cast<uint32>(Geometry::wkb_polygon));
-    str->q_append(static_cast<uint32>(1));
-    str->q_append(static_cast<uint32>(5));
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
-    str->q_append(mbr.xmax);
-    str->q_append(mbr.ymin);
-    str->q_append(mbr.xmax);
-    str->q_append(mbr.ymax);
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymax);
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
+    q_append(static_cast<uint32>(Geometry::wkb_polygon), str);
+    q_append(static_cast<uint32>(1), str);
+    q_append(static_cast<uint32>(5), str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
+    q_append(mbr.xmax, str);
+    q_append(mbr.ymin, str);
+    q_append(mbr.xmax, str);
+    q_append(mbr.ymax, str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymax, str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
   }
 
   return str;
@@ -3558,7 +3561,7 @@ String *Item_func_envelope::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   str->length(0);
   if (str->reserve(SRID_SIZE, 512)) return error_str();
-  str->q_append(srid);
+  q_append(srid, str);
   if ((null_value = geom->envelope(str))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -4097,7 +4100,7 @@ String *Item_func_spatial_decomp::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512)) goto err;
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   switch (decomp_func) {
     case SP_STARTPOINT:
       if (geom->start_point(str)) goto err;
@@ -4143,7 +4146,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str) {
   if (str->reserve(SRID_SIZE, 512)) goto err;
   srid = uint4korr(swkb->ptr());
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   switch (decomp_func_n) {
     case SP_POINTN:
       if (geom->point_n(n, str)) goto err;
@@ -4203,11 +4206,11 @@ String *Item_func_point::val_str(String *str) {
 
   str->set_charset(&my_charset_bin);
   str->length(0);
-  str->q_append(srid);
-  str->q_append((char)Geometry::wkb_ndr);
-  str->q_append((uint32)Geometry::wkb_point);
-  str->q_append(x);
-  str->q_append(y);
+  q_append(srid, str);
+  q_append((char)Geometry::wkb_ndr, str);
+  q_append((uint32)Geometry::wkb_point, str);
+  q_append(x, str);
+  q_append(y, str);
   return str;
 }
 
@@ -4295,8 +4298,8 @@ String *Item_func_pointfromgeohash::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   str->length(0);
   write_geometry_header(str, srid, Geometry::wkb_point);
-  str->q_append(longitude);
-  str->q_append(latitude);
+  q_append(longitude, str);
+  q_append(latitude, str);
   return str;
 }
 
@@ -4350,10 +4353,10 @@ String *Item_func_spatial_collection::val_str(String *str) {
   str->length(0);
   if (str->reserve(4 /*SRID*/ + 1 + 4 + 4, 512)) goto err;
 
-  str->q_append(srid);
-  str->q_append((char)Geometry::wkb_ndr);
-  str->q_append((uint32)coll_type);
-  str->q_append((uint32)arg_count);
+  q_append(srid, str);
+  q_append((char)Geometry::wkb_ndr, str);
+  q_append((uint32)coll_type, str);
+  q_append((uint32)arg_count, str);
 
   // We can construct an empty geometry by calling GeometryCollection().
   if (arg_count == 0) return str;
@@ -4547,7 +4550,7 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo,
       String *pres = m_geosdata.append_object();
       if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE, 512)) return true;
 
-      pres->q_append(geo->get_srid());
+      q_append(geo->get_srid(), pres);
       if (geo->geometry_n(i, pres)) return true;
 
       Geometry_buffer *pgeobuf = m_geobufs.append_object();
@@ -4595,7 +4598,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo) {
   if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize, 256))
     return NULL;
   write_geometry_header(pres, geo->get_srid(), geo->get_type());
-  pres->q_append(geo->get_cptr(), geosize);
+  q_append(geo->get_cptr(), geosize, pres);
 
   pgeobuf = m_geobufs.append_object();
   if (pgeobuf == NULL) return NULL;
@@ -5045,14 +5048,80 @@ double Item_func_st_area::val_real() {
   return result;
 }
 
+enum class ConvertUnitResult {
+  kError,
+  kNull,
+  kOk,
+};
+/// ConvertUnit converts length to from the unit used in srs, to the unit in
+/// to_uint read as a string.
+///
+///  Srs's linear unit is used to ocnvert back to meters and to_unit is used to
+///  find the conversion factor from meters to the wanted unit.
+///
+///  @param[in] to_unit An item treated as the name of the unit we want to
+/// convert to.
+///  @param[in] srs The spatial reference system the length is assumed to come
+/// from.
+///  @param[in] function_name Name of the SQL function to report errors as.
+///  @param[inout] length The length to convert to another unit.
+///
+///  @retval kError An error has occured, this could be overflows, unsupported
+/// units, srs without unit (SRID 0), conversion errors.
+///  @retval kNull The result is sql null, because the to_unit was null.
+///  @retval kOk Success.
+///
+///
+static ConvertUnitResult ConvertUnit(Item *to_unit,
+                                     const dd::Spatial_reference_system *srs,
+                                     const char *function_name,
+                                     double *length) {
+  String buffer;
+  String *unit = to_unit->val_str(&buffer);
+  if (!to_unit->null_value) {
+    double conversion_factor = 0.0;
+
+    uint convert_errors = 0;
+    String converted_string;
+    if (converted_string.copy(unit->ptr(), unit->length(), unit->charset(),
+                              &my_charset_utf8mb4_0900_ai_ci,
+                              &convert_errors) ||
+        convert_errors) {
+      /* purecov:begin inspected */
+      my_error(ER_OOM, MYF(0));
+      return ConvertUnitResult::kError;
+      /* purecov: end */
+    }
+    std::string unit_name(converted_string.ptr(), converted_string.length());
+    if (srs == nullptr) {
+      my_error(ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT, MYF(0), function_name,
+               unit_name.c_str());
+      return ConvertUnitResult::kError;
+    }
+
+    if (gis::get_conversion_factor(unit_name, &conversion_factor)) {
+      return ConvertUnitResult::kError;
+    }
+    *length *= srs->linear_unit() / conversion_factor;
+    if (std::isinf(*length)) {
+      /* purecov:begin inspected */
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "result", function_name);
+      return ConvertUnitResult::kError;
+      /* purecov: end */
+    }
+    return ConvertUnitResult::kOk;
+  } else {
+    return ConvertUnitResult::kNull;
+  }
+}
+
 double Item_func_st_length::val_real() {
-  DBUG_ENTER("Item_func_st_length::val_real");
   DBUG_ASSERT(fixed);
   String *swkb = args[0]->val_str(&value);
 
   if ((null_value = (args[0]->null_value))) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
   if (swkb == nullptr) {
@@ -5062,7 +5131,7 @@ double Item_func_st_length::val_real() {
     */
     DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
@@ -5071,19 +5140,34 @@ double Item_func_st_length::val_real() {
       new dd::cache::Dictionary_client::Auto_releaser(
           current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g)) {
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   double length;
   if (gis::length(srs, g.get(), &length, &null_value))
-    DBUG_RETURN(error_real()); /* purecov: inspected */
+    return error_real(); /* purecov: inspected */
 
   if (null_value) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
-  DBUG_RETURN(length);
+  if (arg_count == 2) {
+    switch (ConvertUnit(args[1], srs, func_name(), &length)) {
+      case ConvertUnitResult::kError:
+        return error_real();
+        break;
+      case ConvertUnitResult::kNull:
+        DBUG_ASSERT(maybe_null);
+        null_value = true;
+        return 0.0;
+        break;
+      case ConvertUnitResult::kOk:
+        return length;
+        break;
+    }
+  }
+  return length;
 }
 
 longlong Item_func_st_srid_observer::val_int() {
@@ -5159,7 +5243,7 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
-  str->write_at_position(0, target_srid);
+  write_at_position(0, target_srid, str);
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
@@ -5173,7 +5257,6 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
 }
 
 double Item_func_distance::val_real() {
-  DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
   String tmp_value1;
@@ -5184,13 +5267,13 @@ double Item_func_distance::val_real() {
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
   if (res1 == nullptr || res2 == nullptr) {
     DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   const dd::Spatial_reference_system *srs1 = nullptr;
@@ -5202,28 +5285,42 @@ double Item_func_distance::val_real() {
           current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
       gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   gis::srid_t srid1 = srs1 == nullptr ? 0 : srs1->id();
   gis::srid_t srid2 = srs2 == nullptr ? 0 : srs2->id();
   if (srid1 != srid2) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   double distance;
-  bool null;
-  if (gis::distance(srs1, g1.get(), g2.get(), &distance, &null))
-    DBUG_RETURN(error_real());
-
-  if (null) {
+  if (gis::distance(srs1, g1.get(), g2.get(), &distance, &null_value)) {
+    return error_real();
+  }
+  if (null_value) {
     DBUG_ASSERT(maybe_null);
-    null_value = true;
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
-  DBUG_RETURN(distance);
+  if (arg_count == 3) {
+    switch (ConvertUnit(args[2], srs1, func_name(), &distance)) {
+      case ConvertUnitResult::kError:
+        return error_real();
+        break;
+      case ConvertUnitResult::kNull:
+        DBUG_ASSERT(maybe_null);
+        null_value = true;
+        return 0.0;
+        break;
+      case ConvertUnitResult::kOk:
+        return distance;
+        break;
+    }
+  }
+
+  return distance;
 }
 
 double Item_func_st_distance_sphere::val_real() {

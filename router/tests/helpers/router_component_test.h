@@ -34,12 +34,11 @@
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <streambuf>
 #include <vector>
 #ifndef _WIN32
 #include <unistd.h>
-#else
-#define NOMINMAX
 #endif
 
 using mysql_harness::Path;
@@ -66,6 +65,19 @@ class RouterComponentTest {
   // wait-timeout should be less than infinite, and long enough that even with
   // valgrind we properly pass the tests
   static constexpr unsigned kDefaultWaitForExitTimeout = 10 * 1000;
+
+  /** @brief Initializes keyring and adds keyring-related config items to
+   * [DEFAULT] section
+   *
+   * @param default_section [DEFAULT] section
+   * @param keyring_dir directory inside of which keyring files will be created
+   * @param user Router user
+   * @param password Router user password
+   */
+  static void init_keyring(std::map<std::string, std::string> &default_section,
+                           const std::string &keyring_dir,
+                           const std::string &user = "mysql_router1_user",
+                           const std::string &password = "root");
 
  protected:
   RouterComponentTest();
@@ -181,6 +193,14 @@ class RouterComponentTest {
       }
     }
 
+    /** @brief Initiate Router shutdown
+     *
+     * @returns shutdown event delivery success/failure
+     */
+    std::error_code send_clean_shutdown_event() const {
+      return launcher_.send_shutdown_event();
+    }
+
    private:
     CommandHandle(const std::string &app_cmd, const char **args,
                   bool include_stderr)
@@ -232,9 +252,9 @@ class RouterComponentTest {
     friend class RouterComponentTest;
   };  // class CommandHandle
 
-  /** @brief Gtest class SetUp, prepares the testcase.
+  /** @brief Initializes the test
    */
-  virtual void SetUp();
+  virtual void init();
 
   /** @brief Launches the MySQLRouter process.
    *
@@ -372,10 +392,19 @@ class RouterComponentTest {
    */
   std::map<std::string, std::string> get_DEFAULT_defaults() const;
 
+  /** @brief create config file
+   *
+   * @param directory directory in which the config file will be created
+   * @param sections text to follow [DEFAULT] section (typically all other
+   * sections)
+   * @param default_section [DEFAULT] section parameters
+   * @param name config file name
+   *
+   * @return path to the created file
+   */
   std::string create_config_file(
-      const std::string &content = "",
-      const std::map<std::string, std::string> *params = nullptr,
-      const std::string &directory = get_tmp_dir("conf"),
+      const std::string &directory, const std::string &sections = "",
+      const std::map<std::string, std::string> *default_section = nullptr,
       const std::string &name = "mysqlrouter.conf") const;
 
   void set_origin(const Path &origin) { origin_dir_ = origin; }
@@ -414,6 +443,25 @@ class RouterComponentTest {
   std::string get_router_log_output(
       const std::string &file_name = "mysqlrouter.log",
       const std::string &file_path = "");
+
+  /** @brief returns the content of selected file as a string
+   *
+   * @param file_name name of the file
+   * @param file_path path to the file
+   */
+  std::string get_file_output(const std::string &file_name,
+                              const std::string &file_path);
+
+  /** @brief returns the content of selected file as a string
+   *
+   * @param file_name full path and name of the file
+   */
+  std::string get_file_output(const std::string &file_name);
+
+  // need to return void to be able to use ASSERT_ macros
+  void connect_client_and_query_port(unsigned router_port,
+                                     std::string &out_port,
+                                     bool should_fail = false);
 
  protected:
   /** @brief returns a [DEFAULT] section as string

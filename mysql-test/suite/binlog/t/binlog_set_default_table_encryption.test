@@ -1,0 +1,357 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test how `Q_DEFAULT_TABLE_ENCRYPTION` is being
+# logged within a `Query_log` event.
+#
+# ==== Requirements ====
+#
+# R1. `Q_DEFAULT_TABLE_ENCRYPTION` should only be logged for `Query_log` events
+#     holding `CREATE TABLE` or `ALTER TABLE` statements.
+#
+# ==== Implementation ====
+#
+# TC1. Check `CREATE DATABASE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Create database and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Create database and check the flag is set to 1.
+#
+# TC2. Check `ALTER DATABASE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Alter database and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Alter database and check the flag is set to 1.
+#
+# TC3. Check `CREATE TABLESPACE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Create tablespace and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Create tablespace and check the flag is set to 1.
+#
+# TC4. Check `ALTER TABLESPACE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Alter tablespace and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Alter tablespaceand check the flag is set to 1.
+#
+# TC5. Check `CREATE TABLE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Create table and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Create table and check the flag is set to 1.
+#
+# TC6. Check DML `INSERT`, `UPDATE` and `DELETE` do not have the flag set
+# -----------------------------------------------------------------------
+# 1) Execute `INSERT` for both tables and check that the flag is not set for
+#    both statements.
+# 2) Execute `UPDATE` for both tables and check that the flag is not set for
+#    both statements.
+# 3) Execute `DELETE` for both tables and check that the flag is not set for
+#    both statements.
+#
+# TC7. Check `ALTER TABLE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Alter table and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Alter table and check the flag is set to 1.
+#
+# TC8. Check `RENAME TABLE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# ------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Rename the table and check the flag is set to 0.
+# 3) Set `default_table_encryption` to 1.
+# 4) Rename the table and check the flag is set to 1.
+#
+# TC9. Check `DROP TABLE` do not has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+# -----------------------------------------------------------------------
+# 1) Set `default_table_encryption` to 0.
+# 2) Drop the table and check that the flag is not set.
+# 3) Set `default_table_encryption` to 1.
+# 4) Drop the table and check that the flag is not set.
+#
+# ==== References ====
+#
+
+# Asserts the expected count of `SET @@SESSION.DEFAULT_TABLE_ENCRYPTION` for a
+# given sql_expression
+#
+--write_file $MYSQL_TMP_DIR/assert_count_flag_occurences.inc END_OF_PROCEDURE
+  if ($target_sql_expression == '')
+  {
+    --die !!!ERROR IN TEST: you must set $target_sql_expression
+  }
+  if ($expected_statements_match_count == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_statements_match_count
+  }
+  if ($assert_success_text == '')
+  {
+    --die !!!ERROR IN TEST: you must set $assert_success_text
+  }
+
+  --let $before_include = $include_silent
+  --let $include_silent = 1
+  --source include/save_binlog_position.inc
+  --let $include_silent = $before_include
+  --let $assert_binlog_file = `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/mysqlbinlog_set_default_table_encryption_', UUID(), '.binlog')`
+
+  --eval $target_sql_expression
+
+  --exec $MYSQL_BINLOG --start-position=$binlog_position --force-if-open -vv $binlog_fullpath > $assert_binlog_file
+
+  --let $assert_select = default_table_encryption=$default_table_encryption_target_value[^;]*;
+  --let $assert_file = $assert_binlog_file
+  --let $assert_text = $assert_success_text
+  --let $assert_count = $expected_statements_match_count
+  --source include/assert_grep.inc
+
+  --remove_file $assert_binlog_file
+END_OF_PROCEDURE
+
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # TC1. Check `CREATE DATABASE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Create a table with no default table encryption and check the flag is set to 0.
+--let $target_sql_expression = CREATE DATABASE dbx;
+--let $default_table_encryption_target_value = 0
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'CREATE DATABASE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '0'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+DROP DATABASE dbx;
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Create a table with a default table encryption and check the flag is set to 1.
+--let $target_sql_expression = CREATE DATABASE dbx;
+--let $default_table_encryption_target_value = 1
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'CREATE DATABASE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '1'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+DROP DATABASE dbx;
+
+--echo #
+--echo # TC2. Check `ALTER DATABASE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+CREATE DATABASE dbx;
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Alter database and check the flag is set to 0.
+--let $target_sql_expression = ALTER DATABASE dbx CHARACTER SET utf8mb4
+--let $default_table_encryption_target_value = 0
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'ALTER DATABASE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '0'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Alter database and check the flag is set to 1.
+--let $target_sql_expression = ALTER DATABASE dbx CHARACTER SET utf8mb4
+--let $default_table_encryption_target_value = 1
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'ALTER DATABASE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '1'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+DROP DATABASE dbx;
+
+--echo #
+--echo # TC3. Check `CREATE TABLESPACE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Create tablespace and check the flag is set to 0.
+--let $target_sql_expression = CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+--let $default_table_encryption_target_value = 0
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'CREATE TABLESPACE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '0'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+DROP TABLESPACE ts1;
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Create tablespace and check the flag is set to 1.
+--let $target_sql_expression = CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+--let $default_table_encryption_target_value = 1
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'CREATE TABLESPACE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '1'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # TC4. Check `ALTER TABLESPACE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Alter tablespace and check the flag is set to 0.
+--let $target_sql_expression = ALTER TABLESPACE ts1 RENAME TO ts2;
+--let $default_table_encryption_target_value = 0
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'ALTER TABLESPACE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '0'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Alter tablespace and check the flag is set to 1.
+--let $target_sql_expression = ALTER TABLESPACE ts2 RENAME TO ts3;
+--let $default_table_encryption_target_value = 1
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'ALTER TABLESPACE' has 'Q_DEFAULT_TABLE_ENCRYPTION' flag set and with value '1'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+DROP TABLESPACE ts3;
+
+--echo #
+--echo # TC5. Check `CREATE TABLE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Create a table and check the flag is set to 0.
+--let $target_sql_expression = CREATE TABLE t1 (col1 INT, col2 INT)
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'CREATE TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+DROP TABLE t1;
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Create a table and check the flag is set to 1.
+--let $target_sql_expression = CREATE TABLE t1 (col1 INT, col2 INT)
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'CREATE TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+DROP TABLE t1;
+
+--echo #
+--echo # TC6. Check DML `INSERT`, `UPDATE` and `DELETE` do not have the flag set
+--echo # -----------------------------------------------------------------------
+
+CREATE TABLE t1 (col1 INT, col2 INT);
+
+# 1) Execute `INSERT` for both tables and check that the flag is not set for
+#    both statements.
+--let $target_sql_expression = INSERT INTO t1 VALUES (1, 0), (2, 0);
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'INSERT' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 2) Execute `UPDATE` for both tables and check that the flag is not set for
+#    both statements.
+--let $target_sql_expression = UPDATE t1 SET col2 = 1 WHERE col1 = 1;
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'UPDATE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Execute `DELETE` for both tables and check that the flag is not set for
+#    both statements.
+--let $target_sql_expression = DELETE FROM t1 where col1 = 2;
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'DELETE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+DROP TABLE t1;
+
+--echo #
+--echo # TC7. Check `ALTER TABLE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+CREATE TABLE t1 (col1 INT, col2 INT);
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Alter the table and check the flag is set to 0.
+--let $target_sql_expression = ALTER TABLE t1 ADD COLUMN (col3 INT)
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'ALTER TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Alter the table and check the flag is set to 1.
+--let $target_sql_expression = ALTER TABLE t1 ADD COLUMN (col4 INT)
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'ALTER TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+DROP TABLE t1;
+
+--echo #
+--echo # TC8. Check `RENAME TABLE` has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # ------------------------------------------------------------------
+
+CREATE TABLE t1 (col1 INT, col2 INT);
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Rename the table and check the flag is set to 0.
+--let $target_sql_expression = RENAME TABLE t1 TO t2;
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'RENAME TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Rename the table and check the flag is set to 1.
+--let $target_sql_expression = RENAME TABLE t2 TO t3;
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'RENAME TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+DROP TABLE t3;
+
+--echo #
+--echo # TC9. Check `DROP TABLE` do not has `Q_DEFAULT_TABLE_ENCRYPTION` flag set
+--echo # -----------------------------------------------------------------------
+
+# 1) Set `default_table_encryption` to 0.
+SET @@session.default_table_encryption=0;
+
+# 2) Drop the table and check that the flag is not set.
+CREATE TABLE t1 (col1 INT, col2 INT);
+--let $target_sql_expression = DROP TABLE t1
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'DROP TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `default_table_encryption` to 1.
+SET @@session.default_table_encryption=1;
+
+# 4) Drop the table and check that the flag is not set.
+CREATE TABLE t1 (col1 INT, col2 INT);
+--let $target_sql_expression = DROP TABLE t1
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'DROP TABLE' statements do not have 'Q_DEFAULT_TABLE_ENCRYPTION' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# Clean up
+--remove_file $MYSQL_TMP_DIR/assert_count_flag_occurences.inc

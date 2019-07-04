@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -263,7 +263,7 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
   
   /* Success. */
   initialized = 1;
-};
+}
 
 
 QueryPlan::~QueryPlan() {

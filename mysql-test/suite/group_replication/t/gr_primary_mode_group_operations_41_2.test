@@ -79,20 +79,20 @@ INSERT INTO t1 VALUES (2);
 # Sleep so the select query is not included in the waiting numbers
 --sleep 2
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" and work_estimated=2
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%" and work_estimated=2
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Multi-primary Switch: waiting for pending transactions to finish"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish"
 --source include/assert.inc
 
---let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The estimated work is 2
 --let $assert_cond= "$work_estimated" = "2"
 --source include/assert.inc
 
---let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The completed work is 0
 --let $assert_cond= "$work_completed" = "0"
 --source include/assert.inc
@@ -100,20 +100,20 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Multi-primary Switch: waiting on another member step completion"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting on another member step completion"
 --source include/assert.inc
 
---let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The estimated work is 1
 --let $assert_cond= "$work_estimated" = "1"
 --source include/assert.inc
 
---let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The completed work is 0
 --let $assert_cond= "$work_completed" = "0"
 --source include/assert.inc
@@ -123,20 +123,20 @@ INSERT INTO t1 VALUES (2);
 
 COMMIT;
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" and work_completed=1
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%" and work_completed=1
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Multi-primary Switch: waiting for pending transactions to finish"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish"
 --source include/assert.inc
 
---let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The estimated work is 2
 --let $assert_cond= "$work_estimated" = "2"
 --source include/assert.inc
 
---let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The completed work is 1
 --let $assert_cond= "$work_completed" = "1"
 --source include/assert.inc
@@ -163,17 +163,17 @@ COMMIT;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: applying buffered %"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Multi-primary Switch: applying buffered transactions"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: applying buffered transactions"
 --source include/assert.inc
 
---let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The estimated work is 1
 --let $assert_cond= "$work_estimated" = "1"
 --source include/assert.inc
 
---let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The completed work is 0
 --let $assert_cond= "$work_completed" = "0"
 --source include/assert.inc
@@ -197,17 +197,17 @@ UNLOCK TABLES;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting for%" and work_completed=1
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Multi-primary Switch: waiting for operation to complete on all members"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting for operation to complete on all members"
 --source include/assert.inc
 
---let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The estimated work is 2
 --let $assert_cond= "$work_estimated" = "2"
 --source include/assert.inc
 
---let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The completed work is 1
 --let $assert_cond= "$work_completed" = "1"
 --source include/assert.inc
@@ -218,17 +218,17 @@ UNLOCK TABLES;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: waiting for%" and work_completed=1
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Multi-primary Switch: waiting for operation to complete on all members"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting for operation to complete on all members"
 --source include/assert.inc
 
---let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_estimated= `SELECT work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The estimated work is 2
 --let $assert_cond= "$work_estimated" = "2"
 --source include/assert.inc
 
---let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $work_completed= `SELECT work_completed FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The completed work is 1
 --let $assert_cond= "$work_completed" = "1"
 --source include/assert.inc
@@ -246,10 +246,10 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 --reap
 
 #Stages sometimes linger for a brief time after the action terminated
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
---let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present
 --let $assert_cond= "$stages_present" = "0"
 --source include/assert.inc
@@ -257,7 +257,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present
 --let $assert_cond= "$stages_present" = "0"
 --source include/assert.inc

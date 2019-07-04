@@ -42,3 +42,4 @@ select * from t1 order by pk1;
 connection con1;
 
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

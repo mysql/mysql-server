@@ -1,0 +1,3383 @@
+#
+# Extract the contents of mysql.dd_properties and format it in a
+# human readable way. Include the file in the result file of
+# this test. Filter out version numbers. The results file is
+# recorded on a case sensitive file system, which has an impact
+# of some of the collations.
+#
+set debug='+d,skip_dd_table_access_check';
+SELECT * FROM mysql.dd_properties INTO OUTFILE 'MYSQL_TMP_DIR/dd_properties.txt';
+set debug='-d,skip_dd_table_access_check';
+SYSTEM_TABLES=
+catalogs=
+  col0=table_id=6
+  col1=table_id=6
+  col2=table_id=6
+  col3=table_id=6
+  col4=table_id=6
+  col5=table_id=6
+  col6=table_id=6
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=2
+      elem1=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem2=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=3
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_NAME
+            pos=1
+      elem4=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=4
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (name)
+            lbl=INDEX_UK_NAME
+            pos=1
+    name=catalogs
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=6
+  idx0=id=7
+       root=10
+       space_id=4294967294
+       table_id=6
+       trx_id=0
+  idx1=id=8
+       root=11
+       space_id=4294967294
+       table_id=6
+       trx_id=0
+       space_id=1
+character_sets=
+  col0=table_id=7
+  col1=table_id=7
+  col2=table_id=7
+  col3=table_id=7
+  col4=table_id=7
+  col5=table_id=7
+  col6=table_id=7
+  col7=table_id=7
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=comment VARCHAR(2048) COLLATE utf8_general_ci NOT NULL
+            lbl=FIELD_COMMENT
+            pos=3
+      elem1=def=default_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_DEFAULT_COLLATION_ID
+            pos=2
+      elem2=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem3=def=mb_max_length INT UNSIGNED NOT NULL
+            lbl=FIELD_MB_MAX_LENGTH
+            pos=4
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=1
+      elem5=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=5
+    foreign_keys=
+      elem0=def=FOREIGN KEY (default_collation_id) REFERENCES collations(id)
+            lbl=FK_DEFAULT_COLLATION_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY(default_collation_id)
+            lbl=INDEX_UK_DEFAULT_COLLATION_ID
+            pos=2
+      elem2=def=UNIQUE KEY(name)
+            lbl=INDEX_UK_NAME
+            pos=1
+    name=character_sets
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=7
+  idx0=id=9
+       root=12
+       space_id=4294967294
+       table_id=7
+       trx_id=0
+  idx1=id=10
+       root=13
+       space_id=4294967294
+       table_id=7
+       trx_id=0
+  idx2=id=11
+       root=14
+       space_id=4294967294
+       table_id=7
+       trx_id=0
+       space_id=1
+check_constraints=
+  col0=table_id=8
+  col1=table_id=8
+  col2=table_id=8
+  col3=table_id=8
+  col4=table_id=8
+  col5=table_id=8
+  col6=table_id=8
+  col7=table_id=8
+  col8=table_id=8
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=check_clause LONGBLOB NOT NULL
+            lbl=FIELD_CHECK_CLAUSE
+            pos=5
+      elem1=def=check_clause_utf8 LONGTEXT NOT NULL
+            lbl=FIELD_CHECK_CLAUSE_UTF8
+            pos=6
+      elem2=def=enforced ENUM('NO', 'YES') NOT NULL
+            lbl=FIELD_ENFORCED
+            pos=4
+      elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+            lbl=FIELD_NAME
+            pos=3
+      elem5=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem6=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=2
+    foreign_keys=
+      elem0=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+      elem1=def=FOREIGN KEY (table_id) REFERENCES tables(id)
+            lbl=FK_TABLE_ID
+            pos=1
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+      elem2=def=UNIQUE KEY (table_id, name)
+            lbl=INDEX_UK_TABLE_ID_NAME
+            pos=2
+    name=check_constraints
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=8
+  idx0=id=12
+       root=15
+       space_id=4294967294
+       table_id=8
+       trx_id=0
+  idx1=id=13
+       root=16
+       space_id=4294967294
+       table_id=8
+       trx_id=0
+  idx2=id=14
+       root=17
+       space_id=4294967294
+       table_id=8
+       trx_id=0
+       space_id=1
+  collations=
+  col0=table_id=9
+  col1=table_id=9
+  col2=table_id=9
+  col3=table_id=9
+  col4=table_id=9
+  col5=table_id=9
+  col6=table_id=9
+  col7=table_id=9
+  col8=table_id=9
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=character_set_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CHARACTER_SET_ID
+            pos=2
+      elem1=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem2=def=is_compiled BOOL NOT NULL
+            lbl=FIELD_IS_COMPILED
+            pos=3
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=1
+      elem4=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=6
+      elem5=def=pad_attribute ENUM('PAD SPACE', 'NO PAD') NOT NULL
+            lbl=FIELD_PAD_ATTRIBUTE
+            pos=5
+      elem6=def=sort_length INT UNSIGNED NOT NULL
+            lbl=FIELD_SORT_LENGTH
+            pos=4
+    foreign_keys=
+      elem0=def=FOREIGN KEY (character_set_id) REFERENCES character_sets(id)
+            lbl=FK_CHARCTER_SET_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(character_set_id)
+            lbl=INDEX_K_CHARACTER_SET_ID
+            pos=2
+      elem1=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem2=def=UNIQUE KEY(name)
+            lbl=INDEX_UK_NAME
+            pos=1
+    name=collations
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=9
+  idx0=id=15
+       root=18
+       space_id=4294967294
+       table_id=9
+       trx_id=0
+  idx1=id=16
+       root=19
+       space_id=4294967294
+       table_id=9
+       trx_id=0
+  idx2=id=17
+       root=20
+       space_id=4294967294
+       table_id=9
+       trx_id=0
+       space_id=1
+  column_statistics=
+  col0=table_id=10
+  col1=table_id=10
+  col2=table_id=10
+  col3=table_id=10
+  col4=table_id=10
+  col5=table_id=10
+  col6=table_id=10
+  col7=table_id=10
+  col8=table_id=10
+  col9=table_id=10
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=catalog_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CATALOG_ID
+            pos=1
+      elem1=def=column_name VARCHAR(64) NOT NULL COLLATE                           utf8_tolower_ci
+            lbl=FIELD_COLUMN_NAME
+            pos=5
+      elem2=def=histogram JSON NOT NULL
+            lbl=FIELD_HISTOGRAM
+            pos=6
+      elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem4=def=name VARCHAR(255) NOT NULL
+            lbl=FIELD_NAME
+            pos=2
+      elem5=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=7
+      elem6=def=schema_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_SCHEMA_NAME
+            pos=3
+      elem7=def=table_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_TABLE_NAME
+            pos=4
+    foreign_keys=
+      elem0=def=FOREIGN KEY (catalog_id) REFERENCES                                 catalogs (id)
+            lbl=FK_CATALOGS_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (catalog_id, name)
+            lbl=INDEX_UK_CATALOG_ID_NAME
+            pos=1
+      elem2=def=UNIQUE KEY (catalog_id, schema_name,                                     table_name, column_name)
+            lbl=INDEX_UK_CATALOG_ID_SCHEMA_NAME_TABLE_NAME_COLUMN_NAME
+            pos=2
+    name=column_statistics
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=10
+  idx0=id=18
+       root=21
+       space_id=4294967294
+       table_id=10
+       trx_id=0
+  idx1=id=19
+       root=22
+       space_id=4294967294
+       table_id=10
+       trx_id=0
+  idx2=id=20
+       root=23
+       space_id=4294967294
+       table_id=10
+       trx_id=0
+       space_id=1
+  column_type_elements=
+  col0=table_id=11
+  col1=table_id=11
+  col2=table_id=11
+  col3=table_id=11
+  col4=table_id=11
+  data=
+  def=
+    fields=
+      elem0=def=column_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_COLUMN_ID
+            pos=0
+      elem1=def=element_index INT UNSIGNED NOT NULL
+            lbl=FIELD_ELEMENT_INDEX
+            pos=1
+      elem2=def=name VARBINARY(1020) NOT NULL
+            lbl=FIELD_NAME
+            pos=2
+    foreign_keys=
+      elem0=def=FOREIGN KEY (column_id) REFERENCES columns(id)
+            lbl=COLUMN_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY(column_id, element_index)
+            lbl=PK_COLUMN_ID_ELEMENT_INDEX
+            pos=0
+    name=column_type_elements
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=11
+  idx0=id=21
+       root=24
+       space_id=4294967294
+       table_id=11
+       trx_id=0
+       space_id=1
+  columns=
+  col0=table_id=12
+  col1=table_id=12
+  col10=table_id=12
+  col11=table_id=12
+  col12=table_id=12
+  col13=table_id=12
+  col14=table_id=12
+  col15=table_id=12
+  col16=table_id=12
+  col17=table_id=12
+  col18=table_id=12
+  col19=table_id=12
+  col2=table_id=12
+  col20=table_id=12
+  col21=table_id=12
+  col22=table_id=12
+  col23=table_id=12
+  col24=table_id=12
+  col25=table_id=12
+  col26=table_id=12
+  col27=table_id=12
+  col28=table_id=12
+  col29=table_id=12
+  col3=table_id=12
+  col30=table_id=12
+  col31=table_id=12
+  col4=table_id=12
+  col5=table_id=12
+  col6=table_id=12
+  col7=table_id=12
+  col8=table_id=12
+  col9=table_id=12
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=char_length INT UNSIGNED
+            lbl=FIELD_CHAR_LENGTH
+            pos=8
+      elem1=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=12
+      elem10=def=generation_expression_utf8 LONGTEXT
+            lbl=FIELD_GENERATION_EXPRESSION_UTF8
+            pos=21
+      elem11=def=has_no_default BOOL
+            lbl=FIELD_HAS_NO_DEFAULT
+            pos=13
+      elem12=def=hidden ENUM('Visible', 'SE', 'SQL') NOT NULL
+            lbl=FIELD_HIDDEN
+            pos=23
+      elem13=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem14=def=is_auto_increment BOOL
+            lbl=FIELD_IS_AUTO_INCREMENT
+            pos=18
+      elem15=def=is_explicit_collation BOOL
+            lbl=FIELD_IS_EXPLICIT_COLLATION
+            pos=29
+      elem16=def=is_nullable BOOL NOT NULL
+            lbl=FIELD_IS_NULLABLE
+            pos=5
+      elem17=def=is_unsigned BOOL
+            lbl=FIELD_IS_UNSIGNED
+            pos=7
+      elem18=def=is_virtual BOOL
+            lbl=FIELD_IS_VIRTUAL
+            pos=19
+      elem19=def=is_zerofill BOOL
+            lbl=FIELD_IS_ZEROFILL
+            pos=6
+      elem2=def=column_key ENUM('','PRI','UNI','MUL') NOT NULL
+            lbl=FIELD_COLUMN_KEY
+            pos=26
+      elem20=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem21=def=numeric_precision INT UNSIGNED
+            lbl=FIELD_NUMERIC_PRECISION
+            pos=9
+      elem22=def=numeric_scale INT UNSIGNED
+            lbl=FIELD_NUMERIC_SCALE
+            pos=10
+      elem23=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=24
+      elem24=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=3
+      elem25=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=25
+      elem26=def=srs_id INT UNSIGNED DEFAULT NULL
+            lbl=FIELD_SRS_ID
+            pos=28
+      elem27=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=1
+      elem28=def=type ENUM(
+    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',
+    'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
+    'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',
+    'MYSQL_TYPE_NULL', 'MYSQL_TYPE_TIMESTAMP',
+    'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24',
+    'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',
+    'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR',
+    'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',
+    'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2',
+    'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',
+    'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM',
+    'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',
+    'MYSQL_TYPE_MEDIUM_BLOB', 'MYSQL_TYPE_LONG_BLOB',
+    'MYSQL_TYPE_BLOB', 'MYSQL_TYPE_VAR_STRING',
+    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',
+    'MYSQL_TYPE_JSON'
+  ) NOT NULL
+            lbl=FIELD_TYPE
+            pos=4
+      elem29=def=update_option VARCHAR(32)
+            lbl=FIELD_UPDATE_OPTION
+            pos=17
+      elem3=def=column_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_COLUMN_TYPE_UTF8
+            pos=27
+      elem4=def=comment VARCHAR(2048) NOT NULL
+            lbl=FIELD_COMMENT
+            pos=22
+      elem5=def=datetime_precision INT UNSIGNED
+            lbl=FIELD_DATETIME_PRECISION
+            pos=11
+      elem6=def=default_option BLOB
+            lbl=FIELD_DEFAULT_OPTION
+            pos=16
+      elem7=def=default_value BLOB
+            lbl=FIELD_DEFAULT_VALUE
+            pos=14
+      elem8=def=default_value_utf8 TEXT
+            lbl=FIELD_DEFAULT_VALUE_UTF8
+            pos=15
+      elem9=def=generation_expression LONGBLOB
+            lbl=FIELD_GENERATION_EXPRESSION
+            pos=20
+    foreign_keys=
+      elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
+            lbl=FK_COLLATIONS_ID
+            pos=1
+      elem1=def=FOREIGN KEY (srs_id) REFERENCES st_spatial_reference_systems(id)
+            lbl=FK_SRS_ID
+            pos=2
+      elem2=def=FOREIGN KEY (table_id) REFERENCES tables(id)
+            lbl=FK_TABLES_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(collation_id)
+            lbl=INDEX_K_COLLATION_ID
+            pos=3
+      elem1=def=KEY(srs_id)
+            lbl=INDEX_K_SRS_ID
+            pos=4
+      elem2=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem3=def=UNIQUE KEY(table_id, name)
+            lbl=INDEX_UK_TABLE_ID_NAME
+            pos=1
+      elem4=def=UNIQUE KEY(table_id, ordinal_position)
+            lbl=INDEX_UK_TABLE_ID_ORDINAL_POSITION
+            pos=2
+    name=columns
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=12
+  idx0=id=22
+       root=25
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+  idx1=id=23
+       root=26
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+  idx2=id=24
+       root=27
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+  idx3=id=25
+       root=28
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+  idx4=id=26
+       root=29
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+       space_id=1
+events=
+  col0=table_id=13
+  col1=table_id=13
+  col10=table_id=13
+  col11=table_id=13
+  col12=table_id=13
+  col13=table_id=13
+  col14=table_id=13
+  col15=table_id=13
+  col16=table_id=13
+  col17=table_id=13
+  col18=table_id=13
+  col19=table_id=13
+  col2=table_id=13
+  col20=table_id=13
+  col21=table_id=13
+  col22=table_id=13
+  col23=table_id=13
+  col24=table_id=13
+  col25=table_id=13
+  col3=table_id=13
+  col4=table_id=13
+  col5=table_id=13
+  col6=table_id=13
+  col7=table_id=13
+  col8=table_id=13
+  col9=table_id=13
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=client_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CLIENT_COLLATION_ID
+            pos=20
+      elem1=def=comment VARCHAR(2048) NOT NULL
+            lbl=FIELD_COMMENT
+            pos=18
+      elem10=def=interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')
+            lbl=FIELD_INTERVAL_FIELD
+            pos=9
+      elem11=def=interval_value INT
+            lbl=FIELD_INTERVAL_VALUE
+            pos=8
+      elem12=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=16
+      elem13=def=last_executed DATETIME
+            lbl=FIELD_LAST_EXECUTED
+            pos=17
+      elem14=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem15=def=on_completion ENUM('DROP', 'PRESERVE') NOT NULL
+            lbl=FIELD_ON_COMPLETION
+            pos=14
+      elem16=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=23
+      elem17=def=originator INT UNSIGNED NOT NULL
+            lbl=FIELD_ORIGINATOR
+            pos=19
+      elem18=def=schema_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_COLLATION_ID
+            pos=22
+      elem19=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem2=def=connection_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CONNECTION_COLLATION_ID
+            pos=21
+      elem20=def=sql_mode SET('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') NOT NULL
+            lbl=FIELD_SQL_MODE
+            pos=10
+      elem21=def=starts DATETIME
+            lbl=FIELD_STARTS
+            pos=11
+      elem22=def=status ENUM('ENABLED', 'DISABLED', 'SLAVESIDE_DISABLED') NOT NULL
+            lbl=FIELD_STATUS
+            pos=13
+      elem23=def=time_zone VARCHAR(64) NOT NULL
+            lbl=FIELD_TIME_ZONE
+            pos=4
+      elem3=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=15
+      elem4=def=definer VARCHAR(93) NOT NULL
+            lbl=FIELD_DEFINER
+            pos=3
+      elem5=def=definition LONGBLOB NOT NULL
+            lbl=FIELD_DEFINITION
+            pos=5
+      elem6=def=definition_utf8 LONGTEXT NOT NULL
+            lbl=FIELD_DEFINITION_UTF8
+            pos=6
+      elem7=def=ends DATETIME
+            lbl=FIELD_ENDS
+            pos=12
+      elem8=def=execute_at DATETIME
+            lbl=FIELD_EXECUTE_AT
+            pos=7
+      elem9=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+    foreign_keys=
+      elem0=def=FOREIGN KEY (client_collation_id) REFERENCES collations(id)
+            lbl=FK_CLIENT_COLLATION_ID
+            pos=1
+      elem1=def=FOREIGN KEY (connection_collation_id) REFERENCES collations(id)
+            lbl=FK_CONNECTION_COLLATION_ID
+            pos=2
+      elem2=def=FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
+            lbl=FK_SCHEMA_COLLATION_ID
+            pos=3
+      elem3=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(client_collation_id)
+            lbl=INDEX_K_CLIENT_COLLATION_ID
+            pos=2
+      elem1=def=KEY(connection_collation_id)
+            lbl=INDEX_K_CONNECTION_COLLATION_ID
+            pos=3
+      elem2=def=KEY(schema_collation_id)
+            lbl=INDEX_K_SCHEMA_COLLATION_ID
+            pos=4
+      elem3=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem4=def=UNIQUE KEY(schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+    name=events
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=13
+  idx0=id=27
+       root=30
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx1=id=28
+       root=31
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx2=id=29
+       root=32
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx3=id=30
+       root=33
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx4=id=31
+       root=34
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+       space_id=1
+foreign_key_column_usage=
+  col0=table_id=14
+  col1=table_id=14
+  col2=table_id=14
+  col3=table_id=14
+  col4=table_id=14
+  col5=table_id=14
+  data=
+  def=
+    fields=
+      elem0=def=column_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_COLUMN_ID
+            pos=2
+      elem1=def=foreign_key_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_FOREIGN_KEY_ID
+            pos=0
+      elem2=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=1
+      elem3=def=referenced_column_name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+            lbl=FIELD_REFERENCED_COLUMN_NAME
+            pos=3
+    foreign_keys=
+      elem0=def=FOREIGN KEY (column_id) REFERENCES columns(id)
+            lbl=FK_COLUMN_ID
+            pos=1
+      elem1=def=FOREIGN KEY (foreign_key_id) REFERENCES foreign_keys(id)
+            lbl=FK_FOREIGN_KEY_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(column_id)
+            lbl=INDEX_K_COLUMN_ID
+            pos=2
+      elem1=def=PRIMARY KEY(foreign_key_id, ordinal_position)
+            lbl=INDEX_PK_FOREIGN_KEY_ID_ORDINAL_POSITION
+            pos=0
+      elem2=def=UNIQUE KEY(foreign_key_id, column_id, referenced_column_name)
+            lbl=INDEX_UK_FOREIGN_KEY_ID_COLUMN_ID
+            pos=1
+    name=foreign_key_column_usage
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=14
+  idx0=id=32
+       root=35
+       space_id=4294967294
+       table_id=14
+       trx_id=0
+  idx1=id=33
+       root=36
+       space_id=4294967294
+       table_id=14
+       trx_id=0
+  idx2=id=34
+       root=37
+       space_id=4294967294
+       table_id=14
+       trx_id=0
+       space_id=1
+    foreign_keys=
+  col0=table_id=15
+  col1=table_id=15
+  col10=table_id=15
+  col11=table_id=15
+  col12=table_id=15
+  col13=table_id=15
+  col2=table_id=15
+  col3=table_id=15
+  col4=table_id=15
+  col5=table_id=15
+  col6=table_id=15
+  col7=table_id=15
+  col8=table_id=15
+  col9=table_id=15
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=delete_rule ENUM(
+  'NO ACTION', 'RESTRICT',
+  'CASCADE', 'SET NULL',
+  'SET DEFAULT'
+) NOT NULL
+            lbl=FIELD_DELETE_RULE
+            pos=7
+      elem1=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem10=def=unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci
+            lbl=FIELD_UNIQUE_CONSTRAINT_NAME
+            pos=4
+      elem11=def=update_rule ENUM(
+  'NO ACTION', 'RESTRICT',
+  'CASCADE', 'SET NULL',
+  'SET DEFAULT'
+) NOT NULL
+            lbl=FIELD_UPDATE_RULE
+            pos=6
+      elem2=def=match_option ENUM('NONE', 'PARTIAL', 'FULL') NOT NULL
+            lbl=FIELD_MATCH_OPTION
+            pos=5
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=3
+      elem4=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=11
+      elem5=def=referenced_table_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_REFERENCED_TABLE
+            pos=10
+      elem6=def=referenced_table_catalog VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_REFERENCED_TABLE_CATALOG
+            pos=8
+      elem7=def=referenced_table_schema VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_REFERENCED_TABLE_SCHEMA
+            pos=9
+      elem8=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem9=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=2
+    foreign_keys=
+      elem0=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+    indexes=
+      elem0=def=KEY (referenced_table_catalog, referenced_table_schema, referenced_table_name)
+            lbl=INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE
+            pos=3
+      elem1=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem2=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+      elem3=def=UNIQUE KEY (table_id, name)
+            lbl=INDEX_UK_TABLE_ID_NAME
+            pos=2
+    name=foreign_keys
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=15
+  idx0=id=35
+       root=38
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx1=id=36
+       root=39
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx2=id=37
+       root=40
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx3=id=38
+       root=41
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+       space_id=1
+index_column_usage=
+  col0=table_id=16
+  col1=table_id=16
+  col2=table_id=16
+  col3=table_id=16
+  col4=table_id=16
+  col5=table_id=16
+  col6=table_id=16
+  col7=table_id=16
+  data=
+  def=
+    fields=
+      elem0=def=column_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_COLUMN_ID
+            pos=2
+      elem1=def=hidden BOOL NOT NULL
+            lbl=FIELD_HIDDEN
+            pos=5
+      elem2=def=index_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_INDEX_ID
+            pos=0
+      elem3=def=length INT UNSIGNED
+            lbl=FIELD_LENGTH
+            pos=3
+      elem4=def=`order` ENUM('UNDEF', 'ASC', 'DESC') NOT NULL
+            lbl=FIELD_ORDER
+            pos=4
+      elem5=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=1
+    foreign_keys=
+      elem0=def=FOREIGN KEY (column_id) REFERENCES columns(id)
+            lbl=FK_COLUMN_ID
+            pos=1
+      elem1=def=FOREIGN KEY (index_id) REFERENCES indexes(id)
+            lbl=FK_INDEX_ID
+            pos=0
+    indexes=
+      elem0=def=KEY (column_id)
+            lbl=INDEX_K_COLUMN_ID
+            pos=2
+      elem1=def=UNIQUE KEY (index_id, column_id, hidden)
+            lbl=INDEX_UK_INDEX_ID_COLUMN_ID_HIDDEN
+            pos=1
+      elem2=def=UNIQUE KEY (index_id, ordinal_position)
+            lbl=INDEX_UK_INDEX_ID_ORDINAL_POSITION
+            pos=0
+    name=index_column_usage
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=16
+  idx0=id=39
+       root=42
+       space_id=4294967294
+       table_id=16
+       trx_id=0
+  idx1=id=40
+       root=43
+       space_id=4294967294
+       table_id=16
+       trx_id=0
+  idx2=id=41
+       root=44
+       space_id=4294967294
+       table_id=16
+       trx_id=0
+       space_id=1
+index_partitions=
+  col0=table_id=17
+  col1=table_id=17
+  col2=table_id=17
+  col3=table_id=17
+  col4=table_id=17
+  col5=table_id=17
+  col6=table_id=17
+  data=
+  def=
+    fields=
+      elem0=def=index_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_INDEX_ID
+            pos=1
+      elem1=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=2
+      elem2=def=partition_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_PARTITION_ID
+            pos=0
+      elem3=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=3
+      elem4=def=tablespace_id BIGINT UNSIGNED
+            lbl=FIELD_TABLESPACE_ID
+            pos=4
+    foreign_keys=
+      elem0=def=FOREIGN KEY (index_id) REFERENCES indexes(id)
+            lbl=FK_INDEX_ID
+            pos=1
+      elem1=def=FOREIGN KEY (tablespace_id) REFERENCES tablespaces(id)
+            lbl=FK_TABLESPACE_ID
+            pos=2
+      elem2=def=FOREIGN KEY (partition_id) REFERENCES table_partitions(id)
+            lbl=FK_TABLE_PARTITION_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(index_id)
+            lbl=INDEX_K_INDEX_ID
+            pos=1
+      elem1=def=KEY(tablespace_id)
+            lbl=INDEX_K_TABLESPACE_ID
+            pos=2
+      elem2=def=PRIMARY KEY(partition_id, index_id)
+            lbl=INDEX_PK_PARTITION_ID_INDEX_ID
+            pos=0
+    name=index_partitions
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=17
+  idx0=id=42
+       root=45
+       space_id=4294967294
+       table_id=17
+       trx_id=0
+  idx1=id=43
+       root=47
+       space_id=4294967294
+       table_id=17
+       trx_id=0
+  idx2=id=44
+       root=48
+       space_id=4294967294
+       table_id=17
+       trx_id=0
+       space_id=1
+index_stats=
+  col0=table_id=18
+  col1=table_id=18
+  col2=table_id=18
+  col3=table_id=18
+  col4=table_id=18
+  col5=table_id=18
+  col6=table_id=18
+  col7=table_id=18
+  data=
+  def=
+    fields=
+      elem0=def=cached_time TIMESTAMP NOT NULL
+            lbl=FIELD_CACHED_TIME
+            pos=5
+      elem1=def=cardinality BIGINT UNSIGNED
+            lbl=FIELD_CARDINALITY
+            pos=4
+      elem2=def=column_name VARCHAR(64) NOT NULL
+            lbl=FIELD_COLUMN_NAME
+            pos=3
+      elem3=def=index_name VARCHAR(64) NOT NULL
+            lbl=FIELD_INDEX_NAME
+            pos=2
+      elem4=def=schema_name VARCHAR(64) NOT NULL
+            lbl=FIELD_SCHEMA_NAME
+            pos=0
+      elem5=def=table_name VARCHAR(64) NOT NULL
+            lbl=FIELD_TABLE_NAME
+            pos=1
+    foreign_keys=
+    indexes=
+      elem0=def=UNIQUE KEY (schema_name, table_name, index_name, column_name)
+            lbl=INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN
+            pos=0
+    name=index_stats
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=18
+  idx0=id=45
+       root=49
+       space_id=4294967294
+       table_id=18
+       trx_id=0
+       space_id=1
+    indexes=
+  col0=table_id=19
+  col1=table_id=19
+  col10=table_id=19
+  col11=table_id=19
+  col12=table_id=19
+  col13=table_id=19
+  col14=table_id=19
+  col15=table_id=19
+  col16=table_id=19
+  col2=table_id=19
+  col3=table_id=19
+  col4=table_id=19
+  col5=table_id=19
+  col6=table_id=19
+  col7=table_id=19
+  col8=table_id=19
+  col9=table_id=19
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=algorithm ENUM(
+  'SE_SPECIFIC',
+  'BTREE',
+  'RTREE',
+  'HASH',
+  'FULLTEXT'
+) NOT NULL
+            lbl=FIELD_ALGORITHM
+            pos=4
+      elem1=def=comment VARCHAR(2048) NOT NULL
+            lbl=FIELD_COMMENT
+            pos=10
+      elem10=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=9
+      elem11=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=12
+      elem12=def=tablespace_id BIGINT UNSIGNED
+            lbl=FIELD_TABLESPACE_ID
+            pos=13
+      elem13=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=1
+      elem14=def=type ENUM(
+  'PRIMARY',
+  'UNIQUE',
+  'MULTIPLE',
+  'FULLTEXT',
+  'SPATIAL'
+) NOT NULL
+            lbl=FIELD_TYPE
+            pos=3
+      elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_ENGINE
+            pos=14
+      elem3=def=hidden BOOL NOT NULL
+            lbl=FIELD_HIDDEN
+            pos=8
+      elem4=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem5=def=is_algorithm_explicit BOOL NOT NULL
+            lbl=FIELD_IS_ALGORITHM_EXPLICIT
+            pos=5
+      elem6=def=is_generated BOOL NOT NULL
+            lbl=FIELD_IS_GENERATED
+            pos=7
+      elem7=def=is_visible BOOL NOT NULL
+            lbl=FIELD_IS_VISIBLE
+            pos=6
+      elem8=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem9=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=11
+    foreign_keys=
+      elem0=def=FOREIGN KEY (tablespace_id) REFERENCES tablespaces(id)
+            lbl=FK_TABLESPACE_ID
+            pos=1
+      elem1=def=FOREIGN KEY (table_id) REFERENCES tables(id)
+            lbl=FK_TABLE_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(tablespace_id)
+            lbl=INDEX_K_TABLESPACE_ID
+            pos=2
+      elem1=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem2=def=UNIQUE KEY(table_id, name)
+            lbl=INDEX_UK_TABLE_ID_NAME
+            pos=1
+    name=indexes
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=19
+  idx0=id=46
+       root=50
+       space_id=4294967294
+       table_id=19
+       trx_id=0
+  idx1=id=47
+       root=51
+       space_id=4294967294
+       table_id=19
+       trx_id=0
+  idx2=id=48
+       root=52
+       space_id=4294967294
+       table_id=19
+       trx_id=0
+       space_id=1
+innodb_ddl_log=
+  col0=table_id=5
+  col1=table_id=5
+  col10=table_id=5
+  col2=table_id=5
+  col3=table_id=5
+  col4=table_id=5
+  col5=table_id=5
+  col6=table_id=5
+  col7=table_id=5
+  col8=table_id=5
+  col9=table_id=5
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=id
+            pos=0
+      elem1=def=index_id BIGINT UNSIGNED
+            lbl=index_id
+            pos=5
+      elem2=def=new_file_path VARCHAR(512) COLLATE UTF8_BIN
+            lbl=new_file_path
+            pos=8
+      elem3=def=old_file_path VARCHAR(512) COLLATE UTF8_BIN
+            lbl=old_file_path
+            pos=7
+      elem4=def=page_no INT UNSIGNED
+            lbl=page_no
+            pos=4
+      elem5=def=space_id INT UNSIGNED
+            lbl=space_id
+            pos=3
+      elem6=def=table_id BIGINT UNSIGNED
+            lbl=table_id
+            pos=6
+      elem7=def=thread_id BIGINT UNSIGNED NOT NULL
+            lbl=thread_id
+            pos=1
+      elem8=def=type INT UNSIGNED NOT NULL
+            lbl=type
+            pos=2
+    foreign_keys=
+    indexes=
+      elem0=def=KEY(thread_id)
+            lbl=index_k_thread_id
+            pos=1
+      elem1=def=PRIMARY KEY(id)
+            lbl=index_pk
+            pos=0
+    name=innodb_ddl_log
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=5
+  idx0=id=5
+       root=8
+       space_id=4294967294
+       table_id=5
+       trx_id=0
+  idx1=id=6
+       root=9
+       space_id=4294967294
+       table_id=5
+       trx_id=0
+       space_id=1
+innodb_dynamic_metadata=
+  col0=table_id=2
+  col1=table_id=2
+  col2=table_id=2
+  col3=table_id=2
+  col4=table_id=2
+  data=
+  def=
+    fields=
+      elem0=def=metadata BLOB NOT NULL
+            lbl=metadata
+            pos=2
+      elem1=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=table_id
+            pos=0
+      elem2=def=version BIGINT UNSIGNED NOT NULL
+            lbl=version
+            pos=1
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY (table_id)
+            lbl=index_pk
+            pos=0
+    name=innodb_dynamic_metadata
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=2
+  idx0=id=2
+       root=5
+       space_id=4294967294
+       table_id=2
+       trx_id=0
+       space_id=1
+innodb_index_stats=
+  col0=table_id=4
+  col1=table_id=4
+  col2=table_id=4
+  col3=table_id=4
+  col4=table_id=4
+  col5=table_id=4
+  col6=table_id=4
+  col7=table_id=4
+  col8=table_id=4
+  col9=table_id=4
+  data=
+  def=
+    fields=
+      elem0=def=database_name VARCHAR(64) NOT NULL
+            lbl=database_name
+            pos=0
+      elem1=def=index_name VARCHAR(64) NOT NULL
+            lbl=index_name
+            pos=2
+      elem2=def=last_update TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP  ON UPDATE CURRENT_TIMESTAMP
+            lbl=last_update
+            pos=3
+      elem3=def=sample_size BIGINT UNSIGNED
+            lbl=sample_size
+            pos=6
+      elem4=def=stat_description VARCHAR(1024) NOT NULL
+            lbl=stat_description
+            pos=7
+      elem5=def=stat_name VARCHAR(64) NOT NULL
+            lbl=stat_name
+            pos=4
+      elem6=def=stat_value BIGINT UNSIGNED NOT NULL
+            lbl=stat_value
+            pos=5
+      elem7=def=table_name VARCHAR(199) NOT NULL
+            lbl=table_name
+            pos=1
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY (database_name, table_name, index_name, stat_name)
+            lbl=index_pk
+            pos=0
+    name=innodb_index_stats
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=4
+  idx0=id=4
+       root=7
+       space_id=4294967294
+       table_id=4
+       trx_id=0
+       space_id=1
+innodb_table_stats=
+  col0=table_id=3
+  col1=table_id=3
+  col2=table_id=3
+  col3=table_id=3
+  col4=table_id=3
+  col5=table_id=3
+  col6=table_id=3
+  col7=table_id=3
+  data=
+  def=
+    fields=
+      elem0=def=clustered_index_size BIGINT UNSIGNED NOT NULL
+            lbl=clustered_index_size
+            pos=4
+      elem1=def=database_name VARCHAR(64) NOT NULL
+            lbl=database_name
+            pos=0
+      elem2=def=last_update TIMESTAMP NOT NULL 
+  DEFAULT CURRENT_TIMESTAMP 
+  ON UPDATE CURRENT_TIMESTAMP
+            lbl=last_update
+            pos=2
+      elem3=def=n_rows BIGINT UNSIGNED NOT NULL
+            lbl=n_rows
+            pos=3
+      elem4=def=sum_of_other_index_sizes BIGINT UNSIGNED NOT NULL
+            lbl=sum_of_other_index_sizes
+            pos=5
+      elem5=def=table_name VARCHAR(199) NOT NULL
+            lbl=table_name
+            pos=1
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY (database_name, table_name)
+            lbl=index_pk
+            pos=0
+    name=innodb_table_stats
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=3
+  idx0=id=3
+       root=6
+       space_id=4294967294
+       table_id=3
+       trx_id=0
+       space_id=1
+parameter_type_elements=
+  col0=table_id=20
+  col1=table_id=20
+  col2=table_id=20
+  col3=table_id=20
+  col4=table_id=20
+  data=
+  def=
+    fields=
+      elem0=def=element_index INT UNSIGNED NOT NULL
+            lbl=FIELD_ELEMENT_INDEX
+            pos=1
+      elem1=def=name VARBINARY(1020) NOT NULL
+            lbl=FIELD_NAME
+            pos=2
+      elem2=def=parameter_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_PARAMETER_ID
+            pos=0
+    foreign_keys=
+      elem0=def=FOREIGN KEY (parameter_id) REFERENCES parameters(id)
+            lbl=FK_PARAMETER_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY(parameter_id, element_index)
+            lbl=INDEX_PK_PARAMETER_ID_ELEMENT_INDEX
+            pos=0
+    name=parameter_type_elements
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=20
+  idx0=id=49
+       root=53
+       space_id=4294967294
+       table_id=20
+       trx_id=0
+       space_id=1
+parameters=
+  col0=table_id=21
+  col1=table_id=21
+  col10=table_id=21
+  col11=table_id=21
+  col12=table_id=21
+  col13=table_id=21
+  col14=table_id=21
+  col15=table_id=21
+  col16=table_id=21
+  col2=table_id=21
+  col3=table_id=21
+  col4=table_id=21
+  col5=table_id=21
+  col6=table_id=21
+  col7=table_id=21
+  col8=table_id=21
+  col9=table_id=21
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=char_length INT UNSIGNED
+            lbl=FIELD_CHAR_LENGTH
+            pos=9
+      elem1=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=13
+      elem10=def=numeric_precision INT UNSIGNED
+            lbl=FIELD_NUMERIC_PRECISION
+            pos=10
+      elem11=def=numeric_scale INT UNSIGNED
+            lbl=FIELD_NUMERIC_SCALE
+            pos=11
+      elem12=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=14
+      elem13=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=2
+      elem14=def=routine_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_ROUTINE_ID
+            pos=1
+      elem2=def=data_type ENUM(
+    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',
+    'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
+    'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',
+    'MYSQL_TYPE_NULL', 'MYSQL_TYPE_TIMESTAMP',
+    'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24',
+    'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',
+    'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR',
+    'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',
+    'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2',
+    'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',
+    'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM',
+    'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',
+    'MYSQL_TYPE_MEDIUM_BLOB',     'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB',
+    'MYSQL_TYPE_VAR_STRING',
+    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',
+    'MYSQL_TYPE_JSON'
+  ) NOT NULL
+            lbl=FIELD_DATA_TYPE
+            pos=5
+      elem3=def=data_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_DATA_TYPE_UTF8
+            pos=6
+      elem4=def=datetime_precision INT UNSIGNED
+            lbl=FIELD_DATETIME_PRECISION
+            pos=12
+      elem5=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem6=def=is_unsigned BOOL
+            lbl=FIELD_IS_UNSIGNED
+            pos=8
+      elem7=def=is_zerofill BOOL
+            lbl=FIELD_IS_ZEROFILL
+            pos=7
+      elem8=def=mode ENUM('IN','OUT','INOUT')
+            lbl=FIELD_MODE
+            pos=3
+      elem9=def=name VARCHAR(64) COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=4
+    foreign_keys=
+      elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
+            lbl=FK_COLLATION_ID
+            pos=1
+      elem1=def=FOREIGN KEY (routine_id) REFERENCES routines(id)
+            lbl=FK_ROUTINE_ID
+            pos=0
+    indexes=
+      elem0=def=KEY (collation_id)
+            lbl=INDEX_K_COLLATION_ID
+            pos=2
+      elem1=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem2=def=UNIQUE KEY (routine_id, ordinal_position)
+            lbl=INDEX_UK_ROUTINE_ID_ORDINAL_POSITION
+            pos=1
+    name=parameters
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=21
+  idx0=id=50
+       root=54
+       space_id=4294967294
+       table_id=21
+       trx_id=0
+  idx1=id=51
+       root=55
+       space_id=4294967294
+       table_id=21
+       trx_id=0
+  idx2=id=52
+       root=56
+       space_id=4294967294
+       table_id=21
+       trx_id=0
+       space_id=1
+resource_groups=
+  col0=table_id=22
+  col1=table_id=22
+  col2=table_id=22
+  col3=table_id=22
+  col4=table_id=22
+  col5=table_id=22
+  col6=table_id=22
+  col7=table_id=22
+  col8=table_id=22
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=cpu_id_mask VARCHAR(1024) NOT NULL
+            lbl=FIELD_CPU_ID_MASK
+            pos=4
+      elem1=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem2=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=6
+      elem3=def=resource_group_enabled  boolean NOT NULL
+            lbl=FIELD_RESOURCE_GROUP_ENABLED
+            pos=3
+      elem4=def=resource_group_name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_RESOURCE_GROUP_NAME
+            pos=1
+      elem5=def=resource_group_type enum('SYSTEM', 'USER') NOT NULL
+            lbl=FIELD_RESOURCE_GROUP_TYPE
+            pos=2
+      elem6=def=thread_priority int NOT NULL
+            lbl=FIELD_THREAD_PRIORITY
+            pos=5
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (resource_group_name)
+            lbl=INDEX_UK_RESOURCE_GROUP_NAME
+            pos=1
+    name=resource_groups
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=22
+  idx0=id=53
+       root=57
+       space_id=4294967294
+       table_id=22
+       trx_id=0
+  idx1=id=54
+       root=58
+       space_id=4294967294
+       table_id=22
+       trx_id=0
+       space_id=1
+routines=
+  col0=table_id=23
+  col1=table_id=23
+  col10=table_id=23
+  col11=table_id=23
+  col12=table_id=23
+  col13=table_id=23
+  col14=table_id=23
+  col15=table_id=23
+  col16=table_id=23
+  col17=table_id=23
+  col18=table_id=23
+  col19=table_id=23
+  col2=table_id=23
+  col20=table_id=23
+  col21=table_id=23
+  col22=table_id=23
+  col23=table_id=23
+  col24=table_id=23
+  col25=table_id=23
+  col26=table_id=23
+  col27=table_id=23
+  col28=table_id=23
+  col29=table_id=23
+  col3=table_id=23
+  col30=table_id=23
+  col4=table_id=23
+  col5=table_id=23
+  col6=table_id=23
+  col7=table_id=23
+  col8=table_id=23
+  col9=table_id=23
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=client_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CLIENT_COLLATION_ID
+            pos=21
+      elem1=def=comment TEXT NOT NULL
+            lbl=FIELD_COMMENT
+            pos=26
+      elem10=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=25
+      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem12=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=27
+      elem13=def=parameter_str BLOB
+            lbl=FIELD_PARAMETER_STR
+            pos=15
+      elem14=def=result_char_length INT UNSIGNED DEFAULT NULL
+            lbl=FIELD_RESULT_CHAR_LENGTH
+            pos=8
+      elem15=def=result_collation_id BIGINT UNSIGNED DEFAULT NULL
+            lbl=FIELD_RESULT_COLLATION_ID
+            pos=12
+      elem16=def=result_data_type ENUM(
+    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',
+    'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
+    'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',
+    'MYSQL_TYPE_NULL', 'MYSQL_TYPE_TIMESTAMP',
+    'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24',
+    'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',
+    'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR',
+    'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',
+    'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2',
+    'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',
+    'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM',
+    'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',
+    'MYSQL_TYPE_MEDIUM_BLOB',     'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB',
+    'MYSQL_TYPE_VAR_STRING',
+    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',
+    'MYSQL_TYPE_JSON'
+  ) DEFAULT NULL
+            lbl=FIELD_RESULT_DATA_TYPE
+            pos=4
+      elem17=def=result_data_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_RESULT_DATA_TYPE_UTF8
+            pos=5
+      elem18=def=result_datetime_precision INT UNSIGNED DEFAULT NULL
+            lbl=FIELD_RESULT_DATETIME_PRECISION
+            pos=11
+      elem19=def=result_is_unsigned BOOL DEFAULT NULL
+            lbl=FIELD_RESULT_IS_UNSIGNED
+            pos=7
+      elem2=def=connection_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CONNECTION_COLLATION_ID
+            pos=22
+      elem20=def=result_is_zerofill BOOL DEFAULT NULL
+            lbl=FIELD_RESULT_IS_ZEROFILL
+            pos=6
+      elem21=def=result_numeric_precision INT UNSIGNED DEFAULT NULL
+            lbl=FIELD_RESULT_NUMERIC_PRECISION
+            pos=9
+      elem22=def=result_numeric_scale INT UNSIGNED DEFAULT NULL
+            lbl=FIELD_RESULT_NUMERIC_SCALE
+            pos=10
+      elem23=def=schema_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_COLLATION_ID
+            pos=23
+      elem24=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem25=def=security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER') NOT NULL
+            lbl=FIELD_SECURITY_TYPE
+            pos=18
+      elem26=def=sql_data_access ENUM('CONTAINS SQL', 'NO SQL',
+     'READS SQL DATA',
+     'MODIFIES SQL DATA') NOT NULL
+            lbl=FIELD_SQL_DATA_ACCESS
+            pos=17
+      elem27=def=sql_mode SET('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') NOT NULL
+            lbl=FIELD_SQL_MODE
+            pos=20
+      elem28=def=type ENUM('FUNCTION', 'PROCEDURE') NOT NULL
+            lbl=FIELD_TYPE
+            pos=3
+      elem3=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=24
+      elem4=def=definer VARCHAR(93) NOT NULL
+            lbl=FIELD_DEFINER
+            pos=19
+      elem5=def=definition LONGBLOB
+            lbl=FIELD_DEFINITION
+            pos=13
+      elem6=def=definition_utf8 LONGTEXT
+            lbl=FIELD_DEFINITION_UTF8
+            pos=14
+      elem7=def=external_language VARCHAR(64) NOT NULL DEFAULT 'SQL'
+            lbl=FIELD_EXTERNAL_LANGUAGE
+            pos=28
+      elem8=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem9=def=is_deterministic BOOL NOT NULL
+            lbl=FIELD_IS_DETERMINISTIC
+            pos=16
+    foreign_keys=
+      elem0=def=FOREIGN KEY (client_collation_id) REFERENCES collations(id)
+            lbl=FK_CLIENT_COLLATION_ID
+            pos=2
+      elem1=def=FOREIGN KEY (connection_collation_id) REFERENCES collations(id)
+            lbl=FK_CONNECTION_COLLATION_ID
+            pos=3
+      elem2=def=FOREIGN KEY (result_collation_id) REFERENCES collations(id)
+            lbl=FK_RESULT_COLLATION_ID
+            pos=1
+      elem3=def=FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
+            lbl=FK_SCHEMA_COLLATION_ID
+            pos=4
+      elem4=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(client_collation_id)
+            lbl=INDEX_K_CLIENT_COLLATION_ID
+            pos=3
+      elem1=def=KEY(connection_collation_id)
+            lbl=INDEX_K_CONNECTION_COLLATION_ID
+            pos=4
+      elem2=def=KEY(result_collation_id)
+            lbl=INDEX_K_RESULT_COLLATION_ID
+            pos=2
+      elem3=def=KEY(schema_collation_id)
+            lbl=INDEX_K_SCHEMA_COLLATION_ID
+            pos=5
+      elem4=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem5=def=UNIQUE KEY(schema_id, type, name)
+            lbl=INDEX_UK_SCHEMA_ID_TYPE_NAME
+            pos=1
+    name=routines
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=23
+  idx0=id=55
+       root=59
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx1=id=56
+       root=60
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx2=id=57
+       root=61
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx3=id=58
+       root=62
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx4=id=59
+       root=63
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx5=id=60
+       root=64
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+       space_id=1
+schemata=
+  col0=table_id=24
+  col1=table_id=24
+  col2=table_id=24
+  col3=table_id=24
+  col4=table_id=24
+  col5=table_id=24
+  col6=table_id=24
+  col7=table_id=24
+  col8=table_id=24
+  col9=table_id=24
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=catalog_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CATALOG_ID
+            pos=1
+      elem1=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=4
+      elem2=def=default_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_DEFAULT_COLLATION_ID
+            pos=3
+      elem3=def=default_encryption ENUM('NO', 'YES') NOT NULL
+            lbl=FIELD_DEFAULT_ENCRYPTION
+            pos=7
+      elem4=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem5=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=5
+      elem6=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_NAME
+            pos=2
+      elem7=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=6
+    foreign_keys=
+      elem0=def=FOREIGN KEY (catalog_id) REFERENCES                                 catalogs(id)
+            lbl=FK_CATALOG_ID
+            pos=0
+      elem1=def=FOREIGN KEY (default_collation_id)                                 REFERENCES collations(id)
+            lbl=FK_DEFAULT_COLLATION_ID
+            pos=1
+    indexes=
+      elem0=def=KEY (default_collation_id)
+            lbl=INDEX_K_DEFAULT_COLLATION_ID
+            pos=2
+      elem1=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem2=def=UNIQUE KEY (catalog_id, name)
+            lbl=INDEX_UK_CATALOG_ID_NAME
+            pos=1
+    name=schemata
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=24
+  idx0=id=61
+       root=65
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+  idx1=id=62
+       root=66
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+  idx2=id=63
+       root=67
+       space_id=4294967294
+       table_id=24
+       trx_id=0
+       space_id=1
+st_spatial_reference_systems=
+  col0=table_id=25
+  col1=table_id=25
+  col10=table_id=25
+  col11=table_id=25
+  col2=table_id=25
+  col3=table_id=25
+  col4=table_id=25
+  col5=table_id=25
+  col6=table_id=25
+  col7=table_id=25
+  col8=table_id=25
+  col9=table_id=25
+  data=
+  def=
+    fields=
+      elem0=def=catalog_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CATALOG_ID
+            pos=1
+      elem1=def=created TIMESTAMP NOT NULL
+DEFAULT CURRENT_TIMESTAMP
+            lbl=FIELD_CREATED
+            pos=4
+      elem2=def=definition CHARACTER VARYING(4096)
+NOT NULL
+            lbl=FIELD_DEFINITION
+            pos=7
+      elem3=def=description CHARACTER VARYING(2048)
+            lbl=FIELD_DESCRIPTION
+            pos=8
+      elem4=def=id INTEGER UNSIGNED NOT NULL
+            lbl=FIELD_ID
+            pos=0
+      elem5=def=last_altered TIMESTAMP NOT NULL
+DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP
+            lbl=FIELD_LAST_ALTERED
+            pos=3
+      elem6=def=name CHARACTER VARYING(80)
+NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem7=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=9
+      elem8=def=organization CHARACTER VARYING(256)
+COLLATE utf8_general_ci
+            lbl=FIELD_ORGANIZATION
+            pos=5
+      elem9=def=organization_coordsys_id INTEGER UNSIGNED
+            lbl=FIELD_ORGANIZATION_COORDSYS_ID
+            pos=6
+    foreign_keys=
+      elem0=def=FOREIGN KEY (catalog_id) REFERENCES                                   catalogs(id)
+            lbl=FK_CATALOG_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY SRS_NAME (catalog_id, name)
+            lbl=INDEX_UK_CATALOG_ID_NAME
+            pos=1
+      elem2=def=UNIQUE KEY ORGANIZATION_AND_ID (catalog_id, organization, organization_coordsys_id)
+            lbl=INDEX_UK_CATALOG_ID_ORG_ID
+            pos=2
+    name=st_spatial_reference_systems
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=25
+  idx0=id=64
+       root=68
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+  idx1=id=65
+       root=69
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+  idx2=id=66
+       root=70
+       space_id=4294967294
+       table_id=25
+       trx_id=0
+       space_id=1
+table_partition_values=
+  col0=table_id=26
+  col1=table_id=26
+  col2=table_id=26
+  col3=table_id=26
+  col4=table_id=26
+  col5=table_id=26
+  col6=table_id=26
+  data=
+  def=
+    fields=
+      elem0=def=column_num TINYINT UNSIGNED NOT NULL
+            lbl=FIELD_COLUMN_NUM
+            pos=2
+      elem1=def=list_num TINYINT UNSIGNED NOT NULL
+            lbl=FIELD_LIST_NUM
+            pos=1
+      elem2=def=max_value BOOL NOT NULL
+            lbl=FIELD_MAX_VALUE
+            pos=4
+      elem3=def=partition_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_PARTITION_ID
+            pos=0
+      elem4=def=value_utf8 TEXT NULL
+            lbl=FIELD_VALUE_UTF8
+            pos=3
+    foreign_keys=
+      elem0=def=FOREIGN KEY (partition_id) REFERENCES table_partitions(id)
+            lbl=FK_TABLE_PARTITION_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY(partition_id, list_num, column_num)
+            lbl=INDEX_PK_PARTITION_ID_LIST_NUM_COLUMN_NUM
+            pos=0
+    name=table_partition_values
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=26
+  idx0=id=67
+       root=71
+       space_id=4294967294
+       table_id=26
+       trx_id=0
+       space_id=1
+table_partitions=
+  col0=table_id=27
+  col1=table_id=27
+  col10=table_id=27
+  col11=table_id=27
+  col12=table_id=27
+  col13=table_id=27
+  col2=table_id=27
+  col3=table_id=27
+  col4=table_id=27
+  col5=table_id=27
+  col6=table_id=27
+  col7=table_id=27
+  col8=table_id=27
+  col9=table_id=27
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=comment VARCHAR(2048) NOT NULL
+            lbl=FIELD_COMMENT
+            pos=7
+      elem1=def=description_utf8 TEXT
+            lbl=FIELD_DESCRIPTION_UTF8
+            pos=5
+      elem10=def=tablespace_id BIGINT UNSIGNED
+            lbl=FIELD_TABLESPACE_ID
+            pos=11
+      elem11=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=1
+      elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_ENGINE
+            pos=6
+      elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+            lbl=FIELD_NAME
+            pos=4
+      elem5=def=number SMALLINT UNSIGNED NOT NULL
+            lbl=FIELD_NUMBER
+            pos=3
+      elem6=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=8
+      elem7=def=parent_partition_id BIGINT UNSIGNED
+            lbl=FIELD_PARENT_PARTITION_ID
+            pos=2
+      elem8=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=9
+      elem9=def=se_private_id BIGINT UNSIGNED
+            lbl=FIELD_SE_PRIVATE_ID
+            pos=10
+    foreign_keys=
+      elem0=def=FOREIGN KEY (parent_partition_id) REFERENCES table_partitions(id)
+            lbl=FK_PARENT_PARTITION_ID
+            pos=2
+      elem1=def=FOREIGN KEY (tablespace_id) REFERENCES tablespaces(id)
+            lbl=FK_TABLESPACE_ID
+            pos=1
+      elem2=def=FOREIGN KEY (table_id) REFERENCES tables(id)
+            lbl=FK_TABLE_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(engine)
+            lbl=INDEX_K_ENGINE
+            pos=4
+      elem1=def=KEY(parent_partition_id)
+            lbl=INDEX_K_PARENT_PARTITION_ID
+            pos=6
+      elem2=def=KEY(tablespace_id)
+            lbl=INDEX_K_TABLESPACE_ID
+            pos=5
+      elem3=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem4=def=UNIQUE KEY(engine, se_private_id)
+            lbl=INDEX_UK_ENGINE_SE_PRIVATE_ID
+            pos=3
+      elem5=def=UNIQUE KEY(table_id, name)
+            lbl=INDEX_UK_TABLE_ID_NAME
+            pos=1
+      elem6=def=UNIQUE KEY(table_id, parent_partition_id, number)
+            lbl=INDEX_UK_TABLE_ID_PARENT_PARTITION_ID_NUMBER
+            pos=2
+    name=table_partitions
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=27
+  idx0=id=68
+       root=72
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx1=id=69
+       root=73
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx2=id=70
+       root=74
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx3=id=71
+       root=75
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx4=id=72
+       root=76
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx5=id=73
+       root=77
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx6=id=74
+       root=78
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+       space_id=1
+table_stats=
+  col0=table_id=28
+  col1=table_id=28
+  col10=table_id=28
+  col11=table_id=28
+  col12=table_id=28
+  col13=table_id=28
+  col14=table_id=28
+  col2=table_id=28
+  col3=table_id=28
+  col4=table_id=28
+  col5=table_id=28
+  col6=table_id=28
+  col7=table_id=28
+  col8=table_id=28
+  col9=table_id=28
+  data=
+  def=
+    fields=
+      elem0=def=auto_increment BIGINT UNSIGNED
+            lbl=FIELD_AUTO_INCREMENT
+            pos=8
+      elem1=def=avg_row_length BIGINT UNSIGNED
+            lbl=FIELD_AVG_ROW_LENGTH
+            pos=3
+      elem10=def=table_name VARCHAR(64) NOT NULL
+            lbl=FIELD_TABLE_NAME
+            pos=1
+      elem11=def=table_rows BIGINT UNSIGNED
+            lbl=FIELD_TABLE_ROWS
+            pos=2
+      elem12=def=update_time TIMESTAMP NULL
+            lbl=FIELD_UPDATE_TIME
+            pos=10
+      elem2=def=cached_time TIMESTAMP NOT NULL
+            lbl=FIELD_CACHED_TIME
+            pos=12
+      elem3=def=checksum BIGINT UNSIGNED
+            lbl=FIELD_CHECKSUM
+            pos=9
+      elem4=def=check_time TIMESTAMP NULL
+            lbl=FIELD_CHECK_TIME
+            pos=11
+      elem5=def=data_free BIGINT UNSIGNED
+            lbl=FIELD_DATA_FREE
+            pos=7
+      elem6=def=data_length BIGINT UNSIGNED
+            lbl=FIELD_DATA_LENGTH
+            pos=4
+      elem7=def=index_length BIGINT UNSIGNED
+            lbl=FIELD_INDEX_LENGTH
+            pos=6
+      elem8=def=max_data_length BIGINT UNSIGNED
+            lbl=FIELD_MAX_DATA_LENGTH
+            pos=5
+      elem9=def=schema_name VARCHAR(64) NOT NULL
+            lbl=FIELD_SCHEMA_NAME
+            pos=0
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY (schema_name, table_name)
+            lbl=INDEX_PK_SCHEMA_ID_TABLE_NAME
+            pos=0
+    name=table_stats
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=28
+  idx0=id=75
+       root=79
+       space_id=4294967294
+       table_id=28
+       trx_id=0
+       space_id=1
+tables=
+  col0=table_id=29
+  col1=table_id=29
+  col10=table_id=29
+  col11=table_id=29
+  col12=table_id=29
+  col13=table_id=29
+  col14=table_id=29
+  col15=table_id=29
+  col16=table_id=29
+  col17=table_id=29
+  col18=table_id=29
+  col19=table_id=29
+  col2=table_id=29
+  col20=table_id=29
+  col21=table_id=29
+  col22=table_id=29
+  col23=table_id=29
+  col24=table_id=29
+  col25=table_id=29
+  col26=table_id=29
+  col27=table_id=29
+  col28=table_id=29
+  col29=table_id=29
+  col3=table_id=29
+  col30=table_id=29
+  col31=table_id=29
+  col32=table_id=29
+  col33=table_id=29
+  col34=table_id=29
+  col35=table_id=29
+  col36=table_id=29
+  col4=table_id=29
+  col5=table_id=29
+  col6=table_id=29
+  col7=table_id=29
+  col8=table_id=29
+  col9=table_id=29
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=7
+      elem1=def=comment VARCHAR(2048) NOT NULL
+            lbl=FIELD_COMMENT
+            pos=8
+      elem10=def=mysql_version_id INT UNSIGNED NOT NULL
+            lbl=FIELD_MYSQL_VERSION_ID
+            pos=5
+      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_NAME
+            pos=2
+      elem12=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=10
+      elem13=def=partition_expression VARCHAR(2048)
+            lbl=FIELD_PARTITION_EXPRESSION
+            pos=15
+      elem14=def=partition_expression_utf8 VARCHAR(2048)
+            lbl=FIELD_PARTITION_EXPRESSION_UTF8
+            pos=16
+      elem15=def=partition_type ENUM(
+  'HASH','KEY_51','KEY_55',
+  'LINEAR_HASH','LINEAR_KEY_51',
+  'LINEAR_KEY_55','RANGE','LIST',
+  'RANGE_COLUMNS','LIST_COLUMNS',
+  'AUTO', 'AUTO_LINEAR')
+            lbl=FIELD_PARTITION_TYPE
+            pos=14
+      elem16=def=row_format ENUM('Fixed', 'Dynamic', 'Compressed',                'Redundant','Compact','Paged')
+            lbl=FIELD_ROW_FORMAT
+            pos=6
+      elem17=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem18=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=11
+      elem19=def=se_private_id BIGINT UNSIGNED
+            lbl=FIELD_SE_PRIVATE_ID
+            pos=12
+      elem2=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=22
+      elem20=def=subpartition_expression VARCHAR(2048)
+            lbl=FIELD_SUBPARTITION_EXPRESSION
+            pos=19
+      elem21=def=subpartition_expression_utf8 VARCHAR(2048)
+            lbl=FIELD_SUBPARTITION_EXPRESSION_UTF8
+            pos=20
+      elem22=def=subpartition_type ENUM(
+  'HASH','KEY_51','KEY_55',
+  'LINEAR_HASH',
+  'LINEAR_KEY_51',
+  'LINEAR_KEY_55'
+)
+            lbl=FIELD_SUBPARTITION_TYPE
+            pos=18
+      elem23=def=tablespace_id BIGINT UNSIGNED
+            lbl=FIELD_TABLESPACE_ID
+            pos=13
+      elem24=def=type ENUM('BASE TABLE', 'VIEW', 'SYSTEM VIEW')NOT NULL
+            lbl=FIELD_TYPE
+            pos=3
+      elem25=def=view_algorithm ENUM('UNDEFINED', 'TEMPTABLE', 'MERGE')
+            lbl=FIELD_VIEW_ALGORITHM
+            pos=28
+      elem26=def=view_check_option ENUM('NONE', 'LOCAL', 'CASCADED')
+            lbl=FIELD_VIEW_CHECK_OPTION
+            pos=26
+      elem27=def=view_client_collation_id BIGINT UNSIGNED
+            lbl=FIELD_VIEW_CLIENT_COLLATION_ID
+            pos=31
+      elem28=def=view_column_names LONGTEXT
+            lbl=FIELD_VIEW_COLUMN_NAMES
+            pos=33
+      elem29=def=view_connection_collation_id BIGINT UNSIGNED
+            lbl=FIELD_VIEW_CONNECTION_COLLATION_ID
+            pos=32
+      elem3=def=default_partitioning ENUM('NO', 'YES', 'NUMBER')
+            lbl=FIELD_DEFAULT_PARTITIONING
+            pos=17
+      elem30=def=view_definer VARCHAR(93)
+            lbl=FIELD_VIEW_DEFINER
+            pos=30
+      elem31=def=view_definition LONGBLOB
+            lbl=FIELD_VIEW_DEFINITION
+            pos=24
+      elem32=def=view_definition_utf8 LONGTEXT
+            lbl=FIELD_VIEW_DEFINITION_UTF8
+            pos=25
+      elem33=def=view_is_updatable ENUM('NO', 'YES')
+            lbl=FIELD_VIEW_IS_UPDATABLE
+            pos=27
+      elem34=def=view_security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER')
+            lbl=FIELD_VIEW_SECURITY_TYPE
+            pos=29
+      elem4=def=default_subpartitioning ENUM('NO', 'YES', 'NUMBER')
+            lbl=FIELD_DEFAULT_SUBPARTITIONING
+            pos=21
+      elem5=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_ENGINE
+            pos=4
+      elem6=def=hidden ENUM('Visible', 'System', 'SE', 'DDL') NOT NULL
+            lbl=FIELD_HIDDEN
+            pos=9
+      elem7=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem8=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=23
+      elem9=def=last_checked_for_upgrade_version_id INT UNSIGNED NOT NULL
+            lbl=FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID
+            pos=34
+    foreign_keys=
+      elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
+            lbl=FK_COLLATION_ID
+            pos=1
+      elem1=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+      elem2=def=FOREIGN KEY (tablespace_id) REFERENCES tablespaces(id)
+            lbl=FK_TABLESPACE_ID
+            pos=2
+      elem3=def=FOREIGN KEY (view_client_collation_id) REFERENCES collations(id)
+            lbl=FK_VIEW_CLIENT_COLLATION_ID
+            pos=3
+      elem4=def=FOREIGN KEY (view_connection_collation_id) REFERENCES collations(id)
+            lbl=FK_VIEW_CONNECTION_COLLATION_ID
+            pos=4
+    indexes=
+      elem0=def=KEY(collation_id)
+            lbl=INDEX_K_COLLATION_ID
+            pos=4
+      elem1=def=KEY(engine)
+            lbl=INDEX_K_ENGINE
+            pos=3
+      elem2=def=KEY(tablespace_id)
+            lbl=INDEX_K_TABLESPACE_ID
+            pos=5
+      elem3=def=KEY(type)
+            lbl=INDEX_K_TYPE
+            pos=6
+      elem4=def=KEY(view_client_collation_id)
+            lbl=INDEX_K_VIEW_CLIENT_COLLATION_ID
+            pos=7
+      elem5=def=KEY(view_connection_collation_id)
+            lbl=INDEX_K_VIEW_CONNECTION_COLLATION_ID
+            pos=8
+      elem6=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem7=def=UNIQUE KEY (engine, se_private_id)
+            lbl=INDEX_UK_ENGINE_SE_PRIVATE_ID
+            pos=2
+      elem8=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+    name=tables
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=29
+  idx0=id=76
+       root=80
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx1=id=77
+       root=81
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx2=id=78
+       root=82
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx3=id=79
+       root=83
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx4=id=80
+       root=84
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx5=id=81
+       root=85
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx6=id=82
+       root=86
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx7=id=83
+       root=87
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx8=id=84
+       root=88
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+       space_id=1
+tablespace_files=
+  col0=table_id=30
+  col1=table_id=30
+  col2=table_id=30
+  col3=table_id=30
+  col4=table_id=30
+  col5=table_id=30
+  data=
+  def=
+    fields=
+      elem0=def=file_name VARCHAR(512) NOT NULL
+            lbl=FIELD_FILE_NAME
+            pos=2
+      elem1=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=1
+      elem2=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=3
+      elem3=def=tablespace_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLESPACE_ID
+            pos=0
+    foreign_keys=
+      elem0=def=FOREIGN KEY (tablespace_id)                                 REFERENCES tablespaces(id)
+            lbl=FK_TABLESPACE_ID
+            pos=0
+    indexes=
+      elem0=def=UNIQUE KEY (file_name)
+            lbl=INEDX_UK_FILE_NAME
+            pos=1
+      elem1=def=UNIQUE KEY (tablespace_id, ordinal_position)
+            lbl=INEDX_UK_TABLESPACE_ID_ORDINAL_POSITION
+            pos=0
+    name=tablespace_files
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=30
+  idx0=id=85
+       root=90
+       space_id=4294967294
+       table_id=30
+       trx_id=0
+  idx1=id=86
+       root=91
+       space_id=4294967294
+       table_id=30
+       trx_id=0
+       space_id=1
+tablespaces=
+  col0=table_id=31
+  col1=table_id=31
+  col2=table_id=31
+  col3=table_id=31
+  col4=table_id=31
+  col5=table_id=31
+  col6=table_id=31
+  col7=table_id=31
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=comment VARCHAR(2048) NOT NULL
+            lbl=FIELD_COMMENT
+            pos=4
+      elem1=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_ENGINE
+            pos=5
+      elem2=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem3=def=name VARCHAR(268) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_NAME
+            pos=1
+      elem4=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=2
+      elem5=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=3
+    foreign_keys=
+    indexes=
+      elem0=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY(name)
+            lbl=INDEX_UK_NAME
+            pos=1
+    name=tablespaces
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=31
+  idx0=id=87
+       root=92
+       space_id=4294967294
+       table_id=31
+       trx_id=0
+  idx1=id=88
+       root=93
+       space_id=4294967294
+       table_id=31
+       trx_id=0
+       space_id=1
+triggers=
+  col0=table_id=32
+  col1=table_id=32
+  col10=table_id=32
+  col11=table_id=32
+  col12=table_id=32
+  col13=table_id=32
+  col14=table_id=32
+  col15=table_id=32
+  col16=table_id=32
+  col17=table_id=32
+  col18=table_id=32
+  col2=table_id=32
+  col3=table_id=32
+  col4=table_id=32
+  col5=table_id=32
+  col6=table_id=32
+  col7=table_id=32
+  col8=table_id=32
+  col9=table_id=32
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=action_order INT UNSIGNED NOT NULL
+            lbl=FIELD_ACTION_ORDER
+            pos=6
+      elem1=def=action_statement LONGBLOB NOT NULL
+            lbl=FIELD_ACTION_STATEMENT
+            pos=7
+      elem10=def=last_altered TIMESTAMP(2) NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=10
+      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem12=def=options MEDIUMTEXT
+            lbl=FIELD_OPTIONS
+            pos=16
+      elem13=def=schema_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_COLLATION_ID
+            pos=15
+      elem14=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem15=def=sql_mode SET('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') NOT NULL
+            lbl=FIELD_SQL_MODE
+            pos=11
+      elem16=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=4
+      elem2=def=action_statement_utf8 LONGTEXT NOT NULL
+            lbl=FIELD_ACTION_STATEMENT_UTF8
+            pos=8
+      elem3=def=action_timing ENUM('BEFORE', 'AFTER') NOT NULL
+            lbl=FIELD_ACTION_TIMING
+            pos=5
+      elem4=def=client_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CLIENT_COLLATION_ID
+            pos=13
+      elem5=def=connection_collation_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_CONNECTION_COLLATION_ID
+            pos=14
+      elem6=def=created TIMESTAMP(2) NOT NULL
+            lbl=FIELD_CREATED
+            pos=9
+      elem7=def=definer VARCHAR(93) NOT NULL
+            lbl=FIELD_DEFINER
+            pos=12
+      elem8=def=event_type ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL
+            lbl=FIELD_EVENT_TYPE
+            pos=3
+      elem9=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+    foreign_keys=
+      elem0=def=FOREIGN KEY (client_collation_id) REFERENCES collations(id)
+            lbl=FK_CLIENT_COLLATION_ID
+            pos=2
+      elem1=def=FOREIGN KEY (connection_collation_id) REFERENCES collations(id)
+            lbl=FK_CONNECTION_COLLATION_ID
+            pos=3
+      elem2=def=FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
+            lbl=FK_SCHEMA_COLLATION_ID
+            pos=4
+      elem3=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+      elem4=def=FOREIGN KEY (table_id) REFERENCES tables(id)
+            lbl=FK_TABLE_ID
+            pos=1
+    indexes=
+      elem0=def=KEY(client_collation_id)
+            lbl=INDEX_K_CLIENT_COLLATION_ID
+            pos=3
+      elem1=def=KEY(connection_collation_id)
+            lbl=INDEX_K_CONNECTION_COLLATION_ID
+            pos=4
+      elem2=def=KEY(schema_collation_id)
+            lbl=INDEX_K_SCHEMA_COLLATION_ID
+            pos=5
+      elem3=def=PRIMARY KEY(id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem4=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+      elem5=def=UNIQUE KEY (table_id, event_type, action_timing, action_order)
+            lbl=INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER
+            pos=2
+    name=triggers
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=32
+  idx0=id=89
+       root=94
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx1=id=90
+       root=95
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx2=id=91
+       root=96
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx3=id=92
+       root=97
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx4=id=93
+       root=98
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx5=id=94
+       root=99
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+       space_id=1
+view_routine_usage=
+  col0=table_id=33
+  col1=table_id=33
+  col2=table_id=33
+  col3=table_id=33
+  col4=table_id=33
+  col5=table_id=33
+  data=
+  def=
+    fields=
+      elem0=def=routine_catalog VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_ROUTINE_CATALOG
+            pos=1
+      elem1=def=routine_name VARCHAR(64) NOT NULL COLLATE  utf8_general_ci
+            lbl=FIELD_ROUTINE_NAME
+            pos=3
+      elem2=def=routine_schema VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_ROUTINE_SCHEMA
+            pos=2
+      elem3=def=view_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_VIEW_ID
+            pos=0
+    foreign_keys=
+      elem0=def=FOREIGN KEY (view_id) REFERENCES tables(id)
+            lbl=FK_VIEW_ID
+            pos=0
+    indexes=
+      elem0=def=KEY (routine_catalog, routine_schema, routine_name)
+            lbl=INDEX_K_ROUTINE_CATALOG_ROUTINE_SCHEMA_ROUTINE_NAME
+            pos=1
+      elem1=def=PRIMARY KEY(view_id, routine_catalog, routine_schema, routine_name)
+            lbl=INDEX_PK_VIEW_ID_ROUTINE_CATALOG
+            pos=0
+    name=view_routine_usage
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=33
+  idx0=id=95
+       root=100
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+  idx1=id=96
+       root=101
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+       space_id=1
+view_table_usage=
+  col0=table_id=34
+  col1=table_id=34
+  col2=table_id=34
+  col3=table_id=34
+  col4=table_id=34
+  col5=table_id=34
+  data=
+  def=
+    fields=
+      elem0=def=table_catalog VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_TABLE_CATALOG
+            pos=1
+      elem1=def=table_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_TABLE_NAME
+            pos=3
+      elem2=def=table_schema VARCHAR(64) NOT NULL COLLATE utf8_bin
+            lbl=FIELD_TABLE_SCHEMA
+            pos=2
+      elem3=def=view_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_VIEW_ID
+            pos=0
+    foreign_keys=
+      elem0=def=FOREIGN KEY (view_id) REFERENCES tables(id)
+            lbl=FK_VIEW_ID
+            pos=0
+    indexes=
+      elem0=def=KEY (table_catalog, table_schema, table_name)
+            lbl=INDEX_K_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME
+            pos=1
+      elem1=def=PRIMARY KEY(view_id, table_catalog, table_schema, table_name)
+            lbl=INDEX_PK_VIEW_ID_TABLE_CATALOG_TABLE_SCHEMA_TABLE_NAME
+            pos=0
+    name=view_table_usage
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=34
+  idx0=id=97
+       root=102
+       space_id=4294967294
+       table_id=34
+       trx_id=0
+  idx1=id=98
+       root=103
+       space_id=4294967294
+       table_id=34
+       trx_id=0
+       space_id=1

@@ -152,7 +152,7 @@ public:
   void lock_poll_mutex();
   void unlock_poll_mutex();
 
-  TransporterRegistry* get_registry() { return theTransporterRegistry;};
+  TransporterRegistry* get_registry() { return theTransporterRegistry;}
 
 /*
   When a thread has sent its signals and is ready to wait for reception
@@ -377,10 +377,10 @@ private:
       Uint32 m_next;
 
       Client()
-	: m_clnt(NULL), m_next(END_OF_LIST) {};
+	: m_clnt(NULL), m_next(END_OF_LIST) {}
 
       Client(trp_client* clnt, Uint32 next)
-	: m_clnt(clnt), m_next(next) {};
+	: m_clnt(clnt), m_next(next) {}
     };
     Vector<struct Client> m_clients;
 
@@ -699,7 +699,7 @@ public :
   }
 
   ~LinearSectionIterator()
-  {};
+  {}
   
   void reset()
   {
@@ -743,7 +743,7 @@ public :
   }
 
   ~SignalSectionIterator()
-  {};
+  {}
   
   void reset()
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "my_loglevel.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
@@ -53,8 +54,11 @@
 #include "sql/replication.h"  // Trans_param
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"     // Master_info
+#include "sql/set_var.h"    // OPT_PERSIST
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"   // sql_command_flags
 #include "sql/sql_plugin.h"  // plugin_int_to_ref
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -155,52 +159,36 @@ int get_user_var_str(const char *name, char *value, size_t len,
 }
 
 int delegates_init() {
-  static my_aligned_storage<sizeof(Trans_delegate), MY_ALIGNOF(longlong)>
-      trans_mem;
-  static my_aligned_storage<sizeof(Binlog_storage_delegate),
-                            MY_ALIGNOF(longlong)>
-      storage_mem;
-  static my_aligned_storage<sizeof(Server_state_delegate), MY_ALIGNOF(longlong)>
-      server_state_mem;
-  static my_aligned_storage<sizeof(Binlog_transmit_delegate),
-                            MY_ALIGNOF(longlong)>
-      transmit_mem;
-  static my_aligned_storage<sizeof(Binlog_relay_IO_delegate),
-                            MY_ALIGNOF(longlong)>
-      relay_io_mem;
-
-  void *place_trans_mem = trans_mem.data;
-  void *place_storage_mem = storage_mem.data;
-  void *place_state_mem = server_state_mem.data;
+  alignas(Trans_delegate) static char place_trans_mem[sizeof(Trans_delegate)];
+  alignas(Binlog_storage_delegate) static char
+      place_storage_mem[sizeof(Binlog_storage_delegate)];
+  alignas(Server_state_delegate) static char
+      place_state_mem[sizeof(Server_state_delegate)];
+  alignas(Binlog_transmit_delegate) static char
+      place_transmit_mem[sizeof(Binlog_transmit_delegate)];
+  alignas(Binlog_relay_IO_delegate) static char
+      place_relay_io_mem[sizeof(Binlog_relay_IO_delegate)];
 
   transaction_delegate = new (place_trans_mem) Trans_delegate;
-
   if (!transaction_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_TRX_DELEGATES_INIT_FAILED);
     return 1;
   }
 
   binlog_storage_delegate = new (place_storage_mem) Binlog_storage_delegate;
-
   if (!binlog_storage_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_STORAGE_DELEGATES_INIT_FAILED);
     return 1;
   }
 
   server_state_delegate = new (place_state_mem) Server_state_delegate;
-
-  void *place_transmit_mem = transmit_mem.data;
-  void *place_relay_io_mem = relay_io_mem.data;
-
   binlog_transmit_delegate = new (place_transmit_mem) Binlog_transmit_delegate;
-
   if (!binlog_transmit_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_TRANSMIT_DELEGATES_INIT_FAILED);
     return 1;
   }
 
   binlog_relay_io_delegate = new (place_relay_io_mem) Binlog_relay_IO_delegate;
-
   if (!binlog_relay_io_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_RELAY_DELEGATES_INIT_FAILED);
     return 1;
@@ -306,6 +294,12 @@ void delegates_destroy() {
   */                                                                   \
   if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
+static bool se_before_commit(THD *, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->se_before_commit) hton->se_before_commit(arg);
+  return false;
+}
+
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   Binlog_cache_storage *trx_cache_log,
                                   Binlog_cache_storage *stmt_cache_log,
@@ -325,6 +319,11 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.cache_log_max_size = cache_log_max_size;
   param.original_commit_timestamp = &thd->variables.original_commit_timestamp;
   param.is_atomic_ddl = is_atomic_ddl_arg;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
+  param.group_replication_consistency =
+      thd->variables.group_replication_consistency;
+  param.original_server_version = &(thd->variables.original_server_version);
+  param.immediate_server_version = &(thd->variables.immediate_server_version);
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -332,6 +331,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_commit, (&param));
+  plugin_foreach(thd, se_before_commit, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
   DBUG_RETURN(ret);
 }
 
@@ -484,6 +484,12 @@ int Trans_delegate::before_dml(THD *thd, int &result) {
   DBUG_RETURN(ret);
 }
 
+static bool se_before_rollback(THD *, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->se_before_rollback) hton->se_before_rollback(arg);
+  return false;
+}
+
 int Trans_delegate::before_rollback(THD *thd, bool all) {
   DBUG_ENTER("Trans_delegate::before_rollback");
   Trans_param param;
@@ -491,6 +497,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all) {
   param.server_id = thd->server_id;
   param.server_uuid = server_uuid;
   param.thread_id = thd->thread_id();
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -498,7 +505,14 @@ int Trans_delegate::before_rollback(THD *thd, bool all) {
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_rollback, (&param));
+  plugin_foreach(thd, se_before_rollback, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
   DBUG_RETURN(ret);
+}
+
+static bool se_after_commit(THD *, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->se_after_commit) hton->se_after_commit(arg);
+  return false;
 }
 
 int Trans_delegate::after_commit(THD *thd, bool all) {
@@ -508,12 +522,18 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
   param.server_uuid = server_uuid;
   param.thread_id = thd->thread_id();
 
+  Gtid gtid;
+  thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().get_last_used_gtid(gtid);
+  param.gtid_info.sidno = gtid.sidno;
+  param.gtid_info.gno = gtid.gno;
+
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
   if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
 
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
   param.server_id = thd->server_id;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   DBUG_PRINT("enter",
              ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
@@ -521,6 +541,7 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_commit, (&param));
+  plugin_foreach(thd, se_after_commit, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
   DBUG_RETURN(ret);
 }
 
@@ -536,9 +557,27 @@ int Trans_delegate::after_rollback(THD *thd, bool all) {
   if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
   param.server_id = thd->server_id;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_rollback, (&param));
+  DBUG_RETURN(ret);
+}
+
+int Trans_delegate::trans_begin(THD *thd, int &out) {
+  DBUG_ENTER("Trans_delegate::begin");
+  Trans_param param;
+  TRANS_PARAM_ZERO(param);
+  param.server_uuid = server_uuid;
+  param.thread_id = thd->thread_id();
+  param.group_replication_consistency =
+      thd->variables.group_replication_consistency;
+  param.hold_timeout = thd->variables.net_wait_timeout;
+  param.server_id = thd->server_id;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
+
+  int ret = 0;
+  FOREACH_OBSERVER_ERROR_OUT(ret, begin, &param, out);
   DBUG_RETURN(ret);
 }
 
@@ -965,4 +1004,113 @@ int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
 int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
                                         void *) {
   return binlog_relay_io_delegate->remove_observer(observer);
+}
+
+int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
+  DBUG_ENTER("launch_hook_trans_begin");
+  LEX *lex = thd->lex;
+  enum_sql_command sql_command = lex->sql_command;
+  // by default commands are put on hold
+  bool hold_command = true;
+  int ret = 0;
+
+  // if command belong to a transaction that already pass by hook, it can
+  // continue
+  if (thd->get_transaction()->was_trans_begin_hook_invoked()) {
+    DBUG_RETURN(0);
+  }
+
+  bool is_show = ((sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
+                  (sql_command != SQLCOM_BINLOG_BASE64_EVENT)) ||
+                 (sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
+  bool is_set = (sql_command == SQLCOM_SET_OPTION);
+  bool is_select = (sql_command == SQLCOM_SELECT);
+  bool is_do = (sql_command == SQLCOM_DO);
+  bool is_empty = (sql_command == SQLCOM_EMPTY_QUERY);
+  bool is_use = (sql_command == SQLCOM_CHANGE_DB);
+  bool is_stop_gr = (sql_command == SQLCOM_STOP_GROUP_REPLICATION);
+  bool is_shutdown = (sql_command == SQLCOM_SHUTDOWN);
+  bool is_reset_persist =
+      (sql_command == SQLCOM_RESET && lex->option_type == OPT_PERSIST);
+
+  if ((is_set || is_do || is_show || is_empty || is_use || is_stop_gr ||
+       is_shutdown || is_reset_persist) &&
+      !lex->uses_stored_routines()) {
+    DBUG_RETURN(0);
+  }
+
+  if (is_select) {
+    bool is_udf = false;
+
+    // if select is an udf function
+    SELECT_LEX *select_lex_elem = lex->unit->first_select();
+    while (select_lex_elem != NULL) {
+      Item *item;
+      List_iterator_fast<Item> it(select_lex_elem->fields_list);
+      while ((item = it++)) {
+        if (item->type() == Item::FUNC_ITEM) {
+          Item_func *func_item = down_cast<Item_func *>(item);
+          Item_func::Functype functype = func_item->functype();
+          if (functype == Item_func::FUNC_SP || functype == Item_func::UDF_FUNC)
+            is_udf = true;
+        }
+      }
+      select_lex_elem = select_lex_elem->next_select();
+    }
+
+    if (!is_udf && all_tables == 0x00) {
+      // SELECT that don't use tables and isn't a UDF
+      hold_command = false;
+    }
+
+    if (hold_command && all_tables != 0x00) {
+      // SELECT that use tables
+      bool is_perf_schema_table = false;
+      bool is_process_list = false;
+      bool is_sys_db = false;
+      bool stop_db_check = false;
+
+      for (TABLE_LIST *table = all_tables; table && !stop_db_check;
+           table = table->next_global) {
+        DBUG_ASSERT(table->db && table->table_name);
+
+        if (is_perfschema_db(table->db, table->db_length))
+          is_perf_schema_table = true;
+        else if (is_infoschema_db(table->db, table->db_length) &&
+                 !my_strcasecmp(system_charset_info, "PROCESSLIST",
+                                table->table_name)) {
+          is_process_list = true;
+        } else if (table->db_length == 3 &&
+                   !my_strcasecmp(system_charset_info, "sys", table->db)) {
+          is_sys_db = true;
+        } else {
+          is_perf_schema_table = false;
+          is_process_list = false;
+          is_sys_db = false;
+          stop_db_check = true;
+        }
+      }
+
+      if (is_process_list || is_perf_schema_table || is_sys_db) {
+        hold_command = false;
+      }
+    }
+  }
+
+  if (hold_command) {
+    DBUG_EXECUTE_IF("launch_hook_trans_begin_assert_if_hold",
+                    { DBUG_ASSERT(0); };);
+
+    PSI_stage_info old_stage;
+    thd->enter_stage(&stage_hook_begin_trans, &old_stage, __func__, __FILE__,
+                     __LINE__);
+    RUN_HOOK(transaction, trans_begin, (thd, ret));
+    THD_STAGE_INFO(thd, old_stage);
+    if (!ret && (sql_command == SQLCOM_BEGIN ||
+                 thd->in_active_multi_stmt_transaction())) {
+      thd->get_transaction()->set_trans_begin_hook_invoked();
+    }
+  }
+
+  DBUG_RETURN(ret);
 }

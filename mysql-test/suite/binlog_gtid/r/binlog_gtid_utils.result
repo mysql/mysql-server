@@ -1,5 +1,44 @@
 call mtr.add_suppression("option 'thread_stack':");
 include/gtid_utils.inc
+#### Max values for built-in functions ####
+SELECT GTID_SUBSET(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), '');
+GTID_SUBSET(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), '')
+0
+SELECT GTID_SUBSET('', CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2));
+GTID_SUBSET('', CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2))
+1
+SELECT GTID_SUBSET(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 1), '');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775807'.
+SELECT GTID_SUBSET('', CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 1));
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775807'.
+SELECT GTID_SUBTRACT(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), '');
+GTID_SUBTRACT(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), '')
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775806
+SELECT GTID_SUBTRACT('', CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2));
+GTID_SUBTRACT('', CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2))
+
+SELECT GTID_SUBTRACT(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 1), '');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775807'.
+SELECT GTID_SUBTRACT('', CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 1));
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775807'.
+#### Min values for built-in functions ####
+SELECT GTID_SUBSET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1', '');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1'.
+SELECT GTID_SUBSET('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1'.
+SELECT GTID_SUBSET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0', '');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0'.
+SELECT GTID_SUBSET('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0'.
+SELECT GTID_SUBTRACT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1', '');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1'.
+SELECT GTID_SUBTRACT('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0-1'.
+SELECT GTID_SUBTRACT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0', '');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0'.
+SELECT GTID_SUBTRACT('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0'.
+#### Functionality of user-defined functions in gtid_utils.inc ####
 SELECT GTID_IS_EQUAL('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:3:2:1', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1');
 GTID_IS_EQUAL('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:3:2:1', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1')
 1
@@ -63,9 +102,11 @@ cccccccc-cccc-cccc-cccc-cccccccccccc:1-3
 SELECT GTID_SUBTRACT_UUID('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 GTID_SUBTRACT_UUID('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')
 
-SELECT GTID_SUBTRACT_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', 1 << 63 - 1), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-GTID_SUBTRACT_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', 1 << 63 - 1), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+SELECT GTID_SUBTRACT_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+GTID_SUBTRACT_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
 
+SELECT GTID_SUBTRACT_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 1), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775807'.
 SELECT GTID_INTERSECTION_WITH_UUID('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,cccccccc-cccc-cccc-cccc-cccccccccccc:1-3', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 GTID_INTERSECTION_WITH_UUID('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,cccccccc-cccc-cccc-cccc-cccccccccccc:1-3', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')
 bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3
@@ -75,6 +116,11 @@ GTID_INTERSECTION_WITH_UUID('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,cccccccc-c
 SELECT GTID_INTERSECTION_WITH_UUID('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 GTID_INTERSECTION_WITH_UUID('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')
 bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3
+SELECT GTID_INTERSECTION_WITH_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+GTID_INTERSECTION_WITH_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775806
+SELECT GTID_INTERSECTION_WITH_UUID(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 1), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+ERROR HY000: Malformed GTID set specification 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775807'.
 SELECT GTID_COUNT('');
 GTID_COUNT('')
 0

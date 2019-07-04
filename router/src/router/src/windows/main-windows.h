@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,6 @@
 #ifndef ROUTER_MAIN_WINDOWS_INCLUDED
 #define ROUTER_MAIN_WINDOWS_INCLUDED
 
-int proxy_main(int (*real_main)(int, char **), int argc, char **argv);
+int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv);
 
 #endif  // ROUTER_MAIN_WINDOWS_INCLUDED

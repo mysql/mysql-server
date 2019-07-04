@@ -168,6 +168,25 @@ let SEARCH_PATTERN= len 22. hex 38000000000012860cb7809781e80006626f67757300. as
 let SEARCH_PATTERN=Set innodb_force_recovery to ignore this error;
 --source include/search_pattern.inc
 
+--echo # Test a corrupted record with creator field very long.
+# This file was created in such a way that checksums agree, but the creator field
+# and all subsequent bytes are non-zero, which might cause buffer overrun if one
+# simply tried to copy the creator string in a way which expects '\0'-terminated string
+--remove_file $newdir/ib_logfile0
+--exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption6b.zip -d $newdir > $SEARCH_FILE
+--error 1,42
+--exec $MYSQLD $args
+# The important thing here is that the field for creator has 32 bytes, and the file actually contains
+# MEB45678901234567890123456789012
+# which is 32 non-zero bytes (the string is thus not '\0'-terminated).
+# Moreover the following bytes, up to 2k-byte boundary are also non-zero, which means that
+# the whole read portion of header does not contain '\0'.
+# We expect this last '2' to be replaced with '\0' for safety.
+# If it is not replaced by '\0' then the output will contain the rest of header
+# and also a part of stack variables until first '\0'.
+let SEARCH_PATTERN=The log file was created by mysqlbackup --apply-log at MEB4567890123456789012345678901\\. The following crash recovery is part of a normal restore\\.;
+--source include/search_pattern.inc
+
 --echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
 --echo # redo log
 --force-rmdir $newdir

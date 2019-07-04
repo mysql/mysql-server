@@ -1,0 +1,517 @@
+# -----------------------------------------------------------------------
+# Start : DML Tests for Partial Revokes
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Setup
+# Create database and objects
+CREATE DATABASE partial_revokes_db;
+CREATE DATABASE partial_revokes_db_2;
+# Create users
+CREATE USER foo@localhost IDENTIFIED BY 'abcd';
+CREATE USER bar@localhost IDENTIFIED BY 'efgh';
+# -----------------------------------------------------------------------
+# Start: Test cases for Base tables.
+CREATE TABLE partial_revokes_db.t1(c1 int, c2 int);
+INSERT INTO partial_revokes_db.t1 values (1,2), (3,4);
+CREATE TABLE partial_revokes_db_2.t1(a1 int, a2 int);
+INSERT INTO partial_revokes_db_2.t1 values (1,2), (5,6), (9,10), (11,12);
+CREATE TABLE partial_revokes_db.t2 (a date, b date, c date not null, d date);
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on INSERT + INSERT
+GRANT INSERT, SELECT ON *.* TO foo@localhost;
+REVOKE INSERT ON partial_revokes_db.* FROM foo@localhost;
+INSERT INTO partial_revokes_db.t1 VALUES (5,6);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 't1'
+SELECT COUNT(*) FROM partial_revokes_db.t1;
+COUNT(*)
+2
+REVOKE INSERT, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on SELECT + INSERT ... SELECT
+GRANT INSERT, SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+INSERT INTO partial_revokes_db_2.t1 SELECT * FROM partial_revokes_db.t1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 't1'
+INSERT INTO partial_revokes_db_2.t1 VALUES (1,2), (3,4);
+INSERT INTO partial_revokes_db.t1 VALUES (5,6), (7,8);
+REVOKE INSERT, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on UPDATE + UPDATE
+GRANT UPDATE, SELECT ON *.* TO foo@localhost;
+REVOKE UPDATE ON partial_revokes_db.* FROM foo@localhost;
+UPDATE partial_revokes_db.t1 SET c1 = c1 + 1;
+ERROR 42000: UPDATE command denied to user 'foo'@'localhost' for table 't1'
+UPDATE partial_revokes_db.t1 SET c2 = c2 + 1 WHERE c1 = 2;
+ERROR 42000: UPDATE command denied to user 'foo'@'localhost' for table 't1'
+REVOKE UPDATE, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on SELECT + UPDATE ... SELECT
+GRANT UPDATE, SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+UPDATE partial_revokes_db.t1 SET c1 = 1;
+UPDATE partial_revokes_db.t1 SET c1 = c1 + 1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'c1' in table 't1'
+UPDATE partial_revokes_db.t1 SET c2 = c2 + 1 WHERE c1 = 2;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'c1' in table 't1'
+REVOKE UPDATE, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on DELETE + DELETE
+GRANT DELETE, SELECT ON *.* TO foo@localhost;
+REVOKE DELETE ON partial_revokes_db.* FROM foo@localhost;
+DELETE FROM partial_revokes_db.t1 WHERE c1 = 1;
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 't1'
+DELETE FROM partial_revokes_db.t1;
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 't1'
+REVOKE DELETE, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on SELECT + DELETE ... SELECT
+GRANT DELETE, SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+DELETE FROM partial_revokes_db.t1 WHERE c1 = 1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'c1' in table 't1'
+DELETE FROM partial_revokes_db.t1;
+REVOKE DELETE, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on DELETE + REPLACE
+GRANT SELECT, INSERT, DELETE ON *.* TO foo@localhost;
+REVOKE DELETE ON partial_revokes_db.* FROM foo@localhost;
+REPLACE INTO partial_revokes_db.t1 VALUES (1,3);
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 't1'
+REPLACE INTO partial_revokes_db.t1 VALUES (5,6);
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 't1'
+REPLACE INTO partial_revokes_db_2.t1 VALUES (1,3);
+REPLACE INTO partial_revokes_db_2.t1 SELECT * FROM partial_revokes_db.t1 ORDER BY c1;
+REVOKE SELECT, INSERT, DELETE ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on INSERT + REPLACE
+GRANT SELECT, INSERT, DELETE ON *.* TO foo@localhost;
+REVOKE INSERT ON partial_revokes_db.* FROM foo@localhost;
+REPLACE INTO partial_revokes_db.t1 VALUES (1,3);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 't1'
+REPLACE INTO partial_revokes_db.t1 VALUES (5,6);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 't1'
+REPLACE INTO partial_revokes_db_2.t1 VALUES (1,3);
+REPLACE INTO partial_revokes_db_2.t1 SELECT * FROM partial_revokes_db.t1 ORDER BY c1;
+REVOKE SELECT, INSERT, DELETE ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on INSERT + LOAD
+GRANT INSERT, SELECT, FILE ON *.* TO foo@localhost;
+REVOKE INSERT ON partial_revokes_db.* FROM foo@localhost;
+LOAD DATA INFILE '../../std_data/loaddata1.dat' IGNORE INTO TABLE partial_revokes_db.t2 FIELDS TERMINATED BY ',';
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 't2'
+SELECT * FROM partial_revokes_db.t2;
+a	b	c	d
+REVOKE INSERT, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on INSERT + CTE
+GRANT SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+WITH cte1 AS (SELECT c1, c2 FROM partial_revokes_db.t1),
+cte2 AS (SELECT a1, a2 FROM partial_revokes_db_2.t1)
+SELECT c2, a2 FROM cte1 JOIN cte2 WHERE cte1.c1 = cte2.a1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 't1'
+REVOKE SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# End: Test cases for Base tables.
+DROP TABLE partial_revokes_db.t1;
+DROP TABLE partial_revokes_db.t2;
+DROP TABLE partial_revokes_db_2.t1;
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Start: Test cases for views.
+CREATE TABLE partial_revokes_db.t1(c1 int, c2 int);
+INSERT INTO partial_revokes_db.t1 values (1,2), (3,4), (5,6), (7,8);
+CREATE TABLE partial_revokes_db_2.t2(a1 int, a2 int);
+INSERT INTO partial_revokes_db_2.t2 values (1,2), (5,6), (9,10), (11,12);
+CREATE SQL SECURITY DEFINER VIEW partial_revokes_db.v1t1d AS SELECT * FROM partial_revokes_db.t1;
+CREATE SQL SECURITY INVOKER VIEW partial_revokes_db.v1t1i AS SELECT * FROM partial_revokes_db.t1;
+CREATE SQL SECURITY DEFINER VIEW partial_revokes_db.v1t2d AS SELECT * FROM partial_revokes_db_2.t2;
+CREATE SQL SECURITY INVOKER VIEW partial_revokes_db.v1t2i AS SELECT * FROM partial_revokes_db_2.t2;
+CREATE SQL SECURITY DEFINER VIEW partial_revokes_db_2.v1t1d AS SELECT * FROM partial_revokes_db.t1;
+CREATE SQL SECURITY INVOKER VIEW partial_revokes_db_2.v1t1i AS SELECT * FROM partial_revokes_db.t1;
+CREATE SQL SECURITY DEFINER VIEW partial_revokes_db_2.v1t2d AS SELECT * FROM partial_revokes_db_2.t2;
+CREATE SQL SECURITY INVOKER VIEW partial_revokes_db_2.v1t2i AS SELECT * FROM partial_revokes_db_2.t2;
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on SELECT + SELECT, SHOW VIEW
+GRANT SELECT, SHOW VIEW ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+SELECT * FROM partial_revokes_db.v1t1d;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1d'
+SELECT * FROM partial_revokes_db.v1t1i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1i'
+SELECT * FROM partial_revokes_db.v1t2d;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t2d'
+SELECT * FROM partial_revokes_db.v1t2i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t2i'
+SELECT * FROM partial_revokes_db_2.v1t1d;
+c1	c2
+1	2
+3	4
+5	6
+7	8
+SELECT * FROM partial_revokes_db_2.v1t1i;
+ERROR HY000: View 'partial_revokes_db_2.v1t1i' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM partial_revokes_db_2.v1t2d;
+a1	a2
+1	2
+5	6
+9	10
+11	12
+SELECT * FROM partial_revokes_db_2.v1t2i;
+a1	a2
+1	2
+5	6
+9	10
+11	12
+SHOW CREATE VIEW partial_revokes_db.v1t1d;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1d'
+SHOW CREATE VIEW partial_revokes_db.v1t1i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1i'
+SHOW CREATE VIEW partial_revokes_db.v1t2d;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t2d'
+SHOW CREATE VIEW partial_revokes_db.v1t2i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t2i'
+SHOW CREATE VIEW partial_revokes_db_2.v1t1d;
+View	Create View	character_set_client	collation_connection
+v1t1d	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `partial_revokes_db_2`.`v1t1d` AS select `partial_revokes_db`.`t1`.`c1` AS `c1`,`partial_revokes_db`.`t1`.`c2` AS `c2` from `partial_revokes_db`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW partial_revokes_db_2.v1t1i;
+View	Create View	character_set_client	collation_connection
+v1t1i	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `partial_revokes_db_2`.`v1t1i` AS select `partial_revokes_db`.`t1`.`c1` AS `c1`,`partial_revokes_db`.`t1`.`c2` AS `c2` from `partial_revokes_db`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW partial_revokes_db_2.v1t2d;
+View	Create View	character_set_client	collation_connection
+v1t2d	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `partial_revokes_db_2`.`v1t2d` AS select `partial_revokes_db_2`.`t2`.`a1` AS `a1`,`partial_revokes_db_2`.`t2`.`a2` AS `a2` from `partial_revokes_db_2`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW partial_revokes_db_2.v1t2i;
+View	Create View	character_set_client	collation_connection
+v1t2i	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `partial_revokes_db_2`.`v1t2i` AS select `partial_revokes_db_2`.`t2`.`a1` AS `a1`,`partial_revokes_db_2`.`t2`.`a2` AS `a2` from `partial_revokes_db_2`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
+REVOKE SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on INSERT + INSERT
+GRANT INSERT ON *.* TO foo@localhost;
+REVOKE INSERT ON partial_revokes_db.* FROM foo@localhost;
+INSERT INTO partial_revokes_db.v1t1d VALUES (1,2);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 'v1t1d'
+INSERT INTO partial_revokes_db.v1t1i VALUES (1,2);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 'v1t1i'
+INSERT INTO partial_revokes_db.v1t2i VALUES (1,2);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 'v1t2i'
+INSERT INTO partial_revokes_db.v1t2d VALUES (1,2);
+ERROR 42000: INSERT command denied to user 'foo'@'localhost' for table 'v1t2d'
+INSERT INTO partial_revokes_db_2.v1t1d VALUES (1,2);
+INSERT INTO partial_revokes_db_2.v1t1i VALUES (1,2);
+ERROR HY000: View 'partial_revokes_db_2.v1t1i' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO partial_revokes_db_2.v1t2d VALUES(1,2);
+INSERT INTO partial_revokes_db_2.v1t2i VALUES(1,2);
+REVOKE INSERT ON *.* FROM foo@localhost;
+DELETE FROM partial_revokes_db.t1;
+DELETE FROM partial_revokes_db_2.t2;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on INSERT + INSERT ... SELECT
+INSERT INTO partial_revokes_db.t1 values (1,2), (3,4), (5,6), (7,8);
+GRANT INSERT, SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+INSERT INTO partial_revokes_db_2.v1t2d SELECT * FROM partial_revokes_db.v1t1d;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1d'
+INSERT INTO partial_revokes_db_2.v1t2d SELECT * FROM partial_revokes_db.v1t1i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1i'
+INSERT INTO partial_revokes_db_2.v1t2d SELECT * FROM partial_revokes_db.v1t2d;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t2d'
+INSERT INTO partial_revokes_db_2.v1t2d SELECT * FROM partial_revokes_db.v1t2i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t2i'
+INSERT INTO partial_revokes_db_2.v1t2i SELECT * FROM partial_revokes_db.v1t1i;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v1t1i'
+INSERT INTO partial_revokes_db_2.v1t2i SELECT * FROM partial_revokes_db_2.v1t1d;
+INSERT INTO partial_revokes_db_2.v1t2i SELECT * FROM partial_revokes_db_2.v1t2d;
+INSERT INTO partial_revokes_db_2.v1t2i SELECT * FROM partial_revokes_db_2.v1t2i;
+DELETE FROM partial_revokes_db.t1;
+DELETE FROM partial_revokes_db_2.t2;
+REVOKE INSERT, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on DELETE + DELETE
+INSERT INTO partial_revokes_db.t1 values (1,2), (3,4), (5,6), (7,8);
+INSERT INTO partial_revokes_db_2.t2 values (1,2), (3,4), (5,6), (7,8);
+GRANT DELETE ON *.* TO foo@localhost;
+REVOKE DELETE ON partial_revokes_db.* FROM foo@localhost;
+DELETE FROM partial_revokes_db.v1t1d;
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 'v1t1d'
+DELETE FROM partial_revokes_db.v1t1i;
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 'v1t1i'
+DELETE FROM partial_revokes_db.v1t2d;
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 'v1t2d'
+DELETE FROM partial_revokes_db.v1t2i;
+ERROR 42000: DELETE command denied to user 'foo'@'localhost' for table 'v1t2i'
+DELETE FROM partial_revokes_db_2.v1t1d;
+DELETE FROM partial_revokes_db_2.v1t1i;
+ERROR HY000: View 'partial_revokes_db_2.v1t1i' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM partial_revokes_db_2.v1t2d;
+DELETE FROM partial_revokes_db_2.v1t2i;
+DELETE FROM partial_revokes_db.t1;
+DELETE FROM partial_revokes_db_2.t2;
+REVOKE DELETE ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on SELECT + DELETE ... SELECT
+INSERT INTO partial_revokes_db.t1 values (1,2), (3,4), (5,6), (7,8);
+INSERT INTO partial_revokes_db_2.t2 values (1,2), (3,4), (5,6), (7,8);
+GRANT DELETE, SELECT ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+DELETE FROM partial_revokes_db.v1t1d WHERE c1 = 1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'c1' in table 'v1t1d'
+DELETE FROM partial_revokes_db.v1t1i WHERE c1 = 1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'c1' in table 'v1t1i'
+DELETE FROM partial_revokes_db.v1t2d WHERE a1 = 1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'a1' in table 'v1t2d'
+DELETE FROM partial_revokes_db.v1t2i WHERE a1 = 1;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for column 'a1' in table 'v1t2i'
+DELETE FROM partial_revokes_db_2.v1t1d;
+DELETE FROM partial_revokes_db_2.v1t1i WHERE c1 = 1;
+ERROR HY000: View 'partial_revokes_db_2.v1t1i' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM partial_revokes_db_2.v1t2d WHERE a1 = 1;
+DELETE FROM partial_revokes_db_2.v1t2i WHERE a1 = 1;
+DELETE FROM partial_revokes_db.t1;
+DELETE FROM partial_revokes_db_2.t2;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM foo@localhost;
+# -----------------------------------------------------------------------
+# End: Test cases for views.
+DROP TABLE IF EXISTS partial_revokes_db.t1;
+DROP TABLE IF EXISTS partial_revokes_db_2.t1;
+Warnings:
+Note	1051	Unknown table 'partial_revokes_db_2.t1'
+DROP VIEW IF EXISTS partial_revokes_db.v1t1d;
+DROP VIEW IF EXISTS partial_revokes_db.v1t1i;
+DROP VIEW IF EXISTS partial_revokes_db.v1t2d;
+DROP VIEW IF EXISTS partial_revokes_db.v1t2i;
+DROP VIEW IF EXISTS partial_revokes_db_2.v1t1d;
+DROP VIEW IF EXISTS partial_revokes_db_2.v1t1i;
+DROP VIEW IF EXISTS partial_revokes_db_2.v1t2d;
+DROP VIEW IF EXISTS partial_revokes_db_2.v1t2i;
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke + SHOW DATABASE
+CREATE USER baz@localhost IDENTIFIED BY 'abcd';
+CREATE ROLE r3;
+GRANT INSERT,SELECT ON *.* TO baz@localhost;
+GRANT INSERT,SELECT ON *.* TO r3;
+REVOKE INSERT,SELECT ON partial_revokes_db.* FROM baz@localhost;
+REVOKE INSERT,SELECT ON partial_revokes_db_2.* FROM r3;
+GRANT r3 TO baz@localhost;
+SHOW GRANTS;
+Grants for baz@localhost
+GRANT SELECT, INSERT ON *.* TO `baz`@`localhost`
+REVOKE SELECT, INSERT ON `partial_revokes_db`.* FROM `baz`@`localhost`
+GRANT `r3`@`%` TO `baz`@`localhost`
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+partial_revokes_db_2
+performance_schema
+sys
+test
+SET ROLE r3;
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+partial_revokes_db
+partial_revokes_db_2
+performance_schema
+sys
+test
+GRANT INSERT ON `partial_revokes_db`.* TO baz@localhost;
+SHOW GRANTS;
+Grants for baz@localhost
+GRANT SELECT, INSERT ON *.* TO `baz`@`localhost`
+REVOKE SELECT ON `partial_revokes_db`.* FROM `baz`@`localhost`
+GRANT `r3`@`%` TO `baz`@`localhost`
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+partial_revokes_db
+partial_revokes_db_2
+performance_schema
+sys
+test
+SET ROLE r3;
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+partial_revokes_db
+partial_revokes_db_2
+performance_schema
+sys
+test
+GRANT SELECT ON `partial_revokes_db`.* TO baz@localhost;
+SHOW GRANTS;
+Grants for baz@localhost
+GRANT SELECT, INSERT ON *.* TO `baz`@`localhost`
+GRANT `r3`@`%` TO `baz`@`localhost`
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+partial_revokes_db
+partial_revokes_db_2
+performance_schema
+sys
+test
+SET ROLE r3;
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+partial_revokes_db
+partial_revokes_db_2
+performance_schema
+sys
+test
+# -----------------------------------------------------------------------
+DROP USER baz@localhost;
+DROP ROLE r3;
+# End: Test cases for Show database.
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Start: Test cases for stored routines.
+# -----------------------------------------------------------------------
+CREATE TABLE partial_revokes_db.tp1(c1 int, c2 int);
+INSERT INTO partial_revokes_db.tp1 VALUES (1,2), (3,4);
+CREATE TABLE partial_revokes_db_2.tp2(c1 int, c2 int);
+INSERT INTO partial_revokes_db_2.tp2 VALUES (5,6), (7,8);
+CREATE PROCEDURE partial_revokes_db.p1tp1d_count() SELECT COUNT(*) FROM partial_revokes_db.tp1;
+CREATE PROCEDURE partial_revokes_db.p1tp1i_count() SELECT COUNT(*) FROM partial_revokes_db.tp1;
+ALTER PROCEDURE partial_revokes_db.p1tp1i_count SQL SECURITY INVOKER;
+CREATE PROCEDURE partial_revokes_db.p1tp2d_count() SELECT COUNT(*) FROM partial_revokes_db_2.tp2;
+CREATE PROCEDURE partial_revokes_db.p1tp2i_count() SELECT COUNT(*) FROM partial_revokes_db_2.tp2;
+ALTER PROCEDURE partial_revokes_db.p1tp2i_count SQL SECURITY INVOKER;
+CREATE PROCEDURE partial_revokes_db_2.p2tp1d_count() SELECT COUNT(*) FROM partial_revokes_db.tp1;
+CREATE PROCEDURE partial_revokes_db_2.p2tp1i_count() SELECT COUNT(*) FROM partial_revokes_db.tp1;
+ALTER PROCEDURE partial_revokes_db_2.p2tp1i_count SQL SECURITY INVOKER;
+CREATE PROCEDURE partial_revokes_db_2.p2tp2d_count() SELECT COUNT(*) FROM partial_revokes_db_2.tp2;
+CREATE PROCEDURE partial_revokes_db_2.p2tp2i_count() SELECT COUNT(*) FROM partial_revokes_db_2.tp2;
+ALTER PROCEDURE partial_revokes_db_2.p2tp2i_count SQL SECURITY INVOKER;
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Case: *.* + Partial Revoke on EXECUTE
+GRANT EXECUTE, SELECT ON *.* TO foo@localhost;
+REVOKE EXECUTE, SELECT ON partial_revokes_db.* FROM foo@localhost;
+SHOW GRANTS FOR foo@localhost;
+Grants for foo@localhost
+GRANT SELECT, EXECUTE ON *.* TO `foo`@`localhost`
+REVOKE SELECT, EXECUTE ON `partial_revokes_db`.* FROM `foo`@`localhost`
+CALL partial_revokes_db.p1tp1d_count();
+ERROR 42000: execute command denied to user 'foo'@'localhost' for routine 'partial_revokes_db.p1tp1d_count'
+CALL partial_revokes_db.p1tp1i_count();
+ERROR 42000: execute command denied to user 'foo'@'localhost' for routine 'partial_revokes_db.p1tp1i_count'
+CALL partial_revokes_db.p1tp2d_count();
+ERROR 42000: execute command denied to user 'foo'@'localhost' for routine 'partial_revokes_db.p1tp2d_count'
+CALL partial_revokes_db.p1tp2i_count();
+ERROR 42000: execute command denied to user 'foo'@'localhost' for routine 'partial_revokes_db.p1tp2i_count'
+CALL partial_revokes_db_2.p2tp1d_count();
+COUNT(*)
+2
+CALL partial_revokes_db_2.p2tp1i_count();
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'tp1'
+CALL partial_revokes_db_2.p2tp2d_count();
+COUNT(*)
+2
+CALL partial_revokes_db_2.p2tp2i_count();
+COUNT(*)
+2
+REVOKE EXECUTE, SELECT ON *.* FROM foo@localhost;
+# -----------------------------------------------------------------------
+DROP PROCEDURE partial_revokes_db.p1tp1d_count;
+DROP PROCEDURE partial_revokes_db.p1tp1i_count;
+DROP PROCEDURE partial_revokes_db.p1tp2d_count;
+DROP PROCEDURE partial_revokes_db.p1tp2i_count;
+DROP PROCEDURE partial_revokes_db_2.p2tp1d_count;
+DROP PROCEDURE partial_revokes_db_2.p2tp1i_count;
+DROP PROCEDURE partial_revokes_db_2.p2tp2d_count;
+DROP PROCEDURE partial_revokes_db_2.p2tp2i_count;
+DROP TABLE partial_revokes_db.tp1;
+DROP TABLE partial_revokes_db_2.tp2;
+# End: Test cases for stored routines.
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Start: Test case for table and column grants
+# -----------------------------------------------------------------------
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM foo@localhost;
+SHOW GRANTS FOR foo@localhost;
+Grants for foo@localhost
+GRANT USAGE ON *.* TO `foo`@`localhost`
+CREATE TABLE partial_revokes_db.t1(c1 int);
+INSERT INTO partial_revokes_db.t1 VALUES (1), (2), (3);
+CREATE SQL SECURITY INVOKER VIEW partial_revokes_db_2.v1t1i AS SELECT * FROM partial_revokes_db.t1;
+CREATE PROCEDURE partial_revokes_db_2.p1t1i_c1() SELECT COUNT(*) FROM partial_revokes_db.t1;
+ALTER PROCEDURE partial_revokes_db_2.p1t1i_c1 SQL SECURITY INVOKER;
+CREATE TABLE partial_revokes_db.t2(c1 int, c2 int);
+INSERT INTO partial_revokes_db.t2 VALUES (1,2), (3,4), (5,6);
+CREATE SQL SECURITY INVOKER VIEW partial_revokes_db_2.v2t2i AS SELECT c1 FROM partial_revokes_db.t2;
+CREATE PROCEDURE partial_revokes_db_2.p2t2i_c1() SELECT c1 FROM partial_revokes_db.t2;
+ALTER PROCEDURE partial_revokes_db_2.p2t2i_c1 SQL SECURITY INVOKER;
+GRANT SELECT, EXECUTE ON *.* TO foo@localhost;
+REVOKE SELECT ON partial_revokes_db.* FROM foo@localhost;
+GRANT SELECT ON partial_revokes_db.t1 TO foo@localhost;
+GRANT SELECT(c1) ON partial_revokes_db.t2 TO foo@localhost;
+SHOW GRANTS FOR foo@localhost;
+Grants for foo@localhost
+GRANT SELECT, EXECUTE ON *.* TO `foo`@`localhost`
+REVOKE SELECT ON `partial_revokes_db`.* FROM `foo`@`localhost`
+GRANT SELECT ON `partial_revokes_db`.`t1` TO `foo`@`localhost`
+GRANT SELECT (`c1`) ON `partial_revokes_db`.`t2` TO `foo`@`localhost`
+SELECT * FROM partial_revokes_db.t1;
+c1
+1
+2
+3
+SELECT * FROM partial_revokes_db_2.v1t1i;
+c1
+1
+2
+3
+CALL partial_revokes_db_2.p1t1i_c1();
+COUNT(*)
+3
+SELECT c1 FROM partial_revokes_db.t2;
+c1
+1
+3
+5
+SELECT * FROM partial_revokes_db_2.v2t2i;
+c1
+1
+3
+5
+CALL partial_revokes_db_2.p2t2i_c1();
+c1
+1
+3
+5
+# -----------------------------------------------------------------------
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM foo@localhost;
+DROP TABLE partial_revokes_db.t1;
+DROP VIEW partial_revokes_db_2.v1t1i;
+DROP PROCEDURE partial_revokes_db_2.p1t1i_c1;
+DROP TABLE partial_revokes_db.t2;
+DROP VIEW partial_revokes_db_2.v2t2i;
+DROP PROCEDURE partial_revokes_db_2.p2t2i_c1;
+# End: Test cases for table and column grants
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Cleanup
+# Drop database
+DROP DATABASE partial_revokes_db;
+DROP DATABASE partial_revokes_db_2;
+# Drop users
+DROP USER foo@localhost, bar@localhost;
+# -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# End : DML Tests for Partial Revokes
+# -----------------------------------------------------------------------

@@ -12,12 +12,6 @@
 # #############################################################
 --source include/have_debug.inc
 
---disable_query_log
-set @old_internal_tmp_disk_storage_engine = @@internal_tmp_disk_storage_engine;
---enable_query_log
-
-# To avoid innodb intrinsic tables adding to status counts
-set global internal_tmp_disk_storage_engine = MyISAM;
 
 # Check index merge threshold by create index on all datatypes
 
@@ -207,7 +201,3 @@ CREATE INDEX index1 ON tab1(b(750)) COMMENT 'MERGE_THRESHOLD=45';
 
 DROP TABLE tab1;
 
-
---disable_query_log
-set global internal_tmp_disk_storage_engine = @old_internal_tmp_disk_storage_engine;
---enable_query_log

@@ -1,0 +1,70 @@
+check COMMIT behaviour with out-of-order signals and single delete
+record DBTUP resource usage before test
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE;
+a	b
+101	101
+UPDATE test.t1 SET b=101 where a=101;
+DELETE FROM test.t1 where a=101;
+COMMIT;
+drop table test.t1;
+compare current DBTUP resource usage w/usage before test to check for leaks
+check COMMIT behaviour with out-of-order signals and multiple deletes
+record DBTUP resource usage before test
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE;
+a	b
+101	101
+DELETE FROM test.t1 where a=101;
+INSERT INTO test.t1 values (101,102);
+UPDATE test.t1 SET b=101 where a=101;
+DELETE FROM test.t1 where a=101;
+COMMIT;
+drop table test.t1;
+compare current DBTUP resource usage w/usage before test to check for leaks
+check COMMIT behaviour with concurrent reads
+record DBTUP resource usage before test
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+create procedure work(total int)
+begin
+set @x = 0;
+repeat
+select * from test.t1 where a=101;
+set @x = @x + 1;
+until @x = total
+end repeat;
+end%
+call work(10000);;
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE;
+a	b
+101	101
+DELETE FROM test.t1 where a=101;
+INSERT INTO test.t1 values (101,102);
+UPDATE test.t1 SET b=101 where a=101;
+DELETE FROM test.t1 where a=101;
+COMMIT;
+drop procedure work;
+drop table test.t1;
+compare current DBTUP resource usage w/usage before test to check for leaks
+check ABORT behaviour with out-of-order signals
+record DBTUP resource usage before test
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (202,202);
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE;
+a	b
+101	101
+DELETE FROM test.t1 where a=101;
+INSERT INTO test.t1 values (101,102);
+UPDATE test.t1 SET b=101 where a=101;
+DELETE FROM test.t1 where a=101;
+INSERT INTO test.t1 values (101,102);
+ROLLBACK;
+drop table test.t1;
+compare current DBTUP resource usage w/usage before test to check for leaks

@@ -1,11 +1,12 @@
+Found Connector/J JAR in MTR_CLASSPATH
 Found clusterj.jar
 Found clusterj_test jar
 Found ndbclient library
-Found Connector/J JAR in MTR_CLASSPATH
 Looking for a suitable Java...
 Found Java
 Running command
 Result of command: 0
+Clean up the temporary clusterj.properties file.
 Clean up tables used in the JUnit tests.
 DROP TABLE a;
 DROP TABLE allprimitives;

@@ -180,7 +180,7 @@ class Filesort_info {
   Filesort_info(const Filesort_info &) = delete;
   Filesort_info &operator=(const Filesort_info &) = delete;
 
-  Filesort_info() : m_using_varlen_keys(false), m_sort_length(0){};
+  Filesort_info() : m_using_varlen_keys(false), m_sort_length(0) {}
 
   /** Sort filesort_buffer */
   void sort_buffer(Sort_param *param, uint count) {

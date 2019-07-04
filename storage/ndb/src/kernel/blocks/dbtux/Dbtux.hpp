@@ -36,6 +36,7 @@
 
 // big brother
 #include <dbtup/Dbtup.hpp>
+#include <dblqh/Dblqh.hpp>
 
 // packed index keys and bounds
 #include <NdbPack.hpp>
@@ -78,8 +79,10 @@ public:
   Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
-  // pointer to TUP instance in this thread
+  void prepare_scan_ctx(Uint32 scanPtrI);
+  // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
+  Dblqh* c_lqh;
   void execTUX_BOUND_INFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
 
@@ -220,8 +223,8 @@ private:
   friend struct TreePos;
   struct TreePos {
     TupLoc m_loc;               // physical node address
-    Uint16 m_pos;               // position 0 to m_occup
-    Uint8 m_dir;                // see scanNext
+    Uint32 m_pos;               // position 0 to m_occup
+    Uint32 m_dir;                // see scanNext
     TreePos();
   };
 
@@ -267,6 +270,8 @@ private:
   typedef NdbPack::Data KeyData;
   typedef NdbPack::BoundC KeyBoundC;
   typedef NdbPack::Bound KeyBound;
+  typedef NdbPack::DataArray KeyDataArray;
+  typedef NdbPack::BoundArray KeyBoundArray;
 
   // range scan
 
@@ -338,9 +343,9 @@ private:
       Last = 7,                 // after last entry
       Aborting = 8
     };
-    Uint8 m_state;
-    Uint8 m_lockwait;
-    Uint16 m_errorCode;
+    Uint32 m_errorCode;
+    Uint32 m_lockwait;
+    Uint32 m_state;
     Uint32 m_userPtr;           // scanptr.i in LQH
     Uint32 m_userRef;
     Uint32 m_tableId;
@@ -595,9 +600,20 @@ private:
   void execNODE_STATE_REP(Signal* signal);
 
   // utils
-  void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
-  void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
-  void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
+  void readKeyAttrs(TuxCtx&,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    KeyData& keyData,
+                    Uint32 count);
+  void readKeyAttrs(TuxCtx&,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    Uint32 count,
+                    Uint32 *outputBuffer);
+  void readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize);
+  void unpackBound(Uint32* const outputBuffer,
+                   const ScanBound& bound,
+                   KeyBoundC& searchBound);
   void findFrag(EmulatedJamBuffer* jamBuf, const Index& index, 
                 Uint32 fragId, FragPtr& fragPtr);
 
@@ -625,8 +641,8 @@ private:
    */
   int allocNode(TuxCtx&, NodeHandle& node);
   void freeNode(NodeHandle& node);
-  void selectNode(NodeHandle& node, TupLoc loc);
-  void insertNode(NodeHandle& node);
+  void selectNode(TuxCtx&, NodeHandle& node, TupLoc loc);
+  void insertNode(TuxCtx&, NodeHandle& node);
   void deleteNode(NodeHandle& node);
   void freePreallocatedNode(Frag& frag);
   void setNodePref(struct TuxCtx &, NodeHandle& node);
@@ -676,11 +692,12 @@ private:
   void execACCKEYCONF(Signal* signal);
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
-  void scanFirst(ScanOpPtr scanPtr);
-  void scanFind(ScanOpPtr scanPtr);
-  void scanNext(ScanOpPtr scanPtr, bool fromMaintReq);
-  bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent);
-  bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
+  void scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index);
+  void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag);
+  void scanFind(ScanOpPtr scanPtr, Frag& frag);
+  Uint32 scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
+  bool scanCheck(ScanOp& scan, TreeEnt ent);
+  bool scanVisible(ScanOp& scan, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void abortAccLockOps(Signal* signal, ScanOpPtr scanPtr);
   void addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp);
@@ -690,14 +707,52 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void findNodeToUpdate(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode);
-  bool findPosToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool findPosToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool searchToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void findNodeToScan(Frag& frag, unsigned dir, const KeyBoundC& searchBound, NodeHandle& currNode);
-  void findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos);
-  void searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos);
+  void findNodeToUpdate(TuxCtx&,
+                        Frag& frag,
+                        const KeyBoundArray& searchBound,
+                        TreeEnt searchEnt,
+                        NodeHandle& currNode);
+  bool findPosToAdd(TuxCtx&,
+                    Frag& frag,
+                    const KeyBoundArray& searchBound,
+                    TreeEnt searchEnt,
+                    NodeHandle& currNode,
+                    TreePos& treePos);
+  bool findPosToRemove(TuxCtx&,
+                       TreeEnt searchEnt,
+                       NodeHandle& currNode,
+                       TreePos& treePos);
+  bool searchToAdd(TuxCtx&,
+                   Frag& frag,
+                   const KeyBoundArray& searchBound,
+                   TreeEnt searchEnt,
+                   TreePos& treePos);
+  bool searchToRemove(TuxCtx&,
+                      Frag& frag,
+                      const KeyBoundArray& searchBound,
+                      TreeEnt searchEnt,
+                      TreePos& treePos);
+  void findNodeToScan(Frag& frag,
+                      unsigned dir,
+                      const KeyBoundArray& searchBound,
+                      NodeHandle& currNode);
+  void findPosToScan(Frag& frag,
+                     unsigned idir,
+                     const KeyBoundArray& searchBound,
+                     NodeHandle& currNode,
+                     Uint32* pos);
+  void searchToScan(Frag& frag,
+                    unsigned idir,
+                    const KeyBoundArray& searchBound,
+                    TreePos& treePos);
+
+  /**
+   * Prepare methods
+   * These methods are setting up variables that are precomputed to avoid having
+   * to compute those every time we need them.
+   */
+  void prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP);
+  void prepare_move_scan_ctx(ScanOpPtr scanPtr);
 
   /*
    * DbtuxCmp.cpp
@@ -790,14 +845,43 @@ private:
   {
     EmulatedJamBuffer * jamBuffer;
 
+
+    ScanOpPtr scanPtr;
+    FragPtr fragPtr;
+    IndexPtr indexPtr;
+    Uint32 *tupIndexFragPtr;
+    Uint32 *tupIndexTablePtr;
+    Uint32 *tupRealFragPtr;
+    Uint32 *tupRealTablePtr;
+    Uint32 attrDataOffset;
+    Uint32 tuxFixHeaderSize;
+
+    KeyDataArray searchScanDataArray;
+    KeyBoundArray searchScanBoundArray;
+    Uint32 *keyAttrs;
+
+    KeyDataArray searchKeyDataArray;
+    KeyBoundArray searchKeyBoundArray;
+
+    Uint32 scanBoundCnt;
+    Uint32 descending;
+
+    TreeEnt m_current_ent;
+
     // buffer for scan bound and search key data
     Uint32* c_searchKey;
+
+    // buffer for scan bound and search key data for next key
+    Uint32* c_nextKey;
 
     // buffer for current entry key data
     Uint32* c_entryKey;
 
     // buffer for xfrm-ed PK and for temporary use
     Uint32* c_dataBuffer;
+
+    // buffer for xfrm-ed PK and for temporary use
+    Uint32* c_boundBuffer;
 
 #ifdef VM_TRACE
     char* c_debugBuffer;
@@ -828,6 +912,9 @@ private:
 
 public:
   static Uint32 mt_buildIndexFragment_wrapper(void*);
+  void prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr);
+  void prepare_tup_ptrs(TuxCtx& ctx);
+  void prepare_all_tup_ptrs(TuxCtx& ctx);
 private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 
@@ -995,8 +1082,8 @@ Dbtux::TreeHead::getEntList(TreeNode* node) const
 inline
 Dbtux::TreePos::TreePos() :
   m_loc(),
-  m_pos(ZNIL),
-  m_dir(255)
+  m_pos(Uint32(~0)),
+  m_dir(Uint32(~0))
 {
 }
 
@@ -1030,9 +1117,9 @@ Dbtux::ScanBound::ScanBound() :
 
 inline
 Dbtux::ScanOp::ScanOp() :
-  m_state(Undef),
-  m_lockwait(false),
   m_errorCode(0),
+  m_lockwait(false),
+  m_state(Undef),
   m_userPtr(RNIL),
   m_userRef(RNIL),
   m_tableId(RNIL),
@@ -1398,8 +1485,16 @@ Dbtux::max(unsigned x, unsigned y)
 
 // DbtuxCmp.cpp
 
+/**
+ * Can be called from MT-build of ordered indexes,
+ * but it doesn't make use of the MT-context other
+ * than for debug printouts.
+ */
 inline int
-Dbtux::cmpSearchKey(TuxCtx& ctx, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
+Dbtux::cmpSearchKey(TuxCtx& ctx,
+                    const KeyDataC& searchKey,
+                    const KeyDataC& entryKey,
+                    Uint32 cnt)
 {
   // compare cnt attributes from each
   Uint32 num_eq;
@@ -1432,7 +1527,19 @@ Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC&
   return ret;
 }
 
-
+inline
+void
+Dbtux::prepare_all_tup_ptrs(TuxCtx& ctx)
+{
+  c_tup->get_all_tup_ptrs(ctx.fragPtr.p->m_tupIndexFragPtrI,
+                          ctx.fragPtr.p->m_tupTableFragPtrI,
+                          &ctx.tupIndexFragPtr,
+                          &ctx.tupIndexTablePtr,
+                          &ctx.tupRealFragPtr,
+                          &ctx.tupRealTablePtr,
+                          ctx.attrDataOffset,
+                          ctx.tuxFixHeaderSize);
+}
 #undef JAM_FILE_ID
 
 #endif

@@ -23,6 +23,8 @@
 #ifndef RPL_SERVICE_INTERFACE_INCLUDE
 #define RPL_SERVICE_INTERFACE_INCLUDE
 
+#include <string>
+
 // Channel errors
 
 #define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR -1
@@ -196,8 +198,8 @@ int channel_stop(const char *channel, int threads_to_stop, long timeout);
     @retval 0      OK
     @retval !=0    Error
 */
-int channel_stop_all(int threads_to_stop, long timeout, char **error_message);
-
+int channel_stop_all(int threads_to_stop, long timeout,
+                     std::string *error_message);
 /**
   Purges the channel logs
 

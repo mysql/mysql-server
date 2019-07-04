@@ -149,12 +149,20 @@ else()
 #  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
-# Suppress a few compiler warnings
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  ADD_COMPILE_FLAGS(${ADAPTER_SOURCE_FILES}
-                    COMPILE_FLAGS
-                    "-Wno-unused-parameter")
-ENDIF()
+
+# Disable certain compiler warnings
+FOREACH(warning
+        "unused-parameter"
+        "cast-function-type"
+        "undefined-reinterpret-cast"
+       )
+  STRING(REPLACE "-" "_" warning_ ${warning})
+  STRING(TOUPPER ${warning_} WARNING)
+  CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+  IF(HAVE_${WARNING})
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+  ENDIF()
+ENDFOREACH()
 
 add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
 

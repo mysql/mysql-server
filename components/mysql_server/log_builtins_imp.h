@@ -42,6 +42,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/log_shared.h>
 
+enum log_sink_buffer_flush_mode {
+  LOG_BUFFER_DISCARD_ONLY,
+  LOG_BUFFER_PROCESS_AND_DISCARD,
+  LOG_BUFFER_REPORT_AND_KEEP
+};
+
+/**
+  Release all buffered log-events (discard_error_log_messages()),
+  optionally after running them through the error log stack first
+  (flush_error_log_messages()). Safe to call repeatedly (though
+  subsequent calls will only output anything if further events
+  occurred after the previous flush).
+
+  @param  mode  LOG_BUFFER_DISCARD_ONLY (to just
+                throw away the buffered events), or
+                LOG_BUFFER_PROCESS_AND_DISCARD to
+                filter/print them first, or
+                LOG_BUFFER_REPORT_AND_KEEP to print
+                an intermediate report on time-out
+*/
+void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode);
+
 /**
   Maximum number of key/value pairs in a log event.
   May be changed or abolished later.

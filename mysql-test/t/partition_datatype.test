@@ -390,7 +390,10 @@ WHERE a BETWEEN '2011-10-29 23:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
 --echo # Test end range changes
 DELETE FROM t2 WHERE a = 0;
+# Different number of warnings with/without ps-protocol
+--disable_warnings
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'UTC');
+--enable_warnings
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT * FROM t2 ORDER BY a, tz LIMIT 3;
@@ -404,7 +407,10 @@ WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
 
 --echo # Test start range changes
+# Different number of warnings with/without ps-protocol
+--disable_warnings
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'UTC');
+--enable_warnings
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT * FROM t2 ORDER BY a, tz LIMIT 3;
@@ -515,7 +521,10 @@ WHERE a BETWEEN '2011-10-29 01:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
 --echo # Test end range changes
 DELETE FROM t2 WHERE a = 0;
+# Different number of warnings with/without ps-protocol
+--disable_warnings
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'Moscow');
+--enable_warnings
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT * FROM t2 ORDER BY a, tz LIMIT 3;
@@ -529,7 +538,10 @@ WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
 
 --echo # Test start range changes
+# Different number of warnings with/without ps-protocol
+--disable_warnings
 INSERT INTO t2 VALUES ('1970-01-01 00:00:00', 'Moscow');
+--enable_warnings
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT * FROM t2 ORDER BY a, tz LIMIT 3;

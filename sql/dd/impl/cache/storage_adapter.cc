@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
-#include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
-#include "sql/dd/impl/bootstrap_ctx.h"       // bootstrap::DD_bootstrap_ctx
+#include "sql/dd/cache/dictionary_client.h"       // Dictionary_client
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // bootstrap::DD_bootstrap_ctx
 #include "sql/dd/impl/cache/cache_element.h"
 #include "sql/dd/impl/raw/object_keys.h"           // Primary_id_key
 #include "sql/dd/impl/raw/raw_record.h"            // Raw_record
@@ -67,7 +67,7 @@
 #include "sql/dd/types/table_stat.h"                // Table_stat
 #include "sql/dd/types/tablespace.h"                // Tablespace
 #include "sql/dd/types/view.h"                      // View
-#include "sql/dd/upgrade/upgrade.h"                 // allow_sdi_creation
+#include "sql/dd/upgrade_57/upgrade.h"              // allow_sdi_creation
 #include "sql/debug_sync.h"                         // DEBUG_SYNC
 #include "sql/log.h"
 #include "sql/sql_class.h"  // THD
@@ -122,6 +122,25 @@ void Storage_adapter::core_get(const K &key, const T **object) {
     // the shared cache will also make it vanish from the core storage.
     *object = dynamic_cast<const T *>(element->object())->clone();
   }
+}
+
+// Update the dictionary object for a dd entity in the core registry.
+void Storage_adapter::core_update(const dd::Tablespace *new_tsp) {
+  if (new_tsp->id() != MYSQL_TABLESPACE_DD_ID) {
+    return;
+  }
+
+  Cache_element<typename dd::Tablespace::Cache_partition> *element = nullptr;
+  typename dd::Tablespace::Id_key key(new_tsp->id());
+  MUTEX_LOCK(lock, &m_lock);
+  m_core_registry.get(key, &element);
+  DBUG_ASSERT(element != nullptr);
+  m_core_registry.remove(element);
+  std::unique_ptr<const dd::Tablespace> old{element->object()};
+
+  element->set_object(new_tsp->clone());
+  element->recreate_keys();
+  m_core_registry.put(element);
 }
 
 // Get a dictionary object from persistent storage.
@@ -495,13 +514,13 @@ template bool Storage_adapter::drop(THD *, const Event *);
 template bool Storage_adapter::store(THD *, Event *);
 
 template bool Storage_adapter::get<Resource_group::Id_key, Resource_group>(
-    THD *, const Tablespace::Id_key &, enum_tx_isolation, bool,
+    THD *, const Resource_group::Id_key &, enum_tx_isolation, bool,
     const Resource_group **);
 template bool Storage_adapter::get<Resource_group::Name_key, Resource_group>(
-    THD *, const Tablespace::Name_key &, enum_tx_isolation, bool,
+    THD *, const Resource_group::Name_key &, enum_tx_isolation, bool,
     const Resource_group **);
 template bool Storage_adapter::get<Resource_group::Aux_key, Resource_group>(
-    THD *, const Tablespace::Aux_key &, enum_tx_isolation, bool,
+    THD *, const Resource_group::Aux_key &, enum_tx_isolation, bool,
     const Resource_group **);
 template bool Storage_adapter::drop(THD *, const Resource_group *);
 template bool Storage_adapter::store(THD *, Resource_group *);

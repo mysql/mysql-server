@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -399,14 +399,14 @@ struct B0 {
 
     B0() : d0(21), d0c(-21) {
         TRACE("B0()");
-    };
+    }
 
     B0(const B0 & b0) : d0(b0.d0), d0c(b0.d0c) {
         TRACE("B0(const B0 &)");
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
-    };
+    }
 
-    virtual ~B0() {};
+    virtual ~B0() {}
 
     B0 & operator=(const B0 & p) {
         TRACE("B0 & operator=(const B0 &)");
@@ -420,17 +420,17 @@ struct B0 {
     static int32_t f0s() {
         TRACE("int32_t B0::f0s()");
         return 20;
-    };
+    }
 
     int32_t f0n() const {
         TRACE("int32_t B0::f0n()");
         return 21;
-    };
+    }
 
     virtual int32_t f0v() const {
         TRACE("int32_t B0::f0v()");
         return 22;
-    };
+    }
 
 };
 
@@ -447,14 +447,14 @@ struct B1 : public B0 {
 
     B1() : d0(31), d0c(-31) {
         TRACE("B1()");
-    };
+    }
 
     B1(const B1 & b1) : B0(b1), d0(b1.d0), d0c(b1.d0c) {
         TRACE("B1(const B1 &)");
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
-    };
+    }
 
-    virtual ~B1() {};
+    virtual ~B1() {}
 
     B1 & operator=(const B1 & p) {
         TRACE("B1 & operator=(const B1 &)");
@@ -468,17 +468,17 @@ struct B1 : public B0 {
     static int32_t f0s() {
         TRACE("int32_t B1::f0s()");
         return 30;
-    };
+    }
 
     int32_t f0n() const {
         TRACE("int32_t B1::f0n()");
         return 31;
-    };
+    }
 
     virtual int32_t f0v() const {
         TRACE("int32_t B1::f0v()");
         return 32;
-    };
+    }
 };
 
 struct A {
@@ -495,21 +495,21 @@ struct A {
 
     A() : d0(11), d0c(-11) {
         TRACE("A()");
-    };
+    }
 
     A(int i) : d0(11), d0c(-11) {
         TRACE("A(int)");
         (void)i;
-    };
+    }
 
     A(const A & a) : d0(a.d0), d0c(a.d0c) {
         TRACE("A(const A &)");
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
-    };
+    }
 
     virtual ~A() {
         TRACE("~A()");
-    };
+    }
 
     A & operator=(const A & p) {
         TRACE("A & operator=(const A &)");
@@ -523,76 +523,76 @@ struct A {
     static A * deliver_ptr() {
         TRACE("A * A::deliver_ptr()");
         return A::a;
-    };
+    }
 
     static A * deliver_null_ptr() {
         TRACE("A * A::deliver_null_ptr()");
         return NULL;
-    };
+    }
 
     static A & deliver_ref() {
         TRACE("A & A::deliver_ref()");
         return *A::a;
-    };
+    }
 
 
     static void take_ptr(A * o) {
         TRACE("void A::take_ptr(A *)");
         if (o != A::a) ABORT_ERROR("void A::take_ptr(A *)");
-    };
+    }
 
     static void take_null_ptr(A * o) {
         TRACE("void A::take_null_ptr(A *)");
         if (o != NULL) ABORT_ERROR("void A::take_null_ptr(A *)");
-    };
+    }
 
     static void take_ref(A & o) {
         TRACE("void A::take_ref(A &)");
         if (&o != A::a) ABORT_ERROR("void A::take_ref(A &)");
-    };
+    }
 
     static void print(A * p0) {
         TRACE("void A::print(A *)");
         printf("    p0 = %p\n", (void*)p0);
         fflush(stdout);
-    };
+    }
 
     // ----------------------------------------------------------------------
 
     B0 * newB0() const {
         TRACE("B0 A::newB0()");
         return new B0();
-    };
+    }
 
     B1 * newB1() const {
         TRACE("B1 A::newB1()");
         return new B1();
-    };
+    }
 
     static int32_t f0s() {
         TRACE("int32_t A::f0s()");
         return 10;
-    };
+    }
 
     int32_t f0n() const {
         TRACE("int32_t A::f0n()");
         return 11;
-    };
+    }
 
     virtual int32_t f0v() const {
         TRACE("int32_t A::f0v()");
         return 12;
-    };
+    }
 
     void del(B0 & b) {
         TRACE("void A::del(B0 &)");
         delete &b;
-    };
+    }
 
     void del(B1 & b) {
         TRACE("void A::del(B1 &)");
         delete &b;
-    };
+    }
 
     // ----------------------------------------------------------------------
     // varying number of result/parameters
@@ -600,67 +600,67 @@ struct A {
 
     void g0c() const {
         TRACE("void A::g0c()");
-    };
+    }
 
     void g1c(int8_t p0) const {
         TRACE("void A::g1c(int8_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
-    };
+    }
 
     void g2c(int8_t p0, int16_t p1) const {
         TRACE("void A::g2c(int8_t, int16_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         if (p1 != 2) ABORT_ERROR("wrong arg value");
-    };
+    }
 
     void g3c(int8_t p0, int16_t p1, int32_t p2) const {
         TRACE("void A::g3c(int8_t, int16_t, int32_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         if (p1 != 2) ABORT_ERROR("wrong arg value");
         if (p2 != 3) ABORT_ERROR("wrong arg value");
-    };
+    }
 
     void g0() {
         TRACE("void A::g0()");
-    };
+    }
 
     void g1(int8_t p0) {
         TRACE("void A::g1(int8_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
-    };
+    }
 
     void g2(int8_t p0, int16_t p1) {
         TRACE("void A::g2(int8_t, int16_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         if (p1 != 2) ABORT_ERROR("wrong arg value");
-    };
+    }
 
     void g3(int8_t p0, int16_t p1, int32_t p2) {
         TRACE("void A::g3(int8_t, int16_t, int32_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         if (p1 != 2) ABORT_ERROR("wrong arg value");
         if (p2 != 3) ABORT_ERROR("wrong arg value");
-    };
+    }
 
     // ----------------------------------------------------------------------
 
     int32_t g0rc() const {
         TRACE("int32_t A::g0rc()");
         return 0;
-    };
+    }
 
     int32_t g1rc(int8_t p0) const {
         TRACE("int32_t A::g1rc(int8_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         return p0;
-    };
+    }
 
     int32_t g2rc(int8_t p0, int16_t p1) const {
         TRACE("int32_t A::g2rc(int8_t, int16_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         if (p1 != 2) ABORT_ERROR("wrong arg value");
         return p0 + p1;
-    };
+    }
 
     int32_t g3rc(int8_t p0, int16_t p1, int32_t p2) const {
         TRACE("int32_t A::g3rc(int8_t, int16_t, int32_t)");
@@ -668,25 +668,25 @@ struct A {
         if (p1 != 2) ABORT_ERROR("wrong arg value");
         if (p2 != 3) ABORT_ERROR("wrong arg value");
         return p0 + p1 + p2;
-    };
+    }
 
     int32_t g0r() {
         TRACE("int32_t A::g0r()");
         return 0;
-    };
+    }
 
     int32_t g1r(int8_t p0) {
         TRACE("int32_t A::g1r(int8_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         return p0;
-    };
+    }
 
     int32_t g2r(int8_t p0, int16_t p1) {
         TRACE("int32_t A::g2r(int8_t, int16_t)");
         if (p0 != 1) ABORT_ERROR("wrong arg value");
         if (p1 != 2) ABORT_ERROR("wrong arg value");
         return p0 + p1;
-    };
+    }
 
     int32_t g3r(int8_t p0, int16_t p1, int32_t p2) {
         TRACE("int32_t A::g3r(int8_t, int16_t, int32_t)");
@@ -694,7 +694,7 @@ struct A {
         if (p1 != 2) ABORT_ERROR("wrong arg value");
         if (p2 != 3) ABORT_ERROR("wrong arg value");
         return p0 + p1 + p2;
-    };
+    }
 };
 
 // ----------------------------------------------------------------------
@@ -878,17 +878,17 @@ struct C1 : public C0 {
 
     C1() {
         TRACE("C1()");
-    };
+    }
 
     C1(const C1 & o) : C0(o) {
         TRACE("C1(const C1 &)");
         (void)o;
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
-    };
+    }
 
     virtual ~C1() {
         TRACE("~C1()");
-    };
+    }
 
     C1 & operator=(const C1 & p) {
         TRACE("C1 & operator=(const C1 &)");
@@ -930,46 +930,46 @@ struct C1 : public C0 {
     const C1 * deliver_C1Cp() const {
         TRACE("const C1 * C1::deliver_C1Cp() const");
         return cc;
-    };
+    }
 
     const C1 & deliver_C1Cr() const {
         TRACE("const C1 & C1::deliver_C1Cr() const");
         return *cc;
-    };
+    }
 
     void take_C1Cp(const C1 * cp) const {
         TRACE("void C1::take_C1Cp(const C1 *) const");
         if (cp != C1::c && cp != C1::cc)
             ABORT_ERROR("cp != C1::c && cp != C1::cc");
-    };
+    }
 
     void take_C1Cr(const C1 & cp) const {
         TRACE("void C1::take_C1Cr(const C1 &) const");
         if (&cp != C1::c && &cp != C1::cc)
             ABORT_ERROR("&cp != C1::c && &cp != C1::cc");
-    };
+    }
 
     C1 * deliver_C1p() {
         TRACE("C1 * C1::deliver_C1p()");
         return c;
-    };
+    }
 
     C1 & deliver_C1r() {
         TRACE("C1 & C1::deliver_C1r()");
         return *c;
-    };
+    }
 
     void take_C1p(C1 * p) {
         TRACE("void C1::take_C1p(C1 *)");
         if (p != C1::c)
             ABORT_ERROR("p != C1::c");
-    };
+    }
 
     void take_C1r(C1 & p) {
         TRACE("void C1::take_C1r(C1 &)");
         if (&p != C1::c)
             ABORT_ERROR("&p != C1::c");
-    };
+    }
 };
 
 // ----------------------------------------------------------------------
@@ -1029,17 +1029,17 @@ struct E {
     static EE deliver_EE1() {
         TRACE("E::EE E::deliver_EE1()");
         return EE1;
-    };
+    }
 
     static void take_EE1(EE e) {
         TRACE("void E::take_EE1(E::EE)");
         if (e != EE1) ABORT_ERROR("e != EE1");
-    };
+    }
 
     static void take_EE1c(const EE e) {
         TRACE("void E::take_EE1c(const E::EE)");
         if (e != EE1) ABORT_ERROR("e != EE1");
-    };
+    }
 
 private:
     // no need to instantiate

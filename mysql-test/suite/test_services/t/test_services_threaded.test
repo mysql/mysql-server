@@ -32,12 +32,12 @@ UNINSTALL PLUGIN test_services_threaded;
 # Restore log_error_verbosity
 SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
---disable_warnings
-
 --echo ------ Service: LogPluginErr ----------------------------
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
+--disable_warnings ER_WARN_TOO_MANY_RECORDS
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA LOCAL INFILE '$server_log' INTO TABLE t1
      FIELDS TERMINATED BY ' [';
    SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
+--enable_warnings ER_WARN_TOO_MANY_RECORDS
 DROP TABLE IF EXISTS t1;

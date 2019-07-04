@@ -26,10 +26,10 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_MEMORY_H_
 
 #include <mysql/plugin.h>
+#include <memory>
 
 #include "my_compiler.h"
-#include "plugin/x/ngs/include/ngs_common/config.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/src/config/config.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
@@ -76,9 +76,9 @@ T *allocate_object(Args &&... args) {
 }
 
 template <typename T, typename... Args>
-ngs::shared_ptr<T> allocate_shared(Args &&... args) {
-  return ngs::detail::allocate_shared<T>(detail::PFS_allocator<T>(),
-                                         std::forward<Args>(args)...);
+std::shared_ptr<T> allocate_shared(Args &&... args) {
+  return std::allocate_shared<T>(detail::PFS_allocator<T>(),
+                                 std::forward<Args>(args)...);
 }
 
 // allocates array of selected type using mysql server instrumentation
@@ -95,7 +95,7 @@ template <typename ArrayType>
 void reallocate_array(ArrayType *&array_ptr, std::size_t size,
                       unsigned int psf_key) {
   if (NULL == array_ptr) {
-    ngs::allocate_array(array_ptr, size, psf_key);
+    allocate_array(array_ptr, size, psf_key);
     return;
   }
 
@@ -116,7 +116,7 @@ struct Memory_instrumented {
     void operator()(Type *ptr) { free_object(ptr); }
   };
 
-  typedef ngs::unique_ptr<Type, Unary_delete> Unique_ptr;
+  typedef std::unique_ptr<Type, Unary_delete> Unique_ptr;
 };
 
 // PSF instrumented string

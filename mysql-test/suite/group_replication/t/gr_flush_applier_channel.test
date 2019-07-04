@@ -7,11 +7,13 @@
 # 1. Setup a new group with two members.
 # 2. Check there are two relay logs of applier channel before the attempt to
 #    flush it.
-# 3. Try flush relay logs on applier channel with member ONLINE. It must FAIL.
-# 4. Check there are still two relay logs of applier channel after the attempt
+# 3. Try flush relay logs on applier channel with member ONLINE. It must
+#    SUCCEED.
+# 4. Check there is a new relay log of applier channel after the attempt
 #    to flush it.
-# 5. Try flush relay logs on applier channel with member OFFLINE. It must FAIL.
-# 6. Check there are still two relay logs of applier channel after the attempt
+# 5. Try flush relay logs on applier channel with member OFFLINE. It must
+#    SUCCEED.
+# 6. Check there is a new relay log of applier channel after the attempt
 #    to flush it.
 ################################################################################
 
@@ -32,32 +34,24 @@
 --echo # Try flush applier channel with Group Replication working.
 --echo #
 --connection server2
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 FLUSH RELAY LOGS FOR CHANNEL "group_replication_applier";
 
 --echo #
---echo # There are still only two relay logs of Group Replication
---echo # applier channel after trying to flush it.
+--echo # There is a new relay log of Group Replication applier channel after
+--echo # trying to flush it.
 --echo #
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000001
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000002
---error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000003
 
 --echo #
 --echo # Try flush applier channel with Group Replication stopped.
 --echo #
 --source include/stop_group_replication.inc
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-FLUSH RELAY LOGS FOR CHANNEL "group_replication_applier";
+FLUSH LOCAL RELAY LOGS FOR CHANNEL "group_replication_applier";
 
 --echo #
---echo # There are still only two relay logs of Group Replication
---echo # applier channel after trying to flush it.
+--echo # There is a new relay log of Group Replication applier channel after
+--echo # trying to flush it.
 --echo #
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000001
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000002
---error 1
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000003
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000004
 
 --source include/group_replication_end.inc

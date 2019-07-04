@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
@@ -72,7 +73,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_4
+#define MY_XCOM_PROTO x_1_6
 
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
@@ -166,8 +167,8 @@ int flush_srv_buf(server *s, int64_t *ret) {
   ep->buflen = s->out_buf.n;
   reset_srv_buf(&s->out_buf);
   if (s->con.fd >= 0) {
-    int64_t sent = 0;
     if (ep->buflen) {
+      int64_t sent;
       /* DBGOUT(FN; PTREXP(stack); NDBG(ep->buflen, u)); */
       /* LOCK_FD(s->con.fd, 'w'); */
       TASK_CALL(task_write(&s->con, s->out_buf.buf, ep->buflen, &sent));
@@ -175,14 +176,76 @@ int flush_srv_buf(server *s, int64_t *ret) {
       if (sent <= 0) {
         shutdown_connection(&s->con);
       }
+      TASK_RETURN(sent);
     }
-    TASK_RETURN(sent);
+    TASK_RETURN(0);
   } else {
     TASK_FAIL;
   }
 
   FINALLY
   TASK_END;
+}
+
+/*
+This function checks if a new node entering the system that is from a lower
+version than us, is able to speak to every node in the system. This is used
+for rolling downgrade purposes.
+
+For this, we will check if every node in the current configuration is reachable
+via IPv4 either by address or by name.
+
+If there is at least one single node that is reachable ONLY through IPv6, this
+should fail. A DBA then must ensure that all nodes are configured with an
+address that is reachable via IPv4 old nodes.
+*/
+int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
+                                  const site_def *current_site_def) {
+  if (incoming_proto >= MY_XCOM_PROTO) return 0;  // For sure it will speak V6
+
+  // I must check if all nodes are IPv4-reachable.
+  // This means that:
+  // - They are configured with an IPv4 raw address
+  // - They have a name that is reachable via IPv4 name resolution
+  if (current_site_def == NULL)
+    return 0;  // This means that we are the ones entering a group
+
+  int number_of_nodes = current_site_def->nodes.node_list_len;
+  node_address *na = current_site_def->nodes.node_list_val;
+  int node;
+
+  // For each node in the current configuration
+  for (node = 0; node < number_of_nodes; node++) {
+    int has_ipv4_address = 0;
+
+    struct addrinfo *node_addr = NULL, *node_addr_cycle = NULL;
+
+    char ip[IP_MAX_SIZE];
+    xcom_port port;
+    if (get_ip_and_port(na[node].address, ip, &port)) {
+      G_DEBUG("Error parsing IP and Port. Returning an error");
+      return 1;
+    }
+
+    // Query the name server
+    checked_getaddrinfo(ip, NULL, NULL, &node_addr);
+
+    // Lets cycle through all returned addresses and check if at least one
+    // address is reachable via IPv4.
+    node_addr_cycle = node_addr;
+    while (!has_ipv4_address && node_addr_cycle) {
+      if (node_addr_cycle->ai_family == AF_INET) {
+        has_ipv4_address = 1;
+      }
+      node_addr_cycle = node_addr_cycle->ai_next;
+    }
+
+    if (node_addr) freeaddrinfo(node_addr);
+
+    if (!has_ipv4_address) return 1;
+  }
+
+  return 0;
 }
 
 /* Send a message to server s */
@@ -203,10 +266,10 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
     TASK_RETURN(sizeof(*p));
   } else {
     if (s->con.fd >= 0) {
-      int64_t sent = 0;
       /* LOCK_FD(s->con.fd, 'w'); */
       serialize_msg(p, s->con.x_proto, &ep->buflen, &ep->buf);
       if (ep->buflen) {
+        int64_t sent;
         /* Not enough space? Flush the buffer */
         if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
           TASK_CALL(flush_srv_buf(s, ret));
@@ -240,8 +303,9 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
         if (sent <= 0) {
           shutdown_connection(&s->con);
         }
+        TASK_RETURN(sent);
       }
-      TASK_RETURN(sent);
+      TASK_RETURN(0);
     } else
       TASK_FAIL;
   }
@@ -684,6 +748,12 @@ static server *mksrv(char *srv, xcom_port port) {
                                 "reply_handler_task", XCOM_THREAD_DEBUG);
   }
   reset_srv_buf(&s->out_buf);
+  /*
+   Keep the server from being freed if the acceptor_learner_task calls
+   srv_unref on the server before the {local_,}server_task and
+   reply_handler_task begin.
+  */
+  srv_ref(s);
   return s;
 }
 
@@ -789,6 +859,9 @@ static void shut_srv(server *s) {
   /* Tasks will free the server object when they terminate */
   if (s->sender) task_terminate(s->sender);
   if (s->reply_handler) task_terminate(s->reply_handler);
+
+  // Allow the server to be freed. This unref pairs with the ref from mksrv.
+  srv_unref(s);
 }
 
 int srv_ref(server *s) {
@@ -853,6 +926,7 @@ int tcp_server(task_arg arg) {
 #ifdef XCOM_HAVE_OPENSSL
 #define SSL_CONNECT(con, hostname)                                   \
   {                                                                  \
+    result ret;                                                      \
     con.ssl_fd = SSL_new(client_ctx);                                \
     SSL_set_fd(con.ssl_fd, con.fd);                                  \
     ERR_clear_error();                                               \
@@ -917,7 +991,6 @@ static int dial(server *s) {
     unblock_fd(s->con.fd);
 #ifdef XCOM_HAVE_OPENSSL
     if (xcom_use_ssl()) {
-      result ret = {0, 0};
       SSL_CONNECT(s->con, s->srv);
     }
 #endif
@@ -1164,10 +1237,9 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   } else {
     /* Buffered read makes sense */
     while (ep->left > 0) {
-      int64_t nread = 0;
+      int64_t nread;
       /* Buffer is empty, reset and read */
       reset_srv_buf(buf);
-      MAY_DBG(FN; NDBG(rfd->fd, d); NDBG64(nread););
 
       TASK_CALL(task_read(rfd, srv_buf_insert_ptr(buf),
                           (int)srv_buf_free_space(buf), &nread));
@@ -1247,6 +1319,14 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
           add_event(string_arg("incoming connection will use protcol version"));
           add_event(string_arg(xcom_proto_to_str(rfd->x_proto))););
       if (rfd->x_proto > my_xcom_version) TASK_FAIL;
+      if (is_new_node_eligible_for_ipv6(ep->x_version, get_site_def())) {
+        G_WARNING(
+            "Incoming node is not eligible to enter the group due to lack "
+            "of IPv6 support. There is at least one group member that is "
+            "reachable only via IPv6. Please configure the whole group with "
+            "IPv4 addresses and try again");
+        TASK_FAIL;
+      }
       set_connected(rfd, CON_PROTO);
       TASK_CALL(send_proto(rfd, rfd->x_proto, x_version_reply, ep->tag, ret));
     } else if (ep->x_type == x_version_reply) {
@@ -1345,6 +1425,15 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
           add_event(string_arg("incoming connection will use protcol version"));
           add_event(string_arg(xcom_proto_to_str(rfd->x_proto))););
       if (rfd->x_proto > my_xcom_version) TASK_FAIL;
+      if (is_new_node_eligible_for_ipv6(ep->x_version, get_site_def())) {
+        G_WARNING(
+            "Incoming node is not eligible to enter the group due to lack "
+            "of IPv6 support. There is at least one group member that is "
+            "reachable only via IPv6. Please configure the whole group with "
+            "IPv4 addresses and try again");
+        TASK_FAIL;
+      }
+
       set_connected(rfd, CON_PROTO);
       TASK_CALL(send_proto(rfd, rfd->x_proto, x_version_reply, ep->tag, ret));
     } else if (ep->x_type == x_version_reply) {
@@ -1619,47 +1708,6 @@ int local_sender_task(task_arg arg) {
 
 /* }}} */
 
-static int end_token(char *a) {
-  int i = 0;
-  while (a[i] != 0 && a[i] != ':') {
-    i++;
-  }
-  return (i);
-}
-
-static char *token_copy(char *a, int i) {
-  char *ret;
-  ret = calloc((size_t)1, (size_t)(i + 1));
-  if (!ret) return ret;
-  ret[i--] = 0;
-  while (i >= 0) {
-    ret[i] = a[i];
-    i--;
-  }
-  return ret;
-}
-
-/* Get host name from host:port string */
-static char *get_name(char *a) {
-  int i = end_token(a);
-  return token_copy(a, i);
-}
-
-/* Get host name from host:port string */
-char *xcom_get_name(char *a) { return get_name(a); }
-
-/* Get port from host:port string */
-static xcom_port get_port(char *a) {
-  int i = end_token(a);
-  if (a[i] != 0) {
-    int port = atoi(a + i + 1);
-    if (number_is_valid_port(port)) return (xcom_port)port;
-  }
-  return 0;
-}
-
-xcom_port xcom_get_port(char *a) { return a ? get_port(a) : 0; }
-
 static server *find_server(server *table[], int n, char *name, xcom_port port) {
   int i;
   for (i = 0; i < n; i++) {
@@ -1682,14 +1730,25 @@ void update_servers(site_def *s, cargo_type operation) {
 
     for (i = 0; i < n; i++) {
       char *addr = s->nodes.node_list_val[i].address;
-      char *name = get_name(addr);
-      xcom_port port = get_port(addr);
+
+      char *name = NULL;
+      name = (char *)malloc(IP_MAX_SIZE);
+      xcom_port port = 0;
+
+      // In this specific place, addr mut have been validated elsewhere,
+      // specifically when the node is added.
+      if (get_ip_and_port(addr, name, &port)) {
+        G_INFO("Error parsing ip:port for new server. Incorrect value is %s",
+               addr ? addr : "unknown");
+        continue;
+      }
+
       server *sp = find_server(all_servers, maxservers, name, port);
 
       if (sp) {
         G_INFO("Re-using server node %d host %s", i, name);
-        free(name);
         s->servers[i] = sp;
+        free(name);
         if (sp->invalid) sp->invalid = 0;
       } else { /* No server? Create one */
         G_INFO("Creating new server node %d host %s", i, name);
@@ -1730,15 +1789,17 @@ void invalidate_servers(const site_def *old_site_def,
 
     if (!node_exists(node_addr_from_old_site_def, &new_site_def->nodes)) {
       char *addr = node_addr_from_old_site_def->address;
-      char *name = get_name(addr);
-      xcom_port port = get_port(addr);
+      char name[IP_MAX_SIZE];
+      xcom_port port = 0;
+
+      // Not processing any error here since it belongs to an already validated
+      // configuration.
+      get_ip_and_port(addr, name, &port);
 
       server *sp = find_server(all_servers, maxservers, name, port);
       if (sp) {
         sp->invalid = 1;
       }
-
-      if (name) free(name);
     }
   }
 }
@@ -1750,12 +1811,14 @@ int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
   END_ENV;
   TASK_BEGIN
   while (!xcom_shutdown) {
-    int i;
-    double now = task_now();
-    for (i = 0; i < maxservers; i++) {
-      server *s = all_servers[i];
-      if (s && s->con.fd != -1 && (s->active + 10.0) < now) {
-        shutdown_connection(&s->con);
+    {
+      int i;
+      double now = task_now();
+      for (i = 0; i < maxservers; i++) {
+        server *s = all_servers[i];
+        if (s && s->con.fd != -1 && (s->active + 10.0) < now) {
+          shutdown_connection(&s->con);
+        }
       }
     }
     TASK_DELAY(1.0);
@@ -1800,7 +1863,6 @@ static int client_dial(char *srv, xcom_port port, connection_descriptor *con) {
     unblock_fd(con->fd);
 #ifdef XCOM_HAVE_OPENSSL
     if (xcom_use_ssl()) {
-      result ret = {0, 0};
       SSL_CONNECT((*con), srv);
     }
 #endif
@@ -1843,7 +1905,6 @@ int client_task(task_arg arg) {
 
 #ifdef XCOM_HAVE_OPENSSL
   if (xcom_use_ssl()) {
-    result ret = {0, 0};
     SSL_CONNECT(ep->c_descriptor, ep->s->srv);
   }
 #endif
@@ -2010,6 +2071,8 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp) {
     case x_1_2:
     case x_1_3:
     case x_1_4:
+    case x_1_5:
+    case x_1_6:
       retval = xdr_array(xdrs, &x, (u_int *)&objp->node_list_len, NSERVERS,
                          sizeof(node_address), (xdrproc_t)xdr_node_address);
       objp->node_list_val = (node_address *)x;
@@ -2041,19 +2104,37 @@ bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp) {
     case x_1_1:
       if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1 *)objp)) return FALSE;
       if (xdrs->x_op == XDR_DECODE) {
-        objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
-        objp->event_horizon = 0; /* Won't be used, so use 0 to spot if it is */
+        /* Use our own minimum */
+        objp->delivered_msg = get_delivered_msg();
+        /* Won't be used, so use 0 to spot if it is */
+        objp->event_horizon = 0;
+        /* Won't be used, so set as empty */
+        objp->requested_synode_app_data.synode_app_data_array_len = 0;
+        objp->requested_synode_app_data.synode_app_data_array_val = NULL;
       }
       return TRUE;
     case x_1_2:
     case x_1_3:
       if (!xdr_pax_msg_1_2(xdrs, (pax_msg_1_2 *)objp)) return FALSE;
       if (xdrs->x_op == XDR_DECODE) {
-        objp->event_horizon = 0; /* Won't be used, so use 0 to spot if it is */
+        /* Won't be used, so use 0 to spot if it is */
+        objp->event_horizon = 0;
+        /* Won't be used, so set as empty */
+        objp->requested_synode_app_data.synode_app_data_array_len = 0;
+        objp->requested_synode_app_data.synode_app_data_array_val = NULL;
       }
       return TRUE;
     case x_1_4:
-      return xdr_pax_msg_1_4(xdrs, objp);
+    case x_1_5:
+      if (!xdr_pax_msg_1_4(xdrs, (pax_msg_1_4 *)objp)) return FALSE;
+      if (xdrs->x_op == XDR_DECODE) {
+        /* Won't be used, so set as empty */
+        objp->requested_synode_app_data.synode_app_data_array_len = 0;
+        objp->requested_synode_app_data.synode_app_data_array_val = NULL;
+      }
+      return TRUE;
+    case x_1_6:
+      return xdr_pax_msg_1_6(xdrs, objp);
     default:
       return FALSE;
   }
@@ -2071,8 +2152,100 @@ bool_t xdr_config(XDR *xdrs, config *objp) {
       if (xdrs->x_op == XDR_DECODE) objp->event_horizon = EVENT_HORIZON_MIN;
       return TRUE;
     case x_1_4:
+    case x_1_5:
+    case x_1_6:
       return xdr_config_1_4(xdrs, objp);
     default:
       return FALSE;
   }
+}
+
+xcom_proto minimum_ipv6_version() { return x_1_5; }
+
+int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port) {
+  char *is_address_v6_begin = NULL, *is_address_v6_end = NULL;
+
+  if (address == NULL || (strlen(address) == 0)) {
+    return 1;
+  }
+
+  if (ip == NULL) {
+    return 1;
+  }
+
+  is_address_v6_begin = strchr(address, '[') + 1;
+  is_address_v6_end = strchr(address, ']');
+
+  // If 2 square brackets are  found it means that we are in presence of a
+  // possible IPv6 address
+  if (is_address_v6_begin != NULL && is_address_v6_end != NULL) {
+    int address_str_len = (is_address_v6_end - is_address_v6_begin);
+
+    if (address_str_len + 1 > IP_MAX_SIZE || address_str_len < 0) {
+      G_DEBUG(
+          "Malformed Address or Address is bigger than IP_MAX_SIZE which is %d",
+          IP_MAX_SIZE);
+      return 1;
+    }
+
+    memset(ip, '\0', address_str_len + 1);
+    strncpy(ip, is_address_v6_begin, address_str_len);
+
+    // Make sure that we are handing out a valid IP address and not a [trash]
+    // value
+    char *has_colons = NULL;
+    has_colons = strchr(ip, ':');
+    if (has_colons == NULL) {
+      G_WARNING("Malformed IPv6 Address");
+      return 1;
+    }
+
+  } else {  // Then it is a possible IPv4 address or a name
+    char *is_address_v4 = NULL;
+    is_address_v4 = strchr(address, ':');  // Try and find the first :
+
+    if (!is_address_v4) {
+      return 1;
+    } else {
+      // Guarantee that it is the only one colon
+      char *has_more_colons = NULL;
+      has_more_colons = strchr((is_address_v4 + 1), ':');
+      if (has_more_colons) {  // It was a malformed IP v6
+        return 1;
+      }
+    }
+
+    int address_str_len = (is_address_v4 - address);
+
+    if (address_str_len + 1 > IP_MAX_SIZE || address_str_len < 0) {
+      G_DEBUG(
+          "Malformed Address or Address is bigger than IP_MAX_SIZE which is %d",
+          IP_MAX_SIZE);
+      return 1;
+    }
+
+    memset(ip, '\0', address_str_len + 1);
+    strncpy(ip, address, address_str_len);
+  }
+
+  // Extract port if we reached this point
+  char *port_str = strrchr(address, ':');
+
+  long int port_to_int = 0L;
+  if (port_str) {
+    char *end_ptr = NULL;
+    port_to_int = strtol(port_str + 1, &end_ptr, 10);
+
+    if (strlen(end_ptr) != 0) {
+      port_to_int = 0L;
+    }
+  }
+
+  if (port_to_int == 0L) {
+    return 1;
+  }
+
+  *port = port_to_int;
+
+  return 0;
 }

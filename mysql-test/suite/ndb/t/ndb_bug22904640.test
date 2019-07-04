@@ -47,3 +47,4 @@ ALTER TABLE t1 algorithm=inplace, REORGANIZE PARTITION;
 DROP TABLE t1;
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $ndb_desc_file
+--remove_file $NDB_TOOLS_OUTPUT
