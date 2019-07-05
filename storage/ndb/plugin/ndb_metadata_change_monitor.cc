@@ -192,7 +192,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   // Fetch list of tables in NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> ndb_tables_in_NDB;
-  if (!ndb_get_table_names_in_schema(dict, schema_name, ndb_tables_in_NDB)) {
+  if (!ndb_get_table_names_in_schema(dict, schema_name, &ndb_tables_in_NDB)) {
     log_NDB_error(dict->getNdbError());
     log_info("Failed to get list of tables in schema '%s' from NDB",
              schema_name.c_str());

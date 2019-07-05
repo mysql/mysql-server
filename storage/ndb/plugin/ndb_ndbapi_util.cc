@@ -246,9 +246,10 @@ bool ndb_get_tablespace_names(
   return true;
 }
 
-bool ndb_get_table_names_in_schema(
-    NdbDictionary::Dictionary *dict, const std::string &schema_name,
-    std::unordered_set<std::string> &table_names) {
+bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
+                                   const std::string &schema_name,
+                                   std::unordered_set<std::string> *table_names,
+                                   bool skip_util_tables) {
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     return false;
@@ -266,13 +267,22 @@ bool ndb_get_table_names_in_schema(
       continue;
     }
 
+    if (skip_util_tables && schema_name == "mysql" &&
+        (strcmp(elmt.name, "ndb_schema") == 0 ||
+         strcmp(elmt.name, "ndb_schema_result") == 0 ||
+         strcmp(elmt.name, "ndb_sql_metadata") == 0)) {
+      // Skip NDB utility tables. These tables and marked as hidden in the DD
+      // and are handled specifically by the binlog thread
+      continue;
+    }
+
     if (elmt.state == NdbDictionary::Object::StateOnline ||
         elmt.state == NdbDictionary::Object::ObsoleteStateBackup ||
         elmt.state == NdbDictionary::Object::StateBuilding) {
       // Only return the table if they're already usable i.e. StateOnline or
       // StateBackup or if they're expected to be usable soon which is denoted
       // by StateBuilding
-      table_names.insert(elmt.name);
+      table_names->insert(elmt.name);
     }
   }
   return true;
