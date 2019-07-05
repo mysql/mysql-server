@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1713,6 +1713,11 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
         continue;
 
       checked.set(candidate_node);
+
+      if (!impl_ndb->get_node_available(candidate_node))
+      {
+        continue;
+      }
 
       for (Uint32 i = 0; i < nodes_arr_cnt; i++)
       {
