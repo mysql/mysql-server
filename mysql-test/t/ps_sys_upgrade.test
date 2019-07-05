@@ -3,6 +3,8 @@
 #Memory checks will be done by ASAN builds, valgrind timeout on this test.
 --source include/not_valgrind.inc
 
+--source include/mysql_upgrade_preparation.inc
+
 --echo #
 --echo # Upgrading of sys schema tests
 --echo #

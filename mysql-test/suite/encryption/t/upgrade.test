@@ -1,6 +1,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/have_case_sensitive_file_system.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo # This test upgrades schema from 5.7, 8.0 to 8.0.15 where we
 --echo # introduce serveral ENCRYPTION control capabilities in MySQL

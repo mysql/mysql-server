@@ -15,6 +15,7 @@
 
 --source include/have_debug.inc
 --source include/no_valgrind_without_big.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo ########################################################################
 --echo # Assert target schema ids.

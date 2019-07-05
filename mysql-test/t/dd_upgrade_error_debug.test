@@ -8,6 +8,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/have_case_sensitive_file_system.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo ########################################################################
 --echo # Stop the running server.
