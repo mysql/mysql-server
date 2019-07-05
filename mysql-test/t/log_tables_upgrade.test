@@ -1,6 +1,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo #
 --echo # Bug#49823: mysql_upgrade fatal error due to general_log / slow_low CSV NULL

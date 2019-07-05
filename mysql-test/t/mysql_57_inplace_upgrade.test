@@ -1,6 +1,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
+--source include/mysql_upgrade_preparation.inc
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --echo # Set different paths for --datadir
@@ -286,3 +287,4 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 
 --let $restart_parameters = restart:
 --source include/start_mysqld.inc
+--source include/mysql_upgrade_cleanup.inc
