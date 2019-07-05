@@ -590,19 +590,6 @@ class MDL_checker {
   }
 };
 
-// Check if the component is hidden.
-template <typename T>
-bool is_component_hidden(dd::Raw_record *) {
-  return false;
-}
-
-template <>
-bool is_component_hidden<dd::Abstract_table>(dd::Raw_record *r) {
-  return static_cast<dd::Abstract_table::enum_hidden_type>(
-             r->read_int(dd::tables::Tables::FIELD_HIDDEN)) !=
-         dd::Abstract_table::HT_VISIBLE;
-}
-
 using SPI_missing_status = std::bitset<2>;
 enum class SPI_missing_type { TABLES, PARTITIONS };
 using SPI_order = std::vector<dd::Object_id>;
@@ -659,6 +646,53 @@ class SPI_lru_cache_templ {
     return ex;
   }
 };
+
+// Fetch the names of all the components in the schema which match
+// the criteria  provided.
+template <typename T>
+bool fetch_schema_component_names_by_criteria(
+    THD *thd, const dd::Schema *schema, std::vector<dd::String_type> *names,
+    std::function<bool(dd::Raw_record *)> const &fetch_criteria) {
+  DBUG_ASSERT(names);
+
+  // Create the key based on the schema id.
+  std::unique_ptr<dd::Object_key> object_key(
+      T::DD_table::create_key_by_schema_id(schema->id()));
+
+  // Setup read only DD transaction.
+  dd::Transaction_ro trx(thd, ISO_READ_COMMITTED);
+
+  trx.otx.register_tables<T>();
+  dd::Raw_table *table = trx.otx.get_table<T>();
+  DBUG_ASSERT(table);
+
+  if (trx.otx.open_tables()) {
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    return true;
+  }
+
+  std::unique_ptr<dd::Raw_record_set> rs;
+  if (table->open_record_set(object_key.get(), rs)) {
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    return true;
+  }
+
+  dd::Raw_record *r = rs->current_record();
+  dd::String_type s;
+  while (r) {
+    // Get the table name, if the fetch criteria satisfies.
+    if (fetch_criteria(r))
+      names->push_back(r->read_str(T::DD_table::FIELD_NAME));
+
+    if (rs->next(r)) {
+      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+      return true;
+    }
+  }
+
+  return false;
+}
+
 }  // namespace
 
 namespace dd {
@@ -1968,52 +2002,59 @@ bool Dictionary_client::fetch_global_component_names(
   return false;
 }
 
-// Fetch the names of all the components in the schema.
+// Fetch the table names that belong to schema with specific engine.
+bool Dictionary_client::fetch_schema_table_names_by_engine(
+    const Schema *schema, const dd::String_type &engine,
+    std::vector<String_type> *names) const {
+  auto fetch_criteria = [&](Raw_record *r) -> bool {
+    auto table_type = static_cast<dd::Abstract_table::enum_hidden_type>(
+        r->read_int(dd::tables::Tables::FIELD_HIDDEN));
+    dd::String_type engine_name = r->read_str(dd::tables::Tables::FIELD_ENGINE);
+
+    // Select visible tables names.
+    return (table_type == dd::Abstract_table::HT_VISIBLE &&
+            (my_strcasecmp(system_charset_info, engine_name.c_str(),
+                           engine.c_str()) == 0));
+  };
+  return fetch_schema_component_names_by_criteria<Abstract_table>(
+      m_thd, schema, names, fetch_criteria);
+}
+
+// Fetch the server table names that belong to schema, except for SE
+// specific tables.
+bool Dictionary_client::fetch_schema_table_names_not_hidden_by_se(
+    const Schema *schema, std::vector<String_type> *names) const {
+  auto fetch_criteria = [&](Raw_record *r) -> bool {
+    return static_cast<dd::Abstract_table::enum_hidden_type>(
+               r->read_int(dd::tables::Tables::FIELD_HIDDEN)) !=
+           dd::Abstract_table::HT_HIDDEN_SE;
+  };
+  return fetch_schema_component_names_by_criteria<Abstract_table>(
+      m_thd, schema, names, fetch_criteria);
+}
+
+// Fetch the table names that belong to schema, except for HIDDEN tables.
+template <>
+bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
+    const Schema *schema, std::vector<String_type> *names) const {
+  auto fetch_criteria = [&](Raw_record *r) -> bool {
+    return static_cast<dd::Abstract_table::enum_hidden_type>(
+               r->read_int(dd::tables::Tables::FIELD_HIDDEN)) ==
+           dd::Abstract_table::HT_VISIBLE;  // Select visible tables names.
+  };
+  return fetch_schema_component_names_by_criteria<Abstract_table>(
+      m_thd, schema, names, fetch_criteria);
+}
+
+// Fetch the names of object type T that belong to schema.
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
     const Schema *schema, std::vector<String_type> *names) const {
-  DBUG_ASSERT(names);
-
-  // Create the key based on the schema id.
-  std::unique_ptr<Object_key> object_key(
-      T::DD_table::create_key_by_schema_id(schema->id()));
-
-  // Retrieve a set of the schema components, and add the component names
-  // to the vector output parameter.
-  Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
-
-  trx.otx.register_tables<T>();
-  Raw_table *table = trx.otx.get_table<T>();
-  DBUG_ASSERT(table);
-
-  if (trx.otx.open_tables()) {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
-                m_thd->is_error());
-    return true;
-  }
-
-  std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(object_key.get(), rs)) {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
-                m_thd->is_error());
-    return true;
-  }
-
-  Raw_record *r = rs->current_record();
-  String_type s;
-  while (r) {
-    // Get the table name, but only unless the object is hidden.
-    if (!is_component_hidden<T>(r))
-      names->push_back(r->read_str(T::DD_table::FIELD_NAME));
-
-    if (rs->next(r)) {
-      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
-                  m_thd->is_error());
-      return true;
-    }
-  }
-
-  return false;
+  auto fetch_criteria = [&](Raw_record *) -> bool {
+    return true;  // Select all names.
+  };
+  return fetch_schema_component_names_by_criteria<T>(m_thd, schema, names,
+                                                     fetch_criteria);
 }
 
 // Fetch objects from DD tables that match the supplied key.
@@ -2850,9 +2891,6 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Resource_group *> *);
-
-template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
-    const Schema *, std::vector<String_type> *) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema *, std::vector<String_type> *) const;
