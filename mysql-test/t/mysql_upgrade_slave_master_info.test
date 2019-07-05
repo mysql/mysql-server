@@ -13,6 +13,7 @@
  #                SLAVE_MASTER_INFO AFTER UPGRADE FROM 5.7.13
  #
 --source include/no_valgrind_without_big.inc
+--source include/mysql_upgrade_preparation.inc
 
 USE test;
 
@@ -135,4 +136,5 @@ DROP TABLE test.original;
 --echo #Restart the server
 --let $restart_parameters = restart
 --source include/restart_mysqld.inc
+--source include/mysql_upgrade_cleanup.inc
 
