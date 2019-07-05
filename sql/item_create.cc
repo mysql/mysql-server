@@ -31,7 +31,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cctype>
@@ -646,28 +645,6 @@ class Bin_instantiator {
     Item *i10 = new (thd->mem_root) Item_int(pos, 10, 2);
     Item *i2 = new (thd->mem_root) Item_int(pos, 2, 1);
     return new (thd->mem_root) Item_func_conv(pos, (*args)[0], i10, i2);
-  }
-};
-
-class Degrees_instantiator {
- public:
-  static const uint Min_argcount = 1;
-  static const uint Max_argcount = 1;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root)
-        Item_func_units(POS(), "degrees", (*args)[0], 180.0 / M_PI, 0.0);
-  }
-};
-
-class Radians_instantiator {
- public:
-  static const uint Min_argcount = 1;
-  static const uint Max_argcount = 1;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root)
-        Item_func_units(POS(), "radians", (*args)[0], M_PI / 180.0, 0.0);
   }
 };
 
@@ -1364,7 +1341,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"DAYOFMONTH", SQL_FN(Item_func_dayofmonth, 1)},
     {"DAYOFWEEK", SQL_FACTORY(Dayofweek_instantiator)},
     {"DAYOFYEAR", SQL_FN(Item_func_dayofyear, 1)},
-    {"DEGREES", SQL_FACTORY(Degrees_instantiator)},
+    {"DEGREES", SQL_FN(Item_func_degrees, 1)},
     {"ELT", SQL_FN_V(Item_func_elt, 2, MAX_ARGLIST_SIZE)},
     {"EXP", SQL_FN(Item_func_exp, 1)},
     {"EXPORT_SET", SQL_FN_V(Item_func_export_set, 3, 5)},
@@ -1481,7 +1458,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"PS_CURRENT_THREAD_ID", SQL_FN(Item_func_pfs_current_thread_id, 0)},
     {"PS_THREAD_ID", SQL_FN(Item_func_pfs_thread_id, 1)},
     {"QUOTE", SQL_FN(Item_func_quote, 1)},
-    {"RADIANS", SQL_FACTORY(Radians_instantiator)},
+    {"RADIANS", SQL_FN(Item_func_radians, 1)},
     {"RAND", SQL_FN_V(Item_func_rand, 0, 1)},
     {"RANDOM_BYTES", SQL_FN(Item_func_random_bytes, 1)},
     {"REGEXP_INSTR", SQL_FN_V_LIST(Item_func_regexp_instr, 2, 6)},

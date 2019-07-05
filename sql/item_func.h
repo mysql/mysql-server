@@ -188,6 +188,10 @@ class Item_func : public Item_result_field {
     SIN_FUNC,
     TAN_FUNC,
     COS_FUNC,
+    COT_FUNC,
+    DEGREES_FUNC,
+    RADIANS_FUNC,
+    EXP_FUNC,
     ASIN_FUNC,
     ATAN_FUNC,
     ACOS_FUNC,
@@ -1165,6 +1169,7 @@ class Item_func_exp final : public Item_dec_func {
   Item_func_exp(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "exp"; }
+  enum Functype functype() const override { return EXP_FUNC; }
 };
 
 class Item_func_ln final : public Item_dec_func {
@@ -1268,6 +1273,7 @@ class Item_func_cot final : public Item_dec_func {
   Item_func_cot(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "cot"; }
+  enum Functype functype() const override { return COT_FUNC; }
 };
 
 class Item_func_integer : public Item_int_func {
@@ -1382,19 +1388,34 @@ class Item_func_sign final : public Item_int_func {
   bool resolve_type(THD *thd) override;
 };
 
-class Item_func_units final : public Item_real_func {
-  const char *name;
+// Common base class for the DEGREES and RADIANS functions.
+class Item_func_units : public Item_real_func {
   double mul, add;
 
+ protected:
+  Item_func_units(const POS &pos, Item *a, double mul_arg, double add_arg)
+      : Item_real_func(pos, a), mul(mul_arg), add(add_arg) {}
+
  public:
-  Item_func_units(const POS &pos, const char *name_arg, Item *a, double mul_arg,
-                  double add_arg)
-      : Item_real_func(pos, a), name(name_arg), mul(mul_arg), add(add_arg) {}
   double val_real() override;
-  const char *func_name() const override { return name; }
   bool resolve_type(THD *thd) override;
 };
 
+class Item_func_degrees final : public Item_func_units {
+ public:
+  Item_func_degrees(const POS &pos, Item *a)
+      : Item_func_units(pos, a, 180.0 / M_PI, 0.0) {}
+  const char *func_name() const override { return "degrees"; }
+  enum Functype functype() const override { return DEGREES_FUNC; }
+};
+
+class Item_func_radians final : public Item_func_units {
+ public:
+  Item_func_radians(const POS &pos, Item *a)
+      : Item_func_units(pos, a, M_PI / 180.0, 0.0) {}
+  const char *func_name() const override { return "radians"; }
+  enum Functype functype() const override { return RADIANS_FUNC; }
+};
 class Item_func_min_max : public Item_func_numhybrid {
  public:
   Item_func_min_max(const POS &pos, PT_item_list *opt_list, bool is_least_func)
