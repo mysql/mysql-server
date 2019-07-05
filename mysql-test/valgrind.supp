@@ -2480,3 +2480,25 @@
    fun:getifaddrs_internal
    fun:getifaddrs
 }
+
+# We might end up writing uninitialised NULL flags out to chunk files during
+# hash join. These flags are never used, so suppress the warnings.
+
+{
+   Syscall param write(buf) points to uninitialised byte(s)
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
+   fun:_ZN13HashJoinChunk6RewindEv
+}
+
+{
+   Syscall param write(buf) points to uninitialised byte(s)
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
+   ...
+   fun:_ZN16HashJoinIterator4InitEv
+}
