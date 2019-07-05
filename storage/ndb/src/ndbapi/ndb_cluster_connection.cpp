@@ -1738,6 +1738,11 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
 
       checked.set(candidate_node);
 
+      if (!impl_ndb->get_node_available(candidate_node))
+      {
+        continue;
+      }
+
       for (Uint32 i = 0; i < nodes_arr_cnt; i++)
       {
         if (nodes_arr[i].id == j)
