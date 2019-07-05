@@ -191,7 +191,6 @@
 
   <h3>Table of Contents</h3>
   - @subpage PAGE_TEST_FRAMEWORK_SYSTEM_REQUIREMENTS
-  - @subpage PAGE_TEST_FRAMEWORK_SSL
   - @subpage PAGE_REPORT_BUGS
 
   The MySQL test framework consists of programs that run tests, and
