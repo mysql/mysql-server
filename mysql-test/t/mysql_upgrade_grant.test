@@ -1,5 +1,6 @@
 --source include/big_test.inc
 --source include/not_valgrind.inc
+--source include/mysql_upgrade_preparation.inc
 
 #mysql_upgrade test for user and priviledge tables.
 

@@ -1,6 +1,8 @@
 -- source include/no_valgrind_without_big.inc
 --let $MYSQLD_DATADIR= `select @@datadir`
 
+--source include/mysql_upgrade_preparation.inc
+
 #
 # Bug #28547424 - MYSQL_UPGRADE FAILES WITH SYNTAX ERROR ON INPLACE FROM 5.7 TO 8.0
 #
