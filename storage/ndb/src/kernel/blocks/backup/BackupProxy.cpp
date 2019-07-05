@@ -297,7 +297,7 @@ BackupProxy::sendDEFINE_BACKUP_REQ(Signal* signal, Uint32 ssId,
   *req = ss.m_req;
   req->senderRef = reference();
   sendSignalNoRelease(workerRef(ss.m_worker), GSN_DEFINE_BACKUP_REQ,
-                      signal, DefineBackupReq::SignalLength, JBB, handle);
+                      signal, DefineBackupReq::SignalLength_v1, JBB, handle);
 }
 
 void
