@@ -59,6 +59,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_table.h"
@@ -2487,7 +2488,8 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   // The defined secondary engine must be the name of a valid storage engine.
   plugin_ref plugin =
       ha_resolve_by_name(thd, &table.s->secondary_engine, false);
-  if (plugin == nullptr) {
+  if ((plugin == nullptr) || !plugin_is_ready(table.s->secondary_engine,
+                                              MYSQL_STORAGE_ENGINE_PLUGIN)) {
     my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), table.s->secondary_engine.str);
     return true;
   }
@@ -2553,7 +2555,8 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   // after tables were loaded into it (in which case the tables have already
   // been unloaded).
   plugin_ref plugin = ha_resolve_by_name(thd, &secondary_engine, false);
-  if (plugin == nullptr) {
+  if ((plugin == nullptr) ||
+      !plugin_is_ready(secondary_engine, MYSQL_STORAGE_ENGINE_PLUGIN)) {
     if (error_if_not_loaded)
       my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), secondary_engine);
     return error_if_not_loaded;

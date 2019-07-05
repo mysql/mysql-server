@@ -6422,7 +6422,8 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
           ? nullptr
           : ha_resolve_by_name(thd, secondary_engine, false);
 
-  if (secondary_engine_plugin == nullptr) {
+  if ((secondary_engine_plugin == nullptr) ||
+      !plugin_is_ready(*secondary_engine, MYSQL_STORAGE_ENGINE_PLUGIN)) {
     // Didn't find a secondary storage engine to use for the query.
     sql_cmd->disable_secondary_storage_engine();
     return false;
