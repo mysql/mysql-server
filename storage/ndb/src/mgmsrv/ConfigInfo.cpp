@@ -903,7 +903,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT64,
     "98M",
     "1M",
-    "1024G" },
+    "16384G" },
 
   {
     CFG_DB_TRANSACTION_MEM,
@@ -975,7 +975,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT64,
     "64M",
     "4M",
-    "1024G" },
+    "16384G" },
 
   {
     CFG_DB_SGA,
@@ -1654,7 +1654,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "25",
+    "5",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -2291,7 +2291,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "60",
+    "180",
     "0",
     STR_VALUE(MAX_INT_RNIL)
   },

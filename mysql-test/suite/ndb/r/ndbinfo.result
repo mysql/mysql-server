@@ -1620,7 +1620,7 @@ select param_number, param_name, param_description, param_default,
        param_min, param_max from ndb$config_params
   where param_name = "DataMemory";
 param_number	param_name	param_description	param_default	param_min	param_max
-112	DataMemory	Number bytes on each ndbd(DB) node allocated for storing data	102760448	1048576	1099511627776
+112	DataMemory	Number bytes on each ndbd(DB) node allocated for storing data	102760448	1048576	17592186044416
 select * from ndb$dict_obj_types where type_id < 3;
 type_id	type_name
 1	System table
