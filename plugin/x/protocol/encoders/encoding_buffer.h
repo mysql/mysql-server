@@ -38,9 +38,12 @@ namespace protocol {
 
 class Encoding_buffer final {
  public:
+  constexpr static uint32_t k_page_size = 4096;
+
+ public:
   explicit Encoding_buffer(Encoding_pool *local_pool)
       : m_local_pool(local_pool) {
-    DBUG_ASSERT(k_pool_minimum_page_size <=
+    DBUG_ASSERT(k_page_size ==
                 static_cast<uint32_t>(
                     local_pool->get_pool()->get_config()->m_page_size));
     m_front = m_current = m_local_pool->alloc_page();
@@ -67,7 +70,7 @@ class Encoding_buffer final {
 
   template <uint32_t size>
   void ensure_buffer_size() {
-    static_assert(size < k_pool_minimum_page_size,
+    static_assert(size < k_page_size,
                   "Page size might be too small to put those data in.");
 
     if (!m_current->is_at_least(size)) get_next_page();
@@ -97,7 +100,6 @@ class Encoding_buffer final {
   Page *m_current;
 
  private:
-  constexpr static uint32_t k_pool_minimum_page_size = 1000;
   Encoding_pool *m_local_pool;
 };
 

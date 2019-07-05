@@ -167,25 +167,11 @@ class Compression_lz4 : public ::protocol::Compression_buffer_interface {
     while (in_page) {
       auto uncompressed_size = in_page->get_used_bytes();
       auto uncompressed_data = in_page->m_begin_data;
-      size_t compression_result;
-
       m_all_uncompressed += uncompressed_size;
 
       do {
-        skip_small_pages(&out_page, output_buffer);
-
-        auto out_size = out_page->get_free_bytes();
-        auto out_data = out_page->m_current_data;
-
-        auto in_size =
-            std::min(uncompressed_size,
-                     out_size - k_lz4_frame_output_buffer_minmum_size);
-        while (out_size < LZ4F_compressBound(in_size, &m_pref)) {
-          in_size /= 2;
-        }
-
-        compression_result = LZ4F_compressUpdate(
-            m_ctxt, out_data, out_size, uncompressed_data, in_size, nullptr);
+        auto compression_result = compress_update(
+            &uncompressed_data, &uncompressed_size, output_buffer);
 
         if (LZ4F_isError(compression_result)) {
           log_error(ER_XPLUGIN_COMPRESSION_ERROR,
@@ -194,28 +180,19 @@ class Compression_lz4 : public ::protocol::Compression_buffer_interface {
           return false;
         }
 
-        uncompressed_size -= in_size;
-        uncompressed_data += in_size;
-        out_page->m_current_data += compression_result;
         m_all_compressed += compression_result;
-        out_size = out_page->get_free_bytes();
       } while (0 < uncompressed_size);
 
       in_page = in_page->m_next_page;
     }
 
-    skip_small_pages(&out_page, output_buffer);
-
-    const auto flush_result = LZ4F_compressEnd(
-        m_ctxt, out_page->m_current_data, out_page->get_free_bytes(), nullptr);
-
+    const auto flush_result = compress_end(output_buffer);
     if (LZ4F_isError(flush_result)) {
       log_error(ER_XPLUGIN_COMPRESSION_ERROR, LZ4F_getErrorName(flush_result));
       m_error = true;
       return false;
     }
 
-    out_page->m_current_data += flush_result;
     m_all_compressed += flush_result;
 
     return true;
@@ -233,13 +210,139 @@ class Compression_lz4 : public ::protocol::Compression_buffer_interface {
   }
 
  private:
-  void skip_small_pages(protocol::Page **page, Encoding_buffer *buffer) {
-    if (2 * k_lz4_frame_output_buffer_minmum_size > (*page)->get_free_bytes()) {
-      *page = buffer->get_next_page();
+  uint32_t get_maximum_input_for_output_size(const uint32_t output_size,
+                                             const uint32_t input_size) {
+    auto go_down_with_size = input_size;
+    while (output_size < LZ4F_compressBound(go_down_with_size, &m_pref)) {
+      go_down_with_size /= 2;
+
+      if (0 == go_down_with_size) break;
+    }
+
+    return go_down_with_size;
+  }
+
+  void skip_small_pages(protocol::Page **inout_page, Encoding_buffer *buffer) {
+    if (2 * k_lz4_frame_output_buffer_minmum_size >
+        (*inout_page)->get_free_bytes()) {
+      *inout_page = buffer->get_next_page();
     }
   }
+  void copy_from_intermediate_to_output(Encoding_buffer *output_buffer,
+                                        const uint32_t size) {
+    auto out_page = output_buffer->m_current;
+    auto intermediate_data = m_intermediate_buffer.get();
+    auto go_down_with_size = size;
+
+    while (go_down_with_size) {
+      if (0 == out_page->get_free_bytes()) {
+        out_page = output_buffer->get_next_page();
+      }
+      const auto to_copy =
+          std::min(go_down_with_size, out_page->get_free_bytes());
+      std::memcpy(out_page->m_current_data, intermediate_data, to_copy);
+      out_page->m_current_data += to_copy;
+      intermediate_data += to_copy;
+      go_down_with_size -= to_copy;
+    }
+  }
+
+  size_t compress_update(unsigned char **uncompressed_data,
+                         uint32_t *uncompressed_size,
+                         Encoding_buffer *output_buffer) {
+    auto out_page = output_buffer->m_current;
+    skip_small_pages(&out_page, output_buffer);
+
+    auto output_size = out_page->get_free_bytes();
+    auto out_data = out_page->m_current_data;
+
+    const auto input_size =
+        std::min(*uncompressed_size,
+                 output_size - k_lz4_frame_output_buffer_minmum_size);
+
+    auto adjusted_input_size =
+        get_maximum_input_for_output_size(output_size, input_size);
+    bool intermediate_buffer = false;
+
+    // In this case we could disable auto-flush
+    if (0 == adjusted_input_size && 0 != input_size) {
+      const auto new_output_size =
+          LZ4F_compressBound(*uncompressed_size, &m_pref);
+      adjusted_input_size = input_size;
+
+      if (new_output_size > output_size) {
+        intermediate_buffer = true;
+
+        output_size = new_output_size;
+        out_data = get_intermediate_buffer_of_size(output_size);
+      }
+    }
+
+    auto compression_result =
+        LZ4F_compressUpdate(m_ctxt, out_data, output_size, *uncompressed_data,
+                            adjusted_input_size, nullptr);
+
+    if (LZ4F_isError(compression_result)) {
+      return compression_result;
+    }
+
+    *uncompressed_size -= adjusted_input_size;
+    *uncompressed_data += adjusted_input_size;
+
+    if (intermediate_buffer) {
+      copy_from_intermediate_to_output(
+          output_buffer, static_cast<uint32_t>(compression_result));
+    } else {
+      out_page->m_current_data += compression_result;
+    }
+
+    return compression_result;
+  }
+
+  size_t compress_end(Encoding_buffer *output_buffer) {
+    auto out_page = output_buffer->m_current;
+    auto out_data = out_page->m_current_data;
+    auto out_size = out_page->get_free_bytes();
+    bool using_intemediate_buffer = false;
+
+    const auto buffer_need_for_flush = LZ4F_compressBound(0, &m_pref);
+
+    if (buffer_need_for_flush > out_size) {
+      using_intemediate_buffer = true;
+      out_size = buffer_need_for_flush;
+      out_data = get_intermediate_buffer_of_size(out_size);
+    }
+
+    const auto flush_result =
+        LZ4F_compressEnd(m_ctxt, out_data, out_size, nullptr);
+
+    if (LZ4F_isError(flush_result)) {
+      return flush_result;
+    }
+
+    if (using_intemediate_buffer) {
+      copy_from_intermediate_to_output(output_buffer,
+                                       static_cast<uint32_t>(flush_result));
+    } else {
+      out_page->m_current_data += flush_result;
+    }
+
+    return flush_result;
+  }
+
+  uint8_t *get_intermediate_buffer_of_size(const uint32_t possible_in_size) {
+    if (m_intermediate_buffer_size < possible_in_size) {
+      m_intermediate_buffer_size = possible_in_size;
+      m_intermediate_buffer.reset(new uint8_t[m_intermediate_buffer_size]);
+    }
+
+    return m_intermediate_buffer.get();
+  }
+
   uint32_t m_all_compressed = 0;
   uint32_t m_all_uncompressed = 0;
+  uint32_t m_intermediate_buffer_size = 0;
+  std::unique_ptr<uint8_t[]> m_intermediate_buffer;
   LZ4F_compressionContext_t m_ctxt;
   LZ4F_preferences_t m_pref{};
   bool m_error = false;
