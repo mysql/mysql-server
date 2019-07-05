@@ -796,7 +796,8 @@ INSTANTIATE_TEST_CASE_P(
 const char kServerCertFile[]{"server-cert.pem"};  // 2048 bit
 const char kServerKeyFile[]{"server-key.pem"};
 const char kServerCertCaFile[]{"cacert.pem"};
-static const char kServerCertRsa1024File[]{"crl-server-cert.pem"};  // 1024 bit
+static const char kServerCertRsa1024File[]{
+    "server-sha1-1024-cert.pem"};  // 1024 bit
 
 #ifdef EVENT__HAVE_OPENSSL
 static const char kWrongServerCertCaFile[]{"ca-sha512.pem"};
