@@ -1,0 +1,153 @@
+# This test case demonstrates the relationship between NDB distributed users
+# and MySQL replication. The basic rule is that any ACL change executed on a
+# binlogging server will be written to the binlog there. From this rule follow
+# two notable behaviors: any change to a "local user" on the binlog master
+# will be copied to the replication slave server; and any change to a user with
+# NDB_STORED_USER on the master cluster will be copied to the slave cluster.
+
+#
+# Master Cluster                   Slave Cluster
+# --------------                   -------------
+#     A   --> binlog --> replication     C
+#     B                                  D
+#
+
+# Test (1): a user with NDB_STORED_USER is replicated to the slave cluster.
+# The user is created on server (A) and tested on server (C)
+
+# Test (2): a user with NDB_STORED_USER is replicated to the slave cluster.
+# The user is created on server (B) and tested on servers (A), (C) and (D).
+
+# Test (3): a local user (i.e. without NDB_STORED_USER) created on (A)
+# is replicated to (C) but not to (D)
+
+# Test (4): a local user created on (B) is not replicated to the slave cluster.
+
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+connection default;
+--echo [Server A]
+CREATE DATABASE auth_test_db;
+USE auth_test_db;
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
+
+# Warning suppression
+--connect(D_root,127.0.0.1,root,,auth_test_db,$SLAVE_MYPORT1,)
+--connection D_root
+--echo [Server D]
+call mtr.add_suppression("You need to use --log-bin .*");
+
+#
+# Test (1): a user with NDB_STORED_USER is replicated to the slave cluster.
+# The user is created on server (A) and tested on server (C)
+#
+connection default;
+echo [Server A];
+CREATE USER 'ndb_u1'@'localhost' IDENTIFIED by 'pass1';
+GRANT SELECT ON t1 TO 'ndb_u1'@'localhost';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u1'@'localhost';
+INSERT INTO t1 VALUES(1,1);
+# Wait for replication. Note that the final statement before
+# sync_slave_with_master was just a normal DDL statement, not a schema change.
+# This is done as a workaround for a known race condition.
+sync_slave_with_master;
+
+connect(C_test_user,127.0.0.1,ndb_u1,pass1,auth_test_db,$SLAVE_MYPORT,);
+connection C_test_user;
+echo [Server C as test user];
+SELECT * FROM t1 ORDER BY pk;
+disconnect C_test_user;
+
+
+#
+# Test (2): a user with NDB_STORED_USER is replicated to the slave cluster.
+# The user is created on server (B) and tested on servers (A), (C) and (D).
+#
+connect(B_root,127.0.0.1,root,,auth_test_db,$MASTER_MYPORT1,);
+connection B_root;
+echo [Server B];
+CREATE USER 'ndb_u2'@'localhost' IDENTIFIED by 'pass2';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u2'@'localhost';
+GRANT SELECT ON t1 TO 'ndb_u2'@'localhost';
+INSERT INTO t1 VALUES(2,2);
+let $wait_timeout= 1;
+--source include/wait_for_ndb_committed_to_binlog.inc
+
+connect(A_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$MASTER_MYPORT,);
+connection A_test_user;
+echo [Server A as test user];
+SELECT * FROM t1 ORDER BY pk;
+disconnect A_test_user;
+
+connection default;
+sync_slave_with_master;
+
+connect(C_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$SLAVE_MYPORT,);
+connection C_test_user;
+echo [Server C as test user];
+SELECT * FROM t1 ORDER BY pk;
+disconnect C_test_user;
+
+connect(D_test_user,127.0.0.1,ndb_u2,pass2,auth_test_db,$SLAVE_MYPORT1,);
+connection D_test_user;
+echo [Server D as test user];
+SELECT * FROM t1 ORDER BY pk;
+disconnect D_test_user;
+
+
+#
+# Test (3): a local user (i.e. without NDB_STORED_USER) created on (A)
+# is replicated to (C) but not to (D)
+#
+connection default;
+--echo [Server A]
+CREATE USER 'local_user_1'@'localhost' IDENTIFIED BY 'local1';
+sync_slave_with_master;
+
+connect(C_test_user,127.0.0.1,local_user_1,local1,test,$SLAVE_MYPORT,);
+connection C_test_user;
+echo [Server C];
+disconnect C_test_user;
+
+connection D_root;
+echo [Server D];
+error ER_CANNOT_USER;
+SHOW CREATE USER local_user_1@localhost;
+
+
+#
+# Test (4): a local user created on (B) is not replicated to the slave cluster.
+#
+connection B_root;
+echo [Server B];
+CREATE USER local_user_2@b;
+
+connection default;
+echo [Server A];
+sync_slave_with_master;
+
+connect(C_root,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+connection C_root;
+echo [Server C];
+error ER_CANNOT_USER;
+SHOW CREATE USER local_user_2@b;
+
+
+
+# Cleanup
+
+connection default;
+echo [Server A];
+drop user local_user_1@localhost;
+drop user ndb_u1@localhost;
+drop user ndb_u2@localhost;
+drop table t1;
+drop database auth_test_db;
+
+connection B_root;
+echo [Server B];
+drop user local_user_2@b;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

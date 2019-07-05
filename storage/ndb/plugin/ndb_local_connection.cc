@@ -213,7 +213,8 @@ bool Ndb_local_connection::run_acl_statement(const std::string &acl_sql) {
   ndb_log_verbose(30, "run_acl_statement: %s", acl_sql.c_str());
   MYSQL_LEX_STRING sql_text = {const_cast<char *>(acl_sql.c_str()),
                                acl_sql.length()};
-  return execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
+  m_thd->set_query_id(next_query_id());
+  return execute_query(sql_text, ignore_mysql_errors, nullptr);
 }
 
 bool Ndb_local_connection::create_database(const std::string &database_name) {

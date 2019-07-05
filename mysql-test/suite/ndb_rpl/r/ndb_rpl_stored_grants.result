@@ -1,0 +1,61 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[Server A]
+CREATE DATABASE auth_test_db;
+USE auth_test_db;
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
+[Server D]
+call mtr.add_suppression("You need to use --log-bin .*");
+[Server A]
+CREATE USER 'ndb_u1'@'localhost' IDENTIFIED by 'pass1';
+GRANT SELECT ON t1 TO 'ndb_u1'@'localhost';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u1'@'localhost';
+INSERT INTO t1 VALUES(1,1);
+[Server C as test user]
+SELECT * FROM t1 ORDER BY pk;
+pk	a
+1	1
+[Server B]
+CREATE USER 'ndb_u2'@'localhost' IDENTIFIED by 'pass2';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u2'@'localhost';
+GRANT SELECT ON t1 TO 'ndb_u2'@'localhost';
+INSERT INTO t1 VALUES(2,2);
+[Server A as test user]
+SELECT * FROM t1 ORDER BY pk;
+pk	a
+1	1
+2	2
+[Server C as test user]
+SELECT * FROM t1 ORDER BY pk;
+pk	a
+1	1
+2	2
+[Server D as test user]
+SELECT * FROM t1 ORDER BY pk;
+pk	a
+1	1
+2	2
+[Server A]
+CREATE USER 'local_user_1'@'localhost' IDENTIFIED BY 'local1';
+[Server C]
+[Server D]
+SHOW CREATE USER local_user_1@localhost;
+ERROR HY000: Operation SHOW CREATE USER failed for 'local_user_1'@'localhost'
+[Server B]
+CREATE USER local_user_2@b;
+[Server A]
+[Server C]
+SHOW CREATE USER local_user_2@b;
+ERROR HY000: Operation SHOW CREATE USER failed for 'local_user_2'@'b'
+[Server A]
+drop user local_user_1@localhost;
+drop user ndb_u1@localhost;
+drop user ndb_u2@localhost;
+drop table t1;
+drop database auth_test_db;
+[Server B]
+drop user local_user_2@b;
+include/rpl_end.inc
