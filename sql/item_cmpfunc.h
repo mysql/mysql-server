@@ -1375,6 +1375,7 @@ class Item_func_nullif final : public Item_bool_func2 {
     return args[0]->decimal_precision();
   }
   const char *func_name() const override { return "nullif"; }
+  enum Functype functype() const override { return NULLIF_FUNC; }
 
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override {
