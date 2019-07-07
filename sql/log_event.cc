@@ -64,6 +64,7 @@
 #include "mysql_time.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
+#include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
 #include "sql/my_decimal.h"   // my_decimal
 #include "sql/rpl_handler.h"  // RUN_HOOK
@@ -3439,8 +3440,8 @@ bool Query_log_event::write(Basic_ostream *ostream) {
   }
 
   if (thd && thd->need_binlog_invoker()) {
-    LEX_CSTRING invoker_user;
-    LEX_CSTRING invoker_host;
+    LEX_CSTRING invoker_user{nullptr, 0};
+    LEX_CSTRING invoker_host{nullptr, 0};
     memset(&invoker_user, 0, sizeof(invoker_user));
     memset(&invoker_host, 0, sizeof(invoker_host));
 
@@ -4476,6 +4477,17 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
 
   {
+    Applier_security_context_guard security_context{rli, thd};
+    if (!security_context.skip_priv_checks() &&
+        !security_context.has_access({SUPER_ACL}) &&
+        !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
+        !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
+      rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
+                  ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
+                  "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+      thd->is_slave_error = true;
+      goto end;
+    }
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
     thd->set_query_for_display(query_arg, q_len_arg);
@@ -4628,6 +4640,19 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (default_table_encryption != 0xff) {
         DBUG_ASSERT(default_table_encryption == 0 ||
                     default_table_encryption == 1);
+        if (thd->variables.default_table_encryption !=
+                default_table_encryption &&
+            !security_context.skip_priv_checks() &&
+            !security_context.has_access({SUPER_ACL}) &&
+            !security_context.has_access(
+                {"SYSTEM_VARIABLES_ADMIN", "TABLE_ENCRYPTION_ADMIN"})) {
+          rli->report(
+              ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
+              ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
+              "SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN");
+          thd->is_slave_error = true;
+          goto end;
+        }
         thd->variables.default_table_encryption = default_table_encryption;
       }
 
@@ -6865,6 +6890,29 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli) {
   int error = 1;
   DBUG_TRACE;
 
+  Applier_security_context_guard security_context{rli, thd};
+  if (DBUG_EVALUATE_IF("skip_the_priv_check_in_begin_load", false, true)) {
+    if (!security_context.skip_priv_checks()) {
+      if (!security_context.has_access({FILE_ACL})) {
+        rli->report_privilege_check_error(
+            ERROR_LEVEL,
+            Relay_log_info::enum_priv_checks_status::
+                LOAD_DATA_EVENT_NOT_ALLOWED,
+            false /* to client */);
+        return ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
+      }
+    }
+  }
+#ifndef DBUG_OFF
+  else {  // Let's ensure that we actually skipped the privilege check since the
+          // error code caugth in test scripts would be the same as the no-skip
+          // case. Test scripts should wait on the below signal, if
+          // `skip_the_priv_check_in_begin_load` has been set.
+    const char act[] = "now SIGNAL skipped_the_priv_check_in_begin_load";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  }
+#endif
+
   THD_STAGE_INFO(thd, stage_making_temp_file_append_before_load_data);
   slave_load_file_stem(fname, file_id, server_id, ".data");
   if (get_create_or_append()) {
@@ -6987,9 +7035,21 @@ int Delete_file_log_event::pack_info(Protocol *protocol) {
   Delete_file_log_event::do_apply_event()
 */
 
-int Delete_file_log_event::do_apply_event(Relay_log_info const *) {
+int Delete_file_log_event::do_apply_event(Relay_log_info const *rli) {
   char fname[FN_REFLEN + TEMP_FILE_MAX_LEN];
   lex_start(thd);
+
+  Applier_security_context_guard security_context{rli, thd};
+  if (!security_context.skip_priv_checks()) {
+    if (!security_context.has_access({FILE_ACL})) {
+      rli->report_privilege_check_error(
+          ERROR_LEVEL,
+          Relay_log_info::enum_priv_checks_status::LOAD_DATA_EVENT_NOT_ALLOWED,
+          false /* to client */);
+      return ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
+    }
+  }
+
   mysql_reset_thd_for_next_command(thd);
   char *ext = slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
@@ -7183,6 +7243,17 @@ int Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli) {
   char *fname;
   char *fname_end;
   int error;
+
+  Applier_security_context_guard security_context{rli, thd};
+  if (!security_context.skip_priv_checks()) {
+    if (!security_context.has_access({FILE_ACL})) {
+      rli->report_privilege_check_error(
+          ERROR_LEVEL,
+          Relay_log_info::enum_priv_checks_status::LOAD_DATA_EVENT_NOT_ALLOWED,
+          false /* to client */);
+      return ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS;
+    }
+  }
 
   buf = (char *)my_malloc(key_memory_log_event,
                           q_len + 1 - (fn_pos_end - fn_pos_start) +
@@ -9447,6 +9518,47 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       (this was set up by Table_map_log_event::do_apply_event()
       which tested replicate-* rules).
     */
+
+    Applier_security_context_guard security_context{rli, thd};
+    const char *privilege_missing = nullptr;
+    if (!security_context.skip_priv_checks()) {
+      std::vector<std::tuple<ulong, const TABLE *, Rows_log_event *>> l;
+      switch (get_general_type_code()) {
+        case binary_log::WRITE_ROWS_EVENT: {
+          l.push_back(std::make_tuple(INSERT_ACL, this->m_table, this));
+          if (!security_context.has_access(l)) {
+            privilege_missing = "INSERT";
+          }
+          break;
+        }
+        case binary_log::DELETE_ROWS_EVENT: {
+          l.push_back(std::make_tuple(DELETE_ACL, this->m_table, this));
+          if (!security_context.has_access(l)) {
+            privilege_missing = "DELETE";
+          }
+          break;
+        }
+        case binary_log::UPDATE_ROWS_EVENT:
+        case binary_log::PARTIAL_UPDATE_ROWS_EVENT: {
+          l.push_back(std::make_tuple(UPDATE_ACL, this->m_table, this));
+          if (!security_context.has_access(l)) {
+            privilege_missing = "UPDATE";
+          }
+          break;
+        }
+        default: {
+          DBUG_ASSERT(false);
+        }
+      }
+    }
+    if (privilege_missing != nullptr) {
+      rli->report(ERROR_LEVEL, ER_TABLEACCESS_DENIED_ERROR,
+                  ER_THD(thd, ER_TABLEACCESS_DENIED_ERROR), privilege_missing,
+                  security_context.get_username().data(),
+                  security_context.get_hostname().data(),
+                  table->s->table_name.str);
+      return ER_TABLEACCESS_DENIED_ERROR;
+    }
 
     bool no_columns_to_update = false;
     // set the database

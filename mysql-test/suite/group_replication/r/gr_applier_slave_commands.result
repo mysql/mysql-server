@@ -5,9 +5,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 
-# CHANGE MASTER command is blocked for restricted channels.
+# CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
-ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # error when executing START SLAVE IO_THREAD FOR CHANNEL
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
@@ -56,9 +56,9 @@ include/assert.inc [Relay log name should not be empty as the command successful
 [connection server1]
 include/stop_group_replication.inc
 
-# CHANGE MASTER command is blocked for restricted channels.
+# CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
-ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # error when executing START SLAVE IO_THREAD FOR CHANNEL
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';

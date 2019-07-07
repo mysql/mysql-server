@@ -642,6 +642,12 @@ class Slave_worker : public Relay_log_info {
   int rli_init_info(bool);
   int flush_info(bool force = false);
   static size_t get_number_worker_fields();
+  /**
+     Sets bits for columns that are allowed to be `NULL`.
+
+     @param nullable_fields the bitmap to hold the nullable fields.
+  */
+  static void set_nullable_fields(MY_BITMAP *nullable_fields);
   void slave_worker_ends_group(Log_event *, int);
   const char *get_master_log_name();
   ulonglong get_master_log_pos() { return master_log_pos; }

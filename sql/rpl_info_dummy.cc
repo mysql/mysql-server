@@ -29,7 +29,8 @@
 
 class Server_ids;
 
-Rpl_info_dummy::Rpl_info_dummy(const int nparam) : Rpl_info_handler(nparam) {}
+Rpl_info_dummy::Rpl_info_dummy(const int nparam)
+    : Rpl_info_handler(nparam, nullptr) {}
 
 int Rpl_info_dummy::do_init_info(uint instance MY_ATTRIBUTE((unused))) {
   return 0;
@@ -123,55 +124,68 @@ bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
   return false;
 }
 
-bool Rpl_info_dummy::do_get_info(
+bool Rpl_info_dummy::do_set_info(const int, const std::nullptr_t) {
+  DBUG_ASSERT(!abort);
+
+  return false;
+}
+
+bool Rpl_info_dummy::do_set_info(const int, const std::nullptr_t,
+                                 const size_t) {
+  DBUG_ASSERT(!abort);
+
+  return false;
+}
+
+Rpl_info_handler::enum_field_get_status Rpl_info_dummy::do_get_info(
     const int pos MY_ATTRIBUTE((unused)), char *value MY_ATTRIBUTE((unused)),
     const size_t size MY_ATTRIBUTE((unused)),
     const char *default_value MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(!abort);
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
-bool Rpl_info_dummy::do_get_info(
+Rpl_info_handler::enum_field_get_status Rpl_info_dummy::do_get_info(
     const int pos MY_ATTRIBUTE((unused)), uchar *value MY_ATTRIBUTE((unused)),
     const size_t size MY_ATTRIBUTE((unused)),
     const uchar *default_value MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(!abort);
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
-bool Rpl_info_dummy::do_get_info(
+Rpl_info_handler::enum_field_get_status Rpl_info_dummy::do_get_info(
     const int pos MY_ATTRIBUTE((unused)), ulong *value MY_ATTRIBUTE((unused)),
     const ulong default_value MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(!abort);
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
-bool Rpl_info_dummy::do_get_info(
+Rpl_info_handler::enum_field_get_status Rpl_info_dummy::do_get_info(
     const int pos MY_ATTRIBUTE((unused)), int *value MY_ATTRIBUTE((unused)),
     const int default_value MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(!abort);
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
-bool Rpl_info_dummy::do_get_info(
+Rpl_info_handler::enum_field_get_status Rpl_info_dummy::do_get_info(
     const int pos MY_ATTRIBUTE((unused)), float *value MY_ATTRIBUTE((unused)),
     const float default_value MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(!abort);
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
-                                 Server_ids *value MY_ATTRIBUTE((unused)),
-                                 const Server_ids *default_value
-                                     MY_ATTRIBUTE((unused))) {
+Rpl_info_handler::enum_field_get_status Rpl_info_dummy::do_get_info(
+    const int pos MY_ATTRIBUTE((unused)),
+    Server_ids *value MY_ATTRIBUTE((unused)),
+    const Server_ids *default_value MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(!abort);
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
 char *Rpl_info_dummy::do_get_description_info() {

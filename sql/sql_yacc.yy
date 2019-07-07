@@ -1244,6 +1244,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> RANDOM_SYM                    /* MYSQL */
 %token<lexer.keyword> MASTER_COMPRESSION_ALGORITHM_SYM /* MYSQL */
 %token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
+%token<lexer.keyword> PRIVILEGE_CHECKS_USER_SYM     /* MYSQL */
+
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
   simple "UNIQUE" and "KEY" attributes:
@@ -1461,7 +1463,7 @@ void warn_about_deprecated_binary(THD *thd)
         ident_keywords_ambiguous_3_roles
         ident_keywords_ambiguous_4_system_variables
 
-%type <lex_user> user create_user alter_user user_func role
+%type <lex_user> user_ident_or_text user create_user alter_user user_func role
 
 %type <lexer.charset>
         opt_collate
@@ -2627,8 +2629,8 @@ master_def:
               LEX_MASTER_INFO::LEX_MI_ENABLE :
               LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        |
-        master_file_def
+        | PRIVILEGE_CHECKS_USER_SYM EQ privilege_check_def
+        | master_file_def
         ;
 
 ignore_server_id_list:
@@ -2642,6 +2644,21 @@ ignore_server_id:
           {
             Lex->mi.repl_ignore_server_ids.push_back($1);
           }
+
+privilege_check_def:
+          user_ident_or_text
+          {
+            Lex->mi.privilege_checks_none= false;
+            Lex->mi.privilege_checks_username= $1->user.str;
+            Lex->mi.privilege_checks_hostname= $1->host.str;
+          }
+        | NULL_SYM
+          {
+            Lex->mi.privilege_checks_none= true;
+            Lex->mi.privilege_checks_username= NULL;
+            Lex->mi.privilege_checks_hostname= NULL;
+          }
+        ;
 
 master_file_def:
           MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys_nonewline
@@ -14004,7 +14021,7 @@ role_ident_or_text:
         | LEX_HOSTNAME
         ;
 
-user:
+user_ident_or_text:
           ident_or_text
           {
             if (!($$= LEX_USER::alloc(YYTHD, &$1, NULL)))
@@ -14014,6 +14031,13 @@ user:
           {
             if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
+          }
+        ;
+
+user:
+          user_ident_or_text
+          {
+            $$=$1;
           }
         | CURRENT_USER optional_braces
           {
@@ -14394,6 +14418,7 @@ ident_keywords_unambiguous:
         | PRESERVE_SYM
         | PREV_SYM
         | PRIVILEGES
+        | PRIVILEGE_CHECKS_USER_SYM
         | PROCESSLIST_SYM
         | PROFILES_SYM
         | PROFILE_SYM

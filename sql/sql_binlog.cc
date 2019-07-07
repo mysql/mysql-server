@@ -135,8 +135,10 @@ void mysql_client_binlog_statement(THD *thd) {
 
   Security_context *sctx = thd->security_context();
   if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or BINLOG_ADMIN");
+        sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first ||
+        sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_APPLIER")).first)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER, BINLOG_ADMIN or REPLICATION_APPLIER");
     return;
   }
 

@@ -1,0 +1,39 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# TC1. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
+#      doesn't have REPLICATION_APPLIER privilege.
+# -------------------------------------------------------------------
+[connection slave]
+CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CREATE USER 'u1'@'localhost';
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL '';
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13496]
+include/stop_slave.inc
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+#
+# TC2. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
+#      doesn't have CREATE privilege on the active database.
+# -------------------------------------------------------------------
+CALL mtr.add_suppression(".CREATE command denied to user.");
+RESET SLAVE ALL;
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE;
+[connection master]
+CREATE TABLE t1 (c1 INT);
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1142]
+include/stop_slave.inc
+RESET SLAVE;
+DROP USER 'u1'@'localhost';
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

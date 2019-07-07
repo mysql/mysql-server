@@ -470,6 +470,13 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   */
   static const uint *get_table_pk_field_indexes();
 
+  /**
+     Sets bits for columns that are allowed to be `NULL`.
+
+     @param nullable_fields the bitmap to hold the nullable fields.
+  */
+  static void set_nullable_fields(MY_BITMAP *nullable_fields);
+
   bool is_auto_position() { return auto_position; }
 
   void set_auto_position(bool auto_position_param) {

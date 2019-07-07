@@ -1,0 +1,204 @@
+# ==== Purpose ====
+#
+# This script tests error handling regarding `BINLOG` statement execution while
+# checking for proper privileges regarding `REPLICATION_APPLIER` privilege.
+#
+# ==== Requirements ====
+#
+# R1. `BINLOG` statement must fail if the user in session doesn't have `SUPER`,
+#     `BINLOG_ADMIN` or `REPLICATION_APPLIER` privilege.
+#
+# R2. Necessary privileges for applying the underlying `BINLOG` statement are
+#     enforced if the user in session has `REPLICATION_APPLIER`.
+#
+# ==== Implementation ====
+#
+# TC1. Apply a `Format_description_event` without any privileges
+# --------------------------------------------------------------
+# 1) Start a session with an unprivileged user.
+# 2) Execute a `BINLOG` statement holding a `Format_description_event` and
+#    expect an error.
+#
+# TC2. Apply a `Write_row_event` without any privileges needed by the event
+# -------------------------------------------------------------------------
+# 1) Start a session with a user with only `REPLICATION_APPLIER` privilege.
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect an
+#    error.
+#
+# TC3. Apply a `Write_row_event` with `INSERT` privilege
+# ------------------------------------------------------
+# 1) Start a session with a user with only `REPLICATION_APPLIER` and `INSERT`
+#    privileges.
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect
+#    success.
+# 3) Confirm the INSERT was executed
+#
+# TC4. Apply a `Write_row_event` with `BINLOG_ADMIN` privilege
+# ------------------------------------------------------------
+# 1) Start a session with a user with only `BINLOG_ADMIN` privilege.
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect
+#    success.
+# 3) Confirm the INSERT was executed
+#
+# TC5. Apply a `Write_row_event` with `SUPER` privilege
+# -----------------------------------------------------
+# 1) Start a session with a user with only `SUPER` privilege.
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect
+#    success.
+# 3) Confirm the INSERT was executed
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+
+--source include/have_binlog_format_row.inc
+
+CREATE USER 'u1'@'localhost' IDENTIFIED BY 'pass';
+GRANT CREATE, SELECT ON *.* TO 'u1'@'localhost';
+
+CREATE DATABASE rpl_priv;
+USE rpl_priv;
+CREATE TABLE t1 (a INT);
+
+CALL mtr.add_suppression("INSERT command denied to user 'u1'@'localhost' for table 't1'");
+
+--echo #
+--echo # TC1. Apply a `Format_description_event` without any privileges
+--echo # --------------------------------------------------------------
+--echo #
+
+# 1) Start a session with an unprivileged user.
+--connect(other_conn, localhost, u1, pass, rpl_priv, $MYPORT, $MYSOCK)
+--connection other_conn
+
+# 2) Execute a `BINLOG` statement holding a `Format_description_event` and
+#    expect an error.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+--disconnect other_conn
+
+--connection default
+GRANT REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+
+--echo #
+--echo # TC2. Apply a `Write_row_event` without any privileges needed by the
+--echo #      event
+--echo # -------------------------------------------------------------------
+--echo #
+
+# 1) Start a session with a user with only `REPLICATION_APPLIER` privilege.
+--connect(other_conn, localhost, u1, pass, rpl_priv, $MYPORT, $MYSOCK)
+--connection other_conn
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect an
+#    error.
+--error ER_UNKNOWN_ERROR
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+--disconnect other_conn
+
+--connection default
+GRANT INSERT ON *.* TO 'u1'@'localhost';
+
+--echo #
+--echo # TC3. Apply a `Write_row_event` with `INSERT` privilege
+--echo # ------------------------------------------------------
+--echo #
+
+# 1) Start a session with a user with only `REPLICATION_APPLIER` and `INSERT`
+#    privileges.
+--connect(other_conn, localhost, u1, pass, rpl_priv, $MYPORT, $MYSOCK)
+--connection other_conn
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect
+#    success.
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+
+# 3) Confirm the INSERT was executed
+--let $assert_text= INSERT succeeded
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+--disconnect other_conn
+
+--connection default
+DELETE FROM t1;
+REVOKE INSERT, REPLICATION_APPLIER ON *.* FROM 'u1'@'localhost';
+GRANT BINLOG_ADMIN ON *.* TO 'u1'@'localhost';
+
+--echo #
+--echo # TC4. Apply a `Write_row_event` with `BINLOG_ADMIN` privilege
+--echo # ------------------------------------------------------------
+--echo #
+
+# 1) Start a session with a user with only `BINLOG_ADMIN` privilege.
+--connect(other_conn, localhost, u1, pass, rpl_priv, $MYPORT, $MYSOCK)
+--connection other_conn
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect
+#    success.
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+
+# 3) Confirm the INSERT was executed
+--let $assert_text= INSERT succeeded
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+--disconnect other_conn
+
+--connection default
+DELETE FROM t1;
+REVOKE BINLOG_ADMIN ON *.* FROM 'u1'@'localhost';
+GRANT SUPER ON *.* TO 'u1'@'localhost';
+
+--echo #
+--echo # TC5. Apply a `Write_row_event` with `SUPER` privilege
+--echo # -----------------------------------------------------
+--echo #
+
+# 1) Start a session with a user with only `SUPER` privilege.
+--connect(other_conn, localhost, u1, pass, rpl_priv, $MYPORT, $MYSOCK)
+--connection other_conn
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+
+# 2) Execute a `BINLOG` statement holding a `Write_rows_event` and expect
+#    success.
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+
+# 3) Confirm the INSERT was executed
+--let $assert_text= INSERT succeeded
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+--disconnect other_conn
+
+--connection default
+DROP DATABASE rpl_priv;
+DROP USER 'u1'@'localhost';

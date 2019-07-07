@@ -434,6 +434,12 @@ const uint *Master_info::get_table_pk_field_indexes() {
   return info_mi_table_pk_field_indexes;
 }
 
+void Master_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
+  bitmap_init(nullable_fields, nullptr,
+              Master_info::get_number_info_mi_fields(), false);
+  bitmap_clear_all(nullable_fields);
+}
+
 bool Master_info::read_info(Rpl_info_handler *from) {
   int lines = 0;
   char *first_non_digit = nullptr;
@@ -465,7 +471,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   */
 
   if (from->prepare_info_for_read() ||
-      from->get_info(master_log_name, sizeof(master_log_name), ""))
+      !!from->get_info(master_log_name, sizeof(master_log_name), ""))
     return true;
 
   lines = strtoul(master_log_name, &first_non_digit, 10);
@@ -473,17 +479,17 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   if (master_log_name[0] != '\0' && *first_non_digit == '\0' &&
       lines >= LINES_IN_MASTER_INFO_WITH_SSL) {
     /* Seems to be new format => read master log name */
-    if (from->get_info(master_log_name, sizeof(master_log_name), ""))
+    if (!!from->get_info(master_log_name, sizeof(master_log_name), ""))
       return true;
   } else
     lines = 7;
 
-  if (from->get_info(&temp_master_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
-      from->get_info(host, sizeof(host), (char *)0) ||
-      from->get_info(user, sizeof(user), "test") ||
-      from->get_info(password, sizeof(password), (char *)0) ||
-      from->get_info((int *)&port, (int)MYSQL_PORT) ||
-      from->get_info((int *)&connect_retry, (int)DEFAULT_CONNECT_RETRY))
+  if (!!from->get_info(&temp_master_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
+      !!from->get_info(host, sizeof(host), (char *)0) ||
+      !!from->get_info(user, sizeof(user), "test") ||
+      !!from->get_info(password, sizeof(password), (char *)0) ||
+      !!from->get_info((int *)&port, (int)MYSQL_PORT) ||
+      !!from->get_info((int *)&connect_retry, (int)DEFAULT_CONNECT_RETRY))
     return true;
 
   /*
@@ -493,12 +499,12 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     is printed.
   */
   if (lines >= LINES_IN_MASTER_INFO_WITH_SSL) {
-    if (from->get_info(&temp_ssl, 0) ||
-        from->get_info(ssl_ca, sizeof(ssl_ca), (char *)0) ||
-        from->get_info(ssl_capath, sizeof(ssl_capath), (char *)0) ||
-        from->get_info(ssl_cert, sizeof(ssl_cert), (char *)0) ||
-        from->get_info(ssl_cipher, sizeof(ssl_cipher), (char *)0) ||
-        from->get_info(ssl_key, sizeof(ssl_key), (char *)0))
+    if (!!from->get_info(&temp_ssl, 0) ||
+        !!from->get_info(ssl_ca, sizeof(ssl_ca), (char *)0) ||
+        !!from->get_info(ssl_capath, sizeof(ssl_capath), (char *)0) ||
+        !!from->get_info(ssl_cert, sizeof(ssl_cert), (char *)0) ||
+        !!from->get_info(ssl_cipher, sizeof(ssl_cipher), (char *)0) ||
+        !!from->get_info(ssl_key, sizeof(ssl_key), (char *)0))
       return true;
   }
 
@@ -507,7 +513,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT) {
-    if (from->get_info(&temp_ssl_verify_server_cert, 0)) return true;
+    if (!!from->get_info(&temp_ssl_verify_server_cert, 0)) return true;
   }
 
   /*
@@ -515,14 +521,14 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD) {
-    if (from->get_info(&heartbeat_period, (float)0.0)) return true;
+    if (!!from->get_info(&heartbeat_period, (float)0.0)) return true;
   }
 
   /*
     Starting from 5.5 master_bind might be in the file
   */
   if (lines >= LINE_FOR_MASTER_BIND) {
-    if (from->get_info(bind_addr, sizeof(bind_addr), "")) return true;
+    if (!!from->get_info(bind_addr, sizeof(bind_addr), "")) return true;
   }
 
   /*
@@ -530,51 +536,52 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS) {
-    if (from->get_info(ignore_server_ids, (Server_ids *)nullptr)) return true;
+    if (!!from->get_info(ignore_server_ids, (Server_ids *)nullptr)) return true;
   }
 
   /* Starting from 5.5 the master_uuid may be in the repository. */
   if (lines >= LINE_FOR_MASTER_UUID) {
-    if (from->get_info(master_uuid, sizeof(master_uuid), (char *)0))
+    if (!!from->get_info(master_uuid, sizeof(master_uuid), (char *)0))
       return true;
   }
 
   /* Starting from 5.5 the master_retry_count may be in the repository. */
   retry_count = master_retry_count;
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT) {
-    if (from->get_info(&retry_count, master_retry_count)) return true;
+    if (!!from->get_info(&retry_count, master_retry_count)) return true;
   }
 
   if (lines >= LINE_FOR_SSL_CRLPATH) {
-    if (from->get_info(ssl_crl, sizeof(ssl_crl), (char *)0) ||
-        from->get_info(ssl_crlpath, sizeof(ssl_crlpath), (char *)0))
+    if (!!from->get_info(ssl_crl, sizeof(ssl_crl), (char *)0) ||
+        !!from->get_info(ssl_crlpath, sizeof(ssl_crlpath), (char *)0))
       return true;
   }
 
   if (lines >= LINE_FOR_AUTO_POSITION) {
-    if (from->get_info(&temp_auto_position, 0)) return true;
+    if (!!from->get_info(&temp_auto_position, 0)) return true;
   }
 
   if (lines >= LINE_FOR_CHANNEL) {
-    if (from->get_info(channel, sizeof(channel), (char *)0)) return true;
+    if (!!from->get_info(channel, sizeof(channel), (char *)0)) return true;
   }
 
   if (lines >= LINE_FOR_TLS_VERSION) {
-    if (from->get_info(tls_version, sizeof(tls_version), (char *)0))
+    if (!!from->get_info(tls_version, sizeof(tls_version), (char *)0))
       return true;
   }
 
   if (lines >= LINE_FOR_PUBLIC_KEY_PATH) {
-    if (from->get_info(public_key_path, sizeof(public_key_path), (char *)0))
+    if (!!from->get_info(public_key_path, sizeof(public_key_path), (char *)0))
       return true;
   }
 
   if (lines >= LINE_FOR_GET_PUBLIC_KEY) {
-    if (from->get_info(&temp_get_public_key, 0)) return true;
+    if (!!from->get_info(&temp_get_public_key, 0)) return true;
   }
 
   if (lines >= LINE_FOR_NETWORK_NAMESPACE) {
-    if (from->get_info(network_namespace, sizeof(network_namespace), (char *)0))
+    if (!!from->get_info(network_namespace, sizeof(network_namespace),
+                         (char *)0))
       return true;
   }
 
@@ -590,7 +597,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
 
   if (lines >= LINE_FOR_MASTER_COMPRESSION_ALGORITHM) {
     char algorithm_name[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
-    if (from->get_info(algorithm_name, sizeof(algorithm_name), nullptr))
+    if (!!from->get_info(algorithm_name, sizeof(algorithm_name), nullptr))
       return true;
     else {
       if (validate_compression_attributes(algorithm_name, channel, true)) {
@@ -606,7 +613,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
 
   if (lines >= LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL) {
     int level;
-    if (from->get_info(&level, (int)0)) return true;
+    if (!!from->get_info(&level, (int)0)) return true;
     if (is_zstd_compression_level_valid(level))
       zstd_compression_level = level;
     else {

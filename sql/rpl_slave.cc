@@ -3847,7 +3847,6 @@ static int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
                            : (thd_type == SLAVE_THD_SQL)
                                  ? SYSTEM_THREAD_SLAVE_SQL
                                  : SYSTEM_THREAD_SLAVE_IO;
-  thd->security_context()->skip_grants();
   thd->get_protocol_classic()->init_net(0);
   thd->slave_thread = 1;
   thd->enable_slow_log = opt_log_slow_slave_statements;
@@ -5779,6 +5778,13 @@ static void *handle_slave_worker(void *arg) {
   set_timespec_nsec(&w->ts_exec[1], 0);
   set_timespec_nsec(&w->stats_begin, 0);
 
+  // No need to report anything, all error handling will be performed in the
+  // slave SQL thread.
+  if (!rli->check_privilege_checks_user())
+    rli->initialize_security_context(w->info_thd);  // Worker security context
+                                                    // initialization with
+                                                    // `PRIVILEGE_CHECKS_USER`
+
   while (!error) {
     error = slave_worker_exec_job_group(w, rli);
   }
@@ -6685,6 +6691,8 @@ extern "C" void *handle_slave_sql(void *arg) {
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   Commit_order_manager *commit_order_mngr = nullptr;
   Rpl_applier_reader applier_reader(rli);
+  Relay_log_info::enum_priv_checks_status priv_check_status =
+      Relay_log_info::enum_priv_checks_status::SUCCESS;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -6861,11 +6869,6 @@ extern "C" void *handle_slave_sql(void *arg) {
     DBUG_PRINT("master_info", ("log_file_name: %s  position: %s",
                                rli->get_group_master_log_name(),
                                llstr(rli->get_group_master_log_pos(), llbuff)));
-    LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_STARTING,
-           rli->get_for_channel_str(), rli->get_rpl_log_name(),
-           llstr(rli->get_group_master_log_pos(), llbuff),
-           rli->get_group_relay_log_name(),
-           llstr(rli->get_group_relay_log_pos(), llbuff1));
 
     if (check_temp_dir(rli->slave_patternload_file, rli->get_channel())) {
       rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
@@ -6873,6 +6876,40 @@ extern "C" void *handle_slave_sql(void *arg) {
                   slave_load_tmpdir, thd->get_stmt_da()->message_text());
       goto err;
     }
+
+    priv_check_status = rli->check_privilege_checks_user();
+    if (!!priv_check_status) {
+      rli->report_privilege_check_error(ERROR_LEVEL, priv_check_status,
+                                        false /* to client*/);
+      rli->set_privilege_checks_user_corrupted(true);
+      goto err;
+    }
+    priv_check_status =
+        rli->initialize_applier_security_context();  // Applier security context
+                                                     // initialization with
+                                                     // `PRIVILEGE_CHECKS_USER`
+    if (!!priv_check_status) {
+      rli->report_privilege_check_error(ERROR_LEVEL, priv_check_status,
+                                        false /* to client*/);
+      goto err;
+    }
+
+    if (rli->is_privilege_checks_user_null())
+      LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_STARTING,
+             rli->get_for_channel_str(), rli->get_rpl_log_name(),
+             llstr(rli->get_group_master_log_pos(), llbuff),
+             rli->get_group_relay_log_name(),
+             llstr(rli->get_group_relay_log_pos(), llbuff1));
+    else
+      LogErr(INFORMATION_LEVEL,
+             ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS,
+             rli->get_for_channel_str(), rli->get_rpl_log_name(),
+             llstr(rli->get_group_master_log_pos(), llbuff),
+             rli->get_group_relay_log_name(),
+             llstr(rli->get_group_relay_log_pos(), llbuff1),
+             rli->get_privilege_checks_username().c_str(),
+             rli->get_privilege_checks_hostname().c_str(),
+             opt_always_activate_granted_roles == 0 ? "DEFAULT" : "ALL");
 
     /* execute init_slave variable */
     if (opt_init_slave.length) {
@@ -9022,7 +9059,8 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO *lex_mi,
 
   /* Check if *at least one* execute option is given on change master command*/
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos ||
-      lex_mi->sql_delay != -1)
+      lex_mi->sql_delay != -1 || lex_mi->privilege_checks_username != nullptr ||
+      lex_mi->privilege_checks_none)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9237,10 +9275,28 @@ err:
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
+
+  @return       false if the execute options were successfully set and true,
+                otherwise.
 */
 
-static void change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
+static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
   DBUG_TRACE;
+
+  if (lex_mi->privilege_checks_username != nullptr ||
+      lex_mi->privilege_checks_none) {
+    Relay_log_info::enum_priv_checks_status error{
+        mi->rli->set_privilege_checks_user(
+            lex_mi->privilege_checks_username,
+            lex_mi->privilege_checks_none ? nullptr
+                                          : lex_mi->privilege_checks_hostname)};
+    if (!!error) {
+      mi->rli->report_privilege_check_error(
+          ERROR_LEVEL, error, true /* to client*/, mi->rli->get_channel(),
+          lex_mi->privilege_checks_username, lex_mi->privilege_checks_hostname);
+      return true;
+    }
+  }
 
   if (lex_mi->relay_log_name) {
     char relay_log_name[FN_REFLEN];
@@ -9255,6 +9311,8 @@ static void change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
   }
 
   if (lex_mi->sql_delay != -1) mi->rli->set_sql_delay(lex_mi->sql_delay);
+
+  return false;
 }
 
 /**
@@ -9467,6 +9525,9 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     goto err;
   }
 
+  if (have_execute_option && (error = change_execute_options(lex_mi, mi)))
+    goto err;
+
   THD_STAGE_INFO(thd, stage_changing_master);
 
   int thread_mask_stopped_threads;
@@ -9585,8 +9646,6 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
            saved_log_name, (ulong)saved_log_pos, saved_bind_addr, mi->host,
            mi->port, mi->get_master_log_name(), (ulong)mi->get_master_log_pos(),
            mi->bind_addr);
-
-  if (have_execute_option) change_execute_options(lex_mi, mi);
 
   /* If the receiver is stopped, flush master_info to disk. */
   if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true)) {
@@ -9801,6 +9860,49 @@ static bool is_invalid_change_master_for_group_replication_recovery(
 }
 
 /**
+   Method used to check if the user is trying to update any other option for
+   the change master apart from the PRIVILEGE_CHECKS_USER.
+   In case user tries to update any other parameter apart from this one, this
+   method will return error.
+
+   @param  lex_mi structure that holds all change master options given on
+           the change master command.
+
+   @retval true - The CHANGE MASTER is updating a unsupported parameter for the
+                  recovery channel.
+
+   @retval false - Everything is fine. The CHANGE MASTER can execute with the
+                   given option(s) for the recovery channel.
+*/
+static bool is_invalid_change_master_for_group_replication_applier(
+    const LEX_MASTER_INFO *lex_mi) {
+  DBUG_TRACE;
+  bool have_extra_option_received = false;
+
+  /* Check if *at least one* receive/execute option is given on change master
+   * command*/
+  if (lex_mi->host || lex_mi->user || lex_mi->password ||
+      lex_mi->log_file_name || lex_mi->pos || lex_mi->bind_addr ||
+      lex_mi->port || lex_mi->connect_retry || lex_mi->server_id ||
+      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_key || lex_mi->ssl_cert || lex_mi->ssl_ca ||
+      lex_mi->ssl_capath || lex_mi->tls_version || lex_mi->ssl_cipher ||
+      lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->relay_log_name || lex_mi->relay_log_pos ||
+      lex_mi->sql_delay != -1 || lex_mi->public_key_path ||
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->zstd_compression_level || lex_mi->compression_algorithm)
+    have_extra_option_received = true;
+
+  return have_extra_option_received;
+}
+
+/**
   Entry point for the CHANGE MASTER command. Function
   decides to create a new channel or create an existing one.
 
@@ -9826,11 +9928,16 @@ bool change_master_cmd(THD *thd) {
     goto err;
   }
 
-  // If the chosen name is for group_replication_applier channel we abort
+  // If the chosen name is for group_replication_applier channel we allow the
+  // channel creation based on the check as to which field is being updated.
   if (channel_map.is_group_replication_channel_name(lex->mi.channel, true)) {
-    my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
-    res = true;
-    goto err;
+    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
+    if (is_invalid_change_master_for_group_replication_applier(lex_mi)) {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "CHANGE MASTER with the given parameters", lex->mi.channel);
+      res = true;
+      goto err;
+    }
   }
 
   // If the channel being used is group_replication_recovery we allow the

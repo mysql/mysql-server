@@ -300,9 +300,14 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
 
   uint field_idx = 0;
   while (field_idx < max_num_field) {
-    fields[field_idx]->val_str(&str);
-    field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
-                                        &my_charset_bin);
+    if (fields[field_idx]->is_null()) {
+      bitmap_set_bit(&field_values->is_null, field_idx);
+    } else {
+      fields[field_idx]->val_str(&str);
+      field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
+                                          &my_charset_bin);
+      bitmap_clear_bit(&field_values->is_null, field_idx);
+    }
     field_idx++;
   }
 
@@ -329,14 +334,18 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field,
   uint field_idx = 0;
 
   while (field_idx < max_num_field) {
-    fields[field_idx]->set_notnull();
+    if (bitmap_is_set(&field_values->is_null, field_idx)) {
+      fields[field_idx]->set_null();
+    } else {
+      fields[field_idx]->set_notnull();
 
-    if (fields[field_idx]->store(field_values->value[field_idx].c_ptr_safe(),
-                                 field_values->value[field_idx].length(),
-                                 &my_charset_bin)) {
-      my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
-               fields[field_idx]->field_name);
-      return true;
+      if (fields[field_idx]->store(field_values->value[field_idx].c_ptr_safe(),
+                                   field_values->value[field_idx].length(),
+                                   &my_charset_bin)) {
+        my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
+                 fields[field_idx]->field_name);
+        return true;
+      }
     }
     field_idx++;
   }

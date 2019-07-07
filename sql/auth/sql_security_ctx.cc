@@ -45,6 +45,7 @@
 #include "sql/current_thd.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
+#include "sql/table.h"
 
 extern bool initialized;
 
@@ -1138,4 +1139,138 @@ std::pair<bool, bool> Security_context::fetch_global_grant(
   /* Check if AuthID being processed has dynamic privilege */
   has_privilege = sctx.has_global_grant(privilege.c_str(), privilege.length());
   return has_privilege;
+}
+
+/**
+  Check if required access to given table is granted.
+
+  @param [in]     priv Required access
+  @param [in,out] tables Table list object
+
+  @returns access information
+  @retval true Sucess
+  @retval false Failure
+ */
+bool Security_context::has_table_access(ulong priv, TABLE_LIST *tables) {
+  DBUG_TRACE;
+  DBUG_ASSERT(tables != nullptr);
+  TABLE const *table = tables->table;
+  LEX_CSTRING db, table_name;
+  db.str = table->s->db.str;
+  db.length = table->s->db.length;
+
+  table_name.str = table->alias;
+  table_name.length = strlen(table->alias);
+
+  ulong acls = master_access({db.str, db.length});
+  if (m_acl_map) {
+    if (priv & acls) return true;
+
+    acls = db_acl(db);
+    if (priv & acls) return true;
+
+    Grant_table_aggregate aggr = table_and_column_acls(db, table_name);
+    acls = aggr.table_access | aggr.cols;
+    if (priv & acls) return true;
+  } else {
+    /* Global and DB priv check */
+    if (::check_access(m_thd, priv, db.str, &acls, nullptr, false, true))
+      return false;
+
+    if (priv & acls) return true;
+
+    if (::check_grant(m_thd, priv, tables, false, 1, true)) return false;
+    return true;
+  }
+  return false;
+}
+
+/**
+  Check if required access to given table is not restricted.
+
+  @param [in]     priv Required access
+  @param [in,out] table Table object
+
+  @returns access information
+  @retval true Access to the table is blocked
+  @retval false Access to the table is not blocked
+ */
+bool Security_context::is_table_blocked(ulong priv, TABLE const *table) {
+  DBUG_TRACE;
+  DBUG_ASSERT(table != nullptr);
+  LEX_CSTRING db, table_name;
+  db.str = table->s->db.str;
+  db.length = table->s->db.length;
+
+  table_name.str = table->alias;
+  table_name.length = strlen(table->alias);
+
+  /* Table privs */
+  TABLE_LIST tables;
+  tables.table = const_cast<TABLE *>(table);
+  tables.db = db.str;
+  tables.db_length = db.length;
+  tables.table_name = table_name.str;
+  tables.table_name_length = table_name.length;
+  tables.grant.privilege = NO_ACCESS;
+
+  return !has_table_access(priv, &tables);
+}
+
+/**
+  Check if required access to given table column is granted.
+
+  @param [in] priv Required access
+  @param [in] table Table object
+  @param [in] columns List of column names to check
+
+  @returns access information
+  @retval true Sucess
+  @retval false Failure
+ */
+bool Security_context::has_column_access(ulong priv, TABLE const *table,
+                                         std::vector<std::string> columns) {
+  DBUG_TRACE;
+  DBUG_ASSERT(table != nullptr);
+  LEX_CSTRING db, table_name;
+  db.str = table->s->db.str;
+  db.length = table->s->db.length;
+
+  table_name.str = table->alias;
+  table_name.length = strlen(table->alias);
+
+  /* Table privs */
+  TABLE_LIST tables;
+  tables.table = const_cast<TABLE *>(table);
+  tables.db = db.str;
+  tables.db_length = db.length;
+  tables.table_name = table_name.str;
+  tables.table_name_length = table_name.length;
+  tables.grant.privilege = NO_ACCESS;
+
+  // Check that general table access is possible
+  if (!has_table_access(priv, &tables)) return false;
+
+  // Try to get info about table specific grants
+  {
+    Acl_cache_lock_guard acl_cache_lock{this->m_thd,
+                                        Acl_cache_lock_mode::READ_MODE};
+    if (!acl_cache_lock.lock()) return false;
+
+    if (table_hash_search(this->host().str, this->ip().str, db.str,
+                          this->priv_user().str, table_name.str,
+                          0) == nullptr) {
+      // If there is no specific info about the table specific privileges, it
+      // means that there are no column privileges configured for the table
+      // columns. So, we let the general table access above to prevail.
+      return true;
+    }
+  }
+
+  for (auto column : columns) {
+    if (check_column_grant_in_table_ref(m_thd, &tables, column.data(),
+                                        column.length(), priv))
+      return false;
+  }
+  return true;
 }
