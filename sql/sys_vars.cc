@@ -215,6 +215,40 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
 }
 
 /**
+  Check if REPLICATION_APPLIER granted. Throw SQL error if not.
+
+  Use this when setting session variables that are to be protected within
+  replication applier context.
+
+  @note For compatibility we also accept SUPER.
+
+  @retval true failure
+  @retval false success
+
+  @param self the system variable to set value for
+  @param thd the session context
+  @param setv the SET operations metadata
+ */
+static bool check_session_admin_or_replication_applier(
+    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *setv) {
+  DBUG_ASSERT(self->scope() != sys_var::GLOBAL);
+  Security_context *sctx = thd->security_context();
+  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_APPLIER")).first &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+           .first &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+           .first &&
+      !sctx->check_access(SUPER_ACL)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
+             "REPLICATION_APPLIER");
+    return true;
+  }
+  return false;
+}
+
+/**
   Check if SESSION_VARIABLES_ADMIN granted. Throw SQL error if not.
 
   Use this when setting session variables that are sensitive and should
@@ -814,16 +848,16 @@ static Sys_var_ulong Sys_auto_increment_increment(
     "auto_increment_increment",
     "Auto-increment columns are incremented by this",
     HINT_UPDATEABLE SESSION_VAR(auto_increment_increment), CMD_LINE(OPT_ARG),
-    VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
-    ON_CHECK(check_session_admin));
+    VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    IN_BINLOG);
 
 static Sys_var_ulong Sys_auto_increment_offset(
     "auto_increment_offset",
     "Offset added to Auto-increment columns. Used when "
     "auto-increment-increment != 1",
     HINT_UPDATEABLE SESSION_VAR(auto_increment_offset), CMD_LINE(OPT_ARG),
-    VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
-    ON_CHECK(check_session_admin));
+    VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    IN_BINLOG);
 
 static Sys_var_bool Sys_windowing_use_high_precision(
     "windowing_use_high_precision",
@@ -1083,8 +1117,6 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd,
              var->var->name.str);
     return true;
   }
-  if (self->scope() != sys_var::GLOBAL)
-    return check_session_admin(self, thd, var);
   return false;
 }
 
@@ -1112,7 +1144,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var) {
              var->var->name.str);
     return true;
   }
-  return check_session_admin(self, thd, var);
+  return check_session_admin_or_replication_applier(self, thd, var);
 }
 
 static bool check_session_admin_outside_trx_outside_sf_outside_sp(
@@ -1229,13 +1261,13 @@ static bool fix_binlog_format_after_update(sys_var *, THD *thd,
   return false;
 }
 
-static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
+static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *,
                                                     set_var *var) {
   if (var->is_global_persist()) {
     my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
     return true;
   }
-  return check_session_admin(self, thd, var);
+  return false;
 }
 
 static Sys_var_test_flag Sys_core_file("core_file",
@@ -1773,7 +1805,6 @@ static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_connection(
     ON_CHECK(check_collation_not_null), ON_UPDATE(fix_thd_charset));
 
 static bool check_collation_db(sys_var *self, THD *thd, set_var *var) {
-  if (check_session_admin(self, thd, var)) return true;
   if (check_collation_not_null(self, thd, var)) return true;
   if (!var->value)  // = DEFAULT
     var->save_result.ptr = thd->db_charset;
@@ -5684,7 +5715,7 @@ static Sys_var_ulonglong Sys_var_original_commit_timestamp(
     SESSION_ONLY(original_commit_timestamp), NO_CMD_LINE,
     VALID_RANGE(0, MAX_COMMIT_TIMESTAMP_VALUE),
     DEFAULT(MAX_COMMIT_TIMESTAMP_VALUE), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    IN_BINLOG, ON_CHECK(check_session_admin));
+    IN_BINLOG, ON_CHECK(check_session_admin_or_replication_applier));
 
 static Sys_var_ulong Sys_slave_trans_retries(
     "slave_transaction_retries",
@@ -5837,7 +5868,7 @@ static Sys_var_ulong Sys_sp_cache_size(
     VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var) {
-  if (check_session_admin(self, thd, var)) return true;
+  if (check_session_admin_or_replication_applier(self, thd, var)) return true;
   if (check_outside_trx(self, thd, var)) return true;
   longlong previous_val = thd->variables.pseudo_slave_mode;
   longlong val = (longlong)var->save_result.ulonglong_value;
@@ -6418,7 +6449,7 @@ static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
   auto cs = static_cast<const CHARSET_INFO *>(var->save_result.ptr);
   if (cs == &my_charset_utf8mb4_0900_ai_ci ||
       cs == &my_charset_utf8mb4_general_ci)
-    return check_session_admin(self, thd, var);
+    return false;
 
   my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->name);
   return true;
@@ -6583,14 +6614,16 @@ static Sys_var_uint Sys_original_server_version(
     "The version of the server where the transaction was originally executed",
     SESSION_ONLY(original_server_version), NO_CMD_LINE,
     VALID_RANGE(0, UNDEFINED_SERVER_VERSION), DEFAULT(UNDEFINED_SERVER_VERSION),
-    BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_session_admin));
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_session_admin_or_replication_applier));
 
 static Sys_var_uint Sys_immediate_server_version(
     "immediate_server_version",
     "The server version of the immediate server in the replication topology",
     SESSION_ONLY(immediate_server_version), NO_CMD_LINE,
     VALID_RANGE(0, UNDEFINED_SERVER_VERSION), DEFAULT(UNDEFINED_SERVER_VERSION),
-    BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_session_admin));
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_session_admin_or_replication_applier));
 
 static bool check_set_default_table_encryption_access(
     sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {

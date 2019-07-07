@@ -48,17 +48,20 @@
 #include "sql/psi_memory_key.h"
 #include "sql_string.h"
 
-int init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val);
-int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
-                          const char *default_val);
-int init_intvar_from_file(int *var, IO_CACHE *f, int default_val);
-int init_floatvar_from_file(float *var, IO_CACHE *f, float default_val);
-bool init_dynarray_intvar_from_file(char *buffer, size_t size,
+long init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val);
+long init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
+                           const char *default_val);
+long init_intvar_from_file(int *var, IO_CACHE *f, int default_val);
+long init_floatvar_from_file(float *var, IO_CACHE *f, float default_val);
+long init_dynarray_intvar_from_file(char *buffer, size_t size,
                                     char **buffer_act, IO_CACHE *f);
 
 Rpl_info_file::Rpl_info_file(const int nparam, const char *param_pattern_fname,
-                             const char *param_info_fname, bool indexed_arg)
-    : Rpl_info_handler(nparam), info_fd(-1), name_indexed(indexed_arg) {
+                             const char *param_info_fname, bool indexed_arg,
+                             MY_BITMAP const *nullable_fields)
+    : Rpl_info_handler(nparam, nullable_fields),
+      info_fd(-1),
+      name_indexed(indexed_arg) {
   DBUG_TRACE;
 
   fn_format(pattern_fname, param_pattern_fname, mysql_data_home, "", 4 + 32);
@@ -140,12 +143,14 @@ int Rpl_info_file::do_init_info() {
 int Rpl_info_file::do_prepare_info_for_read() {
   cursor = 0;
   prv_error = false;
+  prv_get_error = Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
   return (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0));
 }
 
 int Rpl_info_file::do_prepare_info_for_write() {
   cursor = 0;
   prv_error = false;
+  prv_get_error = Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
   return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
 }
 
@@ -204,7 +209,9 @@ enum_return_check Rpl_info_file::do_check_info() {
   @retval true      An error
 */
 bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
-                                  bool indexed, uint *counter) {
+                                  bool indexed,
+                                  MY_BITMAP const *nullable_fields,
+                                  uint *counter) {
   uint i = 0;
   Rpl_info_file *info = nullptr;
 
@@ -214,7 +221,8 @@ bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
 
   DBUG_TRACE;
 
-  if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed)))
+  if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed,
+                                 nullable_fields)))
     return true;
 
   for (i = 1; last_check == REPOSITORY_EXISTS; i++) {
@@ -280,7 +288,8 @@ int Rpl_info_file::do_clean_info() {
 }
 
 int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
-                                 bool indexed) {
+                                 bool indexed,
+                                 MY_BITMAP const *nullable_fields) {
   int error = false;
   uint i = 0;
   Rpl_info_file *info = nullptr;
@@ -290,7 +299,8 @@ int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
 
   DBUG_TRACE;
 
-  if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed)))
+  if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed,
+                                 nullable_fields)))
     return true;
 
   for (i = 1; last_check == REPOSITORY_EXISTS; i++) {
@@ -310,12 +320,18 @@ int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
   return error;
 }
 
-bool Rpl_info_file::do_set_info(const int, const char *value) {
+bool Rpl_info_file::do_set_info(const int pos, const char *value) {
+  if (value == nullptr) {
+    return do_set_info(pos, nullptr);
+  }
   return (my_b_printf(&info_file, "%s\n", value) > (size_t)0 ? false : true);
 }
 
-bool Rpl_info_file::do_set_info(const int, const uchar *value,
+bool Rpl_info_file::do_set_info(const int pos, const uchar *value,
                                 const size_t size) {
+  if (value == nullptr) {
+    return do_set_info(pos, nullptr, size);
+  }
   return (my_b_write(&info_file, value, size));
 }
 
@@ -362,33 +378,60 @@ err:
   return error;
 }
 
-bool Rpl_info_file::do_get_info(const int, char *value, const size_t size,
-                                const char *default_value) {
-  return (init_strvar_from_file(value, size, &info_file, default_value));
+bool Rpl_info_file::do_set_info(const int pos, const std::nullptr_t) {
+  if (!this->is_field_nullable(pos)) return true;
+  return (my_b_printf(&info_file, "\n") > (size_t)0 ? false : true);
 }
 
-bool Rpl_info_file::do_get_info(const int, uchar *value, const size_t size,
-                                const uchar *) {
-  return (my_b_read(&info_file, value, size));
+bool Rpl_info_file::do_set_info(const int pos, const std::nullptr_t,
+                                const size_t) {
+  if (!this->is_field_nullable(pos)) return true;
+  return (my_b_printf(&info_file, "\n") > (size_t)0 ? false : true);
 }
 
-bool Rpl_info_file::do_get_info(const int, ulong *value,
-                                const ulong default_value) {
-  return (init_ulongvar_from_file(value, &info_file, default_value));
+Rpl_info_handler::enum_field_get_status Rpl_info_file::check_for_error(
+    int pos, long n_read_bytes) {
+  if (n_read_bytes == 0 && this->is_field_nullable(pos))
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
+  else if (n_read_bytes < 0)
+    return Rpl_info_handler::enum_field_get_status::FAILURE;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
-bool Rpl_info_file::do_get_info(const int, int *value,
-                                const int default_value) {
-  return (init_intvar_from_file(value, &info_file, (int)default_value));
+Rpl_info_handler::enum_field_get_status Rpl_info_file::do_get_info(
+    const int pos, char *value, const size_t size, const char *default_value) {
+  long n_bytes_read =
+      init_strvar_from_file(value, size, &info_file, default_value);
+  return this->check_for_error(pos, n_bytes_read);
 }
 
-bool Rpl_info_file::do_get_info(const int, float *value,
-                                const float default_value) {
-  return (init_floatvar_from_file(value, &info_file, default_value));
+Rpl_info_handler::enum_field_get_status Rpl_info_file::do_get_info(
+    const int pos, uchar *value, const size_t size, const uchar *) {
+  long n_bytes_read = my_b_read(&info_file, value, size);
+  return this->check_for_error(pos, n_bytes_read);
 }
 
-bool Rpl_info_file::do_get_info(const int, Server_ids *value,
-                                const Server_ids *) {
+Rpl_info_handler::enum_field_get_status Rpl_info_file::do_get_info(
+    const int pos, ulong *value, const ulong default_value) {
+  long n_bytes_read = init_ulongvar_from_file(value, &info_file, default_value);
+  return this->check_for_error(pos, n_bytes_read);
+}
+
+Rpl_info_handler::enum_field_get_status Rpl_info_file::do_get_info(
+    const int pos, int *value, const int default_value) {
+  long n_bytes_read =
+      init_intvar_from_file(value, &info_file, (int)default_value);
+  return this->check_for_error(pos, n_bytes_read);
+}
+
+Rpl_info_handler::enum_field_get_status Rpl_info_file::do_get_info(
+    const int pos, float *value, const float default_value) {
+  long n_bytes_read = init_floatvar_from_file(value, &info_file, default_value);
+  return this->check_for_error(pos, n_bytes_read);
+}
+
+Rpl_info_handler::enum_field_get_status Rpl_info_file::do_get_info(
+    const int pos, Server_ids *value, const Server_ids *) {
   /*
     Static buffer to use most of the times. However, if it is not big
     enough to accommodate the server ids, a new buffer is allocated.
@@ -397,9 +440,9 @@ bool Rpl_info_file::do_get_info(const int, Server_ids *value,
   char buffer[array_size];
   char *buffer_act = buffer;
 
-  bool error = init_dynarray_intvar_from_file(buffer, sizeof(buffer),
-                                              &buffer_act, &info_file);
-  if (!error) value->unpack_dynamic_ids(buffer_act);
+  long n_bytes_read = init_dynarray_intvar_from_file(buffer, sizeof(buffer),
+                                                     &buffer_act, &info_file);
+  if (n_bytes_read > 0) value->unpack_dynamic_ids(buffer_act);
 
   if (buffer != buffer_act) {
     /*
@@ -409,7 +452,7 @@ bool Rpl_info_file::do_get_info(const int, Server_ids *value,
     my_free(buffer_act);
   }
 
-  return error;
+  return this->check_for_error(pos, n_bytes_read);
 }
 
 char *Rpl_info_file::do_get_description_info() { return info_fname; }
@@ -423,16 +466,29 @@ bool Rpl_info_file::do_update_is_transactional() {
 
 uint Rpl_info_file::do_get_rpl_info_type() { return INFO_REPOSITORY_FILE; }
 
-int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
-                          const char *default_val) {
-  size_t length;
+/**
+  Tries to read a string of maximum size `max_size` from the `IO_CACHE` `f`
+  current line - being a line a string terminated by '\n'.
+
+  @param  var         Put the read values in this static buffer
+  @param  max_size    Size of the static buffer
+  @param  f           IO_CACHE of the replication info file.
+  @param default_val  Default value to be assigned in case unable to read bytes.
+
+  @retval >= 0  Number or read bytes
+  @retval < 0   An error
+*/
+long init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
+                           const char *default_val) {
+  long length;
   DBUG_TRACE;
 
-  if ((length = my_b_gets(f, var, max_size))) {
+  if ((length = static_cast<long>(my_b_gets(f, var, max_size)))) {
     char *last_p = var + length - 1;
-    if (*last_p == '\n')
+    if (*last_p == '\n') {
       *last_p = 0;  // if we stopped on newline, kill it
-    else {
+      return length - 1;
+    } else {
       /*
         If we truncated a line or stopped on last char, remove all chars
         up to and including newline.
@@ -441,15 +497,26 @@ int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
       while (((c = my_b_get(f)) != '\n' && c != my_b_EOF))
         ;
     }
-    return 0;
+    return length;
   } else if (default_val) {
     strmake(var, default_val, max_size - 1);
-    return 0;
+    return strlen(default_val);
   }
-  return 1;
+  return -1;
 }
 
-int init_intvar_from_file(int *var, IO_CACHE *f, int default_val) {
+/**
+  Tries to read an integer value from the `IO_CACHE` `f` current line - being a
+  line a string terminated by '\n'.
+
+  @param  var         Put the read value in this parameter.
+  @param  f           IO_CACHE of the replication info file.
+  @param default_val  Default value to be assigned in case unable to read bytes.
+
+  @retval >= 0  Number or read bytes
+  @retval < 0   An error
+*/
+long init_intvar_from_file(int *var, IO_CACHE *f, int default_val) {
   /*
     32 bytes provide enough space:
 
@@ -459,17 +526,29 @@ int init_intvar_from_file(int *var, IO_CACHE *f, int default_val) {
   char buf[32];
   DBUG_TRACE;
 
-  if (my_b_gets(f, buf, sizeof(buf))) {
+  long length;
+  if ((length = static_cast<long>(my_b_gets(f, buf, sizeof(buf))))) {
     *var = atoi(buf);
-    return 0;
+    return length;
   } else if (default_val) {
     *var = default_val;
-    return 0;
+    return sizeof(default_val);
   }
-  return 1;
+  return -1;
 }
 
-int init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val) {
+/**
+  Tries to read an unsigned integer value from the `IO_CACHE` `f` current line -
+  being a line a string terminated by '\n'.
+
+  @param  var         Put the read value in this parameter.
+  @param  f           IO_CACHE of the replication info file.
+  @param default_val  Default value to be assigned in case unable to read bytes.
+
+  @retval >= 0  Number or read bytes
+  @retval < 0   An error
+*/
+long init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val) {
   /*
     32 bytes provide enough space:
 
@@ -479,17 +558,29 @@ int init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val) {
   char buf[32];
   DBUG_TRACE;
 
-  if (my_b_gets(f, buf, sizeof(buf))) {
+  long length;
+  if ((length = static_cast<long>(my_b_gets(f, buf, sizeof(buf))))) {
     *var = strtoul(buf, 0, 10);
-    return 0;
+    return length;
   } else if (default_val) {
     *var = default_val;
-    return 0;
+    return sizeof(default_val);
   }
-  return 1;
+  return -1;
 }
 
-int init_floatvar_from_file(float *var, IO_CACHE *f, float default_val) {
+/**
+  Tries to read a float value from the `IO_CACHE` `f` current line - being a
+  line a string terminated by '\n'.
+
+  @param  var         Put the read value in this parameter.
+  @param  f           IO_CACHE of the replication info file.
+  @param default_val  Default value to be assigned in case unable to read bytes.
+
+  @retval >= 0  Number or read bytes
+  @retval < 0   An error
+*/
+long init_floatvar_from_file(float *var, IO_CACHE *f, float default_val) {
   /*
     64 bytes provide enough space considering that the precision is 3
     bytes (See the appropriate set funciton):
@@ -504,16 +595,17 @@ int init_floatvar_from_file(float *var, IO_CACHE *f, float default_val) {
   char buf[64];
   DBUG_TRACE;
 
-  if (my_b_gets(f, buf, sizeof(buf))) {
+  long length;
+  if ((length = static_cast<long>(my_b_gets(f, buf, sizeof(buf))))) {
     if (sscanf(buf, "%f", var) != 1)
-      return 1;
+      return -1;
     else
-      return 0;
+      return length;
   } else if (default_val != 0.0) {
     *var = default_val;
-    return 0;
+    return sizeof(default_val);
   }
-  return 1;
+  return -1;
 }
 
 /**
@@ -533,10 +625,10 @@ int init_floatvar_from_file(float *var, IO_CACHE *f, float default_val) {
                        be used if the static buffer is not big enough.
    @param  f           IO_CACHE of the replication info file.
 
-   @retval 0           All OK
-   @retval non-zero  An error
+   @retval >= 0  Number or read bytes
+   @retval < 0   An error
 */
-bool init_dynarray_intvar_from_file(char *buffer, size_t size,
+long init_dynarray_intvar_from_file(char *buffer, size_t size,
                                     char **buffer_act, IO_CACHE *f) {
   char *buf = buffer;  // actual buffer can be dynamic if static is short
   char *buf_act = buffer;
@@ -547,7 +639,7 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
   DBUG_TRACE;
 
   if ((read_size = my_b_gets(f, buf_act, size)) == 0) {
-    return false;  // no line in master.info
+    return static_cast<long>(read_size);  // no line in master.info
   }
   if (read_size + 1 == size && buf[size - 2] != '\n') {
     /*
@@ -565,7 +657,7 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
     size_t max_size = (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
     if (!(buf_act = (char *)my_malloc(key_memory_Rpl_info_file_buffer, max_size,
                                       MYF(MY_WME))))
-      return true;
+      return -1;
     *buffer_act = buf_act;
     memcpy(buf_act, buf, read_size);
     snd_size = my_b_gets(f, buf_act + read_size, max_size - read_size);
@@ -574,8 +666,8 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
       /*
         failure to make the 2nd read or short read again
       */
-      return true;
+      return -1;
     }
   }
-  return false;
+  return static_cast<long>(read_size);
 }

@@ -528,4 +528,79 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
     DBUG_PRINT((N), ((FRM), buf));                              \
   } while (0)
 
+#ifdef MYSQL_SERVER
+/**
+  Sentry class for managing the need to create and dispose of a local `THD`
+  instance.
+
+  If the given `THD` object pointer passed on the constructor is `nullptr`, a
+  new instance will be initialized within the constructor and disposed of in the
+  destructor.
+
+  If the given `THD` object poitner passed on the constructor is not `nullptr`,
+  the reference is kept and nothing is disposed on the destructor.
+
+  Casting operator to `THD*` is also provided, to easy code replacemente.
+
+  Usage example:
+
+       THD_instance_guard thd{current_thd != nullptr ? current_thd :
+                                                       this->info_thd};
+       Acl_cache_lock_guard guard{thd, Acl_cache_lock_mode::READ_MODE};
+       if (guard.lock())
+         ...
+
+ */
+class THD_instance_guard {
+ public:
+  /**
+    If the given `THD` object pointer is `nullptr`, a new instance will be
+    initialized within the constructor and disposed of in the destructor.
+
+    If the given `THD` object poitner is not `nullptr`, the reference is kept
+    and nothing is disposed on the destructor.
+
+    @param thd `THD` object reference that determines if an existence instance
+    is used or a new instance of `THD` must be created.
+   */
+  THD_instance_guard(THD *thd);
+  /**
+    If a new instance of `THD` was created in the constructor, it will be
+    disposed here.
+   */
+  virtual ~THD_instance_guard();
+
+  /**
+    Returns the active `THD` object pointer.
+
+    @return a not-nullptr `THD` object pointer.
+   */
+  operator THD *();
+
+ private:
+  /** The active `THD` object pointer. */
+  THD *m_target{nullptr};
+  /**
+    Tells whether or not the active `THD` object was created in this object
+    constructor.
+   */
+  bool m_is_locally_initialized{false};
+};
+#endif  // MYSQL_SERVER
+
+/**
+  Replaces every occurrence of the string `find` by the string `replace`, within
+  the string `from` and return the resulting string.
+
+  The original string `from` remains untouched.
+
+  @param from the string to search within.
+  @param find the string to search for.
+  @param replace the string to replace every occurrence of `from`
+
+  @return a new string, holding the result of the search and replace operation.
+ */
+std::string replace_all_in_str(std::string from, std::string find,
+                               std::string replace);
+
 #endif /* RPL_UTILITY_H */

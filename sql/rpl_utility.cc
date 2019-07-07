@@ -1181,4 +1181,42 @@ void Deferred_log_events::rewind() {
   m_array.shrink_to_fit();
 }
 
+std::string replace_all_in_str(std::string from, std::string find,
+                               std::string replace) {
+  std::string to{from.data()};
+  if (to.length() == 0) {
+    return to;
+  }
+
+  size_t start{0};
+  while ((start = to.find(find, start)) != std::string::npos) {
+    to.replace(start, find.size(), replace);
+    start += replace.length();
+  }
+
+  return to;
+}
+
 #endif
+
+#ifdef MYSQL_SERVER
+THD_instance_guard::THD_instance_guard(THD *thd)
+    : m_is_locally_initialized{thd == nullptr} {
+  if (this->m_is_locally_initialized) {
+    this->m_target = new THD;
+    this->m_target->thread_stack = (char *)&this->m_target;
+    this->m_target->store_globals();
+    this->m_target->security_context()->skip_grants();
+  } else {
+    this->m_target = thd;
+  }
+}
+
+THD_instance_guard::~THD_instance_guard() {
+  if (this->m_is_locally_initialized) {
+    delete this->m_target;
+  }
+}
+
+THD_instance_guard::operator THD *() { return this->m_target; }
+#endif  // MYSQL_SERVER

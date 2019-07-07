@@ -172,6 +172,8 @@ def	mysql	slave_relay_log_info	Sql_delay	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	
 def	mysql	slave_relay_log_info	Number_of_workers	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
 def	mysql	slave_relay_log_info	Id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	Internal Id that uniquely identifies this record.		NULL
 def	mysql	slave_relay_log_info	Channel_name	9	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The channel on which the slave is connected to a source. Used in Multisource Replication		NULL
+def	mysql	slave_relay_log_info	Privilege_checks_username	10	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references	Username part of PRIVILEGE_CHECKS_USER.		NULL
+def	mysql	slave_relay_log_info	Privilege_checks_hostname	11	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references	Hostname part of PRIVILEGE_CHECKS_USER.		NULL
 def	mysql	slave_worker_info	Id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references			NULL
 def	mysql	slave_worker_info	Relay_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references			NULL
 def	mysql	slave_worker_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
@@ -508,6 +510,8 @@ NULL	mysql	slave_relay_log_info	Sql_delay	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slave_relay_log_info	Number_of_workers	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_relay_log_info	Id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	slave_relay_log_info	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
+3.0000	mysql	slave_relay_log_info	Privilege_checks_username	char	32	96	utf8	utf8_bin	char(32)
+1.0000	mysql	slave_relay_log_info	Privilege_checks_hostname	char	255	255	ascii	ascii_general_ci	char(255)
 NULL	mysql	slave_worker_info	Id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_worker_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_worker_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

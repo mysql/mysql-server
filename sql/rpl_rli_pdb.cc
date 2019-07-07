@@ -318,6 +318,12 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
       DBUG_EVALUATE_IF("inject_init_worker_init_info_fault", true, false))
     return 1;
 
+  if (!rli->is_privilege_checks_user_null()) {
+    this->set_privilege_checks_user(
+        rli->get_privilege_checks_username().c_str(),
+        rli->get_privilege_checks_hostname().c_str());
+  }
+
   id = i;
   curr_group_exec_parts.clear();
   relay_log_change_notified = false;  // the 1st group to contain relaylog name
@@ -486,23 +492,24 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
 
   if (from->prepare_info_for_read()) return true;
 
-  if (from->get_info(&temp_internal_id, 0) ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "") ||
-      from->get_info(&temp_group_relay_log_pos, 0UL) ||
-      from->get_info(group_master_log_name, sizeof(group_master_log_name),
-                     "") ||
-      from->get_info(&temp_group_master_log_pos, 0UL) ||
-      from->get_info(checkpoint_relay_log_name,
-                     sizeof(checkpoint_relay_log_name), "") ||
-      from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
-      from->get_info(checkpoint_master_log_name,
-                     sizeof(checkpoint_master_log_name), "") ||
-      from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
-      from->get_info(&temp_checkpoint_seqno, 0UL) ||
-      from->get_info(&nbytes, 0UL) ||
-      from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
+  if (!!from->get_info(&temp_internal_id, 0) ||
+      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
+                       "") ||
+      !!from->get_info(&temp_group_relay_log_pos, 0UL) ||
+      !!from->get_info(group_master_log_name, sizeof(group_master_log_name),
+                       "") ||
+      !!from->get_info(&temp_group_master_log_pos, 0UL) ||
+      !!from->get_info(checkpoint_relay_log_name,
+                       sizeof(checkpoint_relay_log_name), "") ||
+      !!from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
+      !!from->get_info(checkpoint_master_log_name,
+                       sizeof(checkpoint_master_log_name), "") ||
+      !!from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
+      !!from->get_info(&temp_checkpoint_seqno, 0UL) ||
+      !!from->get_info(&nbytes, 0UL) ||
+      !!from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
       /* default is empty string */
-      from->get_info(channel, sizeof(channel), ""))
+      !!from->get_info(channel, sizeof(channel), ""))
     return true;
 
   DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));
@@ -587,6 +594,12 @@ bool Slave_worker::reset_recovery_info() {
 
 size_t Slave_worker::get_number_worker_fields() {
   return sizeof(info_slave_worker_fields) / sizeof(info_slave_worker_fields[0]);
+}
+
+void Slave_worker::set_nullable_fields(MY_BITMAP *nullable_fields) {
+  bitmap_init(nullable_fields, nullptr,
+              Slave_worker::get_number_worker_fields(), false);
+  bitmap_clear_all(nullable_fields);
 }
 
 const char *Slave_worker::get_master_log_name() {

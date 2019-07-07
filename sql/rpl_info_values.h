@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #ifndef RPL_INFO_VALUES_H
 #define RPL_INFO_VALUES_H
 
+#include "my_bitmap.h"
+
 class String;
 
 class Rpl_info_values {
@@ -36,6 +38,12 @@ class Rpl_info_values {
     Sequence of values to be read from or stored into a repository.
   */
   String *value;
+
+  /**
+    Bitset to represent nullability of corresponding field values in `value`
+    array above.
+   */
+  MY_BITMAP is_null;
 
  private:
   /* This property represents the number of fields. */

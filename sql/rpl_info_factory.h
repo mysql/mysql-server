@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "my_bitmap.h"
 #include "my_io.h"
 #include "sql/rpl_info_handler.h"  // enum_return_check
 
@@ -78,19 +79,23 @@ class Rpl_info_factory {
   static bool reset_workers(Relay_log_info *rli);
 
  private:
-  typedef struct {
+  typedef struct file_data {
     uint n_fields;
     char name[FN_REFLEN];
     char pattern[FN_REFLEN];
     bool name_indexed;  // whether file name should include instance number
+    MY_BITMAP nullable_fields;
+    virtual ~file_data() { bitmap_free(&nullable_fields); }
   } struct_file_data;
 
-  typedef struct {
+  typedef struct table_data {
     uint n_fields;
     const char *schema;
     const char *name;
     uint n_pk_fields;
     const uint *pk_field_indexes;
+    MY_BITMAP nullable_fields;
+    virtual ~table_data() { bitmap_free(&nullable_fields); }
   } struct_table_data;
 
   static struct_table_data rli_table_data;

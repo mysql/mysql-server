@@ -347,6 +347,16 @@ struct LEX_MASTER_INFO {
   char *compression_algorithm;
   uint zstd_compression_level;
   Prealloced_array<ulong, 2> repl_ignore_server_ids;
+  /**
+    Flag that is set to `true` whenever `PRIVILEGE_CHECKS_USER` is set to `NULL`
+    as a part of a `CHANGE MASTER TO` statement.
+   */
+  bool privilege_checks_none;
+  /**
+    Username and hostname parts of the `PRIVILEGE_CHECKS_USER`, when it's set to
+    a user.
+   */
+  const char *privilege_checks_username, *privilege_checks_hostname;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();
@@ -3210,7 +3220,8 @@ struct LEX : public Query_tables_list {
   // Widcard from SHOW ... LIKE <wildcard> statements.
   String *wild;
   Query_result *result;
-  LEX_STRING binlog_stmt_arg;  ///< Argument of the BINLOG event statement.
+  LEX_STRING binlog_stmt_arg = {
+      nullptr, 0};  ///< Argument of the BINLOG event statement.
   LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;

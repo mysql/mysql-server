@@ -282,7 +282,7 @@ objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
 persisted_variables	10	Dynamic
 prepared_statements_instances	10	Dynamic
-replication_applier_configuration	10	Fixed
+replication_applier_configuration	10	Dynamic
 replication_applier_filters	10	Dynamic
 replication_applier_global_filters	10	Dynamic
 replication_applier_status	10	Fixed

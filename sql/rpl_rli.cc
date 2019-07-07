@@ -27,10 +27,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <regex>
 
 #include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "mutex_lock.h"  // Mutex_lock
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_dir.h"  // MY_STAT
 #include "my_sqlcommand.h"
@@ -46,6 +48,9 @@
 #include "mysql/service_thd_wait.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"  // SUPER_ACL
+#include "sql/auth/roles.h"      // Roles::Role_activation
+#include "sql/auth/sql_auth_cache.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/log_event.h"  // Log_event
@@ -82,12 +87,17 @@ using std::min;
   what follows. For now, this is just used to get the number of
   fields.
 */
-const char *info_rli_fields[] = {
-    "number_of_lines",      "group_relay_log_name",
-    "group_relay_log_pos",  "group_master_log_name",
-    "group_master_log_pos", "sql_delay",
-    "number_of_workers",    "id",
-    "channel_name"};
+const char *info_rli_fields[] = {"number_of_lines",
+                                 "group_relay_log_name",
+                                 "group_relay_log_pos",
+                                 "group_master_log_name",
+                                 "group_master_log_pos",
+                                 "sql_delay",
+                                 "number_of_workers",
+                                 "id",
+                                 "channel_name",
+                                 "privilege_checks_user",
+                                 "privilege_checks_hostname"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -124,6 +134,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       gtid_set(nullptr),
       rli_fake(is_rli_fake),
       gtid_retrieved_initialized(false),
+      m_privilege_checks_username{""},
+      m_privilege_checks_hostname{""},
+      m_privilege_checks_user_corrupted{false},
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
       ignore_log_space_limit(0),
@@ -1858,6 +1871,14 @@ size_t Relay_log_info::get_number_info_rli_fields() {
   return sizeof(info_rli_fields) / sizeof(info_rli_fields[0]);
 }
 
+void Relay_log_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
+  bitmap_init(nullable_fields, nullptr,
+              Relay_log_info::get_number_info_rli_fields(), false);
+  bitmap_clear_all(nullable_fields);
+  bitmap_set_bit(nullable_fields, 9);
+  bitmap_set_bit(nullable_fields, 10);
+}
+
 void Relay_log_info::start_sql_delay(time_t delay_end) {
   mysql_mutex_assert_owner(&data_lock);
   sql_delay_end = delay_end;
@@ -1913,7 +1934,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
     overwritten by the second row later.
   */
   if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
+      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
     return true;
 
   lines = strtoul(group_relay_log_name, &first_non_digit, 10);
@@ -1921,31 +1942,63 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   if (group_relay_log_name[0] != '\0' && *first_non_digit == '\0' &&
       lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
     /* Seems to be new format => read group relay log name */
-    if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
+    if (!!from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
+                         ""))
       return true;
   } else
     DBUG_PRINT("info", ("relay_log_info file is in old format."));
 
-  if (from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
-      from->get_info(group_master_log_name, sizeof(group_relay_log_name), "") ||
-      from->get_info(&temp_group_master_log_pos, 0UL))
+  if (!!from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
+      !!from->get_info(group_master_log_name, sizeof(group_relay_log_name),
+                       "") ||
+      !!from->get_info(&temp_group_master_log_pos, 0UL))
     return true;
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
-    if (from->get_info(&temp_sql_delay, 0)) return true;
+    if (!!from->get_info(&temp_sql_delay, 0)) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS) {
-    if (from->get_info(&recovery_parallel_workers, 0UL)) return true;
+    if (!!from->get_info(&recovery_parallel_workers, 0UL)) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID) {
-    if (from->get_info(&temp_internal_id, 1)) return true;
+    if (!!from->get_info(&temp_internal_id, 1)) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL) {
     /* the default value is empty string"" */
-    if (from->get_info(channel, sizeof(channel), "")) return true;
+    if (!!from->get_info(channel, sizeof(channel), "")) return true;
+  }
+
+  /*
+   * Here +4 is used to accomodate string if debug point
+   * `simulate_priv_check_username_above_limit` is set in test.
+   */
+  char temp_privilege_checks_username[PRIV_CHECKS_USERNAME_LENGTH + 4] = {0};
+  char *username = nullptr;
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_USERNAME) {
+    Rpl_info_handler::enum_field_get_status status =
+        from->get_info(temp_privilege_checks_username,
+                       PRIV_CHECKS_USERNAME_LENGTH + 1, nullptr);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+    if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL)
+      username = temp_privilege_checks_username;
+  }
+
+  /*
+   * Here +4 is used to accomodate string if debug point
+   * `simulate_priv_check_hostname_above_limit` is set in test.
+   */
+  char temp_privilege_checks_hostname[PRIV_CHECKS_HOSTNAME_LENGTH + 4] = {0};
+  char *hostname = nullptr;
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_HOSTNAME) {
+    Rpl_info_handler::enum_field_get_status status =
+        from->get_info(temp_privilege_checks_hostname,
+                       PRIV_CHECKS_HOSTNAME_LENGTH + 1, nullptr);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+    if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL)
+      hostname = temp_privilege_checks_hostname;
   }
 
   group_relay_log_pos = temp_group_relay_log_pos;
@@ -1953,8 +2006,28 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   sql_delay = (int32)temp_sql_delay;
   internal_id = (uint)temp_internal_id;
 
-  DBUG_ASSERT(lines < LINES_IN_RELAY_LOG_INFO_WITH_ID ||
-              (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID && internal_id == 1));
+  DBUG_EXECUTE_IF("simulate_priv_check_username_above_limit", {
+    strcpy(temp_privilege_checks_username,
+           "repli_priv_checks_user_more_than_32");
+    username = temp_privilege_checks_username;
+  });
+
+  DBUG_EXECUTE_IF("simulate_priv_check_hostname_above_limit", {
+    strcpy(
+        temp_privilege_checks_hostname,
+        "replication_privilege_checks_hostname_more_than_255_replication_"
+        "privilege_checks_hostname_more_than_255_replication_privilege_checks_"
+        "hostname_more_than_255_replication_privilege_checks_hostname_more_"
+        "than_255_replication_privilege_checks_hostname_more_than255");
+    hostname = temp_privilege_checks_hostname;
+  });
+  enum_priv_checks_status error = set_privilege_checks_user(username, hostname);
+  if (!!error) {
+    set_privilege_checks_user_corrupted(true);
+    report_privilege_check_error(WARNING_LEVEL, error, false, channel, username,
+                                 hostname);
+    return true;
+  }
   return false;
 }
 
@@ -1976,7 +2049,7 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
   // DBUG_ASSERT(!belongs_to_client());
 
   if (to->prepare_info_for_write() ||
-      to->set_info((int)LINES_IN_RELAY_LOG_INFO_WITH_ID) ||
+      to->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong)group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
@@ -1984,7 +2057,31 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
       to->set_info((int)sql_delay) || to->set_info(recovery_parallel_workers) ||
       to->set_info((int)internal_id) || to->set_info(channel))
     return true;
-
+  if (m_privilege_checks_username.length()) {
+    if (to->set_info(m_privilege_checks_username.c_str())) return true;
+  } else {
+#ifndef DBUG_OFF
+    if (DBUG_EVALUATE_IF("simulate_priv_check_user_nullptr_t", true, false)) {
+      const char *null_char{nullptr};
+      if (to->set_info(null_char)) return true;
+    } else
+#endif
+        if (to->set_info(nullptr)) {
+      return true;
+    }
+  }
+  if (m_privilege_checks_hostname.length()) {
+    if (to->set_info(m_privilege_checks_hostname.c_str())) return true;
+  } else {
+#ifndef DBUG_OFF
+    if (DBUG_EVALUATE_IF("simulate_priv_check_user_nullptr_t", true, false)) {
+      const uchar *null_char{nullptr};
+      if (to->set_info(null_char, 0)) return true;
+    } else
+#endif
+        if (to->set_info(nullptr))
+      return true;
+  }
   return false;
 }
 
@@ -2295,7 +2392,7 @@ bool is_mts_db_partitioned(Relay_log_info *rli) {
 }
 
 const char *Relay_log_info::get_for_channel_str(bool upper_case) const {
-  if (rli_fake)
+  if (rli_fake || mi == nullptr)
     return "";
   else
     return mi->get_for_channel_str(upper_case);
@@ -2557,6 +2654,331 @@ bool Relay_log_info::is_time_for_mts_checkpoint() {
   return false;
 }
 
+bool operator!(Relay_log_info::enum_priv_checks_status status) {
+  return status == Relay_log_info::enum_priv_checks_status::SUCCESS;
+}
+
+std::string Relay_log_info::get_privilege_checks_username() const {
+  return this->m_privilege_checks_username;
+}
+
+std::string Relay_log_info::get_privilege_checks_hostname() const {
+  return this->m_privilege_checks_hostname;
+}
+
+bool Relay_log_info::is_privilege_checks_user_null() const {
+  DBUG_ASSERT(this->m_privilege_checks_username.length() != 0 ||
+              (this->m_privilege_checks_username.length() == 0 &&
+               this->m_privilege_checks_hostname.length() == 0));
+  return this->m_privilege_checks_username.length() == 0;
+}
+
+bool Relay_log_info::is_privilege_checks_user_corrupted() const {
+  return this->m_privilege_checks_user_corrupted;
+}
+
+void Relay_log_info::clear_privilege_checks_user() {
+  DBUG_TRACE;
+  this->m_privilege_checks_username.clear();
+  this->m_privilege_checks_hostname.clear();
+  this->m_privilege_checks_user_corrupted = false;
+}
+
+void Relay_log_info::set_privilege_checks_user_corrupted(bool is_corrupted) {
+  DBUG_TRACE;
+  this->m_privilege_checks_user_corrupted = is_corrupted;
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::set_privilege_checks_user(
+    char const *param_privilege_checks_username,
+    char const *param_privilege_checks_hostname) {
+  DBUG_TRACE;
+
+  enum_priv_checks_status error = this->check_privilege_checks_user(
+      param_privilege_checks_username, param_privilege_checks_hostname);
+  if (!!error) return error;
+
+  if (param_privilege_checks_username == nullptr) {
+    this->clear_privilege_checks_user();
+    return enum_priv_checks_status::SUCCESS;
+  }
+
+  this->m_privilege_checks_user_corrupted = false;
+  this->m_privilege_checks_username =
+      static_cast<std::string>(param_privilege_checks_username);
+
+  if (param_privilege_checks_hostname != nullptr) {
+    this->m_privilege_checks_hostname =
+        static_cast<std::string>(param_privilege_checks_hostname);
+    std::transform(this->m_privilege_checks_hostname.begin(),
+                   this->m_privilege_checks_hostname.end(),
+                   this->m_privilege_checks_hostname.begin(), ::tolower);
+  }
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::check_privilege_checks_user() {
+  DBUG_TRACE;
+  DBUG_ASSERT(this->m_privilege_checks_username.length() != 0 ||
+              (this->m_privilege_checks_username.length() == 0 &&
+               this->m_privilege_checks_hostname.length() == 0));
+
+  return this->check_privilege_checks_user(
+      this->m_privilege_checks_username.length() != 0
+          ? this->m_privilege_checks_username.data()
+          : nullptr,
+      this->m_privilege_checks_hostname.length() != 0
+          ? this->m_privilege_checks_hostname.data()
+          : nullptr);
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::check_privilege_checks_user(
+    char const *param_privilege_checks_username,
+    char const *param_privilege_checks_hostname) {
+  DBUG_TRACE;
+
+  if (param_privilege_checks_username == nullptr) {
+    if (param_privilege_checks_hostname != nullptr)
+      return enum_priv_checks_status::USERNAME_NULL_HOSTNAME_NOT_NULL;
+    return enum_priv_checks_status::SUCCESS;
+  }
+
+  if (strlen(param_privilege_checks_username) == 0)
+    return enum_priv_checks_status::USER_ANONYMOUS;
+
+  if (strlen(param_privilege_checks_username) > 32)
+    return enum_priv_checks_status::USERNAME_TOO_LONG;
+
+  if (param_privilege_checks_hostname != nullptr &&
+      strlen(param_privilege_checks_hostname) > 255)
+    return enum_priv_checks_status::HOSTNAME_TOO_LONG;
+
+  if (param_privilege_checks_hostname != nullptr) {
+    std::regex static const hostname_regex{"^((?![@])[\\x20-\\x7e])+$",
+                                           std::regex_constants::ECMAScript};
+    if (!std::regex_match(param_privilege_checks_hostname, hostname_regex))
+      return enum_priv_checks_status::HOSTNAME_SYNTAX_ERROR;
+  }
+
+  enum_priv_checks_status error = this->check_applier_acl_user(
+      param_privilege_checks_username, param_privilege_checks_hostname);
+  if (!!error) return error;
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+Relay_log_info::enum_priv_checks_status Relay_log_info::check_applier_acl_user(
+    char const *param_privilege_checks_username,
+    char const *param_privilege_checks_hostname) {
+  DBUG_TRACE;
+  DBUG_ASSERT(param_privilege_checks_username != nullptr &&
+              strlen(param_privilege_checks_username) != 0);
+
+  THD_instance_guard thd{current_thd != nullptr ? current_thd : this->info_thd};
+  Acl_cache_lock_guard acl_cache_lock{thd, Acl_cache_lock_mode::READ_MODE};
+  if (!acl_cache_lock.lock()) {  // If we're unable to acquire the lock we're
+                                 // unable to check if the user exists
+    return enum_priv_checks_status::USER_DOES_NOT_EXIST;  // so, return
+                                                          // accordingly.
+  }
+
+  ACL_USER *applier_acl_user = find_acl_user(
+      param_privilege_checks_hostname, param_privilege_checks_username, false);
+
+  if (applier_acl_user == nullptr) {
+    return enum_priv_checks_status::USER_DOES_NOT_EXIST;
+  }
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+std::pair<const char *, const char *>
+Relay_log_info::print_applier_security_context_user_host() const {
+  if (this->m_privilege_checks_username.length() != 0) {
+    return {this->m_privilege_checks_username.data(),
+            this->m_privilege_checks_hostname.length() == 0
+                ? "%"
+                : this->m_privilege_checks_hostname.data()};
+  } else if (this->info_thd != nullptr &&
+             this->info_thd->security_context() != nullptr) {
+    return {this->info_thd->security_context()->user().str != nullptr
+                ? this->info_thd->security_context()->user().str
+                : "",
+            this->info_thd->security_context()->host().str != nullptr
+                ? this->info_thd->security_context()->host().str
+                : ""};
+  }
+  return {"", ""};
+}
+
+void Relay_log_info::report_privilege_check_error(
+    enum loglevel level, enum_priv_checks_status status_code, bool to_client,
+    char const *channel_name_arg, char const *user_name_arg,
+    char const *host_name_arg) const {
+  DBUG_TRACE;
+
+  char const *channel_name{channel_name_arg != nullptr ? channel_name_arg
+                                                       : get_channel()};
+  char const *user_name{user_name_arg};
+  char const *host_name{host_name_arg};
+  if (user_name == nullptr) {
+    std::tie(user_name, host_name) =
+        this->print_applier_security_context_user_host();
+  }
+
+  switch (status_code) {
+    case enum_priv_checks_status::SUCCESS: {
+      DBUG_ASSERT(false);
+      break;
+    }
+    case enum_priv_checks_status::USER_ANONYMOUS: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS, MYF(0),
+                 channel_name, host_name);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USERNAME_TOO_LONG: {
+      if (to_client)
+        my_error(ER_WRONG_STRING_LENGTH, MYF(0), user_name, "user name", 32);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::HOSTNAME_TOO_LONG: {
+      if (to_client)
+        my_error(ER_WRONG_STRING_LENGTH, MYF(0), user_name, "host name", 255);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::HOSTNAME_SYNTAX_ERROR: {
+      if (to_client)
+        my_printf_error(ER_UNKNOWN_ERROR, "Malformed hostname (illegal symbol)",
+                        MYF(0));
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USER_DATA_CORRUPTED:
+    case enum_priv_checks_status::USERNAME_NULL_HOSTNAME_NOT_NULL: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT, MYF(0), channel_name);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT,
+                     ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT),
+                     channel_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USER_DOES_NOT_EXIST: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST, MYF(0),
+                 channel_name, user_name, host_name);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(
+            level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST,
+            ER_THD(thd, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST),
+            channel_name, user_name, host_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::USER_DOES_NOT_HAVE_PRIVILEGES: {
+      if (!to_client) {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(
+            level, ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV,
+            ER_THD(thd,
+                   ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV),
+            channel_name, user_name, host_name);
+      }
+      break;
+    }
+    case enum_priv_checks_status::LOAD_DATA_EVENT_NOT_ALLOWED: {
+      if (!to_client) {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS,
+                     ER_THD(thd, ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS),
+                     channel_name);
+      }
+      break;
+    }
+  }
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::initialize_security_context(THD *thd) {
+  DBUG_TRACE;
+
+  if (this->m_privilege_checks_user_corrupted)
+    return enum_priv_checks_status::USER_DATA_CORRUPTED;
+
+  if (this->m_privilege_checks_username.length() != 0) {
+    if (acl_getroot(thd, &thd->m_main_security_ctx,
+                    this->m_privilege_checks_username.data(),
+                    this->m_privilege_checks_hostname.data(), nullptr,
+                    nullptr)) {
+      return enum_priv_checks_status::USER_DOES_NOT_EXIST;
+    }
+
+    Roles::Role_activation role_activation{
+        thd, thd->security_context(),
+        opt_always_activate_granted_roles == 0 ? role_enum::ROLE_DEFAULT
+                                               : role_enum::ROLE_ALL,
+        nullptr, true};
+    if (role_activation.activate())
+      return enum_priv_checks_status::USER_DOES_NOT_HAVE_PRIVILEGES;
+
+    bool has_grant{false};
+    std::tie(has_grant, std::ignore) =
+        thd->m_main_security_ctx.has_global_grant(
+            STRING_WITH_LEN("REPLICATION_APPLIER"));
+    if (!has_grant) {
+      return enum_priv_checks_status::USER_DOES_NOT_HAVE_PRIVILEGES;
+    }
+  } else
+    thd->security_context()->skip_grants();
+
+  return enum_priv_checks_status::SUCCESS;
+}
+
+Relay_log_info::enum_priv_checks_status
+Relay_log_info::initialize_applier_security_context() {
+  DBUG_TRACE;
+  return this->initialize_security_context(this->info_thd);
+}
+
 MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }
 
 MDL_lock_guard::MDL_lock_guard(THD *target,
@@ -2594,3 +3016,155 @@ MDL_lock_guard::~MDL_lock_guard() {
 }
 
 bool MDL_lock_guard::is_locked() { return this->m_request.ticket != nullptr; }
+
+Applier_security_context_guard::Applier_security_context_guard(
+    Relay_log_info const *rli, THD const *thd)
+    : m_target{rli},
+      m_thd{thd},
+      m_current{nullptr},
+      m_previous{nullptr},
+      m_privilege_checks_none{
+          this->m_target->get_privilege_checks_username().length() == 0 &&
+          (this->m_thd->lex == nullptr ||
+           this->m_thd->lex->binlog_stmt_arg.length == 0 ||
+           this->m_thd->lex->binlog_stmt_arg.length >= 2048 ||
+           this->m_thd->lex->binlog_stmt_arg.str == nullptr)} {
+  DBUG_TRACE;
+
+  if (this->m_thd->lex != nullptr &&
+      this->m_thd->lex->binlog_stmt_arg.length != 0 &&
+      this->m_thd->lex->binlog_stmt_arg.length < 2048 &&
+      this->m_thd->lex->binlog_stmt_arg.str != nullptr) {
+    Security_context *standing_ctx = this->m_thd->security_context();
+    if (standing_ctx != nullptr &&
+        (standing_ctx->check_access(SUPER_ACL) ||
+         standing_ctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first))
+      this->m_privilege_checks_none = true;
+  }
+  if (this->m_privilege_checks_none) return;
+
+  if (this->m_target->get_privilege_checks_username().length() != 0) {
+    std::string user = this->m_target->get_privilege_checks_username();
+    std::string host = this->m_target->get_privilege_checks_hostname();
+    LEX_CSTRING username{user.c_str(), user.length()};
+    LEX_CSTRING hostname{host.c_str(), host.length()};
+
+    if (this->m_applier_security_ctx.change_security_context(
+            const_cast<THD *>(this->m_thd), username, hostname, nullptr,
+            &this->m_previous)) {
+      return;
+    }
+  }
+
+  if (this->m_previous != nullptr) {
+    Roles::Role_activation role_activation{
+        const_cast<THD *>(this->m_thd), this->m_thd->security_context(),
+        opt_always_activate_granted_roles == 0 ? role_enum::ROLE_DEFAULT
+                                               : role_enum::ROLE_ALL,
+        nullptr, true};
+    if (role_activation.activate()) return;
+  }
+
+  this->m_current = this->m_thd->security_context();
+}
+
+Applier_security_context_guard::~Applier_security_context_guard() {
+  if (this->m_privilege_checks_none) return;
+
+  if (this->m_previous != nullptr && this->m_previous != this->m_current)
+    this->m_applier_security_ctx.restore_security_context(
+        const_cast<THD *>(this->m_thd), this->m_previous);
+}
+
+bool Applier_security_context_guard::skip_priv_checks() const {
+  return this->m_privilege_checks_none;
+}
+
+bool Applier_security_context_guard::has_access(
+    std::initializer_list<ulong> extra_privileges) const {
+  if (this->m_privilege_checks_none) return true;
+  if (this->m_current == nullptr) return false;
+
+  for (auto privilege : extra_privileges)
+    if (!this->m_current->check_access(privilege, "", true)) return false;
+
+  return true;
+}
+
+bool Applier_security_context_guard::has_access(
+    std::initializer_list<std::string> extra_privileges) const {
+  if (this->m_privilege_checks_none) return true;
+  if (this->m_current == nullptr) return false;
+
+  for (auto privilege : extra_privileges) {
+    if (!this->m_current->has_global_grant(privilege.data(), privilege.length())
+             .first)
+      return false;
+  }
+  return true;
+}
+
+bool Applier_security_context_guard::has_access(
+    std::vector<std::tuple<ulong, TABLE const *, Rows_log_event *>>
+        &extra_privileges) const {
+  if (this->m_privilege_checks_none) return true;
+  if (this->m_current == nullptr) return false;
+
+  ulong priv{0};
+  TABLE const *table{nullptr};
+
+  if (this->m_thd->variables.binlog_row_image == BINLOG_ROW_IMAGE_FULL) {
+    for (auto tpl : extra_privileges) {
+      std::tie(priv, table, std::ignore) = tpl;
+      if (this->m_current->is_table_blocked(priv, table)) return false;
+    }
+  } else {
+    Rows_log_event *event{nullptr};
+
+    for (auto tpl : extra_privileges) {
+      std::tie(priv, table, event) = tpl;
+
+      if (event->get_general_type_code() == binary_log::DELETE_ROWS_EVENT) {
+        if (this->m_current->is_table_blocked(priv, table)) return false;
+      } else {
+        std::vector<std::string> columns;
+        this->extract_columns_to_check(table, event, columns);
+        if (!this->m_current->has_column_access(priv, table, columns))
+          return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+std::string Applier_security_context_guard::get_username() const {
+  if (this->m_privilege_checks_none || this->m_current == nullptr) return "";
+  return std::string(this->m_current->user().str,
+                     this->m_current->user().length);
+}
+
+std::string Applier_security_context_guard::get_hostname() const {
+  if (this->m_privilege_checks_none || this->m_current == nullptr) return "";
+  return std::string(this->m_current->host().str,
+                     this->m_current->host().length);
+}
+
+void Applier_security_context_guard::extract_columns_to_check(
+    TABLE const *table, Rows_log_event *event,
+    std::vector<std::string> &columns) const {
+  MY_BITMAP const *bitmap{nullptr};
+
+  if (event->get_general_type_code() == binary_log::WRITE_ROWS_EVENT)
+    bitmap = event->get_cols();
+  else if (event->get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
+    bitmap = event->get_cols_ai();
+  else
+    return;
+
+  for (size_t idx = 0; idx != table->s->fields; ++idx) {
+    if (bitmap_is_set(bitmap, idx)) {
+      columns.push_back(table->field[idx]->field_name);
+    }
+  }
+}

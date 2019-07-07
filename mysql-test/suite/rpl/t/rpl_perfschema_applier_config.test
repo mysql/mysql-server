@@ -13,10 +13,12 @@
 #  - Verify that, when desired delay is set, the value is shown corectly.
 #  - Verify that the value is preserved after STOP SLAVE.
 #  - Verify that, when desired delay is reset, the value is shown corectly.
+#  - Verify that `privilege_checks_user` is initialized to `NULL`.
 #
 #  ==== Related Worklog ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
+#  WL#12966 Replication with Restricted Privileges
 
 
 source include/master-slave.inc;
@@ -91,6 +93,15 @@ let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
 let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
 let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that `privilege_checks_user` is initialized to `NULL`.
+--echo
+
+let $ps_value= query_get_value(select Privilege_Checks_User from performance_schema.replication_applier_configuration, Privilege_Checks_User, 1);
+let $assert_text= Value for Privilege_Checks_User is initialized to NULL;
+let $assert_cond= "NULL" = "$ps_value";
 source include/assert.inc;
 
 source include/rpl_end.inc;

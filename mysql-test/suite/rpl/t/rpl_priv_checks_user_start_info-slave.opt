@@ -1,0 +1,1 @@
+--log-error=$MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err

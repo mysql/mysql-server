@@ -359,14 +359,15 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli) {
 
   if (rli->recovery_parallel_workers == 0) return 0;
 
-  if (Rpl_info_file::do_reset_info(Slave_worker::get_number_worker_fields(),
-                                   worker_file_data.pattern,
-                                   worker_file_data.name_indexed))
+  if (Rpl_info_file::do_reset_info(
+          Slave_worker::get_number_worker_fields(), worker_file_data.pattern,
+          worker_file_data.name_indexed, &worker_file_data.nullable_fields))
     goto err;
 
   if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields(),
                                     MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str,
-                                    rli->channel))
+                                    rli->channel,
+                                    &worker_file_data.nullable_fields))
     goto err;
 
   error = false;
@@ -513,20 +514,24 @@ void Rpl_info_factory::init_repository_metadata() {
   rli_table_data.name = RLI_INFO_NAME.str;
   rli_table_data.n_pk_fields = 0;
   rli_table_data.pk_field_indexes = nullptr;
+  Relay_log_info::set_nullable_fields(&rli_table_data.nullable_fields);
   rli_file_data.n_fields = Relay_log_info::get_number_info_rli_fields();
   my_stpcpy(rli_file_data.name, relay_log_info_file);
   my_stpcpy(rli_file_data.pattern, relay_log_info_file);
   rli_file_data.name_indexed = false;
+  Relay_log_info::set_nullable_fields(&rli_file_data.nullable_fields);
 
   mi_table_data.n_fields = Master_info::get_number_info_mi_fields();
   mi_table_data.schema = MYSQL_SCHEMA_NAME.str;
   mi_table_data.name = MI_INFO_NAME.str;
   mi_table_data.n_pk_fields = 1;
   mi_table_data.pk_field_indexes = Master_info::get_table_pk_field_indexes();
+  Master_info::set_nullable_fields(&mi_table_data.nullable_fields);
   mi_file_data.n_fields = Master_info::get_number_info_mi_fields();
   my_stpcpy(mi_file_data.name, master_info_file);
   my_stpcpy(mi_file_data.pattern, master_info_file);
-  rli_file_data.name_indexed = false;
+  mi_file_data.name_indexed = false;
+  Master_info::set_nullable_fields(&mi_file_data.nullable_fields);
 
   worker_table_data.n_fields = Slave_worker::get_number_worker_fields();
   worker_table_data.schema = MYSQL_SCHEMA_NAME.str;
@@ -534,12 +539,14 @@ void Rpl_info_factory::init_repository_metadata() {
   worker_table_data.n_pk_fields = 2;
   worker_table_data.pk_field_indexes =
       Slave_worker::get_table_pk_field_indexes();
+  Slave_worker::set_nullable_fields(&worker_table_data.nullable_fields);
   worker_file_data.n_fields = Slave_worker::get_number_worker_fields();
   build_worker_info_name(worker_file_data.name, relay_log_info_file_dirpart,
                          relay_log_info_file_name);
   build_worker_info_name(worker_file_data.pattern, relay_log_info_file_dirpart,
                          relay_log_info_file_name);
   worker_file_data.name_indexed = true;
+  Slave_worker::set_nullable_fields(&worker_file_data.nullable_fields);
 }
 
 /**
@@ -836,25 +843,28 @@ bool Rpl_info_factory::init_repositories(const struct_table_data &table_data,
   DBUG_ASSERT(handler_dest != nullptr);
   switch (rep_option) {
     case INFO_REPOSITORY_FILE:
-      if (!(*handler_dest =
-                new Rpl_info_file(file_data.n_fields, file_data.pattern,
-                                  file_data.name, file_data.name_indexed)))
+      if (!(*handler_dest = new Rpl_info_file(
+                file_data.n_fields, file_data.pattern, file_data.name,
+                file_data.name_indexed, &file_data.nullable_fields)))
         goto err;
       if (handler_src &&
           !(*handler_src = new Rpl_info_table(
                 table_data.n_fields, table_data.schema, table_data.name,
-                table_data.n_pk_fields, table_data.pk_field_indexes)))
+                table_data.n_pk_fields, table_data.pk_field_indexes,
+                &table_data.nullable_fields)))
         goto err;
       break;
 
     case INFO_REPOSITORY_TABLE:
       if (!(*handler_dest = new Rpl_info_table(
                 table_data.n_fields, table_data.schema, table_data.name,
-                table_data.n_pk_fields, table_data.pk_field_indexes)))
+                table_data.n_pk_fields, table_data.pk_field_indexes,
+                &table_data.nullable_fields)))
         goto err;
-      if (handler_src && !(*handler_src = new Rpl_info_file(
-                               file_data.n_fields, file_data.pattern,
-                               file_data.name, file_data.name_indexed)))
+      if (handler_src &&
+          !(*handler_src = new Rpl_info_file(
+                file_data.n_fields, file_data.pattern, file_data.name,
+                file_data.name_indexed, &file_data.nullable_fields)))
         goto err;
       break;
 
@@ -885,14 +895,16 @@ bool Rpl_info_factory::scan_repositories(uint *found_instances,
 
   DBUG_TRACE;
 
-  if (Rpl_info_table::do_count_info(table_data.n_fields, table_data.schema,
-                                    table_data.name, &table_instances)) {
+  if (Rpl_info_table::do_count_info(
+          table_data.n_fields, table_data.schema, table_data.name,
+          &table_data.nullable_fields, &table_instances)) {
     error = true;
     goto err;
   }
 
-  if (Rpl_info_file::do_count_info(file_data.n_fields, file_data.pattern,
-                                   file_data.name_indexed, &file_instances)) {
+  if (Rpl_info_file::do_count_info(
+          file_data.n_fields, file_data.pattern, file_data.name_indexed,
+          &file_data.nullable_fields, &file_instances)) {
     error = true;
     goto err;
   }
@@ -1316,7 +1328,8 @@ bool Rpl_info_factory::load_channel_names_from_table(
 
   if (!(info = new Rpl_info_table(mi_table_data.n_fields, mi_table_data.schema,
                                   mi_table_data.name, mi_table_data.n_pk_fields,
-                                  mi_table_data.pk_field_indexes)))
+                                  mi_table_data.pk_field_indexes,
+                                  &mi_table_data.nullable_fields)))
     return true;
 
   thd = info->access->create_thd();

@@ -15,7 +15,8 @@
 #
 # 1. Start GR on member i.e. make M1 ONLINE. Now, check the execution of
 #    following commands on the GR channels.
-#  a) CHM is blocked on group_replication_applier
+#  a) CHANGE MASTER command is blocked for other options than
+#     `PRIVILEGE_CHECKS_USER` for group replication applier channel.
 #  b) START SLAVE IO_THREAD is blocked on group_replication_applier
 #  c) START SLAVE IO_THREAD with UNTIL option is blocked on
 #     group_replication_applier
@@ -71,8 +72,8 @@
 # Part 1 - Checking the execution of the command when group_replication is ON.
 
 --echo
---echo # CHANGE MASTER command is blocked for restricted channels.
---error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+--echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
@@ -149,8 +150,8 @@ START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicatio
 --source include/stop_group_replication.inc
 
 --echo
---echo # CHANGE MASTER command is blocked for restricted channels.
---error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+--echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo

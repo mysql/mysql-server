@@ -42,6 +42,7 @@
 class Acl_map;
 class ACL_USER;
 class THD;
+struct TABLE;
 struct Grant_table_aggregate;
 
 /**
@@ -99,6 +100,10 @@ class Security_context {
                           const LEX_CSTRING &role_host);
   bool any_sp_acl(const LEX_CSTRING &db);
   bool any_table_acl(const LEX_CSTRING &db);
+
+  bool is_table_blocked(ulong priv, TABLE const *table);
+  bool has_column_access(ulong priv, TABLE const *table,
+                         std::vector<std::string> column);
 
   /**
     Getter method for member m_host.
@@ -303,6 +308,7 @@ class Security_context {
   std::pair<bool, bool> fetch_global_grant(const ACL_USER &acl_user,
                                            const std::string &privilege,
                                            bool cumulative = false);
+  bool has_table_access(ulong priv, TABLE_LIST *table);
 
  private:
   /**

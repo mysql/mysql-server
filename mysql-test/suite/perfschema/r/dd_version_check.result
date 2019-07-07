@@ -7,4 +7,4 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 "Checking the performance schema database structure ..."
 CHECK STATUS
-The tables in the performance_schema were last changed in MySQL 8.0.172
+The tables in the performance_schema were last changed in MySQL 8.0.18

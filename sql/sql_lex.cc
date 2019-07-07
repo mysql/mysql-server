@@ -4674,6 +4674,8 @@ void LEX_MASTER_INFO::initialize() {
   for_channel = false;
   compression_algorithm = nullptr;
   zstd_compression_level = 0;
+  privilege_checks_none = false;
+  privilege_checks_username = privilege_checks_hostname = NULL;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

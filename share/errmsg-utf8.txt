@@ -9152,6 +9152,18 @@ ER_WRONG_COMPRESSION_LEVEL_CLIENT
 ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT
   eng "Specified compression algorithm list '%.192s' exceeds total count of 3 for channel '%.192s'."
 
+ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to ``@`%.255s`, but anonymous users are disallowed for PRIVILEGE_CHECKS_USER."
+
+ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this is not an existing user."
+
+ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT
+  eng "Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository for channel '%.192s'. Use CHANGE MASTER TO PRIVILEGE_CHECKS_USER to correct the configuration."
+
+ER_CLIENT_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this user does not have REPLICATION_APPLIER privilege."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
@@ -19678,6 +19690,21 @@ ER_MYSQLBACKUP_MSG
 
 ER_WARN_UNKNOWN_KEYRING_AWS_REGION
   eng "Unknown keyring_aws_region '%.192s'. Connection to AWS KMS may fail."
+
+ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this is not an existing user. Correct this before starting replication threads."
+
+ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT
+  eng "Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository for channel '%.192s'. Use CHANGE MASTER TO PRIVILEGE_CHECKS_USER to correct the configuration."
+
+ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this user does not have REPLICATION_APPLIER privilege. Correct this before starting the replication threads."
+
+ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
+  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master and slave_allow_load_data_events=0 on this server. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
+
+ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS
+  eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s, user: '%.64s'@'%.255s', roles: %.512s"
 
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.

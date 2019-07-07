@@ -834,6 +834,11 @@ ALTER TABLE slave_master_info
   COMMENT 'Network namespace used for communication with the master server.'
   AFTER Get_public_key;
 
+# Columns added to keep information about the replication applier thread
+# privilege context user
+ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
+                                 ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.';
+
 #
 # Drop legacy NDB distributed privileges function & procedures
 #

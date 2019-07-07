@@ -1,0 +1,19 @@
+# ==== Purpose ====
+#
+# To run tests cases from `rpl_nogtid.rpl_insert_priv_check` using roles to
+# grant/revoke privileges from the `PRIVILEGE_CHECKS_USER` user.
+#
+# ==== Implementation ====
+#
+# 1) Setup replication infra-struture to use roles for the applier user.
+# 2) Include `rpl_nogtid.rpl_insert_priv_check`
+#
+# ==== References ====
+#
+# WL#12966: Replication with Restricted Privileges
+#
+
+--let $grant_to = 'sql_applier_thread'
+--let $rpl_privilege_checks_use_roles = 1
+
+--source suite/rpl_nogtid/t/rpl_insert_priv_check.test
