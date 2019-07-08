@@ -90,18 +90,18 @@ class Rpl_info_file : public Rpl_info_handler {
     @param[in]  param_pattern_fname File's name.
     @param[in]  indexed             indicates whether the file is indexed and
                                     if so there is a range to count in.
-    @param[in]  nullable_fields     bitmap that holds the fields that are
-                                    allowed to be `NULL`-
+    @param[in]  nullable_bitmap     bitmap that holds the fields that are
+                                    allowed to be `NULL`.
     @param[out] counter             Number of files found.
 
     @retval false Success
     @retval true  Error
   */
   static bool do_count_info(const int nparam, const char *param_pattern_fname,
-                            bool indexed, MY_BITMAP const *nullable_fields,
+                            bool indexed, MY_BITMAP const *nullable_bitmap,
                             uint *counter);
   static int do_reset_info(int const nparam, const char *param_pattern_fname,
-                           bool name_indexed, MY_BITMAP const *nullable_fields);
+                           bool name_indexed, MY_BITMAP const *nullable_bitmap);
 
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
@@ -167,7 +167,7 @@ class Rpl_info_file : public Rpl_info_handler {
 
   Rpl_info_file(int const nparam, const char *param_pattern_fname,
                 const char *param_info_fname, bool name_indexed,
-                MY_BITMAP const *nullable_fields);
+                MY_BITMAP const *nullable_bitmap);
 
   Rpl_info_file(const Rpl_info_file &info);
   Rpl_info_file &operator=(const Rpl_info_file &info);

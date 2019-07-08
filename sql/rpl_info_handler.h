@@ -387,7 +387,7 @@ class Rpl_info_handler {
    */
   MY_BITMAP nullable_fields;
 
-  Rpl_info_handler(const int nparam, MY_BITMAP const *nullable_fields);
+  Rpl_info_handler(const int nparam, MY_BITMAP const *nullable_bitmap);
 
   /**
     Checks whether or not the field at position `pos` is allowed to be `NULL`.

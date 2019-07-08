@@ -58,8 +58,8 @@ long init_dynarray_intvar_from_file(char *buffer, size_t size,
 
 Rpl_info_file::Rpl_info_file(const int nparam, const char *param_pattern_fname,
                              const char *param_info_fname, bool indexed_arg,
-                             MY_BITMAP const *nullable_fields)
-    : Rpl_info_handler(nparam, nullable_fields),
+                             MY_BITMAP const *nullable_bitmap)
+    : Rpl_info_handler(nparam, nullable_bitmap),
       info_fd(-1),
       name_indexed(indexed_arg) {
   DBUG_TRACE;
@@ -202,6 +202,9 @@ enum_return_check Rpl_info_file::do_check_info() {
                         the actual file name
   @param      indexed   indicates whether the file is indexed and if so
                         there is a range to count in.
+  @param[in]  nullable_bitmap
+                        bitmap that holds the fields that are allowed to be
+                        `NULL`.
   @param[out] counter   the number of discovered instances before the first
                         unsuccess in locating the next file.
 
@@ -210,7 +213,7 @@ enum_return_check Rpl_info_file::do_check_info() {
 */
 bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
                                   bool indexed,
-                                  MY_BITMAP const *nullable_fields,
+                                  MY_BITMAP const *nullable_bitmap,
                                   uint *counter) {
   uint i = 0;
   Rpl_info_file *info = nullptr;
@@ -222,7 +225,7 @@ bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
   DBUG_TRACE;
 
   if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed,
-                                 nullable_fields)))
+                                 nullable_bitmap)))
     return true;
 
   for (i = 1; last_check == REPOSITORY_EXISTS; i++) {
@@ -289,7 +292,7 @@ int Rpl_info_file::do_clean_info() {
 
 int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
                                  bool indexed,
-                                 MY_BITMAP const *nullable_fields) {
+                                 MY_BITMAP const *nullable_bitmap) {
   int error = false;
   uint i = 0;
   Rpl_info_file *info = nullptr;
@@ -300,7 +303,7 @@ int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
   DBUG_TRACE;
 
   if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed,
-                                 nullable_fields)))
+                                 nullable_bitmap)))
     return true;
 
   for (i = 1; last_check == REPOSITORY_EXISTS; i++) {
