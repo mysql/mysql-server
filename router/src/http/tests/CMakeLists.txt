@@ -75,6 +75,7 @@ add_test_file(test_auth_method.cc
 
 add_test_file(test_content_type.cc
   MODULE http
+  LIB_DEPENDS http_server
   )
 
 
