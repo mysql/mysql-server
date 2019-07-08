@@ -29,8 +29,8 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include <stddef.h>
 #include <algorithm>
-#include <cmath>
 #include <utility>
 
 #include "decimal.h"
@@ -6522,10 +6522,81 @@ bool Item_null::send(Protocol *protocol, String *) {
   return protocol->store_null();
 }
 
+Item_json::Item_json(unique_ptr_destroy_only<Json_wrapper> value,
+                     const Item_name_string &name)
+    : m_value(std::move(value)) {
+  set_data_type_json();
+  item_name = name;
+}
+
+Item_json::~Item_json() = default;
+
+void Item_json::print(const THD *, String *str, enum_query_type) const {
+  str->append("json'");
+  m_value->to_string(str, true, "");
+  str->append("'");
+}
+
+bool Item_json::val_json(Json_wrapper *result) {
+  *result = *m_value;
+  return false;
+}
+
+/*
+  The functions below don't get called currently, because Item_json
+  is used in a more limited way than other subclasses of
+  Item_basic_constant. Most notably, there is no JSON literal syntax
+  which gets translated into Item_json objects by the parser.
+
+  Still, the functions need to be implemented in order to satisfy
+  the compiler. Annotate them so that they don't clutter the test
+  coverage results.
+*/
+
+/* purecov: begin deadcode */
+
+double Item_json::val_real() {
+  DBUG_ASSERT(false);  // Not expected to be called.
+  return m_value->coerce_real(item_name.ptr());
+}
+
+longlong Item_json::val_int() {
+  DBUG_ASSERT(false);  // Not expected to be called.
+  return m_value->coerce_int(item_name.ptr());
+}
+
+String *Item_json::val_str(String *str) {
+  DBUG_ASSERT(false);  // Not expected to be called.
+  str->length(0);
+  if (m_value->to_string(str, true, item_name.ptr())) return error_str();
+  return str;
+}
+
+my_decimal *Item_json::val_decimal(my_decimal *buf) {
+  DBUG_ASSERT(false);  // Not expected to be called.
+  return m_value->coerce_decimal(buf, item_name.ptr());
+}
+
+bool Item_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
+  DBUG_ASSERT(false);  // Not expected to be called.
+  return m_value->coerce_date(ltime, item_name.ptr());
+}
+
+bool Item_json::get_time(MYSQL_TIME *ltime) {
+  DBUG_ASSERT(false);  // Not expected to be called.
+  return m_value->coerce_time(ltime, item_name.ptr());
+}
+
 Item *Item_json::clone_item() const {
-  Json_wrapper wr(m_value.clone_dom(current_thd));
+  DBUG_ASSERT(false);  // Not expected to be called.
+  THD *const thd = current_thd;
+  auto wr = make_unique_destroy_only<Json_wrapper>(thd->mem_root,
+                                                   m_value->clone_dom(thd));
+  if (wr == nullptr) return nullptr;
   return new Item_json(std::move(wr), item_name);
 }
+
+/* purecov: end */
 
 /**
   This is only called from items that is not of type item_field.
@@ -8250,8 +8321,9 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item) {
   switch (res_type) {
     case STRING_RESULT: {
       if (item->data_type() == MYSQL_TYPE_JSON) {
-        Json_wrapper wr;
-        if (item->val_json(&wr)) return true;
+        auto wr = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
+        if (wr == nullptr) return true;
+        if (item->val_json(wr.get())) return true;
         if (item->null_value)
           new_item = new Item_null(item->item_name);
         else

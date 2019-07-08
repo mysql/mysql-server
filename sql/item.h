@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 #include <new>
 #include <string>
 
@@ -50,6 +51,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
+#include "mysqld_error.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"  // Derivation
 #include "sql/mem_root_array.h"
@@ -57,6 +59,7 @@
 #include "sql/parse_tree_node_base.h"  // Parse_tree_node
 #include "sql/sql_array.h"             // Bounds_checked_array
 #include "sql/sql_const.h"
+#include "sql/sql_list.h"
 #include "sql/table.h"
 #include "sql/table_trigger_field_support.h"  // Table_trigger_field_support
 #include "sql/thr_malloc.h"
@@ -73,12 +76,6 @@ class Security_context;
 class THD;
 class user_var_entry;
 struct TYPELIB;
-template <class T>
-class List;
-template <class T>
-class List_iterator;
-template <typename T>
-class SQL_I_List;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
 
@@ -6131,56 +6128,23 @@ class Item_type_holder final : public Item_aggregate_type {
 
 /// A class that represents a constant JSON value.
 class Item_json final : public Item_basic_constant {
-  Json_wrapper m_value;
+  unique_ptr_destroy_only<Json_wrapper> m_value;
 
  public:
-  Item_json(Json_wrapper &&value, const Item_name_string &name)
-      : m_value(std::move(value)) {
-    set_data_type_json();
-    item_name = name;
-  }
+  Item_json(unique_ptr_destroy_only<Json_wrapper> value,
+            const Item_name_string &name);
+  ~Item_json() override;
   enum Type type() const override { return STRING_ITEM; }
-  void print(const THD *, String *str, enum_query_type) const override {
-    str->append("json'");
-    m_value.to_string(str, true, "");
-    str->append("'");
-  }
-  bool val_json(Json_wrapper *result) override {
-    *result = m_value;
-    return false;
-  }
-
-  /*
-    The functions below don't get called currently, because Item_json
-    is used in a more limited way than other subclasses of
-    Item_basic_constant. Most notably, there is no JSON literal syntax
-    which gets translated into Item_json objects by the parser.
-
-    Still, the functions need to be implemented in order to satisfy
-    the compiler. Annotate them so that they don't clutter the test
-    coverage results.
-  */
-
-  /* purecov: begin inspected */
+  void print(const THD *, String *str, enum_query_type) const override;
+  bool val_json(Json_wrapper *result) override;
   Item_result result_type() const override { return STRING_RESULT; }
-  double val_real() override { return m_value.coerce_real(item_name.ptr()); }
-  longlong val_int() override { return m_value.coerce_int(item_name.ptr()); }
-  String *val_str(String *str) override {
-    str->length(0);
-    if (m_value.to_string(str, true, item_name.ptr())) return error_str();
-    return str;
-  }
-  my_decimal *val_decimal(my_decimal *buf) override {
-    return m_value.coerce_decimal(buf, item_name.ptr());
-  }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t) override {
-    return m_value.coerce_date(ltime, item_name.ptr());
-  }
-  bool get_time(MYSQL_TIME *ltime) override {
-    return m_value.coerce_time(ltime, item_name.ptr());
-  }
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *buf) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t) override;
+  bool get_time(MYSQL_TIME *ltime) override;
   Item *clone_item() const override;
-  /* purecov: end */
 };
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item);

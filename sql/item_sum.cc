@@ -32,9 +32,9 @@
 #include <string.h>
 #include <algorithm>
 #include <bitset>
-#include <cstring>
 #include <functional>
 #include <string>
+#include <utility>  // std::forward
 
 #include "decimal.h"
 #include "my_alloc.h"
@@ -43,12 +43,14 @@
 #include "my_compare.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/aggregate_check.h"  // Distinct_check
-#include "sql/current_thd.h"      // current_thd
-#include "sql/derror.h"           // ER_THD
+#include "sql/create_field.h"
+#include "sql/current_thd.h"  // current_thd
+#include "sql/derror.h"       // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
@@ -60,6 +62,7 @@
 #include "sql/mysqld.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
 #include "sql/parse_tree_nodes.h"    // PT_order_list
+#include "sql/parser_yystype.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
@@ -5434,6 +5437,16 @@ bool Item_lead_lag::compute() {
   return null_value || current_thd->is_error();
 }
 
+template <typename... Args>
+Item_sum_json::Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
+                             Args &&... parent_args)
+    : Item_sum(std::forward<Args>(parent_args)...),
+      m_wrapper(std::move(wrapper)) {
+  set_data_type_json();
+}
+
+Item_sum_json::~Item_sum_json() = default;
+
 bool Item_sum_json::check_wf_semantics(THD *thd, SELECT_LEX *select,
                                        Window::Evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics(thd, select, reqs);
@@ -5476,9 +5489,9 @@ String *Item_sum_json::val_str(String *str) {
     */
     if (add()) return str;
   }
-  if (null_value || m_wrapper.empty()) return nullptr;
+  if (null_value || m_wrapper->empty()) return nullptr;
   str->length(0);
-  if (m_wrapper.to_string(str, true, func_name())) return error_str();
+  if (m_wrapper->to_string(str, true, func_name())) return error_str();
 
   return str;
 }
@@ -5493,13 +5506,13 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
     */
     add();
   }
-  if (null_value || m_wrapper.empty()) return true;
+  if (null_value || m_wrapper->empty()) return true;
 
   /*
     val_* functions are called more than once in aggregates and
     by passing the dom some function will destroy it so a clone is needed.
   */
-  *wr = Json_wrapper(m_wrapper.clone_dom(current_thd));
+  *wr = Json_wrapper(m_wrapper->clone_dom(current_thd));
   return false;
 }
 
@@ -5513,9 +5526,9 @@ double Item_sum_json::val_real() {
     */
     add();
   }
-  if (null_value || m_wrapper.empty()) return 0.0;
+  if (null_value || m_wrapper->empty()) return 0.0;
 
-  return m_wrapper.coerce_real(func_name());
+  return m_wrapper->coerce_real(func_name());
 }
 
 longlong Item_sum_json::val_int() {
@@ -5528,9 +5541,9 @@ longlong Item_sum_json::val_int() {
     */
     add();
   }
-  if (null_value || m_wrapper.empty()) return 0;
+  if (null_value || m_wrapper->empty()) return 0;
 
-  return m_wrapper.coerce_int(func_name());
+  return m_wrapper->coerce_int(func_name());
 }
 
 my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
@@ -5543,24 +5556,24 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
     */
     add();
   }
-  if (null_value || m_wrapper.empty()) {
+  if (null_value || m_wrapper->empty()) {
     my_decimal_set_zero(decimal_value);
     return decimal_value;
   }
 
-  return m_wrapper.coerce_decimal(decimal_value, func_name());
+  return m_wrapper->coerce_decimal(decimal_value, func_name());
 }
 
 bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
-  if (null_value || m_wrapper.empty()) return true;
+  if (null_value || m_wrapper->empty()) return true;
 
-  return m_wrapper.coerce_date(ltime, func_name());
+  return m_wrapper->coerce_date(ltime, func_name());
 }
 
 bool Item_sum_json::get_time(MYSQL_TIME *ltime) {
-  if (null_value || m_wrapper.empty()) return true;
+  if (null_value || m_wrapper->empty()) return true;
 
-  return m_wrapper.coerce_time(ltime, func_name());
+  return m_wrapper->coerce_time(ltime, func_name());
 }
 
 void Item_sum_json::reset_field() {
@@ -5579,7 +5592,7 @@ void Item_sum_json::reset_field() {
   Field_json *json_result_field = down_cast<Field_json *>(result_field);
   json_result_field->set_notnull();
   // Store the container inside the field.
-  json_result_field->store_json(&m_wrapper);
+  json_result_field->store_json(m_wrapper.get());
   /* purecov: end */
 }
 
@@ -5593,34 +5606,62 @@ void Item_sum_json::update_field() {
   */
   Field_json *json_result_field = down_cast<Field_json *>(result_field);
   // Restore the container(m_wrapper) from the field
-  json_result_field->val_json(&m_wrapper);
+  json_result_field->val_json(m_wrapper.get());
 
   // Append elements to the container.
   add();
   // Store the container inside the field.
-  json_result_field->store_json(&m_wrapper);
+  json_result_field->store_json(m_wrapper.get());
   json_result_field->set_notnull();
   /* purecov: end */
 }
 
+Item_sum_json_array::Item_sum_json_array(
+    THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
+    unique_ptr_destroy_only<Json_array> array)
+    : Item_sum_json(std::move(wrapper), thd, item),
+      m_json_array(std::move(array)) {}
+
+Item_sum_json_array::Item_sum_json_array(
+    const POS &pos, Item *a, PT_window *w,
+    unique_ptr_destroy_only<Json_wrapper> wrapper,
+    unique_ptr_destroy_only<Json_array> array)
+    : Item_sum_json(std::move(wrapper), pos, a, w),
+      m_json_array(std::move(array)) {}
+
+Item_sum_json_array::~Item_sum_json_array() = default;
+
 void Item_sum_json_array::clear() {
   null_value = true;
-  m_json_array.clear();
+  m_json_array->clear();
 
-  // Set the array to the m_wrapper.
-  m_wrapper = Json_wrapper(&m_json_array);
-  // But let Item_sum_json_array keep the ownership.
-  m_wrapper.set_alias();
+  // Set the array to the m_wrapper, but let Item_sum_json_array keep the
+  // ownership.
+  *m_wrapper = Json_wrapper(m_json_array.get(), true);
 }
+
+Item_sum_json_object::Item_sum_json_object(
+    THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
+    unique_ptr_destroy_only<Json_object> object)
+    : Item_sum_json(std::move(wrapper), thd, item),
+      m_json_object(std::move(object)) {}
+
+Item_sum_json_object::Item_sum_json_object(
+    const POS &pos, Item *a, Item *b, PT_window *w,
+    unique_ptr_destroy_only<Json_wrapper> wrapper,
+    unique_ptr_destroy_only<Json_object> object)
+    : Item_sum_json(std::move(wrapper), pos, a, b, w),
+      m_json_object(std::move(object)) {}
+
+Item_sum_json_object::~Item_sum_json_object() = default;
 
 void Item_sum_json_object::clear() {
   null_value = true;
-  m_json_object.clear();
+  m_json_object->clear();
 
-  // Set the object to the m_wrapper.
-  m_wrapper = Json_wrapper(&m_json_object);
-  // But let Item_sum_json_object keep the ownership.
-  m_wrapper.set_alias();
+  // Set the object to the m_wrapper, but let Item_sum_json_object keep the
+  // ownership.
+  *m_wrapper = Json_wrapper(m_json_object.get(), true);
   m_key_map.clear();
 }
 
@@ -5663,7 +5704,7 @@ bool Item_sum_json_array::add() {
   try {
     if (m_is_window_function) {
       if (m_window->do_inverse()) {
-        auto arr = down_cast<Json_array *>(m_wrapper.to_dom(thd));
+        auto arr = down_cast<Json_array *>(m_wrapper->to_dom(thd));
         arr->remove(0);  // Remove the first element from the array
         arr->size() == 0 ? null_value = true : null_value = false;
         return false;
@@ -5682,7 +5723,7 @@ bool Item_sum_json_array::add() {
       The m_wrapper always points to m_json_array or the result of
       deserializing the result_field in reset/update_field.
     */
-    const auto arr = down_cast<Json_array *>(m_wrapper.to_dom(thd));
+    const auto arr = down_cast<Json_array *>(m_wrapper->to_dom(thd));
     if (arr->append_alias(std::move(value_dom)))
       return error_json(); /* purecov: inspected */
 
@@ -5698,9 +5739,16 @@ bool Item_sum_json_array::add() {
 }
 
 Item *Item_sum_json_array::copy_or_same(THD *thd) {
-  return m_is_window_function ? this
-                              : new (thd->mem_root)
-                                    Item_sum_json_array(thd, this);
+  if (m_is_window_function) return this;
+
+  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
+  if (wrapper == nullptr) return nullptr;
+
+  unique_ptr_destroy_only<Json_array> array{::new (thd->mem_root) Json_array};
+  if (array == nullptr) return nullptr;
+
+  return new (thd->mem_root)
+      Item_sum_json_array(thd, this, std::move(wrapper), std::move(array));
 }
 
 bool Item_sum_json_object::add() {
@@ -5739,7 +5787,7 @@ bool Item_sum_json_object::add() {
         If the count is 0, remove the key/value pair from the Json_object.
       */
       if (m_window->do_inverse()) {
-        auto object = down_cast<Json_object *>(m_wrapper.to_dom(thd));
+        auto object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
         if (m_optimize)  // Option 1
         {
           if (m_window->is_last_row_in_peerset_within_frame())
@@ -5771,7 +5819,7 @@ bool Item_sum_json_object::add() {
       The m_wrapper always points to m_json_object or the result of
       deserializing the result_field in reset/update_field.
     */
-    Json_object *object = down_cast<Json_object *>(m_wrapper.to_dom(thd));
+    Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
     if (object->add_alias(key, value_wrapper.to_dom(thd)))
       return error_json(); /* purecov: inspected */
     /*
@@ -5802,9 +5850,17 @@ bool Item_sum_json_object::add() {
 }
 
 Item *Item_sum_json_object::copy_or_same(THD *thd) {
-  return m_is_window_function ? this
-                              : new (thd->mem_root)
-                                    Item_sum_json_object(thd, this);
+  if (m_is_window_function) return this;
+
+  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
+  if (wrapper == nullptr) return nullptr;
+
+  unique_ptr_destroy_only<Json_object> object{::new (thd->mem_root)
+                                                  Json_object};
+  if (object == nullptr) return nullptr;
+
+  return new (thd->mem_root)
+      Item_sum_json_object(thd, this, std::move(wrapper), std::move(object));
 }
 
 /**

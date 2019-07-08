@@ -30,10 +30,14 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
+#include <vector>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "sql/item.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_class.h"  // THD
@@ -41,11 +45,13 @@
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
+#include "sql/window.h"
 
 class CacheInvalidatorIterator;
 class Field;
 class Field_longlong;
 class Filesort;
+class FollowTailIterator;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
@@ -56,6 +62,8 @@ struct CACHE_FIELD;
 struct POSITION;
 template <class T>
 class List;
+template <typename Element_type>
+class Mem_root_array;
 
 /**
    Possible status of a "nested loop" operation (Next_select_func family of

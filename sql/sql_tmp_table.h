@@ -36,12 +36,10 @@
 #include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "sql/item.h"  // Item
-#include "sql/mem_root_array.h"
 #include "sql/temp_table_param.h"
 
 class Create_field;
 class Field;
-class KEY;
 class SJ_TMP_TABLE;
 class THD;
 struct ORDER;

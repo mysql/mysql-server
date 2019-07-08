@@ -30,8 +30,8 @@
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <functional>
 
+#include "field_types.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -56,11 +56,12 @@
 class Item_func;
 class JOIN_TAB;
 class KEY;
-class QEP_TAB;
 class Query_result;
+class Select_lex_visitor;
 class Temp_table_param;
 template <class T>
 class List;
+struct MYSQL_LEX_CSTRING;
 
 typedef ulonglong nested_join_map;
 

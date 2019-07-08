@@ -46,7 +46,6 @@
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"  // IWYU pragma: keep
-#include "sql/records.h"           // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
@@ -57,9 +56,9 @@ class Item;
 class Item_sum;
 class JOIN;
 class Opt_trace_context;
+class RowIterator;
 class THD;
 class Unique;
-struct TABLE_REF;
 
 struct KEY_PART {
   uint16 key, part;

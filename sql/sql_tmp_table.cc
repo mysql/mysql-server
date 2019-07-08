@@ -32,14 +32,15 @@
 #include <algorithm>
 #include <cstring>
 #include <new>
+#include <utility>
 #include <vector>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
-#include "my_compare.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -49,7 +50,9 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/create_field.h"
 #include "sql/current_thd.h"
+#include "sql/dd/types/column.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/filesort.h"  // filesort_free_buffers
@@ -57,7 +60,8 @@
 #include "sql/item_func.h"  // Item_func
 #include "sql/item_sum.h"   // Item_sum
 #include "sql/key.h"
-#include "sql/mem_root_array.h"     // Mem_root_array
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/memroot_allocator.h"
 #include "sql/mysqld.h"             // heap_hton
 #include "sql/opt_range.h"          // QUICK_SELECT_I
 #include "sql/opt_trace.h"          // Opt_trace_object

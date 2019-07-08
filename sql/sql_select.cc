@@ -37,10 +37,10 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
-#include <new>
 
 #include "lex_string.h"
 #include "limits.h"
+#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -53,7 +53,6 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
@@ -65,7 +64,8 @@
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/key.h"       // key_copy, key_cmp, key_cmp_if_same
+#include "sql/json_dom.h"
+#include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
 #include "sql/key_spec.h"
 #include "sql/lock.h"  // mysql_unlock_some_tables,
 #include "sql/my_decimal.h"
@@ -76,15 +76,15 @@
 #include "sql/opt_hints.h"  // hint_key_state()
 #include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/records.h"  // init_read_record
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_do.h"
+#include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
 #include "sql/sql_list.h"
@@ -95,9 +95,10 @@
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "sql/temp_table_param.h"
-#include "sql/timing_iterator.h"
 #include "sql/window.h"  // ignore_gaf_const_opt
+#include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 

@@ -38,8 +38,8 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "my_alloc.h"
 #include "my_base.h"

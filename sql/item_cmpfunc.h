@@ -27,16 +27,13 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 
 #include "field_types.h"
-#include "json_dom.h"  // Json_wrapper
-//#include "extra/regex/my_regex.h"  // my_regex_t
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
@@ -48,7 +45,6 @@
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
-#include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -67,6 +63,7 @@ class PT_item_list;
 class QEP_TAB;
 class SELECT_LEX;
 class THD;
+struct CHARSET_INFO;
 struct MY_BITMAP;
 
 Item *make_condition(Parse_context *pc, Item *item);
@@ -1699,21 +1696,27 @@ class cmp_item_string final : public cmp_item_scalar {
 class cmp_item_json final : public cmp_item_scalar {
  private:
   /// Cached JSON value to look up
-  Json_wrapper m_value;
+  unique_ptr_destroy_only<Json_wrapper> m_value;
   /// Cache for the value above
-  Json_scalar_holder m_holder;
+  unique_ptr_destroy_only<Json_scalar_holder> m_holder;
   /// String buffer
   String m_str_value;
-  /// Scalar holder for the RHS value
-  Json_scalar_holder m_itm_holder;
 
  public:
-  cmp_item_json() {}
+  /**
+    Construct a cmp_item_json object.
+    @param wrapper a Json_wrapper for holding the JSON value in the comparison
+    @param holder  pre-alloced memory for creating JSON scalar values without
+                   using the heap
+  */
+  cmp_item_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
+                unique_ptr_destroy_only<Json_scalar_holder> holder);
+  ~cmp_item_json() override;
 
-  virtual int compare(const cmp_item *ci) const;
-  virtual void store_value(Item *item);
-  virtual int cmp(Item *arg);
-  virtual cmp_item *make_same();
+  int compare(const cmp_item *ci) const override;
+  void store_value(Item *item) override;
+  int cmp(Item *arg) override;
+  cmp_item *make_same() override;
 };
 
 class cmp_item_int final : public cmp_item_scalar {

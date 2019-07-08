@@ -24,8 +24,9 @@
 
 #include <string.h>
 #include <algorithm>
+#include <utility>
 
-#include "auth/auth_common.h"  // generate_random_password
+#include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -57,14 +58,18 @@
 #include "sql/sql_call.h"  // Sql_cmd_call...
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_delete.h"  // Sql_cmd_delete...
 #include "sql/sql_do.h"      // Sql_cmd_do...
 #include "sql/sql_error.h"
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
 #include "sql/sql_select.h"  // Sql_cmd_select...
+#include "sql/sql_show.h"
 #include "sql/sql_update.h"  // Sql_cmd_update...
 #include "sql/system_variables.h"
+#include "sql/table_function.h"
+#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 
@@ -2321,6 +2326,33 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
   return &m_sql_cmd;
 }
 
+PT_json_table_column_for_ordinality::PT_json_table_column_for_ordinality(
+    LEX_STRING name)
+    : m_name(name.str) {}
+
+PT_json_table_column_for_ordinality::~PT_json_table_column_for_ordinality() =
+    default;
+
+bool PT_json_table_column_for_ordinality::contextualize(Parse_context *pc) {
+  DBUG_ASSERT(m_column == nullptr);
+  m_column = make_unique_destroy_only<Json_table_column>(
+      pc->mem_root, enum_jt_column::JTC_ORDINALITY);
+  if (m_column == nullptr) return true;
+  m_column->init_for_tmp_table(MYSQL_TYPE_LONGLONG, 10, 0, true, true, 8,
+                               m_name);
+  return super::contextualize(pc);
+}
+
+PT_json_table_column_with_path::PT_json_table_column_with_path(
+    unique_ptr_destroy_only<Json_table_column> column, LEX_STRING name,
+    PT_type *type, const CHARSET_INFO *collation)
+    : m_column(std::move(column)),
+      m_name(name.str),
+      m_type(type),
+      m_collation(collation) {}
+
+PT_json_table_column_with_path::~PT_json_table_column_with_path() = default;
+
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
@@ -2331,24 +2363,24 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
     cs = pc->thd->variables.collation_connection;
   }
 
-  m_column.init(pc->thd,
-                m_name,                        // Alias
-                m_type->type,                  // Type
-                m_type->get_length(),          // Length
-                m_type->get_dec(),             // Decimals
-                m_type->get_type_flags(),      // Type modifier
-                nullptr,                       // Default value
-                nullptr,                       // On update value
-                &EMPTY_CSTR,                   // Comment
-                nullptr,                       // Change
-                m_type->get_interval_list(),   // Interval list
-                cs,                            // Charset & collation
-                m_collation != nullptr,        // Has "COLLATE" clause
-                m_type->get_uint_geom_type(),  // Geom type
-                nullptr,                       // Gcol_info
-                nullptr,                       // Default gen expression
-                {},                            // SRID
-                dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
+  m_column->init(pc->thd,
+                 m_name,                        // Alias
+                 m_type->type,                  // Type
+                 m_type->get_length(),          // Length
+                 m_type->get_dec(),             // Decimals
+                 m_type->get_type_flags(),      // Type modifier
+                 nullptr,                       // Default value
+                 nullptr,                       // On update value
+                 &EMPTY_CSTR,                   // Comment
+                 nullptr,                       // Change
+                 m_type->get_interval_list(),   // Interval list
+                 cs,                            // Charset & collation
+                 m_collation != nullptr,        // Has "COLLATE" clause
+                 m_type->get_uint_geom_type(),  // Geom type
+                 nullptr,                       // Gcol_info
+                 nullptr,                       // Default gen expression
+                 {},                            // SRID
+                 dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
   return false;
 }
 

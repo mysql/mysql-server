@@ -52,6 +52,7 @@
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"  // Table_function
 #include "sql/temp_table_param.h"
 #include "sql/timing_iterator.h"
 

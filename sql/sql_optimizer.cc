@@ -41,7 +41,6 @@
 
 #include "field_types.h"  // enum_field_types
 #include "ft_global.h"
-#include "item_json_func.h"  // get_json_wrapper()
 #include "m_ctype.h"
 #include "memory_debugging.h"
 #include "my_bit.h"  // my_count_bits
@@ -55,7 +54,9 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/abstract_query_plan.h"  // Join_plan
+#include "sql/basic_row_iterators.h"
 #include "sql/check_stack.h"
+#include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/enum_query_type.h"
@@ -66,6 +67,7 @@
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/lock.h"    // mysql_unlock_some_tables
@@ -77,6 +79,8 @@
 #include "sql/opt_range.h"    // QUICK_SELECT_I
 #include "sql/opt_trace.h"    // Opt_trace_object
 #include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/sql_base.h"  // init_ftfuncs

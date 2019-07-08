@@ -22,33 +22,35 @@
 
 #include "sql/rpl_write_set_handler.h"
 
-#include <string.h>
+#include <inttypes.h>
+#include <stddef.h>
 #include <sys/types.h>
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"  // murmur3_32
-#include "sql/field.h"   // Field
-#include "sql/handler.h"
+#include "mysql_com.h"
+#include "sql/field.h"  // Field
+#include "sql/json_binary.h"
+#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_list.h"  // List
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE
 #include "sql/transaction_info.h"
-#include "sql_string.h"
+#include "template_utils.h"
 
 #define HASH_STRING_SEPARATOR "½"
 

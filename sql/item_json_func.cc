@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include <algorithm>  // std::fill
-#include <cstring>
 #include <memory>
 #include <new>
 #include <string>
@@ -35,15 +34,17 @@
 
 #include "field_types.h"  // enum_field_types
 #include "m_string.h"
-#include "my_compare.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/current_thd.h"   // current_thd
 #include "sql/field.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
+#include "sql/item_create.h"
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
@@ -58,7 +59,7 @@
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_time.h"               // field_type_to_timestamp_type
 #include "sql/table.h"
-#include "sql_lex.h"         // LEX
+#include "sql/thr_malloc.h"
 #include "table_function.h"  // save_json_to_field
 #include "template_utils.h"  // down_cast
 
@@ -613,6 +614,8 @@ Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
                                                          Item *a, Item *b)
     : Item_bool_func(pos, a, b) {}
 
+Item_func_json_schema_valid::~Item_func_json_schema_valid() = default;
+
 static bool do_json_schema_validation(
     Item *json_schema, Item *json_document, const char *func_name,
     const Json_schema_validator *cached_schema_validator, bool *null_value,
@@ -698,6 +701,9 @@ Item_func_json_schema_validation_report::
     Item_func_json_schema_validation_report(THD *thd, const POS &pos,
                                             PT_item_list *a)
     : Item_json_func(thd, pos, a) {}
+
+Item_func_json_schema_validation_report::
+    ~Item_func_json_schema_validation_report() = default;
 
 bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed);
@@ -3692,11 +3698,13 @@ enum Item_result Item_func_array_cast::result_type() const {
 }
 
 Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
-  Field *fld = new (*THR_MALLOC) Field_typed_array(
-      data_type(), unsigned_flag, max_length, decimals, nullptr, nullptr, 0, 0,
-      "", table->s, 4, collation.collation);
-  if (fld) fld->init(table);
-  return fld;
+  unique_ptr_destroy_only<Json_array> array{::new (*THR_MALLOC) Json_array};
+  if (array == nullptr) return nullptr;
+  auto array_field = make_unique_destroy_only<Field_typed_array>(
+      *THR_MALLOC, data_type(), unsigned_flag, max_length, decimals, nullptr,
+      nullptr, 0, 0, "", table->s, 4, collation.collation, std::move(array));
+  array_field->init(table);
+  return array_field.release();
 }
 
 void Item_func_array_cast::cleanup() {

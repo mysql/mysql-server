@@ -29,6 +29,7 @@
 #include <utility>  // std::forward
 
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
@@ -38,22 +39,22 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"    // Item_str_func
-#include "sql/json_dom.h"        // Json_array
 #include "sql/json_path.h"       // Json_path
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
 
 class Json_schema_validator;
-class Item_func_like;
 class Json_dom;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
 class THD;
 class my_decimal;
+struct TABLE;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
 enum enum_one_or_all_type {
@@ -314,6 +315,7 @@ class Item_func_json_valid final : public Item_int_func {
 class Item_func_json_schema_valid final : public Item_bool_func {
  public:
   Item_func_json_schema_valid(const POS &pos, Item *a, Item *b);
+  ~Item_func_json_schema_valid() override;
 
   const char *func_name() const override { return "json_schema_valid"; }
 
@@ -340,6 +342,7 @@ class Item_func_json_schema_validation_report final : public Item_json_func {
  public:
   Item_func_json_schema_validation_report(THD *thd, const POS &pos,
                                           PT_item_list *a);
+  ~Item_func_json_schema_validation_report() override;
 
   const char *func_name() const override {
     return "json_schema_validation_report";

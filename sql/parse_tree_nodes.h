@@ -27,10 +27,11 @@
 #include <sys/types.h>
 #include <cctype>  // std::isspace
 #include <limits>
+#include <memory>
 
 #include "lex_string.h"
-#include "libbinlogevents/include/binlog_event.h"  // UNDEFINED_SERVER_VERSION
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bit.h"  // is_single_bit
 #include "my_dbug.h"
@@ -41,8 +42,9 @@
 #include "my_time.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // make_condition
@@ -50,18 +52,17 @@
 #include "sql/key_spec.h"
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
-#include "sql/mysqld.h"       // table_alias_charset
 #include "sql/opt_explain.h"  // Sql_cmd_explain_other_thread
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_partitions.h"
+#include "sql/parser_yystype.h"
 #include "sql/partition_info.h"
 #include "sql/query_result.h"  // Query_result
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
 #include "sql/set_var.h"
-#include "sql/sp_head.h"    // sp_head
 #include "sql/sql_admin.h"  // Sql_cmd_shutdown etc.
 #include "sql/sql_alter.h"
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
@@ -78,19 +79,22 @@
 #include "sql/sql_tablespace.h"  // Tablespace_options
 #include "sql/sql_truncate.h"    // Sql_cmd_truncate_table
 #include "sql/table.h"           // Common_table_expr
-#include "sql/table_function.h"  // Json_table_column
 #include "sql/window.h"          // Window
 #include "sql/window_lex.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_lock.h"
 
+class Json_table_column;
 class PT_field_def_base;
 class PT_hint_list;
-class PT_query_expression;
 class PT_subquery;
 class PT_type;
+class sp_head;
+class sp_name;
 class Sql_cmd;
-struct MEM_ROOT;
+enum class enum_jt_column;
+enum class enum_jtc_on : uint16;
 
 /**
   @defgroup ptn  Parse tree nodes
@@ -4878,19 +4882,13 @@ class PT_json_table_column_for_ordinality final : public PT_json_table_column {
   typedef PT_json_table_column super;
 
  public:
-  explicit PT_json_table_column_for_ordinality(const LEX_STRING &name)
-      : m_column(enum_jt_column::JTC_ORDINALITY), m_name(name.str) {}
-
-  bool contextualize(Parse_context *pc) override {
-    m_column.init_for_tmp_table(MYSQL_TYPE_LONGLONG, 10, 0, true, true, 8,
-                                m_name);
-    return super::contextualize(pc);
-  }
-
-  Json_table_column *get_column() override { return &m_column; }
+  explicit PT_json_table_column_for_ordinality(LEX_STRING name);
+  ~PT_json_table_column_for_ordinality() override;
+  bool contextualize(Parse_context *pc) override;
+  Json_table_column *get_column() override { return m_column.get(); }
 
  private:
-  Json_table_column m_column;
+  unique_ptr_destroy_only<Json_table_column> m_column;
   const char *m_name;
 };
 
@@ -4898,24 +4896,17 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
   typedef PT_json_table_column super;
 
  public:
-  PT_json_table_column_with_path(const LEX_STRING &name, PT_type *type,
-                                 const CHARSET_INFO *collation,
-                                 enum_jt_column col_type, LEX_STRING path,
-                                 enum_jtc_on on_err,
-                                 const LEX_STRING &error_def,
-                                 enum_jtc_on on_empty,
-                                 const LEX_STRING &missing_def)
-      : m_column(col_type, path, on_err, error_def, on_empty, missing_def),
-        m_name(name.str),
-        m_type(type),
-        m_collation(collation) {}
+  PT_json_table_column_with_path(
+      unique_ptr_destroy_only<Json_table_column> column, LEX_STRING name,
+      PT_type *type, const CHARSET_INFO *collation);
+  ~PT_json_table_column_with_path() override;
 
   bool contextualize(Parse_context *pc) override;
 
-  Json_table_column *get_column() override { return &m_column; }
+  Json_table_column *get_column() override { return m_column.get(); }
 
  private:
-  Json_table_column m_column;
+  unique_ptr_destroy_only<Json_table_column> m_column;
   const char *m_name;
   PT_type *m_type;
   const CHARSET_INFO *m_collation;

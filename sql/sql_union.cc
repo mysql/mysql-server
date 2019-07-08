@@ -38,26 +38,30 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <utility>
+#include <vector>
 
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/basic_row_iterators.h"
+#include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"     // DEBUG_SYNC
 #include "sql/error_handler.h"  // Strict_error_handler
 #include "sql/field.h"
-#include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"
@@ -67,18 +71,20 @@
 #include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/set_var.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
+#include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_tmp_table.h"   // tmp tables
+#include "sql/sql_tmp_table.h"  // tmp tables
+#include "sql/system_variables.h"
 #include "sql/table_function.h"  // Table_function
-#include "sql/thr_malloc.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"

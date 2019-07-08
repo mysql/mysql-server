@@ -30,18 +30,16 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
-
-#include <string>
+#include <memory>
 
 #include "decimal.h"      // E_DEC_OOM
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "libbinlogevents/export/binary_log_funcs.h"  // my_time_binary_length
 #include "m_ctype.h"
-#include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"  // ha_storage_media
 #include "my_bitmap.h"
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -54,16 +52,14 @@
 #include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
-#include "sql/json_dom.h"  // Json_array
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"  // Sql_condition
-#include "sql/sql_list.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"  // String
+#include "template_utils.h"
 
-class Blob_mem_storage;
 class Create_field;
 class Field;
 class Field_bit;
@@ -98,6 +94,7 @@ class Field_tiny;
 class Field_varstring;
 class Field_year;
 class Item;
+class Json_array;
 class Json_diff_vector;
 class Json_wrapper;
 class KEY;
@@ -106,7 +103,6 @@ class Relay_log_info;
 class Send_field;
 class THD;
 class my_decimal;
-struct MEM_ROOT;
 struct TYPELIB;
 struct timeval;
 
@@ -4333,8 +4329,6 @@ class Field_json : public Field_blob {
   const char *get_binary(ptrdiff_t row_offset = 0) const;
 };
 
-class Json_array;
-
 /**
   Field that stores array of values of the same type.
 
@@ -4364,7 +4358,7 @@ class Json_array;
   @see Item_func_array_cast
 */
 
-class Field_typed_array : public Field_json {
+class Field_typed_array final : public Field_json {
   /// Conversion field
   Field *m_conv_field;
   /// Null byte for conv_field
@@ -4378,36 +4372,28 @@ class Field_typed_array : public Field_json {
   /// Element's charset
   const CHARSET_INFO *m_elt_charset;
   /// Result array
-  Json_array m_array;
+  unique_ptr_destroy_only<Json_array> m_array;
 
  public:
-  Field_typed_array(const Field_typed_array &);
+  /**
+    Constructs a Field_typed_array that is a copy of another Field_typed_array.
+    @param other the other Field_typed_array object
+    @param array the Json_array in which to store the result
+  */
+  Field_typed_array(const Field_typed_array &other,
+                    unique_ptr_destroy_only<Json_array> array);
+  /**
+    Constructs a Field_typed_array object.
+  */
   Field_typed_array(enum_field_types elt_type, bool elt_is_unsigned,
                     size_t elt_length, uint elt_decimals, uchar *ptr_arg,
                     uchar *null_ptr_arg, uint null_bit_arg,
                     uchar auto_flags_arg, const char *field_name_arg,
                     TABLE_SHARE *share, uint blob_pack_length,
-                    const CHARSET_INFO *cs)
-      : Field_json(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                   field_name_arg, share, blob_pack_length),
-        m_conv_field(NULL),
-        m_elt_type(elt_type),
-        m_elt_decimals(elt_decimals),
-        m_elt_charset(cs) {
-    if (elt_is_unsigned) {
-      unsigned_flag = true;
-      flags |= UNSIGNED_FLAG;
-    }
-    if (binary()) flags |= BINARY_FLAG;
-    field_length = elt_length;
-    /*
-      Arrays of BLOB aren't supported and can't be created, so mask the BLOB
-      flag of JSON
-    */
-    flags &= ~BLOB_FLAG;
-    DBUG_ASSERT(elt_type != MYSQL_TYPE_STRING &&
-                elt_type != MYSQL_TYPE_VAR_STRING);
-  }
+                    const CHARSET_INFO *cs,
+                    unique_ptr_destroy_only<Json_array> array);
+  /// Destructs a Field_type_array.
+  ~Field_typed_array() override;
   uint32 char_length() const override {
     return field_length / charset()->mbmaxlen;
   }

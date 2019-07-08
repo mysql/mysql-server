@@ -26,7 +26,6 @@
 
 #include "my_config.h"
 
-#include <errno.h>
 #include <float.h>
 #include <stddef.h>
 #ifdef HAVE_SYS_TIME_H
@@ -36,8 +35,10 @@
 #include <algorithm>
 #include <cmath>   // isnan
 #include <memory>  // unique_ptr
+#include <utility>
 
 #include "decimal.h"
+#include "m_string.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
@@ -57,7 +58,6 @@
 #include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/item_func.h"
 #include "sql/item_json_func.h"  // ensure_utf8mb4
 #include "sql/item_timefunc.h"   // Item_func_now_local
 #include "sql/json_binary.h"     // json_binary::serialize
@@ -69,13 +69,15 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_slave.h"              // rpl_master_has_bug
+#include "sql/rpl_rli.h"    // Relay_log_info
+#include "sql/rpl_slave.h"  // rpl_master_has_bug
+#include "sql/rpl_utility.h"
 #include "sql/spatial.h"                // Geometry
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_join_buffer.h"        // CACHE_FIELD
 #include "sql/sql_lex.h"
+#include "sql/sql_show.h"
 #include "sql/sql_time.h"       // str_to_datetime_with_warn
 #include "sql/sql_tmp_table.h"  // create_tmp_field
 #include "sql/srs_fetcher.h"
@@ -9335,9 +9337,13 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
     uint pack_length = calc_pack_length(MYSQL_TYPE_JSON, field_length) -
                        portable_sizeof_char_ptr;
 
-    return new (mem_root) Field_typed_array(
-        field_type, is_unsigned, field_length, decimals, ptr, null_pos,
-        null_bit, auto_flags, field_name, share, pack_length, field_charset);
+    unique_ptr_destroy_only<Json_array> array{::new (mem_root) Json_array};
+    if (array == nullptr) return nullptr;
+    auto array_field = make_unique_destroy_only<Field_typed_array>(
+        mem_root, field_type, is_unsigned, field_length, decimals, ptr,
+        null_pos, null_bit, auto_flags, field_name, share, pack_length,
+        field_charset, std::move(array));
+    return array_field.release();
   }
   /*
     FRMs from 3.23/4.0 can have strings with field_type == MYSQL_TYPE_DECIMAL.
@@ -9747,21 +9753,51 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
              : part_of_key_not_extended.is_set(cur_index);
 }
 
-Field_typed_array::Field_typed_array(const Field_typed_array &other)
+Field_typed_array::Field_typed_array(const Field_typed_array &other,
+                                     unique_ptr_destroy_only<Json_array> array)
     : Field_json(other),
       m_conv_field(other.m_conv_field),
       m_elt_type(other.m_elt_type),
       m_elt_decimals(other.m_elt_decimals),
-      m_elt_charset(other.m_elt_charset) {
+      m_elt_charset(other.m_elt_charset),
+      m_array(std::move(array)) {
   /*
     When conv_field is null the field is cloned from share and isn't
     attached to any table yet (this will happen later).
   */
   //  DBUG_ASSERT(!m_conv_field);
   m_conv_field = nullptr;
-  Json_array_ptr arr(down_cast<Json_array *>(other.m_array.clone().release()));
-  m_array.consume(std::move(arr));
 }
+
+Field_typed_array::Field_typed_array(
+    enum_field_types elt_type, bool elt_is_unsigned, size_t elt_length,
+    uint elt_decimals, uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
+    uchar auto_flags_arg, const char *field_name_arg, TABLE_SHARE *share,
+    uint blob_pack_length, const CHARSET_INFO *cs,
+    unique_ptr_destroy_only<Json_array> array)
+    : Field_json(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
+                 field_name_arg, share, blob_pack_length),
+      m_conv_field(nullptr),
+      m_elt_type(elt_type),
+      m_elt_decimals(elt_decimals),
+      m_elt_charset(cs),
+      m_array(std::move(array)) {
+  if (elt_is_unsigned) {
+    unsigned_flag = true;
+    flags |= UNSIGNED_FLAG;
+  }
+  if (Field_typed_array::binary()) flags |= BINARY_FLAG;
+  field_length = elt_length;
+  /*
+    Arrays of BLOB aren't supported and can't be created, so mask the BLOB
+    flag of JSON
+  */
+  flags &= ~BLOB_FLAG;
+  DBUG_ASSERT(elt_type != MYSQL_TYPE_STRING &&
+              elt_type != MYSQL_TYPE_VAR_STRING);
+}
+
+Field_typed_array::~Field_typed_array() = default;
 
 uint32 Field_typed_array::key_length() const {
   return calc_key_length(m_elt_type, field_length, m_elt_decimals,
@@ -9772,12 +9808,15 @@ uint32 Field_typed_array::key_length() const {
 
 Field_typed_array *Field_typed_array::clone(MEM_ROOT *mem_root) const {
   DBUG_ASSERT(is_array());
-  return new (mem_root) Field_typed_array(*this);
+  unique_ptr_destroy_only<Json_array> array{::new (mem_root) Json_array};
+  if (array == nullptr) return nullptr;
+  auto cloned_field = make_unique_destroy_only<Field_typed_array>(
+      mem_root, *this, std::move(array));
+  return cloned_field.release();
 }
 
 Field_typed_array *Field_typed_array::clone() const {
-  DBUG_ASSERT(is_array());
-  return new (*THR_MALLOC) Field_typed_array(*this);
+  return clone(*THR_MALLOC);
 }
 
 Item_result Field_typed_array::result_type() const {
@@ -9785,7 +9824,7 @@ Item_result Field_typed_array::result_type() const {
 }
 
 type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
-  m_array.clear();
+  m_array->clear();
 
   set_null();
 
@@ -9818,8 +9857,8 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
         if (coerce_json_value(data, false, &coerced))
           return TYPE_ERR_BAD_VALUE; /* purecov: inspected */
         coerced.set_alias();
-        m_array.append_alias(coerced.to_dom(table->in_use));
-        Json_wrapper wr(&m_array, true);
+        m_array->append_alias(coerced.to_dom(table->in_use));
+        Json_wrapper wr(m_array.get(), true);
         /*
           No need to check multi-valued key limits, as single value is always
           allowed if engine supports multi-valued index, and single value
@@ -9836,7 +9875,7 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
 
         // Empty array stored as non-NULL empty array
         if (data->length() == 0) {
-          Json_wrapper wr(&m_array, true);
+          Json_wrapper wr(m_array.get(), true);
           set_notnull();
           return Field_json::store_json(&wr);
         }
@@ -9858,7 +9897,7 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
           if (coerce_json_value(&elt, false, &coerced))
             return TYPE_ERR_BAD_VALUE;
           coerced.set_alias();
-          m_array.append_alias(coerced.to_dom(table->in_use));
+          m_array->append_alias(coerced.to_dom(table->in_use));
           if (type() == MYSQL_TYPE_VARCHAR)
             keys_length += coerced.get_data_length();
           else
@@ -9871,12 +9910,12 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
           This is why we need to sort & remove duplicates only after
           processing all keys.
         */
-        if (m_array.size() > 1)
-          m_array.remove_duplicates(type() == MYSQL_TYPE_VARCHAR ? m_elt_charset
-                                                                 : nullptr);
-        if (m_array.size() > max_num_keys) {
+        if (m_array->size() > 1)
+          m_array->remove_duplicates(
+              type() == MYSQL_TYPE_VARCHAR ? m_elt_charset : nullptr);
+        if (m_array->size() > max_num_keys) {
           my_error(ER_EXCEEDED_MV_KEYS_NUM, MYF(0), get_index_name(),
-                   (m_array.size() - max_num_keys));
+                   m_array->size() - max_num_keys);
           return TYPE_ERR_BAD_VALUE;
         }
         if (keys_length > max_keys_length) {
@@ -9885,7 +9924,7 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
                    (keys_length - max_keys_length));
           return TYPE_ERR_BAD_VALUE;
         }
-        Json_wrapper wr(&m_array, true);
+        Json_wrapper wr(m_array.get(), true);
         set_notnull();
         return Field_json::store_json(&wr);
       }

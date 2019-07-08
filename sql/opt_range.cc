@@ -124,10 +124,12 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>  // std::log2
+#include <limits>
 #include <memory>
 #include <new>
 #include <queue>
 #include <set>
+#include <utility>
 
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
@@ -159,6 +161,7 @@
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"       // is_key_used
 #include "sql/malloc_allocator.h"
 #include "sql/mem_root_array.h"
@@ -168,13 +171,15 @@
 #include "sql/opt_statistics.h"  // guess_rec_per_key
 #include "sql/opt_trace.h"       // Opt_trace_array
 #include "sql/opt_trace_context.h"
+#include "sql/parser_yystype.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/records.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_base.h"   // free_io_cache
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/sql_optimizer.h"        // JOIN

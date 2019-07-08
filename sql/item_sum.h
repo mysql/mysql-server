@@ -30,15 +30,17 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <utility>  // std::forward
+#include <map>
+#include <memory>
+#include <string>
 
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -49,14 +51,12 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h"       // Item_result_field
 #include "sql/item_func.h"  // Item_int_func
-#include "sql/json_dom.h"   // Json_wrapper
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"  // PT_window
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
-#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_udf.h"  // udf_handler
 #include "sql/window.h"
@@ -66,7 +66,11 @@
 
 class Field;
 class Item_sum;
+class Json_array;
+class Json_object;
+class Json_wrapper;
 class PT_item_list;
+class SELECT_LEX;
 class THD;
 class Temp_table_param;
 struct ORDER;
@@ -1173,19 +1177,21 @@ class Item_sum_json : public Item_sum {
   /// String used for converting JSON text values to utf8mb4 charset.
   String m_conversion_buffer;
   /// Wrapper around the container (object/array) which accumulates the value.
-  Json_wrapper m_wrapper;
+  unique_ptr_destroy_only<Json_wrapper> m_wrapper;
 
- public:
   /**
     Construct an Item_sum_json instance.
+
+    @param wrapper a wrapper around the Json_array or Json_object that contains
+                   the aggregated result
     @param parent_args arguments to forward to Item_sum's constructor
   */
   template <typename... Args>
-  Item_sum_json(Args &&... parent_args)
-      : Item_sum(std::forward<Args>(parent_args)...) {
-    set_data_type_json();
-  }
+  explicit Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
+                         Args &&... parent_args);
 
+ public:
+  ~Item_sum_json() override;
   bool fix_fields(THD *thd, Item **pItem) override;
   enum Sumfunctype sum_func() const override { return JSON_AGG_FUNC; }
   Item_result result_type() const override { return STRING_RESULT; }
@@ -1210,12 +1216,16 @@ class Item_sum_json : public Item_sum {
 /// Implements aggregation of values into an array.
 class Item_sum_json_array final : public Item_sum_json {
   /// Accumulates the final value.
-  Json_array m_json_array;
+  unique_ptr_destroy_only<Json_array> m_json_array;
 
  public:
-  Item_sum_json_array(THD *thd, Item_sum *item) : Item_sum_json(thd, item) {}
-  Item_sum_json_array(const POS &pos, Item *a, PT_window *w)
-      : Item_sum_json(pos, a, w) {}
+  Item_sum_json_array(THD *thd, Item_sum *item,
+                      unique_ptr_destroy_only<Json_wrapper> wrapper,
+                      unique_ptr_destroy_only<Json_array> array);
+  Item_sum_json_array(const POS &pos, Item *a, PT_window *w,
+                      unique_ptr_destroy_only<Json_wrapper> wrapper,
+                      unique_ptr_destroy_only<Json_array> array);
+  ~Item_sum_json_array() override;
   const char *func_name() const override { return "json_arrayagg"; }
   void clear() override;
   bool add() override;
@@ -1225,7 +1235,7 @@ class Item_sum_json_array final : public Item_sum_json {
 /// Implements aggregation of values into an object.
 class Item_sum_json_object final : public Item_sum_json {
   /// Accumulates the final value.
-  Json_object m_json_object;
+  unique_ptr_destroy_only<Json_object> m_json_object;
   /// Buffer used to get the value of the key.
   String m_tmp_key_value;
   /**
@@ -1245,9 +1255,13 @@ class Item_sum_json_object final : public Item_sum_json {
   bool m_optimize{false};
 
  public:
-  Item_sum_json_object(THD *thd, Item_sum *item) : Item_sum_json(thd, item) {}
-  Item_sum_json_object(const POS &pos, Item *a, Item *b, PT_window *w)
-      : Item_sum_json(pos, a, b, w) {}
+  Item_sum_json_object(THD *thd, Item_sum *item,
+                       unique_ptr_destroy_only<Json_wrapper> wrapper,
+                       unique_ptr_destroy_only<Json_object> object);
+  Item_sum_json_object(const POS &pos, Item *a, Item *b, PT_window *w,
+                       unique_ptr_destroy_only<Json_wrapper> wrapper,
+                       unique_ptr_destroy_only<Json_object> object);
+  ~Item_sum_json_object() override;
   const char *func_name() const override { return "json_objectagg"; }
   void clear() override;
   bool add() override;

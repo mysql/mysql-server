@@ -45,7 +45,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 
 #include <limits>
 #include <type_traits>                       // for std::remove_reference
+#include <utility>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "myisam.h"
 #include "myisammrg.h"
@@ -64,6 +66,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_geofunc.h"
 #include "sql/item_json_func.h"
 #include "sql/item_regexp_func.h"
+#include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"
@@ -109,6 +112,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
 #include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger
 #include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
+#include "sql/table_function.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -10173,11 +10177,23 @@ sum_expr:
           }
         | JSON_ARRAYAGG '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_json_array(@$, $3, $5);
+            auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
+            if (wrapper == nullptr) YYABORT;
+            unique_ptr_destroy_only<Json_array> array{::new (YYMEM_ROOT)
+                                                          Json_array};
+            if (array == nullptr) YYABORT;
+            $$ = NEW_PTN Item_sum_json_array(@$, $3, $5, std::move(wrapper),
+                                             std::move(array));
           }
         | JSON_OBJECTAGG '(' in_sum_expr ',' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_json_object(@$, $3, $5, $7);
+            auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
+            if (wrapper == nullptr) YYABORT;
+            unique_ptr_destroy_only<Json_object> object{::new (YYMEM_ROOT)
+                                                            Json_object};
+            if (object == nullptr) YYABORT;
+            $$ = NEW_PTN Item_sum_json_object(
+                @$, $3, $5, $7, std::move(wrapper), std::move(object));
           }
         | BIT_XOR_SYM  '(' in_sum_expr ')' opt_windowing_clause
           {
@@ -11134,11 +11150,12 @@ jt_column:
         | ident type opt_collate jt_column_type PATH_SYM TEXT_STRING_sys
           opt_on_empty_or_error
           {
-            $$= NEW_PTN PT_json_table_column_with_path($1, $2, $3, $4, $6,
-                                                       $7.error.type,
-                                                       *$7.error.default_str,
-                                                       $7.empty.type,
-                                                       *$7.empty.default_str);
+            auto column = make_unique_destroy_only<Json_table_column>(
+                YYMEM_ROOT, $4, $6, $7.error.type, *$7.error.default_str,
+                $7.empty.type, *$7.empty.default_str);
+            if (column == nullptr) MYSQL_YYABORT;  // OOM
+            $$ = NEW_PTN PT_json_table_column_with_path(std::move(column), $1,
+                                                        $2, $3);
           }
         | NESTED_SYM PATH_SYM TEXT_STRING_sys columns_clause
           {

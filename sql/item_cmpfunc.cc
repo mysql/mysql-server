@@ -34,8 +34,8 @@
 #include <string.h>
 #include <algorithm>
 #include <array>
-#include <functional>
 #include <type_traits>
+#include <utility>
 
 #include "decimal.h"
 #include "m_ctype.h"
@@ -46,6 +46,7 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
@@ -67,7 +68,7 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
-#include "sql/set_var.h"
+#include "sql/query_options.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
 #include "sql/sql_bitmap.h"
@@ -4189,28 +4190,42 @@ cmp_item *cmp_item_real::make_same() {
 
 cmp_item *cmp_item_row::make_same() { return new (*THR_MALLOC) cmp_item_row(); }
 
-cmp_item *cmp_item_json::make_same() {
-  return new (*THR_MALLOC) cmp_item_json();
+cmp_item_json::cmp_item_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
+                             unique_ptr_destroy_only<Json_scalar_holder> holder)
+    : m_value(std::move(wrapper)), m_holder(std::move(holder)) {}
+
+cmp_item_json::~cmp_item_json() = default;
+
+/// Create a cmp_item_json object on a MEM_ROOT.
+static cmp_item_json *make_cmp_item_json(MEM_ROOT *mem_root) {
+  auto wrapper = make_unique_destroy_only<Json_wrapper>(mem_root);
+  if (wrapper == nullptr) return nullptr;
+  auto holder = make_unique_destroy_only<Json_scalar_holder>(mem_root);
+  if (holder == nullptr) return nullptr;
+  return new (mem_root) cmp_item_json(std::move(wrapper), std::move(holder));
 }
+
+cmp_item *cmp_item_json::make_same() { return make_cmp_item_json(*THR_MALLOC); }
 
 int cmp_item_json::compare(const cmp_item *ci) const {
   const cmp_item_json *l_cmp = down_cast<const cmp_item_json *>(ci);
-  return m_value.compare(l_cmp->m_value);
+  return m_value->compare(*l_cmp->m_value);
 }
 
 void cmp_item_json::store_value(Item *item) {
   bool err = false;
   if (item->data_type() == MYSQL_TYPE_JSON)
-    err = item->val_json(&m_value);
+    err = item->val_json(m_value.get());
   else {
     String tmp;
-    err = get_json_atom_wrapper(&item, 0, "IN", &m_str_value, &tmp, &m_value,
-                                &m_holder, true);
+    err = get_json_atom_wrapper(&item, 0, "IN", &m_str_value, &tmp,
+                                m_value.get(), m_holder.get(), true);
   }
   set_null_value(err || item->null_value);
 }
 
 int cmp_item_json::cmp(Item *arg) {
+  Json_scalar_holder holder;
   Json_wrapper wr;
 
   if (m_null_value) return UNKNOWN;
@@ -4219,11 +4234,10 @@ int cmp_item_json::cmp(Item *arg) {
     if (arg->val_json(&wr) || arg->null_value) return UNKNOWN;
   } else {
     String tmp, str;
-    if (get_json_atom_wrapper(&arg, 0, "IN", &str, &tmp, &wr, &m_itm_holder,
-                              true))
+    if (get_json_atom_wrapper(&arg, 0, "IN", &str, &tmp, &wr, &holder, true))
       return UNKNOWN; /* purecov: inspected */
   }
-  return m_value.compare(wr) ? 1 : 0;
+  return m_value->compare(wr) ? 1 : 0;
 }
 
 cmp_item_row::~cmp_item_row() {
@@ -4839,8 +4853,8 @@ bool Item_func_in::resolve_type(THD *thd) {
       // Use JSON comparator for all comparison types
       for (i = 0; i <= (uint)DECIMAL_RESULT; i++) {
         if (found_types & (1U << i) && !cmp_items[i]) {
-          if (!(cmp_items[i] = new (thd->mem_root) cmp_item_json()))
-            return true; /* purecov: inspected */
+          cmp_items[i] = make_cmp_item_json(thd->mem_root);
+          if (cmp_items[i] == nullptr) return true; /* purecov: inspected */
         }
       }
     } else if (compare_as_datetime) {

@@ -34,8 +34,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cfloat>  // DBL_DIG
-#include <climits>
-#include <cmath>  // std::log2
+#include <cmath>   // std::log2
 #include <iosfwd>
 #include <limits>  // std::numeric_limits
 #include <memory>
@@ -51,16 +50,22 @@
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
+#include "my_hostname.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_user.h"  // parse_user
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -80,6 +85,7 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"
 #include "sql/dd/types/index.h"  // Index::enum_index_type
 #include "sql/dd_sql_view.h"     // push_view_warning_or_error
 #include "sql/dd_table_share.h"  // dd_get_old_field_type
@@ -92,6 +98,7 @@
 #include "sql/item_strfunc.h"    // Item_func_concat_ws
 #include "sql/json_dom.h"        // Json_wrapper
 #include "sql/key.h"
+#include "sql/log_event.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // log_10 stage_user_sleep
 #include "sql/parse_tree_helpers.h"  // PT_item_list
@@ -101,11 +108,12 @@
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mi.h"     // Master_info
-#include "sql/rpl_msr.h"    // channel_map
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/sp.h"         // sp_setup_routine
-#include "sql/sp_head.h"    // sp_name
+#include "sql/rpl_mi.h"   // Master_info
+#include "sql/rpl_msr.h"  // channel_map
+#include "sql/rpl_rli.h"  // Relay_log_info
+#include "sql/sp.h"       // sp_setup_routine
+#include "sql/sp_head.h"  // sp_name
+#include "sql/sql_array.h"
 #include "sql/sql_audit.h"  // audit_global_variable
 #include "sql/sql_base.h"   // Internal_error_handler_holder
 #include "sql/sql_bitmap.h"
@@ -869,20 +877,26 @@ static bool substitute_gc_expression(Item_func **expr, Item **value,
   // the matching generated column.
   THD *thd = item_field->field->table->in_use;
   if (item_field->returns_array() && value) {
-    Json_wrapper wr, to_wr;
+    Json_wrapper wr;
     String str_val, buf;
     Field_typed_array *afld = down_cast<Field_typed_array *>(item_field->field);
 
     Functional_index_error_handler functional_index_error_handler(afld, thd);
 
-    // Don't substitute if value can't be coerced to field's type
     if (get_json_atom_wrapper(value, 0, "MEMBER OF", &str_val, &buf, &wr,
-                              nullptr, true) ||
-        afld->coerce_json_value(&wr, true, &to_wr))
+                              nullptr, true))
+      return true;
+
+    auto to_wr = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
+    if (to_wr == nullptr) return true;
+
+    // Don't substitute if value can't be coerced to field's type
+    if (afld->coerce_json_value(&wr, /*no_error=*/true, to_wr.get()))
       return false;
+
     Item_json *jsn =
         new (thd->mem_root) Item_json(std::move(to_wr), predicate->item_name);
-    if (!jsn || jsn->fix_fields(thd, nullptr)) return false;
+    if (jsn == nullptr || jsn->fix_fields(thd, nullptr)) return true;
     thd->change_item_tree(value, jsn);
   }
   thd->change_item_tree(pointer_cast<Item **>(expr), item_field);
@@ -958,7 +972,9 @@ static void gc_subst_overlaps_contains(Item_func **func, Item **vals,
   TABLE *table = found->table;
   Item_field *subs_item = new Item_field(found);
   if (!subs_item) return;
-  Json_wrapper res(coerced_keys.release());
+  auto res = make_unique_destroy_only<Json_wrapper>(thd->mem_root,
+                                                    coerced_keys.release());
+  if (res == nullptr) return;
   Item_json *array_arg =
       new (thd->mem_root) Item_json(std::move(res), (*func)->item_name);
   if (!array_arg || array_arg->fix_fields(thd, nullptr)) return;

@@ -30,6 +30,7 @@
 #include <functional>
 
 #include "decimal.h"
+#include "field_types.h"
 #include "ft_global.h"
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -39,7 +40,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
@@ -60,6 +60,7 @@
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 class Json_wrapper;
 class PT_item_list;

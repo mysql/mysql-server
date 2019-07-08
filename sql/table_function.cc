@@ -23,16 +23,15 @@
 #include "sql/table_function.h"
 
 #include <string.h>
-#include <algorithm>
 #include <memory>
 #include <new>
+#include <utility>
 
+#include "field_types.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/field.h"
@@ -41,7 +40,6 @@
 #include "sql/item_json_func.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
-#include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_utility.h"  // read_field_metadata
 #include "sql/sql_class.h"    // THD
@@ -53,7 +51,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
-#include "template_utils.h"
 
 /******************************************************************************
   Implementation of Table_function
