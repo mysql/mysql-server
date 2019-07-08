@@ -4013,9 +4013,6 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 
   if (err != DB_SUCCESS) {
     ut_a(err == DB_TABLESPACE_NOT_FOUND);
-
-    ib::error(ER_IB_MSG_290, ulong{space_id});
-
     return (err);
   }
 

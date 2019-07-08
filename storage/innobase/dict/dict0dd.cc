@@ -1071,15 +1071,23 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
 
   ut_ad(new_space->files().size() == 1);
 
+  dd::String_type old_space_name = new_space->name();
+
   new_space->set_name(tablespace_name.c_str());
 
-  if (new_path != nullptr) {
-    dd::Tablespace_file *dd_file =
-        const_cast<dd::Tablespace_file *>(*(new_space->files().begin()));
+  dd::Tablespace_file *dd_file =
+      const_cast<dd::Tablespace_file *>(*(new_space->files().begin()));
 
+  if (new_path != nullptr) {
     dd_file->set_filename(new_path);
 
   } else {
+    /* Calculate the new path based on old file name and the new
+    tablespace name. */
+    dd::String_type old_file_name = dd_file->filename();
+    dd::String_type::size_type pos = old_file_name.rfind(old_space_name);
+    old_file_name.replace(pos, old_space_name.length(), new_space_name);
+    dd_file->set_filename(old_file_name);
     ut_ad(dd_tablespace_get_state_enum(dd_space) == DD_SPACE_STATE_DISCARDED);
   }
 
