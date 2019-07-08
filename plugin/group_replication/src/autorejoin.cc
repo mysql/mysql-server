@@ -267,9 +267,9 @@ void Autorejoin_thread::execute_rejoin_process() {
   mysql_mutex_lock(&m_run_lock);
   m_thd->release_resources();
   global_thd_manager_remove_thd(m_thd);
-  m_autorejoin_thd_state.set_terminated();
   delete m_thd;
   m_thd = nullptr;
+  m_autorejoin_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 

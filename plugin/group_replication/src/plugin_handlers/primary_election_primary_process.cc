@@ -313,6 +313,7 @@ end:
 
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
+  delete thd;
 
   mysql_mutex_lock(&election_lock);
   election_process_thd_state.set_terminated();
@@ -323,7 +324,6 @@ end:
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
-  delete thd;
   my_thread_end();
 
   return error;

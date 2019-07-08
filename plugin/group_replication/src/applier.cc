@@ -560,8 +560,8 @@ end:
     local_applier_error = applier_error;
 
   applier_killed_status = false;
-  applier_thd_state.set_terminated();
   delete applier_thd;
+  applier_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 

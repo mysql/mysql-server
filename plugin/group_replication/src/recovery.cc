@@ -358,8 +358,8 @@ cleanup:
   mysql_mutex_lock(&run_lock);
 
   recovery_aborted = true;  // to avoid the start missing signals
-  recovery_thd_state.set_terminated();
   delete recovery_thd;
+  recovery_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 

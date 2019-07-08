@@ -192,16 +192,16 @@ void Message_service_handler::dispatcher() {
     delete service_message;
   }
 
+  thd->release_resources();
+  global_thd_manager_remove_thd(thd);
+  delete thd;
+
   mysql_mutex_lock(&m_message_service_run_lock);
   m_message_service_thd_state.set_terminated();
   mysql_cond_broadcast(&m_message_service_run_cond);
   mysql_mutex_unlock(&m_message_service_run_lock);
 
-  thd->release_resources();
-  global_thd_manager_remove_thd(thd);
-  delete thd;
   my_thread_end();
-
   my_thread_exit(0);
 }
 
@@ -209,10 +209,15 @@ int Message_service_handler::terminate() {
   DBUG_TRACE;
 
   mysql_mutex_lock(&m_message_service_run_lock);
+  m_aborted = true;
   m_incoming->abort();
-  if (!m_aborted) {
-    m_aborted = true;
-    mysql_cond_wait(&m_message_service_run_cond, &m_message_service_run_lock);
+
+  while (m_message_service_thd_state.is_thread_alive()) {
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+
+    mysql_cond_timedwait(&m_message_service_run_cond,
+                         &m_message_service_run_lock, &abstime);
   }
   mysql_mutex_unlock(&m_message_service_run_lock);
 
