@@ -19643,6 +19643,25 @@ static void innodb_buffer_pool_size_update(THD *thd, SYS_VAR *var,
   }
 }
 
+/** Update the system variable innobase_deadlock_detect using the "saved" value.
+Makes sure to "wake up" the dedicated deadlock detector thread if needed.
+This function is registered as a callback with MySQL.
+@param[in]    thd       thread handle
+@param[in]    var       pointer to system variable
+@param[out]   var_ptr   where the formal string goes (ignored)
+@param[in]    save      immediate result from check function */
+static void innobase_deadlock_detect_update(THD *thd, SYS_VAR *var,
+                                            void *var_ptr, const void *save) {
+  innobase_deadlock_detect = *(bool *)save;
+  /* In case deadlock detection was disabled for a long time it could happen
+  that all clients have deadlocked with each other and thus they stopped
+  changing the wait-for graph, which in turn causes deadlock detection to not
+  observe any action and thus it will not search for deadlocks. So if we now
+  change from OFF to ON we need to "kick-start" the process. It never hurts to
+  do so, so we do it even if we check from ON to OFF */
+  lock_wait_request_check_for_cycles();
+}
+
 /** Check whether valid argument given to "innodb_fts_internal_tbl_name"
  This function is registered as a callback with MySQL.
  @return 0 for valid stopword table */
@@ -21502,7 +21521,7 @@ static MYSQL_SYSVAR_BOOL(
     "Enable/disable InnoDB deadlock detector (default ON)."
     " if set to OFF, deadlock detection is skipped,"
     " and we rely on innodb_lock_wait_timeout in case of deadlock.",
-    NULL, NULL, TRUE);
+    NULL, innobase_deadlock_detect_update, TRUE);
 
 static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor, PLUGIN_VAR_RQCMDARG,
                          "Percentage of B-tree page filled during bulk insert",

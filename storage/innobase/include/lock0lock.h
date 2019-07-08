@@ -614,6 +614,11 @@ bool lock_table_has_locks(
 /** A thread which wakes up threads whose lock wait may have lasted too long. */
 void lock_wait_timeout_thread();
 
+/** Notifies the thread which analyzes wait-for-graph that there was
+ at least one new edge added or modified ( trx->blocking_trx has changed ),
+ so that the thread will know it has to analyze it. */
+void lock_wait_request_check_for_cycles();
+
 /** Puts a user OS thread to wait for a lock to be released. If an error
  occurs during the wait trx->error_state associated with thr is
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK

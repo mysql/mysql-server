@@ -3192,7 +3192,7 @@ static void srv_shutdown_background_threads() {
   const Thread_to_stop threads_to_stop[]{
 
       {"lock_wait_timeout", srv_threads.m_lock_wait_timeout,
-       std::bind(os_event_set, lock_sys->timeout_event), SRV_SHUTDOWN_CLEANUP},
+       lock_set_timeout_event, SRV_SHUTDOWN_CLEANUP},
 
       {"error_monitor", srv_threads.m_error_monitor,
        std::bind(os_event_set, srv_error_event), SRV_SHUTDOWN_CLEANUP},

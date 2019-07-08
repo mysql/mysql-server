@@ -299,14 +299,6 @@ inline std::ostream &operator<<(std::ostream &out, const lock_t &lock) {
 extern ibool lock_print_waits;
 #endif /* UNIV_DEBUG */
 
-/** Restricts the length of search we will do in the waits-for
-graph of transactions */
-static const ulint LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK = 1000000;
-
-/** Restricts the search depth we will do in the waits-for graph of
-transactions */
-static const ulint LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK = 200;
-
 /* Safety margin when creating a new record lock: this many extra records
 can be inserted to the page without need to create a lock with a bigger
 bitmap */
@@ -743,17 +735,16 @@ class RecLock {
   /**
   Enqueue a lock wait for a transaction. If it is a high priority transaction
   (cannot rollback) then try to jump ahead in the record lock wait queue. Also
-  do a deadlock check and resolve.
+  check if async rollback was request for our trx.
   @param[in, out] wait_for      The lock that the the joining transaction is
                                 waiting for
   @param[in] prdt               Predicate [optional]
   @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_SUCCESS_LOCKED_REC
-  @retval DB_SUCCESS_LOCKED_REC means that either:
-        (1) there was a deadlock, but another transaction was chosen
-            as a victim, and we got the lock immediately
-        (2) we are High Priority transaction and we've managed to jump in front
-            of other waiting transactions and got the lock granted
-        In either case there is no need to wait. */
+  @retval DB_DEADLOCK means that async rollback was requested for our trx
+  @retval DB_SUCCESS_LOCKED_REC means that we are High Priority transaction and
+                                we've managed to jump in front of other waiting
+                                transactions and got the lock granted, so there
+                                is no need to wait. */
   dberr_t add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt = NULL);
 
   /**
@@ -830,23 +821,6 @@ class RecLock {
                           rec hash and the transaction lock list
   @param[in] add_to_hash	If the lock should be added to the hash table */
   void lock_add(lock_t *lock, bool add_to_hash);
-
-  /**
-  Check and resolve any deadlocks
-  @param[in, out] lock		The lock being acquired
-  @return DB_LOCK_WAIT, DB_DEADLOCK, or
-          DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
-          there was a deadlock, but another transaction was chosen
-          as a victim, and we got the lock immediately: no need to
-          wait then */
-  dberr_t deadlock_check(lock_t *lock);
-
-  /**
-  Check the outcome of the deadlock check
-  @param[in,out] victim_trx	Transaction selected for rollback
-  @param[in,out] lock		Lock being requested
-  @return DB_LOCK_WAIT, DB_DEADLOCK or DB_SUCCESS_LOCKED_REC */
-  dberr_t check_deadlock_result(const trx_t *victim_trx, lock_t *lock);
 
   /**
   Setup the context from the requirements */
@@ -1128,6 +1102,14 @@ parallel modifications turns out wrong.
 UNIV_INLINE
 bool lock_table_has(const trx_t *trx, const dict_table_t *table,
                     enum lock_mode mode);
+
+/** Handles writing the information about found deadlock to the log files
+and caches it for future lock_latest_err_file() calls (for example used by
+SHOW ENGINE INNODB STATUS)
+@param[in] trxs_on_cycle  trxs causing deadlock, i-th waits for i+1-th
+@param[in] victim_trx     the trx from trx_on_cycle which will be rolled back */
+void lock_notify_about_deadlock(const ut::vector<const trx_t *> &trxs_on_cycle,
+                                const trx_t *victim_trx);
 
 #include "lock0priv.ic"
 

@@ -303,6 +303,12 @@ void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
   ut_ad(lock_get_wait(lock));
   ut_ad(lock_mutex_own());
 
+  /* We intentionally don't clear trx->lock.blocking_trx here, as
+  lock_reset_lock_and_trx_wait() is called also during movements of locks from
+  one page to another, which does not really change the structure of the
+  wait-for graph. Instead the lock_reset_wait_and_release_thread_if_suspended()
+  is responsible for clearing the blocking_trx field once it is sure that
+  we really want to remove the edge from the wait-for graph.*/
   lock->trx->lock.wait_lock = NULL;
   /* We intentionally don't clear lock->trx->lock.wait_lock_type here, to make
   it easier to obtain stats about the last wait in lock_wait_suspend_thread().

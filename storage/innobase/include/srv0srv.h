@@ -1142,6 +1142,12 @@ struct srv_slot_t {
   lock_wait_table_reserve_slot() for lock wait. */
   ib_time_monotonic_t suspend_time;
 
+  /** Stores the current value of lock_wait_table_reservations, when
+  lock_wait_table_reserve_slot is called.
+  This can be used as a version number to avoid ABA problems.
+  Protected by lock->wait_mutex. */
+  uint64_t reservation_no;
+
   /** Wait time that if exceeded the thread will be timed out.
   Initialized by lock_wait_table_reserve_slot() for lock wait. */
   ulong wait_timeout;

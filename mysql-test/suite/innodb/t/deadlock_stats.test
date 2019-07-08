@@ -1,0 +1,83 @@
+--echo #
+--echo # Bug #21278148  DEADLOCKS MISSED BY INFORMATION_SCHEMA.INNODB_METRICS
+--echo #                LOCK_DEADLOCKS COUNTER
+--echo #
+
+--source include/have_debug_sync.inc
+
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (2,1), (1,2);
+
+--echo # Scenario 1: the con1 will be chosen as victim
+
+SELECT `count` INTO @deadlocks_before_test
+  FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME="lock_deadlocks";
+
+--connect (con1,localhost,root,,)
+  BEGIN;
+  SELECT b FROM t WHERE a=1 FOR UPDATE;
+
+--connect (con2,localhost,root,,)
+  BEGIN;
+  # Make con2 "heavy" by creating new rows
+  INSERT INTO t VALUES (3,3), (4,4), (5,5);
+  SELECT b FROM t WHERE a=2 FOR UPDATE;
+
+--connection con1
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con1_will_wait';
+  --send SELECT b FROM t WHERE a=2 FOR UPDATE;
+
+--connection con2
+  SET DEBUG_SYNC='now WAIT_FOR con1_will_wait';
+  SELECT b FROM t WHERE a=1 FOR UPDATE;
+  ROLLBACK;
+
+--connection con1
+  --error ER_LOCK_DEADLOCK
+  --reap
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+SELECT `count` - @deadlocks_before_test AS deadlocks_during_test
+  FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME="lock_deadlocks";
+
+--echo # Scenario 2: the con2 will be chosen as victim
+
+SELECT `count` INTO @deadlocks_before_test
+  FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME="lock_deadlocks";
+
+--connect (con1,localhost,root,,)
+  BEGIN;
+  SELECT b FROM t WHERE a=1 FOR UPDATE;
+
+--connect (con2,localhost,root,,)
+  BEGIN;
+  SELECT b FROM t WHERE a=2 FOR UPDATE;
+
+--connection con1
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con1_will_wait';
+  --send SELECT b FROM t WHERE a=2 FOR UPDATE;
+
+--connection con2
+  SET DEBUG_SYNC='now WAIT_FOR con1_will_wait';
+  --error ER_LOCK_DEADLOCK
+  SELECT b FROM t WHERE a=1 FOR UPDATE;
+
+--connection con1
+  --reap
+  ROLLBACK;
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+SELECT `count` - @deadlocks_before_test AS deadlocks_during_test
+  FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME="lock_deadlocks";
+
+DROP TABLE t;

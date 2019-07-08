@@ -162,6 +162,8 @@ static void trx_init(trx_t *trx) {
 
   trx->lock.n_rec_locks.store(0);
 
+  trx->lock.blocking_trx.store(nullptr);
+
   trx->dict_operation = TRX_DICT_OP_NONE;
 
   trx->ddl_operation = false;
@@ -282,6 +284,7 @@ struct TrxFactory {
 
     ut_a(trx->lock.wait_lock == NULL);
     ut_a(trx->lock.wait_thr == NULL);
+    ut_a(trx->lock.blocking_trx.load() == nullptr);
 
     ut_a(!trx->has_search_latch);
 
@@ -347,6 +350,7 @@ struct TrxFactory {
 
     ut_a(trx->lock.wait_thr == NULL);
     ut_a(trx->lock.wait_lock == NULL);
+    ut_a(trx->lock.blocking_trx.load() == nullptr);
 
     ut_a(!trx->has_search_latch);
 

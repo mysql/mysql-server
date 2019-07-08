@@ -119,6 +119,21 @@ static monitor_info_t innodb_counter_info[] = {
     {"lock_deadlocks", "lock", "Number of deadlocks", MONITOR_DEFAULT_ON,
      MONITOR_DEFAULT_START, MONITOR_DEADLOCK},
 
+    {"lock_deadlock_false_positives", "lock",
+     "Number of times a heuristic found a spurious candidate deadlock cycle in "
+     "the wait-for graph",
+     MONITOR_DEFAULT_ON, MONITOR_DEFAULT_START,
+     MONITOR_DEADLOCK_FALSE_POSITIVES},
+
+    {"lock_deadlock_rounds", "lock",
+     "Number of times a wait-for graph was scanned in search for deadlocks",
+     MONITOR_DEFAULT_ON, MONITOR_DEFAULT_START, MONITOR_DEADLOCK_ROUNDS},
+
+    {"lock_threads_waiting", "lock",
+     "Number of query threads sleeping waiting for a lock",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
+     MONITOR_DEFAULT_START, MONITOR_LOCK_THREADS_WAITING},
+
     {"lock_timeouts", "lock", "Number of lock timeouts", MONITOR_DEFAULT_ON,
      MONITOR_DEFAULT_START, MONITOR_TIMEOUT},
 

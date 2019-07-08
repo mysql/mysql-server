@@ -549,6 +549,32 @@ struct trx_lock_t {
                        == TRX_STATE_ACTIVE: TRX_QUE_RUNNING,
                        TRX_QUE_LOCK_WAIT, ... */
 
+  /** If this transaction is waiting for a lock, then blocking_trx points to a
+  transaction which holds a conflicting lock.
+  The opposite is not true sometimes, that is:
+  1. It is possible that the transaction has trx->lock.wait_lock == null, yet it
+  has non-null value of trx->lock.blocking_trx. For example this can happen when
+  we are in the process of moving locks from one heap_no to another. This
+  however is always done while the lock_sys mutex is latched and conceptually it
+  is true that the blocking_trx is the one for which the transaction waits, even
+  though temporarily there is no pointer to a particular WAITING lock object.
+  2. If the trx is not waiting for any other transaction, this field might
+  contain some left-over value from previous wait, although we try to keep it
+  clean to make debugging easier it is not a requirement for correctness of the
+  deadlock detection, as it is performed only among transactions which are
+  waiting.
+
+  This field is changed from non-null to null, when holding trx_mutex_own(this)
+  and lock_sys mutex.
+  The field is changed from non-null to different non-null value, while holding
+  lock_sys mutex.
+  The field is changed from non-null to null, while holding trx_mutex_own(this),
+  and lock_sys mutex.
+  Readers might read it without any latch, but then they should validate the
+  value, i.e. test if it is not-null, and points to a valid trx.
+  To make any definite judgments it one needs to latch the lock_sys mutex. */
+  std::atomic<trx_t *> blocking_trx;
+
   /** If trx execution state is TRX_QUE_LOCK_WAIT, this points to the lock
   request, otherwise this is NULL; set to non-NULL when holding both trx->mutex
   and lock_sys->mutex; set to NULL when holding lock_sys->mutex; readers should
