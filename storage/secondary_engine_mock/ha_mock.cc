@@ -235,6 +235,12 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
   auto context = new (thd->mem_root) Mock_execution_context;
   if (context == nullptr) return true;
   lex->set_secondary_engine_execution_context(context);
+
+  // Disable use of constant tables and evaluation of subqueries during
+  // optimization.
+  lex->add_statement_options(OPTION_NO_CONST_TABLES |
+                             OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
+
   return false;
 }
 

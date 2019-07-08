@@ -5097,7 +5097,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       Do this optimization if fix_fields is allowed to change the condition
       and if this is the first execution.
       Check if the const item does not contain param's, SP args etc.  We also
-      cannot optimize conditions if its a view. The condition has to be a
+      cannot optimize conditions if it's a view. The condition has to be a
       top_level_item to get optimized as they can have only two return values,
       true or false. A non-top_level_item can have true, false and NULL return.
       Fulltext funcs cannot be removed as ftfunc_list stores the list
@@ -5821,7 +5821,15 @@ longlong Item_func_like::val_int() {
 */
 
 Item_func::optimize_type Item_func_like::select_optimize(const THD *thd) {
+  /*
+    Can be called both during preparation (from prune_partitions()) and
+    optimization. Check if the pattern can be evaluated in the current phase.
+  */
   if (!args[1]->may_evaluate_const(thd)) return OPTIMIZE_NONE;
+
+  // Don't evaluate the pattern if evaluation during optimization is disabled.
+  if (!evaluate_during_optimization(args[1], thd->lex->current_select()))
+    return OPTIMIZE_NONE;
 
   String *res2 = args[1]->val_str(&cmp.value2);
   if (!res2) return OPTIMIZE_NONE;
@@ -5959,6 +5967,13 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
   escape_evaluated = true;
 
   return false;
+}
+
+void Item_func_like::update_used_tables() {
+  Item_bool_func2::update_used_tables();
+  escape_item->update_used_tables();
+  used_tables_cache |= escape_item->used_tables();
+  add_accum_properties(escape_item);
 }
 
 bool Item_func_xor::itemize(Parse_context *pc, Item **res) {
