@@ -1559,7 +1559,7 @@ void my_print_variables_ex(const struct my_option *options, FILE *file) {
           fprintf(file, "%d\n", *((int *)value));
           break;
         case GET_UINT:
-          fprintf(file, "%d\n", *((uint *)value));
+          fprintf(file, "%u\n", *((uint *)value));
           break;
         case GET_LONG:
           fprintf(file, "%ld\n", *((long *)value));
