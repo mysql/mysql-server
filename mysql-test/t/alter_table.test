@@ -3506,3 +3506,12 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 SET NAMES default;
+
+--echo #
+--echo # Bug #29501324	ADD VIRTUAL FIRST + ADD COLUMN CAUSES ASSERTION FAILURE.
+--echo #
+
+CREATE TABLE t1 (b INT);
+--echo # The below ALTER TABLE causes assertion failure without the fix.
+ALTER TABLE t1 ADD gcol INT AS (b + 1) VIRTUAL FIRST, ADD COLUMN a INT;
+DROP TABLE t1;
