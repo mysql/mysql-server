@@ -64,7 +64,7 @@ Record lock, heap no 2 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (2) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
+LOCK WAIT 3 lock struct(s), heap size %NUMBER%, 2 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 4 FOR UPDATE
 
@@ -206,7 +206,7 @@ Record lock, heap no 2 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
 *** (2) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
-5 lock struct(s), heap size %NUMBER%, 8 row lock(s)
+LOCK WAIT 5 lock struct(s), heap size %NUMBER%, 8 row lock(s)
 MySQL thread id %NUMBER%, OS thread handle %NUMBER%, query id %NUMBER% %ADDRESS% %USER% statistics
 SELECT * FROM t1 WHERE id = 4 FOR UPDATE
 
