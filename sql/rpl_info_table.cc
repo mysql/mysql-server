@@ -57,8 +57,8 @@ Rpl_info_table::Rpl_info_table(uint nparam, const char *param_schema,
                                const char *param_table,
                                const uint param_n_pk_fields,
                                const uint *param_pk_field_indexes,
-                               MY_BITMAP const *nullable_fields)
-    : Rpl_info_handler(nparam, nullable_fields), is_transactional(false) {
+                               MY_BITMAP const *nullable_bitmap)
+    : Rpl_info_handler(nparam, nullable_bitmap), is_transactional(false) {
   str_schema.str = str_table.str = nullptr;
   str_schema.length = str_table.length = 0;
 
@@ -327,7 +327,7 @@ end:
    @param param_schema       schema name
    @param param_table        table name
    @param channel_name       channel name
-   @param nullable_fields    fields allowed to be null.
+   @param nullable_bitmap    fields allowed to be null.
 
    @return 0   on success
            1   when a failure happens
@@ -335,7 +335,7 @@ end:
 int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
                                   const char *param_table,
                                   const char *channel_name,
-                                  MY_BITMAP const *nullable_fields) {
+                                  MY_BITMAP const *nullable_bitmap) {
   int error = 0;
   TABLE *table = nullptr;
   sql_mode_t saved_mode;
@@ -347,7 +347,7 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
   DBUG_TRACE;
 
   if (!(info = new Rpl_info_table(nparam, param_schema, param_table, 0, nullptr,
-                                  nullable_fields)))
+                                  nullable_bitmap)))
     return 1;
 
   thd = info->access->create_thd();
@@ -526,7 +526,7 @@ end:
 
 bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
                                    const char *param_table,
-                                   MY_BITMAP const *nullable_fields,
+                                   MY_BITMAP const *nullable_bitmap,
                                    uint *counter) {
   int error = 1;
   TABLE *table = nullptr;
@@ -538,7 +538,7 @@ bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
   DBUG_TRACE;
 
   if (!(info = new Rpl_info_table(nparam, param_schema, param_table, 0, nullptr,
-                                  nullable_fields)))
+                                  nullable_bitmap)))
     return true;
 
   thd = info->access->create_thd();

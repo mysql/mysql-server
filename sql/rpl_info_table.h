@@ -109,7 +109,7 @@ class Rpl_info_table : public Rpl_info_handler {
     @param[in]  nparam           Number of fields in the table.
     @param[in]  param_schema     Table's schema.
     @param[in]  param_table      Table's name.
-    @param[in]  nullable_fields  bitmap that holds the fields that are
+    @param[in]  nullable_bitmap  bitmap that holds the fields that are
                                  allowed to be `NULL`-
     @param[out] counter          Number of entries found.
 
@@ -118,10 +118,10 @@ class Rpl_info_table : public Rpl_info_handler {
   */
   static bool do_count_info(uint nparam, const char *param_schema,
                             const char *param_table,
-                            MY_BITMAP const *nullable_fields, uint *counter);
+                            MY_BITMAP const *nullable_bitmap, uint *counter);
   static int do_reset_info(uint nparam, const char *param_schema,
                            const char *param_table, const char *channel_name,
-                           MY_BITMAP const *nullable_fields);
+                           MY_BITMAP const *nullable_bitmap);
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
 
@@ -184,7 +184,7 @@ class Rpl_info_table : public Rpl_info_handler {
   Rpl_info_table(uint nparam, const char *param_schema, const char *param_table,
                  const uint param_n_pk_fields = 0,
                  const uint *param_pk_field_indexes = nullptr,
-                 MY_BITMAP const *nullable_fields = nullptr);
+                 MY_BITMAP const *nullable_bitmap = nullptr);
 
   Rpl_info_table(const Rpl_info_table &info);
   Rpl_info_table &operator=(const Rpl_info_table &info);
