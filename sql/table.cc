@@ -6465,8 +6465,17 @@ void init_mdl_requests(TABLE_LIST *table_list) {
   technical constraints.
 */
 bool TABLE_LIST::is_mergeable() const {
-  return is_view_or_derived() && algorithm != VIEW_ALGORITHM_TEMPTABLE &&
-         derived->is_mergeable();
+  if (!is_view_or_derived() || algorithm == VIEW_ALGORITHM_TEMPTABLE)
+    return false;
+  /*
+    If the table's content is non-deterministic and the query references it
+    multiple times, merging it has the risk of creating different contents.
+  */
+  Common_table_expr *cte = common_table_expr();
+  if (cte != nullptr && cte->references.size() >= 2 &&
+      derived->uncacheable & UNCACHEABLE_RAND)
+    return false;
+  return derived->is_mergeable();
 }
 
 bool TABLE_LIST::materializable_is_const() const {

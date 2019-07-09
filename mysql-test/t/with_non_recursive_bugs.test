@@ -977,3 +977,33 @@ SELECT  INNR1 . col_varchar AS y FROM E AS INNR1
 WHERE OUTRcte1 . field1 <> 3 );
 
 DROP TABLE E;
+
+--echo #
+--echo # Bug#30026353 NON-DETERMINISTIC CTE REFERENCED TWO TIMES CAN
+--echo # PRODUCE DIFFERENT CONTENT
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5),(6);
+
+CREATE TABLE t2 (a INT);
+
+# Read the CTE twice; insert results into a table, compare the two
+# results (it is complicated but we cannot display results, for
+# repeatability).
+INSERT INTO t2
+ WITH cte AS (SELECT RAND() AS a FROM t1)
+ SELECT SUM(c.a) FROM cte c UNION ALL
+ SELECT SUM(c2.a) FROM cte c2;
+
+SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
+DELETE FROM t2;
+
+INSERT INTO t2
+ WITH cte AS (SELECT * FROM t1 WHERE a>3*RAND())
+ SELECT SUM(c.a) FROM cte c
+ UNION ALL SELECT SUM(c2.a) FROM cte c2;
+
+SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
+
+DROP TABLE t1,t2;
