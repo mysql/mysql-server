@@ -58,12 +58,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/udf_registration_imp.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_METHOD(MYSQL_SESSION, mysql_component_mysql_admin_session_imp::open,
+              (srv_session_error_cb, void *)) {
+  return nullptr;
+}
 
 DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
                    (MYSQL_THD *)) {

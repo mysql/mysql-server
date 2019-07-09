@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -243,5 +243,8 @@ class Sql_service_interface {
   */
   bool is_acl_disabled();
 };
+
+extern bool sql_service_interface_init();
+extern bool sql_service_interface_deinit();
 
 #endif  // SQL_SERVICE_INTERFACE_INCLUDE

@@ -25,10 +25,13 @@
 #include <stddef.h>
 
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/components/services/mysql_admin_session.h>
 #include <mysqld_error.h>
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_systime.h"  // my_sleep()
+
+static SERVICE_TYPE_NO_CONST(mysql_admin_session) * admin_session_factory;
 
 /* Sql_service_interface constructor */
 Sql_service_interface::Sql_service_interface(enum cs_text_or_binary cs_txt_bin,
@@ -63,7 +66,7 @@ int Sql_service_interface::open_session() {
   m_session = NULL;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT)) {
-    m_session = srv_session_open(srv_session_error_handler, NULL);
+    m_session = admin_session_factory->open(srv_session_error_handler, NULL);
     if (m_session == NULL) return 1; /* purecov: inspected */
   } else {
     return 1; /* purecov: inspected */
@@ -87,7 +90,7 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr) {
       /* purecov: end */
     }
 
-    m_session = srv_session_open(srv_session_error_handler, NULL);
+    m_session = admin_session_factory->open(srv_session_error_handler, NULL);
     if (m_session == NULL) {
       srv_session_deinit_thread();
       return 1;
@@ -261,4 +264,36 @@ bool Sql_service_interface::is_acl_disabled() {
     return false; /* purecov: inspected */
 
   return 0 != value.length && NULL != strstr(value.str, "skip-grants ");
+}
+
+bool sql_service_interface_init() {
+  SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
+  my_h_service hadmin;
+  if (!plugin_registry) return true;
+
+  if (plugin_registry->acquire("mysql_admin_session", &hadmin)) {
+    mysql_plugin_registry_release(plugin_registry);
+    admin_session_factory = nullptr;
+    return true;
+  }
+
+  admin_session_factory =
+      reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_admin_session) *>(hadmin);
+  mysql_plugin_registry_release(plugin_registry);
+  return false;
+}
+
+bool sql_service_interface_deinit() {
+  if (admin_session_factory) {
+    SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
+    if (!plugin_registry) return true;
+    my_h_service hadmin;
+
+    hadmin = reinterpret_cast<my_h_service>(admin_session_factory);
+    plugin_registry->release(hadmin);
+    admin_session_factory = nullptr;
+
+    mysql_plugin_registry_release(plugin_registry);
+  }
+  return false;
 }

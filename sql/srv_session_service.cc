@@ -42,9 +42,10 @@
 #include "mysql/service_srv_session.h"
 #include "mysqld_error.h"
 #include "sql/conn_handler/connection_handler_manager.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/derror.h"       // ER_DEFAULT
-#include "sql/mysqld.h"       // SERVER_OPERATING
+#include "sql/current_thd.h"                              // current_thd
+#include "sql/derror.h"                                   // ER_DEFAULT
+#include "sql/mysqld.h"                                   // SERVER_OPERATING
+#include "sql/server_component/mysql_admin_session_imp.h" /* mysql_component_mysql_admin_session_imp */
 #include "sql/sql_class.h"
 #include "sql/srv_session.h"
 
@@ -70,18 +71,21 @@ void srv_session_deinit_thread() { Srv_session::deinit_thread(); }
   @param error_cb              Default completion callback
   @param plugin_ctx            Plugin's context, opaque pointer that would
                                be provided to callbacks. Might be NULL.
+  @param ignore_max_connection_limit true if the session is exempted
   @return
     handler of session   on success
     NULL                 on failure
 */
-Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
+Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
+                                       void *plugin_ctx,
+                                       bool ignore_max_connection_limit) {
   DBUG_TRACE;
 
   if (!srv_session_server_is_available()) {
     if (error_cb)
       error_cb(plugin_ctx, ER_SERVER_ISNT_AVAILABLE,
                ER_DEFAULT(ER_SERVER_ISNT_AVAILABLE));
-    return NULL;
+    return nullptr;
   }
 
   bool simulate_reach_max_connections = false;
@@ -92,10 +96,10 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
       Connection_handler_manager::get_instance();
 
   if (simulate_reach_max_connections ||
-      !conn_manager->check_and_incr_conn_count(false)) {
+      !conn_manager->check_and_incr_conn_count(ignore_max_connection_limit)) {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
-    return NULL;
+    return nullptr;
   }
 
   Srv_session *session =
@@ -120,12 +124,44 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
 
     if (result) {
       delete session;
-      session = NULL;
+      session = nullptr;
     }
 
     if (current) current->store_globals();
   }
   return session;
+}
+
+/**
+  Opens server session
+
+  @param error_cb              Default completion callback
+  @param plugin_ctx            Plugin's context, opaque pointer that would
+                               be provided to callbacks. Might be NULL.
+  @return
+    handler of session   on success
+    NULL                 on failure
+*/
+Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
+  DBUG_TRACE;
+  return srv_session_open_internal(error_cb, plugin_ctx, false);
+}
+
+/**
+  Opens server admin session
+
+  @param error_cb              Default completion callback
+  @param ctx            Plugin's context, opaque pointer that would
+                               be provided to callbacks. Might be NULL.
+  @sa srv_session_open_internal
+  @return
+    handler of session   on success
+    NULL                 on failure
+*/
+DEFINE_METHOD(MYSQL_SESSION, mysql_component_mysql_admin_session_imp::open,
+              (srv_session_error_cb error_cb, void *ctx)) {
+  DBUG_TRACE;
+  return srv_session_open_internal(error_cb, ctx, true);
 }
 
 /**

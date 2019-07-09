@@ -29,20 +29,11 @@
   together with the Command service to execute commands in the server.
 */
 
-#ifdef __cplusplus
-class Srv_session;
-typedef class Srv_session *MYSQL_SESSION;
-#else
-struct Srv_session;
-typedef struct Srv_session *MYSQL_SESSION;
-#endif
+#include "mysql/service_srv_session_bits.h" /* MYSQL_SESSION, srv_session_error_cb */
 
 #ifndef MYSQL_ABI_CHECK
 #include "mysql/plugin.h" /* MYSQL_THD */
 #endif
-
-typedef void (*srv_session_error_cb)(void *ctx, unsigned int sql_errno,
-                                     const char *err_msg);
 
 extern "C" struct srv_session_service_st {
   int (*init_session_thread)(const void *plugin);
