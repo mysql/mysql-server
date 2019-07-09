@@ -64,6 +64,19 @@ IF(SOLARIS)
   ENDIF()
 ENDIF()
 
+# ld.lld: error: corrupt input file:
+# version definition index 0 for symbol __gcov_var is out of bounds
+IF(ENABLE_GCOV)
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+ENDIF()
+
 IF(WIN32)
   # Activate necessary dllexport/dllimport declarations.
   ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
