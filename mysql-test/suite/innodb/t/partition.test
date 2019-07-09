@@ -1,3 +1,62 @@
+--echo #
+--echo # Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows all the columns
+--echo # in a non-partitioned table
+--echo #
+
+CREATE TABLE t_nopart (a int PRIMARY KEY, b int, c varchar(64));
+
+SELECT lower(t.name), lower(c.name)
+  FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+  JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+  WHERE t.table_id = c.table_id and t.name like '%t_nopart%'
+  ORDER BY t.name, c.name;
+
+DROP TABLE t_nopart;
+
+--echo #
+--echo # Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows columns for
+--echo # all the partitions in a partitioned table
+--echo #
+
+CREATE TABLE t_part
+(a int,
+ b int,
+ c varchar(64),
+ PRIMARY KEY (a),
+ KEY (b),
+ KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+
+SELECT lower(t.name), lower(c.name)
+  FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+  JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+  WHERE t.table_id = c.table_id and t.name like '%t_part%'
+  ORDER BY t.name, c.name;
+
+DROP TABLE t_part;
+
+--echo #
+--echo # Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows columns for all
+--echo # the subpartitions of a table
+--echo #
+
+CREATE TABLE t_subpart (a INT, b INT)
+  PARTITION BY RANGE(b)
+    SUBPARTITION BY HASH(b)
+    SUBPARTITIONS 2 (
+      PARTITION p0 VALUES LESS THAN (1000),
+      PARTITION p1 VALUES LESS THAN (2000),
+      PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+
+SELECT lower(t.name), lower(c.name)
+  FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+  JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+  WHERE t.table_id = c.table_id and t.name like '%t_subpart%'
+  ORDER BY t.name, c.name;
+
+DROP TABLE t_subpart;
 
 --echo #
 --echo # Test of optimizer estimates

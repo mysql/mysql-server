@@ -62,6 +62,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/plugin.h"
 #include "page0zip.h"
 #include "pars0pars.h"
+#include "sql/sql_class.h" /* For THD */
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "srv0tmp.h"
@@ -6084,6 +6085,109 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
   return 0;
 }
 
+/** Function to fill column information for all the partitions in case
+the table is a partitioned table. In case of a non-partitioned table,
+the table_id is associated with the column.
+All the low level latches, dict_sys_mutex should be released and mtr
+should be committed before calling this function as it acquires a mdl
+lock.
+@param[in]	thd		thread
+@param[in]	tid		table_id
+@param[in]	col_name	column name
+@param[in]	column		dict_col_t obj
+@param[in]	nth_v_col	nth virtual column
+@param[in,out]	table_to_fill	fill this table
+@return 0 on success */
+static int fill_column_table_or_partition(THD *thd, table_id_t tid,
+                                          const char *col_name,
+                                          dict_col_t *column, ulint nth_v_col,
+                                          TABLE *table_to_fill) {
+  /* Get the dd::Table object from DD for the table with given table id (tid) */
+  dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  dd::String_type schema_name;
+  dd::String_type table_name;
+  const dd::Table *dd_table = nullptr;
+  MDL_ticket *mdl = nullptr;
+
+  bool is_part = false;
+
+  /* Test hook to test that a warning message is returned to the user
+  if a table cannot be opened */
+  DBUG_EXECUTE_IF("do_before_filling_i_s_innodb_columns",
+                  if (strcmp(col_name, "a") == 0)
+                      DEBUG_SYNC_C("wait_before_filling_i_s_innodb_columns"););
+
+  /* Get the schema and table name from the dictionary */
+  if (dc->get_table_name_by_se_private_id(handler_name, tid, &schema_name,
+                                          &table_name)) {
+    goto end_fill;
+  }
+
+  /* Get the schema and table name from the dictionary by partition table id */
+  if (schema_name.empty() &&
+      dc->get_table_name_by_partition_se_private_id(
+          handler_name, tid, &schema_name, &table_name)) {
+    goto end_fill;
+  }
+
+  /* Stop here, if the table name could not be found */
+  if (schema_name.empty() || table_name.empty()) {
+    ib::warn() << "Unable to open innodb table with id = " << tid
+               << " in the data dictionary.";
+    goto end_fill;
+  }
+
+  /* Acquire mdl lock to access the table */
+  if (dd_mdl_acquire(thd, &mdl, schema_name.c_str(), table_name.c_str())) {
+    goto end_fill;
+  }
+
+  /* Get the dd::Table object from the dictionary */
+  if (dc->acquire(schema_name, table_name, &dd_table) || dd_table == nullptr) {
+    /* Print a warning message if the table could not be found in the data
+    dictionary. Skip the table */
+    ib::warn() << "Unable to open innodb table " << schema_name.c_str() << "."
+               << table_name.c_str() << " in the data dictionary.";
+    goto end_fill;
+  } else {
+    /* Find out if the table is a partitioned one */
+    is_part = dd_table_is_partitioned(*dd_table);
+  }
+
+  if (is_part) {
+    /* This is a partitioned table. Display columns for all the partitions
+    by associating the partition's table id with the column. This is to work
+    around the problem where in 8.0, columns are displayed only for the first
+    partition */
+    for (const dd::Partition *p : dd_table->leaf_partitions()) {
+      i_s_dict_fill_innodb_columns(thd, p->se_private_id(), col_name, column,
+                                   nth_v_col, table_to_fill);
+    }
+  } else {
+    /* If the table is not a partitioned table, use table_id */
+    i_s_dict_fill_innodb_columns(thd, tid, col_name, column, nth_v_col,
+                                 table_to_fill);
+  }
+
+end_fill:
+  /* Clear any error set earlier in this function */
+  if (thd->is_error()) {
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 thd->get_stmt_da()->mysql_errno(),
+                 thd->get_stmt_da()->message_text());
+    thd->clear_error();
+  }
+
+  /* Release the mdl lock on the table */
+  if (mdl != nullptr) {
+    dd_mdl_release(thd, &mdl);
+  }
+
+  return 0;
+}
+
 /** Function to fill information_schema.innodb_columns with information
 collected by scanning INNODB_COLUMNS table.
 @param[in]	thd		thread
@@ -6128,8 +6232,9 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mutex_exit(&dict_sys->mutex);
 
     if (ret) {
-      i_s_dict_fill_innodb_columns(thd, table_id, col_name, &column_rec,
-                                   nth_v_col, tables->table);
+      /* Fill column information for all the tables and partitions */
+      fill_column_table_or_partition(thd, table_id, col_name, &column_rec,
+                                     nth_v_col, tables->table);
     }
 
     mem_heap_empty(heap);
