@@ -41,7 +41,7 @@
 # - fix minor issues to satisfy UBSAN
 
 # Inhibit warning messages
-IF(MSVC)
+IF(MSVC AND NOT WIN32_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4005")
 ELSE()
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-sign-compare")
