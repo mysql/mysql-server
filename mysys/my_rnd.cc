@@ -31,6 +31,7 @@
 */
 
 #include "my_rnd.h"
+#include <mysql_com.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #if !defined(HAVE_OPENSSL)
@@ -79,18 +80,18 @@ int my_rand_buffer(unsigned char *buffer, size_t buffer_size) {
   Generate a random number using the OpenSSL supplied
   random number generator if available.
 
-  @param [in,out] rand_st Structure used for number generation
-                         only if none of the SSL libraries are
-                         available.
+  @param [out] failed set to TRUE if the method failed. FALSE if OK.
 
-  @retval                Generated random number.
+  @retval                Generated random number or 0 if failed is set.
 */
 
-double my_rnd_ssl(struct rand_struct *rand_st) {
+double my_rnd_ssl(bool *failed) {
   unsigned int res;
 
-  if (my_rand_buffer((unsigned char *)&res, sizeof(res)))
-    return my_rnd(rand_st);
-
+  if (my_rand_buffer((unsigned char *)&res, sizeof(res))) {
+    *failed = true;
+    return 0;
+  } else
+    *failed = false;
   return (double)res / (double)UINT_MAX;
 }

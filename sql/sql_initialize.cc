@@ -85,26 +85,26 @@ static const char *cmd_descs[] = {
     "Creating the sys schema",
     nullptr};
 
-static void generate_password(char *password, int size) {
+static bool generate_password(char *password, int size) {
 #define UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
 #define LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
 #define NUMCHARS "1234567890"
 #define SYMCHARS ",.-+*;:_!#%&/()=?><"
-#define rnd_of(x) x[((int)(my_rnd_ssl(&srnd) * 100)) % (sizeof(x) - 1)]
+#define rnd_of(x) x[((int)(my_rnd_ssl(&failed) * 100)) % (sizeof(x) - 1)]
 
   static const char g_allowed_pwd_chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
   static const char g_upper_case_chars[] = UPCHARS;
   static const char g_lower_case_chars[] = LOWCHARS;
   static const char g_numeric_chars[] = NUMCHARS;
   static const char g_special_chars[] = SYMCHARS;
-  rand_struct srnd;
+  bool failed = false;
   char *ptr = password;
   bool had_upper = false, had_lower = false, had_numeric = false,
        had_special = false;
 
   for (; size > 0; --size) {
     char ch = rnd_of(g_allowed_pwd_chars);
-
+    if (failed) return failed;
     /*
       Ensure we have a password that conforms to the strong
       password validation plugin ploicy by re-drawing specially
@@ -112,15 +112,19 @@ static void generate_password(char *password, int size) {
     */
     if (size == 4 && !had_lower) {
       ch = rnd_of(g_lower_case_chars);
+      if (failed) return failed;
       had_lower = true;
     } else if (size == 3 && !had_numeric) {
       ch = rnd_of(g_numeric_chars);
+      if (failed) return failed;
       had_numeric = true;
     } else if (size == 2 && !had_special) {
       ch = rnd_of(g_special_chars);
+      if (failed) return failed;
       had_special = true;
     } else if (size == 1 && !had_upper) {
       ch = rnd_of(g_upper_case_chars);
+      if (failed) return failed;
       had_upper = true;
     }
 
@@ -135,9 +139,10 @@ static void generate_password(char *password, int size) {
 
     *ptr++ = ch;
   }
+  return failed;
 }
 
-void Compiled_in_command_iterator::begin(void) {
+bool Compiled_in_command_iterator::begin(void) {
   m_cmds_ofs = m_cmd_ofs = 0;
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
@@ -150,7 +155,10 @@ void Compiled_in_command_iterator::begin(void) {
     char escaped_password[GENERATED_PASSWORD_LENGTH * 2 + 1];
     ulong saved_verbosity = log_error_verbosity;
 
-    generate_password(password, GENERATED_PASSWORD_LENGTH);
+    if (generate_password(password, GENERATED_PASSWORD_LENGTH)) {
+      LogErr(ERROR_LEVEL, ER_INIT_FAILED_TO_GENERATE_ROOT_PASSWORD);
+      return true;
+    }
     password[GENERATED_PASSWORD_LENGTH] = 0;
 
     /*
@@ -169,6 +177,8 @@ void Compiled_in_command_iterator::begin(void) {
 
     sprintf(insert_user_buffer, INSERT_USER_CMD, escaped_password);
   }
+
+  return false;
 }
 
 int Compiled_in_command_iterator::next(std::string &query) {

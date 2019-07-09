@@ -19706,6 +19706,12 @@ ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
 ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS
   eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s, user: '%.64s'@'%.255s', roles: %.512s"
 
+ER_AUDIT_LOG_CANNOT_GENERATE_PASSWORD
+  eng "Cannot generate password: '%.32s'"
+
+ER_INIT_FAILED_TO_GENERATE_ROOT_PASSWORD
+  eng "Failed to generate a random password for root. Probabably not enough enthropy."
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.

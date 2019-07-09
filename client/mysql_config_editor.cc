@@ -100,7 +100,7 @@ static int do_handle_options(int argc, char *argv[]);
 static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name);
 static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
                           const char *option_name);
-void generate_login_key(void);
+bool generate_login_key(void);
 static int read_login_key(void);
 static int add_header(void);
 static void my_perror(const char *msg);
@@ -740,7 +740,7 @@ static bool check_and_create_login_file(void) {
   }
 
   if (file_size == 0) {
-    generate_login_key();
+    if (generate_login_key()) goto error;
     if (add_header() == -1) goto error;
   } else {
     if (read_login_key() == -1) goto error;
@@ -963,7 +963,7 @@ static int reset_login_file(bool gen_key) {
   if (my_seek(g_fd, 0L, SEEK_SET, MYF(MY_WME) == MY_FILEPOS_ERROR))
     goto error; /* Error. */
 
-  if (gen_key) generate_login_key(); /* Generate a new key. */
+  if (gen_key && generate_login_key()) goto error; /* Generate a new key. */
 
   if (add_header() == -1) goto error;
 
@@ -1222,16 +1222,22 @@ error:
 
 /**
   Algorithm to generate key.
+
+  @retval true error
+  @retval false success
 */
 
-void generate_login_key() {
+bool generate_login_key() {
   DBUG_TRACE;
-  struct rand_struct rnd;
 
   verbose_msg("Generating a new key.\n");
   /* Get a sequence of random non-printable ASCII */
-  for (uint i = 0; i < LOGIN_KEY_LEN; i++)
-    my_key[i] = (char)((int)(my_rnd_ssl(&rnd) * 100000) % 32);
+  for (uint i = 0; i < LOGIN_KEY_LEN; i++) {
+    bool failed;
+    my_key[i] = (char)((int)(my_rnd_ssl(&failed) * 100000) % 32);
+    if (failed) return true;
+  }
+  return false;
 }
 
 /**
