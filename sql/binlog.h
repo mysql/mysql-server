@@ -301,7 +301,7 @@ class Stage_manager {
   until we have reset thd->current_linfo to NULL;
  */
 struct LOG_INFO {
-  char log_file_name[FN_REFLEN];
+  char log_file_name[FN_REFLEN] = {0};
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal;       // if the purge happens to give us a negative offset
