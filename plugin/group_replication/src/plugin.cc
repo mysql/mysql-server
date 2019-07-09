@@ -531,6 +531,25 @@ int initialize_plugin_and_join(
   bool enabled_super_read_only = false;
   bool read_only_mode = false, super_read_only_mode = false;
 
+  /*
+    When restarting after a clone we need to fix the channels since
+    their information is cloned but not any of the associated files.
+    The applier channel is purged of all info.
+    The recovery channel is reinitialized so only access credentials remain.
+  */
+  bool is_restart_after_clone = is_server_restarting_after_clone();
+  if (is_restart_after_clone) {
+    Replication_thread_api gr_channel("group_replication_applier");
+    gr_channel.purge_logs(true);
+
+    gr_channel.set_channel_name("group_replication_recovery");
+    gr_channel.purge_logs(false);
+    gr_channel.initialize_channel(const_cast<char *>("<NULL>"), 0, NULL, NULL,
+                                  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                                  NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false,
+                                  NULL, false, NULL, 0);
+  }
+
   Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
 
