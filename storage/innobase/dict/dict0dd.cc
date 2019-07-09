@@ -1016,6 +1016,39 @@ void dd_table_close(dict_table_t *table, THD *thd, MDL_ticket **mdl,
 }
 
 #ifndef UNIV_HOTBACKUP
+/** Replace the tablespace name in the file name.
+@param[in]  dd_file  the tablespace file object.
+@param[in]  new_space_name  new table space name to be updated in file name.
+@return None. */
+static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
+                                            dd::String_type new_space_name) {
+  /* Obtain the old tablespace file name. */
+  dd::String_type old_file_name = dd_file->filename();
+
+  /* Construct the old tablespace name from the file name. */
+  dd::String_type::size_type pos =
+      old_file_name.find_last_of(Fil_path::SEPARATOR);
+  dd::String_type subdir = old_file_name.substr(0, pos);
+  dd::String_type::size_type suffix = old_file_name.rfind(dot_ext[IBD]);
+  dd::String_type table_name = old_file_name.substr(pos + 1, suffix - pos - 1);
+  pos = subdir.find_last_of(Fil_path::SEPARATOR);
+  dd::String_type db_name = subdir.substr(pos + 1, subdir.length());
+  dd::String_type old_space_name = db_name + "/" + table_name;
+
+  /* Take care of path separators */
+  std::replace(old_space_name.begin(), old_space_name.end(), '/',
+               OS_PATH_SEPARATOR);
+  std::replace(new_space_name.begin(), new_space_name.end(), '/',
+               OS_PATH_SEPARATOR);
+
+  /* Replace old table space name with the new tablespace name in file name. */
+  pos = old_file_name.rfind(old_space_name);
+  old_file_name.replace(pos, old_space_name.length(), new_space_name);
+
+  /* Update the file name path */
+  dd_file->set_filename(old_file_name);
+}
+
 /** Update filename of dd::Tablespace
 @param[in]	dd_space_id	DD tablespace id
 @param[in]	new_space_name	New tablespace name
@@ -1082,12 +1115,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
     dd_file->set_filename(new_path);
 
   } else {
-    /* Calculate the new path based on old file name and the new
-    tablespace name. */
-    dd::String_type old_file_name = dd_file->filename();
-    dd::String_type::size_type pos = old_file_name.rfind(old_space_name);
-    old_file_name.replace(pos, old_space_name.length(), new_space_name);
-    dd_file->set_filename(old_file_name);
+    replace_space_name_in_file_name(dd_file, new_space_name);
     ut_ad(dd_tablespace_get_state_enum(dd_space) == DD_SPACE_STATE_DISCARDED);
   }
 

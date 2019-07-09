@@ -10879,6 +10879,23 @@ void Fil_path::convert_to_filename_charset(std::string &name) {
   }
 }
 
+/** Convert filename to the file system charset format.
+@param[in,out]	name		Filename to convert */
+void Fil_path::convert_to_filename_charset(dd::String_type &name) {
+  uint errors = 0;
+  char old_name[MAX_TABLE_NAME_LEN + 20];
+  char filename[MAX_TABLE_NAME_LEN + 20];
+
+  strncpy(filename, name.c_str(), sizeof(filename) - 1);
+  strncpy(old_name, filename, sizeof(old_name));
+
+  innobase_convert_to_filename_charset(filename, old_name, MAX_TABLE_NAME_LEN);
+
+  if (errors == 0) {
+    name.assign(filename);
+  }
+}
+
 /** Convert to lower case using the file system charset.
 @param[in,out]	path		Filepath to convert */
 void Fil_path::convert_to_lower_case(std::string &path) {
