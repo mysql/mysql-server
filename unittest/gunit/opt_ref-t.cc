@@ -125,7 +125,7 @@ class OptRefTest : public ::testing::Test {
 
   void call_add_key_fields(Item *cond) {
     uint and_level = 0;
-    (void)add_key_fields(NULL, NULL /* join */, &t1_key_fields, &and_level,
+    (void)add_key_fields(thd(), NULL /* join */, &t1_key_fields, &and_level,
                          cond, ~0ULL, NULL);
   }
 
