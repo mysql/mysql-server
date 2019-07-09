@@ -752,7 +752,6 @@ public:
     Uint32 noOfWords;
     Uint32 tabRemoveNode;
     Uint32 noOfFragChunks;
-    Uint32 tabErrorCode;
     Uint32 tabActiveLcpFragments;
 
     struct {

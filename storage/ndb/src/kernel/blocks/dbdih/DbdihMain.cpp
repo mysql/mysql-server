@@ -14355,7 +14355,30 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
       cmasterNodeId == getOwnNodeId())
   {
     jam();
-    
+    /**
+     * We start the process of creating the table in all nodes from
+     * here.
+     * Step 1)
+     *   Read table definition from file system in master node (this
+     *   node).
+     *   Copy the pages read into the table and fragment records.
+     *   Next copy the table to all other nodes in the cluster using
+     *   COPY_TABREQ signals which starts by packing the table into
+     *   pages again and next sending those in COPY_TABREQ signals.
+     *   The non-master nodes will send COPY_TABCONF when completed
+     *   the handling of the received table meta data information.
+     *   It will also write the pages to the file system in the master
+     *   node. After completing this the master will send COPY_TABCONF
+     *   to itself.
+     * Step 2)
+     *   The non-master nodes will later also call DIADDTABREQ, these
+     *   nodes will have set state to TS_ACTIVE as a flag to the function
+     *   prepare_add_table to reflect that the table already has its
+     *   fragmentation data setup and it is ready to create the fragments
+     *   in the non-master nodes. It is also set to TS_ACTIVE since we
+     *   become included in the LCP protocol immediately after copying
+     *   the table meta data information.
+     */
     tabPtr.p->tabStatus = TabRecord::TS_CREATING;
     
     initTableFile(tabPtr);
@@ -16657,14 +16680,16 @@ Dbdih::prepare_add_table(TabRecordPtr tabPtr,
     jam();
     tabPtr.p->partitionCount = req->partitionCount;
   }
-
   if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
   {
     /**
-     * This is the only code segment in DBDIH where we can change tabStatus
-     * while DBTC also has access to the table. It can conflict with the
-     * call to execDIH_SCAN_TAB_REQ from DBTC. So we need to protect this
-     * particular segment of the this call.
+     * This code is used for starting non-master nodes in both System Restarts
+     * and Node Restarts. The table and fragmentation information have been
+     * copied from master node using COPY_TABREQ signals. We are ready to
+     * add fragments and continue with creation of the tables.
+     *
+     * tabLcpActiveFragments is setup as part of reading table and
+     * fragment information from disk. So we should not reset it to 0 here.
      */
     jam();
     tabPtr.p->tabStatus = TabRecord::TS_CREATING;
@@ -16672,6 +16697,12 @@ Dbdih::prepare_add_table(TabRecordPtr tabPtr,
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
     sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
     return true;
+  }
+  else
+  {
+    jam();
+    /* New table added, ensure that tabActiveLcpFragments is initialised. */
+    tabPtr.p->tabActiveLcpFragments = 0;
   }
   NdbMutex_Unlock(&tabPtr.p->theMutex);
   return false;
@@ -19203,7 +19234,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
     /**
      * For each fragment
      */
-    ndbrequire(tabPtr.p->tabActiveLcpFragments == 0);
+    tabPtr.p->tabActiveLcpFragments = 0;
     for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
       jam();
       FragmentstorePtr fragPtr;
@@ -19231,7 +19262,6 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
           replicaPtr.p->lcpOngoingFlag = false;
         }
       }
-      
       fragPtr.p->noLcpReplicas = replicaCount;
       if (replicaCount > 0)
       {
@@ -20079,7 +20109,8 @@ void Dbdih::readPagesIntoTableLab(Signal* signal, Uint32 tableId)
   /* ------------- */
   /* Type of table */
   /* ------------- */
-  rf.rwfTabPtr.p->tabStorage = (TabRecord::Storage)(readPageWord(&rf)); 
+  rf.rwfTabPtr.p->tabStorage = (TabRecord::Storage)(readPageWord(&rf));
+  rf.rwfTabPtr.p->tabActiveLcpFragments = 0;
 
   Uint32 noOfFrags = rf.rwfTabPtr.p->totalfragments;
   ndbrequire(noOfFrags > 0);
@@ -20932,7 +20963,7 @@ void Dbdih::copyTableNode(Signal* signal,
   signal->theData[4] = ctn->wordIndex;
   signal->theData[5] = ctn->noOfWords;
   sendSignal(reference(), GSN_CONTINUEB, signal, 6, JBB);
-}//Dbdih::copyTableNodeLab()
+}//Dbdih::copyTableNode()
 
 void Dbdih::sendCopyTable(Signal* signal, CopyTableNode* ctn,
                           BlockReference ref, Uint32 reqinfo) 
@@ -24946,7 +24977,6 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   tabPtr.p->hashpointer = (Uint32)-1;
   tabPtr.p->mask = 0;
   tabPtr.p->tabStorage = TabRecord::ST_NORMAL;
-  tabPtr.p->tabErrorCode = 0;
   tabPtr.p->schemaVersion = (Uint32)-1;
   tabPtr.p->tabRemoveNode = RNIL;
   tabPtr.p->totalfragments = (Uint32)-1;
@@ -27983,6 +28013,8 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
     case TabRecord::TS_ACTIVE:
       ok = true;
       jam();
+      break;
+    default:
       break;
     }
     ndbrequire(ok);
