@@ -148,7 +148,7 @@ else (protobuf_BUILD_SHARED_LIBS)
   endif (MSVC AND protobuf_MSVC_STATIC_RUNTIME)
 endif (protobuf_BUILD_SHARED_LIBS)
 
-if (MSVC)
+if (MSVC AND NOT WIN32_CLANG)
   # Build with multiple processes
   add_definitions(/MP)
   # MSVC warning suppressions
@@ -176,7 +176,7 @@ if (MSVC)
 
   # Suppress linker warnings about files with no symbols defined.
   set(CMAKE_STATIC_LINKER_FLAGS /ignore:4221)
-endif (MSVC)
+endif (MSVC AND NOT WIN32_CLANG)
 
 get_filename_component(protobuf_source_dir ${protobuf_SOURCE_DIR} PATH)
 
