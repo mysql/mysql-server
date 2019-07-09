@@ -114,3 +114,27 @@ EXECUTE stmt;
 🐬
 x
 SET NAMES default;
+#
+# Bug#29909573 SHOW CREATE TABLE OUTPUT CAN'T BE EXECUTED
+# The following CREATE TABLE would fail without fix.
+#
+CREATE TABLE t1 (f1 CHAR(20) COLLATE binary);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` binary(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (f1 ENUM('a') COLLATE binary);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` enum('a') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (
+`id` int NOT NULL AUTO_INCREMENT,
+`etype` enum('a','b','c') CHARACTER SET binary COLLATE binary DEFAULT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+DROP TABLE t1;

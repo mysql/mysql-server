@@ -6883,6 +6883,7 @@ collation_name:
               MYSQL_YYABORT;
             YYLIP->warn_on_deprecated_collation($$);
           }
+        | BINARY_SYM { $$= &my_charset_bin; }
         ;
 
 opt_collate:
