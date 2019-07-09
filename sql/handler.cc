@@ -3917,6 +3917,7 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag,
       str.length(max_length - 4);
       str.append(STRING_WITH_LEN("..."));
     }
+    str[str.length()] = 0;
     if (org_table_name != nullptr)
       key_name = org_table_name;
     else

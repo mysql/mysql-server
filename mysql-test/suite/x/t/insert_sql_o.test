@@ -144,6 +144,7 @@ USE mysqlxplugin;
 -->endsql
 EOF
 
+--replace_regex /categories.*\./Categories./
 --exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-insert_sql_negative.tmp 2>&1
 
 ## Cleanup
