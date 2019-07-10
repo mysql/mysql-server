@@ -302,10 +302,11 @@ static int com_quit(String *str, char *), com_go(String *str, char *),
     com_prompt(String *str, char *), com_delimiter(String *str, char *),
     com_warnings(String *str, char *), com_nowarnings(String *str, char *),
     com_resetconnection(String *str, char *);
+static int com_shell(String *str, char *);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char *), com_pager(String *str, char *),
-    com_edit(String *str, char *), com_shell(String *str, char *);
+    com_edit(String *str, char *);
 #endif
 
 static int read_and_execute(bool interactive);
@@ -379,9 +380,7 @@ static COMMANDS commands[] = {
     {"source", '.', com_source, 1,
      "Execute an SQL script file. Takes a file name as an argument."},
     {"status", 's', com_status, 0, "Get status information from the server."},
-#ifdef USE_POPEN
     {"system", '!', com_shell, 1, "Execute a system shell command."},
-#endif
     {"tee", 'T', com_tee, 1,
      "Set outfile [to_outfile]. Append everything into given outfile."},
     {"use", 'u', com_use, 1,
@@ -4060,7 +4059,6 @@ static int com_rehash(String *buffer MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-#ifdef USE_POPEN
 static int com_shell(String *buffer MY_ATTRIBUTE((unused)),
                      char *line MY_ATTRIBUTE((unused))) {
   char *shell_cmd;
@@ -4081,7 +4079,6 @@ static int com_shell(String *buffer MY_ATTRIBUTE((unused)),
   }
   return 0;
 }
-#endif
 
 static int com_print(String *buffer, char *line MY_ATTRIBUTE((unused))) {
   tee_puts("--------------", stdout);
