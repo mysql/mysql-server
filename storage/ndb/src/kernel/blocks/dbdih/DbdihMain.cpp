@@ -24743,6 +24743,7 @@ void Dbdih::initCommonData()
   c_nodeStartMaster.wait = ZFALSE;
 
   memset(&sysfileData[0], 0, sizeof(sysfileData));
+  SYSFILE->initSysFile(SYSFILE->nodeStatus, SYSFILE->nodeGroups);
   SYSFILE->latestLCP_ID = 1; /* Ensure that first LCP id is 1 */
 
   const ndb_mgm_configuration_iterator * p = 
@@ -25441,12 +25442,8 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
   /**
    * Init sysfile
    */
-  for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
-  {
-    jam();
-    Sysfile::setNodeGroup(i, SYSFILE->nodeGroups, NO_NODE_GROUP_ID);
-    Sysfile::setNodeStatus(i, SYSFILE->nodeStatus,Sysfile::NS_NotDefined);
-  }
+
+  SYSFILE->initSysFile(SYSFILE->nodeStatus, SYSFILE->nodeGroups);
 
   for (Uint32 i = 0; nodeArray[i] != RNIL; i++)
   {

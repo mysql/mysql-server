@@ -94,6 +94,8 @@ public:
    */
   Uint32 m_restart_seq;
 
+  static void initSysFile(Uint32 nodeStatus[], Uint16 nodeGroups[]);
+
   static bool getInitialStartOngoing(const Uint32 & systemRestartBits);
   static void setInitialStartOngoing(Uint32 & systemRestartBits);
   static void clearInitialStartOngoing(Uint32 & systemRestartBits);
@@ -185,6 +187,18 @@ public:
  * 01234567890123456789012345678901
  * irl
  */
+
+inline
+void
+Sysfile::initSysFile(Uint32 nodeStatus[], Uint16 nodeGroups[])
+{
+  for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
+  {
+    setNodeGroup(i, nodeGroups, NO_NODE_GROUP_ID);
+    setNodeStatus(i, nodeStatus,Sysfile::NS_NotDefined);
+  }
+}
+
 inline
 bool 
 Sysfile::getInitialStartOngoing(const Uint32 & systemRestartBits){
