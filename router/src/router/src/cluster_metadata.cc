@@ -326,11 +326,12 @@ void MySQLInnoDBClusterMetadata::update_router_info(
   sqlstring query(
       "UPDATE mysql_innodb_cluster_metadata.routers"
       " SET attributes = "
-      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(attributes,"
-      "    'RWEndpoint', ?),"
-      "    'ROEndpoint', ?),"
-      "    'RWXEndpoint', ?),"
-      "    'ROXEndpoint', ?)"
+      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, '{}', "
+      "attributes),"
+      "    '$.RWEndpoint', ?),"
+      "    '$.ROEndpoint', ?),"
+      "    '$.RWXEndpoint', ?),"
+      "    '$.ROXEndpoint', ?)"
       " WHERE router_id = ?");
   query << rw_endpoint;
   query << ro_endpoint;
