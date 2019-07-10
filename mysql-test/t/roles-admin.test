@@ -25,7 +25,7 @@ CREATE TABLE db2.t2 (c1 INT, c2 INT, c3 INT);
 --echo ++ admin-db1 can manage db2.t1 and admin-db2 can manage db1.t1
 GRANT `admin-db2t1` TO `admin-db1`;
 GRANT `admin-db1t1` TO `admin-db2`;
---echo ++ admin-db1 can propote anyone with the admin-db1t1 rights.
+--echo ++ admin-db1 can promote anyone with the admin-db1t1 rights.
 GRANT `admin-db1t1` TO `admin-db1` WITH ADMIN OPTION;
 
 GRANT SELECT, UPDATE, CREATE, DROP, INSERT, DELETE ON db1.* TO `admin-db1`;
@@ -35,6 +35,7 @@ GRANT SELECT, UPDATE, CREATE, DROP, INSERT, DELETE ON db2.t1 TO `admin-db2t1`;
 
 connect(con1, localhost, app-middleware-db1, foo, test);
 SET ROLE `admin-db1`;
+SHOW GRANTS;
 
 --echo ++ Positive test
 INSERT INTO db1.t1 VALUES (1,2,3);
@@ -205,4 +206,76 @@ connection default;
 DROP USER u1@localhost, u2@localhost, u3@localhost;
 DROP ROLE r1,r2,role_admin,arbitrary_role;
 disconnect con1;
+--echo #############################################################
+--echo ++ Check that WITH ADMIN properties are persistent
+--echo #############################################################
+CREATE USER `u1`@`%` IDENTIFIED BY 'foo';
+CREATE USER `u2`@`%` IDENTIFIED BY 'foo';
+CREATE ROLE r1, r2, r3;
+GRANT r2 TO r1;
+GRANT r3 TO r2;
+GRANT r2 TO u1;
+GRANT r3 TO u2;
+
+# Connect as u1 - Trying to grant r1,r2,r3 to other use u2 fails as expected.
+connect(con1, localhost, u1, foo, test);
+SET ROLE all;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r1 TO u2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r2 TO u2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r3 TO u2;
+
+# Connect as root
+--connection default
+GRANT r3 TO r2 WITH ADMIN OPTION;
+SELECT * FROM mysql.role_edges;
+
+connection con1;
+SET ROLE all;
+SHOW GRANTS;
+--echo ## We got WITH ADMIN on r3 through the stickiness of the edge property WITH ADMIN which arrived from r2->u1
+GRANT r3 to u2;
+--echo ## r1 is not granted to u2, and hence we cannot modify it, nor grant it to anyone else.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r1 TO u2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r1 TO u1;
+--echo ## r2 is indirectly granted to u2 but we don't have WITH ADMIN on this relation.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r2 TO u2;
+--echo ## (r3,u2) has been propagated as an effective WITH ADMIN privilege when r1 was activated.
+GRANT r3 TO u2;
+--echo ## Since we didn't grant the (r3,u2) relation to our current user we can't set it as active.
+--error ER_ROLE_NOT_GRANTED
+SET ROLE r3;
+--echo # but if we grant it explicitly to form the persistent relation(r3,u1) we can use it.
+GRANT r3 TO u1 WITH ADMIN OPTION;
+SET ROLE r3;
+
+connection default;
+--echo # Let's see if this stick after we flush the caches.
+FLUSH PRIVILEGES;
+disconnect con1;
+connect(con1, localhost, u1, foo, test);
+SET ROLE r3;
+GRANT r3 TO u2;
+GRANT r3 TO u2 WITH ADMIN OPTION;
+
+connection default;
+--echo ## The principle is that we don't remove privileges when we issue a GRANT - only elevate.
+--echo ## As a result (r3,u2) should be WITH ADMIN
+SELECT * FROM mysql.role_edges;
+connection con1;
+--echo ## But if we try to reverse this, then nothing should happen.
+GRANT r3 TO u2;
+connection default;
+--echo ## And (r3,u2) should still be WITH ADMIN.
+SELECT * FROM mysql.role_edges;
+--disconnect con1
+
+DROP ROLE r1,r2,r3;
+DROP USER u1,u2;
+
 

@@ -347,7 +347,7 @@ ERROR HY000: `engineering`@`%` is not granted to `sally`@`%`
 SELECT * FROM mysql.role_edges;
 FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 %	consultants	%	joan	N
-%	consultants	%	sally	N
+%	consultants	%	sally	Y
 %	qa	%	consultants	N
 %	wp_administrators	localhost	joe	Y
 us	engineering	india	engineering	N

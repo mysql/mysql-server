@@ -19,13 +19,21 @@ CREATE TABLE db2.t2 (c1 INT, c2 INT, c3 INT);
 ++ admin-db1 can manage db2.t1 and admin-db2 can manage db1.t1
 GRANT `admin-db2t1` TO `admin-db1`;
 GRANT `admin-db1t1` TO `admin-db2`;
-++ admin-db1 can propote anyone with the admin-db1t1 rights.
+++ admin-db1 can promote anyone with the admin-db1t1 rights.
 GRANT `admin-db1t1` TO `admin-db1` WITH ADMIN OPTION;
 GRANT SELECT, UPDATE, CREATE, DROP, INSERT, DELETE ON db1.* TO `admin-db1`;
 GRANT SELECT, UPDATE, CREATE, DROP, INSERT, DELETE ON db2.* TO `admin-db2`;
 GRANT SELECT, UPDATE, CREATE, DROP, INSERT, DELETE ON db1.t1 TO `admin-db1t1`;
 GRANT SELECT, UPDATE, CREATE, DROP, INSERT, DELETE ON db2.t1 TO `admin-db2t1`;
 SET ROLE `admin-db1`;
+SHOW GRANTS;
+Grants for app-middleware-db1@localhost
+GRANT USAGE ON *.* TO `app-middleware-db1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `db1`.* TO `app-middleware-db1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `db1`.`t1` TO `app-middleware-db1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `db2`.`t1` TO `app-middleware-db1`@`localhost`
+GRANT `admin-db1`@`%`,`app-updater`@`%` TO `app-middleware-db1`@`localhost`
+GRANT `admin-db1t1`@`%` TO `app-middleware-db1`@`localhost` WITH ADMIN OPTION
 ++ Positive test
 INSERT INTO db1.t1 VALUES (1,2,3);
 INSERT INTO db1.t2 VALUES (1,2,3);
@@ -202,3 +210,77 @@ ERROR 28000: Access denied for user 'u3'@'localhost' (using password: YES)
 ++ Connected as root
 DROP USER u1@localhost, u2@localhost, u3@localhost;
 DROP ROLE r1,r2,role_admin,arbitrary_role;
+#############################################################
+++ Check that WITH ADMIN properties are persistent
+#############################################################
+CREATE USER `u1`@`%` IDENTIFIED BY 'foo';
+CREATE USER `u2`@`%` IDENTIFIED BY 'foo';
+CREATE ROLE r1, r2, r3;
+GRANT r2 TO r1;
+GRANT r3 TO r2;
+GRANT r2 TO u1;
+GRANT r3 TO u2;
+SET ROLE all;
+GRANT r1 TO u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+GRANT r2 TO u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+GRANT r3 TO u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+GRANT r3 TO r2 WITH ADMIN OPTION;
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r2	%	r1	N
+%	r2	%	u1	N
+%	r3	%	r2	Y
+%	r3	%	u2	N
+SET ROLE all;
+SHOW GRANTS;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT `r2`@`%` TO `u1`@`%`
+GRANT `r3`@`%` TO `u1`@`%` WITH ADMIN OPTION
+## We got WITH ADMIN on r3 through the stickiness of the edge property WITH ADMIN which arrived from r2->u1
+GRANT r3 to u2;
+## r1 is not granted to u2, and hence we cannot modify it, nor grant it to anyone else.
+GRANT r1 TO u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+GRANT r1 TO u1;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+## r2 is indirectly granted to u2 but we don't have WITH ADMIN on this relation.
+GRANT r2 TO u2;
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+## (r3,u2) has been propagated as an effective WITH ADMIN privilege when r1 was activated.
+GRANT r3 TO u2;
+## Since we didn't grant the (r3,u2) relation to our current user we can't set it as active.
+SET ROLE r3;
+ERROR HY000: `r3`@`%` is not granted to `u1`@`%`
+# but if we grant it explicitly to form the persistent relation(r3,u1) we can use it.
+GRANT r3 TO u1 WITH ADMIN OPTION;
+SET ROLE r3;
+# Let's see if this stick after we flush the caches.
+FLUSH PRIVILEGES;
+SET ROLE r3;
+GRANT r3 TO u2;
+GRANT r3 TO u2 WITH ADMIN OPTION;
+## The principle is that we don't remove privileges when we issue a GRANT - only elevate.
+## As a result (r3,u2) should be WITH ADMIN
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r2	%	r1	N
+%	r2	%	u1	N
+%	r3	%	r2	Y
+%	r3	%	u1	Y
+%	r3	%	u2	Y
+## But if we try to reverse this, then nothing should happen.
+GRANT r3 TO u2;
+## And (r3,u2) should still be WITH ADMIN.
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r2	%	r1	N
+%	r2	%	u1	N
+%	r3	%	r2	Y
+%	r3	%	u1	Y
+%	r3	%	u2	Y
+DROP ROLE r1,r2,r3;
+DROP USER u1,u2;

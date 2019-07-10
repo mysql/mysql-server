@@ -25,6 +25,7 @@
 #include <string.h>
 #include <memory>
 
+#include "../sql_update.h"  // compare_records()
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -122,7 +123,6 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]->store(
       &with_admin_option_char, 1, system_charset_info, CHECK_FIELD_IGNORE);
 
-  // How to get edge prop?!
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
   ret = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
@@ -137,14 +137,34 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
       /* If the key didn't exist the record is already gone and all is well. */
       return false;
     }
-  } else if (ret == HA_ERR_KEY_NOT_FOUND && !delete_option) {
-    /* Insert new edge into table */
-    // store_record(table,record[1]);
-    DBUG_PRINT("note",
-               ("Insert role edge (`%s`@`%s`, `%s`@`%s`)", from_user.first.str,
-                from_user.second.str, to_user.first.str, to_user.second.str));
-    ret = table->file->ha_write_row(table->record[0]);
-  }
+  } else {
+    if (ret == HA_ERR_KEY_NOT_FOUND) {
+      /* Insert new edge into table */
+      DBUG_PRINT("note", ("Insert role edge (`%s`@`%s`, `%s`@`%s`)",
+                          from_user.first.str, from_user.second.str,
+                          to_user.first.str, to_user.second.str));
+      ret = table->file->ha_write_row(table->record[0]);
+    } else if (ret == 0 && with_admin_option_char == 'Y') {
+      /*
+        We are elevating the privilege of an existing edge WITH ADMIN OPTION.
+      */
+      DBUG_PRINT("note", ("Update role edge (`%s`@`%s`, `%s`@`%s`)",
+                          from_user.first.str, from_user.second.str,
+                          to_user.first.str, to_user.second.str));
+      /*
+        If the key was found the corresponding record was read into record[0]
+        so now we need to restore the "with admin opt"-field before we update.
+        Before we do that we create a copy of the old field and save it to
+        record[1].
+      */
+      store_record(table, record[1]);
+      table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]->store(
+          &with_admin_option_char, 1, system_charset_info, CHECK_FIELD_IGNORE);
+      if (compare_records(
+              table))  // if we already have WITH ADMIN this is a NOP
+        ret = table->file->ha_update_row(table->record[1], table->record[0]);
+    }
+  }  // else if !delete_option
   return ret != 0;
 }
 
@@ -181,7 +201,6 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
     }
   } else if (ret == HA_ERR_KEY_NOT_FOUND && !delete_option) {
     /* Insert new edge into table */
-    // store_record(table,record[1]);
     DBUG_PRINT("note", ("Insert default role `%s`@`%s` for `%s`@`%s`",
                         auth_id.first.str, auth_id.second.str, role.first.str,
                         role.second.str));
