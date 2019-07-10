@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,14 @@
 
 /* Function items used by mysql */
 
+#include "my_inttypes.h"
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"
-#include "sql/sql_class.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql_string.h"
+
+class Item;
+class THD;
 
 /** ps_current_thread_id() */
 

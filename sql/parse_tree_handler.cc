@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,10 +98,13 @@ bool PT_handler_read_base::contextualize(Parse_context *pc) {
       !select->add_table_to_list(pc->thd, table, nullptr, 0))
     return true;
 
-  if (itemize_safe(pc, &m_opt_where_clause)) return true;
+  if (m_opt_where_clause != nullptr &&
+      m_opt_where_clause->itemize(pc, &m_opt_where_clause))
+    return true;
   select->set_where_cond(m_opt_where_clause);
 
-  if (contextualize_safe(pc, m_opt_limit_clause)) return true;
+  if (m_opt_limit_clause != nullptr && m_opt_limit_clause->contextualize(pc))
+    return true;
 
   lex->expr_allows_subselect = true;
 
