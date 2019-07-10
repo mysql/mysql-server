@@ -29,6 +29,8 @@ INSERT INTO gis_point VALUES
 (ST_PointFromText('POINT(100.32374832 101.23741821)'), ST_PointFromText('POINT(200.32247328 101.86728201)')),
 (ST_PointFromText('POINT(100.32374832 101.23741821)'), ST_PointFromText('POINT(100.32374832 101.98527111)'));
 
+ANALYZE TABLE gis_point;
+
 --replace_column 10 #
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
@@ -178,6 +180,8 @@ INSERT INTO gis_point VALUES
 (204, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(103.43718640 105.248206478)')))),
 (205, ST_PointFromText('POINT(101.43284962 100.45892392)')),
 (206, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(103.43718640 105.248206478)'))));
+
+ANALYZE TABLE gis_point;
 
 -- echo 'The ORDER BY will use filesort'
 --replace_column 10 #
@@ -591,6 +595,8 @@ ALTER TABLE gis_point ENGINE InnoDB;
 
 CHECK TABLE gis_point;
 
+ANALYZE TABLE gis_point;
+
 -- echo The ORDER BY for spatial index will use filesort
 --replace_column 10 #
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
@@ -713,6 +719,8 @@ INSERT INTO t1 VALUES(
 ST_GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
 ST_GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
 
+ANALYZE TABLE t1;
+
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 
 --replace_column 10 #
@@ -739,6 +747,8 @@ SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 ALTER TABLE t1 DROP PRIMARY KEY;
 --error ER_SPATIAL_UNIQUE_INDEX
 ALTER TABLE t1 ADD PRIMARY KEY(p);
+
+ANALYZE TABLE t1;
 
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 
