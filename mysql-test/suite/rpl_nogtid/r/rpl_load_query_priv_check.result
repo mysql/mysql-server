@@ -57,7 +57,7 @@ INSERT INTO t1 VALUES (1);
 SET @@SESSION.sql_log_bin = ON;
 master_log_pos 1211
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 [connection slave]
 CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 START SLAVE;
