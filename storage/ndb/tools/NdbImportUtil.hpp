@@ -366,6 +366,7 @@ public:
 
   Row* alloc_row(const Table& Table, bool dolock = true);
   void alloc_rows(const Table& table, uint cnt, RowList& dst);
+  void free_blobs_from_row(Row *row);
   void free_row(Row* row);
   void free_rows(RowList& src);
 
