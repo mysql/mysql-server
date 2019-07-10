@@ -450,6 +450,7 @@ INSERT INTO t1 VALUES (3, 'K');
 INSERT INTO t1 VALUES (4, 'v');
 INSERT INTO t1 VALUES (5, 'E');
 
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
 
 DROP TABLE t1, t2;
@@ -609,6 +610,8 @@ CREATE TABLE t4 (
 );
 INSERT INTO t4 VALUES (6,2),(34,3);
 
+ANALYZE TABLE t1, t2, t3, t4;
+
 set optimizer_switch='firstmatch=off';
 
 # Creates a weedout that overlaps with the right side of an outer join.
@@ -635,6 +638,7 @@ set optimizer_switch=default;
 # The EXPLAIN demonstrates it, and running the query verifies that it doesn't crash.
 CREATE TABLE t1 ( pk integer, f1 varchar(1) );
 INSERT INTO t1 VALUES (1,'D'), (20,'G');
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 DROP TABLE t1;
@@ -739,6 +743,8 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES (20,'2');
+
+ANALYZE TABLE t1;
 
 # Essentially verifies that running the range optimizer on a three-table
 # JOIN during execution (“re-planned for each iteration”) doesn't crash.

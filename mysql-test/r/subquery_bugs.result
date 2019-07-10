@@ -581,6 +581,10 @@ INSERT INTO t1 VALUES (2, 'j');
 INSERT INTO t1 VALUES (3, 'K');
 INSERT INTO t1 VALUES (4, 'v');
 INSERT INTO t1 VALUES (5, 'E');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
 EXPLAIN
 -> Remove duplicate t1 rows using temporary table (weedout)
@@ -747,6 +751,12 @@ col_int_unique INTEGER,
 UNIQUE KEY ix2 (col_int_key,col_int_unique)
 );
 INSERT INTO t4 VALUES (6,2),(34,3);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 set optimizer_switch='firstmatch=off';
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN (
 SELECT t2.pk FROM
@@ -781,6 +791,9 @@ set optimizer_switch=default;
 #
 CREATE TABLE t1 ( pk integer, f1 varchar(1) );
 INSERT INTO t1 VALUES (1,'D'), (20,'G');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 EXPLAIN
 -> Remove duplicate (d0, t1) rows using temporary table (weedout)
@@ -876,6 +889,9 @@ f2 varchar(1),
 KEY f2_idx (f2)
 );
 INSERT INTO t1 VALUES (20,'2');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain format=tree SELECT (
 SELECT t2.f2 FROM t1 JOIN (
 t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
