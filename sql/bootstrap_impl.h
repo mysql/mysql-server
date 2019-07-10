@@ -33,8 +33,12 @@ class Command_iterator {
  public:
   typedef void (*log_function_t)(const char *message);
 
-  /** Start processing the iterator */
-  virtual void begin(void) {}
+  /**
+    start processing the iterator
+    @retval false Success
+    @retval true failure
+  */
+  virtual bool begin(void) { return false; }
 
   /**
     Get the next query string.

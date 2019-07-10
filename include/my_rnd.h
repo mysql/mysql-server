@@ -31,9 +31,7 @@
 
 #include <stddef.h>
 
-#include "mysql_com.h"  // IWYU pragma: keep
-
-double my_rnd_ssl(struct rand_struct *rand_st);
+double my_rnd_ssl(bool *failed);
 int my_rand_buffer(unsigned char *buffer, size_t buffer_size);
 
 #endif /* MY_RANDOM_INCLUDED */
