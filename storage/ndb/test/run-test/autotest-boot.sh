@@ -239,7 +239,7 @@ then
 # and ensure that the local repo is up to date.
                 git -C ${git_local_repo} fetch ${git_remote_repo}
 
-                if [ -z "$clone0 ]
+                if [ -z "$clone0" ]
                 then
                   git clone ${git_local_repo} ${dst_place0}
                 else
