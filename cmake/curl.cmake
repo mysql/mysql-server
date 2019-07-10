@@ -114,7 +114,7 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
       NAMES "${CURL_NAME}.dll"
       PATHS "${WITH_CURL_PATH}/lib"
       NO_DEFAULT_PATH
-    )
+      )
     MESSAGE(STATUS "HAVE_CURL_DLL ${HAVE_CURL_DLL}")
     IF(HAVE_CURL_DLL)
       SET(CURL_LIBRARY "CURL_LIBRARY-NOTFOUND")
@@ -124,19 +124,53 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
         NO_DEFAULT_PATH
         NO_CMAKE_ENVIRONMENT_PATH
         NO_SYSTEM_ENVIRONMENT_PATH
-      )
+        )
       IF(CURL_LIBRARY MATCHES "CURL_LIBRARY-NOTFOUND")
-        MESSAGE(FATAL_ERROR "CURL dll import library not found under '${WITH_CURL}'")
+        MESSAGE(FATAL_ERROR
+          "CURL dll import library not found under '${WITH_CURL}'")
       ENDIF()
       GET_FILENAME_COMPONENT(CURL_DLL_NAME "${HAVE_CURL_DLL}" NAME)
       ADD_CUSTOM_TARGET(copy_curl_dlls ALL
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${HAVE_CURL_DLL}"
         "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${CURL_DLL_NAME}"
-      )
+        )
+
       MESSAGE(STATUS "INSTALL ${HAVE_CURL_DLL} to ${INSTALL_BINDIR}")
       INSTALL(FILES "${HAVE_CURL_DLL}"
-      DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+        DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+
+      SET(ZLIB_DLL_REQUIRED 1)
+      FIND_OBJECT_DEPENDENCIES("${HAVE_CURL_DLL}" DEPENDENCY_LIST)
+      LIST(FIND DEPENDENCY_LIST "zlib1.dll" FOUNDIT)
+      MESSAGE(STATUS "${CURL_DLL_NAME} DEPENDENCY_LIST ${DEPENDENCY_LIST}")
+      IF(FOUNDIT LESS 0)
+        UNSET(ZLIB_DLL_REQUIRED)
+      ENDIF()
+
+      FIND_FILE(HAVE_ZLIB_DLL
+        NAMES zlib1.dll
+        PATHS "${WITH_CURL_PATH}/lib"
+        NO_DEFAULT_PATH
+        )
+      MESSAGE(STATUS "HAVE_ZLIB_DLL ${HAVE_ZLIB_DLL}")
+
+      IF(ZLIB_DLL_REQUIRED AND NOT HAVE_ZLIB_DLL)
+        MESSAGE(FATAL_ERROR "libcurl.dll depends on zlib1.dll")
+      ENDIF()
+
+      IF(ZLIB_DLL_REQUIRED AND HAVE_ZLIB_DLL)
+        MESSAGE(STATUS "INSTALL ${HAVE_ZLIB_DLL} to ${INSTALL_BINDIR}")
+        INSTALL(FILES "${HAVE_ZLIB_DLL}"
+          DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+        GET_FILENAME_COMPONENT(ZLIB_DLL_NAME "${HAVE_ZLIB_DLL}" NAME)
+        ADD_CUSTOM_TARGET(copy_zlib_dlls ALL
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${HAVE_ZLIB_DLL}"
+          "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${ZLIB_DLL_NAME}"
+          )
+        ADD_DEPENDENCIES(copy_curl_dlls copy_zlib_dlls)
+      ENDIF()
     ELSE()
       MESSAGE(STATUS "Cannot find CURL dynamic libraries")
     ENDIF()
