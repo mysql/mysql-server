@@ -33,10 +33,12 @@ CREATE TABLE db1.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 SET @@sql_log_bin = 0;
 CALL mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': INSERT command denied to user 'u1'@'localhost' for table 't1'.*");
+CALL mtr.add_suppression(".*Worker .* failed executing transaction .* INSERT command denied to user 'u1'@'localhost' for table 't1'.*");
 CALL mtr.add_suppression(".*Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'.*");
 CALL mtr.add_suppression(".*Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'.*");
 CALL mtr.add_suppression(".*Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'.*");
 CALL mtr.add_suppression(".*Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 SET @@sql_log_bin = 1;
 
 --source include/rpl_sync.inc
@@ -71,6 +73,7 @@ INSERT INTO db1.t1 VALUES (1), (2);
 --echo #    privilege.
 --let $rpl_connection_name = server1
 --source include/rpl_connection.inc
+--let $explicit_default_wait_timeout = 12000
 --source include/gr_start_applier_sql_thread.inc
 --let $group_replication_member_state = ERROR
 --source include/gr_wait_for_member_state.inc
