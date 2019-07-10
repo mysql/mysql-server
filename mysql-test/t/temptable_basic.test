@@ -199,4 +199,23 @@ SELECT COUNT(t_pk.pk) FROM t_pk
 
 DROP TABLE t_pk;
 
+# ---------------------------------------------------------------------
+# Bug #29654465 SEGMENTATION FAULT WITH QUERY USING JSON_TABLE
+#
+
+CREATE TABLE t_json(json_col JSON);
+
+INSERT INTO t_json VALUES (
+    '[
+        { "name":"John Johnson", "nickname": {"stringValue": "Johnny"}},
+        { "name":"John Smith"}
+     ]'),
+     ('[
+        { "name":"John Smith"},
+        { "name":"John Johnson", "nickname": {"stringValue": "Johnny"}}
+     ]');
+SELECT attrs.* FROM t_json, JSON_TABLE(json_col, '$[*]' COLUMNS (nickname JSON PATH '$.nickname')) as attrs;
+
+DROP TABLE t_json;
+
 SET @@internal_tmp_mem_storage_engine = default;
