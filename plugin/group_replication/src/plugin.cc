@@ -39,7 +39,6 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
-#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 
@@ -1624,8 +1623,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   bool const error = register_udfs();
   if (error) return 1;
 
-  if (sql_service_interface_init()) return 1;
-
   // Initialize the recovery SSL option map
   initialize_ssl_option_map();
 
@@ -1753,7 +1750,6 @@ int plugin_group_replication_deinit(void *p) {
   }
 
   unregister_udfs();
-  sql_service_interface_deinit();
 
   if (hold_transactions) delete hold_transactions;
   delete transaction_consistency_manager;

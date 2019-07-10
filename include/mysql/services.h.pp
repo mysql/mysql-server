@@ -72,7 +72,6 @@ union COM_DATA {
   COM_FIELD_LIST_DATA com_field_list;
 };
 #include "mysql/service_srv_session.h"
-#include "mysql/service_srv_session_bits.h"
 struct Srv_session;
 typedef struct Srv_session *MYSQL_SESSION;
 typedef void (*srv_session_error_cb)(void *ctx, unsigned int sql_errno,

@@ -244,7 +244,4 @@ class Sql_service_interface {
   bool is_acl_disabled();
 };
 
-extern bool sql_service_interface_init();
-extern bool sql_service_interface_deinit();
-
 #endif  // SQL_SERVICE_INTERFACE_INCLUDE

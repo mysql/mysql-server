@@ -55,7 +55,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "server_component.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/log.h"
-#include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/udf_registration_imp.h"
 #include "system_variable_source_imp.h"
 
@@ -318,9 +317,6 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_keyring_iterator)
 mysql_keyring_iterator_imp::init, mysql_keyring_iterator_imp::deinit,
     mysql_keyring_iterator_imp::get END_SERVICE_IMPLEMENTATION();
 
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_admin_session)
-mysql_component_mysql_admin_session_imp::open END_SERVICE_IMPLEMENTATION();
-
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, registry_registration),
@@ -372,7 +368,6 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_runtime_error),
     PROVIDES_SERVICE(mysql_server, mysql_current_thread_reader),
     PROVIDES_SERVICE(mysql_server, mysql_keyring_iterator),
-    PROVIDES_SERVICE(mysql_server, mysql_admin_session),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
