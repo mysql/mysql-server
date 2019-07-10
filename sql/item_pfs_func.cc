@@ -29,9 +29,19 @@
 
 #include "sql/item_pfs_func.h"
 
+#include <stdio.h>
 #include <cmath>
 
-#include "sql/derror.h"  // ER_THD
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "mysqld_error.h"
+#include "pfs_thread_provider.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 
 extern bool pfs_enabled;

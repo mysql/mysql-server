@@ -29,6 +29,7 @@
 */
 
 #include "sql/parse_tree_items.h"
+#include "sql/sql_class.h"
 
 namespace my_testing {
 
