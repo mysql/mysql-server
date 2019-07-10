@@ -337,7 +337,8 @@ static void add_hostname(const char *ip_string, const char *hostname,
   ulonglong now = my_micro_time();
 
   MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
-  add_hostname_impl(ip_string, hostname, validated, errors, now);
+  if (hostname_cache_size() != 0)
+    add_hostname_impl(ip_string, hostname, validated, errors, now);
 
   return;
 }
