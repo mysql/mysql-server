@@ -24,8 +24,9 @@ select count(*) from t1;
 connection mysqld2;
 ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
 connection mysqld1;
+--error ER_TABLE_DEF_CHANGED
 select a from t1 where b = 2;
-commit;
+show warnings;
 show tables;
 drop table t1;
 
@@ -51,7 +52,10 @@ connection mysqld2;
 alter table t1 algorithm=inplace, add column col32 int COLUMN_FORMAT DYNAMIC;
 
 connection mysqld1;
-commit;
+--error ER_TABLE_DEF_CHANGED
+select * from t1;
+show warnings;
+select * from t1;
 drop table t1;
 
 # Restore intial ndb_schema_dist_lock_wait_timeout value
