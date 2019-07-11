@@ -3343,7 +3343,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
   Buf* buf[2];
   CsvInput* csvinput[2];
   RowList rows_reject;
-  RowMap rowmap_in(m_util);
+  RowMap rowmap_in[] = {m_util, m_util};
   for (uint i = 0; i < 2; i++)
   {
     uint pagesize = opt.m_pagesize;
@@ -3357,7 +3357,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
                                *buf[i],
                                rows_out,
                                rows_reject,
-                               rowmap_in,
+                               rowmap_in[i],
                                m_job.m_stats);
     csvinput[i]->do_init();
   }
