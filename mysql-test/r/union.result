@@ -3236,3 +3236,84 @@ d
 d
 FLUSH TABLES;
 DROP TABLE t1, t2;
+#
+# Bug#22292995 UNION ALL ... LIMIT 1 EVALUATES TOO MANY ROWS IN 5.5/6 AND TWICE MORE IN 5.7
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+32
+FLUSH STATUS;
+SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+FLUSH STATUS;
+SELECT * FROM t1 UNION DISTINCT SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2
+EXPLAIN FORMAT=TREE ( SELECT *, 'a' FROM t1 LIMIT 10 )
+UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)
+    -> Append
+        -> Stream results
+            -> Limit: 10 row(s)
+                -> Table scan on t1  (cost=3.45 rows=32)
+        -> Stream results
+            -> Limit: 10 row(s)
+                -> Table scan on t1  (cost=3.45 rows=32)
+
+FLUSH STATUS;
+( SELECT *, 'a' FROM t1 LIMIT 10 )
+UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+a	a
+1	a
+2	a
+2	a
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	3
+DROP TABLE t1;
