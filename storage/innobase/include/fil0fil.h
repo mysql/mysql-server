@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
 
 #include <list>
 #include <vector>
@@ -739,6 +740,10 @@ class Fil_path {
   /** Convert filename to the file system charset format.
   @param[in,out]	name		Filename to convert */
   static void convert_to_filename_charset(std::string &name);
+
+  /** Convert filename to the file system charset format.
+  @param[in,out]	name		Filename to convert */
+  static void convert_to_filename_charset(dd::String_type &name);
 
   /** Convert to lower case using the file system charset.
   @param[in,out]	path		Filepath to convert */

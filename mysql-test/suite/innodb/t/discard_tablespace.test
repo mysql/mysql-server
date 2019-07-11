@@ -54,3 +54,35 @@ CREATE TABLE t1(c INT)ENGINE=innodb;
 
 drop table t1;
 drop table t2;
+
+CREATE TABLE `t1/t2` (b INT, c text) ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2` DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2` RENAME `t3\t4\t5`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table `t3\t4\t5`;
+
+create database `d1/d2\d3`;
+use `d1/d2\d3`;
+
+CREATE TABLE `t1/t2\t3` (b INT, c text) ENGINE=innodb;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2\t3` DISCARD TABLESPACE;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE `t1/t2\t3` RENAME `t3\t4/t5`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+drop table `t3\t4/t5`;
+drop database `d1/d2\d3`;
