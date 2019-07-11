@@ -3341,17 +3341,18 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
    */
   uint subq_no;
   for (subq = subq_begin, subq_no = 0; subq < subq_end; subq++, subq_no++) {
+    auto subq_item = *subq;
     // Transformation of IN and EXISTS subqueries is supported
-    DBUG_ASSERT((*subq)->substype() == Item_subselect::IN_SUBS ||
-                (*subq)->substype() == Item_subselect::EXISTS_SUBS);
+    DBUG_ASSERT(subq_item->substype() == Item_subselect::IN_SUBS ||
+                subq_item->substype() == Item_subselect::EXISTS_SUBS);
 
-    SELECT_LEX *child_select = (*subq)->unit->first_select();
+    SELECT_LEX *child_select = subq_item->unit->first_select();
 
     // Check that we proceeded bottom-up
     DBUG_ASSERT(child_select->sj_candidates == NULL);
 
-    bool dependent = (*subq)->unit->uncacheable & UNCACHEABLE_DEPENDENT;
-    (*subq)->sj_convert_priority =
+    bool dependent = subq_item->unit->uncacheable & UNCACHEABLE_DEPENDENT;
+    subq_item->sj_convert_priority =
         (((dependent * MAX_TABLES_FOR_SIZE) +  // dependent subqueries first
           child_select->leaf_table_count) *
          65536) +           // then with many tables
@@ -3385,43 +3386,49 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
 
   uint table_count = leaf_table_count;
   for (subq = subq_begin; subq < subq_end; subq++) {
+    auto subq_item = *subq;
     // Add the tables in the subquery nest plus one in case of materialization:
     const uint tables_added =
-        (*subq)->unit->first_select()->leaf_table_count + 1;
+        subq_item->unit->first_select()->leaf_table_count + 1;
 
     // (1) Not too many tables in total.
     // (2) This subquery contains no antijoin nest (anti/semijoin nest cannot
     // include antijoin nest for implementation reasons, see
     // advance_sj_state()).
-    if (table_count + tables_added <= MAX_TABLES &&    // (1)
-        !(*subq)->unit->first_select()->has_aj_nests)  // (2)
-      (*subq)->sj_selection = Item_exists_subselect::SJ_SELECTED;
+    if (table_count + tables_added <= MAX_TABLES &&      // (1)
+        !subq_item->unit->first_select()->has_aj_nests)  // (2)
+      subq_item->sj_selection = Item_exists_subselect::SJ_SELECTED;
 
-    Item *subq_pred = (*subq)->unit->first_select()->where_cond();
+    Item *subq_where = subq_item->unit->first_select()->where_cond();
     /*
       A predicate can be evaluated to ALWAYS TRUE or ALWAYS FALSE when it
       has only const items. If found to be ALWAYS FALSE, do not include
       the subquery in transformations.
     */
     bool cond_value = true;
-    if (subq_pred && subq_pred->const_item() &&
-        !subq_pred->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                         NULL) &&
-        simplify_const_condition(thd, &subq_pred, false, &cond_value))
+    if (subq_where && subq_where->const_item() &&
+        !subq_where->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
+                          NULL) &&
+        simplify_const_condition(thd, &subq_where, false, &cond_value))
       return true;
 
     if (!cond_value) {
-      (*subq)->sj_selection = Item_exists_subselect::SJ_ALWAYS_FALSE;
+      subq_item->sj_selection = Item_exists_subselect::SJ_ALWAYS_FALSE;
       // Unlink this subquery's query expression
       Item::Cleanup_after_removal_context ctx(this);
-      (*subq)->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                    pointer_cast<uchar *>(&ctx));
+      subq_item->walk(&Item::clean_up_after_removal,
+                      enum_walk::SUBQUERY_POSTFIX, pointer_cast<uchar *>(&ctx));
+      // The cleaning up has called remove_semijoin_candidate() which has
+      // changed the sj_candidates array: now *subq is the _next_ subquery.
+      subq--;  // So that the next iteration will handle the next subquery.
+      DBUG_ASSERT(subq_begin == sj_candidates->begin());
+      subq_end = sj_candidates->end();  // array's end moved.
     }
 
-    if ((*subq)->sj_selection == Item_exists_subselect::SJ_SELECTED)
+    if (subq_item->sj_selection == Item_exists_subselect::SJ_SELECTED)
       table_count += tables_added;
 
-    if ((*subq)->sj_selection == Item_exists_subselect::SJ_NOT_SELECTED)
+    if (subq_item->sj_selection == Item_exists_subselect::SJ_NOT_SELECTED)
       continue;
     /*
       In WHERE/ON of parent query, replace IN (subq) with truth value:
@@ -3430,25 +3437,26 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
       false if a semijoin (IN) and truth value true if an antijoin (NOT IN).
     */
     Item *truth_item =
-        (cond_value || (*subq)->can_do_aj)
+        (cond_value || subq_item->can_do_aj)
             ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
             : down_cast<Item *>(new (thd->mem_root) Item_func_false());
     if (truth_item == nullptr) return true;
-    Item **tree = ((*subq)->embedding_join_nest == NULL)
+    Item **tree = (subq_item->embedding_join_nest == NULL)
                       ? &m_where_cond
-                      : (*subq)->embedding_join_nest->join_cond_ref();
-    if (replace_subcondition(thd, tree, *subq, truth_item, false))
+                      : subq_item->embedding_join_nest->join_cond_ref();
+    if (replace_subcondition(thd, tree, subq_item, truth_item, false))
       return true; /* purecov: inspected */
   }
 
   /* Transform the selected subqueries into semi-join */
 
   for (subq = subq_begin; subq < subq_end; subq++) {
-    if ((*subq)->sj_selection != Item_exists_subselect::SJ_SELECTED) continue;
+    auto subq_item = *subq;
+    if (subq_item->sj_selection != Item_exists_subselect::SJ_SELECTED) continue;
 
     OPT_TRACE_TRANSFORM(
-        trace, oto0, oto1, (*subq)->unit->first_select()->select_number,
-        "IN (SELECT)", (*subq)->can_do_aj ? "antijoin" : "semijoin");
+        trace, oto0, oto1, subq_item->unit->first_select()->select_number,
+        "IN (SELECT)", subq_item->can_do_aj ? "antijoin" : "semijoin");
     oto1.add("chosen", true);
     if (convert_subquery_to_semijoin(thd, *subq)) return true;
   }
@@ -3457,47 +3465,48 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     ie. perform IN->EXISTS rewrite.
   */
   for (subq = subq_begin; subq < subq_end; subq++) {
-    if ((*subq)->sj_selection != Item_exists_subselect::SJ_NOT_SELECTED)
+    auto subq_item = *subq;
+    if (subq_item->sj_selection != Item_exists_subselect::SJ_NOT_SELECTED)
       continue;
     {
       OPT_TRACE_TRANSFORM(trace, oto0, oto1,
-                          (*subq)->unit->first_select()->select_number,
+                          subq_item->unit->first_select()->select_number,
                           "IN (SELECT)", "semijoin");
       oto1.add("chosen", false);
     }
     Item_subselect::trans_res res;
-    (*subq)->changed = 0;
-    (*subq)->fixed = 0;
+    subq_item->changed = 0;
+    subq_item->fixed = 0;
 
     SELECT_LEX *save_select_lex = thd->lex->current_select();
-    thd->lex->set_current_select((*subq)->unit->first_select());
+    thd->lex->set_current_select(subq_item->unit->first_select());
 
     // This is the only part of the function which uses a JOIN.
-    res = (*subq)->select_transformer(thd, (*subq)->unit->first_select());
+    res = subq_item->select_transformer(thd, subq_item->unit->first_select());
 
     thd->lex->set_current_select(save_select_lex);
 
     if (res == Item_subselect::RES_ERROR) return true;
 
-    (*subq)->changed = 1;
-    (*subq)->fixed = 1;
+    subq_item->changed = 1;
+    subq_item->fixed = 1;
 
     /*
       If the Item has been substituted with another Item (e.g an
       Item_in_optimizer), resolve it and add it to proper WHERE or ON clause.
       If no substitute exists (e.g for EXISTS predicate), no action is required.
     */
-    Item *substitute = (*subq)->substitution;
+    Item *substitute = subq_item->substitution;
     if (substitute == nullptr) continue;
     const bool do_fix_fields = !substitute->fixed;
-    const bool subquery_in_join_clause = (*subq)->embedding_join_nest != NULL;
+    const bool subquery_in_join_clause = subq_item->embedding_join_nest != NULL;
 
     Item **tree = subquery_in_join_clause
-                      ? ((*subq)->embedding_join_nest->join_cond_ref())
+                      ? (subq_item->embedding_join_nest->join_cond_ref())
                       : &m_where_cond;
     if (replace_subcondition(thd, tree, *subq, substitute, do_fix_fields))
       return true;
-    (*subq)->substitution = NULL;
+    subq_item->substitution = NULL;
   }
 
   sj_candidates->clear();
