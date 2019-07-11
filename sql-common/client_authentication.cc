@@ -26,40 +26,31 @@
 
 #include <string.h>
 #include <stdarg.h>
-#if !defined(HAVE_YASSL)
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
-#endif
 #include "mysql/service_my_plugin_log.h"
 
 #define MAX_CIPHER_LENGTH 1024
 
-#if !defined(HAVE_YASSL)
 mysql_mutex_t g_public_key_mutex;
-#endif
 
 int sha256_password_init(char *a, size_t b, int c, va_list d)
 {
-#if !defined(HAVE_YASSL)
   mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);
-#endif
   return 0;
 }
 
 int sha256_password_deinit(void)
 {
-#if !defined(HAVE_YASSL)
   mysql_mutex_destroy(&g_public_key_mutex);
-#endif
   return 0;
 }
 
 
-#if !defined(HAVE_YASSL)
 /**
   Reads and parse RSA public key data from a file.
 
@@ -119,7 +110,6 @@ RSA *rsa_init(MYSQL *mysql)
 
   return key;
 }
-#endif // !defined(HAVE_YASSL)
 
 /**
   Authenticate the client using the RSA or TLS and a SHA256 salted password.
@@ -136,12 +126,10 @@ extern "C"
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
   bool uses_password= mysql->passwd[0] != 0;
-#if !defined(HAVE_YASSL)
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key= '\1';
   RSA *public_key= NULL;
   bool got_public_key_from_server= false;
-#endif
   bool connection_is_secure= false;
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
@@ -174,11 +162,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure)
-  {
- #if !defined(HAVE_YASSL)
     public_key= rsa_init(mysql);
-#endif
-  }
 
   if (!uses_password)
   {
@@ -193,7 +177,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     unsigned int passwd_len= strlen(mysql->passwd) + 1;
     if (!connection_is_secure)
     {
-#if !defined(HAVE_YASSL)
       /*
         If no public key; request one from the server.
       */
@@ -240,12 +223,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
       if (vio->write_packet(vio, (uchar*) encrypted_password, cipher_length))
         DBUG_RETURN(CR_ERROR);
-#else
-      set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
-                                ER(CR_AUTH_PLUGIN_ERR), "sha256_password",
-                                "Authentication requires SSL encryption");
-      DBUG_RETURN(CR_ERROR); // If no openssl support
-#endif
     }
     else
     {

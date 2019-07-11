@@ -2168,8 +2168,17 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         /* Lock THD mutex that protects its data when looking at it. */
         if (tmp->query())
         {
-          uint length= min<uint>(max_query_length, tmp->query_length());
-          char *q= thd->strmake(tmp->query(),length);
+          const char *query_str;
+          size_t query_length;
+          if ((query_length = tmp->rewritten_query.length()) > 0) {
+            query_str = tmp->rewritten_query.c_ptr();
+          } else {
+            query_length = tmp->query_length();
+            query_str = tmp->query();
+          }
+
+          uint length= min<uint>(max_query_length, query_length);
+          char *q= thd->strmake(query_str, length);
           /* Safety: in case strmake failed, we set length to 0. */
           thd_info->query_string=
             CSET_STRING(q, q ? length : 0, tmp->query_charset());
@@ -2309,9 +2318,18 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       /* INFO */
       if (tmp->query())
       {
+        const char *query_str;
+        size_t query_length;
+
+        if ((query_length = tmp->rewritten_query.length()) > 0) {
+          query_str = tmp->rewritten_query.c_ptr();
+        } else {
+          query_length = tmp->query_length();
+          query_str = tmp->query();
+        }
         size_t const width=
-          min<size_t>(PROCESS_LIST_INFO_WIDTH, tmp->query_length());
-        table->field[7]->store(tmp->query(), width, cs);
+          min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
+        table->field[7]->store(query_str, width, cs);
         table->field[7]->set_notnull();
       }
       mysql_mutex_unlock(&tmp->LOCK_thd_data);

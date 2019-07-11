@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,6 +70,3 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug regex mysys ${ZLIB_LIBRARY})
 ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
-
-# On windows, pfs_connect_attr-t may depend on openssl dlls.
-COPY_OPENSSL_DLLS(copy_openssl_pfs_unittest)

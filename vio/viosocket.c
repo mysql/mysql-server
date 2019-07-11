@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1040,11 +1040,6 @@ ssize_t vio_pending(Vio *vio)
     if (socket_peek_read(vio, &bytes))
       return -1;
   }
-
-  /*
-    SSL not checked due to a yaSSL bug in SSL_pending that
-    causes it to attempt to read from the socket.
-  */
 
   return (ssize_t) bytes;
 }
