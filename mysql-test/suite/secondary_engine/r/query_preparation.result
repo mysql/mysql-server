@@ -1137,3 +1137,49 @@ SELECT 1 FROM t
 WHERE (1, 2) IN (SELECT 3, 4 UNION SELECT 5, 6) OR b <= 10;
 1
 DROP TABLE t;
+#
+# Bug#29615190: SELECTS ON TABLES OFFLOADED TO SECONDARY ENGINE ARE
+#               WRITTEN TWICE TO THE MYSQLD GENERAL LOG
+#
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+SET @saved_general_log = @@global.general_log;
+SET @saved_log_output = @@global.log_output;
+SET GLOBAL general_log = 1;
+SET GLOBAL log_output = 'table';
+TRUNCATE TABLE mysql.general_log;
+SELECT * FROM t;
+x
+statement_count
+1
+TRUNCATE TABLE mysql.general_log;
+PREPARE ps FROM 'SELECT * FROM t';
+SELECT COUNT(*) FROM mysql.general_log WHERE argument = 'SELECT * FROM t';
+COUNT(*)
+1
+EXECUTE ps;
+x
+SELECT COUNT(*) FROM mysql.general_log WHERE argument = 'SELECT * FROM t';
+COUNT(*)
+2
+DROP PREPARE ps;
+TRUNCATE TABLE mysql.general_log;
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t;
+x
+statement_count
+1
+TRUNCATE TABLE mysql.general_log;
+PREPARE ps FROM 'SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t';
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'SELECT % * FROM t';
+COUNT(*)
+1
+EXECUTE ps;
+x
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'SELECT % * FROM t';
+COUNT(*)
+2
+DROP PREPARE ps;
+SET GLOBAL general_log = @saved_general_log;
+SET GLOBAL log_output = @saved_log_output;
+TRUNCATE TABLE mysql.general_log;
+DROP TABLE t;

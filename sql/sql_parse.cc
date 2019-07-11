@@ -25,6 +25,7 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1428,8 +1429,16 @@ static void check_secondary_engine_statement(THD *thd,
   thd->set_query(query_string, query_length);
   parser_state->reset(query_string, query_length);
 
+  // Disable the general log. The query was written to the general log in the
+  // first attempt to execute it. No need to write it twice.
+  const uint64_t saved_option_bits = thd->variables.option_bits;
+  thd->variables.option_bits |= OPTION_LOG_OFF;
+
   // Restart the statement.
   mysql_parse(thd, parser_state);
+
+  // Restore the original option bits.
+  thd->variables.option_bits = saved_option_bits;
 
   // Check if the restarted statement failed, and if so, if it needs
   // another restart/fallback to the primary storage engine.
