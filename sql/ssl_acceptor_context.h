@@ -24,11 +24,12 @@
 #define SSL_ACCEPTOR_CONTEXT_INCLUDED
 
 #include <my_rcu_lock.h>
-#include <mysql/status_var.h>
-#include <sql/sql_class.h>
 #include <violite.h>
-#include <atomic>
-#include "my_sys.h"
+#include <string>
+#include "sql/auth/auth_common.h"
+
+class THD;
+struct SHOW_VAR;
 
 /** helper class to deal with optionally empty strings */
 class OptionalString {
@@ -38,7 +39,7 @@ class OptionalString {
   ~OptionalString() {}
   OptionalString(const OptionalString &) = default;
 
-  const char *c_str() const { return empty_ ? NULL : value_.c_str(); }
+  const char *c_str() const { return empty_ ? nullptr : value_.c_str(); }
   OptionalString &assign(const char *s) {
     value_.assign(s ? s : "");
     empty_ = !s;
@@ -163,7 +164,7 @@ class SslAcceptorContext {
     */
     bool empty() {
       const SslAcceptorContext *c = *this;
-      return c->ssl_acceptor_fd == NULL;
+      return c->ssl_acceptor_fd == nullptr;
     }
 
     // functions to return the cached values for the parameters so that the

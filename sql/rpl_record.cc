@@ -25,8 +25,10 @@
 #include <stddef.h>
 #include <algorithm>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -40,7 +42,6 @@
 #include "sql/log_event.h"
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_utility.h"  // table_def
-#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/system_variables.h"

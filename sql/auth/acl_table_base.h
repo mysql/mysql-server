@@ -23,10 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef ACL_TABLE_BASE_INCLUDED
 #define ACL_TABLE_BASE_INCLUDED
 
+#include "my_base.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
-#include "sql/records.h"
-#include "sql/sql_class.h"
+
+class THD;
+struct TABLE;
 
 namespace acl_table {
 

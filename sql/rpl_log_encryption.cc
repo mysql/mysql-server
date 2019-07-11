@@ -28,6 +28,9 @@
 #include "libbinlogevents/include/event_reader.h"
 #include "mutex_lock.h"
 #include "my_byteorder.h"
+#include "sql/basic_istream.h"
+#include "sql/basic_ostream.h"
+#include "sql/sql_class.h"
 
 #ifdef MYSQL_SERVER
 #include "libbinlogevents/include/byteorder.h"

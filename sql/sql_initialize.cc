@@ -29,6 +29,7 @@
 
 #include "components/mysql_server/log_builtins_filter_imp.h"  // verbosity
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -36,19 +37,14 @@
 #include "my_rnd.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scripts/sql_commands_help_data.h"
 #include "scripts/sql_commands_system_data.h"
 #include "scripts/sql_commands_system_tables.h"
 #include "scripts/sql_commands_system_users.h"
 #include "scripts/sys_schema/sql_commands.h"
-#include "sql/current_thd.h"
-#include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/sql_bootstrap.h"
-#include "sql/sql_class.h"
-#include "sql/sql_error.h"
 
 static const char *initialization_cmds[] = {"USE mysql;\n", NULL};
 

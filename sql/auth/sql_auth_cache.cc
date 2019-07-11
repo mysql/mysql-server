@@ -23,8 +23,8 @@
 #include "sql/auth/sql_auth_cache.h"
 
 #include <stdarg.h>
-#include <stdlib.h>
 #include <boost/graph/properties.hpp>
+#include <new>
 
 #include <sql/ssl_acceptor_context.h>
 #include "m_ctype.h"
@@ -35,7 +35,6 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -45,10 +44,10 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "sql/auth/acl_table_user.h"  // Acl_user_attributes
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"    // ACL_internal_schema_access
 #include "sql/auth/auth_internal.h"  // auth_plugin_is_built_in
+#include "sql/auth/auth_utility.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_authentication.h"  // g_cached_authentication_plugins
 #include "sql/auth/sql_security_ctx.h"
@@ -59,13 +58,13 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"          // Field
 #include "sql/handler.h"
-#include "sql/item_func.h"  // mqh_used
 #include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"          // my_localhost
 #include "sql/psi_memory_key.h"  // key_memory_acl_mem
 #include "sql/records.h"         // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
+#include "sql/set_var.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
@@ -74,7 +73,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_time.h"  // str_to_time_with_warn
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE
 #include "sql/thd_raii.h"

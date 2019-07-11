@@ -29,7 +29,6 @@
 #include "sql/derror.h"            // ER_THD
 #include "sql/mysqld.h"            // global_system_variables
 #include "sql/psi_memory_key.h"    // key_memory_thd_transactions
-#include "sql/sql_class.h"         // THD_STAGE_INFO
 #include "sql/sql_error.h"         // Sql_condition
 #include "sql/system_variables.h"  // System_variables
 #include "sql/thr_malloc.h"

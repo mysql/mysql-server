@@ -30,6 +30,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/pending/property.hpp>
+#include <list>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -40,6 +41,7 @@
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_many, wild_one, wild_prefix
 #include "my_alloc.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
@@ -49,8 +51,11 @@
 #include "mysql_time.h"  // MYSQL_TIME
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"  // List_of_authid, Authid
-#include "sql/sql_connect.h"         // USER_RESOURCES
-#include "violite.h"                 // SSL_type
+#include "sql/auth/partial_revokes.h"
+#include "sql/malloc_allocator.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_connect.h"  // USER_RESOURCES
+#include "violite.h"          // SSL_type
 
 /* Forward declarations */
 class Security_context;
@@ -60,7 +65,7 @@ struct TABLE;
 template <typename Element_type, size_t Prealloc>
 class Prealloced_array;
 class Acl_restrictions;
-class Restrictions;
+enum class Lex_acl_attrib_udyn;
 
 /* Classes */
 

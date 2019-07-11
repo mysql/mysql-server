@@ -25,15 +25,27 @@
   @ref SslAcceptorContext implementation.
 */
 #include "sql/ssl_acceptor_context.h"
-#include <my_dir.h>
-#include <sql/mysqld.h>
-#include "my_config.h"
-#include "mysql.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "my_dir.h"
+#include "my_getopt.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/status_var.h"
+#include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
+#include "sql/mysqld.h"
 #include "sql/options_mysqld.h"
+#include "sql/sql_class.h"
 #include "sql/sql_initialize.h"
 #include "sql/sys_vars.h"
+#include "sql/sys_vars_shared.h"
+#include "violite.h"
 
 /**
   SSL context options

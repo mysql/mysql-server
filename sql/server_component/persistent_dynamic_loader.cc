@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <algorithm>
 #include <atomic>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -36,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -45,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -58,11 +61,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/key.h"
-#include "sql/log.h"  // error_log_print
 #include "sql/mysqld.h"
 #include "sql/records.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
-#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
@@ -71,6 +73,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
+
+class THD;
 
 typedef std::string my_string;
 

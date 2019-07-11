@@ -21,22 +21,60 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/auth/acl_table_user.h" /* For user table data */
-#include "my_dbug.h"                 /* DBUG macros */
-#include "sql/auth/auth_acls.h"      /* ACLs */
-#include "sql/auth/auth_internal.h"  /* acl_print_ha_error */
+
+#include <stdlib.h>  /* atoi */
+#include <string.h>  /* strlen, strcmp, NULL, memcmp, memcpy */
+#include <algorithm> /* sort */
+#include <map>       /* map */
+
+#include "field_types.h"   /* MYSQL_TYPE_ENUM, MYSQL_TYPE_JSON */
+#include "lex_string.h"    /* LEX_CSTRING */
+#include "m_ctype.h"       /* my_charset_* */
+#include "m_string.h"      /* STRING_WITH_LEN */
+#include "my_base.h"       /* HA_ERR_* */
+#include "my_dbug.h"       /* DBUG macros */
+#include "my_inttypes.h"   /* MYF, uchar, longlong, ulonglong */
+#include "my_loglevel.h"   /* WARNING_LEVEL, loglevel, ERROR_LEVEL */
+#include "my_sqlcommand.h" /* SQLCOM_ALTER_USER, SQLCOM_GRANT */
+#include "my_sys.h"        /* my_error */
+#include "mysql/components/services/log_builtins.h" /* for LogEvent, LogErr */
+#include "mysql/plugin.h" /* st_mysql_plugin, MYSQL_AUTHENTICATION_PLUGIN */
+#include "mysql/plugin_auth.h"      /* st_mysql_auth */
+#include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
+#include "mysql_time.h"             /* MYSQL_TIME, MYSQL_TIMESTAMP_ERROR */
+#include "mysqld_error.h"           /* ER_* */
+#include "prealloced_array.h"       /* Prealloced_array */
+#include "sql/auth/auth_acls.h"     /* ACLs */
+#include "sql/auth/auth_common.h"   /* User_table_schema, ... */
+#include "sql/auth/auth_internal.h" /* acl_print_ha_error */
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"     /* global_acl_memory */
 #include "sql/auth/sql_authentication.h" /* Cached_authentication_plugins */
 #include "sql/auth/sql_user_table.h"     /* Acl_table_intact */
 #include "sql/auth/user_table.h"         /* replace_user_table */
-#include "sql/item_func.h"               /* mqh_used */
+#include "sql/field.h"     /* Field, Field_json, Field_enum, TYPE_OK */
+#include "sql/handler.h"   /* handler, DB_TYPE_NDBCLUSTER, handlerton */
+#include "sql/item_func.h" /* mqh_used */
 #include "sql/json_dom.h"
-#include "sql/mysqld.h"     /* specialflag */
-#include "sql/sql_class.h"  /* THD */
-#include "sql/sql_lex.h"    /* LEX_CSTRING */
-#include "sql/sql_time.h"   /* str_to_time_with_warn */
-#include "sql/sql_update.h" /* compare_records */
-#include "sql/tztime.h"     /* Time_zone */
+#include "sql/key.h"    /* key_copy, KEY */
+#include "sql/mysqld.h" /* specialflag */
+#include "sql/records.h"
+#include "sql/row_iterator.h"     /* RowIterator */
+#include "sql/sql_class.h"        /* THD */
+#include "sql/sql_const.h"        /* ACL_ALLOC_BLOCK_SIZE, MAX_KEY_LENGTH */
+#include "sql/sql_lex.h"          /* LEX */
+#include "sql/sql_plugin.h"       /* plugin_unlock, my_plugin_lock_by_name */
+#include "sql/sql_plugin_ref.h"   /* plugin_decl, plugin_ref */
+#include "sql/sql_time.h"         /* str_to_time_with_warn */
+#include "sql/sql_update.h"       /* compare_records */
+#include "sql/system_variables.h" /* System_variables */
+#include "sql/table.h"            /* TABLE, TABLE_SHARE, ... */
+#include "sql/thr_malloc.h"       /* init_sql_alloc */
+#include "sql/tztime.h"           /* Time_zone */
+#include "sql_string.h"           /* String */
+#include "template_utils.h"       /* down_cast */
+#include "typelib.h"              /* TYPELIB */
+#include "violite.h"              /* SSL_* */
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
