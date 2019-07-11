@@ -4886,24 +4886,25 @@ dberr_t fil_rename_tablespace(space_id_t space_id, const char *old_path,
 dberr_t Fil_system::rename_tablespace_name(space_id_t space_id,
                                            const char *old_name,
                                            const char *new_name) {
-  Fil_shard *old_shard = fil_system->shard_by_id(space_id);
+  auto old_shard = fil_system->shard_by_id(space_id);
 
   old_shard->mutex_acquire();
 
-  fil_space_t *old_space = old_shard->get_space_by_id(space_id);
+  auto old_space = old_shard->get_space_by_id(space_id);
 
   if (old_space == nullptr) {
+    old_shard->mutex_release();
+
     ib::error(ER_IB_MSG_299, old_name);
 
     return (DB_TABLESPACE_NOT_FOUND);
   }
 
   ut_ad(old_space == old_shard->get_space_by_name(old_name));
-
   old_shard->mutex_release();
 
-  Fil_shard *new_shard = nullptr;
-  fil_space_t *new_space = nullptr;
+  Fil_shard *new_shard{};
+  fil_space_t *new_space{};
 
   mutex_acquire_all();
 
