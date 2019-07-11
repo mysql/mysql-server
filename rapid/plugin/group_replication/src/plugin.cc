@@ -1340,13 +1340,10 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
       gcs_module_parameters.add_parameter("cipher", ssl_cipher);
       gcs_module_parameters.add_parameter("tls_version", tls_version);
 
-#if !defined(HAVE_YASSL)
-      // YaSSL does not support CRL.
       if (!ssl_crl.empty())
         gcs_module_parameters.add_parameter("crl_file", ssl_crl); /* purecov: inspected */
       if (!ssl_crlpath.empty())
         gcs_module_parameters.add_parameter("crl_path", ssl_crlpath); /* purecov: inspected */
-#endif
 
       log_message(MY_INFORMATION_LEVEL,
                   "Group communication SSL configuration: "

@@ -1341,11 +1341,7 @@ validate_user_plugin_records()
       {
           sql_print_warning("The plugin '%s' is used to authenticate "
                             "user '%s'@'%.*s', "
-#if !defined(HAVE_YASSL)
                             "but neither SSL nor RSA keys are "
-#else
-                            "but no SSL is "
-#endif
                             "configured. "
                             "Nobody can currently login using this account.",
                             sha256_password_plugin_name.str,

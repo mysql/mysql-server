@@ -1560,7 +1560,7 @@ exp:    /* [ E [ <sign> ] <unsigned integer> ] */
     str++;
     if (str < end)
     {
-      int negative_exp, exponent;
+      longlong negative_exp, exponent;
       if ((negative_exp= (*str == '-')) || *str=='+')
       {
         if (++str == end)
@@ -1570,7 +1570,10 @@ exp:    /* [ E [ <sign> ] <unsigned integer> ] */
            str < end && (ch= (uchar) (*str - '0')) < 10;
            str++)
       {
-        exponent= exponent * 10 + ch;
+        if (exponent <= (LLONG_MAX - ch) / 10)
+         exponent= exponent * 10 + ch;
+        else
+         goto ret_too_big;
       }
       shift+= negative_exp ? -exponent : exponent;
     }

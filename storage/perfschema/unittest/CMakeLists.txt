@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,6 +75,3 @@ ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
 # ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
 # TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
 # ADD_TEST(pfs_benchmark pfs_benchmark-t)
-
-# On windows, pfs_connect_attr-t may depend on openssl dlls.
-COPY_OPENSSL_DLLS(copy_openssl_pfs_unittest)
