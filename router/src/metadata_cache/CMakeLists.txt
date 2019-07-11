@@ -33,7 +33,6 @@ SET(include_dirs
   ../router/include
   include/
   src/
-  ${MySQL_INCLUDE_DIRS}
 )
 
 INCLUDE_DIRECTORIES(SYSTEM ${PROTOBUF_INCLUDE_DIR}

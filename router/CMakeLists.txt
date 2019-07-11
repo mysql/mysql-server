@@ -104,9 +104,6 @@ INCLUDE(cmake/fuzzer.cmake)
 # Set the proper paths for the mysqlclient library
 SET(MySQL_CLIENT_LIB mysqlclient)
 SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
-SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
