@@ -113,7 +113,6 @@ drop table t1;
 #
 # Bug#21611 Slave can't connect when master-ssl-cipher specified
 # - Apparently selecting a cipher doesn't work at all
-# - Usa a cipher that both yaSSL and OpenSSL supports
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
@@ -211,7 +210,6 @@ DROP TABLE t1;
 #           YaSSL to crash the server.
 #
 
-# Common ciphers to openssl and yassl
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=DHE-RSA-AES256-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC3-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=AES256-SHA

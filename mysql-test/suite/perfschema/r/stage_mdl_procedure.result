@@ -15,7 +15,7 @@ test.f1()
 drop procedure test.p1;
 call dump_one_thread('user1');
 username	event_name	sql_text
-user1	statement/sql/select	select test.f1()
+user1	statement/sql/select	call test.p1()
 username	event_name	nesting_event_type
 username	event_name	nesting_event_type
 user1	stage/sql/executing	STATEMENT
