@@ -212,11 +212,15 @@ void Backup_page_tracker::page_track_get_start_lsn_deinit(
 
   @return lsn at which page-tracking is started/stopped.
 */
-long long Backup_page_tracker::page_track_get_start_lsn(UDF_INIT *, UDF_ARGS *,
+long long Backup_page_tracker::page_track_get_start_lsn(UDF_INIT *,
+                                                        UDF_ARGS *args,
                                                         unsigned char *,
                                                         unsigned char *) {
   MYSQL_THD thd;
   if (mysql_service_mysql_current_thread_reader->get(&thd)) {
+    return (-1);
+  }
+  if (args->arg_count != 0) {
     return (-1);
   }
   uint64_t first_start_lsn, last_start_lsn;  // ignore the return value
@@ -261,6 +265,10 @@ long long Backup_page_tracker::page_track_get_changed_page_count(
     return (-1);
   }
 
+  if (args->arg_count != 2 || args->arg_type[0] != INT_RESULT ||
+      args->arg_type[1] != INT_RESULT) {
+    return (-1);
+  }
   uint64_t changed_page_count = 0;
   // get the values form the agrs passed to UDF
   uint64_t start_lsn = *((long long *)args->args[0]);
@@ -313,6 +321,15 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (mysql_service_mysql_current_thread_reader->get(&thd)) {
     return (-1);
   }
+
+  if (args->arg_count != 2 || args->arg_type[0] != INT_RESULT ||
+      args->arg_type[1] != INT_RESULT) {
+    return (-1);
+  }
+
+  if (!mysqlbackup_backup_id) {
+    return (-1);
+  }
   // Not expecting anything other than digits in the backupid.
   // Make sure no elements of a relative path are there if the
   // above rule is relaxed
@@ -340,10 +357,11 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
 
   changed_pages_file = changed_pages_file_dir + FN_LIBCHAR + backupid +
                        Backup_comp_constants::change_file_extension;
-
-  if (args->arg_count != 2 || args->arg_type[0] != INT_RESULT ||
-      args->arg_type[1] != INT_RESULT) {
-    return 1;  // expecting start_lsn and end_lsn both long long
+  // if file already exists return error
+  FILE *fd = fopen(changed_pages_file.c_str(), "r");
+  if (fd) {
+    fclose(fd);
+    return (-1);
   }
 
   // get the values form the agrs passed to UDF
