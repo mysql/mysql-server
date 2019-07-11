@@ -12907,6 +12907,20 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE ||
                  lcp_already_completed);
 
+      if (c_lcpState.lcpStatus == LCP_STATUS_IDLE)
+      {
+        jam();
+        /**
+         * From our point of view the LCP is completed since we heard the old
+         * master conclude the LCP. But there are other nodes that still
+         * haven't heard about the conclusion of the LCP since not all have
+         * reached the IDLE state yet. To handle this in the code for
+         * handling LCP_COMPLETE_REP we need to get back to the state
+         * LCP_TAB_SAVED and ensure that we send LCP_COMPLETE_REP with
+         * block 0 for all nodes that haven't heard of the completed LCP yet.
+         */
+        c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
+      }
       c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
       if (!c_lcp_runs_with_pause_support)
       {
