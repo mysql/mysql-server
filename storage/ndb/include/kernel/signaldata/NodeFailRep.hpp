@@ -41,7 +41,7 @@ struct NodeFailRep {
   STATIC_CONST( SignalLengthLong = 3 );
 
   STATIC_CONST( SignalLength_v1 = 3 + NdbNodeBitmask48::Size );
-  STATIC_CONST( SignalLengthLong_v1 = 3 + NdbNodeBitmask48::Size );
+  STATIC_CONST( SignalLengthLong_v1 = 3 + NodeBitmask::Size );
 
   Uint32 failNo;
 
@@ -54,8 +54,8 @@ struct NodeFailRep {
   Uint32 noOfNodes;
   union
   {
-    Uint32 theNodes[NdbNodeBitmask::Size];
-    Uint32 theAllNodes[NodeBitmask::Size];
+    Uint32 theNodes[NdbNodeBitmask::Size]; // data nodes 8.0.17 and older
+    Uint32 theAllNodes[NodeBitmask::Size]; // api nodes 8.0.17 and older
   };
 
   static Uint32 getNodeMaskLength(Uint32 signalLength) {
