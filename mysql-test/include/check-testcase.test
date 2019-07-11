@@ -248,4 +248,8 @@ EOF
 }
 
 --enable_query_log
+
+--let $wait_condition= SELECT count(*)=0 FROM information_schema.processlist WHERE user="unauthenticated user";
+--source include/wait_condition.inc
+
 CALL mtr.check_testcase();
