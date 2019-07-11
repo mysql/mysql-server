@@ -65,7 +65,8 @@
 #include "sql/auth/sql_auth_cache.h" /* ACL_USER                    */
 #include "sql/auth/sql_authentication.h"
 #include "sql/protocol_classic.h" /* Protocol_classic            */
-#include "sql/sql_const.h"        /* MAX_FIELD_WIDTH             */
+#include "sql/sql_class.h"
+#include "sql/sql_const.h" /* MAX_FIELD_WIDTH             */
 #include "violite.h"
 
 class THD;

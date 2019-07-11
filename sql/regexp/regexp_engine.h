@@ -25,14 +25,13 @@
 
 #include <unicode/uregex.h>
 
+#include <stddef.h>
 #include <stdint.h>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "m_ctype.h"    // CHARSET_INFO.
 #include "my_config.h"  // WORDS_BIGENDIAN
-#include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/regexp/errors.h"
 #include "sql/sql_class.h"  // THD

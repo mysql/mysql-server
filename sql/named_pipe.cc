@@ -20,18 +20,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/named_pipe.h"
+
 #include <AclAPI.h>
 #include <accctrl.h>
 #include <errno.h>
-#include "sql_class.h"
 
 #include <mysql/components/services/log_builtins.h>
 #include "my_config.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/named_pipe.h"
+#include "sql/sql_error.h"
 
 bool is_existing_windows_group_name(const char *group_name) {
   // First, let's get a SID for the given group name...

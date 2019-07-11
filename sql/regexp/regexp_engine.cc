@@ -28,9 +28,7 @@
 #include <string>     // strlen
 
 #include "my_dbug.h"
-#include "nullable.h"
 #include "sql/regexp/errors.h"
-#include "sql/regexp/regexp_facade.h"
 #include "sql/sql_class.h"
 #include "template_utils.h"
 

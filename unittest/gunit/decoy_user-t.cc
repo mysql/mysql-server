@@ -24,15 +24,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm>
 #include <cstdlib>
+#include <map>
 #include <set>
 #include <string>
 
 #include <gtest/gtest.h>
 
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_inttypes.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_utility.h"
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_authentication.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace decoy_user_unittest {

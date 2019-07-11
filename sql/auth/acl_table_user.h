@@ -23,10 +23,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef ACL_TABLE_USER_INCLUDED
 #define ACL_TABLE_USER_INCLUDED
 
+#include "my_config.h"
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
+#include <sys/types.h>
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "my_alloc.h"
 #include "sql/auth/acl_table_base.h"
-#include "sql/auth/auth_common.h"
-#include "sql/auth/auth_internal.h"
 #include "sql/auth/partial_revokes.h"
+#include "sql/auth/user_table.h"
+
+class ACL_USER;
+class RowIterator;
+class THD;
+class User_table_schema;
+struct LEX_USER;
+struct TABLE;
 
 namespace acl_table {
 enum class User_attribute_type { ADDITIONAL_PASSWORD = 0, RESTRICTIONS };
