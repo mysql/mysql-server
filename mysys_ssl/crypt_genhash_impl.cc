@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,13 +19,8 @@
 
 #ifdef HAVE_OPENSSL
 
-#ifdef HAVE_YASSL
-#include <sha.hpp>
-#include <openssl/ssl.h>
-#else
 #include <openssl/sha.h>
 #include <openssl/rand.h>
-#endif
 
 #include "crypt_genhash_impl.h"
 
@@ -39,31 +34,11 @@
 #include <alloca.h>
 #endif
 
-#ifndef HAVE_YASSL
 #define	DIGEST_CTX	SHA256_CTX
 #define	DIGESTInit	SHA256_Init
 #define	DIGESTUpdate	SHA256_Update
 #define	DIGESTFinal	SHA256_Final
 #define	DIGEST_LEN	SHA256_DIGEST_LENGTH
-#else
-#define DIGEST_CTX TaoCrypt::SHA256
-#define DIGEST_LEN 32
-void DIGESTInit(DIGEST_CTX *ctx)
-{
-  ctx->Init();
-}
-
-void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
-{
-  ctx->Update((const TaoCrypt::byte *)plaintext, len);
-}
-
-void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
-{
-  ctx->Final((TaoCrypt::byte *)txt);
-}
-
-#endif // HAVE_YASSL
 
 static const char crypt_alg_magic[] = "$5";
 
@@ -435,11 +410,7 @@ extern "C"
 void generate_user_salt(char *buffer, int buffer_len)
 {
   char *end= buffer + buffer_len - 1;
-#ifdef HAVE_YASSL
-  yaSSL::RAND_bytes((unsigned char *) buffer, buffer_len);
-#else
   RAND_bytes((unsigned char *) buffer, buffer_len);
-#endif
       
   /* Sequence must be a legal UTF8 string */
   for (; buffer < end; buffer++)

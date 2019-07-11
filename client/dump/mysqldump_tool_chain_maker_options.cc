@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include <boost/algorithm/string.hpp>
 
 using namespace Mysql::Tools::Dump;
+
+bool Mysql::Tools::Dump::use_show_create_user;
 
 void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
 {
@@ -161,18 +163,20 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       information. ex: mysql.user, mysql.db, mysql.tables_priv,
       mysql.columns_priv, mysql.procs_priv, mysql.proxies_priv
     */
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "user"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "db"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "tables_priv"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "columns_priv"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "procs_priv"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "proxies_priv"));
+    if (use_show_create_user) {
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "user"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "db"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "tables_priv"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "columns_priv"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "procs_priv"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "proxies_priv"));
+    }
     /*
       Since we dump CREATE EVENT/FUNCTION/PROCEDURE statement skip this table.
     */

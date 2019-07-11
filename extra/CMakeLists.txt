@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,14 +63,6 @@ ADD_CUSTOM_TARGET(GenError
 
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-## For 'comp_err' we need it to be available during build.
-COPY_OPENSSL_DLLS(copy_openssl_extra)
-IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
-  ADD_DEPENDENCIES(GenError copy_openssl_extra)
-ENDIF()
-
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
