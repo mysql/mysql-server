@@ -1244,7 +1244,7 @@ class Ndb_binlog_setup {
       std::unordered_set<std::string> ndb_tables_in_NDB;
       Ndb *ndb = get_thd_ndb(m_thd)->ndb;
       if (!ndb_get_table_names_in_schema(ndb->getDictionary(), schema_name,
-                                         ndb_tables_in_NDB)) {
+                                         &ndb_tables_in_NDB)) {
         log_NDB_error(ndb->getDictionary()->getNdbError());
         ndb_log_error(
             "Failed to get list of NDB tables in schema '%s' from "
@@ -1530,7 +1530,7 @@ class Ndb_binlog_setup {
     std::unordered_set<std::string> ndb_tables_in_NDB;
     Ndb *ndb = get_thd_ndb(m_thd)->ndb;
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
-    if (!ndb_get_table_names_in_schema(dict, schema_name, ndb_tables_in_NDB)) {
+    if (!ndb_get_table_names_in_schema(dict, schema_name, &ndb_tables_in_NDB)) {
       log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to get list of NDB tables in schema '%s' from NDB",
                     schema_name);

@@ -816,26 +816,21 @@ bool Ndb_dd_client::get_ndb_table_names_in_schema(
     return false;
   }
 
-  std::vector<const dd::Table *> tables;
-  if (m_client->fetch_schema_components(schema, &tables)) {
+  std::vector<dd::String_type> table_names;
+  if (m_client->fetch_schema_table_names_by_engine(schema, "ndbcluster",
+                                                   &table_names)) {
     return false;
   }
 
-  for (const dd::Table *table : tables) {
-    if (table->engine() != "ndbcluster") {
-      // Skip non NDB tables
-      continue;
-    }
-
-    // Lock the table in DD
-    if (!mdl_lock_table(schema_name, table->name().c_str())) {
+  for (const auto &name : table_names) {
+    if (!mdl_lock_table(schema_name, name.c_str())) {
       // Failed to MDL lock table
       return false;
     }
 
     // Convert the table name to lower case on platforms that have
     // lower_case_table_names set to 2
-    const std::string table_name = ndb_dd_fs_name_case(table->name());
+    const std::string table_name = ndb_dd_fs_name_case(name);
     names->insert(table_name);
   }
   return true;
@@ -857,25 +852,44 @@ bool Ndb_dd_client::get_table_names_in_schema(
     return false;
   }
 
-  std::vector<const dd::Table *> tables;
-  if (m_client->fetch_schema_components(schema, &tables)) {
+  // Fetch NDB table names
+  std::vector<dd::String_type> ndb_table_names;
+  if (m_client->fetch_schema_table_names_by_engine(schema, "ndbcluster",
+                                                   &ndb_table_names)) {
     return false;
   }
-
-  for (const dd::Table *table : tables) {
+  for (const auto &name : ndb_table_names) {
     // Lock the table in DD
-    if (!mdl_lock_table(schema_name, table->name().c_str())) {
+    if (!mdl_lock_table(schema_name, name.c_str())) {
       // Failed to acquire MDL
       return false;
     }
     // Convert the table name to lower case on platforms that have
     // lower_case_table_names set to 2
-    const std::string table_name = ndb_dd_fs_name_case(table->name());
-    if (table->engine() == "ndbcluster") {
-      ndb_tables->insert(table_name);
-    } else {
-      local_tables->insert(table_name);
+    const std::string table_name = ndb_dd_fs_name_case(name);
+    ndb_tables->insert(table_name);
+  }
+
+  // Fetch all table names
+  std::vector<dd::String_type> all_table_names;
+  if (m_client->fetch_schema_table_names_not_hidden_by_se(schema,
+                                                          &all_table_names)) {
+    return false;
+  }
+  for (const auto &name : all_table_names) {
+    // Convert the table name to lower case on platforms that have
+    // lower_case_table_names set to 2
+    const std::string table_name = ndb_dd_fs_name_case(name);
+    if (ndb_tables->find(table_name) != ndb_tables->end()) {
+      // Skip NDB table
+      continue;
     }
+    // Lock the table in DD
+    if (!mdl_lock_table(schema_name, name.c_str())) {
+      // Failed to acquire MDL
+      return false;
+    }
+    local_tables->insert(table_name);
   }
   return true;
 }
@@ -907,22 +921,20 @@ bool Ndb_dd_client::have_local_tables_in_schema(const char *schema_name,
     return true;
   }
 
-  std::vector<const dd::Table *> tables;
-  if (m_client->fetch_schema_components(schema, &tables)) {
+  // Fetch all table names
+  std::vector<dd::String_type> all_table_names;
+  if (m_client->fetch_schema_table_names_not_hidden_by_se(schema,
+                                                          &all_table_names)) {
+    return false;
+  }
+  // Fetch NDB table names
+  std::vector<dd::String_type> ndb_table_names;
+  if (m_client->fetch_schema_table_names_by_engine(schema, "ndbcluster",
+                                                   &ndb_table_names)) {
     return false;
   }
 
-  // Assume no local table will be found, the loop below will
-  // return on first table not in NDB
-  *found_local_tables = false;
-
-  for (const dd::Table *table : tables) {
-    if (table->engine() != "ndbcluster") {
-      // Found local table
-      *found_local_tables = true;
-      break;
-    }
-  }
+  *found_local_tables = all_table_names.size() > ndb_table_names.size();
 
   return true;
 }
