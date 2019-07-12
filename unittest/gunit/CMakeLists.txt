@@ -199,10 +199,6 @@ ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
 SET(GTEST_LIBRARIES gmock gtest)
 
-IF (WITH_SSL STREQUAL "bundled")
-  ADD_SUBDIRECTORY(yassl)
-ENDIF()
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
@@ -491,9 +487,6 @@ ENDIF(MERGE_UNITTESTS)
       ADD_TEST(${test} ${test}-t)
     ENDIF()
   ENDFOREACH()
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)

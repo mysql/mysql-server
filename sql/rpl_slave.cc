@@ -664,6 +664,8 @@ bool start_slave_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res= true;  /* default, an error */
 
+  DEBUG_SYNC(thd, "begin_start_slave");
+
   channel_map.wrlock();
 
   if (!is_slave_configured())
@@ -1094,6 +1096,16 @@ int init_recovery(Master_info* mi, const char** errmsg)
   int error= 0;
   Relay_log_info *rli= mi->rli;
   char *group_master_log_name= NULL;
+
+  /* Set the recovery_parallel_workers to 0 if Auto Position is enabled. */
+  bool is_gtid_with_autopos_on=
+      ((get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON &&
+        mi->is_auto_position())
+           ? true
+           : false);
+  if (is_gtid_with_autopos_on)
+    rli->recovery_parallel_workers = 0;
+
   if (rli->recovery_parallel_workers)
   {
     /*
@@ -1109,15 +1121,7 @@ int init_recovery(Master_info* mi, const char** errmsg)
     */
     error= mts_recovery_groups(rli);
     if (rli->mts_recovery_group_cnt)
-    {
-      if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
-      {
-        rli->recovery_parallel_workers= 0;
-        rli->clear_mts_recovery_groups();
-      }
-      else
-        DBUG_RETURN(error);
-    }
+      DBUG_RETURN(error);
   }
 
   group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
@@ -8823,10 +8827,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
-#ifdef HAVE_YASSL
-    mi->ssl_crl[0]= '\0';
-    mi->ssl_crlpath[0]= '\0';
-#endif
     mysql_options(mysql, MYSQL_OPT_SSL_CRL,
                   mi->ssl_crl[0] ? mi->ssl_crl : 0);
     mysql_options(mysql, MYSQL_OPT_TLS_VERSION,

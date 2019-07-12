@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -268,11 +268,5 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
 }
 
 } // namespace xpl
-
-#ifdef HAVE_YASSL
-#define IS_YASSL_OR_OPENSSL(Y, O) Y
-#else // HAVE_YASSL
-#define IS_YASSL_OR_OPENSSL(Y, O) O
-#endif // HAVE_YASSL
 
 #endif  // _XPL_SERVER_H_

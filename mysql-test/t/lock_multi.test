@@ -4618,7 +4618,7 @@ connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table metadata lock" and
-        info = "select * from t1, t2";
+        info = "PREPARE stmt1 FROM ...";
 --source include/wait_condition.inc
 
 --echo # This ALTER TABLE upgrades SNRW lock on t1 to X lock.

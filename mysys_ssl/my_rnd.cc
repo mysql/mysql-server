@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,14 @@
 
 #include <my_rnd.h>
 
-#if defined(HAVE_YASSL)
-
-#if defined(YASSL_PREFIX)
-#define RAND_bytes yaRAND_bytes
-#endif /* YASSL_PREFIX */
-
-#include <openssl/ssl.h>
-
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/rand.h>
 #include <openssl/err.h>
-#endif /* HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 
 
 /*
-  A wrapper to use OpenSSL/yaSSL PRNGs.
+  A wrapper to use OpenSSL PRNGs.
 */
 
 #ifdef __cplusplus
@@ -68,12 +60,7 @@ int
 my_rand_buffer(unsigned char *buffer, size_t buffer_size)
 {
   int rc;
-#if defined(HAVE_YASSL) /* YaSSL */
-  rc= yaSSL::RAND_bytes(buffer, buffer_size);
-
-  if (!rc)
-    return 1;
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
   rc= RAND_bytes(buffer, buffer_size);
 
   if (!rc)
@@ -89,7 +76,7 @@ my_rand_buffer(unsigned char *buffer, size_t buffer_size)
 
 
 /**
-  Generate a random number using the OpenSSL/yaSSL supplied
+  Generate a random number using the OpenSSL supplied
   random number generator if available.
 
   @param rand_st [INOUT] Structure used for number generation
