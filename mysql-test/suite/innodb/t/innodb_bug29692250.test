@@ -1,0 +1,42 @@
+#
+# Test inability in opening a table
+#
+
+source include/not_valgrind.inc;
+source include/not_crashrep.inc;
+source include/have_debug.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\] .* Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("\\[ERROR\\] .* Database page corruption on disk or a failed");
+CALL mtr.add_suppression("\\[ERROR\\] .* Assertion failure: ut0ut\.cc:");
+CALL mtr.add_suppression("\\[ERROR\\] .* Trying to do I/O to a tablespace which exists without an \.ibd data file");
+CALL mtr.add_suppression("\\[ERROR\\] .* trying to read page \\[page id: space=.*, page number=.*\\] in nonexisting or being-dropped tablespace");
+--enable_query_log
+
+CREATE TABLE t1(c1 INT);
+
+# The ibd file for table t1 is loaded when the server
+# is started for the first time after creating the table.
+--source include/restart_mysqld.inc
+
+# Restart the server twice in succession to avoid loading
+# t1.ibd file during server startup
+--source include/restart_mysqld.inc
+
+SET DEBUG='+d,ib_create_table_fail_disk_full';
+
+--echo # Write file to make mysql-test-run.pl expect the "crash", but don't
+--echo # start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+SELECT * FROM t1;
+
+--disable_reconnect
+--source include/wait_until_disconnected.inc
+
+--source include/start_mysqld.inc
+
+--echo # Cleanup
+DROP TABLE t1;
