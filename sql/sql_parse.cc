@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4990,6 +4990,7 @@ finish:
         thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
+      thd->reset_query_for_display();
     }
   }
 
@@ -5485,15 +5486,18 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       {
         lex->safe_to_cache_query= false; // see comments below
 
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                                 thd->rewritten_query.c_ptr_safe(),
-                                 thd->rewritten_query.length());
-      }
-      else
-      {
+        thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
+                                   thd->rewritten_query.length());
+      } else if (thd->slave_thread) {
+        /*
+          In the slave, we add the information to pfs.events_statements_history,
+          but not to pfs.threads, as that is what the test suite expects.
+        */
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
                                  thd->query().str,
                                  thd->query().length);
+      } else {
+        thd->set_query_for_display(thd->query().str, thd->query().length);
       }
 
       if (!(opt_general_log_raw || thd->slave_thread))
@@ -5592,9 +5596,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
         SQL injection, finding the source of the SQL injection is critical, so the
         design choice is to log the query text of broken queries (a).
       */
-      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                               thd->query().str,
-                               thd->query().length);
+      thd->set_query_for_display(thd->query().str, thd->query().length);
 
       /* Instrument this broken statement as "statement/sql/error" */
       thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
@@ -5631,6 +5633,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                                      thd->query().length);
     parser_state->m_lip.found_semicolon= NULL;
   }
+
+  DEBUG_SYNC(thd, "query_rewritten");
 
   DBUG_VOID_RETURN;
 }

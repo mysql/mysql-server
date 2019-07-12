@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,10 +54,5 @@
     case OPT_SSL_CRL:
     case OPT_SSL_CRLPATH:
     case OPT_TLS_VERSION:
-#ifdef HAVE_YASSL
-      /* crl has no effect in yaSSL. */
-      opt_ssl_crl= NULL;
-      opt_ssl_crlpath= NULL;
-#endif /* HAVE_YASSL */
       break;
 #endif /* HAVE_OPENSSL */

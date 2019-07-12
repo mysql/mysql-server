@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/mysys_ssl
                     ${CMAKE_SOURCE_DIR}/mysys
@@ -22,11 +24,7 @@ IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-IF(WITH_SSL STREQUAL "bundled")
-  SET(MYSYS_AES_IMPLEMENTATION my_aes_yassl.cc)
-ELSE()
-  SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
-ENDIF()
+SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
 
 SET(MYSYS_SSL_SOURCES
     crypt_genhash_impl.cc
@@ -35,7 +33,6 @@ SET(MYSYS_SSL_SOURCES
     my_getopt.cc
     my_aes.cc
     my_sha1.cc
-    my_sha2.cc
     my_md5.cc
     my_rnd.cc
     my_murmur3.cc
@@ -45,7 +42,12 @@ SET(MYSYS_SSL_SOURCES
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
 TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES} ${ZLIB_LIBRARY})
 # Needed to resolve OpenSSL dependency on Windows
-IF(WIN32 AND NOT WITH_SSL STREQUAL "bundled")
+IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
 ENDIF()
 DTRACE_INSTRUMENT(mysys_ssl)
+
+# MD5_Init() MD5_Update() MD5_Final() are all deprecated
+IF(SOLARIS AND CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()

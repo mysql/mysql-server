@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -390,6 +390,17 @@ ib_read_tuple(
 				tuple->heap);
 
 			ut_a(len != UNIV_SQL_NULL);
+			/* Reset the data length if it fails to copy
+			externally stored column */
+			if (data == NULL) {
+				/* data == NULL means that the externally
+				stored field was not written yet.
+				This record should only be seen by
+				TRX_ISO_READ_UNCOMMITTED transactions. */
+				ut_ad(ib_cfg_trx_level() ==
+					IB_TRX_READ_UNCOMMITTED);
+				len = 0;
+			}
 		}
 
 		dfield_set_data(dfield, data, len);

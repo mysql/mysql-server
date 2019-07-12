@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 */
 
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
-#include "sha2.h"
+#include <openssl/sha.h>
 
 #include "item_strfunc.h"
 

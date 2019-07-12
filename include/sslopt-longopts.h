@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,11 +57,7 @@
    &opt_ssl_crlpath, &opt_ssl_crlpath, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
    {"tls-version", OPT_TLS_VERSION, "TLS version to use, "
-#ifndef HAVE_YASSL
     "permitted values are: TLSv1, TLSv1.1, TLSv1.2",
-#else
-    "permitted values are: TLSv1, TLSv1.1",
-#endif
     &opt_tls_version, &opt_tls_version, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */

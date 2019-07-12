@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,8 @@
 #define I_SHA2_PASSWORD_COMMON_INCLUDED
 
 #include <openssl/evp.h>
-#if !defined(HAVE_YASSL)
 #include <openssl/ossl_typ.h>
-#endif /* !HAVE_YASSL */
-#include "sha2.h" /* SHA256_DIGEST_LENGTH */
+#include <openssl/sha.h>
 
 #include <string>
 
@@ -67,11 +65,7 @@ class Generate_digest
   virtual ~Generate_digest() {}
 };
 
-#ifndef HAVE_YASSL
 #define DIGEST_CTX EVP_MD_CTX
-#else
-#define DIGEST_CTX TaoCrypt::SHA256
-#endif /* !HAVE_YASSL */
 
 /**
   SHA256 digest generator

@@ -1492,6 +1492,7 @@ let $skip_3rd_check= ;
 --echo # 31.d.I) SET PASSWORD is incompatible with FTWRL as it changes data.
 create user mysqltest_u1;
 let $statement= ALTER USER 'mysqltest_u1' IDENTIFIED BY '';
+let $waitfor= ALTER USER 'mysqltest_u1'@'%' IDENTIFIED WITH 'mysql_native_password';
 let $cleanup_stmt1= ;
 --echo # Skip last part of compatibility testing as our helper debug
 --echo # sync-point doesn't work for SET statements.

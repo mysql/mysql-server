@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -155,17 +155,6 @@ SET(GROUP_REPLICATION_SOURCES
 
 
 ADD_DEFINITIONS(${SSL_DEFINES})
-
-IF(WITH_SSL MATCHES "bundled")
-    # add YASSL_MYSQL_COMPATIBLE when building XCom and GCS with SSL.
-    # This needs to exist because XCom is implemented in pure C.
-    # Setting these flags will make yaSSL code to build with C compatible
-    # interface.
-    ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS
-                                             "-DYASSL_MYSQL_COMPATIBLE")
-    ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS
-                                             "-DYASSL_MYSQL_COMPATIBLE")
-ENDIF()
 
 # add the definition to build XCom with SSL support
 ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)

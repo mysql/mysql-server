@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,9 +61,6 @@ using namespace std;
 
 #define PROGRAM_NAME "mysql_install_db"
 #define MYSQLD_EXECUTABLE "mysqld"
-#if defined(HAVE_YASSL)
-#define MYSQL_CERT_SETUP_EXECUTABLE "mysql_ssl_rsa_setup"
-#endif /* HAVE_YASSL */
 #define MAX_MYSQLD_ARGUMENTS 10
 #define MAX_USER_NAME_LEN 32
 
@@ -81,10 +78,6 @@ char *opt_adminhost= 0;
 char default_authplugin[]= "mysql_native_password";
 char *opt_authplugin= 0;
 char *opt_mysqldfile= 0;
-#if defined (HAVE_YASSL)
-char *opt_mysql_cert_setup_file= 0;
-char default_mysql_cert_setup_file[]= MYSQL_CERT_SETUP_EXECUTABLE;
-#endif
 char *opt_randpwdfile= 0;
 char default_randpwfile[]= ".mysql_secret";
 char *opt_langpath= 0;
@@ -148,10 +141,6 @@ static struct my_option my_connection_options[]=
    &opt_ssl, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"mysqld-file", 0, "Qualified path to the mysqld binary.", &opt_mysqldfile,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if defined(HAVE_YASSL)
-  {"ssl-setup-file", 0, "Qualified path to the mysql_ssl_setup binary", &opt_mysql_cert_setup_file,
-   0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"random-password-file", 0, "Specifies the qualified path to the "
      ".mysql_secret temporary password file.", &opt_randpwdfile,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
@@ -624,70 +613,6 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
   return true;
 }
 
-#if defined(HAVE_YASSL)
-/**
- Attempts to locate the mysql_ssl_rsa_setup file.
- If opt_mysql_cert_setup_file is specified then the this assumed to be a
- correct qualified path to the mysql_ssl_rsa_setup executable.
- If opt_basedir is specified then opt_basedir+"/bin" is assumed to be a
- candidate path for the mysql_ssl_rsa_setup executable.
- If opt_srcdir is set then opt_srcdir+"/bin" is assumed to be a
- candidate path for the mysql_ssl_rsa_setup executable.
- If opt_builddir is set then opt_builddir+"/client" is assumed to be a
- candidate path for the mysql_system_tables executable.
-
- If the executable isn't found in any of these locations,
- attempt to search the local directory and "bin" subdirectory.
- Finally check "/usr/bin","/usr/sbin", "/usr/local/bin","/usr/local/sbin",
- "/opt/mysql/bin","/opt/mysql/sbin"
-
-*/
-bool assert_cert_generator_exists(const string &opt_mysql_cert_setup_file,
-                                  const string &opt_basedir,
-                                  const string &opt_builddir,
-                                  const string &opt_srcdir,
-                                  Path *qpath)
-{
-  vector<Path > spaths;
-  if (opt_mysql_cert_setup_file.length() > 0)
-  {
-    /* Use explicit option to file mysql_ssl_rsa_setup */
-    if (!locate_file(opt_mysql_cert_setup_file, 0, qpath))
-    {
-      error << "No such file: " << opt_mysql_cert_setup_file << endl;
-      return false;
-    }
-  }
-  else
-  {
-    if (opt_basedir.length() > 0)
-    {
-      spaths.push_back(Path(opt_basedir).
-        append("bin"));
-    }
-    if (opt_builddir.length() > 0)
-    {
-      spaths.push_back(Path(opt_builddir).
-        append("client"));
-    }
-
-    add_standard_search_paths(&spaths);
-
-    if (!locate_file(MYSQL_CERT_SETUP_EXECUTABLE, &spaths, qpath))
-    {
-      error << "Can't locate the server executable (mysql_ssl_rsa_setup)."
-            << endl;
-      info << "The following paths were searched: ";
-      copy(spaths.begin(), spaths.end(),
-           infix_ostream_iterator<Path >(info, ", "));
-      info << endl;
-      return false;
-    }
-  }
-  return true;
-}
-#endif /* HAVE_YASSL */
-
 
 bool assert_valid_language_directory(const string &opt_langpath,
                                      const string &opt_basedir,
@@ -802,19 +727,6 @@ void create_ssl_policy(string *ssl_type, string *ssl_cipher,
   *x509_issuer= "";
   *x509_subject= "";
 }
-
-#if defined(HAVE_YASSL)
-
-class SSL_generator_writer
-{
-public:
-  bool operator()(int fh MY_ATTRIBUTE((unused)))
-  {
-    return true;
-  }
-};
-
-#endif /* HAVE_YASSL */
 
 #define  READ_BUFFER_SIZE 2048
 #define TIMEOUT_IN_SEC 30
@@ -1563,20 +1475,6 @@ int main(int argc,char *argv[])
     return 1;
   }
 
-#if defined(HAVE_YASSL)
-  Path mysql_cert_setup;
-  if( !opt_insecure &&
-      !assert_cert_generator_exists(create_string(opt_mysql_cert_setup_file),
-                                    basedir,
-                                    builddir,
-                                    srcdir,
-                                    &mysql_cert_setup))
-  {
-    /* Subroutine reported error */
-    return 1;
-  }
-#endif /* HAVE_YASSL */
-
   if (opt_def_extra_file)
   {
     Path def_extra_file;
@@ -1706,23 +1604,6 @@ int main(int argc,char *argv[])
   command_line.push_back(string("--basedir=")
     .append(basedir));
 
-#if defined(HAVE_YASSL)
-  vector<string> cert_setup_command_line;
-  if (!opt_insecure)
-  {
-    if (opt_no_defaults == TRUE && opt_defaults_file == NULL &&
-        opt_def_extra_file == NULL)
-      cert_setup_command_line.push_back(string("--no-defaults"));
-    cert_setup_command_line.push_back(string("--datadir=")
-      .append(data_directory.to_str()));
-    cert_setup_command_line.push_back(string("--suffix=")
-      .append(MYSQL_SERVER_VERSION));
-  }
-#endif /* HAVE_YASSL */
-
-  // DEBUG
-  //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
-
   string ssl_type;
   string ssl_cipher;
   string x509_issuer;
@@ -1786,36 +1667,6 @@ int main(int argc,char *argv[])
     info << "Success!"
          << endl;
   }
-
-#if defined(HAVE_YASSL)
-  if (!opt_insecure)
-  {
-    string ssl_output;
-    info << "Generating SSL Certificates" << endl;
-    success= process_execute(mysql_cert_setup.to_str(),
-                             cert_setup_command_line.begin(),
-                             cert_setup_command_line.end(),
-                             Process_reader(&ssl_output),
-                             SSL_generator_writer());
-    if (!success)
-    {
-      warning << "failed to execute " << mysql_cert_setup.to_str() << " ";
-      copy(cert_setup_command_line.begin(), cert_setup_command_line.end(),
-           infix_ostream_iterator<Path>(error, " "));
-      warning << endl;
-      warning << "SSL functionality may not work";
-      warning << endl;
-    }
-    else if ((ssl_output.size() > 0))
-    {
-      info << "SSL certificate generation :"
-           << endl
-           << ssl_output
-           << endl;
-    }
-  }
-
-#endif /* HAVE_YASSL */
 
   return 0;
 }

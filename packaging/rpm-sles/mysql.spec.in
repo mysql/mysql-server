@@ -19,7 +19,7 @@
 
 %global cluster 1
 
-# By default, a build will include the bundeled "yaSSL" library for SSL.
+# By default, a build will include the system SSL library.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
 # Pass path to mecab lib
