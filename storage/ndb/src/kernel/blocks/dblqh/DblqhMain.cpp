@@ -1833,6 +1833,7 @@ Dblqh::execCREATE_TAB_REQ(Signal* signal)
                       tabptr.i));
   tabptr.p->tableStatus = Tablerec::ADD_TABLE_ONGOING;
   tabptr.p->tableType = req->tableType;
+  tabptr.p->m_addfragptr_i = RNIL;
   tabptr.p->primaryTableId = (req->primaryTableId == RNIL ? tabptr.i :
                               req->primaryTableId);
   tabptr.p->schemaVersion = req->tableVersion;
@@ -1901,6 +1902,7 @@ Dblqh::execCREATE_TAB_REF(Signal* signal)
   sendSignal(addfragptr.p->m_createTabReq.senderRef,
              GSN_CREATE_TAB_REF, signal, CreateTabConf::SignalLength, JBB);
 
+  
   releaseAddfragrec(signal);
 }
 
@@ -3306,12 +3308,24 @@ Dblqh::dropTab_wait_usage(Signal* signal){
                       instance(),
                       tabPtr.i));
 
-  DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
-  conf->tableId = tabPtr.i;
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(senderRef, GSN_DROP_TAB_CONF, signal,
-	     DropTabConf::SignalLength, JBB);
+  if (tabPtr.p->m_addfragptr_i == RNIL)
+  {
+    jam();
+    DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
+    conf->tableId = tabPtr.i;
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    sendSignal(senderRef, GSN_DROP_TAB_CONF, signal,
+	       DropTabConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    Ptr<AddFragRecord> addFragPtr;
+    addFragPtr.i = senderData;
+    ptrCheckGuard(addFragPtr, caddfragrecFileSize, addFragRecord);
+    dropTable_nextStep(signal, addFragPtr);
+  }
 }
 
 void
@@ -3354,17 +3368,35 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
   switch((DropTabReq::RequestType)req->requestType) {
   case DropTabReq::RestartDropTab:
     jam();
-    tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
-    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_DONE(2)",
-                      instance(),
-                      tabPtr.i));
-    break;
+    // Fall through
   case DropTabReq::CreateTabDrop:
-    jam();
-    tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
-    DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_DONE(3)",
-                      instance(),
-                      tabPtr.i));
+    if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED)
+    {
+      jam();
+      ndbrequire(tabPtr.p->usageCountR == 0 && tabPtr.p->usageCountW == 0);
+      seizeAddfragrec(signal);
+      tabPtr.p->m_addfragptr_i = addfragptr.i;
+      addfragptr.p->m_dropTabReq = * req;
+      tabPtr.p->m_informed_backup_drop_tab = false;
+      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
+      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_USAGE(2)",
+                          instance(),
+                          tabPtr.i));
+      signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
+      signal->theData[1] = tabPtr.i;
+      signal->theData[2] = req->senderRef;
+      signal->theData[3] = addfragptr.i;
+      dropTab_wait_usage(signal);
+      return;
+    }
+    else
+    {
+      jam();
+      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
+      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_DONE(2)",
+                          instance(),
+                          tabPtr.i));
+    }
     break;
   case DropTabReq::OnlineDropTab:
     jam();
@@ -3529,6 +3561,7 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
   }
 
   removeTable(tabPtr.i);
+  tabPtr.p->m_addfragptr_i = RNIL;
   tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
   DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = NOT_DEFINED",
                        instance(),
@@ -27734,6 +27767,7 @@ void Dblqh::initialiseTabrec(Signal* signal)
       tabptr.p->tableStatus = Tablerec::NOT_DEFINED;
       tabptr.p->usageCountR = 0;
       tabptr.p->usageCountW = 0;
+      tabptr.p->m_addfragptr_i = RNIL;
       for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
         tabptr.p->fragid[i] = ZNIL;
         tabptr.p->fragrec[i] = RNIL;
