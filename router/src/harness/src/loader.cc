@@ -189,16 +189,14 @@ static void block_all_nonfatal_signals() {
 #endif  // USE_POSIX_SIGNALS
 }
 
-static void handle_fatal_signal(int sig) {
 #ifdef USE_POSIX_SIGNALS
+static void handle_fatal_signal(int sig) {
   my_safe_printf_stderr("Application got fatal signal: %d\n", sig);
 #ifdef HAVE_STACKTRACE
   my_print_stacktrace(nullptr, 0);
 #endif  // HAVE_STACKTRACE
-#else
-  (void)sig;
-#endif  // USE_POSIX_SIGNALS
 }
+#endif  // USE_POSIX_SIGNALS
 
 static void register_fatal_signal_handler() {
 #ifdef USE_POSIX_SIGNALS
@@ -288,7 +286,7 @@ static void log_reopen_thread_function() {
 }
 
 #ifdef _WIN32
-static BOOL ctrl_c_handler(DWORD ctrl_type) {
+static BOOL WINAPI ctrl_c_handler(DWORD ctrl_type) {
   if (ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT) {
     // user presed Ctrl+C or we got Ctrl+Break request
     request_application_shutdown();
@@ -300,7 +298,7 @@ static BOOL ctrl_c_handler(DWORD ctrl_type) {
 }
 
 void register_ctrl_c_handler() {
-  if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)ctrl_c_handler, TRUE)) {
+  if (!SetConsoleCtrlHandler(ctrl_c_handler, TRUE)) {
     std::cerr << "Could not install Ctrl+C handler, exiting.\n";
     exit(1);
   }
