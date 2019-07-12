@@ -48,7 +48,11 @@ SET(lib_source_files
   # ${MY_AES_IMPL}
   )
 IF(WIN32)
-  LIST(APPEND lib_source_files windows/nt_servc.cc windows/main-windows.cc windows/password_vault.cc)
+  LIST(APPEND lib_source_files
+    windows/main-windows.cc
+    windows/nt_servc.cc
+    windows/password_vault.cc
+    )
 ENDIF()
 
 SET(source_files main.cc)
@@ -62,17 +66,20 @@ ENDIF()
 IF(NOT WIN32)
   ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
 ELSE()
-  # on Windows, we statically link the router lib to otherwise avoid exporting a bunch of symbols
+  # on Windows, we statically link the router lib to otherwise avoid
+  # exporting a bunch of symbols
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
-TARGET_LINK_LIBRARIES(router_lib ${CMAKE_DL_LIBS} harness-library ${MySQL_CLIENT_LIB} ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(router_lib
+  ${CMAKE_DL_LIBS} harness-library ${MySQL_CLIENT_LIB} ${SSL_LIBRARIES})
 IF(WIN32)
   TARGET_LINK_LIBRARIES(router_lib crypt32)
 ENDIF()
-TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include ${MySQL_INCLUDE_DIRS})
+TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 IF(WITH_HARNESS)
   TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include/mysql/harness")
+  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC
+    "${PROJECT_BINARY_DIR}/include/mysql/harness")
   TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include")
   TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/harness")
 ENDIF()
