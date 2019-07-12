@@ -990,6 +990,7 @@ ALTER TABLE address ALGORITHM=copy,
 set foreign_key_checks=1;
 
 # Try to point first address to another customer which does not exists
+--replace_regex /ca_fk[1-2]/<constraint_name>/
 --error ER_NO_REFERENCED_ROW_2
 update address set customer_id = 3 where no = 1;
 
