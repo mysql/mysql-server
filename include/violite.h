@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -132,14 +132,6 @@ int vio_getnameinfo(const struct sockaddr *sa,
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#define HEADER_DES_LOCL_H dummy_something
-#define YASSL_MYSQL_COMPATIBLE
-#ifndef YASSL_PREFIX
-#define YASSL_PREFIX
-#endif
-/* Set yaSSL to use same type as MySQL do for socket handles */
-typedef my_socket YASSL_SOCKET_T;
-#define YASSL_SOCKET_T_DEFINED
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 

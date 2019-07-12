@@ -206,9 +206,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options= (SSL_OP_NO_SSLv2 |
                          SSL_OP_NO_SSLv3
-#ifndef HAVE_YASSL
                          | SSL_OP_NO_TICKET
-#endif
                         );
 
   DBUG_ENTER("new_VioSSLFd");
@@ -289,10 +287,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 
   if (crl_file || crl_path)
   {
-#ifdef HAVE_YASSL
-    DBUG_PRINT("warning", ("yaSSL doesn't support CRL"));
-    DBUG_ASSERT(0);
-#else
     X509_STORE *store= SSL_CTX_get_cert_store(ssl_fd->ssl_context);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -308,7 +302,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
       my_free(ssl_fd);
       DBUG_RETURN(0);
     }
-#endif
   }
 
   if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file, error))
