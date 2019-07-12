@@ -985,7 +985,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   if (has_auto_inc) {
     ut_ad(auto_inc != UINT64_MAX);
     dd_upgrade_set_auto_inc(srv_table, dd_table, auto_inc);
-    ib_table->autoinc = auto_inc;
+    ib_table->autoinc = auto_inc == 0 ? 0 : auto_inc + 1;
   }
 
   if (dict_table_has_fts_index(ib_table)) {
