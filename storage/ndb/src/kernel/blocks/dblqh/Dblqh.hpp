@@ -2249,6 +2249,7 @@ public:
 
     Uint32 usageCountR; // readers
     Uint32 usageCountW; // writers
+    Uint32 m_addfragptr_i;
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
 #endif // DBLQH_STATE_EXTRACT
