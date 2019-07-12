@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,29 +21,7 @@ IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
-# In order to get correct symbol visibility, these files
-# must be compiled with "-fvisibility=hidden"
-IF(WITH_SSL STREQUAL "bundled" AND HAVE_VISIBILITY_HIDDEN)
-  SET_SOURCE_FILES_PROPERTIES(
-    crypt_genhash_impl.cc
-    my_aes.cc
-    my_md5.cc
-    my_sha1.cc
-    my_sha2.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-ENDIF()
-
-IF(WITH_SSL STREQUAL "bundled")
-  SET(MYSYS_AES_IMPLEMENTATION my_aes_yassl.cc)
-  if (HAVE_VISIBILITY_HIDDEN)
-    SET_SOURCE_FILES_PROPERTIES(
-      my_aes_yassl.cc
-      PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-  ENDIF()
-ELSE()
-  SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
-ENDIF()
+SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
 
 SET(MYSYS_SSL_SOURCES
     crypt_genhash_impl.cc
@@ -51,7 +29,6 @@ SET(MYSYS_SSL_SOURCES
     my_getopt.cc
     my_aes.cc
     my_sha1.cc
-    my_sha2.cc
     my_md5.cc
     my_rnd.cc
     my_murmur3.cc

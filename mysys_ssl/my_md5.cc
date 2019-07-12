@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,25 +18,13 @@
   @file
 
   @brief
-  Wrapper functions for OpenSSL and YaSSL. Also provides a Compatibility layer
-  to make available YaSSL's MD5 implementation.
+  Wrapper functions for OpenSSL.
 */
 
 #include <my_global.h>
 #include <my_md5.h>
 
-#if defined(HAVE_YASSL)
-#include "my_config.h"
-#include "md5.hpp"
-
-static void my_md5_hash(char *digest, const char *buf, int len)
-{
-  TaoCrypt::MD5 hasher;
-  hasher.Update((TaoCrypt::byte *) buf, len);
-  hasher.Final((TaoCrypt::byte *) digest);
-}
-
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/md5.h>
 
 static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len)
@@ -47,7 +35,7 @@ static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len
   MD5_Final (digest, &ctx);
 }
 
-#endif /* HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 
 /**
     Wrapper function to compute MD5 message digest.
@@ -60,9 +48,7 @@ static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len
 */
 void compute_md5_hash(char *digest, const char *buf, int len)
 {
-#if defined(HAVE_YASSL)
-  my_md5_hash(digest, buf, len);
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
   my_md5_hash((unsigned char*)digest, (unsigned const char*)buf, len);
-#endif /* HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 }

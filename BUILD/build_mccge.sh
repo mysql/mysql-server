@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -338,8 +338,8 @@ extended_usage()
   --with-extra-charsets=all: Enable use of all character sets supported
     by MySQL (cannot be overridden).
 
-  --with-ssl: Enable use of yaSSL library included in the MySQL source
-    if possible (GCC and same CC and CXX).
+  --with-ssl: Enable use of SSL library if possible (GCC and same CC
+    and CXX).
     (cannot be overridden).
 
   --with-pic: Build all binaries using position independent assembler
@@ -1223,11 +1223,6 @@ set_ssl()
 
 #
 # Base options used by all packages
-#
-# SSL library to use. --with-ssl selects the bundled yaSSL
-# implementation of SSL. To use openSSL, you must point out the location
-# of the openSSL headers and libs on your system.
-# For example: --with-ssl=/usr
 #
 set_base_configs()
 {

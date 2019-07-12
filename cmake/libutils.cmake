@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -287,7 +287,7 @@ FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   SET(${result} ${ret} PARENT_SCOPE)
 ENDFUNCTION()
 
-# We try to hide the symbols in yassl/zlib to avoid name clashes with
+# We try to hide the symbols in zlib to avoid name clashes with
 # other libraries like openssl.
 FUNCTION(RESTRICT_SYMBOL_EXPORTS target)
   IF(CMAKE_COMPILER_IS_GNUCXX AND UNIX)

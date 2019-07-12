@@ -146,10 +146,8 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
     /* Note: the OpenSSL error queue gets cleared in report_errors(). */
     report_errors(ssl);
 #else             /* Release build */
-# ifndef HAVE_YASSL
     /* OpenSSL: clear the error queue. */
     ERR_clear_error();
-# endif
 #endif
     should_retry= FALSE;
     ssl_set_sys_error(ssl_error);
@@ -174,14 +172,12 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
   {
     enum enum_vio_io_event event;
 
-#ifndef HAVE_YASSL
     /*
       OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
     DBUG_ASSERT(ERR_peek_error() == 0);
-#endif
 
     ret= SSL_read(ssl, buf, size);
 
@@ -213,14 +209,12 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
   {
     enum enum_vio_io_event event;
 
-#ifndef HAVE_YASSL
     /*
       OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
       SSL_write() returns an error from the error queue, when SSL_write() failed
       because it would block.
     */
     DBUG_ASSERT(ERR_peek_error() == 0);
-#endif
 
     ret= SSL_write(ssl, buf, size);
 
@@ -239,22 +233,6 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
   DBUG_RETURN(ret < 0 ? -1 : ret);
 }
 
-#ifdef HAVE_YASSL
-
-/* Emulate a blocking recv() call with vio_read(). */
-static long yassl_recv(void *ptr, void *buf, size_t len)
-{
-  return vio_read(ptr, buf, len);
-}
-
-
-/* Emulate a blocking send() call with vio_write(). */
-static long yassl_send(void *ptr, const void *buf, size_t len)
-{
-  return vio_write(ptr, buf, len);
-}
-
-#endif
 
 int vio_ssl_shutdown(Vio *vio)
 {
@@ -341,14 +319,12 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl,
   {
     enum enum_vio_io_event event;
 
-#ifndef HAVE_YASSL
     /*
       OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
       SSL-handshake-function returns an error from the error queue, when the
       function failed because it would block.
     */
     DBUG_ASSERT(ERR_peek_error() == 0);
-#endif
 
     ret= func(ssl);
 
@@ -380,7 +356,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF)
   int j, n;
 #endif
 
@@ -397,13 +373,13 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
   SSL_set_fd(ssl, sd);
-#if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
+#if defined(SSL_OP_NO_COMPRESSION)
   SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
 #elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF)
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -418,20 +394,6 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
         DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
       }
   }
-#endif
-
-  /*
-    Since yaSSL does not support non-blocking send operations, use
-    special transport functions that properly handles non-blocking
-    sockets. These functions emulate the behavior of blocking I/O
-    operations by waiting for I/O to become available.
-  */
-#ifdef HAVE_YASSL
-  /* Set first argument of the transport functions. */
-  yaSSL_transport_set_ptr(ssl, vio);
-  /* Set functions to use in order to send and receive data. */
-  yaSSL_transport_set_recv_function(ssl, yassl_recv);
-  yaSSL_transport_set_send_function(ssl, yassl_send);
 #endif
 
   if ((r= ssl_handshake_loop(vio, ssl, func, ssl_errno_holder)) < 1)

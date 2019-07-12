@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -167,7 +167,22 @@ ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
-SET(LIBS clientlib dbug strings vio mysys mysys_ssl ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})
+SET(LIBS_TO_MERGE
+  clientlib dbug strings vio mysys mysys_ssl
+  )
+SET(LIBS_TO_LINK ${LIBDL})
+
+IF(WITH_ZLIB STREQUAL "bundled")
+  LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
+ELSE()
+  LIST(APPEND LIBS_TO_LINK ${ZLIB_LIBRARY})
+ENDIF()
+
+IF(WITH_SSL STREQUAL "system")
+  LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})
+ELSE()
+  LIST(APPEND LIBS_TO_MERGE ${SSL_LIBRARIES})
+ENDIF()
 
 #
 # On Windows platform client library includes the client-side 
@@ -176,16 +191,17 @@ SET(LIBS clientlib dbug strings vio mysys mysys_ssl ${ZLIB_LIBRARY} ${SSL_LIBRAR
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   ADD_SUBDIRECTORY(authentication_win)
-  LIST(APPEND LIBS auth_win_client)
+  LIST(APPEND LIBS_TO_MERGE auth_win_client)
 ENDIF()
 
 # Merge several convenience libraries into one big mysqlclient
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
+MERGE_LIBRARIES(mysqlclient STATIC ${LIBS_TO_MERGE} COMPONENT Development)
+TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
- INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
- INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
 MACRO(GET_TARGET_NAME target out_name)
@@ -218,9 +234,10 @@ ENDIF()
 IF(NOT DISABLE_SHARED)
   # Merge several convenience libraries into one big mysqlclient
   # and link them together into shared library.
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS_TO_MERGE}
     EXPORTS ${CLIENT_API_FUNCTIONS}
     COMPONENT SharedLibraries)
+  TARGET_LINK_LIBRARIES(libmysql ${LIBS_TO_LINK})
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
@@ -241,7 +258,7 @@ IF(NOT DISABLE_SHARED)
     ENDIF()
 
     GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-    IF(NOT libmysql_link_flag)
+    IF(NOT libmysql_link_flags)
       SET(libmysql_link_flags)
     ENDIF()
     SET(libmysql_link_flags
