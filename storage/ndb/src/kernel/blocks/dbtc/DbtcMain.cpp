@@ -4685,14 +4685,6 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   sig2 = regTcPtr->dirtyOp;
   bool dirtyRead = (sig1 == ZREAD && sig2 == ZTRUE);
   LqhKeyReq::setLastReplicaNo(Tdata10, regTcPtr->lastReplicaNo);
-  if (unlikely(version < NDBD_ROWID_VERSION))
-  {
-    Uint32 op = regTcPtr->operation;
-    Uint32 lock = (Operation_t) op == ZREAD_EX ?  ZUPDATE :
-                                      (Operation_t) op == ZWRITE ?
-                                      ZINSERT : (Operation_t) op;
-    LqhKeyReq::setLockType(Tdata10, lock);
-  }
   /* ---------------------------------------------------------------------- */
   // Indicate Application Reference is present in bit 15
   /* ---------------------------------------------------------------------- */

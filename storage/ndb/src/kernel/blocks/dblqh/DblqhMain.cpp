@@ -5983,12 +5983,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->m_use_rowid   = LqhKeyReq::getRowidFlag(Treqinfo);
   regTcPtr->m_dealloc_state     = TcConnectionrec::DA_IDLE;
   regTcPtr->m_dealloc_data.m_dealloc_ref_count = RNIL;
-  if (unlikely(senderVersion < NDBD_ROWID_VERSION))
-  {
-    regTcPtr->operation = op;
-    regTcPtr->lockType = LqhKeyReq::getLockType(Treqinfo);
-  }
-  else
   {
     regTcPtr->operation = (Operation_t) op == ZREAD_EX ? ZREAD : (Operation_t) op;
     regTcPtr->lockType = 
