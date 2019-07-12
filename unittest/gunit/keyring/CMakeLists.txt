@@ -20,17 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
-IF(NOT GMOCK_FOUND)
-  RETURN()
-ENDIF()
-
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
-INCLUDE_DIRECTORIES(
-  ${GMOCK_INCLUDE_DIRS}
-)
-
 SET(TESTS
   keyring-api
   keys_container
@@ -86,9 +75,7 @@ IF (MERGE_UNITTESTS)
     gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t ${ICU_LIBRARIES})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
 
   ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)
 
@@ -116,10 +103,7 @@ FOREACH(test ${TESTS})
     gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t perfschema)
 
   IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)

@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-# ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/components/example
   ${CMAKE_SOURCE_DIR}/components/mysql_server
 )

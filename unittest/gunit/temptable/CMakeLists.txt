@@ -56,9 +56,7 @@ IF (MERGE_UNITTESTS)
   #TARGET_LINK_LIBRARIES(merge_temptable_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
   #INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_temptable_tests-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(merge_temptable_tests-t perfschema)
 
   ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
 
@@ -88,9 +86,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t perfschema)
 
   ADD_DEPENDENCIES(${test}-t GenError)
 

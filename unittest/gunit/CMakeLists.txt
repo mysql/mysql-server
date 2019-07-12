@@ -305,10 +305,8 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
     gunit_large strings mysys ${ICU_LIBRARIES})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
-    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
+  TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
 
   SET(ADD_MERGE_LARGE_TESTS 1)
   IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
@@ -364,9 +362,7 @@ FOREACH(test ${SERVER_TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t perfschema)
 
   IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)

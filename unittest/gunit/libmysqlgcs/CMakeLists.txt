@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-###
-### Includes
-###
-
 IF(NOT WIN32)
   MYSQL_CHECK_RPC()
 ENDIF()
@@ -35,7 +31,6 @@ ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 
 INCLUDE_DIRECTORIES(
   SYSTEM
-  ${GMOCK_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/xdr_gen
@@ -46,10 +41,11 @@ INCLUDE_DIRECTORIES(
 
 IF (WIN32)
   SET (XCOM_BASEDIR
-       ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom)
-  INCLUDE_DIRECTORIES(${XCOM_BASEDIR}/windeps/include
-                      ${XCOM_BASEDIR}/windeps/sunrpc
-                      ${XCOM_BASEDIR}/windeps/sunrpc/rpc)
+    ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom)
+  INCLUDE_DIRECTORIES(
+    ${XCOM_BASEDIR}/windeps/include
+    ${XCOM_BASEDIR}/windeps/sunrpc
+    ${XCOM_BASEDIR}/windeps/sunrpc/rpc)
 ENDIF()
 
 ###
@@ -57,35 +53,35 @@ ENDIF()
 ###
 
 SET(GCS_INTERFACE_TESTS
-    interface/gcs_message
-    interface/gcs_tagged_lock)
+  interface/gcs_message
+  interface/gcs_tagged_lock)
 
 SET(GCS_XCOM_TESTS
-    xcom/gcs_logging
-    xcom/gcs_logging_system
-    xcom/gcs_parameters
-    xcom/gcs_xcom_notification
-    xcom/gcs_xcom_utils
-    xcom/gcs_msg_stages
-    xcom/gcs_whitelist
-    xcom/gcs_xcom_group_management
-    xcom/gcs_xcom_state_exchange
-    xcom/gcs_packet
-    xcom/gcs_xcom_communication_interface
-    xcom/gcs_xcom_interface_unit
-    xcom/gcs_xcom_statistics_interface
-    xcom/gcs_xcom_group_member_information
-    xcom/gcs_mpsc_queue
-    xcom/gcs_xcom_input_queue
-    xcom/gcs_xcom_networking
-    xcom/gcs_xcom_xcom_base
-    xcom/gcs_xcom_xcom_transport
-    xcom/gcs_xcom_communication_protocol_changer
-    xcom/gcs_xcom_xcom_cache
-    xcom/gcs_xcom_control_interface
-    xcom/gcs_xcom_view_identifier
-    xcom/gcs_message_stage_fragmentation
-   )
+  xcom/gcs_logging
+  xcom/gcs_logging_system
+  xcom/gcs_parameters
+  xcom/gcs_xcom_notification
+  xcom/gcs_xcom_utils
+  xcom/gcs_msg_stages
+  xcom/gcs_whitelist
+  xcom/gcs_xcom_group_management
+  xcom/gcs_xcom_state_exchange
+  xcom/gcs_packet
+  xcom/gcs_xcom_communication_interface
+  xcom/gcs_xcom_interface_unit
+  xcom/gcs_xcom_statistics_interface
+  xcom/gcs_xcom_group_member_information
+  xcom/gcs_mpsc_queue
+  xcom/gcs_xcom_input_queue
+  xcom/gcs_xcom_networking
+  xcom/gcs_xcom_xcom_base
+  xcom/gcs_xcom_xcom_transport
+  xcom/gcs_xcom_communication_protocol_changer
+  xcom/gcs_xcom_xcom_cache
+  xcom/gcs_xcom_control_interface
+  xcom/gcs_xcom_view_identifier
+  xcom/gcs_message_stage_fragmentation
+  )
 
 ###
 ### Configure the tests and add target
@@ -100,11 +96,12 @@ FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
 ENDFOREACH()
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-ADD_CUSTOM_TARGET(libmysqlgcs-tests
-                  DEPENDS
-                  ${GCS_LIBRARY}
-                  ${LZ4_LIBRARY}
-                  ${GCS_UNIT_TESTS})
+ADD_CUSTOM_TARGET(
+  libmysqlgcs-tests
+  DEPENDS
+  ${GCS_LIBRARY}
+  ${LZ4_LIBRARY}
+  ${GCS_UNIT_TESTS})
