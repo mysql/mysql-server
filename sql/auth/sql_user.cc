@@ -2141,7 +2141,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
         fail the statement. If the role exists but isn't granted, this statement
         performs an implicit GRANT.
       */
-      if (thd->lex->default_roles != 0 &&
+      if (thd->lex->default_roles != nullptr &&
           thd->lex->sql_command == SQLCOM_CREATE_USER) {
         List_of_auth_id_refs default_roles;
         List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
