@@ -167,7 +167,7 @@ if(! -d "$opt_srcdir/libmysqld")
   else
   {
     # Hardcoded options controlling how to build MySQL Server
-    push(@args, "-DWITH_SSL=bundled"); # Consistent error messages
+    # push(@args, "-DWITH_SSL=bundled"); # Consistent error messages
 
     # Hardcoded options controlling how to build NDB
     push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
