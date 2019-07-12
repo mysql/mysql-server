@@ -8615,6 +8615,11 @@ static void warn_on_deprecated_float_unsigned(THD *thd,
 
 static void warn_on_deprecated_zerofill(THD *thd,
                                         const Create_field &sql_field) {
+  // The YEAR data type is implicitly ZEROFILL. Should only warn if it has been
+  // declared explicitly as ZEROFILL, but that cannot be determined at this
+  // point, so suppress the warning to avoid confusion.
+  if (sql_field.sql_type == MYSQL_TYPE_YEAR) return;
+
   if (sql_field.flags & ZEROFILL_FLAG)
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,

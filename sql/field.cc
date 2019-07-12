@@ -5682,8 +5682,10 @@ type_conversion_status Field_year::store(longlong nr, bool) {
 bool Field_year::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
+  // YEAR is always ZEROFILL. Always zero-pad values up to 2 or 4 digits.
+  DBUG_ASSERT(zerofill);
   ulonglong tmp = Field_year::val_int();
-  return protocol->store_short(tmp, zerofill ? field_length : 0);
+  return protocol->store_short(tmp, field_length);
 }
 
 double Field_year::val_real() const { return (double)Field_year::val_int(); }
@@ -5704,6 +5706,8 @@ String *Field_year::val_str(String *val_buffer,
   DBUG_ASSERT(field_length < 5);
   val_buffer->alloc(5);
   val_buffer->length(field_length);
+  // YEAR is always ZEROFILL. Always zero-pad values up to 2 or 4 digits.
+  DBUG_ASSERT(zerofill);
   char *to = val_buffer->ptr();
   sprintf(to, field_length == 2 ? "%02d" : "%04d", (int)Field_year::val_int());
   val_buffer->set_charset(&my_charset_numeric);

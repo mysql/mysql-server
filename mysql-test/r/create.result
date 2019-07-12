@@ -502,7 +502,6 @@ create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnul
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -2760,11 +2759,7 @@ CREATE TABLE t1(col YEAR ZEROFILL);
 Warnings:
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CREATE TABLE t2 LIKE t1;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CREATE TABLE t3 AS SELECT * FROM t1;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
 ALTER TABLE t1 MODIFY COLUMN col2 YEAR ZEROFILL;
 Warnings:
