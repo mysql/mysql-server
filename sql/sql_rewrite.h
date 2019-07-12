@@ -181,6 +181,8 @@ class Rewriter_user : public I_rewriter {
   void rewrite_password_expired(const LEX *lex, String *str) const;
   /* Append the PASSWORD REQUIRE CURRENT clause for users */
   void rewrite_password_require_current(LEX *lex, String *str) const;
+  /* Append the DEFAULT ROLE OPTIONS clause */
+  void rewrite_default_roles(const LEX *lex, String *str) const;
 };
 /** Rewrites the CREATE USER statement. */
 class Rewriter_create_user final : public Rewriter_user {
@@ -228,8 +230,6 @@ class Rewriter_show_create_user final : public Rewriter_user {
                              String *str) const override;
   void rewrite_password_history(const LEX *lex, String *str) const override;
   void rewrite_password_reuse(const LEX *lex, String *str) const override;
-  /* Append the DEFAULT ROLE OPTIONS clause */
-  void rewrite_default_roles(const LEX *lex, String *str) const;
   Show_user_params *show_params_;
 };
 /** Rewrites the SET statement. */
