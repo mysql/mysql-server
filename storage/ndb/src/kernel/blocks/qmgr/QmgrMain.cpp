@@ -51,6 +51,8 @@
 #include <signaldata/IsolateOrd.hpp>
 #include <signaldata/ProcessInfoRep.hpp>
 #include <signaldata/LocalSysfile.hpp>
+#include <signaldata/SyncThreadViaReqConf.hpp>
+#include <signaldata/TakeOverTcConf.hpp>
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
@@ -3954,6 +3956,9 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
    * earlier information that transactions can be aborted
    */
   signal->theData[0] = rep.failedNodeId;
+  // The below entries are not used by NdbAPI.
+  signal->theData[1] = reference();
+  signal->theData[2] = 0; // Unknown failure number
   NodeRecPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
@@ -3963,7 +3968,7 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
     {
       jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 
-                 NFCompleteRep::SignalLength, JBB);
+                 TakeOverTcConf::SignalLength, JBB);
     }//if
   }//for
   return;
@@ -5351,32 +5356,19 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
      * SIGNAL. WE CAN HEAR IT SEVERAL TIMES IF THE PRESIDENTS KEEP FAILING.
      *-----------------------------------------------------------------------*/
     ccommitFailureNr = TfailureNr;
-    NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
     
-    nodeFail->failNo    = ccommitFailureNr;
-    nodeFail->masterNodeId = cpresident;
-    nodeFail->noOfNodes = ccommitFailedNodes.count();
-    ccommitFailedNodes.copyto(NdbNodeBitmask::Size,
-                              &signal->theData[NodeFailRep::SignalLengthLong]);
+    Uint32 nodeFailIndex = TfailureNr % MAX_DATA_NODE_FAILURES;
+    NodeFailRec* TnodeFailRec = &nodeFailRec[nodeFailIndex];
+    ndbrequire(TnodeFailRec->president == 0);
+    TnodeFailRec->failureNr = TfailureNr;
+    TnodeFailRec->president = cpresident;
+    TnodeFailRec->nodes = ccommitFailedNodes;
 
-    LinearSectionPtr lsptr[3];
-    lsptr->p = &signal->theData[NodeFailRep::SignalLengthLong];
-    lsptr->sz = ccommitFailedNodes.getPackedLengthInWords();
-
-    if (ERROR_INSERTED(936))
-    {
-      SectionHandle handle(this);
-      ndbrequire(import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz));
-      handle.m_cnt = 1;
-      sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
-                          200, NodeFailRep::SignalLength, &handle);
-      releaseSections(handle);
-    }
-    else
-    {
-      sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
-                 NodeFailRep::SignalLength, JBB, lsptr, 1);
-    }
+    SyncThreadViaReqConf* syncReq =(SyncThreadViaReqConf*)&signal->theData[0];
+    syncReq->senderRef = reference();
+    syncReq->senderData = TfailureNr;
+    sendSignal(TRPMAN_REF, GSN_SYNC_THREAD_VIA_REQ, signal,
+               SyncThreadViaReqConf::SignalLength, JBA);
 
     /**--------------------------------------------------------------------
      * WE MUST PREPARE TO ACCEPT THE CRASHED NODE INTO THE CLUSTER AGAIN BY 
@@ -5396,6 +5388,10 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
     /*----------------------------------------------------------------------*/
     /*       WE INFORM THE API'S WE HAVE CONNECTED ABOUT THE FAILED NODES.  */
     /*----------------------------------------------------------------------*/
+    LinearSectionPtr lsptr[3];
+    lsptr->p = TnodeFailRec->nodes.rep.data;
+    lsptr->sz = TnodeFailRec->nodes.getPackedLengthInWords();
+
     for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
       ptrAss(nodePtr, nodeRec);
       if (nodePtr.p->phase == ZAPI_ACTIVE) {
@@ -5405,27 +5401,24 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
 
 	nodeFail->failNo    = ccommitFailureNr;
 	nodeFail->noOfNodes = ccommitFailedNodes.count();
-	ccommitFailedNodes.copyto(NdbNodeBitmask::Size,
-	                          &signal->theData[NodeFailRep::SignalLengthLong]);
 
-  lsptr->p = &signal->theData[NodeFailRep::SignalLengthLong];
-  lsptr->sz = ccommitFailedNodes.getPackedLengthInWords();
-
-  if (ndbd_send_node_bitmask_in_section(
-      getNodeInfo(refToNode(nodePtr.p->blockRef)).m_version))
-  {
-    sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal,
-       NodeFailRep::SignalLength, JBB, lsptr, 1);
-  }
-  else if (lsptr->sz <= NdbNodeBitmask48::Size)
-  {
-    sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal,
-		   NodeFailRep::SignalLength_v1, JBB);
-  }
-  else
-  {
-    ndbrequire(false);
-  }
+        if (ndbd_send_node_bitmask_in_section(
+            getNodeInfo(refToNode(nodePtr.p->blockRef)).m_version))
+        {
+          sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+        }
+        else if (lsptr->sz <= NdbNodeBitmask48::Size)
+        {
+	  TnodeFailRec->nodes.copyto(NdbNodeBitmask48::Size,
+	                             nodeFail->theNodes);
+          sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal,
+      		   NodeFailRep::SignalLength_v1, JBB);
+        }
+        else
+        {
+          ndbrequire(false);
+        }
       }//if
     }//for
 
@@ -5444,6 +5437,43 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
   sendSignal(Tblockref, GSN_COMMIT_FAILCONF, signal, 1, JBA);
   return;
 }//Qmgr::execCOMMIT_FAILREQ()
+
+void Qmgr::execSYNC_THREAD_VIA_CONF(Signal* signal)
+{
+  jamEntry();
+
+  const SyncThreadViaReqConf* syncConf =
+    (const SyncThreadViaReqConf*)&signal->theData[0];
+  const Uint32 index = syncConf->senderData % MAX_DATA_NODE_FAILURES;
+  NodeFailRec* TnodeFailRec = &nodeFailRec[index];
+  ndbrequire(TnodeFailRec->president != 0);
+  ndbrequire(TnodeFailRec->nodes.count() != 0);
+  NodeFailRep* nodeFail = (NodeFailRep*)&signal->theData[0];
+  nodeFail->failNo = TnodeFailRec->failureNr;
+  nodeFail->masterNodeId = TnodeFailRec->president;
+  nodeFail->noOfNodes = TnodeFailRec->nodes.count();
+
+  LinearSectionPtr lsptr[3];
+  lsptr->p = TnodeFailRec->nodes.rep.data;
+  lsptr->sz = TnodeFailRec->nodes.getPackedLengthInWords();
+
+  TnodeFailRec->president = 0; // Mark entry as unused.
+
+  if (ERROR_INSERTED(936))
+  {
+    SectionHandle handle(this);
+    ndbrequire(import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz));
+    handle.m_cnt = 1;
+    sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
+                        200, NodeFailRep::SignalLength, &handle);
+    releaseSections(handle);
+  }
+  else
+  {
+    sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal,
+               NodeFailRep::SignalLength, JBA, lsptr, 1);
+  }
+}
 
 /*--------------------------------------------------------------------------*/
 /* WE HAVE RECEIVED A CONFIRM OF THAT THIS NODE HAVE COMMITTED THE FAILURES.*/

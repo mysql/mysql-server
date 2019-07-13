@@ -49,6 +49,7 @@ Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_DISCONNECT_REP, &Trpman::execDISCONNECT_REP);
   addRecSignal(GSN_CONNECT_REP, &Trpman::execCONNECT_REP);
   addRecSignal(GSN_ROUTE_ORD, &Trpman::execROUTE_ORD);
+  addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &Trpman::execSYNC_THREAD_VIA_REQ);
 
   addRecSignal(GSN_NDB_TAMPER, &Trpman::execNDB_TAMPER, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trpman::execDUMP_STATE_ORD);
@@ -786,6 +787,43 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
 #endif
 }
 
+void
+Trpman::sendSYNC_THREAD_VIA_CONF(Signal* signal, Uint32 senderData, Uint32 retVal)
+{
+  jamEntry();
+  SyncThreadViaReqConf* conf = (SyncThreadViaReqConf*)signal->getDataPtr();
+  conf->senderData = senderData;
+  sendSignal(TRPMAN_REF, GSN_SYNC_THREAD_VIA_CONF, signal, signal->getLength(), JBA);
+}
+
+void
+Trpman::execSYNC_THREAD_VIA_REQ(Signal *signal)
+{
+  jam();
+  SyncThreadViaReqConf* req = (SyncThreadViaReqConf*)signal->getDataPtr();
+  Callback cb = { safe_cast(&Trpman::sendSYNC_THREAD_VIA_CONF), req->senderData};
+  /* Make sure all external signals handled by transporters belonging to this
+   * TRPMAN have been processed.
+   */
+  synchronize_external_signals(signal, cb);
+}
+
+bool
+Trpman::getParam(const char* name, Uint32* count)
+{
+  /* Trpman uses synchronize_threads_for_block(THRMAN) prior sending
+   * NODE_FAILREP.
+   * An overestimate of the maximum possible concurrent NODE_FAILREP is one
+   * node failure per NODE_FAILREP, and all nodes failing!
+   */
+  if (strcmp(name, "ActiveThreadSync") != 0)
+  {
+    return false;
+  }
+  *count = MAX_DATA_NODE_ID;
+  return true;
+}
+
 TrpmanProxy::TrpmanProxy(Block_context & ctx) :
   LocalProxy(TRPMAN, ctx)
 {
@@ -795,6 +833,8 @@ TrpmanProxy::TrpmanProxy(Block_context & ctx) :
   addRecSignal(GSN_CLOSE_COMREQ, &TrpmanProxy::execCLOSE_COMREQ);
   addRecSignal(GSN_CLOSE_COMCONF, &TrpmanProxy::execCLOSE_COMCONF);
   addRecSignal(GSN_ROUTE_ORD, &TrpmanProxy::execROUTE_ORD);
+  addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &TrpmanProxy::execSYNC_THREAD_VIA_REQ);
+  addRecSignal(GSN_SYNC_THREAD_VIA_CONF, &TrpmanProxy::execSYNC_THREAD_VIA_CONF);
 }
 
 TrpmanProxy::~TrpmanProxy()
@@ -981,3 +1021,57 @@ TrpmanProxy::execROUTE_ORD(Signal* signal)
   sendSignal(workerRef(workerIndex), GSN_ROUTE_ORD, signal,
              signal->getLength(), JBB, &handle);
 }
+
+// GSN_SYNC_THREAD_VIA
+
+void
+TrpmanProxy::execSYNC_THREAD_VIA_REQ(Signal* signal)
+{
+  jamEntry();
+  Ss_SYNC_THREAD_VIA& ss = ssSeize<Ss_SYNC_THREAD_VIA>();
+  const SyncThreadViaReqConf* req = (const SyncThreadViaReqConf*)signal->getDataPtr();
+  ss.m_req = *req;
+  sendREQ(signal, ss);
+}
+
+void
+TrpmanProxy::sendSYNC_THREAD_VIA_REQ(Signal *signal, Uint32 ssId, SectionHandle*)
+{
+  jam();
+  SyncThreadViaReqConf* req = (SyncThreadViaReqConf*)signal->getDataPtr();
+  req->senderRef = reference();
+  req->senderData = ssId;
+  Ss_SYNC_THREAD_VIA& ss = ssFind<Ss_SYNC_THREAD_VIA>(ssId);
+  sendSignal(workerRef(ss.m_worker), GSN_SYNC_THREAD_VIA_REQ, signal,
+             SyncThreadViaReqConf::SignalLength, JBA);
+}
+
+void
+TrpmanProxy::execSYNC_THREAD_VIA_CONF(Signal* signal)
+{
+  jamEntry();
+  const SyncThreadViaReqConf* conf = (const SyncThreadViaReqConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_SYNC_THREAD_VIA& ss = ssFind<Ss_SYNC_THREAD_VIA>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+TrpmanProxy::sendSYNC_THREAD_VIA_CONF(Signal *signal, Uint32 ssId)
+{
+  jam();
+  Ss_SYNC_THREAD_VIA& ss = ssFind<Ss_SYNC_THREAD_VIA>(ssId);
+
+  if (!lastReply(ss))
+  {
+    jam();
+    return;
+  }
+
+  SyncThreadViaReqConf* conf = (SyncThreadViaReqConf*)signal->getDataPtr();
+  *conf = ss.m_req;
+  sendSignal(conf->senderRef, GSN_SYNC_THREAD_VIA_CONF, signal,
+             NodeFailRep::SignalLength, JBB);
+  ssRelease<Ss_SYNC_THREAD_VIA>(ssId);
+}
+

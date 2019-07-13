@@ -43,6 +43,7 @@
 
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
+#include <ndb_limits.h>
 
 #include "timer.hpp"
 
@@ -294,6 +295,13 @@ public:
     ENABLE_COM_API_REGREQ = 2
   };
 
+  struct NodeFailRec
+  {
+    NdbNodeBitmask nodes;
+    Uint32 failureNr;
+    Uint16 president;
+  };
+
 public:
   Qmgr(Block_context&);
   virtual ~Qmgr();
@@ -360,6 +368,7 @@ private:
   void sendApiRegConf(Signal *signal, Uint32 node);
   
   void execSTART_ORD(Signal*);
+  void execSYNC_THREAD_VIA_CONF(Signal*);
 
   // Arbitration signals
   void execARBIT_CFG(Signal* signal);
@@ -524,6 +533,8 @@ private:
 
   NodeRec *nodeRec;
   ArbitRec arbitRec;
+  static constexpr Uint32 MAX_DATA_NODE_FAILURES = MAX_DATA_NODE_ID;
+  NodeFailRec *nodeFailRec;
 
   /* Block references ------------------------------*/
   BlockReference cpdistref;	 /* Dist. ref of president   */

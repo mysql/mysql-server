@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,51 +22,39 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NODE_FAILREP_HPP
-#define NODE_FAILREP_HPP
+#ifndef SYNCTHREADVIAREQCONF_HPP
+#define SYNCTHREADVIAREQCONF_HPP
 
 #include "SignalData.hpp"
-#include <NodeBitmask.hpp>
 
-#define JAM_FILE_ID 59
+#define JAM_FILE_ID 514
 
 
 /**
- * This signals is sent by Qmgr to NdbCntr
- *   and then from NdbCntr sent to: dih, dict, lqh, tc, API
- *   and others
+ * This is a local signal sent between QMGR and TRPMAN proxy do drain any pending
+ * signals in THRMAN queue from each TRPMAN.
+ *
+ * Used when sending out NODE_FAILREP from Qmgr to ensure that all signals from
+ * a failed node have been processed before NODE_FAILREP arrives.
  */
-struct NodeFailRep {
-  STATIC_CONST( SignalLength = 3 );
-  STATIC_CONST( SignalLengthLong = 3 );
 
-  STATIC_CONST( SignalLength_v1 = 3 + NdbNodeBitmask48::Size );
-  STATIC_CONST( SignalLengthLong_v1 = 3 + NodeBitmask::Size );
+class SyncThreadViaReqConf
+{
+  /* Sender */
+  friend class Qmgr;
+  friend class Trpman;
+  friend class TrpmanProxy;
 
-  Uint32 failNo;
+  /* Receiver */
+  friend class Qmgr;
+  friend class Trpman;
+  friend class TrpmanProxy;
 
-  /**
-   * Note: This field is only set when signals is sent FROM Ndbcntr
-   *       (not when signal is sent from Qmgr)
-   */
-  Uint32 masterNodeId;
+  static constexpr Uint32 SignalLength = 2;
 
-  Uint32 noOfNodes;
-  union
-  {
-    Uint32 theNodes[NdbNodeBitmask::Size]; // data nodes 8.0.17 and older
-    Uint32 theAllNodes[NodeBitmask::Size]; // api nodes 8.0.17 and older
-  };
-
-  static Uint32 getNodeMaskLength(Uint32 signalLength) {
-    assert(signalLength == SignalLength ||
-           signalLength == SignalLengthLong ||
-           signalLength == SignalLength_v1 ||
-           signalLength == SignalLengthLong_v1);
-    return signalLength - 3;
-  }
+  Uint32 senderRef;
+  Uint32 senderData;
 };
-
 
 #undef JAM_FILE_ID
 

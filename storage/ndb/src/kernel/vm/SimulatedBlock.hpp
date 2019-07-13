@@ -69,6 +69,7 @@
 #include "Ndbinfo.hpp"
 #include "portlib/NdbMem.h"
 #include <ndb_global.h>
+#include "BlockThreadBitmask.hpp"
 
 struct CHARSET_INFO;
 
@@ -595,9 +596,26 @@ public:
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
-  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
-                                      const Callback&, JobBufferLevel = JBB);
+  void synchronize_threads(Signal * signal,
+                           const BlockThreadBitmask& threads,
+                           const Callback & cb,
+                           JobBufferLevel req_prio,
+                           JobBufferLevel conf_prio);
+
+  void synchronize_threads_for_blocks(
+           Signal*,
+           const Uint32 blocks[],
+           const Callback&,
+           JobBufferLevel req_prio = JBB,
+           JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
+  /**
+   * This method will make sure that all external signals from nodes handled by
+   * transporters in current thread are processed.
+   * Should be called from a TRPMAN-worker.
+   */
+  void synchronize_external_signals(Signal* signal, const Callback& cb);
+
   /**
    * This method make sure that the path specified in blocks[]
    *   will be traversed before returning
@@ -624,8 +642,10 @@ public:
 private:
   struct SyncThreadRecord
   {
+    BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
+    Uint32 m_next;
     Uint32 nextPool;
   };
   typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
@@ -633,6 +653,7 @@ private:
   SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
+  void sendSYNC_THREAD_REQ(Signal*, Ptr<SimulatedBlock::SyncThreadRecord>);
 
   void execSYNC_REQ(Signal*);
 

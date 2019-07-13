@@ -81,6 +81,7 @@
 #include <signaldata/PackedSignal.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/LqhTransReq.hpp>
+#include <signaldata/TakeOverTcConf.hpp>
 #include <AttributeHeader.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <AttributeDescriptor.hpp>
@@ -10793,22 +10794,24 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
 {
   jamEntry();
 
-  if (!checkNodeFailSequence(signal))
+  const Uint32 sig_len = signal->getLength();
+
+  if (sig_len <= TakeOverTcConf::SignalLength_v8_0_17)
   {
-    jam();
-    return;
+    if (!checkNodeFailSequence(signal))
+    {
+      jam();
+      return;
+    }
   }
 
-  Uint32 failedNodeId = signal->theData[0];
+  const TakeOverTcConf* const conf = (const TakeOverTcConf*) &signal->theData;
+
+  const Uint32 failedNodeId = conf->failedNode;
   hostptr.i = failedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-  Uint32 senderRef = signal->theData[1];
-  if (signal->getLength() < 2)
-  {
-    jam();
-    senderRef = 0; // currently only used to see if it's from self
-  }
+  const Uint32 senderRef = conf->senderRef;
 
   if (senderRef != reference())
   {
@@ -10835,6 +10838,29 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
 
         jam();
         break;
+      }
+    }
+
+    if (sig_len > TakeOverTcConf::SignalLength_v8_0_17)
+    {
+      if (i == end)
+      {
+        const Uint32 senderTcFailNo = conf->tcFailNo;
+        const Uint32 tcFailNo = cfailure_nr;
+
+        /* If we have not yet seen all failures that sender has, delay this
+         * signal for retry later.
+         *
+         * If we have seen the failure number that sender have seen, we really
+         * should have queued the node failed for handling.
+         */
+        if (tcFailNo < senderTcFailNo)
+        {
+          jam();
+          sendSignalWithDelay(reference(), GSN_TAKE_OVERTCCONF, signal,
+                              100, signal->getLength());
+          return;
+        }
       }
     }
     ndbrequire(i != end);
@@ -11687,9 +11713,14 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
     /*       NODES THAT ARE ALIVE.                                */
     /*------------------------------------------------------------*/
     NodeReceiverGroup rg(DBTC, c_alive_nodes);
-    signal->theData[0] = tcNodeFailptr.p->takeOverNode;
-    signal->theData[1] = reference();
-    sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 2, JBB);
+    TakeOverTcConf* const conf = (TakeOverTcConf*) &signal->theData;
+    conf->failedNode = tcNodeFailptr.p->takeOverNode;
+    conf->senderRef = reference();
+    conf->tcFailNo = cfailure_nr;
+    // It is ok to send too long signal to old nodes (<8.0.18).
+    sendSignal(rg, GSN_TAKE_OVERTCCONF, signal,
+               TakeOverTcConf::SignalLength,
+               JBB);
     
     if (tcNodeFailptr.p->queueIndex > 0) {
       jam();

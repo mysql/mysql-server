@@ -10352,6 +10352,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   Uint32 failedNodes[MAX_NDB_NODES];
   jamEntry();
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
+  NdbNodeBitmask allFailed;
 
   if (signal->getNoOfSections() >= 1)
   {
@@ -10360,20 +10361,57 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
     handle.getSection(ptr, 0);
-    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
-    copy(nodeFail->theNodes, ptr);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(allFailed.rep.data, ptr);
     releaseSections(handle);
   }
   else
   {
-    memset(nodeFail->theNodes + NdbNodeBitmask48::Size,
-           0,
-           _NDB_NBM_DIFF_BYTES);
+    allFailed.assign(NdbNodeBitmask48::Size, nodeFail->theNodes);
   }
 
   cfailurenr = nodeFail->failNo;
   Uint32 newMasterId = nodeFail->masterNodeId;
   const Uint32 noOfFailedNodes = nodeFail->noOfNodes;
+
+  /* Send NODE_FAILREP to rest of blocks (not NDBCNTR, QMGR, DBDIH).
+   * Some of them will respond with NF_COMPLETEREP to DBDIH when they handled
+   * the node failure.
+   */
+
+  LinearSectionPtr lsptr[1];
+  lsptr[0].p = allFailed.rep.data;
+  lsptr[0].sz = allFailed.getPackedLengthInWords();
+
+  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+
+  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
 
   if (ERROR_INSERTED(7179) || ERROR_INSERTED(7217))
   {
@@ -10393,7 +10431,8 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   Uint32 index = 0;
   for (i = 1; i <= m_max_node_id; i++)
   {
-    if(NdbNodeBitmask::get(nodeFail->theNodes, i)){
+    if (allFailed.get(i))
+    {
       jamLine(i);
       failedNodes[index] = i;
       index++;
@@ -24181,6 +24220,14 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
      */
     Uint32 blocks[] = { DBTC, 0 };
     Callback c = { safe_cast(&Dbdih::emptyverificbuffer_check), q };
+    /* Wait until all DIVERIFYCONF sent (from DBDIH) to any DBTC worker have
+     * been received.
+     * This function is also called from Dbdih::execUNBLOCK_COMMIT_ORD() which
+     * can be called from QMGR by EXECUTE_DIRECT (they must share thread to
+     * share the relevant state without explicit synchronization).
+     * The below synchronization depends on that signals from QMGR to any DBTC
+     * worker ends up in same signal queue as signals from DBDIH.
+     */
     synchronize_threads_for_blocks(signal, blocks, c);
     return;
   }

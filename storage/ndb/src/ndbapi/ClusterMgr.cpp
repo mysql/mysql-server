@@ -1324,7 +1324,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   }
   else if (sig->getLength() == NodeFailRep::SignalLength_v1)
   {
-    mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+    mask.assign(NdbNodeBitmask48::Size, rep->theNodes);
   }
   else
   {

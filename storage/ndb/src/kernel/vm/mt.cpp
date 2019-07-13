@@ -5875,6 +5875,7 @@ struct thr_map_entry {
 };
 
 static struct thr_map_entry thr_map[NO_OF_BLOCKS][NDBMT_MAX_BLOCK_INSTANCES];
+static Uint32 block_instance_count[NO_OF_BLOCKS];
 
 static inline Uint32
 block2ThreadId(Uint32 block, Uint32 instance)
@@ -6054,8 +6055,10 @@ mt_finalize_thr_map()
     Uint32 cnt = 0;
     while (cnt < NDB_ARRAY_SIZE(thr_map[b]) &&
            thr_map[b][cnt].thr_no != thr_map_entry::NULL_THR_NO)
+    {
       cnt++;
-
+    }
+    block_instance_count[b] = cnt;
     if (cnt != NDB_ARRAY_SIZE(thr_map[b]))
     {
       SimulatedBlock * main = globalData.getBlock(bno, 0);
@@ -8539,12 +8542,10 @@ lookup_lock(const void * ptr)
 #endif
 
 Uint32
-mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
-                                    Uint32 dst[], Uint32 len)
+mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
+                                   BlockThreadBitmask& mask)
 {
   Uint32 cnt = 0;
-  Bitmask<(MAX_BLOCK_THREADS+31)/32> mask;
-  mask.set(threadId);
   for (Uint32 i = 0; blocks[i] != 0; i++)
   {
     Uint32 block = blocks[i];
@@ -8552,21 +8553,48 @@ mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
      * Find each thread that has instance of block
      */
     assert(block == blockToMain(block));
-    Uint32 index = block - MIN_BLOCK_NO;
-    for (Uint32 instance = 0; instance < NDB_ARRAY_SIZE(thr_map[instance]); instance++)
+    const Uint32 index = block - MIN_BLOCK_NO;
+    const Uint32 instance_count = block_instance_count[index];
+    require(instance_count <= NDB_ARRAY_SIZE(thr_map[index]));
+    // If more than one instance, avoid proxy instance 0
+    const Uint32 first_instance = (instance_count > 1) ? 1 : 0;
+    for (Uint32 instance = first_instance;
+         instance < instance_count;
+         instance++)
     {
       Uint32 thr_no = thr_map[index][instance].thr_no;
-      if (thr_no == thr_map_entry::NULL_THR_NO)
-        break;
+      require(thr_no != thr_map_entry::NULL_THR_NO);
 
       if (mask.get(thr_no))
         continue;
 
       mask.set(thr_no);
-      require(cnt < len);
-      dst[cnt++] = numberToRef(block, instance, 0);
+      cnt++;
     }
   }
+  require(mask.count() == cnt);
+  return cnt;
+}
+
+Uint32
+mt_get_addressable_threads(const Uint32 my_thr_no, BlockThreadBitmask& mask)
+{
+  const Uint32 thr_cnt = get_total_number_of_block_threads();
+  Uint32 cnt = 0;
+  for (Uint32 thr_no = 0; thr_no < thr_cnt; thr_no++)
+  {
+    if (may_communicate(my_thr_no, thr_no))
+    {
+      mask.set(thr_no);
+      cnt++;
+    }
+  }
+  if (!mask.get(my_thr_no))
+  {
+    mask.set(my_thr_no);
+    cnt++;
+  }
+  require(mask.count() == cnt);
   return cnt;
 }
 
