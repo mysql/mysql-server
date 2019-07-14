@@ -36,10 +36,10 @@ SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
 [connection server_1]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 DROP TABLE t2;
-[connection server_2]
-include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
 RESET SLAVE ALL FOR CHANNEL 'channel_1';
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
