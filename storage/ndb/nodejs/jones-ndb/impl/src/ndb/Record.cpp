@@ -24,6 +24,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <cstddef>
 
 #include "adapter_global.h"
 #include "unified_debug.h"
