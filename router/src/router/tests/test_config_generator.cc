@@ -225,7 +225,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
@@ -233,17 +232,16 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
 
     config_gen.fetch_metadata_servers(primary_replicaset_servers_,
                                       primary_cluster_name_,
-                                      primary_replicaset_name_, multi_master_);
+                                      primary_replicaset_name_);
 
     ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
                 Eq("mysql://somehost:3306"));
     ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
     ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-    ASSERT_THAT(multi_master_, Eq(false));
   }
 
   {
@@ -252,31 +250,16 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "mm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
 
     config_gen.fetch_metadata_servers(primary_replicaset_servers_,
                                       primary_cluster_name_,
-                                      primary_replicaset_name_, multi_master_);
+                                      primary_replicaset_name_);
 
     ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
                 Eq("mysql://somehost:3306"));
     ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
     ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-    ASSERT_THAT(multi_master_, Eq(true));
-  }
-
-  {
-    ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql.get());
-    config_gen.init(kServerUrl, {});
-
-    mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "xxx", "somehost:3306"}});
-
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
-                 std::runtime_error);
   }
 }
 
@@ -284,7 +267,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
@@ -293,23 +275,21 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 
     // "F.cluster_name, "
     // "R.replicaset_name, "
-    // "R.topology_type, "
     // "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"},
-            {"mycluster", "myreplicaset", "pm", "otherhost:3306"},
-            {"mycluster", "myreplicaset", "pm", "sumhost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"},
+            {"mycluster", "myreplicaset", "otherhost:3306"},
+            {"mycluster", "myreplicaset", "sumhost:3306"}});
 
     config_gen.fetch_metadata_servers(primary_replicaset_servers_,
                                       primary_cluster_name_,
-                                      primary_replicaset_name_, multi_master_);
+                                      primary_replicaset_name_);
 
     ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
                 Eq("mysql://somehost:3306,mysql://otherhost:3306,mysql://"
                    "sumhost:3306"));
     ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
     ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-    ASSERT_THAT(multi_master_, Eq(false));
   }
 }
 
@@ -317,19 +297,18 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"},
-            {"mycluster", "anotherreplicaset", "pm", "otherhost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"},
+            {"mycluster", "anotherreplicaset", "otherhost:3306"}});
 
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
+    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
+                                                   primary_cluster_name_,
+                                                   primary_replicaset_name_),
                  std::runtime_error);
   }
 
@@ -338,12 +317,12 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"},
-            {"anothercluster", "anotherreplicaset", "pm", "otherhost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"},
+            {"anothercluster", "anotherreplicaset", "otherhost:3306"}});
 
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
+    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
+                                                   primary_cluster_name_,
+                                                   primary_replicaset_name_),
                  std::runtime_error);
   }
 }
@@ -352,18 +331,17 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
-    mock_mysql->expect_query("").then_return(4, {});
+    mock_mysql->expect_query("").then_return(3, {});
     // no replicasets/clusters defined
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
+    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
+                                                   primary_cluster_name_,
+                                                   primary_replicaset_name_),
                  std::runtime_error);
   }
 }
@@ -754,8 +732,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
   ConfigGenerator config_gen;
   common_pass_metadata_checks(mock_mysql.get());
   config_gen.init(kServerUrl, {});
-  ConfigGenerator::Options options =
-      config_gen.fill_options(false, user_options);
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
 
   {
     std::stringstream conf_output, state_output;
@@ -902,7 +879,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     std::stringstream conf_output, state_output;
     auto opts = user_options;
     opts["base-port"] = "1234";
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
@@ -978,7 +955,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     opts["use-sockets"] = "1";
     opts["skip-tcp"] = "1";
     opts["socketsdir"] = tmp_dir();
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
@@ -1056,7 +1033,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     auto opts = user_options;
     opts["use-sockets"] = "1";
     opts["socketsdir"] = tmp_dir();
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
@@ -1141,7 +1118,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     std::stringstream conf_output, state_output;
     auto opts = user_options;
     opts["bind-address"] = "127.0.0.1";
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "myrouter",
                              "mysqlrouter", {"server1", "server2", "server3"},
@@ -1222,8 +1199,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   ConfigGenerator::Options options;
   {
     std::map<std::string, std::string> user_options;
-    options = config_gen.fill_options(true, user_options);
-    ASSERT_THAT(options.multi_master, Eq(true));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1238,8 +1214,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["bind-address"] = "127.0.0.1";
-    options = config_gen.fill_options(true, user_options);
-    ASSERT_THAT(options.multi_master, Eq(true));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq("127.0.0.1"));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1254,8 +1229,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1234";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(1234));
@@ -1272,37 +1246,37 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1";
-    options = config_gen.fill_options(false, user_options);
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.rw_endpoint.port, Eq(1));
     user_options["base-port"] = "3306";
-    options = config_gen.fill_options(false, user_options);
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.rw_endpoint.port, Eq(3306));
     user_options["base-port"] = "";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "-1";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "999999";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "0";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "65536";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "2000bozo";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
 
     // Bug #24808309
     user_options["base-port"] = "65533";
-    ASSERT_THROW_LIKE(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW_LIKE(options = config_gen.fill_options(user_options),
                       std::runtime_error, "Invalid base-port number");
 
     user_options["base-port"] = "65532";
-    ASSERT_NO_THROW(options = config_gen.fill_options(false, user_options));
+    ASSERT_NO_THROW(options = config_gen.fill_options(user_options));
 
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(65532));
@@ -1321,21 +1295,20 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["bind-address"] = "invalid";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["bind-address"] = "";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["bind-address"] = "1.2.3.4.5";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
   }
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
     user_options["skip-tcp"] = "1";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
@@ -1352,8 +1325,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["skip-tcp"] = "1";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(false));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
@@ -1370,8 +1342,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1387,8 +1358,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   }
   {
     std::map<std::string, std::string> user_options;
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1471,7 +1441,7 @@ static void expect_bootstrap_queries(
     const std::vector<query_entry_t> &expected_queries =
         expected_bootstrap_queries) {
   m->expect_query("").then_return(
-      4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
+      3, {{cluster_name, "myreplicaset", "somehost:3306"}});
   for (const auto &query : expected_queries) {
     switch (query.action) {
       case ACTION_EXECUTE:
@@ -1587,7 +1557,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("SELECT F.cluster_name")
-        .then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+        .then_return(3, {{"mycluter", "myreplicaset", "somehost:3306"}});
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
     KeyringInfo keyring_info("delme", "delme.key");
@@ -1627,7 +1597,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
     // force a failure during account creationg
     mock_mysql->expect_execute("").then_error("boo!", 1234);
 
@@ -1649,7 +1619,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluter", "myreplicaset", "somehost:3306"}});
 
     std::map<std::string, std::string> options2 = options;
     options2["name"] = "force\nfailure";
@@ -1679,7 +1649,7 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
 
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
@@ -1735,7 +1705,7 @@ static void bootstrap_overwrite_test(
     expect_bootstrap_queries(mock_mysql, cluster_name);
   else
     mock_mysql->expect_query("").then_return(
-        4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
+        3, {{cluster_name, "myreplicaset", "somehost:3306"}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -2325,7 +2295,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
       [&config_gen](const std::map<std::string, std::string> &user_options,
                     const char *result) {
         ConfigGenerator::Options options =
-            config_gen.fill_options(false, user_options);
+            config_gen.fill_options(user_options);
         std::stringstream conf_output, state_output;
         config_gen.create_config(conf_output, state_output, 123, "myrouter",
                                  "user", {"server1", "server2", "server3"},

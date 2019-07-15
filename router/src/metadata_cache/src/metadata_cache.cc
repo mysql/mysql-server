@@ -613,23 +613,22 @@ bool metadata_cache::ManagedInstance::operator==(
          std::fabs(weight - other.weight) <
              0.001 &&  // 0.001 = reasonable guess, change if needed
          host == other.host &&
-         location == other.location && port == other.port &&
-         version_token == other.version_token && xport == other.xport;
+         port == other.port && version_token == other.version_token &&
+         xport == other.xport;
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
     const std::string &p_replicaset_name,
     const std::string &p_mysql_server_uuid, const std::string &p_role,
     const ServerMode p_mode, const float p_weight,
-    const unsigned int p_version_token, const std::string &p_location,
-    const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
+    const unsigned int p_version_token, const std::string &p_host,
+    const uint16_t p_port, const uint16_t p_xport)
     : replicaset_name(p_replicaset_name),
       mysql_server_uuid(p_mysql_server_uuid),
       role(p_role),
       mode(p_mode),
       weight(p_weight),
       version_token(p_version_token),
-      location(p_location),
       host(p_host),
       port(p_port),
       xport(p_xport) {}

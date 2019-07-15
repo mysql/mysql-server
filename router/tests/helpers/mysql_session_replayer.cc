@@ -138,7 +138,8 @@ void MySQLSessionReplayer::query(const std::string &sql,
   const CallInfo info(call_info_.front());
   if (sql.compare(0, info.sql.length(), info.sql) != 0 ||
       info.type != CallInfo::Query) {
-    if (trace_) std::cout << "wrong query: " << sql << "\n";
+    if (trace_)
+      std::cout << "wrong query: " << sql << "\nExpected: " + info.sql + "\n";
     throw std::logic_error("Unexpected/out-of-order call to query(" + sql +
                            ")\nExpected: " + info.sql);
   }

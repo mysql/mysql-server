@@ -137,11 +137,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -162,11 +162,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -187,11 +187,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -210,11 +210,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -235,11 +235,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -260,11 +260,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -284,11 +284,11 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -310,11 +310,11 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::Unavailable,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -341,13 +341,13 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
       {kReplicasetName, "uuid4", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3309", 3309, 33063},
+       1.0, 1, "3309", 3309, 33063},
   });
 
   ASSERT_EQ(
@@ -374,11 +374,11 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -399,9 +399,9 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -420,13 +420,13 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
       {kReplicasetName, "uuid4", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3309", 3309, 33063},
+       1.0, 1, "3309", 3309, 33063},
   });
 
   ASSERT_EQ(
@@ -453,11 +453,11 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -478,9 +478,9 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   ASSERT_EQ(
@@ -500,11 +500,11 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3309", 3309, 33063},
+       1.0, 1, "3309", 3309, 33063},
   });
 
   ASSERT_EQ(
@@ -535,11 +535,11 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   // we have 2 SECONDARIES up so we expect round robin on them
@@ -565,11 +565,11 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   // we do not fallback to PRIMARIES as long as there is at least single
@@ -593,9 +593,9 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
   });
 
   // no SECONDARY available so we expect round-robin on PRIAMRIES
@@ -640,11 +640,11 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   // we expect round-robin on all the servers (PRIMARY and SECONDARY)
@@ -673,7 +673,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
   });
 
   // we expect the PRIMARY being used
@@ -698,9 +698,9 @@ TEST_F(DestMetadataCacheTest, PrimaryDefault) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
   });
 
   // default for PRIMARY should be round-robin on ReadWrite servers
@@ -725,11 +725,11 @@ TEST_F(DestMetadataCacheTest, SecondaryDefault) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   // default for SECONDARY should be round-robin on ReadOnly servers
@@ -755,11 +755,11 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33061},
+       1.0, 1, "3307", 3307, 33061},
       {kReplicasetName, "uuid3", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3308", 3308, 33062},
+       1.0, 1, "3308", 3308, 33062},
   });
 
   // default for PRIMARY_AND_SECONDARY should be round-robin on ReadOnly and
@@ -797,9 +797,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);
@@ -807,9 +807,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
   // new metadata - no primary
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   bool callback_called{false};
@@ -841,9 +841,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);
@@ -851,9 +851,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
   // new metadata - no primary
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   bool callback_called{false};
@@ -888,9 +888,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);
@@ -898,7 +898,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
   // new metadata - no primary
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
   });
 
   bool callback_called{false};
@@ -935,9 +935,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);
@@ -985,9 +985,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);
@@ -1026,9 +1026,9 @@ TEST_F(DestMetadataCacheTest,
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);
@@ -1073,9 +1073,9 @@ TEST_F(DestMetadataCacheTest,
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", "HA", metadata_cache::ServerMode::ReadWrite,
-       1.0, 1, "location", "3306", 3306, 33060},
+       1.0, 1, "3306", 3306, 33060},
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
-       1.0, 1, "location", "3307", 3307, 33070},
+       1.0, 1, "3307", 3307, 33070},
   });
 
   dest_mc_group.start(nullptr);

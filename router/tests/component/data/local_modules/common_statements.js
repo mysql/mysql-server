@@ -14,7 +14,6 @@ var defaults = {
   port: mysqld.session.port,
   innodb_cluster_name: "test",
   innodb_cluster_replicaset_name: "default",
-  innodb_cluster_topology_name: "pm",
   use_bootstrap_big_data: false,
   replication_group_members: [],
   innodb_cluster_insances: [],
@@ -181,7 +180,8 @@ exports.get = function get(stmt_key, options) {
       }
     },
     router_select_metadata: {
-      stmt: "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, I.version_token, H.location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON F.cluster_id = R.cluster_id JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id = I.replicaset_id JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = H.host_id WHERE F.cluster_name = '"
+      stmt: "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, I.version_token, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON F.cluster_id = R.cluster_id JOIN mysql_innodb_cluster_metadata.instances AS I"
+            + " ON R.replicaset_id = I.replicaset_id WHERE F.cluster_name = '"
             + options.innodb_cluster_name + "'"
             + (options.gr_id === undefined || options.gr_id === "" ? "" : (" AND R.attributes->>'$.group_replication_group_name' = '" + options.gr_id + "'"))
             + ";",
@@ -208,10 +208,6 @@ exports.get = function get(stmt_key, options) {
               "type": "LONG"
           },
           {
-              "name": "location",
-              "type": "VAR_STRING"
-          },
-          {
               "name": "I.addresses->>'$.mysqlClassic'",
               "type": "LONGBLOB"
           },
@@ -227,7 +223,6 @@ exports.get = function get(stmt_key, options) {
             "HA",
             null,
             null,
-            "",
             currentValue[1] + ":" + currentValue[2],
             currentValue[1] + ":" +  currentValue[4]
           ]
@@ -335,7 +330,7 @@ exports.get = function get(stmt_key, options) {
         },
         router_select_cluster_instances:
         {
-          "stmt": "SELECT F.cluster_name, R.replicaset_name, R.topology_type, JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) FROM mysql_innodb_cluster_metadata.clusters AS F, mysql_innodb_cluster_metadata.instances AS I, mysql_innodb_cluster_metadata.replicasets AS R WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances WHERE mysql_server_uuid = @@server_uuid)AND I.replicaset_id = R.replicaset_id AND R.cluster_id = F.cluster_id",
+          "stmt": "SELECT F.cluster_name, R.replicaset_name, JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) FROM mysql_innodb_cluster_metadata.clusters AS F, mysql_innodb_cluster_metadata.instances AS I, mysql_innodb_cluster_metadata.replicasets AS R WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances WHERE mysql_server_uuid = @@server_uuid)AND I.replicaset_id = R.replicaset_id AND R.cluster_id = F.cluster_id",
           "result": {
             "columns": [
               {
@@ -348,10 +343,6 @@ exports.get = function get(stmt_key, options) {
               },
               {
                 "type": "STRING",
-                "name": "topology_type"
-              },
-              {
-                "type": "STRING",
                 "name": "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
               }
             ],
@@ -359,7 +350,6 @@ exports.get = function get(stmt_key, options) {
                   return [
                     options.innodb_cluster_cluster_name,
                     options.innodb_cluster_replicaset_name,
-                    options.innodb_cluster_topology_name,
                     currentValue[0] + ":" + currentValue[1],
                   ]
             })

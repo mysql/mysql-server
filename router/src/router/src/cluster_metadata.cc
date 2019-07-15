@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -391,7 +391,7 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
   query << host_id << router_name << sqlstring::end;
   try {
     mysql_->execute(query);
-  } catch (MySQLSession::Error &e) {
+  } catch (const MySQLSession::Error &e) {
     if (e.code() == 1062 && overwrite) {
       // log_warning("Replacing instance %s (host_id %i) of router",
       //            router_name.c_str(), host_id);
