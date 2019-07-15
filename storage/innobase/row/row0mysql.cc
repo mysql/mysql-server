@@ -132,8 +132,6 @@ void row_wait_for_background_drop_list_empty() {
 }
 #endif /* UNIV_DEBUG */
 
-extern ib_mutex_t master_key_id_mutex;
-
 /** Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
 static void row_mysql_delay_if_needed(void) {
   if (srv_dml_needed_delay) {

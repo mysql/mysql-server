@@ -8074,20 +8074,23 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   extern ib_mutex_t master_key_id_mutex;
   bool key_id_locked = false;
 
-  if (s_master_key_id == 0) {
+  if (s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+    /* Take mutex as master_key_id is going to change. */
     mutex_enter(&master_key_id_mutex);
     key_id_locked = true;
   }
 
   memset(key_name, 0x0, sizeof(key_name));
 
-  if (s_master_key_id == 0) {
+  /* Check for s_master_key_id again, as a parallel rotation might have caused
+  it to change. */
+  if (s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
     ut_ad(strlen(server_uuid) > 0);
     memset(s_uuid, 0x0, sizeof(s_uuid));
 
-    /* If m_master_key is 0, means there's no encrypted
-    tablespace, we need to generate the first master key,
-    and store it to key ring. */
+    /* If m_master_key is ENCRYPTION_DEFAULT_MASTER_KEY_ID, it means there's
+    no encrypted tablespace yet. Generate the first master key now and store
+    it to keyring. */
     memcpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 
     /* Prepare the server s_uuid. */

@@ -77,13 +77,16 @@ class Sql_cmd_unlock_instance : public Sql_cmd {
 
   @param[in] thd                Current thread context
   @param[in] lock_wait_timeout  How many seconds to wait before timeout.
+  @param[in] for_trx            true if MDL duration is MDL_TRANSACTION
+                                false if MDL duration is MDL_EXPLICIT
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout);
+bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout,
+                                   bool for_trx);
 
 /**
   Acquire shared Backup Lock.
