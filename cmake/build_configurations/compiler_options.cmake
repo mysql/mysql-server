@@ -81,15 +81,15 @@ IF(UNIX)
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
       SET(SUNPRO_FLAGS     "")
-      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
-      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
-      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xatomic=studio")
+      STRING_APPEND(SUNPRO_FLAGS     " -xbuiltin=%all")
+      STRING_APPEND(SUNPRO_FLAGS     " -xlibmil")
+      STRING_APPEND(SUNPRO_FLAGS     " -xatomic=studio")
 
       # Show tags for warnings, so that they can be added to suppression list
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -errtags")
 
-      IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -nofstore")
+      IF(SOLARIS_INTEL)
+        STRING_APPEND(SUNPRO_FLAGS   " -nofstore")
       ENDIF()
 
       SET(COMMON_C_FLAGS            "${SUNPRO_FLAGS}")
