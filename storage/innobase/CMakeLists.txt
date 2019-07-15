@@ -229,7 +229,7 @@ MYSQL_ADD_PLUGIN(innobase
 
 
 # Avoid generating Hardware Capabilities due to crc32 instructions
-IF(SOLARIS AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+IF(SOLARIS_INTEL)
   MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
   IF(HAVE_WA_NH)
     ADD_COMPILE_FLAGS(

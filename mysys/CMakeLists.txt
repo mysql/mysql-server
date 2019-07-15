@@ -23,13 +23,9 @@
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
-IF(SOLARIS)
+IF(SOLARIS_INTEL)
   # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
-      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE
-      $<$<CONFIG:RelWithDebInfo>:-xO1>)
-  ENDIF()
+  TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO1>)
 ENDIF()
 
 SET(MYSYS_SOURCES
