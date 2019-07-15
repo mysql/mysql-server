@@ -954,8 +954,6 @@ a	(select count(distinct t5.b) as sum from t5, t6
 drop table t5, t6, t7 ;
 drop table if exists t2 ;
 create table t2 as select * from t9;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 set @stmt= ' SELECT
    (SELECT SUM(c1 + c12 + 0.0) FROM t2 
     where (t9.c2 - 0e-3) = t2.c2
@@ -4081,8 +4079,6 @@ a	(select count(distinct t5.b) as sum from t5, t6
 drop table t5, t6, t7 ;
 drop table if exists t2 ;
 create table t2 as select * from t9;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 set @stmt= ' SELECT
    (SELECT SUM(c1 + c12 + 0.0) FROM t2 
     where (t9.c2 - 0e-3) = t2.c2

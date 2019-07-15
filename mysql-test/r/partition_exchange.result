@@ -16,8 +16,6 @@ PARTITIONS 2;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 LIKE t1;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	t1

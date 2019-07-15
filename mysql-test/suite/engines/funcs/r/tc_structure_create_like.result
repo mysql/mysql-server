@@ -289,8 +289,6 @@ src
 DROP TABLE src;
 CREATE TABLE src (c1 INT NOT NULL AUTO_INCREMENT, c2 YEAR NULL, PRIMARY KEY(c1));
 CREATE TABLE dst LIKE src;
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SHOW TABLES;
 Tables_in_test
 dst

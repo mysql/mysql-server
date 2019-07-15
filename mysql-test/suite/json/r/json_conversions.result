@@ -8637,8 +8637,6 @@ From JSON subselect opaque_mysql_type_string as SIGNED	NULL
 select concat('From JSON subselect ',c, ' as SIGNED'), cast((select j from t where c='opaque_mysql_type_var_string') as SIGNED) from t where c='opaque_mysql_type_var_string';
 concat('From JSON subselect ',c, ' as SIGNED')	cast((select j from t where c='opaque_mysql_type_var_string') as SIGNED)
 From JSON subselect opaque_mysql_type_var_string as SIGNED	NULL
-Warnings:
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 "Test for JSON vs JSON"
 ""
 ""
