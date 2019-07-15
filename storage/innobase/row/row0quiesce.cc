@@ -729,7 +729,8 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
     extern ib_mutex_t master_key_id_mutex;
 
     if (dd_is_table_in_encrypted_tablespace(table)) {
-      /* Require the mutex to block key rotation. */
+      /* Take the mutex to make sure master_key_id doesn't change (eg: key
+      rotation). */
       mutex_enter(&master_key_id_mutex);
     }
 

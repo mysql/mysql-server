@@ -212,7 +212,7 @@ uint32_t predefined_flags;
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 
-/* mutex protecting the master_key_id */
+/* mutex protecting the master_key_id change. */
 ib_mutex_t master_key_id_mutex;
 
 /** to force correct commit order in binlog */
@@ -3890,14 +3890,14 @@ rotation.
 @return false on success, true on failure */
 bool innobase_encryption_key_rotation() {
   byte *master_key = NULL;
-  bool ret = FALSE;
+  bool ret = false;
 
   if (srv_read_only_mode) {
     my_error(ER_INNODB_READ_ONLY, MYF(0));
     return (true);
   }
 
-  /* Require the mutex to block other rotate request. */
+  /* Take mutex as master_key_id is going to be changed. */
   mutex_enter(&master_key_id_mutex);
 
   /* Check if keyring loaded and the currently master key
@@ -3908,9 +3908,9 @@ bool innobase_encryption_key_rotation() {
     Encryption::get_master_key(&master_key_id, &master_key);
 
     if (master_key == NULL) {
-      mutex_exit(&master_key_id_mutex);
       my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-      return (true);
+      ret = true;
+      goto error_exit;
     }
     my_free(master_key);
   }
@@ -3922,8 +3922,8 @@ bool innobase_encryption_key_rotation() {
 
   if (master_key == NULL) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-    mutex_exit(&master_key_id_mutex);
-    return (true);
+    ret = true;
+    goto error_exit;
   }
 
   /* Rotate normal tablespace */
@@ -3932,9 +3932,8 @@ bool innobase_encryption_key_rotation() {
   /* If rotation failure, return error */
   if (ret) {
     my_free(master_key);
-    mutex_exit(&master_key_id_mutex);
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-    return (ret);
+    goto error_exit;
   }
 
   /* Rotate log tablespace */
@@ -3943,13 +3942,13 @@ bool innobase_encryption_key_rotation() {
   /* If rotation failure, return error */
   if (ret) {
     my_free(master_key);
-    mutex_exit(&master_key_id_mutex);
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-    return (ret);
+    goto error_exit;
   }
 
   my_free(master_key);
 
+error_exit:
   /* Release the mutex. */
   mutex_exit(&master_key_id_mutex);
 

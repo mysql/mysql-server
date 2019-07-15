@@ -863,11 +863,9 @@ call tde_db.read_t_encrypt();
 call tde_db.read_t_encrypt();
 # In connection con5 - Running "alter instance"
 call tde_db.rotate_master_key();
-# In connection con6 - Running "alter instance"
-call tde_db.rotate_master_key();
-# In connection con7 - Running "create table"
+# In connection con6 - Running "create table"
 call tde_db.create_encrypt_table("Y");
-# In connection con8 - Running "create table"
+# In connection con7 - Running "create table"
 call tde_db.create_encrypt_table("N");
 # In connection con1
 # In connection con2
@@ -936,7 +934,6 @@ c2	c3	c4	c5	c6	c7
 # In connection con5
 # In connection con6
 # In connection con7
-# In connection con8
 USE tde_db;
 SELECT c2,right(c3,20),c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 c2	right(c3,20)	c4	c5	ST_AsText(c7)
