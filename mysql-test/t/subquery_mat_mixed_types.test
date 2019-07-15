@@ -1,0 +1,127 @@
+--echo #
+--echo # Bug#13960580 SUBQUERY MATERIALIZATION IS TOO RESTRICTIVE ON DATA TYPES
+--echo #
+
+CREATE TABLE t1 (c1 INT, KEY(c1));
+CREATE TABLE t2 (c1 BIGINT, KEY(c1));
+CREATE TABLE t3 (c1 DECIMAL(5,2), KEY(c1));
+CREATE TABLE t4 (c1 FLOAT, KEY(c1));
+CREATE TABLE t5 (c1 DOUBLE, KEY(c1));
+CREATE TABLE t6 (c1 CHAR(60), KEY(c1));
+CREATE TABLE t7 (c1 VARCHAR(60), KEY(c1));
+CREATE TABLE t8 (c1 TIME, KEY(c1));
+CREATE TABLE t9 (c1 TIMESTAMP, KEY(c1));
+CREATE TABLE t10 (c1 DATE, KEY(c1));
+CREATE TABLE t11 (c1 DATETIME, KEY(c1));
+CREATE TABLE t12 (c1 CHAR(5) CHARACTER SET UTF16, KEY(c1));
+CREATE TABLE t13 (c1 BIGINT UNSIGNED, KEY(c1));
+
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (64);
+INSERT INTO t2 VALUES (3), (9), (64), (-1), (-64);
+INSERT INTO t3 VALUES (3.0), (10.0), (64.0), (64.1);
+INSERT INTO t4 VALUES (3.3), (9.9), (64e0), (64.1e0);
+INSERT INTO t5 VALUES (3.3), (9.9), (64e0), (64.1e0);
+INSERT INTO t6 VALUES ('11'), ('21'), ('3'), ('64'), ('64.1');
+INSERT INTO t7 VALUES ('11'), ('21'), ('3'), ('64'), ('64.1');
+# Note that 33:22:33 means 33 hours from the current date.
+INSERT INTO t8 VALUES ('10:22:33'), ('12:34:56'), ('33:22:33');
+INSERT INTO t9 VALUES (20150413102233), (19990102123456);
+INSERT INTO t10 VALUES ('1998-01-01'), ('2015-04-13');
+INSERT INTO t11 VALUES ('1999-08-14 01:00:00'), ('2015-04-13 10:22:33'),
+('2015-04-14 09:22:33');
+INSERT INTO t12 VALUES ('11'), ('3'), ('21'), ('64'), ('64.1');
+INSERT INTO t13 VALUES (64),(18446744073709551615); # 2^64-1
+
+ANALYZE TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13;
+
+# Test subquery materialization
+set optimizer_switch='semijoin=off,materialization=on,subquery_materialization_cost_based=off';
+--disable_warnings
+
+let $c=2;
+
+while ($c)
+{
+if ($c == 1)
+{
+# Test semijoin materialization
+set optimizer_switch='semijoin=on,firstmatch=off,loosescan=off,duplicateweedout=off,materialization=on,subquery_materialization_cost_based=on';
+}
+dec $c;
+
+# Set "today", so TIME is extended with same day as what's in
+# DATETIME/TIMESTAMP
+SET TIMESTAMP=UNIX_TIMESTAMP(20150413000000);
+# Note that results of comparing TIME with DATETIME/TIMESTAMP are not
+# consistent between IN-to-EXISTS and materializations, see bug#75644.
+
+let $table_count= 13;
+let $i= 1;
+let $j= 2;
+while ($i <= $table_count)
+{
+    while ($j <= $table_count)
+    {
+       if ($i != $j)
+       {
+          let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
+          eval EXPLAIN $stmt1;
+          eval $stmt1;
+          let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
+          eval EXPLAIN $stmt2;
+          eval $stmt2;
+          let $stmt3= SELECT * FROM t$i GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t$j);
+          eval EXPLAIN $stmt3;
+          eval $stmt3;
+          if ($i == 11)
+          {
+                # This value causes two rows in scalar subquery below,
+                # so remove it just for this query
+                DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
+                ANALYZE TABLE t11;
+          }
+          let $stmt4= SELECT 1 FROM t$i WHERE (SELECT 1 FROM t$i WHERE ASCII(c1) = 50) IN
+                                              (SELECT 1 FROM t$j WHERE ASCII(c1) = 50);
+          eval EXPLAIN $stmt4;
+          eval $stmt4;
+          if ($i == 11)
+          {
+                INSERT INTO t11 SET c1='2015-04-14 09:22:33';
+                ANALYZE TABLE t11;
+          }
+}
+       inc $j;
+    }
+    inc $i;
+    let $j=1;
+}
+
+# Set "today" differently, so TIME is extended with another day than
+# what's in DATETIME/TIMESTAMP
+SET TIMESTAMP=UNIX_TIMESTAMP(20140413000000);
+# and now some matches should disappear:
+
+let $i=8;
+let $j=9;
+let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
+eval EXPLAIN $stmt1;
+eval $stmt1;
+let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
+eval EXPLAIN $stmt2;
+eval $stmt2;
+
+let $i=9;
+let $j=8;
+let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
+eval EXPLAIN $stmt1;
+eval $stmt1;
+let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
+eval EXPLAIN $stmt2;
+eval $stmt2;
+
+
+}
+
+--enable_warnings
+
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13;

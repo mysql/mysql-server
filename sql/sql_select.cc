@@ -998,24 +998,55 @@ bool Sql_cmd_select::precheck(THD *thd) {
 
   @retval true   If subquery types allow materialization.
   @retval false  Otherwise.
+
+  @note the purpose is similar to that of comparable_in_index().
 */
 
-bool types_allow_materialization(Item *outer, Item *inner)
-
-{
-  if (outer->result_type() != inner->result_type()) return false;
-  switch (outer->result_type()) {
-    case ROW_RESULT:
-      // Materialization of rows nested inside rows is not currently supported.
-      return false;
-    case STRING_RESULT:
-      if (outer->is_temporal_with_date() != inner->is_temporal_with_date())
-        return false;
-      if (!(outer->collation.collation == inner->collation.collation
-            /*&& outer->max_length <= inner->max_length */))
-        return false;
-    default:; /* suitable for materialization */
+bool types_allow_materialization(Item *outer, Item *inner) {
+  auto res_outer = outer->result_type();
+  auto res_inner = inner->result_type();
+  // Materialization of rows nested inside rows is not currently supported.
+  if (res_outer == ROW_RESULT || res_inner == ROW_RESULT) return false;
+  bool num_outer = res_outer == INT_RESULT || res_outer == REAL_RESULT ||
+                   res_outer == DECIMAL_RESULT;
+  bool num_inner = res_inner == INT_RESULT || res_inner == REAL_RESULT ||
+                   res_inner == DECIMAL_RESULT;
+  /*
+    Materialization uses index lookup which implicitly converts the type of
+    res_outer into that of res_inner.
+    However, this can be done only if it respects rules in:
+    https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html
+    https://dev.mysql.com/doc/refman/8.0/en/date-and-time-type-conversion.html
+    Those rules say that, generally, if types differ, we convert them to
+    REAL.
+    So, looking up into a number is ok: outer will be converted to
+    number. Collations don't matter.
+    This covers e.g. looking up INT into DECIMAL, CHAR into INT, DECIMAL into
+    BIT.
+  */
+  if (num_inner) return true;
+  // Conversely, looking up one number into a non-number is not possible.
+  if (num_outer) return false;
+  /*
+    Arguments are strings or temporal.
+    Require same collation for correct comparison.
+  */
+  DBUG_ASSERT(res_outer == STRING_RESULT && res_inner == STRING_RESULT);
+  if (outer->collation.collation != inner->collation.collation) return false;
+  bool temp_outer = outer->is_temporal();
+  bool temp_inner = inner->is_temporal();
+  /*
+    Same logic as for numbers.
+    As explained in add_key_field(), IndexedTimeComparedToDate is not working;
+    see also field_time_cmp_date().
+    @todo unify all pieces of code which deal with this same problem.
+  */
+  if (temp_inner) {
+    if (!inner->is_temporal_with_date())
+      return temp_outer && !outer->is_temporal_with_date();
+    return true;
   }
+  if (temp_outer) return false;
   return true;
 }
 

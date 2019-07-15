@@ -7097,7 +7097,7 @@ static bool comparable_in_index(Item *cond_func, const Field *field,
   if (!field->is_temporal() && value->is_temporal()) return false;
 
   /*
-    Temporal values: Cannot use range access if
+    Temporal values: Cannot use range access if IndexedTimeComparedToDate:
        'indexed_time = temporal_value_with_date_part'
     because:
       - without index, a TIME column with value '48:00:00' is

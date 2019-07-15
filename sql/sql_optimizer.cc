@@ -6782,12 +6782,12 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
             IndexedTimeComparedToDate: can't optimize
             'indexed_time = temporal_expr_with_date_part' because:
             - without index, a TIME column with value '48:00:00' is equal to a
-            DATETIME column with value 'CURDATE() + 2 days'
+              DATETIME column with value 'CURDATE() + 2 days'
             - with ref access into the TIME column, CURDATE() + 2 days becomes
-            "00:00:00" (Field_timef::store_internal() simply extracts the time
-            part from the datetime) which is a lookup key which does not match
-            "48:00:00"; so ref access is not be able to give the same result
-            as without index, so is disabled.
+              "00:00:00" (Field_timef::store_internal() simply extracts the time
+              part from the datetime) which is a lookup key which does not match
+              "48:00:00"; so ref access is not be able to give the same result
+              as without index, so is disabled.
             On the other hand, we can optimize indexed_datetime = time
             because Field_temporal_with_date::store_time() will convert
             48:00:00 to CURDATE() + 2 days which is the correct lookup key.
