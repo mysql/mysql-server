@@ -48,7 +48,7 @@ ELSE()
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-function")
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-inconsistent-missing-override")
 ENDIF()
 

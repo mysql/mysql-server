@@ -45,8 +45,8 @@ SET(helper_sources
   helpers/rest_metadata_client.cc
 )
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+IF(MY_COMPILER_IS_CLANG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
@@ -63,4 +63,5 @@ ENDFOREACH()
 ADD_SUBDIRECTORY(component)
 ADD_SUBDIRECTORY(fuzzers)
 
-ADD_DEFINITIONS(-DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")
+ADD_DEFINITIONS(
+  -DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")

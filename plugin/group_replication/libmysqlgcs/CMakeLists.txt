@@ -130,7 +130,7 @@ ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 ### Configuration ###
 
 # Used to inhibit false posives on CLang 3.8/8.0
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES}
                     COMPILE_FLAGS
                     "-Wno-conditional-uninitialized")
@@ -148,8 +148,7 @@ IF(MSVC)
     ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
   ENDIF()
-ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
-       CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")

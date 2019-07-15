@@ -23,7 +23,7 @@
 INCLUDE(CMakePushCheckState)
 
 # Only supported for Clang/llvm
-IF(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(NOT MY_COMPILER_IS_CLANG)
   RETURN()
 ENDIF()
 
@@ -93,47 +93,45 @@ COMPILER_HAS_SANITIZE_FUZZER)
 CMAKE_POP_CHECK_STATE()
 
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  IF(COMPILER_HAS_SANITIZE_FUZZER)
-    SET(SANITIZE_COVERAGE_FLAGS "-fsanitize=fuzzer")
-  ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_PC_GUARD)
-    SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=trace-pc-guard")
-  ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_EDGE)
-    SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=edge")
-  ENDIF()
+IF(COMPILER_HAS_SANITIZE_FUZZER)
+  SET(SANITIZE_COVERAGE_FLAGS "-fsanitize=fuzzer")
+ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_PC_GUARD)
+  SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=trace-pc-guard")
+ELSEIF(COMPILER_HAS_SANITIZE_COVERAGE_TRACE_EDGE)
+  SET(SANITIZE_COVERAGE_FLAGS "-fsanitize-coverage=edge")
+ENDIF()
 
-  # check that libFuzzer is found
-  #
-  # check_library_exists() doesn't work here as it would provide a main() which
-  # calls a test-function ... which collides with libFuzzer's main():
-  #
-  # if the libFuzzer is found by the compiler it will provide a 'main()' and
-  # require that we provide a 'LLVMFuzzerTestOneInput' at link-time.
-  IF(SANITIZE_COVERAGE_FLAGS)
-    CMAKE_PUSH_CHECK_STATE(RESET)
-    SET(CMAKE_REQUIRED_LIBRARIES Fuzzer)
-    SET(CMAKE_REQUIRED_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-    CHECK_CXX_SOURCE_COMPILES("
+# check that libFuzzer is found
+#
+# check_library_exists() doesn't work here as it would provide a main() which
+# calls a test-function ... which collides with libFuzzer's main():
+#
+# if the libFuzzer is found by the compiler it will provide a 'main()' and
+# require that we provide a 'LLVMFuzzerTestOneInput' at link-time.
+IF(SANITIZE_COVERAGE_FLAGS)
+  CMAKE_PUSH_CHECK_STATE(RESET)
+  SET(CMAKE_REQUIRED_LIBRARIES Fuzzer)
+  SET(CMAKE_REQUIRED_FLAGS ${SANITIZE_COVERAGE_FLAGS})
+  CHECK_CXX_SOURCE_COMPILES("
       extern \"C\" int LLVMFuzzerTestOneInput (void *, int)
       { return 0; }"
       CLANG_HAS_LIBFUZZER)
-    CMAKE_POP_CHECK_STATE()
+  CMAKE_POP_CHECK_STATE()
+ENDIF()
+
+IF(COMPILER_HAS_SANITIZE_FUZZER OR CLANG_HAS_LIBFUZZER)
+  IF(CLANG_HAS_LIBFUZZER)
+    SET(LIBFUZZER_LIBRARIES Fuzzer)
   ENDIF()
+  SET(LIBFUZZER_LINK_FLAGS ${SANITIZE_COVERAGE_FLAGS})
+  SET(LIBFUZZER_COMPILE_FLAGS)
+  LIST(APPEND LIBFUZZER_COMPILE_FLAGS ${SANITIZE_COVERAGE_FLAGS})
 
-  IF(COMPILER_HAS_SANITIZE_FUZZER OR CLANG_HAS_LIBFUZZER)
-    IF(CLANG_HAS_LIBFUZZER)
-      SET(LIBFUZZER_LIBRARIES Fuzzer)
-    ENDIF()
-    SET(LIBFUZZER_LINK_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-    SET(LIBFUZZER_COMPILE_FLAGS)
-    LIST(APPEND LIBFUZZER_COMPILE_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-
-    IF(COMPILER_HAS_PROFILE_INSTR_GENERATE)
-      LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fprofile-instr-generate)
-      SET(LIBFUZZER_LINK_FLAGS
-          "${LIBFUZZER_LINK_FLAGS} -fprofile-instr-generate")
-      LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fcoverage-mapping)
-    ENDIF()
+  IF(COMPILER_HAS_PROFILE_INSTR_GENERATE)
+    LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fprofile-instr-generate)
+    SET(LIBFUZZER_LINK_FLAGS
+      "${LIBFUZZER_LINK_FLAGS} -fprofile-instr-generate")
+    LIST(APPEND LIBFUZZER_COMPILE_FLAGS -fcoverage-mapping)
   ENDIF()
 ENDIF()
 

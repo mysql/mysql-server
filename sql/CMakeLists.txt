@@ -583,7 +583,7 @@ IF(WITH_LOCK_ORDER)
     debug_lock_order.cc
     )
 
-  IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
     ADD_COMPILE_FLAGS(${FLEX_debug_lo_scanner_OUTPUTS}
       COMPILE_FLAGS
       "-Wno-sign-compare"
@@ -719,7 +719,7 @@ IF(WIN32)
 ENDIF()
 
 # Downgrade -Werror to warning for gcc 8.2.x
-IF(CMAKE_COMPILER_IS_GNUCXX
+IF(MY_COMPILER_IS_GNU
     AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.2
     AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.3)
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
@@ -740,7 +740,7 @@ ENDIF()
 
 # Common for all versions of GCC/Clang
 # Bison output uses undefined symbols in #if checks
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef")

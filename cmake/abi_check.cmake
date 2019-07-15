@@ -29,13 +29,13 @@
 # only be run  on Unix and only if gcc is used. On some Unixes,
 # (Solaris) sed or diff might act differently from GNU, so we run only 
 # on systems we can trust.
-IF(APPLE OR LINUX)
+IF(LINUX)
   SET(RUN_ABI_CHECK 1)
 ELSE()
   SET(RUN_ABI_CHECK 0)
 ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
+IF(MY_COMPILER_IS_GNU AND RUN_ABI_CHECK)
   IF(CMAKE_C_COMPILER MATCHES "ccache$")
     SET(COMPILER ${CMAKE_C_COMPILER_ARG1})
     STRING(REGEX REPLACE "^ " "" COMPILER ${COMPILER})

@@ -58,12 +58,9 @@ SET(MY_C_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wwrite-strings")
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wcast-qual")
 
-# The default =3 given by -Wextra is a bit too strict for our code.
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
+  # The default =3 given by -Wextra is a bit too strict for our code.
   MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
-ENDIF()
-
-IF(CMAKE_COMPILER_IS_GNUCC)
   MY_ADD_C_WARNING_FLAG("Wjump-misses-init")
 ENDIF()
 
@@ -72,12 +69,12 @@ ENDIF()
 #
 
 # Only for C++ as C code has some macro usage that is difficult to avoid
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
   MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
 ENDIF()
 
 # Extra warning flags for Clang
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wextra-semi")
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wmissing-noreturn")
@@ -87,9 +84,10 @@ IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
 ENDIF()
   
 # Extra warning flags for Clang++
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   # Disable a few default Clang++ warnings
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion -Wno-unused-private-field")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-private-field")
 
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wdeprecated")
@@ -162,11 +160,8 @@ IF(MYSQL_MAINTAINER_MODE)
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
 ENDIF()
 
-# Set warning flags for GCC/Clang
-IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  STRING_APPEND(CMAKE_C_FLAGS " ${MY_C_WARNING_FLAGS}")
-ENDIF()
-# Set warning flags for G++/Clang++
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+# Set warning flags for gcc/g++/clang/clang++
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS   " ${MY_C_WARNING_FLAGS}")
   STRING_APPEND(CMAKE_CXX_FLAGS " ${MY_CXX_WARNING_FLAGS}")
 ENDIF()

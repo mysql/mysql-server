@@ -52,7 +52,7 @@ IF(LINUX)
   )
 ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "-Wno-stringop-overflow")
 ENDIF()
 
@@ -79,7 +79,7 @@ IF(WIN32)
   )
 ENDIF()
 
-IF(MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+IF(MSVC AND NOT WIN32_CLANG)
   # ICU does not build cleanly with Visual Studio's /permissive-
   STRING(REPLACE "/permissive-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   # anachronism used : modifiers on data are ignored

@@ -36,14 +36,14 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Compiler options
 IF(UNIX)  
 
-  IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
     SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
   ELSE()
     SET(SECTIONS_FLAG)
   ENDIF()
 
   # Default GCC flags
-  IF(CMAKE_COMPILER_IS_GNUCC)
+  IF(MY_COMPILER_IS_GNU)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
@@ -51,11 +51,10 @@ IF(UNIX)
     ENDIF()
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_C_FLOATING_POINT_FUSED_MADD)
-      SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -ffp-contract=off")
+      STRING_APPEND(COMMON_C_FLAGS   " -ffp-contract=off")
     ENDIF()
-  ENDIF()
-  IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-std=c++14 -fno-omit-frame-pointer")
+
+    SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_CXX_FLAGS  "-fno-inline ")
@@ -67,11 +66,9 @@ IF(UNIX)
   ENDIF()
 
   # Default Clang flags
-  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_CLANG)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_CXX_FLAGS               "-std=c++14 -fno-omit-frame-pointer")
+    SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
   ENDIF()
 
   # Solaris flags

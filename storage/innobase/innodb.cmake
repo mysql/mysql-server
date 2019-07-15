@@ -59,22 +59,18 @@ ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Turn off unused parameter warnings.
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
   # Turn off warnings about implicit casting away const.
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-cast-qual")
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-# After: WL#5825 Using C++ Standard Library with MySQL code
-#       we no longer use -fno-exceptions
-#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
-
-# Add -Wconversion if compiling with GCC
-## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
-## please fix them and enable the following code:
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+IF(MY_COMPILER_IS_GNU)
+  # Add -Wconversion if compiling with GCC
+  ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
+  ## please fix them and enable the following code:
+  #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 
   IF (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR
       CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
