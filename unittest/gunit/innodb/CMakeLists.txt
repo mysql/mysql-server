@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-  ${GTEST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
 )
@@ -64,9 +63,7 @@ IF (MERGE_UNITTESTS)
   #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
   #INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
 
   ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
@@ -95,9 +92,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t perfschema)
 
   ADD_DEPENDENCIES(${test}-t GenError)
 

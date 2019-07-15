@@ -743,6 +743,7 @@ The documentation is based on the source files such as:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -796,11 +797,6 @@ using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 #define mysqld_default_locale_name "en_US"
-
-#if defined(HAVE_SOLARIS_LARGE_PAGES) && defined(__GNUC__)
-extern "C" int getpagesizes(size_t *, int);
-extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
-#endif
 
 #ifdef HAVE_FPU_CONTROL_H
 #include <fpu_control.h>  // IWYU pragma: keep
