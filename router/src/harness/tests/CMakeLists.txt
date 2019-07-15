@@ -88,6 +88,7 @@ ENDFOREACH()
 
 SET(TESTS
   test_stdx_expected.cc
+  test_stdx_string_view.cc
 )
 
 FOREACH(TEST ${TESTS})
