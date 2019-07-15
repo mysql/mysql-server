@@ -6460,10 +6460,11 @@ class Kill_non_super_conn : public Do_THD_Impl {
 
  public:
   Kill_non_super_conn(THD *thd) : m_client_thd(thd) {
-    DBUG_ASSERT(m_client_thd->security_context()->check_access(SUPER_ACL) ||
-                m_client_thd->security_context()
-                    ->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
-                    .first);
+    DBUG_ASSERT(
+        m_client_thd->security_context()->check_access(SUPER_ACL) ||
+        m_client_thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+            .first);
   }
 
   virtual void operator()(THD *thd_to_kill) {
