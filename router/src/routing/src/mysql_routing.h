@@ -33,23 +33,6 @@
  *
  */
 
-#include "connection.h"
-#include "connection_container.h"
-#include "context.h"
-#include "destination.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql_router_thread.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/routing.h"
-#include "plugin_config.h"
-#include "protocol/base_protocol.h"
-#include "router_config.h"
-#include "tcp_address.h"
-#include "utils.h"
-namespace mysql_harness {
-class PluginFuncEnv;
-}
-
 #include <array>
 #include <atomic>
 #include <iostream>
@@ -70,7 +53,26 @@ class PluginFuncEnv;
 #include <ws2tcpip.h>
 #endif
 
+#include "connection.h"
+#include "connection_container.h"
+#include "context.h"
+#include "destination.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+#include "mysql_router_thread.h"
+#include "mysqlrouter/mysql_protocol.h"
+#include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
+#include "mysqlrouter/uri.h"
+#include "plugin_config.h"
+#include "protocol/base_protocol.h"
+#include "router_config.h"
+#include "tcp_address.h"
+#include "utils.h"
+
+namespace mysql_harness {
+class PluginFuncEnv;
+}
 
 using mysqlrouter::URI;
 using std::string;

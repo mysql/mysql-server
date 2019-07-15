@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,30 +25,16 @@
 #ifndef PLUGIN_CONFIG_ROUTING_INCLUDED
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/plugin.h"
-
-#include "mysqlrouter/plugin_config.h"
-#include "mysqlrouter/routing.h"
-#include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
-#include "protocol/protocol.h"
-#include "tcp_address.h"
-
-#include "utils.h"
-
-#include <map>
 #include <string>
 
-using mysql_harness::TCPAddress;
-using mysqlrouter::to_string;
-using mysqlrouter::URI;
-using mysqlrouter::URIError;
-using mysqlrouter::URIQuery;
-using std::map;
-using std::string;
+#include "mysql/harness/config_option.h"
+#include "mysql/harness/filesystem.h"  // Path
+#include "mysqlrouter/routing.h"       // RoutingStrategy, AccessMode
+#include "mysqlrouter/routing_export.h"
+#include "protocol/protocol.h"  // Protocol::Type
+#include "tcp_address.h"
 
-class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
+class ROUTING_EXPORT RoutingPluginConfig {
  private:
   // is this [routing] entry for static routing or metadata-cache ?
   // it's mutable because we discover it while calling getter for
@@ -61,13 +47,6 @@ class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
    * @param section from configuration file provided as ConfigSection
    */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
-
-  /**
-   * @param option option to get
-   */
-  std::string get_default(const std::string &option) const override;
-
-  bool is_required(const std::string &option) const override;
 
   /** @brief `protocol` option read from configuration section */
   const Protocol::Type protocol;
@@ -96,20 +75,6 @@ class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
   const unsigned int net_buffer_length;
   /** @brief memory in kilobytes allocated for thread's stack */
   const unsigned int thread_stack_size;
-
- protected:
- private:
-  routing::AccessMode get_option_mode(
-      const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
-  routing::RoutingStrategy get_option_routing_strategy(
-      const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
-  std::string get_option_destinations(
-      const mysql_harness::ConfigSection *section, const std::string &option,
-      const Protocol::Type &protocol_type) const;
-  Protocol::Type get_protocol(const mysql_harness::ConfigSection *section,
-                              const std::string &option) const;
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

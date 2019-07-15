@@ -222,7 +222,6 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   try {
     RoutingPluginConfig config(section);
-    config.section_name = name;
 
     // connect_timeout is in seconds, we want milli's
     //
