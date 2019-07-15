@@ -3344,11 +3344,9 @@ type_conversion_status Field_short::store(const char *from, size_t len,
   const type_conversion_status error =
       get_int(cs, from, len, &rnd, UINT_MAX16, INT_MIN16, INT_MAX16);
   store_tmp = unsigned_flag ? (int)(ulonglong)rnd : (int)rnd;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int2store(ptr, store_tmp);
-  } else
-#endif
+  else
     shortstore(ptr, (short)store_tmp);
   return error;
 }
@@ -3381,11 +3379,9 @@ type_conversion_status Field_short::store(double nr) {
     } else
       res = (int16)(int)nr;
   }
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int2store(ptr, res);
-  } else
-#endif
+  else
     shortstore(ptr, res);
   return error;
 }
@@ -3420,11 +3416,9 @@ type_conversion_status Field_short::store(longlong nr, bool unsigned_val) {
     } else
       res = (int16)nr;
   }
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int2store(ptr, res);
-  } else
-#endif
+  else
     shortstore(ptr, res);
   return error;
 }
@@ -3432,11 +3426,9 @@ type_conversion_status Field_short::store(longlong nr, bool unsigned_val) {
 double Field_short::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   short j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint2korr(ptr);
   else
-#endif
     shortget(&j, ptr);
   return unsigned_flag ? (double)(unsigned short)j : (double)j;
 }
@@ -3444,11 +3436,9 @@ double Field_short::val_real() const {
 longlong Field_short::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   short j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint2korr(ptr);
   else
-#endif
     shortget(&j, ptr);
   return unsigned_flag ? (longlong)(unsigned short)j : (longlong)j;
 }
@@ -3462,11 +3452,9 @@ String *Field_short::val_str(String *val_buffer,
   val_buffer->alloc(mlength);
   char *to = val_buffer->ptr();
   short j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint2korr(ptr);
   else
-#endif
     shortget(&j, ptr);
 
   if (unsigned_flag)
@@ -3488,13 +3476,10 @@ bool Field_short::send_to_protocol(Protocol *protocol) const {
 
 int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   short a, b;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first) {
     a = sint2korr(a_ptr);
     b = sint2korr(b_ptr);
-  } else
-#endif
-  {
+  } else {
     shortget(&a, a_ptr);
     shortget(&b, b_ptr);
   }
@@ -3701,11 +3686,9 @@ type_conversion_status Field_long::store(const char *from, size_t len,
   const type_conversion_status error =
       get_int(cs, from, len, &rnd, UINT_MAX32, INT_MIN32, INT_MAX32);
   store_tmp = unsigned_flag ? (long)(ulonglong)rnd : (long)rnd;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int4store(ptr, store_tmp);
-  } else
-#endif
+  else
     longstore(ptr, store_tmp);
   return error;
 }
@@ -3738,11 +3721,9 @@ type_conversion_status Field_long::store(double nr) {
   if (error)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int4store(ptr, res);
-  } else
-#endif
+  else
     longstore(ptr, res);
   return error;
 }
@@ -3787,11 +3768,9 @@ type_conversion_status Field_long::store(longlong nr, bool unsigned_val) {
   if (error)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int4store(ptr, res);
-  } else
-#endif
+  else
     longstore(ptr, res);
   return error;
 }
@@ -3799,11 +3778,9 @@ type_conversion_status Field_long::store(longlong nr, bool unsigned_val) {
 double Field_long::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
-#endif
     longget(&j, ptr);
   return unsigned_flag ? (double)(uint32)j : (double)j;
 }
@@ -3813,11 +3790,9 @@ longlong Field_long::val_int() const {
   int32 j;
   /* See the comment in Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
-#endif
     longget(&j, ptr);
   return unsigned_flag ? (longlong)(uint32)j : (longlong)j;
 }
@@ -3831,11 +3806,9 @@ String *Field_long::val_str(String *val_buffer,
   val_buffer->alloc(mlength);
   char *to = val_buffer->ptr();
   int32 j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
-#endif
     longget(&j, ptr);
 
   if (unsigned_flag)
@@ -3857,13 +3830,10 @@ bool Field_long::send_to_protocol(Protocol *protocol) const {
 
 int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   int32 a, b;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first) {
     a = sint4korr(a_ptr);
     b = sint4korr(b_ptr);
-  } else
-#endif
-  {
+  } else {
     longget(&a, a_ptr);
     longget(&b, b_ptr);
   }
@@ -3927,11 +3897,9 @@ type_conversion_status Field_longlong::store(const char *from, size_t len,
   else
     error = TYPE_OK;
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int8store(ptr, tmp);
-  } else
-#endif
+  else
     longlongstore(ptr, tmp);
   return error;
 }
@@ -3964,11 +3932,9 @@ type_conversion_status Field_longlong::store(double nr) {
   if (error)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int8store(ptr, res);
-  } else
-#endif
+  else
     longlongstore(ptr, res);
   return error;
 }
@@ -3990,11 +3956,9 @@ type_conversion_status Field_longlong::store(longlong nr, bool unsigned_val) {
     }
   }
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     int8store(ptr, nr);
-  } else
-#endif
+  else
     longlongstore(ptr, nr);
   return error;
 }
@@ -4002,11 +3966,9 @@ type_conversion_status Field_longlong::store(longlong nr, bool unsigned_val) {
 double Field_longlong::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     j = sint8korr(ptr);
-  } else
-#endif
+  else
     longlongget(&j, ptr);
   /* The following is open coded to avoid a bug in gcc 3.3 */
   if (unsigned_flag) {
@@ -4019,11 +3981,9 @@ double Field_longlong::val_real() const {
 longlong Field_longlong::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint8korr(ptr);
   else
-#endif
     longlongget(&j, ptr);
   return j;
 }
@@ -4036,11 +3996,9 @@ String *Field_longlong::val_str(String *val_buffer,
   val_buffer->alloc(mlength);
   char *to = val_buffer->ptr();
   longlong j;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     j = sint8korr(ptr);
   else
-#endif
     longlongget(&j, ptr);
 
   length = (uint)(cs->cset->longlong10_to_str)(cs, to, mlength,
@@ -4060,13 +4018,10 @@ bool Field_longlong::send_to_protocol(Protocol *protocol) const {
 
 int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   longlong a, b;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first) {
     a = sint8korr(a_ptr);
     b = sint8korr(b_ptr);
-  } else
-#endif
-  {
+  } else {
     longlongget(&a, a_ptr);
     longlongget(&b, b_ptr);
   }
@@ -4161,12 +4116,10 @@ type_conversion_status Field_float::store(double nr) {
 
   float j = (float)nr;
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float4store(ptr, j);
-  } else
-#endif
-    memcpy(ptr, &j, sizeof(j));
+  else
+    floatstore(ptr, j);
   return error;
 }
 
@@ -4178,23 +4131,19 @@ type_conversion_status Field_float::store(longlong nr, bool unsigned_val) {
 double Field_float::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   float j;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float4get(&j, ptr);
-  } else
-#endif
-    memcpy(&j, ptr, sizeof(j));
+  else
+    floatget(&j, ptr);
   return ((double)j);
 }
 
 longlong Field_float::val_int() const {
   float j;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float4get(&j, ptr);
-  } else
-#endif
-    memcpy(&j, ptr, sizeof(j));
+  else
+    floatget(&j, ptr);
   return (longlong)rint(j);
 }
 
@@ -4203,12 +4152,10 @@ String *Field_float::val_str(String *val_buffer,
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table && table->s->db_low_byte_first)
     float4get(&nr, ptr);
-  } else
-#endif
-    memcpy(&nr, ptr, sizeof(nr));
+  else
+    floatget(&nr, ptr);
 
   uint to_length = 70;
   if (val_buffer->alloc(to_length)) {
@@ -4237,28 +4184,24 @@ String *Field_float::val_str(String *val_buffer,
 
 int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   float a, b;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first) {
     float4get(&a, a_ptr);
     float4get(&b, b_ptr);
-  } else
-#endif
-  {
-    memcpy(&a, a_ptr, sizeof(float));
-    memcpy(&b, b_ptr, sizeof(float));
+  } else {
+    floatget(&a, a_ptr);
+    floatget(&b, b_ptr);
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_float::make_sort_key(uchar *to, size_t length) const {
+size_t Field_float::make_sort_key(uchar *to,
+                                  size_t length MY_ATTRIBUTE((unused))) const {
   DBUG_ASSERT(length == sizeof(float));
   float nr;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float4get(&nr, ptr);
-  } else
-#endif
-    memcpy(&nr, ptr, min(length, sizeof(float)));
+  else
+    floatget(&nr, ptr);
 
   /*
     -0.0 and +0.0 compare identically, so make sure they use exactly the same
@@ -4340,11 +4283,9 @@ type_conversion_status Field_double::store(double nr) {
   const type_conversion_status error =
       truncate(&nr, DBL_MAX) ? TYPE_WARN_OUT_OF_RANGE : TYPE_OK;
 
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float8store(ptr, nr);
-  } else
-#endif
+  else
     doublestore(ptr, nr);
   return error;
 }
@@ -4417,11 +4358,9 @@ type_conversion_status Field_real::store_decimal(const my_decimal *dm) {
 double Field_double::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float8get(&j, ptr);
-  } else
-#endif
+  else
     doubleget(&j, ptr);
   return j;
 }
@@ -4430,11 +4369,9 @@ longlong Field_double::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
   longlong res;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float8get(&j, ptr);
-  } else
-#endif
+  else
     doubleget(&j, ptr);
   /* Check whether we fit into longlong range */
   if (j <= (double)LLONG_MIN) {
@@ -4478,11 +4415,9 @@ String *Field_double::val_str(String *val_buffer,
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table && table->s->db_low_byte_first)
     float8get(&nr, ptr);
-  } else
-#endif
+  else
     doubleget(&nr, ptr);
   uint to_length = DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE;
   if (val_buffer->alloc(to_length)) {
@@ -4512,13 +4447,10 @@ bool Field_double::send_to_protocol(Protocol *protocol) const {
 
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   double a, b;
-#ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first) {
     float8get(&a, a_ptr);
     float8get(&b, b_ptr);
-  } else
-#endif
-  {
+  } else {
     doubleget(&a, a_ptr);
     doubleget(&b, b_ptr);
   }
@@ -4530,11 +4462,9 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 size_t Field_double::make_sort_key(uchar *to, size_t length) const {
   DBUG_ASSERT(length == sizeof(double));
   double nr;
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first) {
+  if (table->s->db_low_byte_first)
     float8get(&nr, ptr);
-  } else
-#endif
+  else
     doubleget(&nr, ptr);
   if (length < 8) {
     uchar buff[8];
@@ -5126,11 +5056,9 @@ bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   uint32 temp;
   THD *thd = table ? table->in_use : current_thd;
-#ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp = uint4korr(ptr);
   else
-#endif
     ulongget(&temp, ptr);
   if (!temp) return true;
   thd->time_zone()->gmt_sec_to_TIME(ltime, (my_time_t)temp);
@@ -5143,12 +5071,10 @@ bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime) const {
 bool Field_timestamp::get_timestamp(struct timeval *tm, int *) const {
   if (is_null()) return true;
   tm->tv_usec = 0;
-#ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first) {
     tm->tv_sec = sint4korr(ptr);
     return false;
   }
-#endif
   int32 tmp;
   longget(&tmp, ptr);
   tm->tv_sec = tmp;
@@ -5156,11 +5082,9 @@ bool Field_timestamp::get_timestamp(struct timeval *tm, int *) const {
 }
 
 void Field_timestamp::store_timestamp_internal(const struct timeval *tm) {
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first) {
+  if (table && table->s->db_low_byte_first)
     int4store(ptr, tm->tv_sec);
-  } else
-#endif
+  else
     longstore(ptr, (uint32)tm->tv_sec);
 }
 
@@ -5187,13 +5111,10 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime,
 
 int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   int32 a, b;
-#ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first) {
     a = sint4korr(a_ptr);
     b = sint4korr(b_ptr);
-  } else
-#endif
-  {
+  } else {
     longget(&a, a_ptr);
     longget(&b, b_ptr);
   }
@@ -5894,13 +5815,12 @@ void Field_datetime::store_timestamp_internal(const timeval *tm) {
   @param tmp    The number, in YYYYMMDDhhmmss format
   @param ptr    Where to store to
 */
-static inline type_conversion_status datetime_store_internal(
-    TABLE *table MY_ATTRIBUTE((unused)), ulonglong tmp, uchar *ptr) {
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first) {
+static inline type_conversion_status datetime_store_internal(TABLE *table,
+                                                             ulonglong tmp,
+                                                             uchar *ptr) {
+  if (table && table->s->db_low_byte_first)
     int8store(ptr, tmp);
-  } else
-#endif
+  else
     longlongstore(ptr, tmp);
   return TYPE_OK;
 }
@@ -5915,11 +5835,9 @@ static inline type_conversion_status datetime_store_internal(
 static inline longlong datetime_get_internal(
     TABLE *table MY_ATTRIBUTE((unused)), uchar *ptr) {
   longlong tmp;
-#ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     tmp = sint8korr(ptr);
   else
-#endif
     longlongget(&tmp, ptr);
   return tmp;
 }
@@ -5993,13 +5911,10 @@ bool Field_datetime::get_date(MYSQL_TIME *ltime,
 
 int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   longlong a, b;
-#ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first) {
     a = sint8korr(a_ptr);
     b = sint8korr(b_ptr);
-  } else
-#endif
-  {
+  } else {
     longlongget(&a, a_ptr);
     longlongget(&b, b_ptr);
   }
@@ -7049,45 +6964,38 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 static void store_blob_length(uchar *i_ptr, uint i_packlength, uint32 i_number,
-                              bool low_byte_first MY_ATTRIBUTE((unused))) {
+                              bool low_byte_first) {
   switch (i_packlength) {
     case 1:
       i_ptr[0] = (uchar)i_number;
       break;
     case 2:
-#ifdef WORDS_BIGENDIAN
-      if (low_byte_first) {
+      if (low_byte_first)
         int2store(i_ptr, (unsigned short)i_number);
-      } else
-#endif
+      else
         shortstore(i_ptr, (unsigned short)i_number);
       break;
     case 3:
       int3store(i_ptr, i_number);
       break;
     case 4:
-#ifdef WORDS_BIGENDIAN
-      if (low_byte_first) {
+      if (low_byte_first)
         int4store(i_ptr, i_number);
-      } else
-#endif
+      else
         longstore(i_ptr, i_number);
   }
 }
 
 uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg,
-                              bool low_byte_first
-                                  MY_ATTRIBUTE((unused))) const {
+                              bool low_byte_first) const {
   switch (packlength_arg) {
     case 1:
       return (uint32)pos[0];
     case 2: {
       uint16 tmp;
-#ifdef WORDS_BIGENDIAN
       if (low_byte_first)
         tmp = sint2korr(pos);
       else
-#endif
         ushortget(&tmp, pos);
       return (uint32)tmp;
     }
@@ -7095,11 +7003,9 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg,
       return uint3korr(pos);
     case 4: {
       uint32 tmp;
-#ifdef WORDS_BIGENDIAN
       if (low_byte_first)
         tmp = uint4korr(pos);
       else
-#endif
         ulongget(&tmp, pos);
       return tmp;
     }
@@ -8166,40 +8072,25 @@ void Field_enum::store_type(ulonglong value) {
       ptr[0] = (uchar)value;
       break;
     case 2:
-#ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first) {
+      if (table->s->db_low_byte_first)
         int2store(ptr, (unsigned short)value);
-      } else {
+      else
         shortstore(ptr, (unsigned short)value);
-      }
-#else
-      shortstore(ptr, (unsigned short)value);
-#endif
       break;
     case 3:
       int3store(ptr, (long)value);
       break;
     case 4:
-#ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first) {
+      if (table->s->db_low_byte_first)
         int4store(ptr, value);
-      } else {
+      else
         longstore(ptr, (long)value);
-      }
-#else
-      longstore(ptr, (long)value);
-#endif
       break;
     case 8:
-#ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first) {
+      if (table->s->db_low_byte_first)
         int8store(ptr, value);
-      } else {
+      else
         longlongstore(ptr, value);
-      }
-#else
-      longlongstore(ptr, value);
-#endif
       break;
   }
 }
@@ -8276,17 +8167,15 @@ my_decimal *Field_enum::val_decimal(my_decimal *decimal_value) const {
 
 // Utility function used by ::val_int() and ::cmp()
 static longlong enum_val_int(const uchar *ptr, uint packlength,
-                             bool low_byte_first MY_ATTRIBUTE((unused))) {
+                             bool low_byte_first) {
   switch (packlength) {
     case 1:
       return (longlong)ptr[0];
     case 2: {
       uint16 tmp;
-#ifdef WORDS_BIGENDIAN
       if (low_byte_first)
         tmp = sint2korr(ptr);
       else
-#endif
         ushortget(&tmp, ptr);
       return (longlong)tmp;
     }
@@ -8294,21 +8183,17 @@ static longlong enum_val_int(const uchar *ptr, uint packlength,
       return (longlong)uint3korr(ptr);
     case 4: {
       uint32 tmp;
-#ifdef WORDS_BIGENDIAN
       if (low_byte_first)
         tmp = uint4korr(ptr);
       else
-#endif
         ulongget(&tmp, ptr);
       return (longlong)tmp;
     }
     case 8: {
       longlong tmp;
-#ifdef WORDS_BIGENDIAN
       if (low_byte_first)
         tmp = sint8korr(ptr);
       else
-#endif
         longlongget(&tmp, ptr);
       return tmp;
     }
@@ -10242,22 +10127,18 @@ void Field::init(TABLE *table_arg) {
 
 // Byteswaps and/or truncates int16 values; used for both pack() and unpack().
 static inline void handle_int16(uchar *to, const uchar *from, uint max_length,
-                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
-                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+                                bool low_byte_first_from,
+                                bool low_byte_first_to) {
   int16 val;
   uchar buf[sizeof(val)];
-#ifdef WORDS_BIGENDIAN
   if (low_byte_first_from)
     val = sint2korr(from);
   else
-#endif
     shortget(&val, from);
 
-#ifdef WORDS_BIGENDIAN
   if (low_byte_first_to)
     int2store(buf, val);
   else
-#endif
     shortstore(buf, val);
   if (max_length >= sizeof(buf)) {
     // Common case.
@@ -10300,22 +10181,18 @@ static inline void handle_int24(uchar *to, const uchar *from, uint max_length,
 
 // Byteswaps and/or truncates int32 values; used for both pack() and unpack().
 static inline void handle_int32(uchar *to, const uchar *from, uint max_length,
-                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
-                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+                                bool low_byte_first_from,
+                                bool low_byte_first_to) {
   int32 val;
   uchar buf[sizeof(val)];
-#ifdef WORDS_BIGENDIAN
   if (low_byte_first_from)
     val = sint4korr(from);
   else
-#endif
     longget(&val, from);
 
-#ifdef WORDS_BIGENDIAN
   if (low_byte_first_to)
     int4store(buf, val);
   else
-#endif
     longstore(buf, val);
   if (max_length >= sizeof(buf)) {
     // Common case.
