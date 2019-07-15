@@ -23,6 +23,8 @@
 */
 
 #include "dim.h"
+#include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql_session.h"
 #include "mysqlrouter/utils.h"
@@ -1732,35 +1734,13 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     cluster_nodes_ports = {port_pool_.get_next_available(),
                            port_pool_.get_next_available(),
                            port_pool_.get_next_available()};
+    cluster_nodes_http_ports = {port_pool_.get_next_available(),
+                                port_pool_.get_next_available(),
+                                port_pool_.get_next_available()};
     router_port = port_pool_.get_next_available();
     metadata_cache_section = get_metadata_cache_section(cluster_nodes_ports);
     routing_section =
         get_metadata_cache_routing_section("PRIMARY", "round-robin", "");
-
-    write_json_file(get_data_dir());
-  }
-
-  void write_json_file(const Path &data_dir) {
-    std::map<std::string, std::string> json_vars = {
-        {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(cluster_nodes_ports[0])},
-        {"SECONDARY_1_HOST",
-         "127.0.0.1:" + std::to_string(cluster_nodes_ports[1])},
-        {"SECONDARY_2_HOST",
-         "127.0.0.1:" + std::to_string(cluster_nodes_ports[2])},
-
-        {"PRIMARY_PORT", std::to_string(cluster_nodes_ports[0])},
-        {"SECONDARY_1_PORT", std::to_string(cluster_nodes_ports[1])},
-        {"SECONDARY_2_PORT", std::to_string(cluster_nodes_ports[2])},
-    };
-
-    // launch the primary node working also as metadata server
-    json_primary_node_template_ =
-        data_dir.join("metadata_3_nodes_first_not_accessible.js").str();
-    json_primary_node_ = Path(temp_test_dir.name())
-                             .join("metadata_3_nodes_first_not_accessible.json")
-                             .str();
-    rewrite_js_to_tracefile(json_primary_node_template_, json_primary_node_,
-                            json_vars);
   }
 
   std::string get_metadata_cache_section(std::vector<uint16_t> ports) {
@@ -1810,10 +1790,9 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
         &default_section);
   }
 
-  std::string json_primary_node_template_;
-  std::string json_primary_node_;
   TempDirectory temp_test_dir;
   std::vector<uint16_t> cluster_nodes_ports;
+  std::vector<uint16_t> cluster_nodes_http_ports;
   uint16_t router_port;
   std::string metadata_cache_section;
   std::string routing_section;
@@ -1858,9 +1837,13 @@ TEST_F(MetadataCacheLoggingTest,
   TempDirectory conf_dir("conf");
 
   // launch second metadata server
-  auto &server = launch_mysql_server_mock(json_primary_node_,
-                                          cluster_nodes_ports[1], false);
+  const auto http_port = cluster_nodes_http_ports[1];
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_3_nodes_first_not_accessible.js").str(),
+      cluster_nodes_ports[1], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[1]));
+  EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
+  set_mock_metadata(http_port, "", cluster_nodes_ports);
 
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
@@ -1878,7 +1861,7 @@ TEST_F(MetadataCacheLoggingTest,
   };
 
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                           info_matcher, std::chrono::milliseconds(10000)))
+                           info_matcher, 10000ms))
       << router.get_full_logfile();
 
   auto warning_matcher = [](const std::string &line) -> bool {
@@ -1888,7 +1871,7 @@ TEST_F(MetadataCacheLoggingTest,
                "replicaset") != line.npos;
   };
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                           warning_matcher, std::chrono::milliseconds(10000)))
+                           warning_matcher, 10000ms))
       << router.get_full_logfile();
 }
 

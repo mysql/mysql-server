@@ -189,17 +189,6 @@ void init_keyring(std::map<std::string, std::string> &default_section,
                   const std::string &user = "mysql_router1_user",
                   const std::string &password = "root");
 
-/** @brief replace the 'process.env.{id}' in the input stream
- *
- * @pre assumes the input stream is a JS(ON) document with 'process.env.{id}'
- * references.
- *
- * replaces all references of process.env.{id} with the "environment
- * variables" provided in env_vars, line-by-line
- */
-void replace_process_env(std::istream &ins, std::ostream &outs,
-                         const std::map<std::string, std::string> &env_vars);
-
 /** @brief returns true if the selected file contains a string
  *          that is true for a given predicate
  *
@@ -229,9 +218,5 @@ std::string get_file_output(const std::string &file_name);
 // need to return void to be able to use ASSERT_ macros
 void connect_client_and_query_port(unsigned router_port, std::string &out_port,
                                    bool should_fail = false);
-
-void rewrite_js_to_tracefile(
-    const std::string &infile_name, const std::string &outfile_name,
-    const std::map<std::string, std::string> &env_vars);
 
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_system_layout.h"
@@ -214,14 +215,6 @@ class GrNotificationsTest : public RouterComponentTest {
     }
     const auto json_str = json_to_string(json_doc);
     EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
-  }
-
-  std::string json_to_string(const JsonValue &json_doc) {
-    JsonStringBuffer out_buffer;
-
-    rapidjson::Writer<JsonStringBuffer> out_writer{out_buffer};
-    json_doc.Accept(out_writer);
-    return out_buffer.GetString();
   }
 
   int get_ttl_queries_count(const std::string &json_string) {

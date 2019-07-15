@@ -365,7 +365,8 @@ TEST_F(MetadataChacheTTLTest, InstancesListUnordered) {
   std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
                                                    node_classic_ports.rend());
   for (size_t i = 0; i < 2; ++i) {
-    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse);
+    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse,
+                      1);
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -374,7 +375,7 @@ TEST_F(MetadataChacheTTLTest, InstancesListUnordered) {
   const std::string log_content = router.get_full_logfile();
 
   // 1 is expected, that comes from the inital reading of the metadata
-  EXPECT_EQ(1, count_str_occurences(log_content, needle));
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 }
 
 int main(int argc, char *argv[]) {

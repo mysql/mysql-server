@@ -108,39 +108,6 @@ TEST_F(MockServerCLITest, http_port_too_large) {
   EXPECT_THAT(cmd.get_full_output(), ::testing::HasSubstr("was '65536'"));
 }
 
-/**
- * ensure a sending a statement after no more statements are known by mock leads
- * to proper error.
- */
-TEST_F(MockServerCLITest, fail_on_no_more_stmts) {
-  auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
-
-  ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
-
-  auto server_port = port_pool_.get_next_available();
-  const std::string json_stmts =
-      get_data_dir().join("js_test_stmts_is_empty.json").str();
-
-  SCOPED_TRACE("// start mock");
-  auto &server_mock =
-      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
-
-  mysqlrouter::MySQLSession client;
-
-  SCOPED_TRACE("// connecting via mysql protocol");
-  ASSERT_NO_THROW(
-      client.connect("127.0.0.1", server_port, "username", "password", "", ""))
-      << server_mock.get_full_output();
-
-  SCOPED_TRACE("// select @@port, should throw");
-  ASSERT_THROW_LIKE(client.execute("select @@port"),
-                    mysqlrouter::MySQLSession::Error,
-                    "Error executing MySQL query: Unexpected stmt, got: "
-                    "\"select @@port\"; expected nothing (1064)");
-}
-
 static void init_DIM() {
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
 

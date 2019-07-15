@@ -40,6 +40,8 @@
 #endif
 #include <rapidjson/document.h>
 
+#include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -56,7 +58,6 @@ class ShutdownTest : public RouterComponentTest {
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
       wait_for_cache_ready_timeout_ = 5000;
-      wait_for_process_exit_timeout_ = 20000;
     }
   }
 
@@ -76,64 +77,22 @@ class ShutdownTest : public RouterComponentTest {
     return router;
   }
 
-  std::string create_JSON_tracefile(
-      const std::string &temp_test_dir,
-      const std::vector<uint16_t> cluster_node_ports) {
-    std::map<std::string, std::string> primary_json_env_vars = {
-        {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(cluster_node_ports[0])},
-        {"SECONDARY_1_HOST",
-         "127.0.0.1:" + std::to_string(cluster_node_ports[1])},
-        {"SECONDARY_2_HOST",
-         "127.0.0.1:" + std::to_string(cluster_node_ports[2])},
-        {"SECONDARY_3_HOST",
-         "127.0.0.1:" + std::to_string(cluster_node_ports[3])},
-
-        {"PRIMARY_PORT", std::to_string(cluster_node_ports[0])},
-        {"SECONDARY_1_PORT", std::to_string(cluster_node_ports[1])},
-        {"SECONDARY_2_PORT", std::to_string(cluster_node_ports[2])},
-        {"SECONDARY_3_PORT", std::to_string(cluster_node_ports[3])},
-    };
-
-    const std::string json_primary_node_template =
-        get_data_dir().join("test_shutdown.js").str();
-    const std::string json_primary_node =
-        Path(temp_test_dir).join("test_shutdown.js").str();
-    rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
-                            primary_json_env_vars);
-
-    return json_primary_node;
-  }
-
   void delay_sending_handshake(
+      const JsonValue &existing_globals,
       const std::vector<uint16_t> cluster_node_http_ports) {
     const std::string kRestGlobalsUri = "/api/v1/mock_server/globals/";
     const std::string kHostname = "127.0.0.1";
-    const std::string kHandshakeSendDelayKey = "connect_exec_time";
-    const std::string kHandshakeSendDelayMs = "10000";
+    const int kHandshakeSendDelayMs = 10000;
+
+    JsonValue globals;
+    JsonAllocator allocator;
+    globals.CopyFrom(existing_globals, allocator);
+    globals.AddMember("connect_exec_time", kHandshakeSendDelayMs, allocator);
+    const auto json_str = json_to_string(globals);
 
     // tell all the server mocks to delay sending handshake by 10 seconds
     for (auto http_port : cluster_node_http_ports) {
-      IOContext io_ctx;
-      RestClient rest_client(io_ctx, kHostname, http_port);
-
-      ASSERT_TRUE(wait_for_rest_endpoint_ready(kRestGlobalsUri, http_port))
-          << "wait_for_rest_endpoint_ready() timed out";
-
-      HttpRequest req =
-          rest_client.request_sync(HttpMethod::Put, kRestGlobalsUri,
-                                   "{\"" + kHandshakeSendDelayKey +
-                                       "\" : " + kHandshakeSendDelayMs + "}");
-
-      ASSERT_TRUE(req) << "HTTP Request to " << kHostname << ":"
-                       << std::to_string(http_port)
-                       << " failed (early): " << req.error_msg() << std::endl;
-      ASSERT_GT(req.get_response_code(), 0u)
-          << "HTTP Request to " << kHostname << ":" << std::to_string(http_port)
-          << " failed: " << req.error_msg() << std::endl;
-      ASSERT_EQ(req.get_response_code(), 204u);
-
-      auto resp_body = req.get_input_buffer();
-      ASSERT_EQ(resp_body.length(), 0u);
+      EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
     }
   }
 
@@ -188,7 +147,6 @@ class ShutdownTest : public RouterComponentTest {
 
   TcpPortPool port_pool_;
   unsigned wait_for_cache_ready_timeout_ = 1000;
-  unsigned wait_for_process_exit_timeout_ = 10000;
 };
 
 /** @test
@@ -242,7 +200,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   const uint16_t router_port = port_pool_.get_next_available();
 
   const std::string json_primary_node =
-      create_JSON_tracefile(temp_test_dir.name(), cluster_node_ports);
+      get_data_dir().join("test_shutdown.js").str();
 
   // launch cluster
   // NOTE: We reuse the primary's JSON file for all the secondaries just for
@@ -250,16 +208,18 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   //       therefore any arbitrary JSON will do for the secondaries.
   std::vector<ProcessWrapper *> cluster_nodes;
   for (size_t i = 0; i < cluster_node_ports.size(); i++) {
-    auto &node = launch_mysql_server_mock(
-        json_primary_node, cluster_node_ports[i], EXIT_SUCCESS,
-        false /*debug_mode*/, cluster_node_http_ports[i]);
+    const auto http_port = cluster_node_http_ports[i];
+    auto &node =
+        launch_mysql_server_mock(json_primary_node, cluster_node_ports[i],
+                                 EXIT_SUCCESS, false /*debug_mode*/, http_port);
     cluster_nodes.emplace_back(&node);
-  }
 
-  // wait for the whole cluster to be up
-  for (size_t i = 0; i < cluster_nodes.size(); i++)
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_node_ports[i]));
+
+    EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
+    set_mock_metadata(http_port, "gr-id", cluster_node_ports);
+  }
 
   // write Router config
   std::string servers;
@@ -268,7 +228,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   servers.resize(servers.size() - 1);  // trim last ","
   const std::string config =
       /*[DEFAULT]*/
-      "connect_timeout = " + std::to_string(kConnectTimeout.count()) +
+      "connect_timeout = " + std::to_string(kConnectTimeout.count() / 1000) +
       "\n"
       "\n"
       "[metadata_cache:test]\n"
@@ -303,8 +263,9 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
 
   // now let's tell server nodes to delay sending MySQL Protocol handshake on
   // new connections (to simulate them being unreachable)
+  auto current_globals = mock_GR_metadata_as_json("gr-id", cluster_node_ports);
   ASSERT_NO_FATAL_FAILURE(
-      { delay_sending_handshake(cluster_node_http_ports); });
+      { delay_sending_handshake(current_globals, cluster_node_http_ports); });
 
   // wait for a new (slow) Refresh cycle to commence
   auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -316,7 +277,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   // and tell Router to shutdown and expect it to finish it within
   // kAcceptableShutdownWait seconds
   EXPECT_FALSE(router.send_clean_shutdown_event());
-  check_exit_code(router, EXIT_SUCCESS, kAcceptableShutdownWait * 1000);
+  check_exit_code(router, EXIT_SUCCESS, kAcceptableShutdownWait);
 }
 
 int main(int argc, char *argv[]) {

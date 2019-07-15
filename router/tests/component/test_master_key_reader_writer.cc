@@ -86,22 +86,6 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     }
   }
 
-  std::string get_json_file(const Path &data_dir, unsigned server_port) {
-    std::map<std::string, std::string> json_vars = {
-        {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(server_port)},
-        {"PRIMARY_PORT", std::to_string(server_port)},
-    };
-
-    // launch the primary node working also as metadata server
-    std::string json_primary_node_template =
-        data_dir.join("metadata_1_node.js").str();
-    std::string json_primary_node =
-        Path(tmp_dir_.name()).join("metadata_1_node.json").str();
-    rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
-                            json_vars);
-    return json_primary_node;
-  }
-
   std::string get_metadata_cache_section(unsigned server_port) {
     return "[metadata_cache:test]\n"
            "router_id=1\n"
@@ -567,12 +551,12 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
   init_keyring();
 
   // launch server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port));
 
   auto default_section_map = get_default_section_map();
@@ -596,7 +580,7 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
 
   EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher,
                            std::chrono::milliseconds(10000)))
-      << router.get_full_output();
+      << router.get_full_logfile("mysqlrouter.log", logging_folder);
 }
 
 /**
@@ -614,12 +598,12 @@ TEST_F(MasterKeyReaderWriterTest,
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
   init_keyring();
 
   // launch server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port, 10000ms));
 
   auto default_section_map = get_default_section_map();
@@ -656,12 +640,12 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
   init_keyring();
 
   // launch second metadata server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port));
 
   auto default_section_map = get_default_section_map(true, true);
@@ -692,12 +676,12 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
-  std::string json_primary_node = get_json_file(get_data_dir(), server_port);
   init_keyring();
 
   // launch second metadata server
-  auto &server =
-      launch_mysql_server_mock(json_primary_node, server_port, false);
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port));
 
   auto incorrect_master_key_default_section_map =

@@ -27,6 +27,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <vector>
 
 /** @class UniqueID
  *
@@ -67,8 +68,7 @@ class UniqueId {
  **/
 class TcpPortPool {
  public:
-  TcpPortPool(uint16_t start_from = 100, uint16_t range = 200)
-      : unique_id_(start_from, range) {}
+  TcpPortPool() {}
 
   TcpPortPool(const TcpPortPool &) = delete;
   TcpPortPool &operator=(const TcpPortPool &) = delete;
@@ -79,9 +79,11 @@ class TcpPortPool {
           std::chrono::milliseconds(200));
 
  private:
-  UniqueId unique_id_;
+  std::vector<UniqueId> unique_ids_;
   unsigned number_of_ids_used_{0};
-  static const int kMaxPort{10};
+  static const constexpr unsigned kPortsPerFile{10};
+  static const constexpr unsigned kPortsStartFrom{100};
+  static const constexpr unsigned kPortsRange{200};
 };
 
 #endif  // _TCP_PORT_POOL_H_
