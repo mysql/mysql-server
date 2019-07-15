@@ -161,12 +161,13 @@ class XComCommunicationTest : public GcsBaseTest {
     static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface())
         ->set_xcom_group_information(mock_gid->get_group_id());
     mock_xcom_address = new Gcs_xcom_node_address("127.0.0.1:12345");
+    static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface())
+        ->set_node_address(mock_xcom_address->get_member_address());
     mock_stats = new mock_gcs_xcom_statistics_updater();
     mock_proxy = new mock_gcs_xcom_proxy();
     mock_vce = new mock_gcs_xcom_view_change_control_interface();
-    xcom_comm_if =
-        new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce,
-                                   *mock_xcom_address, engine, *mock_gid);
+    xcom_comm_if = new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce,
+                                              engine, *mock_gid);
 
     // clang-format off
     xcom_comm_if->get_msg_pipeline().register_stage<Gcs_message_stage_lz4>();

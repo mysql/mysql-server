@@ -162,14 +162,15 @@ class GcsMessageStageFragmentationTest : public GcsBaseTest {
   Mock_gcs_xcom_proxy m_mock_proxy;
   Mock_gcs_xcom_view_change_control_interface m_mock_vce;
   Gcs_xcom_communication m_xcom_comm_if{&m_mock_stats, &m_mock_proxy,
-                                        &m_mock_vce,   m_mock_xcom_address,
-                                        &m_engine,     m_mock_gid};
+                                        &m_mock_vce, &m_engine, m_mock_gid};
   Gcs_message_stage_split_v2 *m_fragmentation_stage{nullptr};
 
  public:
   GcsMessageStageFragmentationTest() {
     static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface())
         ->set_xcom_group_information(m_mock_gid.get_group_id());
+    static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface())
+        ->set_node_address(m_mock_xcom_address.get_member_address());
   }
 
   void configure_pipeline(bool const fragmentation_enabled,

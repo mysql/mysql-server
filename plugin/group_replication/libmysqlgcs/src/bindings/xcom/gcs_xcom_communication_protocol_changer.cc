@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,14 +21,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_protocol_changer.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"  // gcs_protocol_to_mysql_version
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
 Gcs_xcom_communication_protocol_changer::
-    Gcs_xcom_communication_protocol_changer(
-        Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine &gcs_engine,
-        Gcs_message_pipeline &pipeline)
+    Gcs_xcom_communication_protocol_changer(Gcs_xcom_engine &gcs_engine,
+                                            Gcs_message_pipeline &pipeline)
     : m_tagged_lock(),
       m_mutex(),
       m_protocol_change_finished(),
@@ -37,7 +37,6 @@ Gcs_xcom_communication_protocol_changer::
       m_max_supported_protocol(Gcs_protocol_version::HIGHEST_KNOWN),
       m_nr_packets_in_transit(0),
       m_gcs_engine(gcs_engine),
-      m_myself(xcom_node_address.get_member_address()),
       m_msg_pipeline(pipeline) {}
 
 Gcs_protocol_version
@@ -302,24 +301,30 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
    Unless it is a state exchange packet, because of the reasons specified in
    atomically_increment_nr_packets_in_transit.
    */
-  bool const message_comes_from_me = (origin == m_myself);
-  if (message_comes_from_me) {
-    DBUG_ASSERT(get_nr_packets_in_transit() > 0 &&
-                "Number of packets in transit should not have been 0");
+  Gcs_xcom_interface *const xcom_interface =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  if (xcom_interface != nullptr) {
+    Gcs_member_identifier myself{
+        xcom_interface->get_node_address()->get_member_address()};
+    bool const message_comes_from_me = (origin == myself);
+    if (message_comes_from_me) {
+      DBUG_ASSERT(get_nr_packets_in_transit() > 0 &&
+                  "Number of packets in transit should not have been 0");
 
-    // Update number of packets in transit
-    auto previous_nr_of_packets_in_transit =
-        m_nr_packets_in_transit.fetch_sub(1, std::memory_order_relaxed);
+      // Update number of packets in transit
+      auto previous_nr_of_packets_in_transit =
+          m_nr_packets_in_transit.fetch_sub(1, std::memory_order_relaxed);
 
-    MYSQL_GCS_LOG_TRACE(
-        "decrement_nr_packets_in_transit: nr_packets_in_transit=%d",
-        previous_nr_of_packets_in_transit - 1);
+      MYSQL_GCS_LOG_TRACE(
+          "decrement_nr_packets_in_transit: nr_packets_in_transit=%d",
+          previous_nr_of_packets_in_transit - 1);
 
-    // Finish the protocol change if we delivered the last pending packet.
-    bool const delivered_last_pending_packet =
-        (previous_nr_of_packets_in_transit == 1);
-    if (is_protocol_change_ongoing() && delivered_last_pending_packet) {
-      commit_protocol_version_change();
+      // Finish the protocol change if we delivered the last pending packet.
+      bool const delivered_last_pending_packet =
+          (previous_nr_of_packets_in_transit == 1);
+      if (is_protocol_change_ongoing() && delivered_last_pending_packet) {
+        commit_protocol_version_change();
+      }
     }
   }
 }
