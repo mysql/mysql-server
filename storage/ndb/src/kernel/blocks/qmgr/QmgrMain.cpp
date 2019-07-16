@@ -1295,30 +1295,9 @@ void Qmgr::execCM_REGREQ(Signal* signal)
      * while in single user mode.
      */
     // handle rolling upgrade
-    {
-      unsigned int get_major = getMajor(startingVersion);
-      unsigned int get_minor = getMinor(startingVersion);
-      unsigned int get_build = getBuild(startingVersion);
-
-      if (startingVersion < NDBD_QMGR_SINGLEUSER_VERSION_5) {
-        jam();
-
-        infoEvent("QMGR: detect upgrade: new node %u old version %u.%u.%u",
-          (unsigned int)addNodePtr.i, get_major, get_minor, get_build);
-        /** 
-         * The new node is old version, send ZINCOMPATIBLE_VERSION instead
-         * of ZSINGLE_USER_MODE.
-         */
-        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION,
-                        startingVersion);
-      } else {
-        jam();
-
-        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE,
-                        startingVersion);
-      }//if
-    }
-
+    jam();
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE,
+                    startingVersion);
     return;
   }//if
 
