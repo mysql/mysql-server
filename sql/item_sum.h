@@ -559,13 +559,6 @@ class Item_sum : public Item_result_field {
   bool itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const = 0;
-  virtual void fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select
-                                     MY_ATTRIBUTE((unused))) override {
-    // Just make sure we are not aggregating into a context that is merged up.
-    DBUG_ASSERT(aggr_select != removed_select);
-    base_select = parent_select;
-  }
 
   /**
     Resets the aggregate value to its default and aggregates the current
@@ -597,6 +590,9 @@ class Item_sum : public Item_result_field {
   virtual Item *result_item(Field *field) { return new Item_field(field); }
   table_map used_tables() const override { return used_tables_cache; }
   void update_used_tables() override;
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select) override;
+  void add_used_tables_for_aggr_func();
   bool is_null() override { return null_value; }
   void make_const() {
     used_tables_cache = 0;

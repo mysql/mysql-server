@@ -685,38 +685,66 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
 }
 
 void Item_sum::update_used_tables() {
-  if (!forced_const) {
-    used_tables_cache = 0;
-    // Re-accumulate all properties except three
-    m_accum_properties &=
-        (PROP_AGGREGATION | PROP_WINDOW_FUNCTION | PROP_ROLLUP_EXPR);
+  if (forced_const) return;
 
-    for (uint i = 0; i < arg_count; i++) {
-      args[i]->update_used_tables();
-      used_tables_cache |= args[i]->used_tables();
-      add_accum_properties(args[i]);
-    }
+  used_tables_cache = 0;
+  // Re-accumulate all properties except three
+  m_accum_properties &=
+      (PROP_AGGREGATION | PROP_WINDOW_FUNCTION | PROP_ROLLUP_EXPR);
 
-    /*
-      If the function is aggregated into its local context, it can
-      be calculated only after evaluating the full join, thus it
-      depends on all tables of this join. Otherwise, it depends on
-      outer tables, even if its arguments args[] do not explicitly
-      reference an outer table, like COUNT (*) or COUNT(123).
-
-      Window functions are always evaluated in the local scope
-      and depend on all tables involved in the join since they cannot
-      be evaluated until after the join is completed.
-    */
-    used_tables_cache |= aggr_select == base_select || m_is_window_function
-                             ? base_select->all_tables_map()
-                             : OUTER_REF_TABLE_BIT;
-    /*
-      Aggregate functions are not allowed to be const, but they may
-      be const-for-execution.
-    */
-    if (used_tables_cache == 0) used_tables_cache = INNER_TABLE_BIT;
+  for (uint i = 0; i < arg_count; i++) {
+    args[i]->update_used_tables();
+    used_tables_cache |= args[i]->used_tables();
+    add_accum_properties(args[i]);
   }
+  add_used_tables_for_aggr_func();
+}
+
+void Item_sum::fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select) {
+  // Cannot aggregate into a context that is merged up.
+  DBUG_ASSERT(aggr_select != removed_select);
+
+  // We may merge up a query block, if it is not the aggregating query context
+  if (base_select == removed_select) base_select = parent_select;
+
+  // Perform pullout of arguments to aggregate function
+  used_tables_cache = 0;
+
+  Item **arg, **arg_end;
+  for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
+    Item *const item = *arg;
+    item->fix_after_pullout(parent_select, removed_select);
+    used_tables_cache |= item->used_tables();
+  }
+  // Complete used_tables information by looking at aggregate function
+  add_used_tables_for_aggr_func();
+}
+
+/**
+  Add used_tables information for aggregate function, based on its aggregated
+  query block.
+
+  If the function is aggregated into its local context, it can
+  be calculated only after evaluating the full join, thus it
+  depends on all tables of this join. Otherwise, it depends on
+  outer tables, even if its arguments args[] do not explicitly
+  reference an outer table, like COUNT (*) or COUNT(123).
+
+  Window functions are always evaluated in the local scope
+  and depend on all tables involved in the join since they cannot
+  be evaluated until after the join is completed.
+*/
+
+void Item_sum::add_used_tables_for_aggr_func() {
+  used_tables_cache |= aggr_select == base_select || m_is_window_function
+                           ? base_select->all_tables_map()
+                           : OUTER_REF_TABLE_BIT;
+  /*
+    Aggregate functions are not allowed to be const, but they may
+    be const-for-execution.
+  */
+  if (used_tables_cache == 0) used_tables_cache = INNER_TABLE_BIT;
 }
 
 Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val) {

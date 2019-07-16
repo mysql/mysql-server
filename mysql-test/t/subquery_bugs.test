@@ -747,7 +747,7 @@ INSERT INTO t1 VALUES (20,'2');
 ANALYZE TABLE t1;
 
 # Essentially verifies that running the range optimizer on a three-table
-# JOIN during execution (“re-planned for each iteration”) doesn't crash.
+# JOIN during execution ("re-planned for each iteration") doesn't crash.
 # If it does, it's typically because the range optimizer doesn't know which
 # join it is working over.
 let $query = SELECT (
@@ -758,6 +758,57 @@ let $query = SELECT (
 ) FROM t1 AS table1;
 
 eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # Bug#28941154: Executing query does not return a result the first time
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int int,
+  col_time_key time,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY idx_CC_col_time_key (col_time_key),
+  KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES
+ (1,1244696008,'15:54:41','u'),
+ (2,893471119,'16:03:34','e'),
+ (3,462275345,'06:57:11','g'),
+ (4,2067212400,'06:56:19','E'),
+ (5,-270339471,'03:38:07','d'),
+ (6,-734590502,'03:18:29','Q'),
+ (7,-1230000720,'15:56:21','C'),
+ (8,-1086526061,'19:08:49','B'),
+ (9,-1620913518,'22:44:04','3'),
+ (10,1210237478,'11:18:51','i'),
+ (11,-886894023,'20:28:00','A'),
+ (12,-1490912666,'17:51:14','H'),
+ (13,149282252,'16:51:14','Z'),
+ (14,1451237940,'09:13:29','L'),
+ (15,1933327447,'11:14:05','2'),
+ (16,-693463421,'05:29:04','V'),
+ (17,333204980,'16:24:13','O'),
+ (18,279626907,'09:45:54','t'),
+ (19,-1372487638,'17:45:04','a'),
+ (20,-150563684,'15:32:40','D');
+
+ANALYZE TABLE t1;
+
+let $query=
+SELECT table2.col_time_key AS field1
+FROM t1 AS table1 LEFT JOIN t1 AS table2
+     ON table1.col_varchar_key = table2.col_varchar_key
+WHERE 1 IN (SELECT 1 FROM t1 AS subq
+            WHERE subq.pk <= (SELECT DISTINCT MIN(subq.col_int)
+                              FROM t1 as alias1
+                             )
+           );
+
+eval explain $query;
 eval $query;
 
 DROP TABLE t1;
