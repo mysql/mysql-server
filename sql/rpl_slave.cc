@@ -1953,6 +1953,7 @@ bool start_slave_thread(
       if (!thd->killed)
         mysql_cond_wait(start_cond, cond_lock);
       mysql_mutex_unlock(cond_lock);
+      DEBUG_SYNC(thd, "start_slave_thread_after_signal_on_start_cond");
       thd->EXIT_COND(& saved_stage);
       mysql_mutex_lock(cond_lock); // re-acquire it
       if (thd->killed)
@@ -7340,8 +7341,8 @@ extern "C" void *handle_slave_sql(void *arg)
     "If a crash happens this configuration does not guarantee that the relay "
     "log info will be consistent");
 
-  mysql_mutex_unlock(&rli->run_lock);
   mysql_cond_broadcast(&rli->start_cond);
+  mysql_mutex_unlock(&rli->run_lock);
 
   DEBUG_SYNC(thd, "after_start_slave");
 
@@ -7606,9 +7607,9 @@ extern "C" void *handle_slave_sql(void *arg)
   /* Forget the relay log's format */
   rli->set_rli_description_event(NULL);
   /* Wake up master_pos_wait() */
-  mysql_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
   mysql_cond_broadcast(&rli->data_cond);
+  mysql_mutex_unlock(&rli->data_lock);
   rli->ignore_log_space_limit= 0; /* don't need any lock */
   /* we die so won't remember charset - re-update them on next thread start */
   rli->cached_charset_invalidate();
@@ -7634,6 +7635,15 @@ extern "C" void *handle_slave_sql(void *arg)
   mysql_mutex_unlock(&rli->info_thd_lock);
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
+ /*
+  Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
+  is important. Otherwise a killer_thread can execute between the calls and
+  delete the mi structure leading to a crash! (see BUG#25306 for details)
+ */
+  mysql_cond_broadcast(&rli->stop_cond);
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
+  mysql_mutex_unlock(&rli->run_lock);  // tell the world we are done
+
   thd->release_resources();
   THD_CHECK_SENTRY(thd);
   if (thd_added)
@@ -7649,15 +7659,6 @@ extern "C" void *handle_slave_sql(void *arg)
     to NULL.
   */
   delete thd;
-
- /*
-  Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
-  is important. Otherwise a killer_thread can execute between the calls and
-  delete the mi structure leading to a crash! (see BUG#25306 for details)
- */ 
-  mysql_cond_broadcast(&rli->stop_cond);
-  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
-  mysql_mutex_unlock(&rli->run_lock);  // tell the world we are done
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
