@@ -59,8 +59,8 @@ IF(SOLARIS)
   TARGET_LINK_LIBRARIES(routing_plugin_tests -lnsl -lsocket)
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+IF(MY_COMPILER_IS_CLANG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
 SET(TEST_MODULE "routing")

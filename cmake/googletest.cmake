@@ -201,7 +201,7 @@ SET(GTEST_LIBRARIES gmock gtest)
 
 ADD_LIBRARY(gmock_main STATIC ${GMOCK_SOURCE_DIR}/src/gmock_main.cc)
 ADD_LIBRARY(gtest_main STATIC ${GTEST_SOURCE_DIR}/src/gtest_main.cc)
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   SET_TARGET_PROPERTIES(gtest_main gmock_main
     PROPERTIES
     COMPILE_FLAGS "-Wno-undef -Wno-conversion")

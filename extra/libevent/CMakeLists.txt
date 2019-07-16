@@ -174,7 +174,7 @@ if (EVENT__COVERAGE)
 endif()
 
 # GCC specific options.
-if (CMAKE_COMPILER_IS_GNUCC)
+if (MY_COMPILER_IS_GNU)
     option(EVENT__DISABLE_GCC_WARNINGS "Disable verbose warnings with GCC" OFF)
     option(EVENT__ENABLE_GCC_HARDENING "Enable compiler security checks" OFF)
     option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
@@ -788,7 +788,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 if (EVENT__BUILD_SHARED_LIBRARIES)
   set(EVENT__LIBRARY_TYPE SHARED)
 
-  if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} MATCHES "Clang"))
+  if (MY_COMPILER_IS_GNU_OR_CLANG)
         add_compiler_flags(-fvisibility=hidden)
   elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
     add_compiler_flags(-xldscope=hidden)

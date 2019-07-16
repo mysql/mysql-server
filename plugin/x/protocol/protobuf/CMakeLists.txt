@@ -76,13 +76,12 @@ SET_PROPERTY(TARGET ${PROTOCOL_LITE_LIB_NAME} PROPERTY EXCLUDE_FROM_ALL TRUE)
 SET(XPROTOCOL_FLAGS "")
 SET(PUBLIC_XPROTOCOL_FLAGS "")
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(PUBLIC_XPROTOCOL_FLAGS
-    "${PUBLIC_XPROTOCOL_FLAGS} -Wno-unused-parameter -Wno-undef"
-  )
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(PUBLIC_XPROTOCOL_FLAGS " -Wno-unused-parameter -Wno-undef"
+    )
 
-  SET(XPROTOCOL_FLAGS
-    "${XPROTOCOL_FLAGS} -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable -Wno-undef"
+  STRING_APPEND(XPROTOCOL_FLAGS
+    " -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable -Wno-undef"
   )
 
   MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)

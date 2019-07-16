@@ -83,7 +83,7 @@ SET(MYISAM_SOURCES
 # MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
 # As MyISAM is not maintained anymore, it is not worth fixing these,
 # so we turn off the warning instead.
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(
     ${MYISAM_SOURCES}
     myisam_ftdump.cc

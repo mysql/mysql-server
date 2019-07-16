@@ -32,7 +32,7 @@ INCLUDE (CheckCSourceRuns)
 INCLUDE (CheckSymbolExists)
 INCLUDE (CheckTypeSize)
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   SET(WIN32_CLANG 1)
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_C "/imsvc ")
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_CXX "/imsvc ")
@@ -164,10 +164,10 @@ IF(MSVC)
     ENDFOREACH()
   ENDFOREACH()
 
-  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(NOT WIN32_CLANG)
     # Speed up multiprocessor build (not supported by the Clang driver)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+    STRING_APPEND(CMAKE_C_FLAGS " /MP")
+    STRING_APPEND(CMAKE_CXX_FLAGS " /MP")
   ENDIF()
 
   #TODO: update the code and remove the disabled warnings
@@ -185,8 +185,8 @@ IF(MSVC)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
 
   # Enable stricter standards conformance when using Visual Studio
-  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
+  IF(NOT WIN32_CLANG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
   ENDIF()
 ENDIF()
 
