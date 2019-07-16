@@ -12459,9 +12459,6 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 senderData = nextReq->senderData;
   Uint32 hashHi = signal->getSendersBlockRef();
   // bug#13834481 hashHi!=0 caused timeout (tx not found)
-  const NodeInfo& senderInfo = getNodeInfo(refToNode(hashHi));
-  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
-    hashHi = 0;
 
   TcConnectionrecPtr tcConnectptr;
   if (unlikely(findTransaction(transid1,
@@ -13359,10 +13356,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   TcConnectionrec * regTcPtr;
   Uint32 senderHi = signal->getSendersBlockRef();
   // bug#13834481 hashHi!=0 caused timeout (tx not found)
-  const NodeInfo& senderInfo = getNodeInfo(refToNode(senderHi));
-
-  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
-    senderHi = 0;
 
   tabptr.i = scanFragReq->tableId;
 
