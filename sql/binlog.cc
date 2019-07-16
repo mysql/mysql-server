@@ -5484,7 +5484,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
   LOG_INFO linfo;
   bool error = 0;
   int err;
-  const char *save_name;
+  const char *save_name = nullptr;
   Checkable_rwlock *sid_lock = nullptr;
   DBUG_TRACE;
 
@@ -5598,24 +5598,23 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
   if (!is_relay_log) {
     if (gtid_state->clear(thd)) {
       error = 1;
-      goto err;
     }
     /*
       Don't clear global_sid_map because gtid_state->clear() above didn't
       touched owned_gtids GTID set.
     */
-    if (gtid_state->init() != 0) goto err;
+    error = error || gtid_state->init();
   }
 
   if (!delete_only) {
     if (!open_index_file(index_file_name, 0, false /*need_lock_index=false*/))
-      if ((error = open_binlog(save_name, 0, max_size, false,
-                               false /*need_lock_index=false*/,
-                               false /*need_sid_lock=false*/, nullptr,
-                               thd->lex->next_binlog_file_nr)))
-        goto err;
+      error = open_binlog(save_name, 0, max_size, false,
+                          false /*need_lock_index=false*/,
+                          false /*need_sid_lock=false*/, nullptr,
+                          thd->lex->next_binlog_file_nr) ||
+              error;
   }
-  my_free(const_cast<char *>(save_name));
+  if (!error) my_free(const_cast<char *>(save_name));
 
 err:
   if (error == 1) name = const_cast<char *>(save_name);
