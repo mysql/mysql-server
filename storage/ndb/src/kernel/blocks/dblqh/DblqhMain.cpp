@@ -16105,12 +16105,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   ndbrequire(cfirstfreeTcConrec != RNIL);
   ndbrequire(fragptr.p->m_scanNumberMask.get(NR_ScanNo));
 
-  Uint32 checkversion = NDB_VERSION >= MAKE_VERSION(5,1,0) ?
-    NDBD_UPDATE_FRAG_DIST_KEY_51 :  NDBD_UPDATE_FRAG_DIST_KEY_50;
-  
   Uint32 nodeCount = copyFragReq->nodeCount;
   NdbNodeBitmask nodemask;
-  if (getNodeInfo(refToNode(userRef)).m_version >= checkversion)
   {
     ndbrequire(nodeCount <= MAX_REPLICAS);
     for (i = 0; i<nodeCount; i++)
@@ -16282,10 +16278,9 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     i = 0;
     while ((i = nodemask.find(i+1)) != NdbNodeBitmask::NotFound)
     {
-      if (getNodeInfo(i).m_version >=  checkversion)
-	sendSignal(calcInstanceBlockRef(number(), i),
-                   GSN_UPDATE_FRAG_DIST_KEY_ORD,
-		   signal, UpdateFragDistKeyOrd::SignalLength, JBB);
+      sendSignal(calcInstanceBlockRef(number(), i),
+                 GSN_UPDATE_FRAG_DIST_KEY_ORD,
+                 signal, UpdateFragDistKeyOrd::SignalLength, JBB);
     }
   }
 
