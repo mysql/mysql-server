@@ -27,7 +27,7 @@ Warning	1287	The SUPER privilege identifier is deprecated
 set global offline_mode=on;
 # Should have killed itself
 SELECT 1 FROM DUAL;
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 in connection default
 SET @@global.offline_mode = @global_saved_tmp;
 DROP USER u1@localhost;

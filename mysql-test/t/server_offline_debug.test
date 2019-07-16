@@ -49,7 +49,7 @@ connection con_u1;
 set global offline_mode=on;
 
 --echo # Should have killed itself
---error CR_SERVER_GONE_ERROR
+--error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 SELECT 1 FROM DUAL;
 
 --echo in connection default
