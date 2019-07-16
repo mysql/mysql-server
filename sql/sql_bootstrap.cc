@@ -25,6 +25,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "map_helpers.h"
+
 #include "m_string.h"
 #include "my_dbug.h"
 
@@ -34,6 +36,7 @@ void bootstrap_parser_position::init() {
 }
 
 void bootstrap_parser_state::init(const char *filename) {
+  m_unget_buffer.reset(static_cast<char *>(malloc(MAX_BOOTSTRAP_LINE_SIZE)));
   m_delimiter = DELIMITER_SEMICOLON;
   m_code_state = NORMAL;
   m_filename = filename;
@@ -105,7 +108,8 @@ void bootstrap_parser_state::report_error_details(log_function_t log) {
 int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
                          fgets_fn_t fgets_fn, bootstrap_parser_state *state) {
   /* Allow for up to 3 extra characters in lookup. */
-  char line_buffer[MAX_BOOTSTRAP_LINE_SIZE + 3];
+  unique_ptr_free<char> line_buffer(
+      static_cast<char *>(malloc(MAX_BOOTSTRAP_LINE_SIZE + 3)));
   char *line;
   size_t len;
   size_t query_len = 0;
@@ -117,12 +121,13 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
   for (;;) {
     if (state->m_unget_buffer_length == 0) {
       /* Read a line from the init file. */
-      line = (*fgets_fn)(line_buffer, MAX_BOOTSTRAP_LINE_SIZE, input,
+      line = (*fgets_fn)(line_buffer.get(), MAX_BOOTSTRAP_LINE_SIZE, input,
                          &fgets_error);
     } else {
       /* Read from a previous line, partially consumed. */
-      memcpy(line_buffer, state->m_unget_buffer, state->m_unget_buffer_length);
-      line = line_buffer;
+      memcpy(line_buffer.get(), state->m_unget_buffer.get(),
+             state->m_unget_buffer_length);
+      line = line_buffer.get();
       state->m_unget_buffer_length = 0;
     }
 
@@ -173,9 +178,9 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
       all the time before reading line[x], line[x+1], line[x+2],
       in the code below.
     */
-    line_buffer[len] = '\0';
-    line_buffer[len + 1] = '\0';
-    line_buffer[len + 2] = '\0';
+    line_buffer.get()[len] = '\0';
+    line_buffer.get()[len + 1] = '\0';
+    line_buffer.get()[len + 2] = '\0';
 
     size_t lead_whitespace_len = 0;
 
@@ -375,7 +380,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
         size_t remaining_len = len - remaining_line_index;
         DBUG_ASSERT(remaining_len + 1 < MAX_BOOTSTRAP_LINE_SIZE);
         /* Unput a partial line, including a terminating '\0' */
-        memcpy(state->m_unget_buffer, remaining_line, remaining_len + 1);
+        memcpy(state->m_unget_buffer.get(), remaining_line, remaining_len + 1);
         state->m_unget_buffer_length = remaining_len;
         state->m_current_line--;
       }
