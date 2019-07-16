@@ -4658,8 +4658,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
    * destination cannot handle it or we are 
    * testing
    */
-  if (unlikely((version < NDBD_LONG_LQHKEYREQ) ||
-               ERROR_INSERTED(8069)))
+  if (unlikely(ERROR_INSERTED(8069)))
   {
     /* Short LQHKEYREQ, with some key/attr data inline */
     regCachePtr->useLongLqhKeyReq= 0;

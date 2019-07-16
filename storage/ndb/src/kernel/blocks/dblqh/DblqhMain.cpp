@@ -8789,8 +8789,11 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
 
   jam();
   /* Send long LqhKeyReq to next replica if it can support it */
-  bool sendLongReq= ! ((nextVersion < NDBD_LONG_LQHKEYREQ) || 
-                       ERROR_INSERTED(5051));
+  bool sendLongReq= true;
+  if (ERROR_INSERTED(5051))
+  {
+    sendLongReq = false;
+  }
   
   UintR TAiLen = sendLongReq ?
     0 :
