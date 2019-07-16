@@ -16090,13 +16090,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
       nodemask.set(copyFragReq->nodeList[i]);
   }
   Uint32 maxPage = copyFragReq->nodeList[nodeCount];
-  Uint32 version = getNodeInfo(refToNode(userRef)).m_version;
   Uint32 requestInfo = copyFragReq->nodeList[nodeCount + 1];
-  if (ndb_check_prep_copy_frag_version(version) < 2)
-  {
-    jam();
-    maxPage = RNIL;
-  }
 
   if (signal->getLength() < CopyFragReq::SignalLength + nodeCount)
   {

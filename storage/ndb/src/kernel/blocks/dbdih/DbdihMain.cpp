@@ -9198,8 +9198,6 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
     replicaPtr.p->m_restorable_gci = conf.completedGci;
   }
 
-  Uint32 version = getNodeInfo(refToNode(conf.senderRef)).m_version;
-  ndbrequire(ndb_check_prep_copy_frag_version(version) >= 2);
   takeOverPtr.p->maxPage = conf.maxPageNo;
 
   c_activeTakeOverList.remove(takeOverPtr);
