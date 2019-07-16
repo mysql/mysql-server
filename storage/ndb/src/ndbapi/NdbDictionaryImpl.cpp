@@ -10501,13 +10501,6 @@ NdbDictionaryImpl::beginSchemaTrans(bool retry711)
     m_error.code = 4410;
     DBUG_RETURN(-1);
   }
-  if (!m_receiver.checkAllNodeVersionsMin(NDBD_SCHEMA_TRANS_VERSION))
-  {
-    /* Upgrade 6.3 -> 7.0 path */
-    /* Schema transaction not possible until upgrade complete */
-    m_error.code = 4411;
-    DBUG_RETURN(-1);
-  }
   // TODO real transId
   m_tx.m_transId = rand();
   if (m_tx.m_transId == 0)
