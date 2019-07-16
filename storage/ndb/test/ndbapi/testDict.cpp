@@ -3073,7 +3073,6 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
   };
   static int errlst_node[] = {
     7174,       // crash before sending DICT_LOCK_REQ
-    7176,       // pretend master does not support DICT lock
     7121,       // crash at receive START_PERMCONF
     0
   };
@@ -3168,14 +3167,6 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 
       for (int i = 0; i < nodeIdCnt && nodeIdCnt == 1; i++) {
         err_node[i] = errlst_node[l % errcnt_node];
-
-        // 7176 - no DICT lock protection
-
-        if (err_node[i] == 7176) {
-          g_info << "1: no dict ops due to error insert "
-                 << err_node[i] << endl;
-          NR_ops = false;
-        }
       }
     }
 

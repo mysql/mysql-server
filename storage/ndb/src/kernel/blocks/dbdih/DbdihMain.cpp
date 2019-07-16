@@ -29163,35 +29163,6 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
   lockPtr.p->locked = false;
   lockPtr.p->callback = c;
 
-  // handle rolling upgrade
-  {
-    Uint32 masterVersion = getNodeInfo(cmasterNodeId).m_version;
-
-    const unsigned int get_major = getMajor(masterVersion);
-    const unsigned int get_minor = getMinor(masterVersion);
-    const unsigned int get_build = getBuild(masterVersion);
-    ndbrequire(get_major >= 4);
-    
-    if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
-        (masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
-         get_major == 5 && get_minor == 1) ||
-        ERROR_INSERTED(7176)) {
-      jam();
-
-      infoEvent("DIH: detect upgrade: master node %u old version %u.%u.%u",
-                (unsigned int)cmasterNodeId, get_major, get_minor, get_build);
-
-      DictLockConf* conf = (DictLockConf*)&signal->theData[0];
-      conf->userPtr = lockPtr.i;
-      conf->lockType = lockType;
-      conf->lockPtr = ZNIL;
-      
-      sendSignal(reference(), GSN_DICT_LOCK_CONF, signal,
-                 DictLockConf::SignalLength, JBB);
-      return;
-    }
-  }
-  
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
   sendSignal(dictMasterRef, GSN_DICT_LOCK_REQ, signal,
       DictLockReq::SignalLength, JBB);
@@ -29242,22 +29213,6 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
   ord->senderRef = reference();
 
   c_dictLockSlavePool.release(lockPtr);
-
-  // handle rolling upgrade
-  {
-    Uint32 masterVersion = getNodeInfo(cmasterNodeId).m_version;
-
-    const unsigned int get_major = getMajor(masterVersion);
-    const unsigned int get_minor = getMinor(masterVersion);
-    ndbrequire(get_major >= 4);
-    
-    if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
-        (masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
-         get_major == 5 && get_minor == 1) ||
-        ERROR_INSERTED(7176)) {
-      return;
-    }
-  }
 
   Uint32 len = DictUnlockOrd::SignalLength;
   if (unlikely(getNodeInfo(cmasterNodeId).m_version < NDB_MAKE_VERSION(6,3,0)))

@@ -529,7 +529,6 @@ Test Crashes in handling node restarts
 
 7174: Crash starting node before sending DICT_LOCK_REQ
 7175: Master sends one fake START_PERMREF (ZNODE_ALREADY_STARTING_ERROR)
-7176: Slave NR pretends master does not support DICT lock (rolling upgrade)
 
 DICT:
 6000  Crash during NR when receiving DICTSTARTREQ
