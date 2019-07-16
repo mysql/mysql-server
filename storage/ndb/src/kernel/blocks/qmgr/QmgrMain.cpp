@@ -2572,7 +2572,6 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
 void
 Qmgr::sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr)
 {
-  if (getNodeInfo(nodePtr.i).m_version >= NDBD_NODE_VERSION_REP)
   {
     jam();
     Uint32 ref = calcQmgrBlockRef(nodePtr.i);
@@ -4318,8 +4317,7 @@ Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
   signal->theData[1] = version;
   NodeReceiverGroup rg(QMGR, c_clusterNodes);
   rg.m_nodes.clear(getOwnNodeId());
-  sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB,
-                  NDBD_NODE_VERSION_REP);
+  sendSignal(rg, GSN_NODE_VERSION_REP, signal, 2, JBB);
 
   signal->theData[0] = node;
   EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
