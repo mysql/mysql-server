@@ -2416,11 +2416,6 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
   Uint32 lqh_workers = conf->lqh_workers;
-  if (version < NDBD_MT_LQH_VERSION)
-  {
-    jam();
-    lqh_workers = 0;
-  }
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2498,8 +2493,6 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
 
   Uint32 lqh_workers = req->lqh_workers;
-  if (req->version < NDBD_MT_LQH_VERSION)
-    lqh_workers = 0;
   setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
 
   c_maxDynamicId = req->dynamicId & 0xFFFF;
