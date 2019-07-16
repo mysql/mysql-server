@@ -381,9 +381,18 @@ ulint srv_buf_pool_size = ULINT_MAX;
 const ulint srv_buf_pool_min_size = 5 * 1024 * 1024;
 /** Default pool size in bytes */
 const ulint srv_buf_pool_def_size = 128 * 1024 * 1024;
+/** Maximum pool size in bytes */
+const longlong srv_buf_pool_max_size = LLONG_MAX;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 ulonglong srv_buf_pool_chunk_unit;
+/** Minimum buffer pool chunk size. */
+const ulonglong srv_buf_pool_chunk_unit_min = (1024 * 1024);
+/** The buffer pool chunk size must be a multiple of this number. */
+const ulonglong srv_buf_pool_chunk_unit_blk_sz = (1024 * 1024);
+/** Maximum buffer pool chunk size. */
+const ulonglong srv_buf_pool_chunk_unit_max =
+    srv_buf_pool_max_size / MAX_BUFFER_POOLS;
 /** Requested number of buffer pool instances */
 ulong srv_buf_pool_instances;
 /** Default number of buffer pool instances */
