@@ -6063,13 +6063,6 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag, ApiConnectRecordPtr 
   for (Uint32 Ti = 6; Ti < TpacketLen; Ti++) {
     container->packedWords[TcurrLen + Ti] = regApiPtr->tcSendArray[Ti - 6];
   }//for
-
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
-  {
-    jam();
-    ndbassert(Tpack6 == 0 || 
-              getNodeInfo(localHostptr.i).m_version == 0); // Disconnected
-  }
 }//Dbtc::sendtckeyconf()
 
 void Dbtc::copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR Tlen)
@@ -6675,12 +6668,6 @@ Dbtc::sendCommitLqh(Signal* signal,
   Tdata[4] = Uint32(regApiPtr->globalcheckpointid);
   Uint32 len = 5;
 
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
-  {
-    jam();
-    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
-    len = 4;
-  }
   if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
@@ -11312,13 +11299,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   Uint32 gci_lo = lqhTransConf->gci_lo;
   Uint32 fragId = lqhTransConf->fragId;
 
-  if (transStatus == LqhTransConf::Committed && 
-      unlikely(signal->getLength() < LqhTransConf::SignalLength_GCI_LO))
-  {
-    jam();
-    gci_lo = 0;
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(nodeId).m_version));
-  }
+  ndbrequire(transStatus != LqhTransConf::Committed ||
+             (signal->getLength() >= LqhTransConf::SignalLength_GCI_LO));
   gci |= gci_lo;
 
   if (transStatus == LqhTransConf::LastTransConf){

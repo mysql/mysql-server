@@ -17381,7 +17381,6 @@ Dbdih::check_enable_micro_gcp(Signal* signal, bool broadcast)
     }
   }
 
-  if (ndb_check_micro_gcp(min))
   {
     jam();
     m_micro_gcp.m_enabled = true;
@@ -17642,11 +17641,7 @@ void Dbdih::execGCP_PREPARECONF(Signal* signal)
   Uint32 gci_hi = signal->theData[1];
   Uint32 gci_lo = signal->theData[2];
 
-  if (unlikely(signal->getLength() < GCPPrepareConf::SignalLength))
-  {
-    gci_lo = 0;
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(senderNodeId).m_version));
-  }
+  ndbrequire(signal->getLength() >= GCPPrepareConf::SignalLength);
 
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   ndbrequire(gci == m_micro_gcp.m_master.m_new_gci);
@@ -18018,12 +18013,7 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   Uint32 masterNodeId = req->nodeId;
   Uint32 gci_hi = req->gci_hi;
   Uint32 gci_lo = req->gci_lo;
-  if (unlikely(signal->getLength() < GCPPrepare::SignalLength))
-  {
-    jam();
-    gci_lo = 0;
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(masterNodeId).m_version));
-  }
+  ndbrequire(signal->getLength() >= GCPPrepare::SignalLength);
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
   BlockReference retRef = calcDihBlockRef(masterNodeId);
@@ -18113,11 +18103,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   Uint32 gci_hi = req->gci_hi;
   Uint32 gci_lo = req->gci_lo;
 
-  if (unlikely(signal->getLength() < GCPCommit::SignalLength))
-  {
-    gci_lo = 0;
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(masterNodeId).m_version));
-  }
+  ndbrequire(signal->getLength() >= GCPCommit::SignalLength);
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
 #ifdef ERROR_INSERT

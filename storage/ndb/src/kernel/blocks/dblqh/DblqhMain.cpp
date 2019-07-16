@@ -4344,13 +4344,6 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
   Uint32 TcommitLen = 5;
   Uint32 Tgci_lo_mask = ~(Uint32)0;
 
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version)))
-  {
-    jam();
-    TcommitLen = 4;
-    Tgci_lo_mask = 0;
-  }
-
 #ifdef ERROR_INSERT
   Uint32 senderBlockRef = signal->getSendersBlockRef();
 #endif
@@ -4889,13 +4882,6 @@ void Dblqh::sendCommitLqh(Signal* signal,
   Tdata[3] = regTcPtr->transid[1];
   Tdata[4] = regTcPtr->gci_lo;
   Uint32 len = 5;
-
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
-  {
-    jam();
-    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
-    len = 4;
-  }
 
   if (container->noOfPackedWords > 25 - len) {
     jam();
@@ -9794,12 +9780,7 @@ void Dblqh::execCOMMITREQ(Signal* signal)
   Uint32 tcOprec = signal->theData[6];
   Uint32 gci_lo = signal->theData[7];
 
-  if (unlikely(signal->getLength() < 8))
-  {
-    jam();
-    gci_lo = 0;
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
-  }
+  ndbrequire(signal->getLength() >= 8);
 
   if (ERROR_INSERTED(5004)) {
     systemErrorLab(signal, __LINE__);
@@ -20314,24 +20295,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   const Uint32 dihPtr = saveReq->dihPtr;
   const Uint32 gci = saveReq->gci;
 
-  if (unlikely(refToNode(signal->getSendersBlockRef()) != getOwnNodeId()))
-  {
-    /**
-     * This code is only run during upgrade from pre-micro-gcp version.
-     *
-     * During startup, we make sure not to allow starting multi-threaded
-     * NDBD while such an upgrade is taking place. So the EXECUTE_DIRECT()
-     * below, which would be cross-thread in multi-threaded NDBD, is thus
-     * safe since it never runs in the non-safe case.
-     */
-    ndbassert(!isMultiThreaded());
-    jam();
-    ndbassert(!ndb_check_micro_gcp
-              (getNodeInfo(refToNode
-                           (signal->getSendersBlockRef())).m_version));
-    EXECUTE_DIRECT(DBDIH, GSN_GCP_SAVEREQ, signal, signal->getLength());
-    return;
-  }
+  ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
   
 #if defined VM_TRACE || defined ERROR_INSERT
   if (!isNdbMtLqh()) { // wl4391_todo mt-safe

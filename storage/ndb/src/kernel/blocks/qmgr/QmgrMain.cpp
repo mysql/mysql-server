@@ -4220,17 +4220,8 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   NodeInfo::NodeType type= getNodeInfo(apiNodePtr.i).getType();
   switch(type){
   case NodeInfo::API:
-    if (m_micro_gcp_enabled && !ndb_check_micro_gcp(version))
-    {
-      jam();
-      compatability_check = false;
-      extra = ": micro gcp enabled";
-    }
-    else
-    {
-      jam();
-      compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
-    }
+    jam();
+    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
