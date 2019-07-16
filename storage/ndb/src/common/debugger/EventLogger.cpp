@@ -57,8 +57,6 @@ void getTextConnected(QQQQ) {
 void getTextConnectedApiVersion(QQQQ) {
   char tmp[100];
   Uint32 mysql_version = theData[3];
-  if (theData[2] < NDBD_SPLIT_VERSION)
-  mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u: API %s",
 		       theData[1],
@@ -94,8 +92,6 @@ void getTextNDBStartStarted(QQQQ) {
 
   char tmp[100];
   Uint32 mysql_version = theData[2];
-  if (theData[1] < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Start initiated (%s)", 
 		       ndbGetVersionString(theData[1], mysql_version, 0,
@@ -169,8 +165,6 @@ void getTextNDBStartCompleted(QQQQ) {
 
   char tmp[100];
   Uint32 mysql_version = theData[2];
-  if (theData[1] < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Started (%s)", 
 		       ndbGetVersionString(theData[1], mysql_version, 0,

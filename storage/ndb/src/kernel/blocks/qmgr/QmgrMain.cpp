@@ -1181,11 +1181,6 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     start_type = cmRegReq->start_type;
   }
 
-  if (startingVersion < NDBD_SPLIT_VERSION)
-  {
-    startingMysqlVersion = 0;
-  }
-  
   if (creadyDistCom == ZFALSE) {
     jam();
     /* NOT READY FOR DISTRIBUTED COMMUNICATION.*/
@@ -2421,11 +2416,6 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
   Uint32 lqh_workers = conf->lqh_workers;
-  if (version < NDBD_SPLIT_VERSION)
-  {
-    jam();
-    mysql_version = 0;
-  }
   if (version < NDBD_MT_LQH_VERSION)
   {
     jam();
@@ -2505,8 +2495,6 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   setNodeInfo(addNodePtr.i).m_version = req->version;
 
   Uint32 mysql_version = req->mysql_version;
-  if (req->version < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
 
   Uint32 lqh_workers = req->lqh_workers;
@@ -4199,8 +4187,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   const BlockReference ref = req->ref;
   
   Uint32 mysql_version = req->mysql_version;
-  if (version < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
 
   NodeRecPtr apiNodePtr;
   apiNodePtr.i = refToNode(ref);
