@@ -1,0 +1,42 @@
+--echo #
+--echo # Bug #29951982 ASSERTION FAILURE:
+--echo #               SYNC0RW.CC.*LOCK->LOCK_WORD == X_LOCK_DECR
+--echo #
+
+--source include/big_test.inc
+
+# In this case 2G is not only not divisible by 31, but more importantly the result of division is not
+# divisible by page size, which in buggy implementation caused innodb_buffer_pool_chunk_size to be
+# not divisible by page size.
+let $restart_parameters = restart: --innodb-buffer-pool-instances=31 --innodb-buffer-pool-size=2G --innodb-buffer-pool-chunk-size=128M;
+--source include/restart_mysqld.inc
+
+SHOW VARIABLES
+WHERE Variable_name IN
+("innodb_buffer_pool_chunk_size","innodb_buffer_pool_instances","innodb_buffer_pool_size");
+
+
+# In this case 4G does not fit in 32bits, yet on Windows 64-bit, ulong is four bytes long, so
+# a buggy implementation caused innodb_buffer_pool_chunk_size to be 0
+let $restart_parameters = restart: --innodb-buffer-pool-instances=64 --innodb-buffer-pool-size=4G --innodb-buffer-pool-chunk-size=128M;
+--source include/restart_mysqld.inc
+
+SHOW VARIABLES
+WHERE Variable_name IN
+("innodb_buffer_pool_chunk_size","innodb_buffer_pool_instances","innodb_buffer_pool_size");
+
+
+# In this case 4G does not fit in 32bits, yet on Windows 64-bit, ulong is four bytes long, so
+# a buggy implementation caused innodb_buffer_pool_chunk_size to be 0, and then, given that 4G is not
+# divisible by 33, "rounded it up" to 1.
+let $restart_parameters = restart: --innodb-buffer-pool-instances=33 --innodb-buffer-pool-size=4G --innodb-buffer-pool-chunk-size=128M;
+--source include/restart_mysqld.inc
+
+SHOW VARIABLES
+WHERE Variable_name IN
+("innodb_buffer_pool_chunk_size","innodb_buffer_pool_instances","innodb_buffer_pool_size");
+
+# Clean up
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc

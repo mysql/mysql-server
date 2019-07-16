@@ -534,9 +534,18 @@ extern ulint srv_buf_pool_size;
 extern const ulint srv_buf_pool_min_size;
 /** Default pool size in bytes */
 extern const ulint srv_buf_pool_def_size;
+/** Maximum pool size in bytes */
+extern const longlong srv_buf_pool_max_size;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 extern ulonglong srv_buf_pool_chunk_unit;
+/** Minimum buffer pool chunk size. */
+extern const ulonglong srv_buf_pool_chunk_unit_min;
+/** The buffer pool chunk size must be a multiple of this number. */
+extern const ulonglong srv_buf_pool_chunk_unit_blk_sz;
+/** Maximum buffer pool chunk size. */
+extern const ulonglong srv_buf_pool_chunk_unit_max;
+
 /** Requested number of buffer pool instances */
 extern ulong srv_buf_pool_instances;
 /** Default number of buffer pool instances */

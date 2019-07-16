@@ -1110,6 +1110,11 @@ if needed.
 UNIV_INLINE
 ulint buf_pool_size_align(ulint size);
 
+/** Adjust the proposed chunk unit size so that it satisfies all invariants
+@param[in]      size    proposed size of buffer pool chunk unit in bytes
+@return adjusted size which meets invariants */
+ulonglong buf_pool_adjust_chunk_unit(ulonglong size);
+
 /** Calculate the checksum of a page from compressed table and update the
 page.
 @param[in,out]  page              page to update

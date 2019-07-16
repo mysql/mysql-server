@@ -4078,17 +4078,17 @@ static void innodb_buffer_pool_size_init() {
   };
 #endif /* UNIV_DEBUG */
 
-  if (srv_buf_pool_chunk_unit * srv_buf_pool_instances > srv_buf_pool_size) {
-    /* Size unit of buffer pool is larger than srv_buf_pool_size.
-    adjust srv_buf_pool_chunk_unit for srv_buf_pool_size. */
-    srv_buf_pool_chunk_unit =
-        static_cast<ulong>(srv_buf_pool_size) / srv_buf_pool_instances;
-    if (srv_buf_pool_size % srv_buf_pool_instances != 0) {
-      ++srv_buf_pool_chunk_unit;
-    }
-  }
-
+  srv_buf_pool_chunk_unit = buf_pool_adjust_chunk_unit(srv_buf_pool_chunk_unit);
   srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
+
+  ut_ad(srv_buf_pool_chunk_unit >= srv_buf_pool_chunk_unit_min);
+  ut_ad(srv_buf_pool_chunk_unit <= srv_buf_pool_chunk_unit_max);
+  ut_ad(srv_buf_pool_chunk_unit % srv_buf_pool_chunk_unit_blk_sz == 0);
+  ut_ad(srv_buf_pool_chunk_unit % UNIV_PAGE_SIZE == 0);
+  ut_ad(0 ==
+        srv_buf_pool_size % (srv_buf_pool_chunk_unit * srv_buf_pool_instances));
+  ut_ad(srv_buf_pool_chunk_unit * srv_buf_pool_instances <= srv_buf_pool_size);
+
   srv_buf_pool_curr_size = srv_buf_pool_size;
 }
 
@@ -21394,15 +21394,17 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, srv_buf_pool_curr_size,
                              NULL, innodb_buffer_pool_size_update,
                              static_cast<longlong>(srv_buf_pool_def_size),
                              static_cast<longlong>(srv_buf_pool_min_size),
-                             LLONG_MAX, 1024 * 1024L);
+                             longlong{srv_buf_pool_max_size}, 1024 * 1024L);
 
 static MYSQL_SYSVAR_ULONGLONG(
     buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Size of a single memory chunk within each buffer pool instance"
     " for resizing buffer pool. Online buffer pool resizing happens"
-    " at this granularity. 0 means disable resizing buffer pool.",
-    NULL, NULL, 128 * 1024 * 1024, 1024 * 1024, ULONG_MAX, 1024 * 1024);
+    " at this granularity.",
+    NULL, NULL, 128 * 1024 * 1024, ulonglong{srv_buf_pool_chunk_unit_min},
+    ulonglong{srv_buf_pool_chunk_unit_max},
+    ulonglong{srv_buf_pool_chunk_unit_blk_sz});
 
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
 static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
