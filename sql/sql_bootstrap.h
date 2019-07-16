@@ -26,6 +26,8 @@
 #include <stddef.h>
 #include <functional>
 
+#include "map_helpers.h"
+
 struct MYSQL_FILE;
 
 /**
@@ -85,7 +87,11 @@ struct bootstrap_parser_position {
 };
 
 struct bootstrap_parser_state {
-  char m_unget_buffer[MAX_BOOTSTRAP_LINE_SIZE];
+  // This buffer may be rather large,
+  // so we allocate it on the heap to save stack space.
+  // This struct is also used by the standalone 'comp_sql' tool,
+  // so we use plain malloc/free rather than my_() to avoid dependency on mysys.
+  unique_ptr_free<char> m_unget_buffer;
   size_t m_unget_buffer_length;
 
   typedef void (*log_function_t)(const char *message);
