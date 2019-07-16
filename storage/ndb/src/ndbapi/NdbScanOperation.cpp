@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2541,10 +2541,8 @@ NdbScanOperation::doSendScan(int aProcessorId)
     if (getPruned())
       impl->incClientStat(Ndb::PrunedScanCount, 1);
   }
-  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aProcessorId);
   bool forceShort = impl->forceShortRequests;
-  bool sendLong = ( tcNodeVersion >= NDBD_LONG_SCANTABREQ) &&
-    ! forceShort;
+  bool sendLong = !forceShort;
   
   if (sendLong)
   {
