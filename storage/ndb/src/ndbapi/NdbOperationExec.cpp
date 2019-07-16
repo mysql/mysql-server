@@ -185,10 +185,10 @@ NdbOperation::doSendKeyReq(int aNodeId,
    */
   NdbApiSignal* request = theTCREQ;
   NdbImpl* impl = theNdb->theImpl;
-  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aNodeId);
   bool forceShort = impl->forceShortRequests;
-  bool sendLong = ( tcNodeVersion >= NDBD_LONG_TCKEYREQ ) &&
-    ! forceShort;
+  bool sendLong = !forceShort;
+  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aNodeId);
+
 
   setRequestInfoTCKEYREQ(lastFlag, sendLong);
 
