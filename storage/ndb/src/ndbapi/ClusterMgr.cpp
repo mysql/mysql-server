@@ -829,17 +829,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     recalcMinDbVersion();
   }
 
-  if (node.m_info.m_version >= NDBD_255_NODES_VERSION)
-  {
-    node.m_state = apiRegConf->nodeState;
-  }
-  else
-  {
-    /**
-     * from 2 to 8 words = 6 words diff, 6*4 = 24
-     */
-    memcpy(&node.m_state, &apiRegConf->nodeState, sizeof(node.m_state) - 24);
-  }
+  node.m_state = apiRegConf->nodeState;
   
   if (node.m_info.m_type == NodeInfo::DB)
   {
