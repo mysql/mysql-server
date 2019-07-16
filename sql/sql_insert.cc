@@ -1536,7 +1536,8 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
     }
   } else {
     for (Item &item : insert_field_list) {
-      values_field_list.push_back(down_cast<Item_field *>(&item));
+      Item_field *field = down_cast<Item_field *>(item.real_item());
+      values_field_list.push_back(field);
     }
   }
 
