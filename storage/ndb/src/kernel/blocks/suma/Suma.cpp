@@ -415,34 +415,13 @@ Suma::execSTTOR(Signal* signal) {
 void
 Suma::send_dict_lock_req(Signal* signal, Uint32 state)
 {
-  if (state == DictLockReq::SumaStartMe &&
-      !ndbd_suma_dictlock_startme(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    goto notsupported;
-  }
-  else if (state == DictLockReq::SumaHandOver &&
-           !ndbd_suma_dictlock_handover(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    goto notsupported;
-  }
-
-  {
-    jam();
-    DictLockReq* req = (DictLockReq*)signal->getDataPtrSend();
-    req->lockType = state;
-    req->userPtr = state;
-    req->userRef = reference();
-    sendSignal(calcDictBlockRef(c_masterNodeId),
+  jam();
+  DictLockReq* req = (DictLockReq*)signal->getDataPtrSend();
+  req->lockType = state;
+  req->userPtr = state;
+  req->userRef = reference();
+  sendSignal(calcDictBlockRef(c_masterNodeId),
                GSN_DICT_LOCK_REQ, signal, DictLockReq::SignalLength, JBB);
-  }
-  return;
-
-notsupported:
-  DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
-  conf->userPtr = state;
-  execDICT_LOCK_CONF(signal);
 }
 
 void
@@ -488,19 +467,6 @@ Suma::execDICT_LOCK_REF(Signal* signal)
 void
 Suma::send_dict_unlock_ord(Signal* signal, Uint32 state)
 {
-  if (state == DictLockReq::SumaStartMe &&
-      !ndbd_suma_dictlock_startme(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    return;
-  }
-  else if (state == DictLockReq::SumaHandOver &&
-           !ndbd_suma_dictlock_handover(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    return;
-  }
-
   jam();
   DictUnlockOrd* ord = (DictUnlockOrd*)signal->getDataPtrSend();
   ord->lockPtr = 0;
@@ -6507,18 +6473,6 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
   {
     jam();
     c_restart.m_waiting_on_self = 0;
-    if (!ndbd_suma_dictlock_startme(getNodeInfo(refToNode(c_restart.m_ref)).m_version))
-    {
-      jam();
-      /**
-       * Downgrade
-       *
-       * In pre suma v2, SUB_CREATE_REQ::SignalLength is one greater
-       *   but code checks length and set a default value...
-       *   so we dont need to do anything...
-       *   Thank you Ms. Fortuna
-       */
-    }
 
     sendSignal(c_restart.m_ref, GSN_SUB_CREATE_REQ, signal,
                SubCreateReq::SignalLength, JBB);
