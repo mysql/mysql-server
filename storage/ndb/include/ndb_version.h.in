@@ -121,17 +121,6 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
 
-#define NDBD_PNR NDB_MAKE_VERSION(6,3,8)
-
-static 
-inline
-int
-ndb_pnr(Uint32 version)
-{
-  return 
-    version == NDB_VERSION_D || version >= NDBD_PNR;
-}
-
 #define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,14)
 #define NDBD_SUMA_DICT_LOCK_63 NDB_MAKE_VERSION(6,3,11)
 
