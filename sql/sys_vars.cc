@@ -54,6 +54,8 @@
 #include "include/compression.h"
 
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql_com.h"
 #include "sql/protocol.h"
 #include "sql/rpl_trx_tracking.h"
@@ -67,7 +69,8 @@
 #include <map>
 #include <utility>
 
-#include "../components/mysql_server/log_builtins_filter_imp.h"  // until we have pluggable variables
+#include "../components/mysql_server/log_builtins_filter_imp.h"  // verbosity
+#include "../components/mysql_server/log_builtins_imp.h"
 #include "ft_global.h"
 #include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
@@ -2384,8 +2387,8 @@ static Sys_var_charptr Sys_log_error_services(
     "log_error_services",
     "Services that should be called when an error event is received",
     GLOBAL_VAR(opt_log_error_services), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT("log_filter_internal; log_sink_internal"),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_error_services),
+    IN_SYSTEM_CHARSET, DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_log_error_services),
     ON_UPDATE(fix_log_error_services));
 
 static bool check_log_error_suppression_list(sys_var *self, THD *thd,
