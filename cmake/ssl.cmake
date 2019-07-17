@@ -347,7 +347,6 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_NAME}
         ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_NAME}
         )
-      MESSAGE(STATUS)
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
 
       ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
@@ -364,8 +363,8 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         "${CMAKE_BINARY_DIR}/library_output_directory"
         )
 
-      MESSAGE(STATUS "INSTALL ${CRYPTO_NAME} to ${INSTALL_LIBDIR}")
-      MESSAGE(STATUS "INSTALL ${OPENSSL_NAME} to ${INSTALL_LIBDIR}")
+      MESSAGE(STATUS "INSTALL ${CRYPTO_NAME} to ${INSTALL_PRIV_LIBDIR}")
+      MESSAGE(STATUS "INSTALL ${OPENSSL_NAME} to ${INSTALL_PRIV_LIBDIR}")
 
       # Cannot use INSTALL_PRIVATE_LIBRARY because these are not targets.
       INSTALL(FILES
