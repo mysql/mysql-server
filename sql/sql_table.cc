@@ -4803,7 +4803,9 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       if (!sql_field->constant_default &&
           !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
           !(real_type_with_now_as_default(sql_field->sql_type) &&
-            (sql_field->auto_flags & Field::DEFAULT_NOW))) {
+            (sql_field->auto_flags & Field::DEFAULT_NOW)) &&
+          !(sql_field->m_default_val_expr &&
+            (sql_field->auto_flags & Field::GENERATED_FROM_EXPRESSION))) {
         sql_field->flags |= NO_DEFAULT_VALUE_FLAG;
       }
       /*
