@@ -3272,10 +3272,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 @param[in]	table		table
 @param[in]	file		file to read from
 @param[in]	thd		session
-@param[in,out]	import		meta data
 @return DB_SUCCESS or error code. */
 static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
-                                               THD *thd, row_import &import) {
+                                               THD *thd) {
   byte row[sizeof(ib_uint32_t)];
   ulint key_size;
   byte transfer_key[ENCRYPTION_KEY_LEN];
@@ -3379,18 +3378,15 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
   FILE *file = fopen(name, "rb");
 
   if (file == NULL) {
-    import.m_cfp_missing = true;
-
     /* If there's no cfp file, we assume it's not an
     encrpyted table. return directly. */
-
     import.m_cfp_missing = true;
 
     err = DB_SUCCESS;
   } else {
     import.m_cfp_missing = false;
 
-    err = row_import_read_encryption_data(table, file, thd, import);
+    err = row_import_read_encryption_data(table, file, thd);
     fclose(file);
   }
 
@@ -3486,12 +3482,37 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   prebuilt->trx->op_info = "read meta-data file";
 
   /* Prevent DDL operations while we are checking. */
-
   rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
 
   row_import cfg;
-  ulint space_flags = 0;
 
+  /* Read CFP file */
+  if (dd_is_table_in_encrypted_tablespace(table)) {
+    /* First try to read CFP file here. */
+    err = row_import_read_cfp(table, trx->mysql_thd, cfg);
+    ut_ad(cfg.m_cfp_missing || err == DB_SUCCESS);
+
+    if (err != DB_SUCCESS) {
+      rw_lock_s_unlock_gen(dict_operation_lock, 0);
+      return (row_import_error(prebuilt, trx, err));
+    }
+
+    /* If table is encrypted, but can't find cfp file, return error. */
+    if (cfg.m_cfp_missing) {
+      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table is in an encrypted tablespace, but the encryption"
+              " meta-data file cannot be found while importing.");
+      err = DB_ERROR;
+      rw_lock_s_unlock_gen(dict_operation_lock, 0);
+      return (row_import_error(prebuilt, trx, err));
+    } else {
+      /* If CFP file is read, encryption_key must have been populted. */
+      ut_ad(table->encryption_key != nullptr &&
+            table->encryption_iv != nullptr);
+    }
+  }
+
+  /* Read CFG file */
   err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
   /* Check if the table column definitions match the contents
@@ -3548,44 +3569,22 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
         err = cfg.set_root_by_heuristic();
       }
     }
-
-    space_flags = fetchIndexRootPages.get_space_flags();
-
   } else {
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
   }
 
-  /* Try to read encryption information. */
-  if (err == DB_SUCCESS) {
-    err = row_import_read_cfp(table, trx->mysql_thd, cfg);
+  if (err != DB_SUCCESS) {
+    if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
+      ib_errf(
+          trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+          "Encryption attribute in the file does not match the dictionary.");
 
-    /* If table is not set to encrypted, but the fsp flag
-    is not, then return error. */
-    if (!dd_is_table_in_encrypted_tablespace(table) && space_flags != 0 &&
-        FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is not marked as encrypted, but"
-              " the tablespace is marked as encrypted");
-
-      err = DB_ERROR;
-      return (row_import_error(prebuilt, trx, err));
+      return (row_import_cleanup(prebuilt, trx, err));
     }
-
-    /* If table is set to encrypted, but can't find
-    cfp file, then return error. */
-    if (cfg.m_cfp_missing == true &&
-        ((space_flags != 0 && FSP_FLAGS_GET_ENCRYPTION(space_flags)) ||
-         dd_is_table_in_encrypted_tablespace(table))) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is in an encrypted tablespace, but"
-              " can't find the encryption meta-data file"
-              " in importing");
-      err = DB_ERROR;
-      return (row_import_error(prebuilt, trx, err));
-    }
-  } else {
     return (row_import_error(prebuilt, trx, err));
   }
+
+  /* At this point, all required information has been collected for IMPORT. */
 
   prebuilt->trx->op_info = "importing tablespace";
 
@@ -3607,12 +3606,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                   err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
   if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
-    char table_name[MAX_FULL_NAME_LEN + 1];
-
-    innobase_format_name(table_name, sizeof(table_name), table->name.m_name);
-
     ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-            "Encryption attribute is no matched");
+            "Encryption attribute in the file does not match the dictionary.");
 
     return (row_import_cleanup(prebuilt, trx, err));
   }

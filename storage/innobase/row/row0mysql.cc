@@ -3491,33 +3491,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
     return (err);
   }
 
-  /* For encrypted table, before we discard the tablespace,
-  we need save the encryption information into table, otherwise,
-  this information will be lost in fil_discard_tablespace along
-  with fil_space_free(). */
-  if (dd_is_table_in_encrypted_tablespace(table)) {
-    ut_ad(table->encryption_key == NULL && table->encryption_iv == NULL);
-
-    lint old_size = mem_heap_get_size(table->heap);
-
-    table->encryption_key =
-        static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
-
-    table->encryption_iv =
-        static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
-
-    lint new_size = mem_heap_get_size(table->heap);
-    dict_sys->size += new_size - old_size;
-
-    fil_space_t *space = fil_space_get(table->space);
-    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    memcpy(table->encryption_key, space->encryption_key, ENCRYPTION_KEY_LEN);
-    memcpy(table->encryption_iv, space->encryption_iv, ENCRYPTION_KEY_LEN);
-  }
-
   /* Discard the physical file that is used for the tablespace. */
-
   err = fil_discard_tablespace(table->space);
 
   switch (err) {
