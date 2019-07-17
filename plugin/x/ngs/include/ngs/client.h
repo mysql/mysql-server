@@ -27,6 +27,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -110,9 +111,9 @@ class Client : public xpl::iface::Client {
 
   bool handle_session_connect_attr_set(ngs::Message_request &command);
 
-  void configure_compression_opts(const Compression_algorithm algo,
-                                  const int64_t max_msg,
-                                  const bool combine) override;
+  void configure_compression_opts(
+      const Compression_algorithm algo, const int64_t max_msg,
+      const bool combine, const xpl::Optional_value<int64_t> &level) override;
 
   void handle_message(Message_request *message) override;
 
@@ -185,6 +186,11 @@ class Client : public xpl::iface::Client {
       Compression_algorithm::k_none;
   int64_t m_cached_max_msg = -1;
   bool m_cached_combine_msg = false;
+  int32_t m_cached_compression_level = 3;
+
+  int32_t get_adjusted_compression_level(
+      const Compression_algorithm algo,
+      const xpl::Optional_value<int64_t> &level) const;
 
   Error_code read_one_message_and_dispatch();
 

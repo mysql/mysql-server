@@ -41,7 +41,6 @@
 #include "plugin/x/src/capabilities/handler_expired_passwords.h"
 #include "plugin/x/src/capabilities/handler_readonly_value.h"
 #include "plugin/x/src/helper/string_formatter.h"
-#include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_server.h"
 #include "plugin/x/src/xpl_session.h"
@@ -121,11 +120,11 @@ bool Client::is_handler_thd(const THD *thd) const {
   return thd && session && (session->get_thd() == thd);
 }
 
-void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
+std::string Client::get_status_ssl_cipher_list() const {
   std::vector<std::string> ciphers =
       Ssl_session_options(&connection()).ssl_cipher_list();
 
-  mysqld::xpl_show_var(var).assign(join(ciphers, ":"));
+  return join(ciphers, ":");
 }
 
 std::string Client::resolve_hostname() {
@@ -171,6 +170,26 @@ std::string Client::resolve_hostname() {
 
 bool Client::is_localhost(const char *hostname) {
   return hostname == mysqld::get_my_localhost();
+}
+
+std::string Client::get_status_compression_algorithm() const {
+  switch (m_config->m_compression_algorithm) {
+    case ngs::Compression_algorithm::k_none:
+      return {};
+    case ngs::Compression_algorithm::k_deflate:
+      return "DEFLATE_STREAM";
+    case ngs::Compression_algorithm::k_lz4:
+      return "LZ4_MESSAGE";
+    case ngs::Compression_algorithm::k_zstd:
+      return "ZSTD_STREAM";
+  }
+  return {"UNKNOWN"};
+}
+
+std::string Client::get_status_compression_level() const {
+  return m_config->m_compression_algorithm != ngs::Compression_algorithm::k_none
+             ? std::to_string(m_config->m_compression_level)
+             : "";
 }
 
 void Protocol_monitor::init(Client *client) { m_client = client; }

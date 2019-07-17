@@ -206,8 +206,8 @@ Protocol_encoder_compression::get_protocol_monitor() {
 
 void Protocol_encoder_compression::set_compression_options(
     const Compression_algorithm algo, const Compression_style style,
-    const int64_t max_msg) {
-  get_comp_flusher()->set_compression_options(algo, style, max_msg);
+    const int64_t max_msg, const int32_t level) {
+  get_comp_flusher()->set_compression_options(algo, style, max_msg, level);
 }
 
 Protocol_flusher_compression *Protocol_encoder_compression::get_comp_flusher() {

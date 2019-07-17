@@ -27,8 +27,8 @@
 #include <memory>
 #include <utility>
 
-#include "my_dbug.h"
-#include "zlib.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include "zlib.h"     // NOLINT(build/include_subdir)
 
 #include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
 
@@ -36,7 +36,7 @@ namespace protocol {
 
 class Compression_algorithm_zlib : public Compression_algorithm_interface {
  public:
-  Compression_algorithm_zlib() {
+  explicit Compression_algorithm_zlib(const int32_t level) {
     m_stream.zalloc = Z_NULL;
     m_stream.zfree = Z_NULL;
     m_stream.opaque = Z_NULL;
@@ -44,10 +44,12 @@ class Compression_algorithm_zlib : public Compression_algorithm_interface {
     m_stream.avail_out = 0;
     m_stream.next_in = Z_NULL;
     m_stream.next_out = Z_NULL;
-    deflateInit(&m_stream, Z_DEFAULT_COMPRESSION);
+    deflateInit(&m_stream, level);
   }
 
   ~Compression_algorithm_zlib() override { deflateEnd(&m_stream); }
+
+  void set_pledged_source_size(const int /*src_size*/) override {}
 
   void set_input(uint8_t *in_ptr, const int in_size) override {
     m_stream.avail_in = in_size;
@@ -80,6 +82,9 @@ class Compression_algorithm_zlib : public Compression_algorithm_interface {
 
     return result;
   }
+
+  static int32_t get_level_min() { return Z_BEST_SPEED; }
+  static int32_t get_level_max() { return Z_BEST_COMPRESSION; }
 
  private:
   bool compress_impl(uint8_t *out_ptr, int *out_size, const bool flush) {

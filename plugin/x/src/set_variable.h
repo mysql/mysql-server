@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_SRC_SET_VARIABLE_H_
 #define PLUGIN_X_SRC_SET_VARIABLE_H_
 
-#include <algorithm>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -36,16 +36,23 @@ namespace xpl {
 
 class Set_variable {
  public:
-  Set_variable(std::vector<const char *> labels)
-      : m_labels(std::move(labels)),
+  explicit Set_variable(std::vector<const char *> labels)
+      : m_labels(std::move(*resize(&labels))),
         m_typelib{m_labels.size() - 1, "", m_labels.data(), nullptr} {}
 
   ulonglong *value() { return &m_value; }
   TYPELIB *typelib() { return &m_typelib; }
   const ulonglong &get_value() const { return m_value; }
-  const std::vector<const char *> &get_labels() const { return m_labels; }
+  uint32_t get_labels_count() const { return m_labels.size() - 1; }
+  void get_labels(std::vector<std::string> *labels) const {
+    labels->assign(m_labels.begin(), m_labels.end() - 1);
+  }
 
  private:
+  std::vector<const char *> *resize(std::vector<const char *> *labels) {
+    labels->resize(labels->size() + 1, nullptr);
+    return labels;
+  }
   ulonglong m_value{0};
   std::vector<const char *> m_labels;
   TYPELIB m_typelib;

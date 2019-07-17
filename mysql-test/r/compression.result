@@ -171,19 +171,19 @@ Compression_level	0
 # empty algorithm values 
 # invalid and algorithm values
 # make new connection with zlib compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zlib
 Compression_level	6
 # make new connection without compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	OFF
 Compression_algorithm	
 Compression_level	0
 # make new connection with zstd compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zstd
@@ -218,7 +218,7 @@ ERROR HY000: Connection failed due to wrongly configured compression algorithm
 connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Invalid compression algorithm 'uncompressed'.
 # make new connection with zstd compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zstd
@@ -278,13 +278,13 @@ Compression_level	0
 connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Connection failed due to wrongly configured compression algorithm
 # make new connection without compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	OFF
 Compression_algorithm	
 Compression_level	0
 # make new connection with zstd compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zstd
@@ -321,7 +321,7 @@ Compression	ON
 Compression_algorithm	zlib
 Compression_level	6
 # make new connection with zlib compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zlib
@@ -388,13 +388,13 @@ Compression	ON
 Compression_algorithm	zlib
 Compression_level	6
 # make new connection with zlib compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zlib
 Compression_level	6
 # make new connection without compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	OFF
 Compression_algorithm	
@@ -450,7 +450,7 @@ Compression	ON
 Compression_algorithm	zlib
 Compression_level	6
 # make new connection with zlib compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zlib
@@ -459,7 +459,7 @@ Compression_level	6
 connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Invalid compression algorithm 'uncompressed'.
 # make new connection with zstd compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	ON
 Compression_algorithm	zstd
@@ -511,7 +511,7 @@ Compression_level	0
 connect(localhost,wl12475,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Connection failed due to wrongly configured compression algorithm
 # make new connection without compression
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 Compression	OFF
 Compression_algorithm	

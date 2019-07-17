@@ -243,6 +243,8 @@ class Protocol_impl : public XProtocol,
                               const std::string &method = "") override;
 
   void use_compression(const Compression_algorithm algo) override;
+  void use_compression(const Compression_algorithm algo,
+                       const int32_t level) override;
 
  private:
   using CodedInputStream = google::protobuf::io::CodedInputStream;

@@ -68,7 +68,7 @@ void check_exit_hook() {
   }
 }
 
-template <void (xpl::Client::*method)(SHOW_VAR *)>
+template <typename ReturnType, ReturnType (xpl::Client::*method)() const>
 int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
   var->value = buff;
@@ -79,7 +79,10 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
     auto client = std::dynamic_pointer_cast<xpl::Client>(
         (*server)->server().get_client(thd));
 
-    if (client) ((*client).*method)(var);
+    if (client) {
+      ReturnType result = ((*client).*method)();
+      mysqld::xpl_show_var(var).assign(result);
+    }
   }
   return 0;
 }
@@ -263,14 +266,15 @@ int xpl_plugin_deinit(MYSQL_PLUGIN p) {
   return res;
 }
 
+using xpl_sys_var = xpl::Plugin_system_variables;
+
 static struct st_mysql_daemon xpl_plugin_info = {
     MYSQL_DAEMON_INTERFACE_VERSION};
 
 static MYSQL_SYSVAR_UINT(
-    port, xpl::Plugin_system_variables::port,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    port, xpl_sys_var::port, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Port on which X Plugin is going to accept incoming connections.", nullptr,
-    nullptr, MYSQLX_TCP_PORT, 1, std::numeric_limits<uint16>::max(), 0);
+    nullptr, MYSQLX_TCP_PORT, 1, std::numeric_limits<uint16_t>::max(), 0);
 
 static MYSQL_SYSVAR_INT(max_connections,
                         xpl::Plugin_system_variables::max_connections,
@@ -279,80 +283,69 @@ static MYSQL_SYSVAR_INT(max_connections,
                         "Actual number of connections is also affected by the "
                         "general max_connections.",
                         nullptr, nullptr, 100, 1,
-                        std::numeric_limits<unsigned short>::max(), 0);
+                        std::numeric_limits<uint16_t>::max(), 0);
+
+static MYSQL_SYSVAR_UINT(min_worker_threads, xpl_sys_var::min_worker_threads,
+                         PLUGIN_VAR_OPCMDARG,
+                         "Minimal number of worker threads.", nullptr,
+                         &xpl_sys_var::update_func<unsigned int>, 2U, 1, 100,
+                         0);
 
 static MYSQL_SYSVAR_UINT(
-    min_worker_threads, xpl::Plugin_system_variables::min_worker_threads,
-    PLUGIN_VAR_OPCMDARG, "Minimal number of worker threads.", nullptr,
-    &xpl::Plugin_system_variables::update_func<unsigned int>, 2U, 1, 100, 0);
-
-static MYSQL_SYSVAR_UINT(
-    idle_worker_thread_timeout,
-    xpl::Plugin_system_variables::idle_worker_thread_timeout,
+    idle_worker_thread_timeout, xpl_sys_var::idle_worker_thread_timeout,
     PLUGIN_VAR_OPCMDARG,
     "Time after which an idle worker thread is terminated (in seconds).",
-    nullptr, &xpl::Plugin_system_variables::update_func<unsigned int>, 60, 0,
-    60 * 60, 0);
+    nullptr, &xpl_sys_var::update_func<unsigned int>, 60, 0, 60 * 60, 0);
 
 static MYSQL_SYSVAR_UINT(
-    max_allowed_packet, xpl::Plugin_system_variables::max_allowed_packet,
-    PLUGIN_VAR_OPCMDARG,
+    max_allowed_packet, xpl_sys_var::max_allowed_packet, PLUGIN_VAR_OPCMDARG,
     "Size of largest message that client is going to handle.", nullptr,
-    &xpl::Plugin_system_variables::update_func<unsigned int>, MBYTE(64),
-    BYTE(512), GBYTE(1), 0);
+    &xpl_sys_var::update_func<unsigned int>, MBYTE(64), BYTE(512), GBYTE(1), 0);
 
 static MYSQL_SYSVAR_UINT(
-    connect_timeout, xpl::Plugin_system_variables::connect_timeout,
-    PLUGIN_VAR_OPCMDARG,
+    connect_timeout, xpl_sys_var::connect_timeout, PLUGIN_VAR_OPCMDARG,
     "Maximum allowed waiting time for connection to setup a session (in "
     "seconds).",
-    nullptr, &xpl::Plugin_system_variables::update_func<unsigned int>, 30, 1,
-    1000000000, 0);
+    nullptr, &xpl_sys_var::update_func<unsigned int>, 30, 1, 1000000000, 0);
 
-static MYSQL_SYSVAR_STR(ssl_key,
-                        xpl::Plugin_system_variables::ssl_config.ssl_key,
+static MYSQL_SYSVAR_STR(ssl_key, xpl_sys_var::ssl_config.ssl_key,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
                         "X509 key in PEM format.", nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_STR(ssl_ca, xpl::Plugin_system_variables::ssl_config.ssl_ca,
+static MYSQL_SYSVAR_STR(ssl_ca, xpl_sys_var::ssl_config.ssl_ca,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
                         "CA file in PEM format.", nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_STR(ssl_capath,
-                        xpl::Plugin_system_variables::ssl_config.ssl_capath,
+static MYSQL_SYSVAR_STR(ssl_capath, xpl_sys_var::ssl_config.ssl_capath,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
                         "CA directory.", nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_STR(ssl_cert,
-                        xpl::Plugin_system_variables::ssl_config.ssl_cert,
+static MYSQL_SYSVAR_STR(ssl_cert, xpl_sys_var::ssl_config.ssl_cert,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
                         "X509 cert in PEM format.", nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_STR(ssl_cipher,
-                        xpl::Plugin_system_variables::ssl_config.ssl_cipher,
+static MYSQL_SYSVAR_STR(ssl_cipher, xpl_sys_var::ssl_config.ssl_cipher,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
                         "SSL cipher to use.", nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_STR(ssl_crl,
-                        xpl::Plugin_system_variables::ssl_config.ssl_crl,
+static MYSQL_SYSVAR_STR(ssl_crl, xpl_sys_var::ssl_config.ssl_crl,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
                         "Certificate revocation list.", nullptr, nullptr,
                         nullptr);
 
-static MYSQL_SYSVAR_STR(ssl_crlpath,
-                        xpl::Plugin_system_variables::ssl_config.ssl_crlpath,
+static MYSQL_SYSVAR_STR(ssl_crlpath, xpl_sys_var::ssl_config.ssl_crlpath,
                         PLUGIN_VAR_READONLY,
                         "Certificate revocation list path.", nullptr, nullptr,
                         nullptr);
 
-static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
+static MYSQL_SYSVAR_STR(socket, xpl_sys_var::socket,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG |
                             PLUGIN_VAR_MEMALLOC,
                         "X Plugin's unix socket for local connection.", nullptr,
                         nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(
-    bind_address, xpl::Plugin_system_variables::bind_address,
+    bind_address, xpl_sys_var::bind_address,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
     "Address to which X Plugin should bind the TCP socket optionally "
     "followed by a network namespace delimited with /. "
@@ -361,12 +354,11 @@ static MYSQL_SYSVAR_STR(
     nullptr, nullptr, "*");
 
 static MYSQL_SYSVAR_UINT(
-    port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,
+    port_open_timeout, xpl_sys_var::port_open_timeout,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
     "How long X Plugin is going to retry binding of server socket (in case of "
     "failure)",
-    nullptr, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0,
-    120, 0);
+    nullptr, &xpl_sys_var::update_func<unsigned int>, 0, 0, 120, 0);
 
 static MYSQL_THDVAR_UINT(
     wait_timeout, PLUGIN_VAR_OPCMDARG,
@@ -376,12 +368,12 @@ static MYSQL_THDVAR_UINT(
     Global_timeouts::Default::k_wait_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
-    interactive_timeout, xpl::Plugin_system_variables::m_interactive_timeout,
+    interactive_timeout, xpl_sys_var::m_interactive_timeout,
     PLUGIN_VAR_OPCMDARG,
     "Default value for \"mysqlx_wait_timeout\", when the connection is "
     "interactive. The value defines number or seconds that X Plugin must "
     "wait for activity on interactive connection",
-    nullptr, &xpl::Plugin_system_variables::update_func<uint32_t>,
+    nullptr, &xpl_sys_var::update_func<uint32_t>,
     Global_timeouts::Default::k_interactive_timeout, 1, 2147483, 0);
 
 static MYSQL_THDVAR_UINT(
@@ -399,31 +391,90 @@ static MYSQL_THDVAR_UINT(
     Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
-    document_id_unique_prefix,
-    xpl::Plugin_system_variables::m_document_id_unique_prefix,
+    document_id_unique_prefix, xpl_sys_var::m_document_id_unique_prefix,
     PLUGIN_VAR_OPCMDARG,
     "Unique prefix is a value assigned by InnoDB cluster to the instance, "
     "which is meant to make document id unique across all replicasets from "
     "the same cluster",
-    nullptr, &xpl::Plugin_system_variables::update_func<uint32_t>, 0, 0,
+    nullptr, &xpl_sys_var::update_func<uint32_t>, 0, 0,
     std::numeric_limits<uint16_t>::max(), 0);
 
 static MYSQL_SYSVAR_BOOL(
-    enable_hello_notice, xpl::Plugin_system_variables::m_enable_hello_notice,
+    enable_hello_notice, xpl_sys_var::m_enable_hello_notice,
     PLUGIN_VAR_OPCMDARG,
     "Hello notice is a X Protocol message send by the server after connection "
     "establishment, using this variable it can be disabled",
-    nullptr, &xpl::Plugin_system_variables::update_func<bool>, true);
+    nullptr, &xpl_sys_var::update_func<bool>, true);
 
 static MYSQL_SYSVAR_SET(
-    compression_algorithms,
-    *xpl::Plugin_system_variables::m_compression_algorithms.value(),
+    compression_algorithms, *xpl_sys_var::m_compression_algorithms.value(),
     PLUGIN_VAR_OPCMDARG,
     "Compression algorithms: where option can be DEFLATE_STREAM, LZ4_MESSAGE, "
     "ZSTD_STREAM",
-    nullptr, &xpl::Plugin_system_variables::update_func<unsigned long long>,
+    nullptr, &xpl_sys_var::update_func<ulonglong>,
     7 /* default=DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM */,
-    xpl::Plugin_system_variables::m_compression_algorithms.typelib());
+    xpl_sys_var::m_compression_algorithms.typelib());
+
+static MYSQL_SYSVAR_INT(
+    deflate_default_compression_level,
+    *xpl_sys_var::m_deflate_default_compression_level.value(),
+    PLUGIN_VAR_OPCMDARG,
+    "Default value of compression level for deflate algorithm",
+    &xpl::check_compression_level_range<
+        xpl::Compression_deflate_level_variable>,
+    &xpl_sys_var::update_func<int32_t>, 3,
+    xpl_sys_var::m_deflate_default_compression_level.min(),
+    xpl_sys_var::m_deflate_default_compression_level.max(), 0);
+
+static MYSQL_SYSVAR_INT(
+    lz4_default_compression_level,
+    *xpl_sys_var::m_lz4_default_compression_level.value(), PLUGIN_VAR_OPCMDARG,
+    "Default value of compression level for lz4 algorithm",
+    &xpl::check_compression_level_range<xpl::Compression_lz4_level_variable>,
+    &xpl_sys_var::update_func<int32_t>, 2,
+    xpl_sys_var::m_lz4_default_compression_level.min(),
+    xpl_sys_var::m_lz4_default_compression_level.max(), 0);
+
+static MYSQL_SYSVAR_INT(
+    zstd_default_compression_level,
+    *xpl_sys_var::m_zstd_default_compression_level.value(), PLUGIN_VAR_OPCMDARG,
+    "Default value of compression level for zstd algorithm",
+    &xpl::check_compression_level_range<xpl::Compression_zstd_level_variable>,
+    &xpl_sys_var::update_func<int32_t>, 3,
+    xpl_sys_var::m_zstd_default_compression_level.min(),
+    xpl_sys_var::m_zstd_default_compression_level.max(), 0);
+
+static MYSQL_SYSVAR_INT(
+    deflate_max_client_compression_level,
+    *xpl_sys_var::m_deflate_max_client_compression_level.value(),
+    PLUGIN_VAR_OPCMDARG, "Max value of compression level for deflate algorithm",
+    &xpl::check_compression_level_range<
+        xpl::Compression_deflate_level_variable>,
+    &xpl_sys_var::update_func<int32_t>, 5,
+    xpl_sys_var::m_deflate_max_client_compression_level.min(),
+    xpl_sys_var::m_deflate_max_client_compression_level.max(), 0);
+
+static MYSQL_SYSVAR_INT(
+    lz4_max_client_compression_level,
+    *xpl_sys_var::m_lz4_max_client_compression_level.value(),
+    PLUGIN_VAR_OPCMDARG, "Max value of compression level for lz4 algorithm",
+    &xpl::check_compression_level_range<xpl::Compression_lz4_level_variable>,
+    &xpl_sys_var::update_func<int32_t>, 8,
+    xpl_sys_var::m_lz4_max_client_compression_level.min(),
+    xpl_sys_var::m_lz4_max_client_compression_level.max(), 0);
+
+static MYSQL_SYSVAR_INT(
+    zstd_max_client_compression_level,
+    *xpl_sys_var::m_zstd_max_client_compression_level.value(),
+    PLUGIN_VAR_OPCMDARG, "Max value of compression level for zstd algorithm",
+    &xpl::check_compression_level_range<xpl::Compression_zstd_level_variable>,
+    &xpl_sys_var::update_func<int32_t>,
+    xpl_sys_var::m_zstd_max_client_compression_level.min() ==
+            xpl_sys_var::m_zstd_max_client_compression_level.max()
+        ? xpl_sys_var::m_zstd_max_client_compression_level.min()
+        : 11,
+    xpl_sys_var::m_zstd_max_client_compression_level.min(),
+    xpl_sys_var::m_zstd_max_client_compression_level.max(), 0);
 
 static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(port),
@@ -449,20 +500,33 @@ static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(document_id_unique_prefix),
     MYSQL_SYSVAR(enable_hello_notice),
     MYSQL_SYSVAR(compression_algorithms),
+    MYSQL_SYSVAR(deflate_default_compression_level),
+    MYSQL_SYSVAR(lz4_default_compression_level),
+    MYSQL_SYSVAR(zstd_default_compression_level),
+    MYSQL_SYSVAR(deflate_max_client_compression_level),
+    MYSQL_SYSVAR(lz4_max_client_compression_level),
+    MYSQL_SYSVAR(zstd_max_client_compression_level),
     nullptr};
 
-#define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \
-  {                                                                          \
-    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                     \
-        xpl_func_ptr(common_status_variable<long long, &METHOD>), SHOW_FUNC, \
-        SHOW_SCOPE_GLOBAL                                                    \
+#define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)               \
+  {                                                                        \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                   \
+        xpl_func_ptr(common_status_variable<int64_t, &METHOD>), SHOW_FUNC, \
+        SHOW_SCOPE_GLOBAL                                                  \
   }
 
-#define GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)              \
+#define GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)            \
+  {                                                                    \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                               \
+        xpl_func_ptr(global_status_variable_server<int64_t, &METHOD>), \
+        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                   \
+  }
+
+#define SESSION_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)                \
   {                                                                      \
     MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                 \
-        xpl_func_ptr(global_status_variable_server<long long, &METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                     \
+        xpl_func_ptr(session_status_variable<TYPE, &METHOD>), SHOW_FUNC, \
+        SHOW_SCOPE_GLOBAL                                                \
   }
 
 #define GLOBAL_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)            \
@@ -603,6 +667,12 @@ static SHOW_VAR xpl_plugin_status[] = {
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "errors_unknown_message_type",
         ngs::Common_status_variables::m_errors_unknown_message_type),
+    SESSION_STATUS_VARIABLE_ENTRY(
+        "compression_algorithm", std::string,
+        xpl::Client::get_status_compression_algorithm),
+    SESSION_STATUS_VARIABLE_ENTRY("compression_level", std::string,
+                                  xpl::Client::get_status_compression_level),
+
     GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(
         "sessions", xpl::Global_status_variables::m_sessions_count),
     GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(
@@ -648,8 +718,8 @@ static SHOW_VAR xpl_plugin_status[] = {
         "notified_by_group_replication",
         xpl::Global_status_variables::m_notified_by_group_replication),
 
-    SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(
-        "ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),
+    SESSION_STATUS_VARIABLE_ENTRY("ssl_cipher_list", std::string,
+                                  xpl::Client::get_status_ssl_cipher_list),
     SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_active", bool,
                                       xpl::Ssl_session_options::active_tls),
     SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_cipher", std::string,
@@ -759,12 +829,12 @@ struct st_mysql_audit xpl_sha2_cache_cleaner = {
         0,  // MYSQL_AUDIT_TABLE_ACCESS_CLASS
         0,  // MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS
         0,  // MYSQL_AUDIT_SERVER_STARTUP_CLASS
-        static_cast<unsigned long>(
+        static_cast<ulong>(
             MYSQL_AUDIT_SERVER_SHUTDOWN_ALL),  // MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS
         0,                                     // MYSQL_AUDIT_COMMAND_CLASS
         0,                                     // MYSQL_AUDIT_QUERY_CLASS
         0,  // MYSQL_AUDIT_STORED_PROGRAM_CLASS
-        static_cast<unsigned long>(
+        static_cast<ulong>(
             MYSQL_AUDIT_AUTHENTICATION_ALL)  // MYSQL_AUDIT_AUTHENTICATION_CLASS
     }};
 
@@ -821,9 +891,8 @@ mysql_declare_plugin(mysqlx){
     } mysql_declare_plugin_end;
 
 Global_timeouts get_global_timeouts() {
-  return {xpl::Plugin_system_variables::m_interactive_timeout,
-          THDVAR(nullptr, wait_timeout), THDVAR(nullptr, read_timeout),
-          THDVAR(nullptr, write_timeout)};
+  return {xpl_sys_var::m_interactive_timeout, THDVAR(nullptr, wait_timeout),
+          THDVAR(nullptr, read_timeout), THDVAR(nullptr, write_timeout)};
 }
 
 void set_session_wait_timeout(THD *thd, const uint32_t wait_timeout) {

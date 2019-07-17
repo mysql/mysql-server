@@ -27,9 +27,10 @@
 
 #include "plugin/x/client/xcompression_impl.h"
 
+#include <limits>
 #include <memory>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
 #include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
@@ -44,21 +45,65 @@ namespace xcl {
 
 bool Compression_impl::reinitialize(const Compression_algorithm algorithm) {
   DBUG_LOG("debug", "Compression_impl::reinitialize(algorithm:"
-                        << static_cast<int>(algorithm));
+                        << static_cast<int32_t>(algorithm) << ")");
   switch (algorithm) {
     case Compression_algorithm::k_deflate:
       m_downlink_stream.reset(new protocol::Decompression_algorithm_zlib());
-      m_uplink_stream.reset(new protocol::Compression_algorithm_zlib());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_zlib(3));
       return true;
 
     case Compression_algorithm::k_lz4:
       m_downlink_stream.reset(new protocol::Decompression_algorithm_lz4());
-      m_uplink_stream.reset(new protocol::Compression_algorithm_lz4());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_lz4(2));
       return true;
 
     case Compression_algorithm::k_zstd:
       m_downlink_stream.reset(new protocol::Decompression_algorithm_zstd());
-      m_uplink_stream.reset(new protocol::Compression_algorithm_zstd());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_zstd(3));
+      return true;
+
+    case Compression_algorithm::k_none: {
+    }
+  }
+
+  return false;
+}
+
+namespace {
+template <typename Compression_algorithm>
+int32_t adjust_level(const int32_t level) {
+  if (level < Compression_algorithm::get_level_min())
+    return Compression_algorithm::get_level_min();
+  if (level > Compression_algorithm::get_level_max())
+    return Compression_algorithm::get_level_max();
+  return level;
+}
+}  // namespace
+
+bool Compression_impl::reinitialize(const Compression_algorithm algorithm,
+                                    const int32_t level) {
+  DBUG_LOG("debug", "Compression_impl::reinitialize(algorithm:"
+                        << static_cast<int32_t>(algorithm)
+                        << " level:" << static_cast<int32_t>(level) << ")");
+  switch (algorithm) {
+    case Compression_algorithm::k_deflate:
+      m_downlink_stream.reset(new protocol::Decompression_algorithm_zlib());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_zlib(
+          adjust_level<protocol::Compression_algorithm_zlib>(level)));
+      return true;
+
+    case Compression_algorithm::k_lz4:
+      m_downlink_stream.reset(new protocol::Decompression_algorithm_lz4());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_lz4(
+          adjust_level<protocol::Compression_algorithm_lz4>(level)));
+      return true;
+
+    case Compression_algorithm::k_zstd:
+      m_downlink_stream.reset(new protocol::Decompression_algorithm_zstd());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_zstd(
+          level == 0
+              ? 1
+              : adjust_level<protocol::Compression_algorithm_zstd>(level)));
       return true;
 
     case Compression_algorithm::k_none: {

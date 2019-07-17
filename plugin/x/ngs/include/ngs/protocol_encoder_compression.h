@@ -97,7 +97,7 @@ class Protocol_encoder_compression : public xpl::iface::Protocol_encoder {
  public:
   void set_compression_options(const Compression_algorithm algo,
                                const Compression_style style,
-                               const int64_t max_msg);
+                               const int64_t max_msg, const int32_t level);
 
  private:
   Protocol_flusher_compression *get_comp_flusher();

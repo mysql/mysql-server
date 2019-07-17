@@ -34,8 +34,6 @@
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/vio.h"
 
-struct SHOW_VAR;
-
 namespace xpl {
 class Session;
 
@@ -83,7 +81,9 @@ class Client : public ngs::Client {
  public:
   bool is_handler_thd(const THD *thd) const override;
 
-  void get_status_ssl_cipher_list(SHOW_VAR *var);
+  std::string get_status_ssl_cipher_list() const;
+  std::string get_status_compression_algorithm() const;
+  std::string get_status_compression_level() const;
 
   void kill();
 

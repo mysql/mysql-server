@@ -32,6 +32,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/helper/optional_value.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/vio.h"
 
@@ -63,9 +64,9 @@ class Client {
   virtual iface::Protocol_encoder &protocol() const = 0;
   virtual iface::Server &server() const = 0;
   virtual iface::Vio &connection() const = 0;
-  virtual void configure_compression_opts(const ngs::Compression_algorithm algo,
-                                          const int64_t max_msg,
-                                          const bool combine) = 0;
+  virtual void configure_compression_opts(
+      const ngs::Compression_algorithm algo, const int64_t max_msg,
+      const bool combine, const Optional_value<int64_t> &level) = 0;
 
   virtual void activate_tls() = 0;
 

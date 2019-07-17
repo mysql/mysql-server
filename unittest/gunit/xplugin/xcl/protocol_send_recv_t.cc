@@ -24,6 +24,8 @@
 
 #include "unittest/gunit/xplugin/xcl/protocol_t.h"
 
+#include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
+
 namespace xcl {
 namespace test {
 
@@ -387,7 +389,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_resultset) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, send_compressed) {
-  m_sut->use_compression(Compression_algorithm::k_deflate);
+  m_sut->use_compression(Compression_algorithm::k_deflate, 1);
   expect_write_payload(Mysqlx::ClientMessages::COMPRESSION, 17, 0);
 
   auto result = m_sut->send_compressed_frame(

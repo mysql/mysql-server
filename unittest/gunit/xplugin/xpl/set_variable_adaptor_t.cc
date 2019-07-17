@@ -37,7 +37,7 @@ const ulonglong k_label_zero = 0;
 class Set_variable_adaptor_test : public ::testing::Test {
  public:
   void set_variable_value(ulonglong val) { *m_variable.value() = val; }
-  Set_variable m_variable{{"LABEL_A", "LABEL_B", "LABEL_C", nullptr}};
+  Set_variable m_variable{{"LABEL_A", "LABEL_B", "LABEL_C"}};
   enum class Labels { k_B, k_C, k_A };
   Set_variable_adaptor<Labels> m_adaptor{
       m_variable, {Labels::k_A, Labels::k_B, Labels::k_C}};

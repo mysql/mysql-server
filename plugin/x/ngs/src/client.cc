@@ -45,6 +45,9 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zstd.h"
 #include "plugin/x/src/capabilities/capability_compression.h"
 #include "plugin/x/src/capabilities/handler_auth_mech.h"
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
@@ -448,9 +451,11 @@ void Client::on_session_auth_success(xpl::iface::Session *) {
     }
 
     get_protocol_compression_or_install_it()->set_compression_options(
-        m_cached_compression_algorithm, style, m_cached_max_msg);
+        m_cached_compression_algorithm, style, m_cached_max_msg,
+        m_cached_compression_level);
 
     m_config->m_compression_algorithm = m_cached_compression_algorithm;
+    m_config->m_compression_level = m_cached_compression_level;
   }
 }
 
@@ -589,12 +594,13 @@ Protocol_encoder_compression *Client::get_protocol_compression_or_install_it() {
   return reinterpret_cast<Protocol_encoder_compression *>(m_encoder.get());
 }
 
-void Client::configure_compression_opts(const Compression_algorithm algo,
-                                        const int64_t max_msg,
-                                        const bool combine) {
+void Client::configure_compression_opts(
+    const Compression_algorithm algo, const int64_t max_msg, const bool combine,
+    const xpl::Optional_value<int64_t> &level) {
   m_cached_compression_algorithm = algo;
   m_cached_max_msg = max_msg;
   m_cached_combine_msg = combine;
+  m_cached_compression_level = get_adjusted_compression_level(algo, level);
 }
 
 bool Client::create_session() {
@@ -622,4 +628,49 @@ bool Client::create_session() {
   }
   return true;
 }
+
+namespace {
+inline int32_t adjust_level(const xpl::Optional_value<int64_t> &level,
+                            const int32_t default_, const int32_t min,
+                            const int32_t max) {
+  if (!level.has_value()) return default_ > max ? max : default_;
+  if (level.value() < min) return min;
+  if (level.value() > max) return max;
+  return level.value();
+}
+}  // namespace
+
+int32_t Client::get_adjusted_compression_level(
+    const Compression_algorithm algo,
+    const xpl::Optional_value<int64_t> &level) const {
+  using Variables = xpl::Plugin_system_variables;
+  switch (algo) {
+    case Compression_algorithm::k_deflate:
+      return adjust_level(
+          level, *Variables::m_deflate_default_compression_level.value(),
+          protocol::Compression_algorithm_zlib::get_level_min(),
+          *Variables::m_deflate_max_client_compression_level.value());
+
+    case Compression_algorithm::k_lz4:
+      return adjust_level(
+          level, *Variables::m_lz4_default_compression_level.value(),
+          protocol::Compression_algorithm_lz4::get_level_min(),
+          *Variables::m_lz4_max_client_compression_level.value());
+
+    case Compression_algorithm::k_zstd:
+      return adjust_level(
+          level.has_value() && level.value() == 0
+              ? xpl::Optional_value<int64_t>(1)
+              : level,
+          *Variables::m_zstd_default_compression_level.value(),
+          protocol::Compression_algorithm_zstd::get_level_min(),
+          *Variables::m_zstd_max_client_compression_level.value());
+
+    case Compression_algorithm::k_none:  // fall-through
+    default: {
+    }
+  }
+  return 1;
+}
+
 }  // namespace ngs

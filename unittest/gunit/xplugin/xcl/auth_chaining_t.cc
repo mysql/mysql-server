@@ -108,6 +108,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_nothing) {
       .WillOnce(Return(make_capability()));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
@@ -122,6 +123,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_plain_no_ssl) {
       .WillOnce(Return(make_capability("PLAIN")));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
@@ -138,6 +140,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_plain) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -153,6 +156,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_mysql41) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -168,6 +172,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_memory) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -184,6 +189,7 @@ TEST_F(Auth_chaining_test_suite,
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -203,6 +209,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_all_ssl) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -218,6 +225,7 @@ TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_all_non_ssl) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
       .WillOnce(Return(m_error_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
@@ -238,6 +246,7 @@ TEST_F(Auth_chaining_test_suite, auto_auth_method) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -253,6 +262,7 @@ TEST_F(Auth_chaining_test_suite, auto_auth_method_ssl_disabled) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -270,6 +280,7 @@ TEST_F(Auth_chaining_test_suite, auto_auth_method_unix_socket_connection) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
       .WillOnce(Return(m_error_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -290,6 +301,7 @@ TEST_F(Auth_chaining_test_suite, ambigous_auth_method) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -310,6 +322,7 @@ TEST_F(Auth_chaining_test_suite, ambigous_auth_method_multiple_auto) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -326,6 +339,7 @@ TEST_F(Auth_chaining_test_suite,
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -342,6 +356,7 @@ TEST_F(Auth_chaining_test_suite,
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -358,6 +373,7 @@ TEST_F(Auth_chaining_test_suite,
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Unix_socket));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -377,6 +393,7 @@ TEST_F(Auth_chaining_test_suite, only_wrong_auth_method) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -396,6 +413,7 @@ TEST_F(Auth_chaining_test_suite, wrong_and_good_auth_method) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -409,6 +427,7 @@ TEST_F(Auth_chaining_test_suite, only_sha256_memory_auth_method_ssl_disabled) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -422,6 +441,7 @@ TEST_F(Auth_chaining_test_suite, only_sha256_memory_auth_method_ssl_enabled) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -435,6 +455,7 @@ TEST_F(Auth_chaining_test_suite, only_mysql41_auth_method_ssl_disabled) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -448,6 +469,7 @@ TEST_F(Auth_chaining_test_suite, only_mysql41_auth_method_ssl_enabled) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -461,6 +483,7 @@ TEST_F(Auth_chaining_test_suite, only_plain_method_ssl_disabled) {
       .Times(0);
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -474,6 +497,7 @@ TEST_F(Auth_chaining_test_suite, only_plain_method_ssl_enabled) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -489,6 +513,7 @@ TEST_F(Auth_chaining_test_suite, custom_sequence_of_two_auths) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -507,6 +532,7 @@ TEST_F(Auth_chaining_test_suite, custom_sequence_of_three_auths) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -526,6 +552,7 @@ TEST_F(Auth_chaining_test_suite,
       .WillOnce(Return(m_error_disconnected));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   const auto error = m_sut->connect("host", 1290, "user", "pass", "schema");
   ASSERT_EQ(ER_ACCESS_DENIED_ERROR, error.error());
@@ -547,6 +574,7 @@ TEST_F(
       .WillOnce(Return(m_error_disconnected));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   const auto error = m_sut->connect("host", 1290, "user", "pass", "schema");
   ASSERT_EQ(CR_SERVER_GONE_ERROR, error.error());
@@ -562,6 +590,8 @@ TEST_F(Auth_chaining_test_suite, duplicate_auth_methods) {
       .WillRepeatedly(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
 
@@ -577,6 +607,7 @@ TEST_F(Auth_chaining_test_suite, sequence_with_plain_and_no_ssl) {
       .Times(0);
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
@@ -594,6 +625,7 @@ TEST_F(Auth_chaining_test_suite, sequence_successfull_auth_attempt) {
       .WillOnce(Return(XError{}));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->connect("host", 1290, "user", "pass", "schema");
 }
@@ -612,6 +644,7 @@ TEST_P(Auth_chaining_test_suite, custom_error_handling) {
       .WillOnce(Return(m_error_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   ASSERT_EQ(custom_error_code,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
@@ -638,6 +671,7 @@ TEST_P(Auth_chaining_test_suite_sha256_fail_no_ssl, sha256_fail_with_no_ssl) {
 
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   ASSERT_EQ(CR_X_AUTH_PLUGIN_ERROR,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
@@ -666,6 +700,8 @@ TEST_P(Auth_chaining_fatal_errors, break_chain_on_fatal_errors) {
       .Times(0);
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+
   ASSERT_EQ(GetParam().error(),
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }

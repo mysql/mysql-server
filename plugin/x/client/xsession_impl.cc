@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>  // NOLINT(build/c++11)
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -305,6 +306,14 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
     case Mysqlx_option::Compression_max_combine_messages:
       return Option_descriptor{new Compression_int_store<
           &Compression_config::m_use_server_max_combine_messages>()};
+
+    case Mysqlx_option::Compression_level_client:
+      return Option_descriptor{new Compression_optional_int_store<
+          &Compression_config::m_use_level_client>()};
+
+    case Mysqlx_option::Compression_level_server:
+      return Option_descriptor{new Compression_optional_int_store<
+          &Compression_config::m_use_level_server>()};
 
     default:
       return {};
@@ -839,7 +848,13 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     if (error) return error;
   }
 
-  m_protocol->use_compression(m_context->m_compression_config.m_use_algorithm);
+  if (m_context->m_compression_config.m_use_level_client.has_value())
+    m_protocol->use_compression(
+        m_context->m_compression_config.m_use_algorithm,
+        m_context->m_compression_config.m_use_level_client.value());
+  else
+    m_protocol->use_compression(
+        m_context->m_compression_config.m_use_algorithm);
 
   const auto is_secure_connection =
       connection.state().is_ssl_activated() ||
@@ -1094,6 +1109,8 @@ Argument_value Session_impl::get_compression_capability() const {
       config.m_use_server_combine_mixed_messages;
   obj["server_max_combine_messages"] =
       static_cast<int64_t>(config.m_use_server_max_combine_messages);
+  if (config.m_use_level_server.has_value())
+    obj["level"] = static_cast<int64_t>(config.m_use_level_server.value());
 
   return Argument_value{obj};
 }

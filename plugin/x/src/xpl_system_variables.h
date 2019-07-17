@@ -1,39 +1,40 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #ifndef PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 #define PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 
-#include <stdint.h>
-
 #include <algorithm>
+#include <cstdint>
 #include <functional>
-
 #include <memory>
 #include <vector>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
+#include "mysql/plugin.h"
+
+#include "plugin/x/src/compression_level_variable.h"
 #include "plugin/x/src/set_variable.h"
 
 #ifdef max_allowed_packet
@@ -81,6 +82,15 @@ class Plugin_system_variables {
 
   static Set_variable m_compression_algorithms;
 
+  static Compression_deflate_level_variable m_deflate_default_compression_level;
+  static Compression_lz4_level_variable m_lz4_default_compression_level;
+  static Compression_zstd_level_variable m_zstd_default_compression_level;
+
+  static Compression_deflate_level_variable
+      m_deflate_max_client_compression_level;
+  static Compression_lz4_level_variable m_lz4_max_client_compression_level;
+  static Compression_zstd_level_variable m_zstd_max_client_compression_level;
+
   static Ssl_config ssl_config;
 
  public:
@@ -111,6 +121,18 @@ void Plugin_system_variables::update_func(THD *thd, SYS_VAR *, void *tgt,
   std::for_each(
       m_callbacks.begin(), m_callbacks.end(),
       [&thd](const Value_changed_callback &callback) { callback(thd); });
+}
+
+template <typename Commpresion_level_variable>
+inline int check_compression_level_range(THD * /*thd*/, SYS_VAR * /*var*/,
+                                         void *save, st_mysql_value *value) {
+  longlong val;
+  value->val_int(value, &val);
+  if (Commpresion_level_variable::check_range(val)) {
+    *(reinterpret_cast<int *>(save)) = val;
+    return 0;
+  }
+  return 1;
 }
 
 }  // namespace xpl

@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PROTOCOL_CONFIG_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PROTOCOL_CONFIG_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <list>
 #include <memory>
 
@@ -72,8 +72,8 @@ class Protocol_config {
   explicit Protocol_config(
       const std::shared_ptr<Protocol_global_config> &global)
       : m_global(global) {}
-
   Compression_algorithm m_compression_algorithm = Compression_algorithm::k_none;
+  int32_t m_compression_level = std::numeric_limits<int32_t>::min();
   std::shared_ptr<Protocol_global_config> m_global;
 };
 

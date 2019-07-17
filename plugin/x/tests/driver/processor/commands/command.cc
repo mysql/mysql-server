@@ -24,12 +24,14 @@
 
 #include "plugin/x/tests/driver/processor/commands/command.h"
 
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <signal.h>
 #include <sys/types.h>
 
-#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <algorithm>
 #include <fstream>
+#include <limits>
+
 #include <functional>
 #include <iostream>
 #include <set>
@@ -1165,27 +1167,46 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
 Command::Result Command::cmd_enable_compression(std::istream &input,
                                                 Execution_context *context,
                                                 const std::string &args) {
-  const static std::map<std::string, xcl::Compression_algorithm> algo{
+  if (args.empty()) {
+    context->print_error(
+        "'enable_compression' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  std::vector<std::string> arg_list;
+  aux::split(arg_list, args, "\t", true);
+
+  std::string algo = arg_list[0];
+  context->m_variables->replace(&algo);
+  std::transform(algo.begin(), algo.end(), algo.begin(), ::tolower);
+
+  static const std::map<std::string, xcl::Compression_algorithm> k_algo{
       {"deflate_stream", xcl::Compression_algorithm::k_deflate},
       {"lz4_message", xcl::Compression_algorithm::k_lz4},
       {"zstd_stream", xcl::Compression_algorithm::k_zstd}};
 
-  std::string arg = args;
-  context->m_variables->replace(&arg);
-
-  std::string lower_case_arg;
-  for (const auto c : arg) {
-    lower_case_arg.push_back(tolower(c));
-  }
-
-  if (0 == algo.count(lower_case_arg)) {
-    context->print_error("ERROR: Invalid algorithm used: \"", arg, "\"\n");
+  if (0 == k_algo.count(algo)) {
+    context->print_error("ERROR: Invalid algorithm used: \"", arg_list[0],
+                         "\"\n");
 
     return Result::Stop_with_failure;
   }
 
-  context->m_connection->active_holder().enable_compression(
-      algo.at(lower_case_arg));
+  int64_t level = std::numeric_limits<int64_t>::min();
+  if (arg_list.size() > 1) {
+    try {
+      std::string str_level = arg_list[1];
+      context->m_variables->replace(&str_level);
+      level = std::stol(str_level);
+    } catch (...) {
+      context->print_error(
+          "ERROR: Invalid compression level used: ", arg_list[1], "\n");
+      return Result::Stop_with_failure;
+    }
+  }
+
+  context->m_connection->active_holder().enable_compression(k_algo.at(algo),
+                                                            level);
   return Result::Continue;
 }
 
@@ -1438,7 +1459,7 @@ Command::Result Command::cmd_fatalwarnings(std::istream &input,
   bool value = true;
 
   if (!args.empty()) {
-    const static std::map<std::string, bool> allowed_values{
+    static const std::map<std::string, bool> allowed_values{
         {"YES", true},    {"TRUE", true}, {"NO", false},
         {"FALSE", false}, {"1", true},    {"0", false}};
 
@@ -2274,6 +2295,7 @@ Command::Result Command::cmd_compress(std::istream &input,
     int raw_offset = 0;
     uint8_t *source = reinterpret_cast<uint8_t *>(&raw[0]);
     int source_size = raw.length();
+    algorithm->set_pledged_source_size(source_size);
 
     while (source_size &&
            pos.Next(reinterpret_cast<void **>(&dst), &dst_size)) {
@@ -2430,7 +2452,6 @@ void Command::print_resultset(Execution_context *context,
     }
 
     if (print_column_info) context->print(meta);
-
   } while (result->next_data_set());
 }
 
@@ -2473,7 +2494,8 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
-  std::cout << "-->enable_compression [deflate|lz4|zstd]\n";
+  std::cout << "-->enable_compression deflate_stream|lz4_message|zstd_stream"
+               " [#level]\n";
   std::cout << "  Enable compression\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";

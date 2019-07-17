@@ -30,6 +30,7 @@ class Compression_algorithm_interface {
  public:
   virtual ~Compression_algorithm_interface() = default;
 
+  virtual void set_pledged_source_size(const int src_size) = 0;
   virtual void set_input(uint8_t *in_ptr, const int in_size) = 0;
   virtual bool compress(uint8_t *out_ptr, int *out_size) = 0;
   virtual bool flush(uint8_t *out_ptr, int *out_size) = 0;

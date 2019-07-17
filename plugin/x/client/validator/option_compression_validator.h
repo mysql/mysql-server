@@ -74,6 +74,15 @@ class Compression_int_store
   }
 };
 
+template <xpl::Optional_value<int32_t>(Compression_config::*member)>
+class Compression_optional_int_store
+    : public Value_validator<Context, Integer_validator> {
+ public:
+  void visit_integer(const int64_t value) override {
+    get_ctxt()->m_compression_config.*member = value;
+  }
+};
+
 template <bool(Compression_config::*member)>  // NOLINT(readability/casting)
 class Compression_bool_store : public Value_validator<Context, Bool_validator> {
  public:

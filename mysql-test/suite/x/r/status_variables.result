@@ -74,3 +74,5 @@ include/assert.inc [No connections were made, Mysqlx_prep_deallocate must match 
 include/assert.inc [No connections were made, Mysqlx_cursor_open must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_cursor_close must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_cursor_fetch must match default value which is 0.]
+include/assert.inc [No connections were made, Mysqlx_compression_algorithm must match default value which is ''.]
+include/assert.inc [No connections were made, Mysqlx_compression_level must match default value which is ''.]

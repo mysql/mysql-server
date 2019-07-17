@@ -26,11 +26,12 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
@@ -46,12 +47,14 @@ const char *const k_algorithm_key = "algorithm";
 const char *const k_server_max_combine_messages = "server_max_combine_messages";
 const char *const k_server_combine_mixed_messages =
     "server_combine_mixed_messages";
+const char *const k_level_key = "level";
 
 enum class Compression_field {
   k_unknown,
   k_algorithm,
   k_server_max_messages,
-  k_server_combine_messages
+  k_server_combine_messages,
+  k_level
 };
 
 Compression_field get_compression_field(const std::string &name) {
@@ -59,7 +62,9 @@ Compression_field get_compression_field(const std::string &name) {
       {k_algorithm_key, Compression_field::k_algorithm},
       {k_server_max_combine_messages, Compression_field::k_server_max_messages},
       {k_server_combine_mixed_messages,
-       Compression_field::k_server_combine_messages}};
+       Compression_field::k_server_combine_messages},
+      {k_level_key, Compression_field::k_level},
+  };
 
   const std::string lowercase_name = to_lower(name);
   if (0 == fields.count(lowercase_name)) return Compression_field::k_unknown;
@@ -95,6 +100,7 @@ ngs::Error_code Capability_compression::set_impl(
   bool is_algorithm_set = false;
   m_max_messages = -1;
   m_combine_messages = true;
+  m_level.reset();
 
   for (const auto &f : any.obj().fld()) {
     switch (get_compression_field(f.key())) {
@@ -143,18 +149,28 @@ ngs::Error_code Capability_compression::set_impl(
         m_combine_messages = value;
       } break;
 
+      case Compression_field::k_level: {
+        const auto value =
+            ngs::Getter_any::get_numeric_value<int64_t>(f.value(), &error);
+        if (error) {
+          // Overwrite the error with generic capability-get error
+          return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                            "Capability prepare failed for '%s'",
+                            name().c_str());
+        }
+        m_level = value;
+      } break;
+
       case Compression_field::k_unknown:
         return ngs::Error(ER_X_CAPABILITY_COMPRESSION_INVALID_OPTION,
-                          "Invalid or unsupported option for '%s'",
-                          name().c_str());
+                          "Invalid or unsupported option '%s.%s'",
+                          name().c_str(), f.key().c_str());
     }
   }
 
   if (!is_algorithm_set) {
-    return ngs::Error(
-        ER_X_CAPABILITY_COMPRESSION_MISSING_REQUIRED_FIELDS,
-        "The algorithm and at least one style is required for '%s'",
-        name().c_str());
+    return ngs::Error(ER_X_CAPABILITY_COMPRESSION_MISSING_REQUIRED_FIELDS,
+                      "The algorithm is required for '%s'", name().c_str());
   }
 
   return ngs::Success();
@@ -162,7 +178,7 @@ ngs::Error_code Capability_compression::set_impl(
 
 void Capability_compression::commit() {
   m_client->configure_compression_opts(m_algorithm, m_max_messages,
-                                       m_combine_messages);
+                                       m_combine_messages, m_level);
 }
 
 }  // namespace xpl
