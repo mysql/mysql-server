@@ -7364,23 +7364,10 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       }
       return -1;
     }
-    NodeInfo info = m_impl->getNodeInfo(aNodeId).m_info;
-    if (ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
-    {
-      /*
-        Called node will return a long signal
-       */
-      listTablesLongSignal = true;
-    }
-    else if (listTablesLongSignal)
-    {
-      /*
-        We are requesting info from a table with table id > 4096
-        and older versions don't support that, bug#36044
-      */
-      m_error.code= 4105;
-      return -1;
-    }
+    /*
+      Called node will return a long signal
+     */
+    listTablesLongSignal = true;
 
     if (m_impl->sendSignal(signal, aNodeId) != 0) {
       continue;
@@ -7419,17 +7406,6 @@ void
 NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
                                        const LinearSectionPtr ptr[3])
 {
-  Uint16 nodeId = refToNode(signal->theSendersBlockRef);
-  NodeInfo info = m_impl->getNodeInfo(nodeId).m_info;
-  if (!ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
-  {
-    /*
-      Sender doesn't support new signal format
-     */
-    NdbDictInterface::execOLD_LIST_TABLES_CONF(signal, ptr);
-    return;
-  }
-
   const ListTablesConf* const conf=
     CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
   if(!m_tx.checkRequestId(conf->senderData, "LIST_TABLES_CONF"))

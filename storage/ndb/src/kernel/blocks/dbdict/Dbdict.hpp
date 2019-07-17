@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4794,7 +4794,6 @@ public:
                            Uint32& parentObjectType,
                            Uint32& parentObjectId);
 
-  void sendOLD_LIST_TABLES_CONF(Signal *signal, ListTablesReq*);
   void sendLIST_TABLES_CONF(Signal *signal, ListTablesReq*);
 
   Uint32 c_outstanding_sub_startstop;
