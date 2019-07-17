@@ -350,12 +350,6 @@ class Fil_path {
   static constexpr auto OS_SEPARATOR = OS_PATH_SEPARATOR;
 
   /** Directory separators that are supported. */
-#if defined(__SUNPRO_CC)
-  static char *SEPARATOR;
-  static char *DOT_SLASH;
-  static char *DOT_DOT_SLASH;
-  static char *SLASH_DOT_DOT_SLASH;
-#else
   static constexpr auto SEPARATOR = "\\/";
 #ifdef _WIN32
   static constexpr auto DOT_SLASH = ".\\";
@@ -366,8 +360,6 @@ class Fil_path {
   static constexpr auto DOT_DOT_SLASH = "../";
   static constexpr auto SLASH_DOT_DOT_SLASH = "/../";
 #endif /* _WIN32 */
-
-#endif /* __SUNPRO_CC */
 
   /** Various types of file paths. */
   enum path_type { absolute, relative, file_name_only, invalid };
