@@ -60,6 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_cmd.h"
 #include "trx0types.h"
 #include "univ.i"
+#include "ut0bool_scope_guard.h"
 
 // Forward declarations
 class THD;
@@ -665,6 +666,39 @@ struct row_prebuilt_t {
   que_fork_t *sel_graph;  /*!< dummy query graph used in
                           selects */
   dtuple_t *search_tuple; /*!< prebuilt dtuple used in selects */
+
+  /** prebuilt dtuple used in selects where the end of range is known */
+  dtuple_t *m_stop_tuple;
+
+  /** Set to true in row_search_mvcc when a row matching exactly the length and
+  value of stop_tuple was found, so that the next iteration of row_search_mvcc
+  knows it can simply return DB_RECORD_NOT_FOUND. If true, then for sure, at
+  least one such matching row was seen. If false, it might be false negative, as
+  not all control paths lead to setting this field to true in case a matching
+  row is visited. */
+  bool m_stop_tuple_found;
+
+ private:
+  /** Set to true iff we are inside read_range_first() or read_range_next() */
+  bool m_is_reading_range;
+
+ public:
+  bool is_reading_range() const { return m_is_reading_range; }
+
+  class row_is_reading_range_guard_t : private ut::bool_scope_guard_t {
+   public:
+    explicit row_is_reading_range_guard_t(row_prebuilt_t &prebuilt)
+        : ut::bool_scope_guard_t(prebuilt.m_is_reading_range) {}
+  };
+
+  row_is_reading_range_guard_t get_is_reading_range_guard() {
+    /* We implement row_is_reading_range_guard_t as a simple bool_scope_guard_t
+    because we trust that scopes are never nested and thus we don't need to
+    count their "openings" and "closings", so we assert that.*/
+    ut_ad(!m_is_reading_range);
+    return row_is_reading_range_guard_t(*this);
+  }
+
   byte row_id[DATA_ROW_ID_LEN];
   /*!< if the clustered index was
   generated, the row id of the
@@ -864,6 +898,36 @@ struct row_prebuilt_t {
   causing an error.
   @return true iff duplicated values should be allowed */
   bool allow_duplicates() { return (replace || on_duplicate_key_update); }
+
+ private:
+  /** A helper function for init_search_tuples_types() which prepares the shape
+  of the tuple to match the index
+  @param[in]  tuple   this->search_tuple or this->m_stop_tuple */
+  void init_tuple_types(dtuple_t *tuple) {
+    dtuple_set_n_fields(tuple, index->n_fields);
+    dict_index_copy_types(tuple, index, index->n_fields);
+  }
+
+ public:
+  /** Initializes search_tuple and m_stop_tuple shape so they match the index */
+  void init_search_tuples_types() {
+    init_tuple_types(search_tuple);
+    init_tuple_types(m_stop_tuple);
+  }
+
+  /** Resets both search_tuple and m_stop_tuple */
+  void clear_search_tuples() {
+    dtuple_set_n_fields(search_tuple, 0);
+    dtuple_set_n_fields(m_stop_tuple, 0);
+  }
+
+  /** It is unsafe to copy this struct, and moving it would be non-trivial,
+  because we want to keep in sync with row_is_reading_range_guard_t. Therefore
+  it is much safer/easier to just forbid such operations.  */
+  row_prebuilt_t(row_prebuilt_t const &) = delete;
+  row_prebuilt_t &operator=(row_prebuilt_t const &) = delete;
+  row_prebuilt_t &operator=(row_prebuilt_t &&) = delete;
+  row_prebuilt_t(row_prebuilt_t &&) = delete;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

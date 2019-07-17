@@ -1826,14 +1826,12 @@ int ha_innopart::change_active_index(uint part_id, uint keynr) {
   }
 
   ut_a(m_prebuilt->search_tuple != NULL);
+  ut_a(m_prebuilt->m_stop_tuple != NULL);
 
   /* If too expensive, cache the keynr and only update search_tuple when
   keynr changes. Remember that the clustered index is also used for
   MAX_KEY. */
-  dtuple_set_n_fields(m_prebuilt->search_tuple, m_prebuilt->index->n_fields);
-
-  dict_index_copy_types(m_prebuilt->search_tuple, m_prebuilt->index,
-                        m_prebuilt->index->n_fields);
+  m_prebuilt->init_search_tuples_types();
 
   /* MySQL changes the active index for a handle also during some
   queries, for example SELECT MAX(a), SUM(a) first retrieves the
