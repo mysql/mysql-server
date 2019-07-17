@@ -8327,15 +8327,21 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     ulint space_flags = callback.get_space_flags();
 
     if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-      ut_ad(table->encryption_key != nullptr);
-
       if (!dd_is_table_in_encrypted_tablespace(table)) {
-        ib::error(ER_IB_MSG_338) << "Table is not in an encrypted"
-                                    " tablespace, but the data file which"
-                                    " trying to import is an encrypted"
-                                    " tablespace";
+        ib::error(ER_IB_MSG_338) << "Table is not in an encrypted tablespace,"
+                                    " but the data file intended for import"
+                                    " is an encrypted tablespace";
 
         err = DB_IO_NO_ENCRYPT_TABLESPACE;
+      } else {
+        /* encryption_key must have been populated while reading CFP file. */
+        ut_ad(table->encryption_key != nullptr &&
+              table->encryption_iv != nullptr);
+
+        if (table->encryption_key == nullptr ||
+            table->encryption_iv == nullptr) {
+          err = DB_ERROR;
+        }
       }
     }
 
