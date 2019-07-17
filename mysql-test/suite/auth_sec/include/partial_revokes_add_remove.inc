@@ -778,6 +778,7 @@ DROP ROLE r1;
 --echo #
 --echo # 8. Roles negating each other's restrictions
 --echo #
+--echo # 8.1 Both roles have partial revokes
 CREATE ROLE r1, r2;
 CREATE USER bar;
 GRANT SELECT,INSERT ON *.* TO r1, r2;
@@ -791,6 +792,55 @@ GRANT r1, r2 TO bar;
 SHOW GRANTS FOR bar USING r1;
 SHOW GRANTS FOR bar USING r2;
 --echo # Roles global privileges should negate each others restrictions
+SHOW GRANTS FOR bar USING r1, r2;
+--let $conn_name = bar_master
+--connect($conn_name, localhost, bar,,,$MASTER_MYPORT)
+--echo [connection $conn_name]
+SET ROLE r1, r2;
+SHOW GRANTS;
+--source ./partial_revokes_rpl_helper.inc
+--connection default
+--disconnect $conn_name
+DROP USER bar;
+DROP ROLE r1, r2;
+--echo # 8.2 One role has partial revoke and another has DB level grant
+CREATE USER bar;
+CREATE ROLE r1, r2;
+GRANT r1, r2 TO bar;
+GRANT SELECT ON *.* TO r1;
+REVOKE SELECT ON mysql.* FROM r1;
+GRANT SELECT ON mysql.* TO r2;
+SHOW GRANTS FOR bar USING r1;
+SHOW GRANTS FOR bar USING r2;
+--echo # DB level privilege and partial revoke negate each other
+SHOW GRANTS FOR bar USING r1, r2;
+--let $conn_name = bar_master
+--connect($conn_name, localhost, bar,,,$MASTER_MYPORT)
+--echo [connection $conn_name]
+SET ROLE r1, r2;
+SHOW GRANTS;
+SET ROLE r1;
+SHOW GRANTS;
+SET ROLE r2;
+SHOW GRANTS;
+SET ROLE r2, r1;
+SHOW GRANTS;
+--source ./partial_revokes_rpl_helper.inc
+--connection default
+--disconnect $conn_name
+DROP USER bar;
+DROP ROLE r1, r2;
+--echo # 8.3 One role has partial revoke & grants and another has DB grants
+CREATE USER bar;
+CREATE ROLE r1, r2;
+GRANT r1, r2 TO bar;
+GRANT SELECT, DROP ON *.* TO r1;
+REVOKE SELECT ON mysql.* FROM r1;
+GRANT UPDATE ON mysql.* TO r1;
+GRANT SELECT, INSERT ON mysql.* TO r2;
+SHOW GRANTS FOR bar USING r1;
+SHOW GRANTS FOR bar USING r2;
+--echo # DB level privilege and partial revoke negate each other
 SHOW GRANTS FOR bar USING r1, r2;
 --let $conn_name = bar_master
 --connect($conn_name, localhost, bar,,,$MASTER_MYPORT)

@@ -1637,7 +1637,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
           Restrictions_aggregator_factory::create(
               granter, m_grantee, acl_user.access & DB_ACLS,
               *m_access & DB_ACLS, restrictions.db(), m_restrictions->db(),
-              acl_user.access & DB_ACLS, m_db_map, m_db_wild_map);
+              acl_user.access & DB_ACLS, m_db_map);
       if (aggregator) {
         DB_restrictions db_restrictions(nullptr);
         if (aggregator->generate(db_restrictions)) return;
