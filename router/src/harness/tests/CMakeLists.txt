@@ -86,6 +86,16 @@ FOREACH(TEST ${TESTS})
     LIB_DEPENDS test-helpers;${SSL_LIBRARIES})
 ENDFOREACH()
 
+SET(TESTS
+  test_stdx_expected.cc
+)
+
+FOREACH(TEST ${TESTS})
+  add_test_file(${TEST} MODULE ${TEST_MODULE}
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/)
+ENDFOREACH()
+
+
 # Use configuration file templates to generate configuration files
 CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data)
 COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data)
