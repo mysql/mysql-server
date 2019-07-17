@@ -913,6 +913,7 @@ DROP ROLE r1;
 #
 # 8. Roles negating each other's restrictions
 #
+# 8.1 Both roles have partial revokes
 CREATE ROLE r1, r2;
 CREATE USER bar;
 GRANT SELECT,INSERT ON *.* TO r1, r2;
@@ -947,6 +948,87 @@ SHOW GRANTS;
 Grants for bar@%
 GRANT SELECT, INSERT, DROP ON *.* TO `bar`@`%`
 GRANT UPDATE ON `mysql`.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+DROP USER bar;
+DROP ROLE r1, r2;
+# 8.2 One role has partial revoke and another has DB level grant
+CREATE USER bar;
+CREATE ROLE r1, r2;
+GRANT r1, r2 TO bar;
+GRANT SELECT ON *.* TO r1;
+REVOKE SELECT ON mysql.* FROM r1;
+GRANT SELECT ON mysql.* TO r2;
+SHOW GRANTS FOR bar USING r1;
+Grants for bar@%
+GRANT SELECT ON *.* TO `bar`@`%`
+REVOKE SELECT ON `mysql`.* FROM `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+SHOW GRANTS FOR bar USING r2;
+Grants for bar@%
+GRANT USAGE ON *.* TO `bar`@`%`
+GRANT SELECT ON `mysql`.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+# DB level privilege and partial revoke negate each other
+SHOW GRANTS FOR bar USING r1, r2;
+Grants for bar@%
+GRANT SELECT ON *.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+[connection bar_master]
+SET ROLE r1, r2;
+SHOW GRANTS;
+Grants for bar@%
+GRANT SELECT ON *.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+SET ROLE r1;
+SHOW GRANTS;
+Grants for bar@%
+GRANT SELECT ON *.* TO `bar`@`%`
+REVOKE SELECT ON `mysql`.* FROM `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+SET ROLE r2;
+SHOW GRANTS;
+Grants for bar@%
+GRANT USAGE ON *.* TO `bar`@`%`
+GRANT SELECT ON `mysql`.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+SET ROLE r2, r1;
+SHOW GRANTS;
+Grants for bar@%
+GRANT SELECT ON *.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+DROP USER bar;
+DROP ROLE r1, r2;
+# 8.3 One role has partial revoke & grants and another has DB grants
+CREATE USER bar;
+CREATE ROLE r1, r2;
+GRANT r1, r2 TO bar;
+GRANT SELECT, DROP ON *.* TO r1;
+REVOKE SELECT ON mysql.* FROM r1;
+GRANT UPDATE ON mysql.* TO r1;
+GRANT SELECT, INSERT ON mysql.* TO r2;
+SHOW GRANTS FOR bar USING r1;
+Grants for bar@%
+GRANT SELECT, DROP ON *.* TO `bar`@`%`
+GRANT UPDATE ON `mysql`.* TO `bar`@`%`
+REVOKE SELECT ON `mysql`.* FROM `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+SHOW GRANTS FOR bar USING r2;
+Grants for bar@%
+GRANT USAGE ON *.* TO `bar`@`%`
+GRANT SELECT, INSERT ON `mysql`.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+# DB level privilege and partial revoke negate each other
+SHOW GRANTS FOR bar USING r1, r2;
+Grants for bar@%
+GRANT SELECT, DROP ON *.* TO `bar`@`%`
+GRANT INSERT, UPDATE ON `mysql`.* TO `bar`@`%`
+GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
+[connection bar_master]
+SET ROLE r1, r2;
+SHOW GRANTS;
+Grants for bar@%
+GRANT SELECT, DROP ON *.* TO `bar`@`%`
+GRANT INSERT, UPDATE ON `mysql`.* TO `bar`@`%`
 GRANT `r1`@`%`,`r2`@`%` TO `bar`@`%`
 DROP USER bar;
 DROP ROLE r1,r2;
