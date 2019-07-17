@@ -6629,7 +6629,8 @@ static bool check_set_default_table_encryption_access(
     sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
   DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
                   { return false; });
-  if (var->type == OPT_GLOBAL && is_group_replication_running()) {
+  if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
+      is_group_replication_running()) {
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "The default_table_encryption option cannot be changed when "
                "Group replication is running.",
