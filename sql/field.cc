@@ -1738,11 +1738,6 @@ void Field::hash(ulong *nr, ulong *nr2) const {
   }
 }
 
-size_t Field::do_last_null_byte() const {
-  DBUG_ASSERT(!real_maybe_null() || m_null_ptr >= table->record[0]);
-  return real_maybe_null() ? null_offset() + 1 : (size_t)LAST_NULL_BYTE_UNDEF;
-}
-
 void Field::copy_data(ptrdiff_t src_record_offset) {
   memcpy(ptr, ptr + src_record_offset, pack_length());
 
@@ -1924,13 +1919,6 @@ const uchar *Field::unpack(uchar *to, const uchar *from, uint param_data,
 static void append_zerofill_and_unsigned(const Field_num *field, String *res) {
   if (field->unsigned_flag) res->append(STRING_WITH_LEN(" unsigned"));
   if (field->zerofill) res->append(STRING_WITH_LEN(" zerofill"));
-}
-
-size_t Field::last_null_byte() const {
-  size_t bytes = do_last_null_byte();
-  DBUG_PRINT("debug", ("last_null_byte() ==> %ld", (long)bytes));
-  DBUG_ASSERT(bytes <= table->s->null_bytes);
-  return bytes;
 }
 
 void Field::make_field(Send_field *field) const {
@@ -8669,29 +8657,6 @@ void Field_bit::hash(ulong *nr, ulong *nr2) const {
     *nr = static_cast<ulong>(tmp1);
     *nr2 = static_cast<ulong>(tmp2);
   }
-}
-
-size_t Field_bit::do_last_null_byte() const {
-  /*
-    Code elsewhere is assuming that bytes are 8 bits, so I'm using
-    that value instead of the correct one: CHAR_BIT.
-
-    REFACTOR SUGGESTION (Matz): Change to use the correct number of
-    bits. On systems with CHAR_BIT > 8 (not very common), the storage
-    will lose the extra bits.
-  */
-  DBUG_PRINT("test", ("bit_ofs: %d, bit_len: %d  bit_ptr: %p", bit_ofs, bit_len,
-                      bit_ptr));
-  const uchar *result;
-  if (bit_len == 0)
-    result = get_null_ptr();
-  else if (bit_ofs + bit_len > 8)
-    result = bit_ptr + 1;
-  else
-    result = bit_ptr;
-
-  if (result) return (size_t)(result - table->record[0]) + 1;
-  return LAST_NULL_BYTE_UNDEF;
 }
 
 Field *Field_bit::new_key_field(MEM_ROOT *root, TABLE *new_table,

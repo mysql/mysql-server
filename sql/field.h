@@ -1382,25 +1382,6 @@ class Field {
     null_bit = p_null_bit;
   }
 
-  enum { LAST_NULL_BYTE_UNDEF = 0 };
-
-  /*
-    Find the position of the last null byte for the field.
-
-    SYNOPSIS
-      last_null_byte()
-
-    DESCRIPTION
-      Return a pointer to the last byte of the null bytes where the
-      field conceptually is placed.
-
-    RETURN VALUE
-      The position of the last null byte relative to the beginning of
-      the record. If the field does not use any bits of the null
-      bytes, the value 0 (LAST_NULL_BYTE_UNDEF) is returned.
-   */
-  size_t last_null_byte() const;
-
   virtual void make_field(Send_field *) const;
 
   /**
@@ -1838,19 +1819,6 @@ class Field {
   }
 
  private:
-  /*
-    Primitive for implementing last_null_byte().
-
-    SYNOPSIS
-      do_last_null_byte()
-
-    DESCRIPTION
-      Primitive for the implementation of the last_null_byte()
-      function. This represents the inheritance interface and can be
-      overridden by subclasses.
-   */
-  virtual size_t do_last_null_byte() const;
-
   /**
      Retrieve the field metadata for fields.
 
@@ -4834,7 +4802,6 @@ class Field_bit : public Field {
   }
 
  private:
-  size_t do_last_null_byte() const final override;
   int do_save_field_metadata(uchar *first_byte) const final override;
 };
 
