@@ -50,6 +50,7 @@ Data dictionary interface */
 #endif /* !UNIV_HOTBACKUP */
 #include "data0type.h"
 #include "dict0dict.h"
+#include "fil0fil.h"
 #include "mach0data.h"
 #include "rem0rec.h"
 #ifndef UNIV_HOTBACKUP
@@ -1019,31 +1020,43 @@ void dd_table_close(dict_table_t *table, THD *thd, MDL_ticket **mdl,
 /** Replace the tablespace name in the file name.
 @param[in]  dd_file  the tablespace file object.
 @param[in]  new_space_name  new table space name to be updated in file name.
+                            It must have already been converted to the
+                            filename_charset such that
+                             `d1/d2\d3`.`t3\t4/t5`
+                            should look like:
+                            d1@002fd2@005cd3/t3@005ct4@002ft5
+                            both on Windows and on Linux.
 @return None. */
 static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
                                             dd::String_type new_space_name) {
+  ut_ad(std::count(new_space_name.begin(), new_space_name.end(),
+                   Fil_path::DB_SEPARATOR) == 1);
+
   /* Obtain the old tablespace file name. */
   dd::String_type old_file_name = dd_file->filename();
 
-  /* Construct the old tablespace name from the file name. */
-  dd::String_type::size_type pos =
-      old_file_name.find_last_of(Fil_path::SEPARATOR);
-  dd::String_type subdir = old_file_name.substr(0, pos);
-  dd::String_type::size_type suffix = old_file_name.rfind(dot_ext[IBD]);
-  dd::String_type table_name = old_file_name.substr(pos + 1, suffix - pos - 1);
-  pos = subdir.find_last_of(Fil_path::SEPARATOR);
-  dd::String_type db_name = subdir.substr(pos + 1, subdir.length());
-  dd::String_type old_space_name = db_name + "/" + table_name;
+  /* We assume that old_file_name ends with:
+  OS_PATH_SEPARATOR + db_name + OS_PATH_SEPARATOR + table_name + dot_ext[IBD],
+  so on Windows it can look like:
+  .\d1@002fd2@005cd3\t1@002ft2@005ct3.ibd
+  and on Linux it could be:
+  ./d1@002fd2@005cd3/t1@002ft2@005ct3.ibd */
+  ut_ad(std::count(old_file_name.begin(), old_file_name.end(),
+                   OS_PATH_SEPARATOR) >= 2);
+  ut_ad(old_file_name.rfind(dot_ext[IBD]) ==
+        old_file_name.length() - strlen(dot_ext[IBD]));
+
+  /* Strip the last two components of the path (keep the slash) */
+  auto last_separator_pos = old_file_name.find_last_of(OS_PATH_SEPARATOR);
+  auto previous_separator_pos =
+      old_file_name.find_last_of(OS_PATH_SEPARATOR, last_separator_pos - 1);
+  old_file_name.resize(previous_separator_pos + 1);
 
   /* Take care of path separators */
-  std::replace(old_space_name.begin(), old_space_name.end(), '/',
-               OS_PATH_SEPARATOR);
-  std::replace(new_space_name.begin(), new_space_name.end(), '/',
-               OS_PATH_SEPARATOR);
+  std::replace(new_space_name.begin(), new_space_name.end(),
+               Fil_path::DB_SEPARATOR, OS_PATH_SEPARATOR);
 
-  /* Replace old table space name with the new tablespace name in file name. */
-  pos = old_file_name.rfind(old_space_name);
-  old_file_name.replace(pos, old_space_name.length(), new_space_name);
+  old_file_name += new_space_name + dot_ext[IBD];
 
   /* Update the file name path */
   dd_file->set_filename(old_file_name);
