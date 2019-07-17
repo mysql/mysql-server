@@ -473,7 +473,6 @@ ClusterMetadata::fetch_instances_from_metadata_server(
       "I.role, "
       "I.weight, "
       "I.version_token, "
-      "H.location, "
       "I.addresses->>'$.mysqlClassic', "
       "I.addresses->>'$.mysqlX' "
       "FROM "
@@ -482,21 +481,19 @@ ClusterMetadata::fetch_instances_from_metadata_server(
       "ON F.cluster_id = R.cluster_id "
       "JOIN mysql_innodb_cluster_metadata.instances AS I "
       "ON R.replicaset_id = I.replicaset_id "
-      "JOIN mysql_innodb_cluster_metadata.hosts AS H "
-      "ON I.host_id = H.host_id "
       "WHERE F.cluster_name = " +
       metadata_connection_->quote(cluster_name) + limit_group_replication +
       ";");
 
   // example response
   // clang-format off
-  // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+
-  // | replicaset_name | mysql_server_uuid                    | role | weight | version_token | location | I.addresses->>'$.mysqlClassic' | I.addresses->>'$.mysqlX' |
-  // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+
-  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | HA   | NULL   | NULL          | blabla   | localhost:3310                 | NULL                     |
-  // | default         | 3acfe4ca-861d-11e6-9e56-08002741aeb6 | HA   | NULL   | NULL          | blabla   | localhost:3320                 | NULL                     |
-  // | default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | HA   | NULL   | NULL          | blabla   | localhost:3330                 | NULL                     |
-  // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+
+  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
+  // | replicaset_name | mysql_server_uuid                    | role | weight | version_token | I.addresses->>'$.mysqlClassic' | I.addresses->>'$.mysqlX' |
+  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
+  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | HA   | NULL   | NULL          | localhost:3310                 | NULL                     |
+  // | default         | 3acfe4ca-861d-11e6-9e56-08002741aeb6 | HA   | NULL   | NULL          | localhost:3320                 | NULL                     |
+  // | default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | HA   | NULL   | NULL          | localhost:3330                 | NULL                     |
+  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
   // clang-format on
   //
   // The following instance map stores a list of servers mapped to every
@@ -513,10 +510,10 @@ ClusterMetadata::fetch_instances_from_metadata_server(
   // instance objects mapped to each replicaset.
   auto result_processor =
       [&replicaset_map](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 8) {  // TODO write a testcase for this
+    if (row.size() != 7) {  // TODO write a testcase for this
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
-          "Expected = 8, got = " +
+          "Expected = 7, got = " +
           std::to_string(row.size()));
     }
 
@@ -527,9 +524,8 @@ ClusterMetadata::fetch_instances_from_metadata_server(
     s.weight = row[3] ? std::strtof(row[3], nullptr) : 0;
     s.version_token =
         row[4] ? static_cast<unsigned int>(strtoi_checked(row[4])) : 0;
-    s.location = get_string(row[5]);
     try {
-      std::string uri = get_string(row[6]);
+      std::string uri = get_string(row[5]);
       std::string::size_type p;
       if ((p = uri.find(':')) != std::string::npos) {
         s.host = uri.substr(0, p);
@@ -539,15 +535,15 @@ ClusterMetadata::fetch_instances_from_metadata_server(
         s.host = uri;
         s.port = 3306;
       }
-    } catch (std::runtime_error &e) {
+    } catch (const std::runtime_error &e) {
       log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
-                  row[1], row[6], e.what());
+                  row[1], row[5], e.what());
       return true;  // next row
     }
     // X protocol support is not mandatory
-    if (row[7] && *row[7]) {
+    if (row[6] && *row[6]) {
       try {
-        std::string uri = get_string(row[7]);
+        std::string uri = get_string(row[6]);
         std::string::size_type p;
         if ((p = uri.find(':')) != std::string::npos) {
           s.host = uri.substr(0, p);
@@ -557,9 +553,9 @@ ClusterMetadata::fetch_instances_from_metadata_server(
           s.host = uri;
           s.xport = 33060;
         }
-      } catch (std::runtime_error &e) {
+      } catch (const std::runtime_error &e) {
         log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
-                    row[1], row[7], e.what());
+                    row[1], row[6], e.what());
         return true;  // next row
       }
     } else {

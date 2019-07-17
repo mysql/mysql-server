@@ -949,7 +949,7 @@ INSTANTIATE_TEST_CASE_P(
                         "exec_time must be a number, if set. Is object"),
         std::make_tuple(
             "js_test_handshake_is_string.js",
-            "handshake must be a object, if set. Is primitive, string")),
+            "handshake must be an object, if set. Is primitive, string")),
     [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
            &info) -> std::string {
       return sanitize_param_name(std::get<0>(info.param));
@@ -1038,8 +1038,7 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
 
 INSTANTIATE_TEST_CASE_P(
     ScriptsWork, RestMockServerScriptsWorkTest,
-    ::testing::Values("metadata_3_secondaries.js", "simple-client.js",
-                      "js_test_handshake_is_empty.js",
+    ::testing::Values("simple-client.js", "js_test_handshake_is_empty.js",
                       "js_test_handshake_greeting_is_empty.js",
                       "js_test_handshake_greeting_exec_time_is_number.js",
                       "js_test_stmts_is_array.js",

@@ -124,8 +124,7 @@ ENDIF()
 
 add_harness_plugin(mock_server
   NO_INSTALL
-  SOURCES json_statement_reader.cc
-  duktape_statement_reader.cc
+  SOURCES duktape_statement_reader.cc
   mysql_protocol_decoder.cc
   mysql_protocol_encoder.cc
   x_protocol_decoder.cc

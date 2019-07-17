@@ -27,6 +27,8 @@
 
 #include <gmock/gmock.h>
 
+#include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql_session.h"
 #include "rest_metadata_client.h"
 #include "router_component_test.h"
@@ -68,7 +70,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   }
 
   std::string get_static_routing_section(
-      unsigned router_port, const std::vector<unsigned> &destinations,
+      unsigned router_port, const std::vector<uint16_t> &destinations,
       const std::string &strategy, const std::string &mode = "") {
     std::string result =
         "[routing:test_default]\n"
@@ -187,29 +189,18 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   }
 
   ProcessWrapper &launch_cluster_node(unsigned cluster_port,
-                                      const std::string &data_dir,
-                                      const std::string &tmp_dir) {
-    const std::string json_my_port_template =
-        Path(data_dir).join("my_port.js").str();
-    const std::string json_my_port =
-        Path(tmp_dir)
-            .join("my_port_" + std::to_string(cluster_port) + ".json")
-            .str();
-    std::map<std::string, std::string> env_vars = {
-        {"MY_PORT", std::to_string(cluster_port)},
-    };
-    rewrite_js_to_tracefile(json_my_port_template, json_my_port, env_vars);
+                                      const std::string &data_dir) {
+    const std::string js_file = Path(data_dir).join("my_port.js").str();
     auto &cluster_node = ProcessManager::launch_mysql_server_mock(
-        json_my_port, cluster_port, EXIT_SUCCESS, false);
+        js_file, cluster_port, EXIT_SUCCESS, false);
 
     return cluster_node;
   }
 
   ProcessWrapper &launch_standalone_server(unsigned server_port,
-                                           const std::string &data_dir,
-                                           const std::string &tmp_dir) {
+                                           const std::string &data_dir) {
     // it' does the same thing, just an alias  for less confusion
-    return launch_cluster_node(server_port, data_dir, tmp_dir);
+    return launch_cluster_node(server_port, data_dir);
   }
 
   ProcessWrapper &launch_router_static(const std::string &conf_dir,
@@ -304,37 +295,23 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
       port_pool_.get_next_available(),  // first is PRIMARY
       port_pool_.get_next_available(), port_pool_.get_next_available(),
       port_pool_.get_next_available()};
+  const std::vector<uint16_t> cluster_nodes_http_ports{
+      port_pool_.get_next_available(),  // first is PRIMARY
+      port_pool_.get_next_available(), port_pool_.get_next_available(),
+      port_pool_.get_next_available()};
 
   std::vector<ProcessWrapper *> cluster_nodes;
 
-  std::map<std::string, std::string> primary_json_env_vars = {
-      {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(cluster_nodes_ports[0])},
-      {"SECONDARY_1_HOST",
-       "127.0.0.1:" + std::to_string(cluster_nodes_ports[1])},
-      {"SECONDARY_2_HOST",
-       "127.0.0.1:" + std::to_string(cluster_nodes_ports[2])},
-      {"SECONDARY_3_HOST",
-       "127.0.0.1:" + std::to_string(cluster_nodes_ports[3])},
-
-      {"PRIMARY_PORT", std::to_string(cluster_nodes_ports[0])},
-      {"SECONDARY_1_PORT", std::to_string(cluster_nodes_ports[1])},
-      {"SECONDARY_2_PORT", std::to_string(cluster_nodes_ports[2])},
-      {"SECONDARY_3_PORT", std::to_string(cluster_nodes_ports[3])},
-
-      {"MY_PORT", std::to_string(cluster_nodes_ports[0])},
-  };
-
   // launch the primary node working also as metadata server
-  const std::string json_primary_node_template =
-      get_data_dir().join("metadata_3_secondaries.js").str();
-  const std::string json_primary_node =
-      Path(temp_test_dir.name()).join("metadata_3_secondaries.js").str();
-  rewrite_js_to_tracefile(json_primary_node_template, json_primary_node,
-                          primary_json_env_vars);
+  const auto json_file =
+      get_data_dir().join("metadata_3_secondaries_pass.js").str();
+  const auto http_port = cluster_nodes_http_ports[0];
   auto &primary_node = launch_mysql_server_mock(
-      json_primary_node, cluster_nodes_ports[0], EXIT_SUCCESS, false);
+      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
+  EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
+  set_mock_metadata(http_port, "", cluster_nodes_ports);
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the router with metadata-cache configuration
@@ -356,8 +333,8 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node = launch_cluster_node(
-        cluster_nodes_ports[port], get_data_dir().str(), temp_test_dir.name());
+    auto &secondary_node =
+        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -482,15 +459,15 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   TempDirectory temp_test_dir;
   TempDirectory conf_dir("conf");
 
-  const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
+  const std::vector<uint16_t> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
                                            port_pool_.get_next_available()};
 
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node = launch_standalone_server(
-        server_port, get_data_dir().str(), temp_test_dir.name());
+    auto &secondary_node =
+        launch_standalone_server(server_port, get_data_dir().str());
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
@@ -546,15 +523,15 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   TempDirectory temp_test_dir;
   TempDirectory conf_dir("conf");
 
-  const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
+  const std::vector<uint16_t> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
                                            port_pool_.get_next_available()};
 
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node = launch_standalone_server(
-        server_port, get_data_dir().str(), temp_test_dir.name());
+    auto &secondary_node =
+        launch_standalone_server(server_port, get_data_dir().str());
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
 
     server_instances.emplace_back(&secondary_node);
@@ -593,8 +570,8 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   EXPECT_EQ("", node_port);
 
   // bring back 1st server
-  server_instances.emplace_back(&launch_standalone_server(
-      server_ports[0], get_data_dir().str(), temp_test_dir.name()));
+  server_instances.emplace_back(
+      &launch_standalone_server(server_ports[0], get_data_dir().str()));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
   // we should now succesfully connect to this server
@@ -625,15 +602,15 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   TempDirectory temp_test_dir;
   TempDirectory conf_dir("conf");
 
-  const std::vector<unsigned> server_ports{port_pool_.get_next_available(),
+  const std::vector<uint16_t> server_ports{port_pool_.get_next_available(),
                                            port_pool_.get_next_available(),
                                            port_pool_.get_next_available()};
 
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node = launch_standalone_server(
-        server_port, get_data_dir().str(), temp_test_dir.name());
+    auto &secondary_node =
+        launch_standalone_server(server_port, get_data_dir().str());
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
@@ -668,8 +645,8 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   EXPECT_EQ("", node_port);
 
   // bring back 1st server
-  server_instances.emplace_back(&launch_standalone_server(
-      server_ports[0], get_data_dir().str(), temp_test_dir.name()));
+  server_instances.emplace_back(
+      &launch_standalone_server(server_ports[0], get_data_dir().str()));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
   // we should NOT connect to this server (in next-available we NEVER go back)

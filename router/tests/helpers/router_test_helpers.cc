@@ -300,28 +300,6 @@ void init_keyring(std::map<std::string, std::string> &default_section,
   default_section["master_key_path"] = masterkey_file;
 }
 
-void replace_process_env(std::istream &ins, std::ostream &outs,
-                         const std::map<std::string, std::string> &env_vars) {
-  std::string line;
-  const char *regex = "^(.*)process\\.env\\.([A-Za-z_][A-Za-z0-9_]*)(.*)$";
-
-  std::regex js_process_env_regex(regex);
-  while (std::getline(ins, line)) {
-    std::smatch m;
-    if (std::regex_match(line, m, js_process_env_regex)) {
-      try {
-        outs << m[1].str() << "\"" << env_vars.at(m[2].str()) << "\""
-             << m[3].str() << std::endl;
-      } catch (const std::out_of_range &) {
-        throw std::runtime_error("Envvar " + m[2].str() +
-                                 " requested, but isn't defined");
-      }
-    } else {
-      outs << line << std::endl;
-    }
-  }
-}
-
 namespace {
 
 bool real_find_in_file(
@@ -438,13 +416,4 @@ void connect_client_and_query_port(unsigned router_port, std::string &out_port,
         std::to_string(result->size()));
   }
   out_port = std::string((*result)[0]);
-}
-
-void rewrite_js_to_tracefile(
-    const std::string &infile_name, const std::string &outfile_name,
-    const std::map<std::string, std::string> &env_vars) {
-  std::ifstream js_file(infile_name);
-  std::ofstream json_file(outfile_name);
-
-  replace_process_env(js_file, json_file, env_vars);
 }

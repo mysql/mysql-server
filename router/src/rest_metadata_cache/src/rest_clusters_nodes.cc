@@ -104,9 +104,6 @@ bool RestClustersNodes::on_handle_request(
     // currently, unused.
     o.AddMember("version_token", inst.version_token, allocator);
 #endif
-      o.AddMember("location",
-                  rapidjson::Value(inst.location.c_str(), allocator).Move(),
-                  allocator);
       o.AddMember("hostname",
                   rapidjson::Value(inst.host.c_str(), allocator).Move(),
                   allocator);

@@ -26,7 +26,6 @@
 
 #include "common.h"  // rename_thread()
 #include "duktape_statement_reader.h"
-#include "json_statement_reader.h"
 #include "mock_session.h"
 #include "mysql_protocol_utils.h"
 #include "socket_operations.h"
@@ -169,8 +168,6 @@ class StatementReaderFactory {
     if (filename.substr(filename.size() - 3) == ".js") {
       return new DuktapeStatementReader(filename, module_prefix, session_data,
                                         shared_globals);
-    } else if (filename.substr(filename.size() - 5) == ".json") {
-      return new QueriesJsonReader(filename);
     } else {
       throw std::runtime_error("can't create reader for " + filename);
     }

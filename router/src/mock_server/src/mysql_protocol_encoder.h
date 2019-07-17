@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #include <string>
 #include <vector>
 
-#include "json_statement_reader.h"
 #include "mysql_protocol_common.h"
 
 namespace server_mock {

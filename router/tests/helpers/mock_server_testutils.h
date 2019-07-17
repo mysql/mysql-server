@@ -38,15 +38,48 @@
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
 
+// AddressSanitizer gets confused by the default, MemoryPoolAllocator
+// Solaris sparc also gets crashes
+using JsonAllocator = rapidjson::CrtAllocator;
+using JsonDocument =
+    rapidjson::GenericDocument<rapidjson::UTF8<>, JsonAllocator>;
+using JsonValue =
+    rapidjson::GenericValue<rapidjson::UTF8<>, JsonDocument::AllocatorType>;
+using JsonStringBuffer =
+    rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
+
+/**
+ * Converts the GR mock data to the JSON object.
+ *
+ * @param gr_id replication group id to set
+ * @param gr_node_ports vector with the ports of the nodes that mock server
+ * @param primary_id which node is the primary
+ *
+ * @return JSON object with the GR mock data.
+ */
+JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
+                                   const std::vector<uint16_t> &gr_node_ports,
+                                   unsigned primary_id = 0);
+
 /**
  * Sets the metadata returned by the mock server.
  *
  * @param http_port mock server's http port where it services the http requests
  * @param gr_id replication group id to set
  * @param gr_node_ports vector with the ports of the nodes that mock server
- * should return
+ * @param primary_id which node is the primary
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                       const std::vector<uint16_t> &gr_node_ports);
+                       const std::vector<uint16_t> &gr_node_ports,
+                       unsigned primary_id = 0);
+
+void set_mock_bootstrap_data(
+    uint16_t http_port, const std::string &cluster_name,
+    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports);
+
+/**
+ * Converts JSON object to string representation.
+ */
+std::string json_to_string(const JsonValue &json_doc);
 
 #endif  // MYSQLROUTER_MOCK_SERVER_TESTUTILS_H_INCLUDED

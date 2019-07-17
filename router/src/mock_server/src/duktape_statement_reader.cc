@@ -191,7 +191,7 @@ struct DuktapeStatementReader::Pimpl {
 
   std::unique_ptr<Response> get_ok(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
 
     return std::unique_ptr<Response>(new OkResponse(
@@ -201,7 +201,7 @@ struct DuktapeStatementReader::Pimpl {
 
   std::unique_ptr<Response> get_error(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
 
     return std::unique_ptr<Response>(new ErrorResponse(
@@ -213,12 +213,12 @@ struct DuktapeStatementReader::Pimpl {
   std::unique_ptr<Response> get_result(duk_idx_t idx) {
     std::unique_ptr<ResultsetResponse> response(new ResultsetResponse);
     if (!duk_is_object(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
     duk_get_prop_string(ctx, idx, "columns");
 
     if (!duk_is_array(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
     // iterate over the column meta
     duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
@@ -465,14 +465,14 @@ static void check_handshake_section(duk_context *ctx) {
   duk_get_prop_string(ctx, -1, "handshake");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_object(ctx, -1)) {
-      throw std::runtime_error("handshake must be a object, if set. Is " +
+      throw std::runtime_error("handshake must be an object, if set. Is " +
                                duk_get_type_names(ctx, -1));
     }
     duk_get_prop_string(ctx, -1, "greeting");
     if (!duk_is_undefined(ctx, -1)) {
       if (!duk_is_object(ctx, -1)) {
         throw std::runtime_error(
-            "handshake.greeting must be a object, if set. Is " +
+            "handshake.greeting must be an object, if set. Is " +
             duk_get_type_names(ctx, -1));
       }
       duk_get_prop_string(ctx, -1, "exec_time");
@@ -642,14 +642,14 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_init(
   duk_get_prop_string(ctx, -1, "handshake");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_object(ctx, -1)) {
-      throw std::runtime_error("handshake must be a object, if set. Is " +
+      throw std::runtime_error("handshake must be an object, if set. Is " +
                                duk_get_type_names(ctx, -1));
     }
     duk_get_prop_string(ctx, -1, "greeting");
     if (!duk_is_undefined(ctx, -1)) {
       if (!duk_is_object(ctx, -1)) {
         throw std::runtime_error(
-            "handshake.greeting must be a object, if set. Is " +
+            "handshake.greeting must be an object, if set. Is " +
             duk_get_type_names(ctx, -1));
       }
       duk_get_prop_string(ctx, -1, "exec_time");
@@ -967,7 +967,7 @@ std::vector<AsyncNotice> DuktapeStatementReader::get_async_notices() {
     duk_get_prop_string(ctx, -1, "payload");
     if (!duk_is_undefined(ctx, -1)) {
       if (!duk_is_object(ctx, -1)) {
-        throw std::runtime_error("payload must be a object, if set, got " +
+        throw std::runtime_error("payload must be an object, if set, got " +
                                  duk_get_type_names(ctx, -1));
       }
 

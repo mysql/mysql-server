@@ -350,7 +350,7 @@ bool ConfigGenerator::warn_on_no_ssl(
           "metadata used by the router may be transmitted unencrypted.");
       return false;  // connection is unencrypted
     }
-  } catch (std::exception &e) {
+  } catch (const std::exception &e) {
     log_error("Failed determining if metadata connection uses SSL: %s",
               e.what());
     throw std::runtime_error(e.what());
@@ -668,7 +668,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
     bool dir_empty;
     try {
       dir_empty = is_directory_empty(path);
-    } catch (std::system_error &e) {
+    } catch (const std::system_error &e) {
       log_error("%s", e.what());
 #ifndef _WIN32
       if (e.code().value() == EACCES || e.code().value() == EPERM)
@@ -832,7 +832,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
-    bool multi_master, const std::map<std::string, std::string> &user_options) {
+    const std::map<std::string, std::string> &user_options) {
   std::string bind_address{"0.0.0.0"};
   bool use_sockets = false;
   bool skip_tcp = false;
@@ -859,7 +859,6 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     skip_tcp = true;
   }
   ConfigGenerator::Options options;
-  options.multi_master = multi_master;
   if (user_options.find("bind-address") != user_options.end()) {
     auto address = user_options.at("bind-address");
     TCPAddress tmp(address, 1);
@@ -1131,7 +1130,7 @@ GrAwareDecorator::fetch_group_replication_hosts() {
                  });
 
     return gr_servers;
-  } catch (MySQLSession::Error &e) {
+  } catch (const MySQLSession::Error &e) {
     // log_error("MySQL error: %s (%u)", e.what(), e.code());
     // log_error("    Failed query: %s", query.str().c_str());
     throw std::runtime_error(std::string("Error querying metadata: ") +
@@ -1179,7 +1178,6 @@ void ConfigGenerator::bootstrap_deployment(
   std::string primary_cluster_name;
   std::vector<std::string> primary_replicaset_servers;
   std::string primary_replicaset_name;
-  bool multi_master = false;
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
   uint32_t router_id = 0;
@@ -1189,7 +1187,7 @@ void ConfigGenerator::bootstrap_deployment(
   RandomGen &rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
   fetch_metadata_servers(primary_replicaset_servers, primary_cluster_name,
-                         primary_replicaset_name, multi_master);
+                         primary_replicaset_name);
 
   if (config_file_path.exists()) {
     std::tie(router_id, username) = get_router_id_and_name_from_config(
@@ -1216,7 +1214,7 @@ void ConfigGenerator::bootstrap_deployment(
 
   std::string password;
 
-  Options options(fill_options(multi_master, user_options));
+  Options options(fill_options(user_options));
 
   GrAwareDecorator gr_aware(*mysql_, gr_initial_username_, gr_initial_password_,
                             gr_initial_hostname_, gr_initial_port_,
@@ -1246,7 +1244,7 @@ void ConfigGenerator::bootstrap_deployment(
     keyring->store(username, kKeyringAttributePassword, password);
     try {
       mysql_harness::flush_keyring();
-    } catch (std::exception &e) {
+    } catch (const std::exception &e) {
       throw std::runtime_error(
           std::string("Error storing encrypted password to disk: ") + e.what());
     }
@@ -1347,7 +1345,7 @@ void ConfigGenerator::register_router_and_set_username(
         e.what() +
         "\nYou may want to try --report-host option to manually supply this "
         "hostname.");
-  } catch (MySQLSession::Error &e) {
+  } catch (const MySQLSession::Error &e) {
     if (e.code() == 1062) {  // duplicate key
       throw std::runtime_error(
           "It appears that a router instance named '" + router_name +
@@ -1447,7 +1445,7 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id) {
     try {
       mysql_harness::init_keyring(keyring_info_.get_keyring_file(),
                                   keyring_info_.get_master_key_file(), true);
-    } catch (mysql_harness::invalid_master_keyfile &) {
+    } catch (const mysql_harness::invalid_master_keyfile &) {
       throw mysql_harness::invalid_master_keyfile(
           "Invalid master key file " + keyring_info_.get_master_key_file());
     }
@@ -1500,7 +1498,7 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id) {
 
 void ConfigGenerator::fetch_metadata_servers(
     std::vector<std::string> &metadata_servers, std::string &metadata_cluster,
-    std::string &metadata_replicaset, bool &multi_master) {
+    std::string &metadata_replicaset) {
   std::ostringstream query;
 
   // Query the name of the replicaset, the servers in the replicaset and the
@@ -1508,7 +1506,6 @@ void ConfigGenerator::fetch_metadata_servers(
   query << "SELECT "
            "F.cluster_name, "
            "R.replicaset_name, "
-           "R.topology_type, "
            "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
            "FROM "
            "mysql_innodb_cluster_metadata.clusters AS F, "
@@ -1530,8 +1527,8 @@ void ConfigGenerator::fetch_metadata_servers(
   try {
     mysql_->query(
         query.str(),
-        [&metadata_cluster, &metadata_replicaset, &metadata_servers,
-         &multi_master](const std::vector<const char *> &row) -> bool {
+        [&metadata_cluster, &metadata_replicaset,
+         &metadata_servers](const std::vector<const char *> &row) -> bool {
           if (metadata_cluster == "") {
             metadata_cluster = get_string(row[0]);
           } else if (metadata_cluster != get_string(row[0])) {
@@ -1545,19 +1542,10 @@ void ConfigGenerator::fetch_metadata_servers(
             throw std::runtime_error(
                 "Metadata contains more than one replica-set");
           }
-          if (row[2]) {
-            if (strcmp(row[2], "mm") == 0)
-              multi_master = true;
-            else if (strcmp(row[2], "pm") == 0)
-              multi_master = false;
-            else
-              throw std::runtime_error("Unknown topology type in metadata: " +
-                                       std::string(row[2]));
-          }
-          metadata_servers.push_back("mysql://" + get_string(row[3]));
+          metadata_servers.push_back("mysql://" + get_string(row[2]));
           return true;
         });
-  } catch (MySQLSession::Error &e) {
+  } catch (const MySQLSession::Error &e) {
     // log_error("MySQL error: %s (%u)", e.what(), e.code());
     // log_error("    Failed query: %s", query.str().c_str());
     throw std::runtime_error(std::string("Error querying metadata: ") +
@@ -2043,7 +2031,7 @@ void ConfigGenerator::create_account(const std::string &username,
   for (auto &q : queries) {
     try {
       mysql_->execute(q);  // throws MySQLSession::Error, std::logic_error
-    } catch (MySQLSession::Error &e) {
+    } catch (const MySQLSession::Error &e) {
       // log_error("%s: executing query: %s", e.what(), q.c_str());
       try {
         mysql_->execute("ROLLBACK");

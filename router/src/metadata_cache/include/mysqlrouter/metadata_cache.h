@@ -90,8 +90,8 @@ class METADATA_API ManagedInstance {
                   const std::string &p_mysql_server_uuid,
                   const std::string &p_role, const ServerMode p_mode,
                   const float p_weight, const unsigned int p_version_token,
-                  const std::string &p_location, const std::string &p_host,
-                  const uint16_t p_port, const uint16_t p_xport);
+                  const std::string &p_host, const uint16_t p_port,
+                  const uint16_t p_xport);
 
   using TCPAddress = mysql_harness::TCPAddress;
   explicit ManagedInstance(const TCPAddress &addr);
@@ -110,8 +110,6 @@ class METADATA_API ManagedInstance {
   float weight;
   /** @brief The version token of the server */
   unsigned int version_token;
-  /** @brief The location of the server */
-  std::string location;
   /** @brief The host name on which the server is running */
   std::string host;
   /** The port number in which the server is running */

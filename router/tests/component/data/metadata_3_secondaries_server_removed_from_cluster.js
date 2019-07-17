@@ -8,38 +8,16 @@
  */
 
 var common_stmts = require("common_statements");
+var gr_memberships = require("gr_memberships");
 
-var group_replication_membership = [
-  [
-    "37dbb0e3-cfc0-11e7-8039-080027d01fcd",
-    "127.0.0.1",
-    process.env.PRIMARY_PORT,
-    "ONLINE",
-  ],
-  [
-    "49cff431-cfc0-11e7-bb87-080027d01fcd",
-    "127.0.0.1",
-    process.env.SECONDARY_1_PORT,
-    "ONLINE",
-  ],
-  [
-    "56d0f99d-cfc0-11e7-bb0a-080027d01fcd",
-    "127.0.0.1",
-    process.env.SECONDARY_2_PORT,
-    "ONLINE",
-  ],
-  [
-    "6689460c-cfc0-11e7-907b-080027d01fcd",
-    "127.0.0.1",
-    process.env.SECONDARY_3_PORT,
-    "ONLINE",
-  ],
-];
-
+var gr_node_host = "127.0.0.1";
 
 // all nodes are online
+var group_replication_membership_online =
+  gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
+
 var options = {
-  group_replication_membership: group_replication_membership,
+  group_replication_membership: group_replication_membership_online,
 };
 options.group_replication_primary_member = options.group_replication_membership[0][0];
 
@@ -53,7 +31,7 @@ var router_select_group_membership_with_primary_mode =
 
 // primary is removed, first secondary is the new PRIMARY
 var options_removed_primary = {
-  group_replication_membership: group_replication_membership.filter(function(el, ndx) { return ndx != 0 })
+  group_replication_membership: group_replication_membership_online.filter(function(el, ndx) { return ndx != 0 })
 };
 options_removed_primary.group_replication_primary_member = options_removed_primary.group_replication_membership[0][0];
 
@@ -67,7 +45,7 @@ var router_select_group_membership_with_primary_mode_removed_primary =
 
 // first secondary is removed, PRIMARY stays PRIMARY
 var options_removed_secondary = {
-  group_replication_membership: group_replication_membership.filter(function(el, ndx) { return ndx != 1 })
+  group_replication_membership: group_replication_membership_online.filter(function(el, ndx) { return ndx != 1 })
 };
 options_removed_secondary.group_replication_primary_member = options_removed_secondary.group_replication_membership[0][0];
 
@@ -84,11 +62,11 @@ var router_select_group_membership_with_primary_mode_removed_secondary =
 var router_select_schema_version = common_stmts.get("router_select_schema_version");
 var select_port = common_stmts.get("select_port");
 
-if (mysqld.global.primary_removed == undefined) {
+if (mysqld.global.primary_removed === undefined) {
   mysqld.global.primary_removed = false;
 }
 
-if (mysqld.global.secondary_removed == undefined) {
+if (mysqld.global.secondary_removed === undefined) {
   mysqld.global.secondary_removed = false;
 }
 

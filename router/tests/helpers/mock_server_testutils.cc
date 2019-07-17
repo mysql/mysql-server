@@ -23,6 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mock_server_testutils.h"
+
 #include <array>
 #include <chrono>
 #include <thread>
@@ -34,7 +36,6 @@
 #include "my_rapidjson_size_t.h"
 #endif
 
-#include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
 #include "config_builder.h"
@@ -42,17 +43,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 
-// AddressSanitizer gets confused by the default, MemoryPoolAllocator
-// Solaris sparc also gets crashes
-using JsonAllocator = rapidjson::CrtAllocator;
-using JsonDocument =
-    rapidjson::GenericDocument<rapidjson::UTF8<>, JsonAllocator>;
-using JsonValue =
-    rapidjson::GenericValue<rapidjson::UTF8<>, JsonDocument::AllocatorType>;
-using JsonStringBuffer =
-    rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
-
-static std::string json_to_string(const JsonValue &json_doc) {
+std::string json_to_string(const JsonValue &json_doc) {
   JsonStringBuffer out_buffer;
 
   rapidjson::Writer<JsonStringBuffer> out_writer{out_buffer};
@@ -60,8 +51,9 @@ static std::string json_to_string(const JsonValue &json_doc) {
   return out_buffer.GetString();
 }
 
-void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                       const std::vector<uint16_t> &gr_node_ports) {
+JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
+                                   const std::vector<uint16_t> &gr_node_ports,
+                                   unsigned primary_id) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
   json_doc.AddMember("gr_id", JsonValue(gr_id.c_str(), gr_id.length()),
@@ -70,11 +62,46 @@ void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
   JsonValue gr_nodes_json(rapidjson::kArrayType);
   for (auto &gr_node : gr_node_ports) {
     JsonValue node(rapidjson::kArrayType);
-    node.PushBack(JsonValue((int)gr_node), allocator);
+    node.PushBack(static_cast<int>(gr_node), allocator);
     node.PushBack(JsonValue("ONLINE", strlen("ONLINE")), allocator);
     gr_nodes_json.PushBack(node, allocator);
   }
   json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
+  json_doc.AddMember("primary_id", static_cast<int>(primary_id), allocator);
+
+  return json_doc;
+}
+
+void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
+                       const std::vector<uint16_t> &gr_node_ports,
+                       unsigned primary_id) {
+  const auto json_doc =
+      mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id);
+
+  const auto json_str = json_to_string(json_doc);
+
+  EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
+}
+
+void set_mock_bootstrap_data(
+    uint16_t http_port, const std::string &cluster_name,
+    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports) {
+  JsonValue json_doc(rapidjson::kObjectType);
+  JsonAllocator allocator;
+  json_doc.AddMember("cluster_name",
+                     JsonValue(cluster_name.c_str(), cluster_name.length()),
+                     allocator);
+
+  JsonValue gr_members_json(rapidjson::kArrayType);
+  for (auto &gr_member : gr_members_ports) {
+    JsonValue member(rapidjson::kArrayType);
+    member.PushBack(
+        JsonValue(gr_member.first.c_str(), gr_member.first.length()),
+        allocator);
+    member.PushBack(static_cast<int>(gr_member.second), allocator);
+    gr_members_json.PushBack(member, allocator);
+  }
+  json_doc.AddMember("gr_members", gr_members_json, allocator);
 
   const auto json_str = json_to_string(json_doc);
 

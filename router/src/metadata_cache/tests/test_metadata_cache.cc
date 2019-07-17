@@ -114,31 +114,29 @@ class MetadataCacheTest2 : public ::testing::Test {
 
     m.expect_query(
         "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, H.location, "
+        "I.version_token, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
         "F.cluster_id = R.cluster_id "
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
-        "= I.replicaset_id "
-        "JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = "
-        "H.host_id WHERE F.cluster_name = 'cluster-1' "
+        "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
         "AND R.attributes->>'$.group_replication_group_name' = '0000-0001';");
     m.then_return(
         8,
         {// replicaset_name, mysql_server_uuid, role, weight, version_token,
-         // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
+         // I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server1"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3000"),
+          m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server2"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3001"),
+          m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server3"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3002"),
+          m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
   }
 
