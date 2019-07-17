@@ -1,7 +1,7 @@
 #ifndef MY_BYTEORDER_INCLUDED
 #define MY_BYTEORDER_INCLUDED
 
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,8 +193,8 @@ static inline void float4store(char *V, float M) {
   float4store(static_cast<uchar *>(static_cast<void *>(V)), M);
 }
 
-static inline void float8get(double *V, const char *M) {
-  float8get(V, static_cast<const uchar *>(static_cast<const void *>(M)));
+static inline double float8get(const char *M) {
+  return float8get(static_cast<const uchar *>(static_cast<const void *>(M)));
 }
 
 static inline void float8store(char *V, double M) {

@@ -3417,7 +3417,7 @@ double Field_short::val_real() const {
   if (table->s->db_low_byte_first)
     j = sint2korr(ptr);
   else
-    shortget(&j, ptr);
+    j = shortget(ptr);
   return unsigned_flag ? (double)(unsigned short)j : (double)j;
 }
 
@@ -3427,7 +3427,7 @@ longlong Field_short::val_int() const {
   if (table->s->db_low_byte_first)
     j = sint2korr(ptr);
   else
-    shortget(&j, ptr);
+    j = shortget(ptr);
   return unsigned_flag ? (longlong)(unsigned short)j : (longlong)j;
 }
 
@@ -3443,7 +3443,7 @@ String *Field_short::val_str(String *val_buffer,
   if (table->s->db_low_byte_first)
     j = sint2korr(ptr);
   else
-    shortget(&j, ptr);
+    j = shortget(ptr);
 
   if (unsigned_flag)
     length =
@@ -3468,8 +3468,8 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = sint2korr(a_ptr);
     b = sint2korr(b_ptr);
   } else {
-    shortget(&a, a_ptr);
-    shortget(&b, b_ptr);
+    a = shortget(a_ptr);
+    b = shortget(b_ptr);
   }
 
   if (unsigned_flag)
@@ -3769,7 +3769,7 @@ double Field_long::val_real() const {
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
-    longget(&j, ptr);
+    j = longget(ptr);
   return unsigned_flag ? (double)(uint32)j : (double)j;
 }
 
@@ -3781,7 +3781,7 @@ longlong Field_long::val_int() const {
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
-    longget(&j, ptr);
+    j = longget(ptr);
   return unsigned_flag ? (longlong)(uint32)j : (longlong)j;
 }
 
@@ -3797,7 +3797,7 @@ String *Field_long::val_str(String *val_buffer,
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
-    longget(&j, ptr);
+    j = longget(ptr);
 
   if (unsigned_flag)
     length = cs->cset->long10_to_str(cs, to, mlength, 10, (long)(uint32)j);
@@ -3822,8 +3822,8 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = sint4korr(a_ptr);
     b = sint4korr(b_ptr);
   } else {
-    longget(&a, a_ptr);
-    longget(&b, b_ptr);
+    a = longget(a_ptr);
+    b = longget(b_ptr);
   }
   if (unsigned_flag)
     return ((uint32)a < (uint32)b) ? -1 : ((uint32)a > (uint32)b) ? 1 : 0;
@@ -3957,7 +3957,7 @@ double Field_longlong::val_real() const {
   if (table->s->db_low_byte_first)
     j = sint8korr(ptr);
   else
-    longlongget(&j, ptr);
+    j = longlongget(ptr);
   /* The following is open coded to avoid a bug in gcc 3.3 */
   if (unsigned_flag) {
     ulonglong tmp = (ulonglong)j;
@@ -3968,12 +3968,10 @@ double Field_longlong::val_real() const {
 
 longlong Field_longlong::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  longlong j;
   if (table->s->db_low_byte_first)
-    j = sint8korr(ptr);
+    return sint8korr(ptr);
   else
-    longlongget(&j, ptr);
-  return j;
+    return longlongget(ptr);
 }
 
 String *Field_longlong::val_str(String *val_buffer,
@@ -3987,7 +3985,7 @@ String *Field_longlong::val_str(String *val_buffer,
   if (table->s->db_low_byte_first)
     j = sint8korr(ptr);
   else
-    longlongget(&j, ptr);
+    j = longlongget(ptr);
 
   length = (uint)(cs->cset->longlong10_to_str)(cs, to, mlength,
                                                unsigned_flag ? 10 : -10, j);
@@ -4010,8 +4008,8 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = sint8korr(a_ptr);
     b = sint8korr(b_ptr);
   } else {
-    longlongget(&a, a_ptr);
-    longlongget(&b, b_ptr);
+    a = longlongget(a_ptr);
+    b = longlongget(b_ptr);
   }
   if (unsigned_flag)
     return ((ulonglong)a < (ulonglong)b)
@@ -4118,20 +4116,18 @@ type_conversion_status Field_float::store(longlong nr, bool unsigned_val) {
 
 double Field_float::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  float j;
   if (table->s->db_low_byte_first)
-    float4get(&j, ptr);
+    return double{float4get(ptr)};
   else
-    floatget(&j, ptr);
-  return ((double)j);
+    return double{floatget(ptr)};
 }
 
 longlong Field_float::val_int() const {
   float j;
   if (table->s->db_low_byte_first)
-    float4get(&j, ptr);
+    j = float4get(ptr);
   else
-    floatget(&j, ptr);
+    j = floatget(ptr);
   return (longlong)rint(j);
 }
 
@@ -4141,9 +4137,9 @@ String *Field_float::val_str(String *val_buffer,
   DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
   if (table && table->s->db_low_byte_first)
-    float4get(&nr, ptr);
+    nr = float4get(ptr);
   else
-    floatget(&nr, ptr);
+    nr = floatget(ptr);
 
   uint to_length = 70;
   if (val_buffer->alloc(to_length)) {
@@ -4173,11 +4169,11 @@ String *Field_float::val_str(String *val_buffer,
 int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   float a, b;
   if (table->s->db_low_byte_first) {
-    float4get(&a, a_ptr);
-    float4get(&b, b_ptr);
+    a = float4get(a_ptr);
+    b = float4get(b_ptr);
   } else {
-    floatget(&a, a_ptr);
-    floatget(&b, b_ptr);
+    a = floatget(a_ptr);
+    b = floatget(b_ptr);
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
@@ -4187,9 +4183,9 @@ size_t Field_float::make_sort_key(uchar *to,
   DBUG_ASSERT(length == sizeof(float));
   float nr;
   if (table->s->db_low_byte_first)
-    float4get(&nr, ptr);
+    nr = float4get(ptr);
   else
-    floatget(&nr, ptr);
+    nr = floatget(ptr);
 
   /*
     -0.0 and +0.0 compare identically, so make sure they use exactly the same
@@ -4345,12 +4341,10 @@ type_conversion_status Field_real::store_decimal(const my_decimal *dm) {
 
 double Field_double::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  double j;
   if (table->s->db_low_byte_first)
-    float8get(&j, ptr);
+    return float8get(ptr);
   else
-    doubleget(&j, ptr);
-  return j;
+    return doubleget(ptr);
 }
 
 longlong Field_double::val_int() const {
@@ -4358,9 +4352,9 @@ longlong Field_double::val_int() const {
   double j;
   longlong res;
   if (table->s->db_low_byte_first)
-    float8get(&j, ptr);
+    j = float8get(ptr);
   else
-    doubleget(&j, ptr);
+    j = doubleget(ptr);
   /* Check whether we fit into longlong range */
   if (j <= (double)LLONG_MIN) {
     res = (longlong)LLONG_MIN;
@@ -4404,9 +4398,9 @@ String *Field_double::val_str(String *val_buffer,
   DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
   if (table && table->s->db_low_byte_first)
-    float8get(&nr, ptr);
+    nr = float8get(ptr);
   else
-    doubleget(&nr, ptr);
+    nr = doubleget(ptr);
   uint to_length = DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE;
   if (val_buffer->alloc(to_length)) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -4436,11 +4430,11 @@ bool Field_double::send_to_protocol(Protocol *protocol) const {
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   double a, b;
   if (table->s->db_low_byte_first) {
-    float8get(&a, a_ptr);
-    float8get(&b, b_ptr);
+    a = float8get(a_ptr);
+    b = float8get(b_ptr);
   } else {
-    doubleget(&a, a_ptr);
-    doubleget(&b, b_ptr);
+    a = doubleget(a_ptr);
+    b = doubleget(b_ptr);
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
@@ -4451,9 +4445,9 @@ size_t Field_double::make_sort_key(uchar *to, size_t length) const {
   DBUG_ASSERT(length == sizeof(double));
   double nr;
   if (table->s->db_low_byte_first)
-    float8get(&nr, ptr);
+    nr = float8get(ptr);
   else
-    doubleget(&nr, ptr);
+    nr = doubleget(ptr);
   if (length < 8) {
     uchar buff[8];
     change_double_for_sort(nr, buff);
@@ -5047,7 +5041,7 @@ bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime) const {
   if (table && table->s->db_low_byte_first)
     temp = uint4korr(ptr);
   else
-    ulongget(&temp, ptr);
+    temp = ulongget(ptr);
   if (!temp) return true;
   thd->time_zone()->gmt_sec_to_TIME(ltime, (my_time_t)temp);
   return false;
@@ -5063,9 +5057,7 @@ bool Field_timestamp::get_timestamp(struct timeval *tm, int *) const {
     tm->tv_sec = sint4korr(ptr);
     return false;
   }
-  int32 tmp;
-  longget(&tmp, ptr);
-  tm->tv_sec = tmp;
+  tm->tv_sec = longget(ptr);
   return false;
 }
 
@@ -5103,8 +5095,8 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = sint4korr(a_ptr);
     b = sint4korr(b_ptr);
   } else {
-    longget(&a, a_ptr);
-    longget(&b, b_ptr);
+    a = longget(a_ptr);
+    b = longget(b_ptr);
   }
   return ((uint32)a < (uint32)b) ? -1 : ((uint32)a > (uint32)b) ? 1 : 0;
 }
@@ -5820,14 +5812,11 @@ static inline type_conversion_status datetime_store_internal(TABLE *table,
   @param ptr    Where to read from
   @retval       An integer in format YYYYMMDDhhmmss
 */
-static inline longlong datetime_get_internal(
-    TABLE *table MY_ATTRIBUTE((unused)), uchar *ptr) {
-  longlong tmp;
+static inline longlong datetime_get_internal(TABLE *table, uchar *ptr) {
   if (table && table->s->db_low_byte_first)
-    tmp = sint8korr(ptr);
+    return sint8korr(ptr);
   else
-    longlongget(&tmp, ptr);
-  return tmp;
+    return longlongget(ptr);
 }
 
 bool Field_datetime::get_date_internal(MYSQL_TIME *ltime) const {
@@ -5903,8 +5892,8 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = sint8korr(a_ptr);
     b = sint8korr(b_ptr);
   } else {
-    longlongget(&a, a_ptr);
-    longlongget(&b, b_ptr);
+    a = longlongget(a_ptr);
+    b = longlongget(b_ptr);
   }
   return ((ulonglong)a < (ulonglong)b) ? -1
                                        : ((ulonglong)a > (ulonglong)b) ? 1 : 0;
@@ -6980,22 +6969,18 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg,
     case 1:
       return (uint32)pos[0];
     case 2: {
-      uint16 tmp;
       if (low_byte_first)
-        tmp = sint2korr(pos);
+        return uint2korr(pos);
       else
-        ushortget(&tmp, pos);
-      return (uint32)tmp;
+        return ushortget(pos);
     }
     case 3:
       return uint3korr(pos);
     case 4: {
-      uint32 tmp;
       if (low_byte_first)
-        tmp = uint4korr(pos);
+        return uint4korr(pos);
       else
-        ulongget(&tmp, pos);
-      return tmp;
+        return ulongget(pos);
     }
   }
   /* When expanding this, see also MAX_FIELD_BLOBLENGTH. */
@@ -8160,30 +8145,24 @@ static longlong enum_val_int(const uchar *ptr, uint packlength,
     case 1:
       return (longlong)ptr[0];
     case 2: {
-      uint16 tmp;
       if (low_byte_first)
-        tmp = sint2korr(ptr);
+        return sint2korr(ptr);
       else
-        ushortget(&tmp, ptr);
-      return (longlong)tmp;
+        return shortget(ptr);
     }
     case 3:
       return (longlong)uint3korr(ptr);
     case 4: {
-      uint32 tmp;
       if (low_byte_first)
-        tmp = uint4korr(ptr);
+        return sint4korr(ptr);
       else
-        ulongget(&tmp, ptr);
-      return (longlong)tmp;
+        return longget(ptr);
     }
     case 8: {
-      longlong tmp;
       if (low_byte_first)
-        tmp = sint8korr(ptr);
+        return sint8korr(ptr);
       else
-        longlongget(&tmp, ptr);
-      return tmp;
+        return longlongget(ptr);
     }
   }
   return 0;  // impossible
@@ -10099,7 +10078,7 @@ static inline void handle_int16(uchar *to, const uchar *from, uint max_length,
   if (low_byte_first_from)
     val = sint2korr(from);
   else
-    shortget(&val, from);
+    val = shortget(from);
 
   if (low_byte_first_to)
     int2store(buf, val);
@@ -10153,7 +10132,7 @@ static inline void handle_int32(uchar *to, const uchar *from, uint max_length,
   if (low_byte_first_from)
     val = sint4korr(from);
   else
-    longget(&val, from);
+    val = longget(from);
 
   if (low_byte_first_to)
     int4store(buf, val);

@@ -50,8 +50,7 @@ namespace filesort_compare_unittest {
 */
 
 inline int bytes_to_int(const uchar *s) {
-  int val;
-  longget(&val, s);
+  int val = longget(s);
   return val ^ 0x80000000;
 }
 

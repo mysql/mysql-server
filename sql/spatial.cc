@@ -36,6 +36,7 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "myisampack.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/check_stack.h"  // check_stack_overrun
@@ -766,29 +767,10 @@ bool Geometry::is_well_formed(const char *from, size_t length,
 }
 
 static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo) {
-  double res;
-
   if (bo == Geometry::wkb_ndr)
-    float8get(&res, ptr);
-  else if (bo == Geometry::wkb_xdr && !is_little_endian())
-    memcpy(&res, ptr, sizeof(double));  // No need to convert.
-  else {
-    /*
-      Big endian WKB on little endian machine, convert WKB to
-      standard (little) endianess first.
-     */
-    char inv_array[8];
-    inv_array[0] = ptr[7];
-    inv_array[1] = ptr[6];
-    inv_array[2] = ptr[5];
-    inv_array[3] = ptr[4];
-    inv_array[4] = ptr[3];
-    inv_array[5] = ptr[2];
-    inv_array[6] = ptr[1];
-    inv_array[7] = ptr[0];
-    float8get(&res, inv_array);
-  }
-  return res;
+    return float8get(ptr);
+  else
+    return mi_float8get(pointer_cast<const uchar *>(ptr));
 }
 
 /**
@@ -834,23 +816,8 @@ static bool check_coordinate_range(double x, double y, double srs_angular_unit,
 static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo) {
   if (bo == Geometry::wkb_ndr)
     return uint4korr(ptr);
-  else if (bo == Geometry::wkb_xdr && !is_little_endian()) {
-    // Big endian WKB on big endian machine, no need to convert.
-    uint32 val;
-    memcpy(&val, ptr, sizeof(uint32));
-    return val;
-  } else {
-    /*
-      Big endian WKB on little endian machine, convert WKB to
-      standard (little) endianess first.
-     */
-    char inv_array[4], *inv_array_p = inv_array;
-    inv_array[0] = ptr[3];
-    inv_array[1] = ptr[2];
-    inv_array[2] = ptr[1];
-    inv_array[3] = ptr[0];
-    return uint4korr(inv_array_p);
-  }
+  else
+    return mi_uint4korr(pointer_cast<const uchar *>(ptr));
 }
 
 /**
@@ -1499,11 +1466,7 @@ uint32 Gis_line_string::get_data_size() const {
 
 // Helper function to get coordinate value from a linestring of WKB format.
 inline double coord_val(const char *p, int i, int x) {
-  double val = 0;
-
-  float8get(&val, p + i * POINT_DATA_SIZE + (x ? SIZEOF_STORED_DOUBLE : 0));
-
-  return val;
+  return float8get(p + i * POINT_DATA_SIZE + (x ? SIZEOF_STORED_DOUBLE : 0));
 }
 
 bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb) {
@@ -1684,12 +1647,10 @@ bool Gis_line_string::reverse_coordinates() {
   }
 
   for (uint32 i = 0; i < num_of_points; i++) {
-    double x;
-    double y;
-
     // +4 in below functions to skip numPoints field.
-    float8get(&x, get_cptr() + 4 + i * POINT_DATA_SIZE);
-    float8get(&y, get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE);
+    double x = float8get(get_cptr() + 4 + i * POINT_DATA_SIZE);
+    double y =
+        float8get(get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE);
 
     float8store(get_cptr() + 4 + i * POINT_DATA_SIZE, y);
     float8store(get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE, x);
@@ -1711,12 +1672,10 @@ bool Gis_line_string::validate_coordinate_range(double srs_angular_unit,
   }
 
   for (uint32 i = 0; i < num_of_points; i++) {
-    double x;
-    double y;
-
     // +4 in below functions to skip numPoints field.
-    float8get(&x, get_cptr() + 4 + i * POINT_DATA_SIZE);
-    float8get(&y, get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE);
+    double x = float8get(get_cptr() + 4 + i * POINT_DATA_SIZE);
+    double y =
+        float8get(get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE);
 
     if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
                                lat_out_of_range, out_of_range_value)) {
@@ -2253,11 +2212,9 @@ bool Gis_polygon::reverse_coordinates() {
     current_data_offset += 4;  // add linear ring header size to data offset.
 
     for (uint32 j = 0; j < num_of_points; j++) {
-      double x;
-      double y;
-
-      float8get(&x, get_cptr() + current_data_offset);
-      float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+      double x = float8get(get_cptr() + current_data_offset);
+      double y =
+          float8get(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
 
       float8store(get_cptr() + current_data_offset, y);
       float8store(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE, x);
@@ -2289,11 +2246,9 @@ bool Gis_polygon::validate_coordinate_range(double srs_angular_unit,
     current_data_offset += 4;  // Add linear ring header size to data offset.
 
     for (uint32 j = 0; j < num_of_points; j++) {
-      double x;
-      double y;
-
-      float8get(&x, get_cptr() + current_data_offset);
-      float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+      double x = float8get(get_cptr() + current_data_offset);
+      double y =
+          float8get(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
 
       if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
                                  lat_out_of_range, out_of_range_value)) {
@@ -2556,14 +2511,12 @@ bool Gis_multi_point::reverse_coordinates() {
   current_data_offset += 4;  // add number of points header to offset.
 
   for (uint32 i = 0; i < num_of_points; i++) {
-    double x;
-    double y;
-
     current_data_offset +=
         WKB_HEADER_SIZE;  // since each point includes a header.
 
-    float8get(&x, get_cptr() + current_data_offset);
-    float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+    double x = float8get(get_cptr() + current_data_offset);
+    double y =
+        float8get(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
 
     float8store(get_cptr() + current_data_offset, y);
     float8store(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE, x);
@@ -2589,14 +2542,12 @@ bool Gis_multi_point::validate_coordinate_range(double srs_angular_unit,
   uint32 current_data_offset = 4;  // Add number of points header to offset.
 
   for (uint32 i = 0; i < num_of_points; i++) {
-    double x;
-    double y;
-
     current_data_offset +=
         WKB_HEADER_SIZE;  // Since each point includes a header.
 
-    float8get(&x, get_cptr() + current_data_offset);
-    float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+    double x = float8get(get_cptr() + current_data_offset);
+    double y =
+        float8get(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
 
     if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
                                lat_out_of_range, out_of_range_value)) {

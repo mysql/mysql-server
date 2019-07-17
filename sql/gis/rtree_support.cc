@@ -372,23 +372,14 @@ double rtree_area_increase(const dd::Spatial_reference_system *srs,
                            double *ab_area) {
   DBUG_ASSERT(mbr_len == sizeof(double) * 4);
 
-  double a_xmin;
-  double a_ymin;
-  double a_xmax;
-  double a_ymax;
-  double b_xmin;
-  double b_ymin;
-  double b_xmax;
-  double b_ymax;
-
-  float8get(&a_xmin, mbr_a);
-  float8get(&a_xmax, mbr_a + sizeof(double));
-  float8get(&a_ymin, mbr_a + sizeof(double) * 2);
-  float8get(&a_ymax, mbr_a + sizeof(double) * 3);
-  float8get(&b_xmin, mbr_b);
-  float8get(&b_xmax, mbr_b + sizeof(double));
-  float8get(&b_ymin, mbr_b + sizeof(double) * 2);
-  float8get(&b_ymax, mbr_b + sizeof(double) * 3);
+  double a_xmin = float8get(mbr_a);
+  double a_xmax = float8get(mbr_a + sizeof(double));
+  double a_ymin = float8get(mbr_a + sizeof(double) * 2);
+  double a_ymax = float8get(mbr_a + sizeof(double) * 3);
+  double b_xmin = float8get(mbr_b);
+  double b_xmax = float8get(mbr_b + sizeof(double));
+  double b_ymin = float8get(mbr_b + sizeof(double) * 2);
+  double b_ymax = float8get(mbr_b + sizeof(double) * 3);
 
   DBUG_ASSERT(a_xmin <= a_xmax && a_ymin <= a_ymax);
   DBUG_ASSERT(b_xmin <= b_xmax && b_ymin <= b_ymax);
@@ -437,23 +428,14 @@ double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
                               int mbr_len MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(mbr_len == sizeof(double) * 4);
 
-  double a_xmin;
-  double a_ymin;
-  double a_xmax;
-  double a_ymax;
-  double b_xmin;
-  double b_ymin;
-  double b_xmax;
-  double b_ymax;
-
-  float8get(&a_xmin, mbr_a);
-  float8get(&a_xmax, mbr_a + sizeof(double));
-  float8get(&a_ymin, mbr_a + sizeof(double) * 2);
-  float8get(&a_ymax, mbr_a + sizeof(double) * 3);
-  float8get(&b_xmin, mbr_b);
-  float8get(&b_xmax, mbr_b + sizeof(double));
-  float8get(&b_ymin, mbr_b + sizeof(double) * 2);
-  float8get(&b_ymax, mbr_b + sizeof(double) * 3);
+  double a_xmin = float8get(mbr_a);
+  double a_xmax = float8get(mbr_a + sizeof(double));
+  double a_ymin = float8get(mbr_a + sizeof(double) * 2);
+  double a_ymax = float8get(mbr_a + sizeof(double) * 3);
+  double b_xmin = float8get(mbr_b);
+  double b_xmax = float8get(mbr_b + sizeof(double));
+  double b_ymin = float8get(mbr_b + sizeof(double) * 2);
+  double b_ymax = float8get(mbr_b + sizeof(double) * 3);
 
   DBUG_ASSERT(a_xmin <= a_xmax && a_ymin <= a_ymax);
   DBUG_ASSERT(b_xmin <= b_xmax && b_ymin <= b_ymax);

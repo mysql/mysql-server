@@ -190,7 +190,7 @@ int SortFileIndirectIterator::CachedRead() {
   for (;;) {
     if (m_cache_pos != m_cache_end) {
       if (m_cache_pos[m_error_offset]) {
-        shortget(&error, m_cache_pos);
+        error = shortget(m_cache_pos);
         if (error == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows) {
           m_cache_pos += m_reclength;
           continue;

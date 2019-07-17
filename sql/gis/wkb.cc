@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include "my_byteorder.h"  // float8get, int4store, uint4korr
 #include "my_sys.h"        // my_error()
+#include "myisampack.h"
 #include "mysqld_error.h"
 #include "sql/check_stack.h"  // check_stack_overrun
 #include "sql/gis/coordinate_range_visitor.h"
@@ -218,24 +219,9 @@ class Wkb_parser {
     double d;
     if (bo == Byte_order::NDR) {
       // Little endian data. Use conversion functions to native endianness.
-      float8get(&d, m_begin);
+      d = float8get(m_begin);
     } else {
-#ifdef WORDS_BIGENDIAN
-      // Both data and native endianness is big endian. No need to convert.
-      memcpy(&d, m_begin, sizeof(double));
-#else
-      // Big endian data on little endian CPU. Convert to little endian.
-      uchar inv_array[8];
-      inv_array[0] = m_begin[7];
-      inv_array[1] = m_begin[6];
-      inv_array[2] = m_begin[5];
-      inv_array[3] = m_begin[4];
-      inv_array[4] = m_begin[3];
-      inv_array[5] = m_begin[2];
-      inv_array[6] = m_begin[1];
-      inv_array[7] = m_begin[0];
-      float8get(&d, inv_array);
-#endif
+      d = mi_float8get(m_begin);
     }
 
     m_begin += sizeof(double);

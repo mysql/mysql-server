@@ -1,6 +1,6 @@
 #ifndef LITTLE_ENDIAN_INCLUDED
 #define LITTLE_ENDIAN_INCLUDED
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,41 +91,43 @@ static inline void int8store(uchar *T, ulonglong A) {
   memcpy(T, &A, sizeof(A));
 }
 
-static inline void float4get(float *V, const uchar *M) {
-  memcpy(V, (M), sizeof(float));
+static inline float float4get(const uchar *M) {
+  float V;
+  memcpy(&V, (M), sizeof(float));
+  return V;
 }
 
 static inline void float4store(uchar *V, float M) {
   memcpy(V, (&M), sizeof(float));
 }
 
-static inline void float8get(double *V, const uchar *M) {
-  memcpy(V, M, sizeof(double));
+static inline double float8get(const uchar *M) {
+  double V;
+  memcpy(&V, M, sizeof(double));
+  return V;
 }
 
 static inline void float8store(uchar *V, double M) {
   memcpy(V, &M, sizeof(double));
 }
 
-static inline void floatget(float *V, const uchar *M) { float4get(V, M); }
+static inline float floatget(const uchar *M) { return float4get(M); }
 static inline void floatstore(uchar *V, float M) { float4store(V, M); }
 
-static inline void doublestore(uchar *T, double V) {
-  memcpy(T, &V, sizeof(double));
-}
-static inline void doubleget(double *V, const uchar *M) {
-  memcpy(V, M, sizeof(double));
-}
+static inline void doublestore(uchar *T, double V) { float8store(T, V); }
+static inline double doubleget(const uchar *M) { return float8get(M); }
 
-static inline void ushortget(uint16 *V, const uchar *pM) { *V = uint2korr(pM); }
-static inline void shortget(int16 *V, const uchar *pM) { *V = sint2korr(pM); }
-static inline void longget(int32 *V, const uchar *pM) { *V = sint4korr(pM); }
-static inline void ulongget(uint32 *V, const uchar *pM) { *V = uint4korr(pM); }
+static inline uint16 ushortget(const uchar *pM) { return uint2korr(pM); }
+static inline int16 shortget(const uchar *pM) { return sint2korr(pM); }
+static inline int32 longget(const uchar *pM) { return sint4korr(pM); }
+static inline uint32 ulongget(const uchar *pM) { return uint4korr(pM); }
 static inline void shortstore(uchar *T, int16 V) { int2store(T, V); }
 static inline void longstore(uchar *T, int32 V) { int4store(T, V); }
 
-static inline void longlongget(longlong *V, const uchar *M) {
-  memcpy(V, (M), sizeof(ulonglong));
+static inline longlong longlongget(const uchar *M) {
+  longlong V;
+  memcpy(&V, (M), sizeof(ulonglong));
+  return V;
 }
 static inline void longlongstore(uchar *T, longlong V) {
   memcpy((T), &V, sizeof(ulonglong));

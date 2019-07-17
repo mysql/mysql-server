@@ -54,14 +54,6 @@ const uint GEOM_HEADER_SIZE = (SRID_SIZE + WKB_HEADER_SIZE);
 
 const uint32 GET_SIZE_ERROR = 0xFFFFFFFFU;
 
-inline bool is_little_endian() {
-#ifdef WORDS_BIGENDIAN
-  return false;
-#else
-  return true;
-#endif
-}
-
 /**
   Point with coordinates X and Y.
 */
@@ -110,9 +102,8 @@ struct MBR {
   }
   void add_xy(point_xy p) { add_xy(p.x, p.y); }
   void add_xy(const char *px, const char *py) {
-    double x, y;
-    float8get(&x, px);
-    float8get(&y, py);
+    double x = float8get(px);
+    double y = float8get(py);
     add_xy(x, y);
   }
   void add_mbr(const MBR *mbr) {
@@ -396,7 +387,7 @@ class Geometry {
       *number = uint4korr(m_data);  // GIS-TODO: byte order
     }
     void get_float8(double *x) {
-      float8get(x, m_data);  // GIS-TODO: byte order
+      *x = float8get(m_data);  // GIS-TODO: byte order
     }
 
    public:
@@ -1252,7 +1243,6 @@ class Gis_point : public Geometry {
 
     set_bg_adapter(true);
     const char *p = static_cast<char *>(m_ptr) + K * SIZEOF_STORED_DOUBLE;
-    double val;
 
     /*
       Boost Geometry may use a point that is only default constructed that
@@ -1261,8 +1251,7 @@ class Gis_point : public Geometry {
      */
     if (m_ptr == NULL) return 0;
 
-    float8get(&val, p);
-    return val;
+    return float8get(p);
   }
 
   /// @brief Set a coordinate

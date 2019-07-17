@@ -1874,8 +1874,7 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
     case MYSQL_TYPE_FLOAT: {
       snprintf(typestr, typestr_length, "FLOAT");
       if (!ptr) return my_b_printf(file, "NULL");
-      float fl;
-      float4get(&fl, ptr);
+      float fl = float4get(ptr);
       char tmp[320];
       sprintf(tmp, "%-20g", (double)fl);
       my_b_printf(file, "%s", tmp); /* my_b_printf doesn't support %-20g */
@@ -1885,8 +1884,7 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
     case MYSQL_TYPE_DOUBLE: {
       strcpy(typestr, "DOUBLE");
       if (!ptr) return my_b_printf(file, "NULL");
-      double dbl;
-      float8get(&dbl, ptr);
+      double dbl = float8get(ptr);
       char tmp[320];
       sprintf(tmp, "%-.20g", dbl); /* my_b_printf doesn't support %-20g */
       my_b_printf(file, "%s", tmp);
@@ -6352,7 +6350,7 @@ int User_var_log_event::pack_info(Protocol *protocol) {
     switch (type) {
       case REAL_RESULT:
         double real_val;
-        float8get(&real_val, val);
+        real_val = float8get(val);
         if (!(buf = (char *)my_malloc(key_memory_log_event,
                                       val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
                                       MYF(MY_WME))))
@@ -6522,7 +6520,7 @@ void User_var_log_event::print(FILE *,
       case REAL_RESULT:
         double real_val;
         char real_buf[FMT_G_BUFSIZE(14)];
-        float8get(&real_val, val);
+        real_val = float8get(val);
         sprintf(real_buf, "%.14g", real_val);
         my_b_printf(head, ":=%s%s\n", real_buf, print_event_info->delimiter);
         break;
@@ -6644,7 +6642,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
                       "Invalid variable length at User var event");
           return 1;
         }
-        float8get(&real_val, val);
+        real_val = float8get(val);
         it = new Item_float(real_val, 0);
         val = (char *)&real_val;  // Pointer to value in native format
         val_len = 8;

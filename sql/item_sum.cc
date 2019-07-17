@@ -2623,9 +2623,8 @@ void Item_sum_variance::update_field() {
   if (args[0]->null_value) return;
 
   /* Serialize format is (double)m, (double)s, (longlong)count */
-  double field_recurrence_m, field_recurrence_s;
-  float8get(&field_recurrence_m, res);
-  float8get(&field_recurrence_s, res + sizeof(double));
+  double field_recurrence_m = float8get(res);
+  double field_recurrence_s = float8get(res + sizeof(double));
   field_count = sint8korr(res + sizeof(double) * 2);
 
   variance_fp_recurrence_next(&field_recurrence_m, &field_recurrence_s, nullptr,
@@ -3306,11 +3305,10 @@ void Item_sum_sum::update_field() {
       }
     }
   } else {
-    double old_nr, nr;
     uchar *res = result_field->ptr;
 
-    float8get(&old_nr, res);
-    nr = args[0]->val_real();
+    double old_nr = float8get(res);
+    double nr = args[0]->val_real();
     if (!args[0]->null_value) {
       old_nr += nr;
       result_field->set_notnull();
@@ -3353,8 +3351,7 @@ void Item_sum_avg::update_field() {
 
     nr = args[0]->val_real();
     if (!args[0]->null_value) {
-      double old_nr;
-      float8get(&old_nr, res);
+      double old_nr = float8get(res);
       field_count = sint8korr(res + sizeof(double));
       old_nr += nr;
       float8store(res, old_nr);
@@ -3506,13 +3503,12 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item) {
 
 double Item_avg_field::val_real() {
   // fix_fields() never calls for this Item
-  double nr;
   longlong count;
   uchar *res;
 
   if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  float8get(&nr, field->ptr);
+  double nr = float8get(field->ptr);
   res = (field->ptr + sizeof(double));
   count = sint8korr(res);
 
@@ -3682,10 +3678,8 @@ double Item_variance_field::val_real() {
   // fix_fields() never calls for this Item
   if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  double recurrence_s;
-  ulonglong count;
-  float8get(&recurrence_s, (field->ptr + sizeof(double)));
-  count = sint8korr(field->ptr + sizeof(double) * 2);
+  double recurrence_s = float8get(field->ptr + sizeof(double));
+  ulonglong count = sint8korr(field->ptr + sizeof(double) * 2);
 
   if ((null_value = (count <= sample))) return 0.0;
   return variance_fp_recurrence_result(recurrence_s, 0.0, count, sample, false);

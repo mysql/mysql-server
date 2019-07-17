@@ -949,9 +949,7 @@ static Value parse_scalar(uint8 type, const char *data, size_t len) {
       return Value(Value::UINT, uint8korr(data));
     case JSONB_TYPE_DOUBLE: {
       if (len < 8) return err(); /* purecov: inspected */
-      double d;
-      float8get(&d, data);
-      return Value(d);
+      return Value(float8get(data));
     }
     case JSONB_TYPE_STRING: {
       uint32 str_len;

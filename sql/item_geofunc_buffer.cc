@@ -129,8 +129,7 @@ void Item_func_buffer::set_strategies() {
     }
 
     const enum_buffer_strategies strat = (enum_buffer_strategies)snum;
-    double value;
-    float8get(&value, pstrat + 4);
+    double value = float8get(pstrat + 4);
     enum_buffer_strategy_types strategy_type = invalid_strategy_type;
 
     switch (strat) {

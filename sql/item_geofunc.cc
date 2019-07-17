@@ -4409,7 +4409,6 @@ String *Item_func_spatial_collection::val_str(String *str) {
           break;
         case Geometry::wkb_polygon: {
           uint32 n_points;
-          double x1, y1, x2, y2;
           const char *org_data = data;
 
           if (len < 4) goto err;
@@ -4423,15 +4422,15 @@ String *Item_func_spatial_collection::val_str(String *str) {
             return error_str();
           }
 
-          float8get(&x1, data);
+          double x1 = float8get(data);
           data += SIZEOF_STORED_DOUBLE;
-          float8get(&y1, data);
+          double y1 = float8get(data);
           data += SIZEOF_STORED_DOUBLE;
 
           data += (n_points - 2) * POINT_DATA_SIZE;
 
-          float8get(&x2, data);
-          float8get(&y2, data + SIZEOF_STORED_DOUBLE);
+          double x2 = float8get(data);
+          double y2 = float8get(data + SIZEOF_STORED_DOUBLE);
 
           // A ring must be closed.
           if ((x1 != x2) || (y1 != y2)) {

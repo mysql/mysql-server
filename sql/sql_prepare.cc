@@ -491,16 +491,14 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len) {
 }
 
 static void set_param_float(Item_param *param, uchar **pos, ulong len) {
-  float data;
   if (len < 4) return;
-  float4get(&data, *pos);
+  float data = float4get(*pos);
   param->set_double((double)data);
 }
 
 static void set_param_double(Item_param *param, uchar **pos, ulong len) {
-  double data;
   if (len < 8) return;
-  float8get(&data, *pos);
+  double data = float8get(*pos);
   param->set_double(data);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,9 +203,7 @@ static uint test_hash(const LF_HASH *, const uchar *key, size_t length) {
     return 0;
   else {
     /* We use ulongget() to avoid potential problems with alignment. */
-    uint32 res;
-    ulongget(&res, key);
-    return res;
+    return ulongget(key);
   }
 }
 

@@ -139,8 +139,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
       continue;
     } else if (keyseg->flag & HA_SWAP_KEY) { /* Numerical column */
       if (type == HA_KEYTYPE_FLOAT) {
-        float nr;
-        float4get(&nr, pos);
+        float nr = float4get(pos);
         if (std::isnan(nr)) {
           /* Replace NAN with zero */
           memset(key, 0, length);
@@ -148,8 +147,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
           continue;
         }
       } else if (type == HA_KEYTYPE_DOUBLE) {
-        double nr;
-        float8get(&nr, pos);
+        double nr = float8get(pos);
         if (std::isnan(nr)) {
           memset(key, 0, length);
           key += length;
@@ -474,16 +472,14 @@ ulonglong retrieve_auto_increment(MI_INFO *info, const uchar *record) {
       break;
     case HA_KEYTYPE_FLOAT: /* This shouldn't be used */
     {
-      float f_1;
-      float4get(&f_1, key);
+      float f_1 = float4get(key);
       /* Ignore negative values */
       value = (f_1 < (float)0.0) ? 0 : (ulonglong)f_1;
       break;
     }
     case HA_KEYTYPE_DOUBLE: /* This shouldn't be used */
     {
-      double f_1;
-      float8get(&f_1, key);
+      double f_1 = float8get(key);
       /* Ignore negative values */
       value = (f_1 < 0.0) ? 0 : (ulonglong)f_1;
       break;
