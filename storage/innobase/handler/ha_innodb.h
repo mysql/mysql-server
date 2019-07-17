@@ -169,6 +169,11 @@ class ha_innobase : public handler {
 
   int index_last(uchar *buf) override;
 
+  int read_range_first(const key_range *start_key, const key_range *end_key,
+                       bool eq_range, bool sorted) override;
+
+  int read_range_next() override;
+
   int rnd_init(bool scan) override;
 
   int rnd_end() override;

@@ -803,9 +803,10 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
 #define MAX_SRCH_KEY_VAL_BUFFER 2 * (8 * MAX_REF_PARTS)
 
 #define PREBUILT_HEAP_INITIAL_SIZE                                          \
-  (sizeof(*prebuilt) /* allocd in this function */                          \
-   + DTUPLE_EST_ALLOC(search_tuple_n_fields) +                              \
-   DTUPLE_EST_ALLOC(ref_len) /* allocd in row_prebuild_sel_graph() */       \
+  (sizeof(*prebuilt)                         /* allocd in this function */  \
+   + DTUPLE_EST_ALLOC(search_tuple_n_fields) /* search_tuple */             \
+   + DTUPLE_EST_ALLOC(search_tuple_n_fields) /* m_stop_tuple */             \
+   + DTUPLE_EST_ALLOC(ref_len) /* allocd in row_prebuild_sel_graph() */     \
    + sizeof(sel_node_t) + sizeof(que_fork_t) +                              \
    sizeof(que_thr_t) /* allocd in row_get_prebuilt_update_vector() */       \
    + sizeof(upd_node_t) + sizeof(upd_t) +                                   \
@@ -884,6 +885,9 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->select_mode = SELECT_ORDINARY;
 
   prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
+  prebuilt->m_stop_tuple = dtuple_create(heap, search_tuple_n_fields);
+  ut_ad(!prebuilt->m_stop_tuple_found);
+  ut_ad(!prebuilt->is_reading_range());
 
   ref = dtuple_create(heap, ref_len);
 
@@ -932,6 +936,10 @@ void row_prebuilt_free(
 
   prebuilt->magic_n = ROW_PREBUILT_FREED;
   prebuilt->magic_n2 = ROW_PREBUILT_FREED;
+
+  /* It is better to fail here on assertion, than to let the destructor of the
+  active row_is_reading_range_guard_t modify some random place in memory. */
+  ut_a(!prebuilt->is_reading_range());
 
   btr_pcur_reset(prebuilt->pcur);
   btr_pcur_reset(prebuilt->clust_pcur);
