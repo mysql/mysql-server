@@ -6845,8 +6845,8 @@ extern "C" void *handle_slave_sql(void *arg) {
           "the relay "
           "log info will be consistent");
 
-    mysql_mutex_unlock(&rli->run_lock);
     mysql_cond_broadcast(&rli->start_cond);
+    mysql_mutex_unlock(&rli->run_lock);
 
     DEBUG_SYNC(thd, "after_start_slave");
 
@@ -7037,10 +7037,10 @@ extern "C" void *handle_slave_sql(void *arg) {
       DBUG_ASSERT(set_rli_description_event_failed);
     }
     /* Wake up master_pos_wait() */
-    mysql_mutex_unlock(&rli->data_lock);
     DBUG_PRINT("info",
                ("Signaling possibly waiting master_pos_wait() functions"));
     mysql_cond_broadcast(&rli->data_cond);
+    mysql_mutex_unlock(&rli->data_lock);
     rli->ignore_log_space_limit = 0; /* don't need any lock */
     /* we die so won't remember charset - re-update them on next thread start */
     rli->cached_charset_invalidate();
