@@ -111,26 +111,4 @@ static inline void float8store(uchar *V, double M) {
   memcpy(V, &M, sizeof(double));
 }
 
-static inline float floatget(const uchar *M) { return float4get(M); }
-static inline void floatstore(uchar *V, float M) { float4store(V, M); }
-
-static inline void doublestore(uchar *T, double V) { float8store(T, V); }
-static inline double doubleget(const uchar *M) { return float8get(M); }
-
-static inline uint16 ushortget(const uchar *pM) { return uint2korr(pM); }
-static inline int16 shortget(const uchar *pM) { return sint2korr(pM); }
-static inline int32 longget(const uchar *pM) { return sint4korr(pM); }
-static inline uint32 ulongget(const uchar *pM) { return uint4korr(pM); }
-static inline void shortstore(uchar *T, int16 V) { int2store(T, V); }
-static inline void longstore(uchar *T, int32 V) { int4store(T, V); }
-
-static inline longlong longlongget(const uchar *M) {
-  longlong V;
-  memcpy(&V, (M), sizeof(ulonglong));
-  return V;
-}
-static inline void longlongstore(uchar *T, longlong V) {
-  memcpy((T), &V, sizeof(ulonglong));
-}
-
 #endif /* LITTLE_ENDIAN_INCLUDED */
