@@ -832,7 +832,7 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
 #define DEFAULT_SSL_SERVER_KEY "server-key.pem"
 
 void update_mandatory_roles(void);
-bool check_authorization_id_string(THD *thd, const char *buffer, size_t length);
+bool check_authorization_id_string(THD *thd, LEX_STRING &mandatory_roles);
 void func_current_role(const THD *thd, String *active_role);
 
 extern uint32 global_password_history, global_password_reuse_interval;

@@ -19715,6 +19715,9 @@ ER_INIT_FAILED_TO_GENERATE_ROOT_PASSWORD
 ER_PLUGIN_LOAD_OPTIONS_IGNORED
   eng "Ignoring --plugin-load[_add] list as the server is running with --initialize(-insecure)."
 
+ER_WARN_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+  eng "Cannot set mandatory_roles: AuthId `%.64s`@`%.64s` has '%s' privilege. AuthId(s) set in the mandatory_roles are ignored."
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.

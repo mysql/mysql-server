@@ -4399,8 +4399,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access) {
   @param f   A function which will receive the comma separated strings.
 
 */
-
-void iterate_comma_separated_quoated_string(
+void iterate_comma_separated_quoted_string(
     std::string str, const std::function<bool(const std::string)> &f) {
   if (str.length() == 0) return;
   std::string::iterator i = str.begin();
@@ -7034,16 +7033,15 @@ bool assert_valid_privilege_id(const List<LEX_USER> *priv_list) {
   return true;
 }
 
-bool check_authorization_id_string(THD *thd, const char *buffer,
-                                   size_t length) {
+bool check_authorization_id_string(THD *thd, LEX_STRING &mandatory_roles) {
   bool error = false;
-  std::string authid_str(buffer, length);
+  std::string authid_str(mandatory_roles.str, mandatory_roles.length);
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) {
     error = true;
   } else {
-    iterate_comma_separated_quoated_string(
-        authid_str, [&thd, &error](const std::string item) {
+    iterate_comma_separated_quoted_string(
+        authid_str, [&thd, &error, &mandatory_roles](const std::string item) {
           auto el = get_authid_from_quoted_string(item);
           if (el.second != "" && el.first == "")
             error = true;
@@ -7052,14 +7050,27 @@ bool check_authorization_id_string(THD *thd, const char *buffer,
                                           consts::system_user, true)
                        .first) {
             // Send error to both, client and server error log.
-            my_error(ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
-                     MYF(0), el.first.c_str(), el.second.c_str(),
+            if (mysqld_server_started) {
+              my_error(ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
+                       MYF(0), el.first.c_str(), el.second.c_str(),
+                       consts::system_user.c_str());
+              LogErr(ERROR_LEVEL,
+                     ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
+                     el.first.c_str(), el.second.c_str(),
                      consts::system_user.c_str());
-            LogErr(ERROR_LEVEL,
-                   ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
-                   el.first.c_str(), el.second.c_str(),
-                   consts::system_user.c_str());
-            error = true;
+              error = true;
+            } else {
+              LogErr(WARNING_LEVEL,
+                     ER_WARN_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES,
+                     el.first.c_str(), el.second.c_str(),
+                     consts::system_user.c_str());
+              /*
+                It is safe to reset the LEX_STRING since it is allocated in
+                the memroot of THD.
+              */
+              mandatory_roles.str = empty_c_string;
+              mandatory_roles.length = 0;
+            }
           }
           return error;
         });
@@ -7084,8 +7095,8 @@ void get_mandatory_roles(std::vector<Role_id> *mandatory_roles) {
   opt_mandatory_roles_cache = true;
   std::string role_str;
   role_str.append(opt_mandatory_roles.str, opt_mandatory_roles.length);
-  iterate_comma_separated_quoated_string(role_str, [&mandatory_roles](
-                                                       const std::string item) {
+  iterate_comma_separated_quoted_string(role_str, [&mandatory_roles](
+                                                      const std::string item) {
     auto el = get_authid_from_quoted_string(item);
     if (el.second == "") el.second = "%";
     Role_id role_id(el.first, el.second);

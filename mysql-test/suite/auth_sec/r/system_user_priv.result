@@ -138,6 +138,35 @@ GRANT r1 TO r2;
 GRANT sys_role TO r1;
 SET @@GLOBAL.MANDATORY_ROLES='r2';
 ERROR HY000: Cannot set mandatory_roles: AuthId `r2`@`%` has 'SYSTEM_USER' privilege.
+# 5.6 Set persist should fail too.
+SET PERSIST MANDATORY_ROLES = 'r2';
+ERROR HY000: Cannot set mandatory_roles: AuthId `r2`@`%` has 'SYSTEM_USER' privilege.
+# 5.6 Set persist should fail too.
+SET PERSIST MANDATORY_ROLES = 'r2';
+ERROR HY000: Cannot set mandatory_roles: AuthId `r2`@`%` has 'SYSTEM_USER' privilege.
+# 5.7 We do not check the SET PERSIST_ONLY, should succeed.
+SET PERSIST_ONLY MANDATORY_ROLES = 'r2';
+# 5.8 On Server restart there should be a warning in the log file
+# Restart server.
+include/assert_grep.inc [Found the expected warning line in the server log.]
+# System variable should not have been set.
+SELECT @@mandatory_roles;
+@@mandatory_roles
+
+SET PERSIST mandatory_roles = '';
+# 5.9 Set the system variable at the command line.
+# Restart server.
+include/assert_grep.inc [Found the expected warning line in the server log.]
+# System variable should not have been set.
+SELECT @@mandatory_roles;
+@@mandatory_roles
+
+# 5.10 Set the system variable in the cnf file. Warning should be logged.
+include/assert_grep.inc [Found the expected warning line in the server log.]
+# System variable should not have been set.
+SELECT @@mandatory_roles;
+@@mandatory_roles
+
 DROP ROLE r1, r2;
 #------------------------------------------------------------------------
 # 6. If the definer has SYSTEM_USER privilege then owner must also have

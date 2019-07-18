@@ -159,7 +159,117 @@ GRANT r1 TO r2;
 GRANT sys_role TO r1;
 --error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 SET @@GLOBAL.MANDATORY_ROLES='r2';
+--echo # 5.6 Set persist should fail too.
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET PERSIST MANDATORY_ROLES = 'r2';
+--echo # 5.6 Set persist should fail too.
+--error ER_DA_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET PERSIST MANDATORY_ROLES = 'r2';
+--echo # 5.7 We do not check the SET PERSIST_ONLY, should succeed.
+SET PERSIST_ONLY MANDATORY_ROLES = 'r2';
+--echo # 5.8 On Server restart there should be a warning in the log file
+--echo # Restart server.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Remove the server log file so that we find the expected warning only once.
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Cannot set mandatory_roles: AuthId .* has 'SYSTEM_USER' privilege.
+--let $assert_text= Found the expected warning line in the server log.
+--let $assert_count=1
+--source include/assert_grep.inc
+--echo # System variable should not have been set.
+SELECT @@mandatory_roles;
+# Clear the system variable in the .cnf file
+SET PERSIST mandatory_roles = '';
+
+--echo # 5.9 Set the system variable at the command line.
+# Server should restart with a warning
+--echo # Restart server.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Remove the server log file so that we find the expected warning only once.
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+--exec echo "restart:--mandatory_roles='r2'" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Cannot set mandatory_roles: AuthId .* has 'SYSTEM_USER' privilege.
+--let $assert_text= Found the expected warning line in the server log.
+--let $assert_count=1
+--source include/assert_grep.inc
+--echo # System variable should not have been set.
+SELECT @@mandatory_roles;
+--echo # 5.10 Set the system variable in the cnf file. Warning should be logged.
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let $MYSQL_HOME=`SELECT @@basedir`;
+let $MYSQL_SERVER_ID= `SELECT @@server_id`;
+
+copy_file $MYSQLTEST_VARDIR/my.cnf  $MYSQLTEST_VARDIR/tmp/temp_my.cnf;
+append_file $MYSQLTEST_VARDIR/tmp/temp_my.cnf;
+[mysqld]
+mandatory_roles=r2
+EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Remove the server log file so that we find the expected warning only once.
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
+--exec echo  "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/temp_my.cnf"  --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR  --lc-messages-dir=$MYSQL_MESSAGESDIR  --innodb_dedicated_server=OFF --skip-mysqlx  > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Cannot set mandatory_roles: AuthId .* has 'SYSTEM_USER' privilege.
+--let $assert_text= Found the expected warning line in the server log.
+--let $assert_count=1
+--source include/assert_grep.inc
+--echo # System variable should not have been set.
+SELECT @@mandatory_roles;
 DROP ROLE r1, r2;
+
+# Restart Server as usual
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+remove_file $MYSQLTEST_VARDIR/tmp/temp_my.cnf;
+# Reset the connections
+disconnect sys_usr_con;
+connect(sys_usr_con,localhost,sys_usr,pwd,);
+disconnect non_sys_usr_con;
+connect(non_sys_usr_con,localhost,non_sys_usr,pwd,);
+connection default;
 --echo #------------------------------------------------------------------------
 --echo # 6. If the definer has SYSTEM_USER privilege then owner must also have
 --echo #    the SYSTEM_USER privilege.
