@@ -3077,11 +3077,12 @@ INSERT INTO t2 VALUES (1, '1');
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where (`test`.`t1`.`a` = 1)
+Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `<subquery2>`.`1`)
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1
