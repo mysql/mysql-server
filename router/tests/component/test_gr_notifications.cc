@@ -156,7 +156,8 @@ class GrNotificationsTest : public RouterComponentTest {
     for (auto &gr_node : gr_node_ports) {
       JsonValue node(rapidjson::kArrayType);
       node.PushBack(JsonValue((int)gr_node), allocator);
-      node.PushBack(JsonValue("ONLINE", strlen("ONLINE")), allocator);
+      node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
+                    allocator);
       node.PushBack(JsonValue((int)gr_node_xports[i++]), allocator);
       gr_nodes_->PushBack(node, allocator);
     }

@@ -56,14 +56,14 @@ JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
                                    unsigned primary_id) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
-  json_doc.AddMember("gr_id", JsonValue(gr_id.c_str(), gr_id.length()),
-                     allocator);
+  json_doc.AddMember(
+      "gr_id", JsonValue(gr_id.c_str(), gr_id.length(), allocator), allocator);
 
   JsonValue gr_nodes_json(rapidjson::kArrayType);
   for (auto &gr_node : gr_node_ports) {
     JsonValue node(rapidjson::kArrayType);
     node.PushBack(static_cast<int>(gr_node), allocator);
-    node.PushBack(JsonValue("ONLINE", strlen("ONLINE")), allocator);
+    node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator), allocator);
     gr_nodes_json.PushBack(node, allocator);
   }
   json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
@@ -88,15 +88,16 @@ void set_mock_bootstrap_data(
     const std::vector<std::pair<std::string, unsigned>> &gr_members_ports) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
-  json_doc.AddMember("cluster_name",
-                     JsonValue(cluster_name.c_str(), cluster_name.length()),
-                     allocator);
+  json_doc.AddMember(
+      "cluster_name",
+      JsonValue(cluster_name.c_str(), cluster_name.length(), allocator),
+      allocator);
 
   JsonValue gr_members_json(rapidjson::kArrayType);
   for (auto &gr_member : gr_members_ports) {
     JsonValue member(rapidjson::kArrayType);
     member.PushBack(
-        JsonValue(gr_member.first.c_str(), gr_member.first.length()),
+        JsonValue(gr_member.first.c_str(), gr_member.first.length(), allocator),
         allocator);
     member.PushBack(static_cast<int>(gr_member.second), allocator);
     gr_members_json.PushBack(member, allocator);
