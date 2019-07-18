@@ -258,8 +258,7 @@ bool Gtid_state::wait_for_sidno(THD *thd, rpl_sidno sidno,
   sid_locks.assert_owner(sidno);
   sid_locks.enter_cond(thd, sidno, &stage_waiting_for_gtid_to_be_committed,
                        &old_stage);
-  bool ret =
-      (thd->killed != THD::NOT_KILLED || sid_locks.wait(thd, sidno, abstime));
+  bool ret = sid_locks.wait(thd, sidno, abstime);
   // Can't call sid_locks.unlock() as that requires global_sid_lock.
   mysql_mutex_unlock(thd->current_mutex);
   thd->EXIT_COND(&old_stage);
