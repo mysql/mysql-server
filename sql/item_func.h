@@ -2262,11 +2262,9 @@ class Item_master_gtid_set_wait final : public Item_int_func {
   String value;
 
  public:
-  Item_master_gtid_set_wait(const POS &pos, Item *a) : Item_int_func(pos, a) {}
-  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b) {}
-  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_int_func(pos, a, b, c) {}
+  Item_master_gtid_set_wait(const POS &pos, Item *a);
+  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b);
+  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b, Item *c);
 
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;

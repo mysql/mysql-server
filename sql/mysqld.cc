@@ -7776,9 +7776,11 @@ struct my_option my_long_options[] = {
      &opt_tc_log_size, 0, GET_ULONG, REQUIRED_ARG,
      TC_LOG_MIN_PAGES *my_getpagesize(), TC_LOG_MIN_PAGES *my_getpagesize(),
      ULONG_MAX, 0, my_getpagesize(), 0},
-    {"master-info-file", 0,
+    {"master-info-file", OPT_MASTER_INFO_FILE,
      "The location and name of the file that remembers the master and where "
-     "the I/O replication thread is in the master's binlogs.",
+     "the I/O replication thread is in the master's binlogs. "
+     "Deprecated option that shall be removed eventually without a "
+     "replacement.",
      &master_info_file, &master_info_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
      0, 0},
     {"master-retry-count", OPT_MASTER_RETRY_COUNT,
@@ -9560,6 +9562,19 @@ bool mysqld_get_one_option(int optid,
         return 1;
       }
 #endif  // _WIN32
+      break;
+    case OPT_RELAY_LOG_INFO_FILE:
+      push_deprecated_warn_no_replacement(NULL, "--relay-log-info-file");
+      break;
+    case OPT_MASTER_INFO_FILE:
+      push_deprecated_warn_no_replacement(NULL, "--master-info-file");
+      break;
+    case OPT_LOG_BIN_USE_V1_ROW_EVENTS:
+      push_deprecated_warn_no_replacement(NULL, "--log-bin-use-v1-row-events");
+      break;
+    case OPT_SLAVE_ROWS_SEARCH_ALGORITHMS:
+      push_deprecated_warn_no_replacement(NULL,
+                                          "--slave-rows-search-algorithms");
       break;
   }
   return 0;

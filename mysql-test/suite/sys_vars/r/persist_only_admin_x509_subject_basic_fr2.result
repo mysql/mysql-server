@@ -17,12 +17,16 @@ SET PERSIST_ONLY init_file = DEFAULT;
 SET PERSIST_ONLY keyring_operations = DEFAULT;
 SET PERSIST_ONLY lc_messages_dir = DEFAULT;
 SET PERSIST_ONLY log_bin_use_v1_row_events = DEFAULT;
+Warnings:
+Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY log_error = DEFAULT;
 SET PERSIST_ONLY pid_file = DEFAULT;
 SET PERSIST_ONLY plugin_dir = DEFAULT;
 SET PERSIST_ONLY port = DEFAULT;
 SET PERSIST_ONLY relay_log = DEFAULT;
 SET PERSIST_ONLY relay_log_info_file = DEFAULT;
+Warnings:
+Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY secure_file_priv = DEFAULT;
 SET PERSIST_ONLY skip_networking = DEFAULT;
 SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;

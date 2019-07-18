@@ -2333,9 +2333,10 @@ static Sys_var_bool Sys_log_bin_use_v1_row_events(
     "binary log.  If equal to 0, then the latest version of events are "
     "written.  "
     "This option is useful during some upgrades.",
-    NON_PERSIST GLOBAL_VAR(log_bin_use_v1_row_events), CMD_LINE(OPT_ARG),
-    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_log_bin_use_v1_row_events));
+    NON_PERSIST GLOBAL_VAR(log_bin_use_v1_row_events),
+    CMD_LINE(OPT_ARG, OPT_LOG_BIN_USE_V1_ROW_EVENTS), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_bin_use_v1_row_events),
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_log_error(
     "log_error", "Error log file",
@@ -3672,10 +3673,12 @@ static Sys_var_set Slave_rows_search_algorithms(
     "the slave will always pick the most suitable algorithm for "
     "any given scenario. "
     "(Default: INDEX_SCAN, HASH_SCAN).",
-    GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
+    GLOBAL_VAR(slave_rows_search_algorithms_options),
+    CMD_LINE(REQUIRED_ARG, OPT_SLAVE_ROWS_SEARCH_ALGORITHMS),
     slave_rows_search_algorithms_names,
     DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_HASH_SCAN), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
+    NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(nullptr),
+    DEPRECATED_VAR(""));
 
 static const char *mts_parallel_type_names[] = {"DATABASE", "LOGICAL_CLOCK", 0};
 static Sys_var_enum Mts_parallel_type(
@@ -5534,7 +5537,9 @@ static Sys_var_charptr Sys_relay_log_info_file(
     "The location and name of the file that "
     "remembers where the SQL replication thread is in the relay logs",
     READ_ONLY NON_PERSIST GLOBAL_VAR(relay_log_info_file),
-    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
+    CMD_LINE(REQUIRED_ARG, OPT_RELAY_LOG_INFO_FILE), IN_FS_CHARSET, DEFAULT(0),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
+    DEPRECATED_VAR(""));
 
 static Sys_var_bool Sys_relay_log_purge(
     "relay_log_purge",

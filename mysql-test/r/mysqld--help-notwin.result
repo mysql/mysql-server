@@ -578,7 +578,8 @@ The following options may be given as the first argument:
  --master-info-file=name 
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
- master's binlogs.
+ master's binlogs. Deprecated option that shall be removed
+ eventually without a replacement.
  --master-info-repository=name 
  Defines the type of the repository for the master
  information.

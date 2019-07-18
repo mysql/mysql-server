@@ -74,6 +74,8 @@ SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:1-155", 0
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:1-155", 10, "group_replication_applier");
 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:1-155", 10, "group_replication_applier")
 0
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 [connection server1]
 include/gr_start_applier_sql_thread.inc
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
