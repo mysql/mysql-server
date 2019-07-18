@@ -441,6 +441,8 @@ TEST_F(XcomBase, PaxosLearnSameValue) {
   pax_msg *tx = pax_msg_new(synod, nullptr);
   tx->a = new_app_data();
   tx->a->body.c_t = app_type;
+  tx->a->body.app_u_u.data.data_len = 1;
+  tx->a->body.app_u_u.data.data_val = static_cast<char *>(malloc(sizeof(char)));
   replace_pax_msg(&s0_paxos->proposer.msg, tx);
   prepare_push_2p(s0_config, s0_paxos);
   pax_msg *s0_accept_tx = s0_paxos->proposer.msg;
