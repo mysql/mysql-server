@@ -1630,12 +1630,12 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
   /* Make sure the internals are initialized and builtins registered */
   if (!initialized) return true;
 
-  /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root;
-  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
-
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING)) {
+    /* Allocate the temporary mem root, will be freed before returning */
+    MEM_ROOT tmp_root;
+    init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+
     I_List_iterator<i_string> iter(opt_plugin_load_list);
     i_string *item;
     while (NULL != (item = iter++))
@@ -1643,10 +1643,15 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
 
     if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
       plugin_load(&tmp_root, argc, argv);
-  }
 
-  /* Temporary mem root not needed anymore, can free it here */
-  free_root(&tmp_root, MYF(0));
+    /* Temporary mem root not needed anymore, can free it here */
+    free_root(&tmp_root, MYF(0));
+  } else if (!opt_plugin_load_list.is_empty()) {
+    /* Table is always empty at initialize */
+    DBUG_ASSERT(opt_initialize);
+    /* Tell the user the plugin-load[-add] is ignored if not empty */
+    LogErr(WARNING_LEVEL, ER_PLUGIN_LOAD_OPTIONS_IGNORED);
+  }
 
   Auto_THD fake_session;
   Disable_autocommit_guard autocommit_guard(fake_session.thd);

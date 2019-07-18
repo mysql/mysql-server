@@ -19712,6 +19712,9 @@ ER_AUDIT_LOG_CANNOT_GENERATE_PASSWORD
 ER_INIT_FAILED_TO_GENERATE_ROOT_PASSWORD
   eng "Failed to generate a random password for root. Probabably not enough enthropy."
 
+ER_PLUGIN_LOAD_OPTIONS_IGNORED
+  eng "Ignoring --plugin-load[_add] list as the server is running with --initialize(-insecure)."
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.
