@@ -7013,9 +7013,11 @@ static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
     return true;
   }
 
-  // Remove any leading zeroes, so that we get the same hash length for "1.0"
-  // and "001.0".
-  decimal->intg = my_decimal_intg(decimal);
+  // Normalize the number, to get same hash length for equal numbers.
+  if (decimal_is_zero(decimal))
+    decimal_make_zero(decimal);
+  else
+    decimal->intg = my_decimal_intg(decimal);
 
   const int buffer_size =
       my_decimal_get_binary_size(decimal->precision(), decimal->frac);
