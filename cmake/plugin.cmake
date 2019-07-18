@@ -37,23 +37,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # DEFAULT     : builtin as static by default
 # MODULE_ONLY : build only as shared library
 
-# Append collections files for the plugin to the common files
-# Make sure we don't copy twice if running cmake again
-
-MACRO(PLUGIN_APPEND_COLLECTIONS plugin)
-  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
-  IF(NOT EXISTS ${fcopied})
-    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
-    FOREACH(cfile ${collections})
-      FILE(READ ${cfile} contents)
-      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
-      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname} "${contents}")
-      FILE(APPEND ${fcopied} "${fname}\n")
-      MESSAGE(STATUS "Appended ${cfile}")
-    ENDFOREACH()
-  ENDIF()
-ENDMACRO()
-
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
@@ -148,11 +131,11 @@ MACRO(MYSQL_ADD_PLUGIN)
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
     IF(ARG_MANDATORY)
-      SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
-       FORCE)
+      SET(${with_var} ON CACHE INTERNAL
+        "Link ${plugin} statically to the server" FORCE)
     ELSE()	
-      SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
-       FORCE)
+      SET(${with_var} ON CACHE BOOL
+        "Link ${plugin} statically to the server" FORCE)
     ENDIF()
 
     SET(THIS_PLUGIN_REFERENCE " builtin_${target}_plugin,")
@@ -183,7 +166,8 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     IF(WIN32_CLANG AND WITH_ASAN)
-      TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+      TARGET_LINK_LIBRARIES(${target}
+        "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
     IF(NOT ARG_CLIENT_ONLY)
       TARGET_LINK_LIBRARIES (${target} mysqlservices)
@@ -204,11 +188,11 @@ MACRO(MYSQL_ADD_PLUGIN)
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
-     IF(NOT ARG_MODULE_ONLY)
+    IF(NOT ARG_MODULE_ONLY)
       # set cached variable, e.g with checkbox in GUI
       SET(${with_var} OFF CACHE BOOL "Link ${plugin} statically to the server" 
-       FORCE)
-     ENDIF()
+        FORCE)
+    ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
 
@@ -243,10 +227,6 @@ MACRO(MYSQL_ADD_PLUGIN)
       INSTALL_DEBUG_TARGET(${target}
         DESTINATION ${INSTALL_PLUGINDIR}/debug
         COMPONENT ${INSTALL_COMPONENT})
-      # For internal testing in PB2, append collections files
-      IF(DEFINED ENV{PB2WORKDIR})
-        PLUGIN_APPEND_COLLECTIONS(${plugin})
-      ENDIF()
     ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
