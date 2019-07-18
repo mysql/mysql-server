@@ -2704,6 +2704,22 @@ bool Prepared_statement::set_parameters(String *expanded_query) {
 }
 
 /**
+  Disables the general log for the current session by setting the OPTION_LOG_OFF
+  bit in thd->variables.option_bits.
+
+  @param thd the session
+  @return whether the setting was changed
+  @retval false if the general log was already disabled for this session
+  @retval true if the general log was enabled for the session and is now
+  disabled
+*/
+static bool disable_general_log(THD *thd) {
+  if ((thd->variables.option_bits & OPTION_LOG_OFF) != 0) return false;
+  thd->variables.option_bits |= OPTION_LOG_OFF;
+  return true;
+}
+
+/**
   Execute a prepared statement. Re-prepare it a limited number
   of times if necessary.
 
@@ -2751,6 +2767,10 @@ bool Prepared_statement::execute_loop(String *expanded_query,
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
     return true;
   }
+
+  // Remember if the general log was temporarily disabled when repreparing the
+  // statement for a secondary engine.
+  bool general_log_temporarily_disabled = false;
 
 reexecute:
   /*
@@ -2814,6 +2834,9 @@ reexecute:
         thd->clear_error();
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::SECONDARY);
+        // Disable the general log. The query was written to the general log in
+        // the first attempt to execute it. No need to write it twice.
+        general_log_temporarily_disabled |= disable_general_log(thd);
         error = reprepare();
       }
 
@@ -2839,6 +2862,11 @@ reexecute:
       goto reexecute;
   }
   reset_stmt_params(this);
+
+  // Reenable the general log if it was temporarily disabled while repreparing
+  // and executing a statement for a secondary engine.
+  if (general_log_temporarily_disabled)
+    thd->variables.option_bits &= ~OPTION_LOG_OFF;
 
   return error;
 }
