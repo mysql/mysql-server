@@ -34,27 +34,10 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # MODULE - generate dynamic library,
 # TEST - include library only with test distribution
 
-# Append collections files for the component to the common files
-# Make sure we don't copy twice if running cmake again
-MACRO(COMPONENT_APPEND_COLLECTIONS)
-  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
-  IF(NOT EXISTS ${fcopied})
-    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
-    FOREACH(cfile ${collections})
-      FILE(READ ${cfile} contents)
-      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
-      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname}
-        "${contents}")
-      FILE(APPEND ${fcopied} "${fname}\n")
-      MESSAGE(STATUS "Appended ${cfile}")
-    ENDFOREACH()
-  ENDIF()
-ENDMACRO()
-
 MACRO(MYSQL_ADD_COMPONENT)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES"
-    "STATIC;MODULE;TEST;NO_INSTALL"
+    "STATIC;MODULE;TEST;SKIP_INSTALL"
     ${ARGN}
     )
 
@@ -82,7 +65,6 @@ MACRO(MYSQL_ADD_COMPONENT)
   # Build either static library or module
   IF (ARG_STATIC)
     SET(kind STATIC)
-    SET(BUILD_COMPONENT 1)
 
     # Update mysqld dependencies
     SET(MYSQLD_STATIC_COMPONENT_LIBS ${MYSQLD_STATIC_COMPONENT_LIBS}
@@ -90,53 +72,47 @@ MACRO(MYSQL_ADD_COMPONENT)
 
   ELSEIF(ARG_MODULE)
     SET(kind MODULE)
-    SET(BUILD_COMPONENT 1)
   ELSE()
-    SET(BUILD_COMPONENT 0)
+    MESSAGE(FATAL_ERROR "Unknown component type ${target}")
   ENDIF()
 
-  IF(BUILD_COMPONENT)
-    ADD_VERSION_INFO(${target} ${kind} SOURCES)
-    ADD_LIBRARY(${target} ${kind} ${SOURCES})
+  ADD_VERSION_INFO(${target} ${kind} SOURCES)
+  ADD_LIBRARY(${target} ${kind} ${SOURCES})
 
-    # For internal testing in PB2, append collections files
-    IF(DEFINED ENV{PB2WORKDIR})
-      COMPONENT_APPEND_COLLECTIONS()
+  IF(ARG_LINK_LIBRARIES)
+    TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  SET_TARGET_PROPERTIES(${target} PROPERTIES PREFIX "")
+  ADD_DEPENDENCIES(${target} GenError)
+
+  IF (ARG_MODULE)
+    # Store all components in the same directory, for easier testing.
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
+      )
+    IF(WIN32_CLANG AND WITH_ASAN)
+      TARGET_LINK_LIBRARIES(${target}
+        "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
 
-    IF(ARG_LINK_LIBRARIES)
-      TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
-    ENDIF()
-
-    SET_TARGET_PROPERTIES(${target} PROPERTIES PREFIX "")
-    ADD_DEPENDENCIES(${target} GenError)
-
-    IF (ARG_MODULE)
-      # Store all components in the same directory, for easier testing.
-      SET_TARGET_PROPERTIES(${target} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
-        )
-      IF(WIN32_CLANG AND WITH_ASAN)
-        TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+    IF(NOT ARG_SKIP_INSTALL)
+      # Install dynamic library.
+      IF(NOT ARG_TEST)
+        SET(INSTALL_COMPONENT Server)
+      ELSE()
+        SET(INSTALL_COMPONENT Test)
       ENDIF()
-      IF(NOT ARG_NO_INSTALL)
-        # Install dynamic library.
-        IF(NOT ARG_TEST)
-          SET(INSTALL_COMPONENT Server)
-        ELSE()
-          SET(INSTALL_COMPONENT Test)
-        ENDIF()
 
-        IF(LINUX_INSTALL_RPATH_ORIGIN)
-          ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
-        ENDIF()
-        MYSQL_INSTALL_TARGETS(${target}
-          DESTINATION ${INSTALL_PLUGINDIR}
-          COMPONENT ${INSTALL_COMPONENT})
-        INSTALL_DEBUG_TARGET(${target}
-          DESTINATION ${INSTALL_PLUGINDIR}/debug
-          COMPONENT ${INSTALL_COMPONENT})
+      IF(LINUX_INSTALL_RPATH_ORIGIN)
+        ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
       ENDIF()
+      MYSQL_INSTALL_TARGETS(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}
+        COMPONENT ${INSTALL_COMPONENT})
+      INSTALL_DEBUG_TARGET(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}/debug
+        COMPONENT ${INSTALL_COMPONENT})
     ENDIF()
   ENDIF()
 ENDMACRO()
