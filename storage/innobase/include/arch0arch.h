@@ -1431,6 +1431,13 @@ class Arch_Log_Sys {
   Arch_Log_Sys &operator=(Arch_Log_Sys const &) = delete;
 
  private:
+  /** Wait for archive system to come out of #ARCH_STATE_PREPARE_IDLE.
+  If the system is preparing to idle, #start needs to wait
+  for it to come to idle state.
+  @return true, if successful
+          false, if needs to abort */
+  bool wait_idle();
+
   /** Wait for redo log archive up to the target LSN.
   We need to wait till current log sys LSN during archive stop.
   @param[in]	target_lsn	target archive LSN to wait for

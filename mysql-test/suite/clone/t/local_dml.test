@@ -1,6 +1,8 @@
 # Test clone with concurrent DML
 
+if (!$no_binlog) {
 --source include/have_log_bin.inc
+}
 --source include/have_innodb_default_undo_tablespaces.inc
 --source ../include/clone_connection_begin.inc
 --source include/count_sessions.inc

@@ -346,7 +346,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     my_error(ER_CLONE_DONOR, MYF(0), err_buf);
 
-    snprintf(err_buf, sizeof(err_buf), "COM_CLONE failed %d : %s",
+    snprintf(err_buf, sizeof(err_buf), "COM_CLONE failed: %d : %s",
              net->last_errno, net->last_error);
     LogErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, err_buf);
 

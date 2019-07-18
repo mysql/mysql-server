@@ -1788,7 +1788,20 @@ class Fixup_data {
       auto dd_file = *(dd_space->files().begin());
       clone_add_to_list_file(CLONE_INNODB_OLD_FILES,
                              dd_file->filename().c_str());
+      /* In rare case, the undo might be kept halfway truncated due to some
+      error during truncate. Check and add truncate log file as old file if
+      present. */
+      undo::Tablespace undo_space(space_id);
+      const char *log_file_name = undo_space.log_file_name();
+
+      os_file_type_t type;
+      bool exists = false;
+      auto ret = os_file_status(log_file_name, &exists, &type);
+      if (ret && exists) {
+        clone_add_to_list_file(CLONE_INNODB_OLD_FILES, log_file_name);
+      }
     }
+
     /* Skip all undo tablespaces. */
     if (is_undo) {
       return (true);

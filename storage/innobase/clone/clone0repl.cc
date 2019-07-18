@@ -64,6 +64,14 @@ void Clone_persist_gtid::add(const Gtid_desc &gtid_desc) {
   }
 }
 
+bool Clone_persist_gtid::persists_gtid(const trx_t *trx) {
+  auto thd = trx->mysql_thd;
+  if (thd == nullptr) {
+    thd = thd_get_current_thd();
+  }
+  return (thd != nullptr && thd->se_persists_gtid());
+}
+
 void Clone_persist_gtid::set_persist_gtid(trx_t *trx, bool set) {
   bool thd_check = false;
   auto thd = trx->mysql_thd;
@@ -97,6 +105,24 @@ void Clone_persist_gtid::set_persist_gtid(trx_t *trx, bool set) {
     /* Trigger flush, don't wait; we could be in the middle of operation. */
     os_event_set(m_event);
     return;
+  }
+
+  /* This is an optimization to skip GTID allocation, if transaction
+  is guaranteed to not have GTID. */
+  if (!thd->se_persists_gtid()) {
+    auto gtid_next = thd->variables.gtid_next.type;
+
+    if (opt_bin_log) {
+      /* This transaction would not have GTID. */
+      if (gtid_next == ANONYMOUS_GTID) {
+        return;
+      }
+    } else {
+      /* If binary log is disabled, GTID must be directly assigned. */
+      if (gtid_next != ASSIGNED_GTID) {
+        return;
+      }
+    }
   }
 
   /* Test case to validate direct write to gtid_executed table. */
@@ -230,6 +256,7 @@ bool Clone_persist_gtid::has_gtid(trx_t *trx, THD *&thd, bool &passed_check) {
   if (trx->internal) {
     return (false);
   }
+
   /* Transaction is updating GTID table implicitly. */
   if (thd->is_operating_gtid_table_implicitly ||
       thd->is_operating_substatement_implicitly ||

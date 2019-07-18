@@ -338,26 +338,30 @@ struct trx_undo_t {
   void set_prepared(const XID *in_xid);
 
   /*-----------------------------*/
-  ulint id;             /*!< undo log slot number within the
-                        rollback segment */
-  ulint type;           /*!< TRX_UNDO_INSERT or
-                        TRX_UNDO_UPDATE */
-  ulint state;          /*!< state of the corresponding undo log
-                        segment */
-  ibool del_marks;      /*!< relevant only in an update undo
-                        log: this is TRUE if the transaction may
-                        have delete marked records, because of
-                        a delete of a row or an update of an
-                        indexed field; purge is then
-                        necessary; also TRUE if the transaction
-                        has updated an externally stored
-                        field */
-  trx_id_t trx_id;      /*!< id of the trx assigned to the undo
-                        log */
-  XID xid;              /*!< X/Open XA transaction
-                        identification */
-  ulint flag;           /*!< flag for current transaction XID and GTID.
-                        Persisted in TRX_UNDO_FLAGS flag of undo header. */
+  ulint id;        /*!< undo log slot number within the
+                   rollback segment */
+  ulint type;      /*!< TRX_UNDO_INSERT or
+                   TRX_UNDO_UPDATE */
+  ulint state;     /*!< state of the corresponding undo log
+                   segment */
+  ibool del_marks; /*!< relevant only in an update undo
+                   log: this is TRUE if the transaction may
+                   have delete marked records, because of
+                   a delete of a row or an update of an
+                   indexed field; purge is then
+                   necessary; also TRUE if the transaction
+                   has updated an externally stored
+                   field */
+  trx_id_t trx_id; /*!< id of the trx assigned to the undo
+                   log */
+  XID xid;         /*!< X/Open XA transaction
+                   identification */
+  ulint flag;      /*!< flag for current transaction XID and GTID.
+                   Persisted in TRX_UNDO_FLAGS flag of undo header. */
+
+  /** Set if space for GTID is allocated. */
+  bool gtid_allocated;
+
   ibool dict_operation; /*!< TRUE if a dict operation trx */
   trx_rseg_t *rseg;     /*!< rseg where the undo log belongs */
   /*-----------------------------*/
