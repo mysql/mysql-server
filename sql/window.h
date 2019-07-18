@@ -24,14 +24,18 @@
 #ifndef WINDOWS_INCLUDED
 #define WINDOWS_INCLUDED
 
+#include <sys/types.h>
+#include <cstring>  // std::memcpy
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
-#include "sql/item.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/table.h"
+
 /*
   Some Window-related symbols must be known to sql_lex.h which is a frequently
   included header.
@@ -39,22 +43,33 @@
   Server, those symbols go into this header:
 */
 #include "sql/window_lex.h"
-#include "sql_string.h"
 
-#include <sys/types.h>
-#include <cstring>  // std::memcpy
-
-#include "sql/sql_error.h"
-#include "sql/sql_list.h"
-
+class Cached_item;
+class Item;
 class Item_func;
+class Item_string;
 class Item_sum;
 class PT_border;
 class PT_frame;
 class PT_order_list;
 class PT_window;
+class String;
 class THD;
 class Temp_table_param;
+
+/**
+  Position hints for the frame buffer are saved for these kind of row
+  accesses, cf. #Window::m_frame_buffer_positions.
+*/
+enum class Window_retrieve_cached_row_reason {
+  WONT_UPDATE_HINT = -1,  // special value when using restore_special_record
+  FIRST_IN_PARTITION = 0,
+  CURRENT = 1,
+  FIRST_IN_FRAME = 2,
+  LAST_IN_FRAME = 3,
+  LAST_IN_PEERSET = 4,
+  MISC_POSITIONS = 5  // NTH_VALUE, LEAD/LAG have dynamic indexes 5..N
+};
 
 /**
   Represents the (explicit) window of a SQL 2003 section 7.11 \<window clause\>,
@@ -228,24 +243,10 @@ class Window {
    *------------------------------------------------------------------------*/
  public:
   /**
-    Position hints for the frame buffer are saved for these kind of row
-    accesses, cf. #m_frame_buffer_positions.
-  */
-  enum retrieve_cached_row_reason {
-    REA_WONT_UPDATE_HINT =
-        -1,  // special value when using restore_special_record
-    REA_FIRST_IN_PARTITION = 0,
-    REA_CURRENT = 1,
-    REA_FIRST_IN_FRAME = 2,
-    REA_LAST_IN_FRAME = 3,
-    REA_LAST_IN_PEERSET = 4,
-    REA_MISC_POSITIONS = 5  // NTH_VALUE, LEAD/LAG have dynamic indexes 5..N
-  };
-
-  /**
     Cardinality of m_frame_buffer_positions if no NTH_VALUE, LEAD/LAG
   */
-  static constexpr int FRAME_BUFFER_POSITIONS_CARD = REA_MISC_POSITIONS;
+  static constexpr int FRAME_BUFFER_POSITIONS_CARD =
+      static_cast<int>(Window_retrieve_cached_row_reason::MISC_POSITIONS);
 
   /**
     Holds information about a position in the buffer frame as stored in a
@@ -310,32 +311,36 @@ class Window {
   /**
     See #m_tmp_pos
   */
-  void save_pos(retrieve_cached_row_reason reason) {
-    m_tmp_pos.m_rowno = m_frame_buffer_positions[reason].m_rowno;
+  void save_pos(Window_retrieve_cached_row_reason reason) {
+    int reason_index = static_cast<int>(reason);
+    m_tmp_pos.m_rowno = m_frame_buffer_positions[reason_index].m_rowno;
     std::memcpy(m_tmp_pos.m_position,
-                m_frame_buffer_positions[reason].m_position,
+                m_frame_buffer_positions[reason_index].m_position,
                 frame_buffer()->file->ref_length);
   }
 
   /**
     See #m_tmp_pos
   */
-  void restore_pos(retrieve_cached_row_reason reason) {
-    m_frame_buffer_positions[reason].m_rowno = m_tmp_pos.m_rowno;
-    std::memcpy(m_frame_buffer_positions[reason].m_position,
+  void restore_pos(Window_retrieve_cached_row_reason reason) {
+    int reason_index = static_cast<int>(reason);
+    m_frame_buffer_positions[reason_index].m_rowno = m_tmp_pos.m_rowno;
+    std::memcpy(m_frame_buffer_positions[reason_index].m_position,
                 m_tmp_pos.m_position, frame_buffer()->file->ref_length);
   }
 
   /**
     Copy frame buffer position hint from one to another.
   */
-  void copy_pos(retrieve_cached_row_reason from_reason,
-                retrieve_cached_row_reason to_reason) {
-    m_frame_buffer_positions[to_reason].m_rowno =
-        m_frame_buffer_positions[from_reason].m_rowno;
+  void copy_pos(Window_retrieve_cached_row_reason from_reason,
+                Window_retrieve_cached_row_reason to_reason) {
+    int from_index = static_cast<int>(from_reason);
+    int to_index = static_cast<int>(to_reason);
+    m_frame_buffer_positions[to_index].m_rowno =
+        m_frame_buffer_positions[from_index].m_rowno;
 
-    std::memcpy(m_frame_buffer_positions[to_reason].m_position,
-                m_frame_buffer_positions[from_reason].m_position,
+    std::memcpy(m_frame_buffer_positions[to_index].m_position,
+                m_frame_buffer_positions[from_index].m_position,
                 frame_buffer()->file->ref_length);
   }
 
@@ -1324,63 +1329,7 @@ class Window {
   */
   void reset_all_wf_state();
 
-  /**
-    Collects evaluation requirements from a window function,
-    used by Item_sum::check_wf_semantics and its overrides.
-  */
-  struct Evaluation_requirements {
-    /**
-      Set to true if window function requires row buffering
-    */
-    bool needs_buffer;
-    /**
-      Set to true if we need peerset for evaluation (e.g. CUME_DIST)
-    */
-    bool needs_peerset;
-    /**
-      Set to true if we need last peer for evaluation within a frame
-      (e.g. JSON_OBJECTAGG)
-    */
-    bool needs_last_peer_in_frame;
-    /**
-      Set to true if we need FIRST_VALUE or optimized MIN/MAX
-    */
-    bool opt_first_row;
-    /**
-      Set to true if we need LAST_VALUE or optimized MIN/MAX
-    */
-    bool opt_last_row;
-    st_offset opt_nth_row;    ///< Used if we have NTH_VALUE
-    st_ll_offset opt_ll_row;  ///< Used if we have LEAD or LAG
-    /**
-      Set to true if we can compute a sliding window by a combination of
-      undoing the contribution of rows going out of the frame and adding the
-      contribution of rows coming into the frame.  For example, SUM and AVG
-      allows this, but MAX/MIN do not. Only applicable if the frame has ROW
-      bounds unit.
-    */
-    bool row_optimizable;
-    /**
-      Similar to row_optimizable but for RANGE frame bounds unit
-    */
-    bool range_optimizable;
-
-    Evaluation_requirements()
-        : needs_buffer(false),
-          needs_peerset(false),
-          needs_last_peer_in_frame(false),
-          opt_first_row(false),
-          opt_last_row(false),
-          row_optimizable(true),
-          range_optimizable(true) {}
-  };
-
-  const char *printable_name() const {
-    if (m_name == nullptr) return "<unnamed window>";
-    // Since Item_string::val_str() ignores the argument, it is safe
-    // to use nullptr as argument.
-    return m_name->val_str(nullptr)->ptr();
-  }
+  const char *printable_name() const;
 
   void print(const THD *thd, String *str, enum_query_type qt,
              bool expand_definition) const;
@@ -1471,6 +1420,57 @@ class Window {
   */
   static bool check_border_sanity(THD *thd, Window *w, const PT_frame *f,
                                   bool prepare);
+};
+
+/**
+  Collects evaluation requirements from a window function,
+  used by Item_sum::check_wf_semantics and its overrides.
+*/
+struct Window_evaluation_requirements {
+  /**
+    Set to true if window function requires row buffering
+  */
+  bool needs_buffer;
+  /**
+    Set to true if we need peerset for evaluation (e.g. CUME_DIST)
+  */
+  bool needs_peerset;
+  /**
+    Set to true if we need last peer for evaluation within a frame
+    (e.g. JSON_OBJECTAGG)
+  */
+  bool needs_last_peer_in_frame;
+  /**
+    Set to true if we need FIRST_VALUE or optimized MIN/MAX
+  */
+  bool opt_first_row;
+  /**
+    Set to true if we need LAST_VALUE or optimized MIN/MAX
+  */
+  bool opt_last_row;
+  Window::st_offset opt_nth_row;    ///< Used if we have NTH_VALUE
+  Window::st_ll_offset opt_ll_row;  ///< Used if we have LEAD or LAG
+  /**
+    Set to true if we can compute a sliding window by a combination of
+    undoing the contribution of rows going out of the frame and adding the
+    contribution of rows coming into the frame.  For example, SUM and AVG
+    allows this, but MAX/MIN do not. Only applicable if the frame has ROW
+    bounds unit.
+  */
+  bool row_optimizable;
+  /**
+    Similar to row_optimizable but for RANGE frame bounds unit
+  */
+  bool range_optimizable;
+
+  Window_evaluation_requirements()
+      : needs_buffer(false),
+        needs_peerset(false),
+        needs_last_peer_in_frame(false),
+        opt_first_row(false),
+        opt_last_row(false),
+        row_optimizable(true),
+        range_optimizable(true) {}
 };
 
 #endif /* WINDOWS_INCLUDED */

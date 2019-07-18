@@ -23,18 +23,22 @@
 #ifndef TEMP_TABLE_PARAM_INCLUDED
 #define TEMP_TABLE_PARAM_INCLUDED
 
+#include <sys/types.h>
 #include <vector>
 
 #include "my_base.h"
+#include "my_inttypes.h"
+#include "sql/field.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_list.h"
+#include "sql/memroot_allocator.h"
 #include "sql/thr_malloc.h"
-#include "sql/window.h"
 
 class KEY;
-class Copy_field;
 class Item;
+class Item_copy;
 class Window;
+struct CHARSET_INFO;
+struct MEM_ROOT;
 
 template <typename T>
 using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
@@ -196,7 +200,7 @@ class Temp_table_param {
         copy_fields(Memroot_allocator<Copy_field>(mem_root)),
         group_buff(nullptr),
         items_to_copy(nullptr),
-        keyinfo(NULL),
+        keyinfo(nullptr),
         field_count(0),
         func_count(0),
         sum_func_count(0),
@@ -206,7 +210,7 @@ class Temp_table_param {
         group_null_parts(0),
         outer_sum_func_count(0),
         using_outer_summary_function(false),
-        table_charset(NULL),
+        table_charset(nullptr),
         schema_table(false),
         precomputed_group_by(false),
         force_copy_fields(false),
