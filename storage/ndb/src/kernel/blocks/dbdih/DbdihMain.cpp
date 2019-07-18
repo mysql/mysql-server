@@ -4533,7 +4533,6 @@ void Dbdih::execSTART_MEREQ(Signal* signal)
   ndbrequire(c_nodeStartMaster.startNode == Tnodeid);
   ndbrequire(getNodeStatus(Tnodeid) == NodeRecord::STARTING);
   
-  if (getNodeInfo(Tnodeid).m_version >= NDBD_COPY_GCI_RESTART_NR)
   {
     jam();
     /**
@@ -4547,11 +4546,6 @@ void Dbdih::execSTART_MEREQ(Signal* signal)
      */
     c_nodeStartMaster.m_outstandingGsn = GSN_COPY_GCIREQ;
     copyGciLab(signal, CopyGCIReq::RESTART_NR);
-  }
-  else
-  {
-    jam();
-    startme_copygci_conf(signal);
   }
 }
 
