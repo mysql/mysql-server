@@ -148,9 +148,12 @@ BEGIN
   -- not find consistent result in information_schema.processlist, hence
   -- excluding it from check-testcase. Similar reasoning applies to the event
   -- scheduler.
+  --
+  -- For "unauthenticated user", see Bug#30035699 "UNAUTHENTICATED USER" SHOWS UP IN CHECK-TESTCASE
+  --
   SELECT USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE COMMAND NOT IN ('Sleep')
-      AND USER NOT IN ('mysql.session', 'event_scheduler')
+      AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
   -- Checksum system tables to make sure they have been properly
