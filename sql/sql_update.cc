@@ -692,18 +692,21 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           DBUG_ASSERT(!thd->is_error());
           thd->inc_examined_row_count(1);
 
-          bool skip_record;
-          if (qep_tab.skip_record(thd, &skip_record)) {
-            error = 1;
-            /*
-             Don't try unlocking the row if skip_record reported an error since
-             in this case the transaction might have been rolled back already.
-            */
-            break;
-          }
-          if (skip_record) {
-            table->file->unlock_row();
-            continue;
+          if (qep_tab.condition() != nullptr) {
+            const bool skip_record = qep_tab.condition()->val_int() == 0;
+            if (thd->is_error()) {
+              error = 1;
+              /*
+                Don't try unlocking the row if skip_record reported an error
+                since in this case the transaction might have been rolled back
+                already.
+              */
+              break;
+            }
+            if (skip_record) {
+              table->file->unlock_row();
+              continue;
+            }
           }
           if (table->file->was_semi_consistent_read())
             continue; /* repeat the read of the same row if it still exists */
@@ -798,15 +801,18 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       error = iterator->Read();
       if (error || thd->killed) break;
       thd->inc_examined_row_count(1);
-      bool skip_record;
-      if (qep_tab.skip_record(thd, &skip_record)) {
-        error = 1;
-        break;
-      }
-      if (skip_record) {
-        table->file->unlock_row();  // Row failed condition check, release lock
-        thd->get_stmt_da()->inc_current_row_for_condition();
-        continue;
+      if (qep_tab.condition() != nullptr) {
+        const bool skip_record = qep_tab.condition()->val_int() == 0;
+        if (thd->is_error()) {
+          error = 1;
+          break;
+        }
+        if (skip_record) {
+          table->file
+              ->unlock_row();  // Row failed condition check, release lock
+          thd->get_stmt_da()->inc_current_row_for_condition();
+          continue;
+        }
       }
       DBUG_ASSERT(!thd->is_error());
 

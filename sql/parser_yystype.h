@@ -23,27 +23,27 @@
 #ifndef PARSER_YYSTYPE_INCLUDED
 #define PARSER_YYSTYPE_INCLUDED
 
-#include "handler.h"
-#include "key_spec.h"  // keytype, fk_option
 #include "my_base.h"
 #include "my_time.h"                                    // interval_type
 #include "resourcegroups/platform/thread_attrs_api.h"   // ...::cpu_id_t
 #include "resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
-#include "sql/item_create.h"                            // Cast_target
-#include "sql/lexer_yystype.h"                          // Lexer_yystype
-#include "sql/opt_hints.h"                              // opt_hints_enum
+#include "sql/handler.h"
+#include "sql/item_create.h"    // Cast_target
+#include "sql/key_spec.h"       // keytype, fk_option
+#include "sql/lexer_yystype.h"  // Lexer_yystype
+#include "sql/opt_hints.h"      // opt_hints_enum
 #include "sql/parse_tree_hints.h"
-#include "sql_admin.h"            // Sql_cmd_analyze_table::Histogram_command
-#include "sql_alter.h"            // Alter_info::enum_with_validation
-#include "sql_exchange.h"         // Line_separators, enum_filetype
-#include "sql_get_diagnostics.h"  // Diagnostics_information::Which_area
-#include "sql_signal.h"           // enum_condition_item_name
-#include "sql_string.h"           // String
-#include "table.h"                // index_hint_type
-#include "thr_lock.h"             // thr_lock_type
-#include "trigger_def.h"          // enum_trigger_order_type
-#include "window_lex.h"           // enum_window_frame_unit
-#include "xa.h"                   // xa_option_words
+#include "sql/sql_admin.h"     // Sql_cmd_analyze_table::Histogram_command
+#include "sql/sql_alter.h"     // Alter_info::enum_with_validation
+#include "sql/sql_exchange.h"  // Line_separators, enum_filetype
+#include "sql/sql_get_diagnostics.h"  // Diagnostics_information::Which_area
+#include "sql/sql_signal.h"           // enum_condition_item_name
+#include "sql/table.h"                // index_hint_type
+#include "sql/trigger_def.h"          // enum_trigger_order_type
+#include "sql/window_lex.h"           // enum_window_frame_unit
+#include "sql/xa.h"                   // xa_option_words
+#include "sql_string.h"               // String
+#include "thr_lock.h"                 // thr_lock_type
 
 class PT_ddl_table_option;
 class PT_json_table_column;

@@ -33,11 +33,14 @@
 
 #include "sql/sql_executor.h"
 
+#include <inttypes.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <memory>
 #include <new>
@@ -45,6 +48,7 @@
 #include <utility>
 #include <vector>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
@@ -61,9 +65,11 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "prealloced_array.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
@@ -73,6 +79,7 @@
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
 #include "sql/hash_join_iterator.h"
+#include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
@@ -82,6 +89,7 @@
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/nested_join.h"
+#include "sql/opt_costmodel.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"  // Opt_trace_object
@@ -93,11 +101,16 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"   // Query_result
 #include "sql/record_buffer.h"  // Record_buffer
+#include "sql/records.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/row_iterator.h"
+#include "sql/sort_param.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_join_buffer.h"  // CACHE_FIELD
 #include "sql/sql_list.h"

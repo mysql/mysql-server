@@ -28,9 +28,9 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
-#include "item.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "sql/item.h"
 
 class JOIN;
 class Item_func_match;

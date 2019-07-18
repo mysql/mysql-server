@@ -26,20 +26,19 @@
 #include <sys/types.h>
 #include <array>  // std::array
 
-#include "field.h"      // Field
-#include "json_dom.h"   // Json_wrapper
-#include "json_path.h"  // Json_path
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "psi_memory_key.h"  // key_memory_JSON
 #include "sql/create_field.h"
 #include "sql/enum_query_type.h"
-
+#include "sql/field.h"      // Field
+#include "sql/json_dom.h"   // Json_wrapper
+#include "sql/json_path.h"  // Json_path
 #include "sql/mem_root_array.h"
-#include "sql_list.h"  // List
-#include "table.h"     // TABLE
+#include "sql/psi_memory_key.h"  // key_memory_JSON
+#include "sql/sql_list.h"        // List
+#include "sql/table.h"           // TABLE
 
 class Item;
 class String;

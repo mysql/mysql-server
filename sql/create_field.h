@@ -29,12 +29,11 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "nullable.h"
-#include "sql_list.h"
-#include "typelib.h"
-
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"
+#include "sql/sql_list.h"
+#include "typelib.h"
 
 class Item;
 class String;

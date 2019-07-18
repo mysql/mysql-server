@@ -29,8 +29,6 @@
 #include <sys/types.h>
 
 #include "field_types.h"
-#include "json_dom.h"  // Json_wrapper
-//#include "extra/regex/my_regex.h"  // my_regex_t
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -45,6 +43,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"       // Item_int_func
 #include "sql/item_row.h"        // Item_row
+#include "sql/json_dom.h"        // Json_wrapper
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"

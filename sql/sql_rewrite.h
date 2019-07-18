@@ -25,7 +25,7 @@
 
 #include <set>
 #include "my_sqlcommand.h"
-#include "table.h"
+#include "sql/table.h"
 
 /* Forward declarations */
 class THD;

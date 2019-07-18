@@ -30,30 +30,39 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
+#include <vector>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "sql/item.h"
+#include "my_table_map.h"
 #include "sql/row_iterator.h"
-#include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
+#include "sql/window.h"
 
 class CacheInvalidatorIterator;
+class Cached_item;
 class Field;
 class Field_longlong;
 class Filesort;
+class FollowTailIterator;
+class Item;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
 class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
+class THD;
 struct CACHE_FIELD;
 struct POSITION;
+template <typename T>
+class Mem_root_array;
 template <class T>
 class List;
 
@@ -517,13 +526,7 @@ class QEP_TAB : public QEP_shared_owner {
   }
 
   bool use_order() const;  ///< Use ordering provided by chosen index?
-  bool sort_table();
   bool remove_duplicates();
-
-  inline bool skip_record(THD *thd, bool *skip_record_arg) {
-    *skip_record_arg = condition() ? condition()->val_int() == false : false;
-    return thd->is_error();
-  }
 
   /**
      Used to begin a new execution of a subquery. Necessary if this subquery
