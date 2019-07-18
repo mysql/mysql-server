@@ -9530,8 +9530,6 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   req->distributionKey = fragPtr.p->distributionKey;
   req->flags = 0;
 
-  Uint32 min_version = getNodeVersionInfo().m_type[NodeInfo::DB].m_min_version;
-  if (ndb_delayed_copy_active_req(min_version))
   {
     jam();
     /**
@@ -9727,40 +9725,12 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
   infoEvent("Bring Database On-line Completed on node %u",
             takeOverPtr.p->toStartingNode);
 
-  Uint32 min_version = getNodeVersionInfo().m_type[NodeInfo::DB].m_min_version;
-  if (ndb_delayed_copy_active_req(min_version))
   {
     jam();
     g_eventLogger->info("Starting REDO logging");
     infoEvent("Starting REDO logging on node %u",
               takeOverPtr.p->toStartingNode);
     start_thread_takeover_logging(signal);
-    return;
-  }
-  else
-  {
-    jam();
-
-    /**
-     * We won't need the threads anymore so we remove them from the
-     * completed list and release them to the pool.
-     */
-    release_take_over_threads();
-    g_eventLogger->info("Make On-line Database recoverable by waiting"
-                        " for LCP Starting");
-    infoEvent("Make On-line Database recoverable by waiting"
-              " for LCP Starting on node %u",
-              takeOverPtr.p->toStartingNode);
-
-    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_END_TO;
-
-    EndToReq* req = (EndToReq*)signal->getDataPtrSend();
-    req->senderData = takeOverPtr.i;
-    req->senderRef = reference();
-    req->flags = takeOverPtr.p->m_flags;
-    sendSignal(cmasterdihref, GSN_END_TOREQ,
-               signal, EndToReq::SignalLength, JBB);
-    sendEND_TOREP(signal, takeOverPtr.p->toStartingNode);
     return;
   }
 }//Dbdih::toCopyCompletedLab()
