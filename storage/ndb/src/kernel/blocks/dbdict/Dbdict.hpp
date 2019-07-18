@@ -4662,7 +4662,6 @@ private:
 			  LinearSectionPtr dataPtr);
 
   void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
-  bool upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const;
 
   // support
   void getTableKeyList(TableRecordPtr,

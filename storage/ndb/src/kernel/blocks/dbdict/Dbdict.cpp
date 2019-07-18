@@ -19270,22 +19270,6 @@ busy:
   }
 }
 
-bool
-Dbdict::upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const
-{
-  /**
-   * Check that receiver can handle 1428,
-   *   else return true if error code should be replaced by NF_FakeErrorREF
-   */
-  if (err == 1428)
-  {
-    jam();
-    if (!ndb_suma_not_started_ref(getNodeInfo(refToNode(ref)).m_version))
-      return true;
-  }
-  return false;
-}
-
 void Dbdict::execSUB_START_REF(Signal* signal)
 {
   jamEntry();
@@ -19308,12 +19292,6 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
     ndbout_c("DBDICT(Participant) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
-
-    if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
-    {
-      jam();
-      err = SubStartRef::NF_FakeErrorREF;
-    }
 
     SubStartRef* ref = (SubStartRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -19615,12 +19593,6 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
      * Participant
      */
     jam();
-
-    if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
-    {
-      jam();
-      err = SubStopRef::NF_FakeErrorREF;
-    }
 
     SubStopRef* ref = (SubStopRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -20020,12 +19992,6 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
     else
     {
       jam();
-
-      if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
-      {
-        jam();
-        err = SubRemoveRef::NF_FakeErrorREF;
-      }
 
       SubRemoveRef* ref = (SubRemoveRef*) signal->getDataPtrSend();
       ref->senderRef = reference();
