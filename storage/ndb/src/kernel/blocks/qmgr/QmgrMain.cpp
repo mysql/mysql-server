@@ -3922,8 +3922,7 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
     ptrAss(nodePtr, nodeRec);
-    if (nodePtr.p->phase == ZAPI_ACTIVE && 
-        ndb_takeovertc(getNodeInfo(nodePtr.i).m_version))
+    if (nodePtr.p->phase == ZAPI_ACTIVE)
     {
       jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 

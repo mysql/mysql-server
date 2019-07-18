@@ -121,34 +121,8 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
 
-#define NDBD_API_TAKE_OVERTCCONF_60 NDB_MAKE_VERSION(5,2,4)
-#define NDBD_API_TAKE_OVERTCCONF_62 NDB_MAKE_VERSION(6,2,17)
-#define NDBD_API_TAKE_OVERTCCONF_63 NDB_MAKE_VERSION(6,3,19)
-
 #define NDBD_DELAYED_COPY_ACTIVEREQ_63 NDB_MAKE_VERSION(6,3,29)
 #define NDBD_DELAYED_COPY_ACTIVEREQ_70 NDB_MAKE_VERSION(7,0,10)
-
-static
-inline
-int
-ndb_takeovertc(Uint32 x)
-{
-  if (x >= NDB_VERSION_D)
-    return 1;
-
-  {
-    const Uint32 major = (x >> 16) & 0xFF;
-    const Uint32 minor = (x >>  8) & 0xFF;
-    
-    if (major >= 6)
-    {
-      if (minor == 2)
-        return x >= NDBD_API_TAKE_OVERTCCONF_62;
-    }
-    
-    return x >= NDBD_API_TAKE_OVERTCCONF_63;
-  }
-}
 
 static
 inline
