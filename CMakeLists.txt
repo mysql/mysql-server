@@ -869,7 +869,9 @@ IF(LINUX)
   ELSE()
     SET(REPRODUCIBLE_BUILD_DEFAULT OFF)
   ENDIF()
-  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" ${REPRODUCIBLE_BUILD_DEFAULT})
+  OPTION(REPRODUCIBLE_BUILD
+    "Take extra pains to make build result independent of build location and time"
+    ${REPRODUCIBLE_BUILD_DEFAULT})
 ENDIF()
 IF(REPRODUCIBLE_BUILD)
   SET(DEBUG_PREFIX_FLAGS
@@ -878,7 +880,8 @@ IF(REPRODUCIBLE_BUILD)
   # See if -fdebug-prefix= commands are included in the debug output,
   # making the build unreproducible with switches recorded.
   # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69821.
-  EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -g3 -x c -S -fdebug-prefix-map=foo=bar -o - -
+  EXECUTE_PROCESS(COMMAND
+    ${CMAKE_C_COMPILER} -g3 -x c -S -fdebug-prefix-map=foo=bar -o - -
     INPUT_FILE /dev/null OUTPUT_VARIABLE DEBUG_PREFIX_MAP_RESULT)
   IF(DEBUG_PREFIX_MAP_RESULT MATCHES "foo=bar")
     SET(DEBUG_PREFIX_FLAGS "${DEBUG_PREFIX_FLAGS} -gno-record-gcc-switches")
@@ -887,10 +890,11 @@ IF(REPRODUCIBLE_BUILD)
   STRING_APPEND(CMAKE_C_FLAGS   " ${DEBUG_PREFIX_FLAGS}")
   STRING_APPEND(CMAKE_CXX_FLAGS " ${DEBUG_PREFIX_FLAGS}")
 
-  SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
-  SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
+  STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--build-id=none")
+  STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--build-id=none")
+  SET(BISON_NO_LINE_OPT "--no-lines")
 
-  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE
+  SET_PROPERTY(GLOBAL PROPERTY RULE_LAUNCH_COMPILE
     "${CMAKE_SOURCE_DIR}/scripts/invoke-with-relative-paths.pl")
 ENDIF()
 

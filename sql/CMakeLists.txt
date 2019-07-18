@@ -561,7 +561,7 @@ IF(WITH_LOCK_ORDER)
   BISON_TARGET(debug_lo_parser
     debug_lo_parser.yy
     ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
-    COMPILE_FLAGS "--name-prefix=LOCK_ORDER_"
+    COMPILE_FLAGS "--name-prefix=LOCK_ORDER_ ${BISON_NO_LINE_OPT}"
     DEFINES_FILE ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
     )
   FLEX_TARGET(debug_lo_scanner
@@ -1008,14 +1008,16 @@ ELSE()
   BISON_TARGET(mysql_parser
     sql_yacc.yy
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-    COMPILE_FLAGS "--name-prefix=MYSQL --yacc ${BISON_FLAGS_WARNINGS}"
+    COMPILE_FLAGS
+    "--name-prefix=MYSQL --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
     )
 
   BISON_TARGET(hints_parser
     sql_hints.yy
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-    COMPILE_FLAGS "--name-prefix=HINT_PARSER_ --yacc ${BISON_FLAGS_WARNINGS}"
+    COMPILE_FLAGS
+    "--name-prefix=HINT_PARSER_ --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
     )
 
