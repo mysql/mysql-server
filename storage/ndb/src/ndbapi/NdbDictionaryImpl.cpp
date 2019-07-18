@@ -4706,19 +4706,6 @@ loop:
       const Uint32 byteSize = col->m_defaultValue.length();
       assert(byteSize <= NDB_MAX_TUPLE_SIZE);
 
-      if (byteSize > 0)
-      {
-        if (unlikely(! ndb_native_default_support(ndb.getMinDbNodeVersion())))
-        {
-          /* We can't create a table with native defaults with
-           * this kernel version
-           * Schema feature requires data node upgrade
-           */
-          m_error.code = 794;
-          DBUG_RETURN(-1);
-        }
-      }   
-
       //The AttributeId of a column isn't decided now, so 0 is used.
       AttributeHeader::init(&ah, 0, byteSize);
 

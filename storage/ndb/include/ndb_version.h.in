@@ -123,23 +123,6 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,12)
 
-#define NDBD_NATIVE_DEFAULT_SUPPORT_70 NDB_MAKE_VERSION(7,0,15)
-#define NDBD_NATIVE_DEFAULT_SUPPORT_71 NDB_MAKE_VERSION(7,1,4)
-
-static
-inline
-int
-ndb_native_default_support(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_NATIVE_DEFAULT_SUPPORT_70;
-  
-  return x >= NDBD_NATIVE_DEFAULT_SUPPORT_71;
-}
-
 #define NDBD_HB_ORDER_VERSION_63 NDB_MAKE_VERSION(6,3,35)
 #define NDBD_HB_ORDER_VERSION_70 NDB_MAKE_VERSION(7,0,16)
 #define NDBD_HB_ORDER_VERSION_71 NDB_MAKE_VERSION(7,1,5)

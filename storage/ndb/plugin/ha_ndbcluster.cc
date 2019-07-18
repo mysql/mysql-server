@@ -7925,32 +7925,23 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     /* Clear default value (col obj is reused for whole table def) */
     col.setDefaultValue(NULL, 0);
 
-    /* If the data nodes are capable then set native
-     * default.
-     */
-    bool nativeDefaults =
-        !(thd && (!ndb_native_default_support(
-                     get_thd_ndb(thd)->ndb->getMinDbNodeVersion())));
+    if ((!(field->flags & PRI_KEY_FLAG)) &&
+        type_supports_default_value(mysql_type)) {
+      if (!(field->flags & NO_DEFAULT_VALUE_FLAG)) {
+        ptrdiff_t src_offset = field->table->default_values_offset();
+        if ((!field->is_real_null(src_offset)) ||
+            ((field->flags & NOT_NULL_FLAG))) {
+          /* Set a non-null native default */
+          memset(buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
+          get_default_value(buf, field);
 
-    if (likely(nativeDefaults)) {
-      if ((!(field->flags & PRI_KEY_FLAG)) &&
-          type_supports_default_value(mysql_type)) {
-        if (!(field->flags & NO_DEFAULT_VALUE_FLAG)) {
-          ptrdiff_t src_offset = field->table->default_values_offset();
-          if ((!field->is_real_null(src_offset)) ||
-              ((field->flags & NOT_NULL_FLAG))) {
-            /* Set a non-null native default */
-            memset(buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
-            get_default_value(buf, field);
-
-            /* For bit columns, default length is rounded up to
-               nearest word, ensuring all data sent
-            */
-            Uint32 defaultLen = field_used_length(field);
-            if (field->type() == MYSQL_TYPE_BIT)
-              defaultLen = ((defaultLen + 3) / 4) * 4;
-            col.setDefaultValue(buf, defaultLen);
-          }
+          /* For bit columns, default length is rounded up to
+             nearest word, ensuring all data sent
+          */
+          Uint32 defaultLen = field_used_length(field);
+          if (field->type() == MYSQL_TYPE_BIT)
+            defaultLen = ((defaultLen + 3) / 4) * 4;
+          col.setDefaultValue(buf, defaultLen);
         }
       }
     }
