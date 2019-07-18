@@ -10124,10 +10124,10 @@ int ha_innobase::index_last(uchar *buf) /*!< in/out: buffer for the row */
 }
 
 int ha_innobase::read_range_first(const key_range *start_key,
-                                  const key_range *end_key, bool eq_range,
+                                  const key_range *end_key, bool eq_range_arg,
                                   bool sorted) {
   auto guard = m_prebuilt->get_is_reading_range_guard();
-  return (handler::read_range_first(start_key, end_key, eq_range, sorted));
+  return handler::read_range_first(start_key, end_key, eq_range_arg, sorted);
 }
 
 int ha_innobase::read_range_next() {
