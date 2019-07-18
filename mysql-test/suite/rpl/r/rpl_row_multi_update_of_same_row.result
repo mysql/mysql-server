@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (j INT NOT NULL PRIMARY KEY);
@@ -21,6 +23,8 @@ RETURN 0;
 END|
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -37,6 +41,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -53,6 +59,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -69,6 +77,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -85,6 +95,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -101,6 +113,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -117,6 +131,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,TABLE_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -137,4 +153,6 @@ DROP FUNCTION f1;
 DROP TABLE t1,t2;
 [connection slave]
 SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

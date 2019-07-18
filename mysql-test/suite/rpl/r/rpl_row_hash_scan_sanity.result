@@ -13,37 +13,53 @@ INSERT INTO t3 VALUES (1);
 INSERT INTO t4 VALUES (1);
 include/sync_slave_sql_with_master.inc
 SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 UPDATE t1 SET c1= 2;
 UPDATE t2 SET c1= 2;
 UPDATE t3 SET c1= 2;
 UPDATE t4 SET c1= 2;
 SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 UPDATE t1 SET c1= 3;
 UPDATE t2 SET c1= 3;
 UPDATE t3 SET c1= 3;
 UPDATE t4 SET c1= 3;
 SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN,HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 UPDATE t1 SET c1= 4;
 UPDATE t2 SET c1= 4;
 UPDATE t3 SET c1= 4;
 UPDATE t4 SET c1= 4;
 SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 UPDATE t1 SET c1= 5;
 UPDATE t2 SET c1= 5;
 UPDATE t3 SET c1= 5;
 UPDATE t4 SET c1= 5;
 SET @@global.slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 UPDATE t1 SET c1= 6;
 UPDATE t2 SET c1= 6;
 UPDATE t3 SET c1= 6;
 UPDATE t4 SET c1= 6;
 SET @@global.slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN,TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 UPDATE t1 SET c1= 7;
 UPDATE t2 SET c1= 7;
 UPDATE t3 SET c1= 7;
 UPDATE t4 SET c1= 7;
 SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 CREATE TABLE t5(c1 INT, c2 INT, KEY(c2));
 INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
 DELETE FROM t5 ORDER BY c1;
@@ -65,6 +81,8 @@ DELETE FROM t5 ORDER BY c1;
 DROP TABLE t5;
 include/sync_slave_sql_with_master.inc
 SET @@global.slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 call mtr.add_suppression("Could not execute Delete_rows event on table test.t6");
 call mtr.add_suppression("Could not execute Update_rows event on table test.t6");
 call mtr.add_suppression("Can't find record in 't6'");
@@ -194,6 +212,8 @@ include/start_slave.inc
 DROP TABLE t6;
 include/sync_slave_sql_with_master.inc
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1, t2, t3, t4;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc

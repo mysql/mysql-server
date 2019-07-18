@@ -5,7 +5,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 CREATE TABLE gtable (doc JSON);
 INSERT INTO gtable (doc) VALUES
@@ -101,6 +105,8 @@ include/diff_tables.inc [master:gtable, slave:gtable]
 DROP TABLE gtable;
 include/sync_slave_sql_with_master.inc
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/stop_slave.inc
 SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
 SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;

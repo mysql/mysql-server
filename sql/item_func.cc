@@ -4416,6 +4416,26 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   return result;
 }
 
+Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a)
+    : Item_int_func(pos, a) {
+  push_deprecated_warn(current_thd, "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
+                       "WAIT_FOR_EXECUTED_GTID_SET");
+}
+
+Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a,
+                                                     Item *b)
+    : Item_int_func(pos, a, b) {
+  push_deprecated_warn(current_thd, "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
+                       "WAIT_FOR_EXECUTED_GTID_SET");
+}
+
+Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a,
+                                                     Item *b, Item *c)
+    : Item_int_func(pos, a, b, c) {
+  push_deprecated_warn(current_thd, "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
+                       "WAIT_FOR_EXECUTED_GTID_SET");
+}
+
 bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;

@@ -1929,6 +1929,8 @@ ERROR HY000: Variable 'relay_log_info_file' is a GLOBAL variable
 SELECT @@global.relay_log_info_file;
 @@global.relay_log_info_file
 relay-log.info
+Warnings:
+Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
 SET @@session.relay_log_info_file= 'x';
 ERROR HY000: Variable 'relay_log_info_file' is a read only variable
 SET @@global.relay_log_info_file= 'x';

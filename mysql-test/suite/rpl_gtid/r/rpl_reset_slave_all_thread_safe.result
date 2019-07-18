@@ -48,6 +48,8 @@ SET debug_sync = 'RESET';
 [connection slave]
 wait_until_sql_thread_after_gtids(CONCAT(@@GLOBAL.server_uuid, ":100"))
 NULL
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 SET debug_sync = 'RESET';
 [connection master]
 include/save_binlog_position.inc

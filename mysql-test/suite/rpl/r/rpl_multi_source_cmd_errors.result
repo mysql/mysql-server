@@ -44,6 +44,8 @@ NULL
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1", 2, "non_existent");
 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1", 2, "non_existent")
 NULL
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 #
 #  3a) Test that proper error messages are sent out when invalid
 #      channel names are given for change master command.
