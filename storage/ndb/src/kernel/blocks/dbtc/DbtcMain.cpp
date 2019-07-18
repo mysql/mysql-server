@@ -4339,15 +4339,6 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
       return;
     }
 
-    /* Check that the relevant LQH node can handle an unlock request */
-    Uint32 lqhVersion = getNodeInfo(regCachePtr->unlockNodeId).m_version;
-    
-    if (unlikely( lqhVersion < NDBD_UNLOCK_OP_SUPPORTED ))
-    {
-      TCKEY_abort(signal, 63, apiConnectptr);
-      return;
-    }
-
     /* Select the specified node for the unlock op */ 
     regTcPtr->tcNodedata[0] = regCachePtr->unlockNodeId;
     regTcPtr->lastReplicaNo = 0;
