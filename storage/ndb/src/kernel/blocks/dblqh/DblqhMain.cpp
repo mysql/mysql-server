@@ -24132,18 +24132,11 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
         sendSignal(DBLQH_REF, GSN_EXEC_FRAGREQ, signal,
                    ExecFragReq::SignalLength, JBB);
       }
-      else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+      else
       {
         jam();
         // send via remote proxy
         sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGREQ, signal,
-                   ExecFragReq::SignalLength, JBB);
-      }
-      else
-      {
-        jam();
-        // send direct
-        sendSignal(ref, GSN_EXEC_FRAGREQ, signal,
                    ExecFragReq::SignalLength, JBB);
       }
     }
@@ -26304,8 +26297,7 @@ void Dblqh::sendExecConf(Signal* signal)
           signal->theData[1] = ref;
           sendSignal(DBLQH_REF, GSN_EXEC_FRAGCONF, signal, 2, JBB);
         }
-        else if (refToInstance(ref) != 0 &&
-                 ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+        else if (refToInstance(ref) != 0)
         {
           jam();
           // send via remote proxy

@@ -1824,16 +1824,10 @@ DblqhProxy::execEXEC_FRAGREQ(Signal* signal)
     jam();
     sendSignal(ref, GSN_EXEC_FRAGREQ, signal, signal->getLength(), JBB);
   }
-  else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
-  {
-    jam();
-    sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGREQ, signal,
-               signal->getLength(), JBB);
-  }
   else
   {
     jam();
-    sendSignal(ref, GSN_EXEC_FRAGREQ, signal,
+    sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGREQ, signal,
                signal->getLength(), JBB);
   }
 }
@@ -1849,16 +1843,11 @@ DblqhProxy::execEXEC_FRAGCONF(Signal* signal)
     jam();
     sendSignal(ref, GSN_EXEC_FRAGCONF, signal, 1, JBB);
   }
-  else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+  else
   {
     jam();
     sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGCONF,
                signal, 2, JBB);
-  }
-  else
-  {
-    jam();
-    sendSignal(ref, GSN_EXEC_FRAGCONF, signal, 2, JBB);
   }
 }
 
