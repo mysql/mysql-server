@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source include/not_embedded.inc
 
 --echo Testing the behaviour of ANALYZE TABLE before and
 --echo after table reorganisation, and then during subsequent
