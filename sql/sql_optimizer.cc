@@ -37,7 +37,9 @@
 #include <algorithm>
 #include <atomic>
 #include <new>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "field_types.h"  // enum_field_types
 #include "ft_global.h"
@@ -45,6 +47,7 @@
 #include "memory_debugging.h"
 #include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -85,6 +88,7 @@
 #include "sql/query_result.h"
 #include "sql/sql_base.h"  // init_ftfuncs
 #include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_const_folding.h"
 #include "sql/sql_error.h"
@@ -97,6 +101,7 @@
 #include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 using std::max;
 using std::min;
@@ -141,6 +146,60 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                                          bool recheck_range);
 
 static bool has_not_null_predicate(Item *cond, Item_field *not_null_item);
+
+JOIN::JOIN(THD *thd_arg, SELECT_LEX *select)
+    : select_lex(select),
+      unit(select->master_unit()),
+      thd(thd_arg),
+      // @todo Can this be substituted with select->is_explicitly_grouped()?
+      grouped(select->is_explicitly_grouped()),
+      // Inner tables may always be considered to be constant:
+      const_table_map(INNER_TABLE_BIT),
+      found_const_table_map(INNER_TABLE_BIT),
+      first_select(sub_select),
+      // Needed in case optimizer short-cuts, set properly in
+      // make_tmp_tables_info()
+      fields(&select->item_list),
+      tmp_table_param(thd_arg->mem_root),
+      lock(thd->lock),
+      // @todo Can this be substituted with select->is_implicitly_grouped()?
+      implicit_grouping(select->is_implicitly_grouped()),
+      select_distinct(select->is_distinct()),
+      keyuse_array(thd->mem_root),
+      all_fields(select->all_fields),
+      fields_list(select->fields_list),
+      order(select->order_list.first, ESC_ORDER_BY),
+      group_list(select->group_list.first, ESC_GROUP_BY),
+      m_windows(select->m_windows),
+      /*
+        Those four members are meaningless before JOIN::optimize(), so force a
+        crash if they are used before that.
+      */
+      where_cond(reinterpret_cast<Item *>(1)),
+      having_cond(reinterpret_cast<Item *>(1)),
+      having_for_explain(reinterpret_cast<Item *>(1)),
+      tables_list(reinterpret_cast<TABLE_LIST *>(1)),
+      current_ref_item_slice(REF_SLICE_SAVED_BASE),
+      with_json_agg(select->json_agg_func_used()) {
+  rollup.state = ROLLUP::STATE_NONE;
+  if (select->order_list.first) explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
+  if (select->group_list.first) explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
+  if (select->is_distinct()) explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
+  if (m_windows.elements > 0) explain_flags.set(ESC_WINDOWING, ESP_EXISTS);
+  // Calculate the number of groups
+  for (ORDER *group = group_list; group; group = group->next)
+    send_group_parts++;
+}
+
+bool JOIN::alloc_ref_item_slice(THD *thd_arg, int sliceno) {
+  DBUG_ASSERT(sliceno > 0);
+  DBUG_ASSERT(ref_items[sliceno].is_null());
+  size_t count = ref_items[0].size();
+  Item **slice = thd_arg->mem_root->ArrayAlloc<Item *>(count);
+  if (slice == nullptr) return true;
+  ref_items[sliceno] = Ref_item_array(slice, count);
+  return false;
+}
 
 bool JOIN::alloc_indirection_slices() {
   const uint card = REF_SLICE_WIN_1 + m_windows.elements * 2;
@@ -10868,6 +10927,11 @@ List<Item> *JOIN::get_current_fields() {
   return &tmp_fields_list[current_ref_item_slice];
 }
 
+const Cost_model_server *JOIN::cost_model() const {
+  DBUG_ASSERT(thd != nullptr);
+  return thd->cost_model();
+}
+
 /**
   @} (end of group Query_Optimizer)
 */
@@ -10916,4 +10980,8 @@ bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select) {
               (item->used_tables() & ~select->join->const_table_map) == 0);
   return !item->has_subquery() || (select->active_options() &
                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
+}
+
+Prepare_error_tracker::~Prepare_error_tracker() {
+  if (m_thd->is_error()) m_thd->lex->mark_broken();
 }
