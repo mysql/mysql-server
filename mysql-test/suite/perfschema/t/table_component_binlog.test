@@ -1,0 +1,28 @@
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Bug #29557747: DEBUG-ASSERT WHILE RESTARTING SERVER POST INSTALL
+--echo #  COMPONENT
+--echo #
+
+--let $before=query_get_value('SHOW MASTER STATUS', Position, 1)
+INSTALL COMPONENT "file://component_pfs_example_component_population";
+--let $after=query_get_value('SHOW MASTER STATUS', Position, 1)
+
+--let $assert_text = Nothing was written to the binlog by adding a PFS table
+--let $assert_cond = $before = $after
+--source include/assert.inc
+
+--echo # Must not crash
+--source include/restart_mysqld.inc
+SELECT "it's alive";
+
+--let $beforeu=query_get_value('SHOW MASTER STATUS', Position, 1)
+UNINSTALL COMPONENT "file://component_pfs_example_component_population";
+--let $afteru=query_get_value('SHOW MASTER STATUS', Position, 1)
+
+--let $assert_text = Nothing was written to the binlog by removing a PFS table
+--let $assert_cond = $beforeu = $afteru
+--source include/assert.inc
+
+--echo # End of 8.0 tests

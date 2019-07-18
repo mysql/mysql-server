@@ -561,7 +561,8 @@ bool create_native_table(THD *thd, const Plugin_table *pt) {
   /*
     1. Mark that we are executing a special DDL during
     plugin initialization. This will enable DDL to not be
-    committed. The called of this API would commit the transaction.
+    committed or binlogged. The called of this API would commit
+    the transaction.
 
     2. Remove metadata of native table if already exists. This could
     happen if server was crashed and restarted.
@@ -578,15 +579,18 @@ bool create_native_table(THD *thd, const Plugin_table *pt) {
   thd->mark_plugin_fake_ddl(true);
   ulong master_access = thd->security_context()->master_access();
   thd->security_context()->set_master_access(~(ulong)0);
+  {
+    Disable_binlog_guard guard(thd);
 
-  // Drop the table and related dynamic statistics too.
-  if (table_def) {
-    error =
-        client->drop(table_def) || client->remove_table_dynamic_statistics(
-                                       pt->get_schema_name(), pt->get_name());
+    // Drop the table and related dynamic statistics too.
+    if (table_def) {
+      error =
+          client->drop(table_def) || client->remove_table_dynamic_statistics(
+                                         pt->get_schema_name(), pt->get_name());
+    }
+
+    if (!error) error = dd::execute_query(thd, pt->get_ddl());
   }
-
-  if (!error) error = dd::execute_query(thd, pt->get_ddl());
 
   thd->security_context()->set_master_access(master_access);
   thd->mark_plugin_fake_ddl(false);
