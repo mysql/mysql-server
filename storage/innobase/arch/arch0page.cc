@@ -147,7 +147,7 @@ dberr_t Arch_Group::write_to_doublewrite_file(Arch_File_Ctx *from_file,
 dberr_t Arch_Group::init_dblwr_file_ctx(const char *path, const char *base_file,
                                         uint num_files, uint64_t file_size) {
   auto err =
-      s_dblwr_file_ctx.init(path, nullptr, base_file, num_files, file_size);
+      s_dblwr_file_ctx.init(ARCH_DIR, path, base_file, num_files, file_size);
 
   if (err != DB_SUCCESS) {
     ut_ad(s_dblwr_file_ctx.get_phy_size() == file_size);
@@ -1017,13 +1017,9 @@ int Page_Arch_Client_Ctx::stop(lsn_t *stop_id) {
   auto err =
       arch_page_sys->stop(m_group, &m_stop_lsn, &m_stop_pos, m_is_durable);
 
-  if (err != 0) {
-    arch_client_mutex_exit();
-    return (err);
-  }
-
   ut_d(print());
 
+  /* We stop the client even in cases of an error. */
   m_state = ARCH_CLIENT_STATE_STOPPED;
 
   if (stop_id != nullptr) {
@@ -2382,6 +2378,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
       my_error(err, MYF(0), "Page Archiver wait too long");
     }
 
+    arch_mutex_exit();
     return (err);
   }
 

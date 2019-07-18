@@ -478,6 +478,11 @@ void Arch_File_Ctx::build_name(uint idx, lsn_t dir_lsn, char *buffer,
 
   if (m_dir_name == nullptr) {
     snprintf(buf_ptr, buf_len, "%s%u", m_file_name, idx);
+
+  } else if (dir_lsn == LSN_MAX) {
+    snprintf(buf_ptr, buf_len, "%s%c%s%u", m_dir_name, OS_PATH_SEPARATOR,
+             m_file_name, idx);
+
   } else {
     snprintf(buf_ptr, buf_len, "%s" UINT64PF "%c%s%u", m_dir_name, dir_lsn,
              OS_PATH_SEPARATOR, m_file_name, idx);

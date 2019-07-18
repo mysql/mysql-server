@@ -173,6 +173,11 @@ class Clone_persist_gtid {
   @return true, if transaction has valid GTID. */
   bool has_gtid(trx_t *trx, THD *&thd, bool &passed_check);
 
+  /** Check if GTID persistence is set
+  @param[in]	trx	current innnodb transaction
+  @return true, iff GTID persistence is set. */
+  bool persists_gtid(const trx_t *trx);
+
   /** Set or reset GTID persist flag in THD.
   @param[in,out]	trx	current innnodb transaction
   @param[in]		set	true, if need to set */

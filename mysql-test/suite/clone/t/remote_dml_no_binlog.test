@@ -8,5 +8,6 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --let $PORT =`select @@port`
 --let $USER = root
 --let remote_clone = 1
+--let no_binlog = 1
 
 --source local_dml.test

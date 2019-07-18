@@ -881,7 +881,7 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
   MYSQL_SOCKET conn_socket;
   mysql_clone_ssl_context ssl_context;
 
-  ssl_context.m_enable_compression = use_aux ? false : clone_enable_compression;
+  ssl_context.m_enable_compression = clone_enable_compression;
   ssl_context.m_server_extn =
       ssl_context.m_enable_compression ? &m_conn_server_extn : nullptr;
   ssl_context.m_ssl_mode = m_share->m_ssl_mode;
