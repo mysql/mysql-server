@@ -43,7 +43,6 @@
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
-#include "sql/window.h"
 
 class CacheInvalidatorIterator;
 class Cached_item;
@@ -59,6 +58,8 @@ class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
 class THD;
+class Window;
+enum class Window_retrieve_cached_row_reason;
 struct CACHE_FIELD;
 struct POSITION;
 template <class T>
@@ -853,9 +854,8 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                        bool *output_row_ready);
 bool buffer_windowing_record(THD *thd, Temp_table_param *param,
                              bool *new_partition);
-bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
-                          int64 rowno,
-                          enum Window::retrieve_cached_row_reason reason,
+bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
+                          int64 rowno, Window_retrieve_cached_row_reason reason,
                           int fno = 0);
 
 void ConvertItemsToCopy(List<Item> *items, Field **fields,

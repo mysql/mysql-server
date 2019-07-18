@@ -26,15 +26,17 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <cstring>
+#include <initializer_list>
 #include <limits>
 #include <unordered_set>
 
+#include "field_types.h"
 #include "m_ctype.h"
-#include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
+#include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"  // ER_THD
@@ -48,6 +50,7 @@
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_tree_nodes.h"  // PT_*
+#include "sql/parser_yystype.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -58,7 +61,6 @@
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_resolver.h"   // find_order_in_list
 #include "sql/sql_show.h"
-#include "sql/sql_time.h"
 #include "sql/sql_tmp_table.h"  // free_tmp_table
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -125,7 +127,7 @@ bool Window::check_window_functions(THD *thd, SELECT_LEX *select) {
   m_opt_lead_lag.m_offsets.init(thd->mem_root);
 
   while ((wf = li++)) {
-    Evaluation_requirements reqs;
+    Window_evaluation_requirements reqs;
 
     Item_sum *wfs = down_cast<Item_sum *>(wf);
     if (wfs->check_wf_semantics(thd, select, &reqs)) return true;
@@ -1469,6 +1471,13 @@ void Window::print(const THD *thd, String *str, enum_query_type qt,
 
     str->append(") ");
   }
+}
+
+const char *Window::printable_name() const {
+  if (m_name == nullptr) return "<unnamed window>";
+  // Since Item_string::val_str() ignores the argument, it is safe
+  // to use nullptr as argument.
+  return m_name->val_str(nullptr)->ptr();
 }
 
 void Window::reset_all_wf_state() {

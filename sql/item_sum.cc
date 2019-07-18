@@ -380,7 +380,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
 
 bool Item_sum::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
                                   SELECT_LEX *select MY_ATTRIBUTE((unused)),
-                                  Window::Evaluation_requirements *r) {
+                                  Window_evaluation_requirements *r) {
   const PT_frame *frame = m_window->frame();
 
   /*
@@ -1821,7 +1821,7 @@ bool Item_sum_sum::resolve_type(THD *) {
 }
 
 bool Item_sum_sum::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                      Window::Evaluation_requirements *r) {
+                                      Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics(thd, select, r);
   if (hybrid_type == REAL_RESULT) {
     /*
@@ -2474,7 +2474,7 @@ Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item)
 }
 
 bool Item_sum_variance::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                           Window::Evaluation_requirements *r) {
+                                           Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics(thd, select, r);
   const PT_frame *f = m_window->frame();
   if (f->m_from->m_border_type == WBT_VALUE_PRECEDING ||
@@ -2649,7 +2649,7 @@ void Item_sum_hybrid::clear() {
 }
 
 bool Item_sum_hybrid::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                         Window::Evaluation_requirements *r) {
+                                         Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics(thd, select, r);
 
   const PT_order_list *order = m_window->effective_order_by();
@@ -4543,7 +4543,7 @@ my_decimal *Item_row_number::val_decimal(my_decimal *buffer) {
 void Item_row_number::clear() { m_ctr = 0; }
 
 bool Item_rank::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                   Window::Evaluation_requirements *r
+                                   Window_evaluation_requirements *r
                                        MY_ATTRIBUTE((unused))) {
   const PT_order_list *order = m_window->effective_order_by();
   // SQL2015 6.10 <window function> SR 6.a: require ORDER BY; we don't.
@@ -4634,7 +4634,7 @@ void Item_rank::cleanup() {
 }
 
 bool Item_cume_dist::check_wf_semantics(THD *, SELECT_LEX *,
-                                        Window::Evaluation_requirements *r) {
+                                        Window_evaluation_requirements *r) {
   // we need to know partition cardinality, so two passes
   r->needs_buffer = true;
   // Before we can compute for the current row we need the count of its peers
@@ -4673,7 +4673,7 @@ my_decimal *Item_cume_dist::val_decimal(my_decimal *buffer) {
 }
 
 bool Item_percent_rank::check_wf_semantics(THD *, SELECT_LEX *,
-                                           Window::Evaluation_requirements *r) {
+                                           Window_evaluation_requirements *r) {
   // we need to know partition cardinality, so two passes
   r->needs_buffer = true;
   /*
@@ -4829,7 +4829,7 @@ my_decimal *Item_ntile::val_decimal(my_decimal *buffer) {
 
 bool Item_ntile::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
                                     SELECT_LEX *select MY_ATTRIBUTE((unused)),
-                                    Window::Evaluation_requirements *r) {
+                                    Window_evaluation_requirements *r) {
   r->needs_buffer =
       true;  // we need to know partition cardinality, so two passes
   // SQL2015 6.10 <window function> SR 6.a: require ORDER BY; we don't.
@@ -4837,7 +4837,7 @@ bool Item_ntile::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
 }
 
 bool Item_first_last_value::check_wf_semantics(
-    THD *thd, SELECT_LEX *select, Window::Evaluation_requirements *r) {
+    THD *thd, SELECT_LEX *select, Window_evaluation_requirements *r) {
   if (super::check_wf_semantics(thd, select, r)) return true;
 
   r->opt_first_row = m_is_first;
@@ -5073,7 +5073,7 @@ void Item_nth_value::clear() {
 }
 
 bool Item_nth_value::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                        Window::Evaluation_requirements *r) {
+                                        Window_evaluation_requirements *r) {
   if (super::check_wf_semantics(thd, select, r)) return true;
 
   r->opt_nth_row.m_rowno = m_n;
@@ -5296,7 +5296,7 @@ bool Item_lead_lag::setup_lead_lag() {
 
 bool Item_lead_lag::check_wf_semantics(
     THD *thd MY_ATTRIBUTE((unused)), SELECT_LEX *select MY_ATTRIBUTE((unused)),
-    Window::Evaluation_requirements *r) {
+    Window_evaluation_requirements *r) {
   if (m_null_treatment == NT_IGNORE_NULLS) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "IGNORE NULLS");
     return true;
@@ -5448,7 +5448,7 @@ Item_sum_json::Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
 Item_sum_json::~Item_sum_json() = default;
 
 bool Item_sum_json::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                       Window::Evaluation_requirements *reqs) {
+                                       Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics(thd, select, reqs);
 }
 
@@ -5666,7 +5666,7 @@ void Item_sum_json_object::clear() {
 }
 
 bool Item_sum_json_object::check_wf_semantics(
-    THD *thd, SELECT_LEX *select, Window::Evaluation_requirements *r) {
+    THD *thd, SELECT_LEX *select, Window_evaluation_requirements *r) {
   Item_sum_json::check_wf_semantics(thd, select, r);
   /*
     As Json_object always stores only the last value for a key,

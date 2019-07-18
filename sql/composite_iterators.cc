@@ -1849,9 +1849,10 @@ int BufferingWindowingIterator::Read() {
         change so we had to finalize the previous partition first.
         Bring back saved row for next partition.
       */
-      if (bring_back_frame_row(thd(), *m_window, m_temp_table_param,
-                               Window::FBC_FIRST_IN_NEXT_PARTITION,
-                               Window::REA_WONT_UPDATE_HINT)) {
+      if (bring_back_frame_row(
+              thd(), m_window, m_temp_table_param,
+              Window::FBC_FIRST_IN_NEXT_PARTITION,
+              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
         return 1;
       }
 
@@ -1918,9 +1919,10 @@ int BufferingWindowingIterator::Read() {
         between out tmp record and frame buffer record, instead of
         involving the in record. FIXME.
       */
-      if (bring_back_frame_row(thd(), *m_window, nullptr /* no copy to OUT */,
-                               Window::FBC_LAST_BUFFERED_ROW,
-                               Window::REA_WONT_UPDATE_HINT)) {
+      if (bring_back_frame_row(
+              thd(), m_window, nullptr /* no copy to OUT */,
+              Window::FBC_LAST_BUFFERED_ROW,
+              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
         return 1;
       }
     }
