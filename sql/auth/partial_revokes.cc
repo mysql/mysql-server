@@ -776,8 +776,6 @@ void DB_restrictions_aggregator::set_if_db_level_operation(
                                 is to be done.
   @param  [in]    db_map        DB_access_map used to fetch grantee's db access
                                 for SET ROLE
-  @param  [in]    db_wild_map   DB_access_map used to fetch grantee's db access
-                                for SET ROLE
   @param  [out]   restrictions  Fills the paramter with the generated
                                 DB_restrictions.
 
@@ -911,7 +909,7 @@ void DB_restrictions_aggregator::get_grantee_db_access(
   @param  [in]  grantor_db_restrictions Restrictions on the grantor
   @param  [in]  grantee_db_restrictions Restrictions on the grantee
   @param  [in]  requested_access  Requested privileges mask in the SQL statement
-  @param  [in/out]  db_map  Grantee's db_accees_map to fetch/update db access
+  @param  [in,out]  db_map  Grantee's db_accees_map to fetch/update db access
 */
 DB_restrictions_aggregator_set_role::DB_restrictions_aggregator_set_role(
     const Auth_id &grantor, const Auth_id grantee,
