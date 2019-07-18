@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 #include "my_sqlcommand.h"  // SQLCOM_LOCK_INSTANCE, SQLCOM_UNLOCK_INSTANCE
-#include "sql_cmd.h"        // Sql_cmd
+#include "sql/sql_cmd.h"    // Sql_cmd
 
 class THD;
 

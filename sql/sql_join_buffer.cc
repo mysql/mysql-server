@@ -2113,10 +2113,12 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr) {
 */
 
 bool JOIN_CACHE::check_match(uchar *rec_ptr) {
-  bool skip_record;
   /* Check whether pushdown conditions are satisfied */
-  if (qep_tab->skip_record(join->thd, &skip_record) || skip_record)
-    return false;
+  auto condition_satisfied = [thd = join->thd](Item *condition) {
+    return condition == nullptr ||
+           (condition->val_int() != 0 && !thd->is_error());
+  };
+  if (!condition_satisfied(qep_tab->condition())) return false;
 
   if (!((qep_tab->first_inner() != NO_PLAN_IDX &&
          QEP_AT(qep_tab, first_inner()).last_inner() == qep_tab->idx()) ||
@@ -2153,8 +2155,7 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr) {
       the re-evaluation of the pushdown predicates is not needed.
     */
     for (QEP_TAB *tab = first_inner; tab <= qep_tab; tab++) {
-      if (tab->skip_record(join->thd, &skip_record) || skip_record)
-        return false;
+      if (!condition_satisfied(tab->condition())) return false;
     }
     f_i = first_inner->first_upper();
     if (f_i == NO_PLAN_IDX) break;

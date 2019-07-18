@@ -79,6 +79,7 @@
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
 #include "sql/hash_join_iterator.h"
+#include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
@@ -107,6 +108,7 @@
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"

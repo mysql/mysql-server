@@ -26,8 +26,8 @@
 #include <map>
 
 #include "lex_string.h"          // LEX_STRING
-#include "mem_root_array.h"      // Mem_root_array
 #include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/mem_root_array.h"  // Mem_root_array
 
 class Item;
 class String;
