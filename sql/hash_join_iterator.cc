@@ -43,6 +43,7 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/row_iterator.h"
+#include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_select.h"
 #include "sql/table.h"

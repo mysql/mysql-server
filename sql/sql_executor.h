@@ -99,6 +99,17 @@ typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
                                                    bool);
 
 /*
+  Array of pointers to tables whose rowids compose the temporary table
+  record.
+*/
+struct SJ_TMP_TABLE_TAB {
+  QEP_TAB *qep_tab;
+  uint rowid_offset;
+  ushort null_byte;
+  uchar null_bit;
+};
+
+/*
   Temporary table used by semi-join DuplicateElimination strategy
 
   This consists of the temptable itself and data needed to put records
@@ -117,20 +128,9 @@ typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
 
 class SJ_TMP_TABLE {
  public:
-  SJ_TMP_TABLE() : hash_field(NULL) {}
-  /*
-    Array of pointers to tables whose rowids compose the temporary table
-    record.
-  */
-  class TAB {
-   public:
-    QEP_TAB *qep_tab;
-    uint rowid_offset;
-    ushort null_byte;
-    uchar null_bit;
-  };
-  TAB *tabs;
-  TAB *tabs_end;
+  SJ_TMP_TABLE() : hash_field(nullptr) {}
+  SJ_TMP_TABLE_TAB *tabs;
+  SJ_TMP_TABLE_TAB *tabs_end;
 
   /*
     is_confluent==true means this is a special case where the temptable record

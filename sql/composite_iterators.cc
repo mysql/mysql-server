@@ -1553,7 +1553,7 @@ int WeedoutIterator::Read() {
       return ret;
     }
 
-    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       TABLE *table = tab->qep_tab->table();
       if (!(table->is_nullable() && table->has_null_row()) &&
           !table->const_table && !table->ref_is_set_without_position_call) {
@@ -1582,7 +1582,7 @@ vector<string> WeedoutIterator::DebugString() const {
     ret += m_sj->tabs->qep_tab->table()->alias;
   } else {
     ret += "(";
-    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       if (tab != m_sj->tabs) {
         ret += ", ";
       }
