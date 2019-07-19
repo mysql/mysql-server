@@ -1,3 +1,6 @@
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+
 --echo #
 --echo # Bug #29820184 REDO LOGS MAY SILENTLY BE IGNORED WHEN ENCRYPTED TABLE
 --echo # CANNOT BE DECRYPTED.
