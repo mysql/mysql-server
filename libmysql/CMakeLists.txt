@@ -384,6 +384,6 @@ TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 
 # Verify that libmysql_api_test runs OK
 ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
-  COMMAND $<TARGET_FILE:libmysql_api_test>
+  COMMAND libmysql_api_test
   > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
   )
