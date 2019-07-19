@@ -1522,17 +1522,6 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
-  if (m_connectivity_check.m_enabled &&
-      !ndbd_connectivity_check(cmRegConf->presidentVersion))
-  {
-    jam();
-    m_connectivity_check.m_enabled = false;
-    ndbout_c("Disabling ConnectCheckIntervalDelay as president "
-             " does not support it");
-    infoEvent("Disabling ConnectCheckIntervalDelay as president "
-              " does not support it");
-  }
-
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   
