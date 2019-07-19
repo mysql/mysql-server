@@ -8156,20 +8156,20 @@ static longlong enum_val_int(const uchar *ptr, uint packlength,
                              bool low_byte_first) {
   switch (packlength) {
     case 1:
-      return (longlong)ptr[0];
+      return ptr[0];
     case 2: {
       if (low_byte_first)
-        return sint2korr(ptr);
+        return uint2korr(ptr);
       else
-        return shortget(ptr);
+        return ushortget(ptr);
     }
     case 3:
-      return (longlong)uint3korr(ptr);
+      return uint3korr(ptr);
     case 4: {
       if (low_byte_first)
-        return sint4korr(ptr);
+        return uint4korr(ptr);
       else
-        return longget(ptr);
+        return ulongget(ptr);
     }
     case 8: {
       if (low_byte_first)
