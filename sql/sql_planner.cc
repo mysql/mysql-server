@@ -1825,6 +1825,85 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
   // @todo need ref_depend_map ?
 }
 
+bool Join_tab_compare_default::operator()(const JOIN_TAB *jt1,
+                                          const JOIN_TAB *jt2) const {
+  // Sorting distinct tables, so a table should not be compared with itself
+  DBUG_ASSERT(jt1 != jt2);
+
+  if (jt1->dependent & jt2->table_ref->map()) return false;
+  if (jt2->dependent & jt1->table_ref->map()) return true;
+
+  const bool jt1_keydep_jt2 = jt1->key_dependent & jt2->table_ref->map();
+  const bool jt2_keydep_jt1 = jt2->key_dependent & jt1->table_ref->map();
+
+  if (jt1_keydep_jt2 && !jt2_keydep_jt1) return false;
+  if (jt2_keydep_jt1 && !jt1_keydep_jt2) return true;
+
+  if (jt1->found_records > jt2->found_records) return false;
+  if (jt1->found_records < jt2->found_records) return true;
+
+  return jt1 < jt2;
+}
+
+namespace {
+
+/**
+  "Less than" comparison function object used to compare two JOIN_TAB
+  objects that are joined using STRAIGHT JOIN. For STRAIGHT JOINs,
+  the join order is dictated by the relative order of the tables in the
+  query which is reflected in JOIN_TAB::dependent. Table size and key
+  dependencies are ignored here.
+*/
+class Join_tab_compare_straight {
+ public:
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) const {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    /*
+      We don't do subquery flattening if the parent or child select has
+      STRAIGHT_JOIN modifier. It is complicated to implement and the semantics
+      is hardly useful.
+    */
+    DBUG_ASSERT(!jt1->emb_sj_nest);
+    DBUG_ASSERT(!jt2->emb_sj_nest);
+
+    if (jt1->dependent & jt2->table_ref->map()) return false;
+    if (jt2->dependent & jt1->table_ref->map()) return true;
+
+    return jt1 < jt2;
+  }
+};
+
+/*
+  Same as Join_tab_compare_default but tables from within the given
+  semi-join nest go first. Used when optimizing semi-join
+  materialization nests.
+*/
+class Join_tab_compare_embedded_first {
+ private:
+  const TABLE_LIST *emb_nest;
+
+ public:
+  explicit Join_tab_compare_embedded_first(const TABLE_LIST *nest)
+      : emb_nest(nest) {}
+
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) const {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    if (jt1->emb_sj_nest == emb_nest && jt2->emb_sj_nest != emb_nest)
+      return true;
+    if (jt1->emb_sj_nest != emb_nest && jt2->emb_sj_nest == emb_nest)
+      return false;
+
+    Join_tab_compare_default cmp;
+    return cmp(jt1, jt2);
+  }
+};
+
+}  // namespace
+
 /**
   Selects and invokes a search strategy for an optimal query join order.
 

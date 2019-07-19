@@ -1478,7 +1478,7 @@ static void MarkUnhandledDuplicates(QEP_TAB *qep_tabs, SJ_TMP_TABLE *weedout,
     }
   } else {
     bool part_of_key[MAX_TABLES] = {false};
-    for (SJ_TMP_TABLE::TAB *tab = weedout->tabs; tab != weedout->tabs_end;
+    for (SJ_TMP_TABLE_TAB *tab = weedout->tabs; tab != weedout->tabs_end;
          ++tab) {
       plan_idx i = tab->qep_tab - qep_tabs;
       DBUG_ASSERT(i >= weedout_start);
@@ -1520,10 +1520,10 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
     need_dup_removal[i] = true;
   }
 
-  Prealloced_array<SJ_TMP_TABLE::TAB, MAX_TABLES> sj_tabs(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<SJ_TMP_TABLE_TAB, MAX_TABLES> sj_tabs(PSI_NOT_INSTRUMENTED);
   for (uint i = 0; i < primary_tables; ++i) {
     if (!need_dup_removal[i]) {
-      SJ_TMP_TABLE::TAB sj_tab;
+      SJ_TMP_TABLE_TAB sj_tab;
       sj_tab.qep_tab = &qep_tabs[i];
       sj_tabs.push_back(sj_tab);
 
@@ -3679,8 +3679,8 @@ bool QEP_TAB::prepare_scan() {
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   int error;
-  SJ_TMP_TABLE::TAB *tab = sjtbl->tabs;
-  SJ_TMP_TABLE::TAB *tab_end = sjtbl->tabs_end;
+  SJ_TMP_TABLE_TAB *tab = sjtbl->tabs;
+  SJ_TMP_TABLE_TAB *tab_end = sjtbl->tabs_end;
 
   DBUG_TRACE;
 

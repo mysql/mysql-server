@@ -1557,7 +1557,7 @@ WeedoutIterator::WeedoutIterator(THD *thd,
   // Cache the value of rowid_status, as iterators above this one may change the
   // value later (see QEP_TAB::rowid_status for details around this). The value
   // indicates whether it is safe to call position().
-  for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+  for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
     DBUG_ASSERT(tab->qep_tab->rowid_status != NO_ROWID_NEEDED);
     m_rowid_status.push_back(tab->qep_tab->rowid_status);
   }
@@ -1579,7 +1579,7 @@ int WeedoutIterator::Read() {
     }
 
     size_t tmp_table_idx = 0;
-    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       TABLE *table = tab->qep_tab->table();
       if (m_rowid_status[tmp_table_idx++] == NEED_TO_CALL_POSITION_FOR_ROWID &&
           can_call_position(table)) {
@@ -1608,7 +1608,7 @@ vector<string> WeedoutIterator::DebugString() const {
     ret += m_sj->tabs->qep_tab->table()->alias;
   } else {
     ret += "(";
-    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       if (tab != m_sj->tabs) {
         ret += ", ";
       }

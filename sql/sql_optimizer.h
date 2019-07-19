@@ -1040,6 +1040,17 @@ class JOIN {
 };
 
 /**
+  Use this in a function which depends on best_ref listing tables in the
+  final join order. If 'tables==0', one is not expected to consult best_ref
+  cells, and best_ref may not even have been allocated.
+*/
+#define ASSERT_BEST_REF_IN_JOIN_ORDER(join)               \
+  do {                                                    \
+    DBUG_ASSERT((join)->tables == 0 ||                    \
+                ((join)->best_ref && !(join)->join_tab)); \
+  } while (0)
+
+/**
   RAII class to ease the temporary switching to a different slice of
   the ref item array.
 */

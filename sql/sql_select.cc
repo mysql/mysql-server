@@ -36,12 +36,15 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <initializer_list>
 #include <memory>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "limits.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
+#include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -57,7 +60,8 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Ignore_error_handler
-#include "sql/filesort.h"       // filesort_free_buffers
+#include "sql/field.h"
+#include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/handler.h"
 #include "sql/intrusive_list_iterator.h"
 #include "sql/item_func.h"
@@ -82,11 +86,13 @@
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_base.h"
+#include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_do.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_planner.h"    // calculate_condition_filter
@@ -94,6 +100,7 @@
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"
 #include "sql/temp_table_param.h"
@@ -106,8 +113,6 @@ class Opt_trace_context;
 
 using std::max;
 using std::min;
-
-const char store_key_const_item::static_name[] = "const";
 
 static store_key *get_store_key(THD *thd, Key_use *keyuse,
                                 table_map used_tables, KEY_PART_INFO *key_part,
@@ -479,6 +484,10 @@ err:
   (void)unit->cleanup(thd, false);
 
   return true;
+}
+
+bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
+  return thd->lex->unit->accept(visitor);
 }
 
 const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
@@ -1103,12 +1112,12 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab) {
 }
 
 SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
-                                  SJ_TMP_TABLE::TAB *first_tab,
-                                  SJ_TMP_TABLE::TAB *last_tab) {
+                                  SJ_TMP_TABLE_TAB *first_tab,
+                                  SJ_TMP_TABLE_TAB *last_tab) {
   uint jt_rowid_offset =
       0;                  // # tuple bytes are already occupied (w/o NULL bytes)
   uint jt_null_bits = 0;  // # null bits in tuple bytes
-  for (SJ_TMP_TABLE::TAB *tab = first_tab; tab != last_tab; ++tab) {
+  for (SJ_TMP_TABLE_TAB *tab = first_tab; tab != last_tab; ++tab) {
     QEP_TAB *qep_tab = tab->qep_tab;
     tab->rowid_offset = jt_rowid_offset;
     jt_rowid_offset += qep_tab->table()->file->ref_length;
@@ -1123,13 +1132,13 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
   SJ_TMP_TABLE *sjtbl;
   if (jt_rowid_offset) /* Temptable has at least one rowid */
   {
-    size_t tabs_size = (last_tab - first_tab) * sizeof(SJ_TMP_TABLE::TAB);
-    if (!(sjtbl = new (thd->mem_root) SJ_TMP_TABLE) ||
-        !(sjtbl->tabs = (SJ_TMP_TABLE::TAB *)thd->alloc(tabs_size)))
-      return nullptr; /* purecov: inspected */
-    memcpy(sjtbl->tabs, first_tab, tabs_size);
+    sjtbl = new (thd->mem_root) SJ_TMP_TABLE;
+    if (sjtbl == nullptr) return nullptr;
+    sjtbl->tabs =
+        thd->mem_root->ArrayAlloc<SJ_TMP_TABLE_TAB>(last_tab - first_tab);
+    if (sjtbl->tabs == nullptr) return nullptr;
+    sjtbl->tabs_end = std::uninitialized_copy(first_tab, last_tab, sjtbl->tabs);
     sjtbl->is_confluent = false;
-    sjtbl->tabs_end = sjtbl->tabs + (last_tab - first_tab);
     sjtbl->rowid_len = jt_rowid_offset;
     sjtbl->null_bits = jt_null_bits;
     sjtbl->null_bytes = (jt_null_bits + 7) / 8;
@@ -1452,8 +1461,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
                 &qep_array[qep_array[tab2->first_inner()].last_inner()];
         }
 
-        SJ_TMP_TABLE::TAB sjtabs[MAX_TABLES];
-        SJ_TMP_TABLE::TAB *last_tab = sjtabs;
+        SJ_TMP_TABLE_TAB sjtabs[MAX_TABLES];
+        SJ_TMP_TABLE_TAB *last_tab = sjtabs;
         /*
           Walk through the range and remember
            - tables that need their rowids to be put into temptable
@@ -2149,6 +2158,86 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   return thd->is_error();
 }
 
+namespace {
+
+class store_key_field : public store_key {
+  Copy_field m_copy_field;
+  const char *m_field_name;
+
+ public:
+  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                  uchar *null_ptr_arg, uint length, Field *from_field,
+                  const char *name_arg)
+      : store_key(thd, to_field_arg, ptr,
+                  null_ptr_arg ? null_ptr_arg
+                               : from_field->maybe_null() ? &err : nullptr,
+                  length),
+        m_field_name(name_arg) {
+    if (to_field != nullptr) m_copy_field.set(to_field, from_field, false);
+  }
+
+  const char *name() const override { return m_field_name; }
+
+ protected:
+  enum store_key_result copy_inner() override {
+    TABLE *table = m_copy_field.to_field()->table;
+    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+    m_copy_field.invoke_do_copy(&m_copy_field);
+    dbug_tmp_restore_column_map(table->write_set, old_map);
+    null_key = to_field->is_null();
+    return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
+  }
+};
+
+class store_key_const_item : public store_key_item {
+  bool m_inited{false};
+
+ public:
+  store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                       uchar *null_ptr_arg, uint length, Item *item_arg)
+      : store_key_item(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg) {
+  }
+  const char *name() const override { return STORE_KEY_CONST_NAME; }
+
+ protected:
+  enum store_key_result copy_inner() override {
+    if (!m_inited) {
+      m_inited = true;
+      store_key_result res = store_key_item::copy_inner();
+      if (res && !err) err = res;
+    }
+    return (err > 2 ? STORE_KEY_FATAL : static_cast<store_key_result>(err));
+  }
+};
+
+/*
+  Class used for indexes over JSON expressions. The value to lookup is
+  obtained from val_json() method and then converted according to field's
+  result type and saved. This allows proper handling of temporal values.
+*/
+class store_key_json_item final : public store_key_item {
+  /// Whether the key is constant.
+  const bool m_const_key{false};
+  /// Whether the key was already copied.
+  bool m_inited{false};
+
+ public:
+  store_key_json_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                      uchar *null_ptr_arg, uint length, Item *item_arg,
+                      bool const_key_arg)
+      : store_key_item(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg),
+        m_const_key(const_key_arg) {}
+
+  const char *name() const override {
+    return m_const_key ? STORE_KEY_CONST_NAME : "func";
+  }
+
+ protected:
+  enum store_key_result copy_inner() override;
+};
+
+}  // namespace
+
 static store_key *get_store_key(THD *thd, Key_use *keyuse,
                                 table_map used_tables, KEY_PART_INFO *key_part,
                                 uchar *key_buff, uint maybe_null) {
@@ -2185,11 +2274,49 @@ static store_key *get_store_key(THD *thd, Key_use *keyuse,
                      maybe_null ? key_buff : 0, key_part->length, keyuse->val);
 }
 
+store_key::store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null,
+                     uint length)
+    : null_key(false), null_ptr(null), err(0) {
+  if (field_arg->type() == MYSQL_TYPE_BLOB ||
+      field_arg->type() == MYSQL_TYPE_GEOMETRY) {
+    /*
+      Key segments are always packed with a 2 byte length prefix.
+      See mi_rkey for details.
+    */
+    to_field = new (thd->mem_root) Field_varstring(
+        ptr, length, 2, null, 1, Field::NONE, field_arg->field_name,
+        field_arg->table->s, field_arg->charset());
+    to_field->init(field_arg->table);
+  } else
+    to_field =
+        field_arg->new_key_field(thd->mem_root, field_arg->table, ptr, null, 1);
+}
+
+store_key::store_key_result store_key::copy() {
+  enum store_key_result result;
+  THD *thd = to_field->table->in_use;
+  enum_check_fields saved_check_for_truncated_fields =
+      thd->check_for_truncated_fields;
+  sql_mode_t sql_mode = thd->variables.sql_mode;
+  thd->variables.sql_mode &= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
+
+  thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
+
+  result = copy_inner();
+
+  thd->check_for_truncated_fields = saved_check_for_truncated_fields;
+  thd->variables.sql_mode = sql_mode;
+
+  return result;
+}
+
 enum store_key::store_key_result store_key_hash_item::copy_inner() {
   enum store_key_result res = store_key_item::copy_inner();
   if (res != STORE_KEY_FATAL) *hash = unique_hash(to_field, hash);
   return res;
 }
+
+namespace {
 
 enum store_key::store_key_result store_key_json_item::copy_inner() {
   TABLE *table = to_field->table;
@@ -2225,6 +2352,8 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
   null_key = to_field->is_null() || item->null_value;
   return res;
 }
+
+}  // namespace
 
 static store_key::store_key_result type_conversion_status_to_store_key(
     THD *thd, type_conversion_status ts) {
@@ -3112,6 +3241,15 @@ bool error_if_full_join(JOIN *join) {
     }
   }
   return false;
+}
+
+void JOIN_TAB::set_table(TABLE *t) {
+  if (t != nullptr) t->reginfo.join_tab = this;
+  m_qs->set_table(t);
+}
+
+void JOIN_TAB::init_join_cond_ref(TABLE_LIST *tl) {
+  m_join_cond_ref = tl->join_cond_optim_ref();
 }
 
 /**

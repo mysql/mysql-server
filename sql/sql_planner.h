@@ -231,4 +231,46 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
                                  table_map used_tables, double fanout,
                                  bool is_join_buffering, bool write_to_trace,
                                  Opt_trace_object &parent_trace);
+
+/**
+  "Less than" comparison function object used to compare two JOIN_TAB
+  objects based on a number of factors in this order:
+
+   - table before another table that depends on it (straight join,
+     outer join etc), then
+   - table before another table that depends on it to use a key
+     as access method, then
+   - table with smallest number of records first, then
+   - the table with lowest-value pointer (i.e., the one located
+     in the lowest memory address) first.
+
+  @param jt1  first JOIN_TAB object
+  @param jt2  second JOIN_TAB object
+
+  @note The order relation implemented by Join_tab_compare_default is not
+    transitive, i.e. it is possible to choose a, b and c such that
+    (a @< b) && (b @< c) but (c @< a). This is the case in the
+    following example:
+
+      a: dependent = @<none@> found_records = 3
+      b: dependent = @<none@> found_records = 4
+      c: dependent = b        found_records = 2
+
+        a @< b: because a has fewer records
+        b @< c: because c depends on b (e.g outer join dependency)
+        c @< a: because c has fewer records
+
+    This implies that the result of a sort using the relation
+    implemented by Join_tab_compare_default () depends on the order in
+    which elements are compared, i.e. the result is
+    implementation-specific.
+
+  @return
+    true if jt1 is smaller than jt2, false otherwise
+*/
+class Join_tab_compare_default {
+ public:
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2) const;
+};
+
 #endif /* SQL_PLANNER_INCLUDED */

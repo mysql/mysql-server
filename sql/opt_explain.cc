@@ -560,9 +560,9 @@ static bool explain_ref_key(Explain_format *fmt, uint key_parts,
 
   for (uint part_no = 0; part_no < key_parts; part_no++) {
     const store_key *const s_key = key_copy[part_no];
-    if (s_key == NULL) {
+    if (s_key == nullptr) {
       // Const keys don't need to be copied
-      if (fmt->entry()->col_ref.push_back(store_key_const_item::static_name))
+      if (fmt->entry()->col_ref.push_back(STORE_KEY_CONST_NAME))
         return true; /* purecov: inspected */
     } else if (fmt->entry()->col_ref.push_back(s_key->name()))
       return true; /* purecov: inspected */
