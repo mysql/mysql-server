@@ -20,10 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-FILE(GLOB protoc_plugin_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_plugin.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/messages_used_by_server.cc"
+SET(protoc_plugin_SRC
+  message_field_chain.cc
+  messages_used_by_server.cc
+  xprotocol_plugin.cc
 )
 
 INCLUDE_DIRECTORIES(

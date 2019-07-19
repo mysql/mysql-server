@@ -55,7 +55,6 @@ GENERATE_EXPORT_HEADER(rest_api
 TARGET_INCLUDE_DIRECTORIES(rest_api
   PUBLIC
     ${PROJECT_SOURCE_DIR}/src/harness/include/
-    ${PROJECT_SOURCE_DIR}/ext/rapidjson/include/
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${CMAKE_CURRENT_BINARY_DIR}
     )

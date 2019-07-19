@@ -58,12 +58,67 @@ INCLUDE_DIRECTORIES(
 
 SET(XPL_UNIT_TESTS xplugin_unit_tests)
 
-FILE(GLOB XPL_TEST_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/test_main.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/xpl/stubs/*.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/xpl/mysqlx_pb_wrapper.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/xpl/*_t.cc"
+SET(XPL_TEST_SRC
+  test_main.cc
+
+  xpl/stubs/command_service.cc
+  xpl/stubs/log.cc
+  xpl/stubs/log_subsystem.cc
+  xpl/stubs/misc.cc
+  xpl/stubs/pfs.cc
+  xpl/stubs/plugin.cc
+  xpl/stubs/security_context_service.cc
+  xpl/stubs/sql_session_service.cc
+
+  xpl/mysqlx_pb_wrapper.cc
+
+  xpl/account_verification_handler_t.cc
+  xpl/admin_cmd_arguments_object_t.cc
+  xpl/admin_cmd_index_t.cc
+  xpl/broker_input_queue_task_t.cc
+  xpl/callback_command_delegate_t.cc
+  xpl/capabilities_configurator_t.cc
+  xpl/capabilities_handlers_t.cc
+  xpl/crud_statement_builder_t.cc
+  xpl/cursor_t.cc
+  xpl/delete_statement_builder_t.cc
+  xpl/document_id_generator_t.cc
+  xpl/expect_noerror_t.cc
+  xpl/expr_generator_t.cc
+  xpl/find_statement_builder_t.cc
+  xpl/getter_any_t.cc
+  xpl/index_array_field_t.cc
+  xpl/index_field_t.cc
+  xpl/insert_statement_builder_t.cc
+  xpl/json_utils_t.cc
+  xpl/listener_tcp_t.cc
+  xpl/listener_unix_socket_t.cc
+  xpl/message_builder_t.cc
+  xpl/prepared_statement_builder_t.cc
+  xpl/prepare_param_handler_t.cc
+  xpl/protocol_decoder_t.cc
+  xpl/query_string_builder_t.cc
+  xpl/row_builder_t.cc
+  xpl/sasl_authentication_t.cc
+  xpl/sasl_challenge_response_auth_t.cc
+  xpl/sasl_plain_auth_t.cc
+  xpl/scheduler_t.cc
+  xpl/server_client_timeout_t.cc
+  xpl/set_variable_adaptor_t.cc
+  xpl/sha256_cache_t.cc
+  xpl/socket_acceptor_task_t.cc
+  xpl/sql_statement_builder_t.cc
+  xpl/sync_variable_t.cc
+  xpl/timeouts_t.cc
+  xpl/update_statement_builder_t.cc
+  xpl/user_password_verification_t.cc
+  xpl/view_statement_builder_t.cc
+  xpl/xdatetime_t.cc
+  xpl/xdecimal_t.cc
+  xpl/xmessage_buffer_t.cc
+  xpl/xpl_regex_t.cc
 )
+
 
 IF(MYSQLX_ADDITIONAL_TESTS_ENABLE)
   INCLUDE(mysql_function_names.cmake)
@@ -132,9 +187,24 @@ GET_DIRECTORY_PROPERTY(MYSQLX_PROTOCOL_FULL_LIB
 
 SET(XCL_UNIT_TESTS xclient_unit_tests)
 
-FILE(GLOB XCL_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/test_main.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/xcl/*_t.cc"
+SET(XCL_SRC
+  test_main.cc
+  xcl/auth_chaining_t.cc
+  xcl/connection_general_t.cc
+  xcl/protocol_auth_t.cc
+  xcl/protocol_execute_t.cc
+  xcl/protocol_global_error_t.cc
+  xcl/protocol_notices_t.cc
+  xcl/protocol_send_recv_t.cc
+  xcl/query_t.cc
+  xcl/session_capability_t.cc
+  xcl/session_connect_t.cc
+  xcl/session_execute_t.cc
+  xcl/session_general_t.cc
+  xcl/session_options_t.cc
+  xcl/sha256_scramble_t.cc
+  xcl/ssl_config_t.cc
+  xcl/xpriority_list_t.cc
 )
 
 ADD_COMPILE_DEFINITIONS(${XCL_SRC}

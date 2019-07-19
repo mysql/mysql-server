@@ -33,10 +33,8 @@ ADD_HARNESS_PLUGIN(rest_metadata_cache
 TARGET_INCLUDE_DIRECTORIES(rest_metadata_cache
   PUBLIC
     ${PROJECT_SOURCE_DIR}/src/harness/include/
-    ${PROJECT_SOURCE_DIR}/ext/rapidjson/include/
     ${PROJECT_SOURCE_DIR}/src/router/include/
     ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${CMAKE_CURRENT_BINARY_DIR}
     )

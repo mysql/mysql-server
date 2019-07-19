@@ -40,6 +40,5 @@ GENERATE_EXPORT_HEADER(rest_routing
 
 TARGET_INCLUDE_DIRECTORIES(rest_routing
   PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
     ${CMAKE_CURRENT_BINARY_DIR}/../include/
     )
