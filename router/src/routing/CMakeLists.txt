@@ -65,7 +65,6 @@ SET(system_include_dirs
   ${MYSQLX_GENERATE_DIR}/protobuf_lite
 )
 
-# link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 # The Plugin
 add_harness_plugin(routing
  SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}

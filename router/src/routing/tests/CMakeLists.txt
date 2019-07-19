@@ -33,7 +33,6 @@ INCLUDE_DIRECTORIES(SYSTEM
   ${MYSQLX_GENERATE_DIR}/protobuf_lite
 )
 
-# link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 ADD_LIBRARY(routing_tests STATIC ${ROUTING_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
                       metadata_cache_static mysql_protocol_static
