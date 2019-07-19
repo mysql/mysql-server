@@ -631,7 +631,6 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 #define QRY_EMPTY_PROJECTION 4826
 
 /* Various error codes that are not specific to NdbQuery. */
-static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_WrongFieldLength = 4209;
 static const int Err_InvalidRangeNo = 4286;

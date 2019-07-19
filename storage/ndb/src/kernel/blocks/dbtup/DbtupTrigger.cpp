@@ -1611,7 +1611,7 @@ out:
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
-    longsignal = ndbd_long_fire_trig_ord(getNodeInfo(refToNode(ref)).m_version);
+    longsignal = true;
     break;
   case (TriggerType::SUBSCRIPTION):
   case (TriggerType::SUBSCRIPTION_BEFORE):

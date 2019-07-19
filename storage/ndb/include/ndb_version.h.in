@@ -207,34 +207,8 @@ ndbd_spj_multifrag_scan(Uint32 x)
   return x >= NDBD_SPJ_MULTIFRAG_SCAN;
 }
 
-/**
- * DICT did not have a function for receiving GET_TABINFOREF signals
- * (see Bug#14647210).
- */
-#define NDBD_DICT_GET_TABINFOREF_IMPLEMENTED NDB_MAKE_VERSION(7, 2, 9)
-
-inline
-int
-ndbd_dict_get_tabinforef_implemented(Uint32 x)
-{
-  return x >= NDBD_DICT_GET_TABINFOREF_IMPLEMENTED;
-}
-
-/**
- * Dbtc::execFIRE_TRIG_ORD can receive long signals.
- */
-#define NDBD_LONG_FIRE_TRIG_ORD NDB_MAKE_VERSION(7,3,2)
-
 #define NDBD_MULTI_TC_INSTANCE_TAKEOVER_72 NDB_MAKE_VERSION(7,2,17)
 #define NDBD_MULTI_TC_INSTANCE_TAKEOVER_73 NDB_MAKE_VERSION(7,3,6)
-
-static
-inline
-int
-ndbd_long_fire_trig_ord(Uint32 x)
-{
-  return x >= NDBD_LONG_FIRE_TRIG_ORD;
-}
 
 static
 inline
