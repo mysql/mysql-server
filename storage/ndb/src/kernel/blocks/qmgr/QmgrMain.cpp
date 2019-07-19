@@ -8499,13 +8499,7 @@ Qmgr::execISOLATE_ORD(Signal* signal)
     {
       jam();
       BlockReference ref = calcQmgrBlockRef(nodeId);
-      if (!ndbd_isolate_ord(getNodeInfo(nodeId).m_version))
-      {
-        jam();
-        /* Node not able to handle ISOLATE_ORD, skip */
-        hitmen.clear(nodeId);
-      }
-      else if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
+      if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
       {
         jam();
         LinearSectionPtr lsptr[3];
