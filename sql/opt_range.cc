@@ -14773,11 +14773,11 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
   bool is_prefix_valid = seen_first_key;
 
   DBUG_ASSERT(distinct_prefix_len + range_key_len == max_used_key_length);
+
+  MY_BITMAP *const save_read_set = head->read_set;
+  head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
   do {
     if (!is_prefix_valid) {
-      MY_BITMAP *const save_read_set = head->read_set;
-      head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
-
       if (!seen_first_key) {
         if (eq_prefix_key_parts == 0) {
           result = head->file->ha_index_first(record);
@@ -14792,8 +14792,6 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
             false /* is_index_scan */, head->file, index_info->key_part, record,
             distinct_prefix, distinct_prefix_len, distinct_prefix_key_parts);
       }
-
-      head->column_bitmaps_set_no_signal(save_read_set, head->write_set);
 
       if (result) goto exit;
 
@@ -14896,6 +14894,8 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
 
 exit:
+  head->column_bitmaps_set_no_signal(save_read_set, head->write_set);
+
   if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
 
   return result;

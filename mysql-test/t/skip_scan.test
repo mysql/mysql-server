@@ -17,3 +17,23 @@ DELETE FROM t2 WHERE (f1, f1) IN (SELECT f1,f2 FROM v1 WHERE f1 >= 2);
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #29602393 ASSERTION `BITMAP_IS_SET(KEY_INFO->TABLE->READ_SET,
+--echo #                                        KEY_INFO->KEY_PART.*FAILED
+--echo #
+
+CREATE TABLE t1(f1 INT, f2 VARCHAR(64) NOT NULL, PRIMARY KEY (f1))
+PARTITION BY RANGE(f1)
+(
+  PARTITION p1 VALUES LESS THAN (3),
+  PARTITION p2 VALUES LESS THAN (maxvalue)
+);
+INSERT INTO t1 VALUES (1, 'abcde'), (2, 'abcde'), (3, 'abcde');
+CREATE INDEX idx1 ON t1(f2);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT /*+ SKIP_SCAN(t1 idx1) */ count(*) FROM t1 WHERE f1 <= 3;
+SELECT /*+ SKIP_SCAN(t1 idx1) */ count(*) FROM t1 WHERE f1 <= 3;
+
+DROP TABLE t1;
