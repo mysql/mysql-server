@@ -24,10 +24,12 @@
 #define SQL_SHOW_H
 
 #include <stddef.h>
+#include <sys/types.h>
 
-#include "m_ctype.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/status_var.h"
+#include "typelib.h"
 
 /* Forward declarations */
 class JOIN;
@@ -36,15 +38,14 @@ class SELECT_LEX;
 class String;
 class THD;
 class sp_name;
+struct CHARSET_INFO;
 struct HA_CREATE_INFO;
 struct LEX;
 struct ST_SCHEMA_TABLE;
 struct System_status_var;
 struct TABLE;
 struct TABLE_LIST;
-struct TYPELIB;
 typedef enum enum_mysql_show_type SHOW_TYPE;
-typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 enum enum_schema_table_state : int;
 enum enum_schema_tables : int;
 enum enum_var_type : int;

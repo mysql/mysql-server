@@ -24,64 +24,109 @@
 
 #include "sql/sql_show.h"
 
-#include "my_config.h"
-
-#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <new>
 #include <string>
+#include <vector>
 
-#include "keycache.h"                                // dflt_key_cache
-#include "mutex_lock.h"                              // MUTEX_LOCK
+#include "decimal.h"
+#include "field_types.h"
+#include "keycache.h"  // dflt_key_cache
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mutex_lock.h"  // MUTEX_LOCK
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_hostname.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread_local.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
-#include "mysql/plugin.h"                            // st_mysql_plugin
-#include "scope_guard.h"                             // Scope_guard
-#include "sql/auth/auth_acls.h"                      // DB_ACLS
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"  // st_mysql_plugin
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
+#include "nullable.h"
+#include "scope_guard.h"         // Scope_guard
+#include "sql/auth/auth_acls.h"  // DB_ACLS
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // is_encrypted
-#include "sql/dd/types/column.h"             // dd::Column
-#include "sql/dd/types/table.h"              // dd::Table
-#include "sql/debug_sync.h"                  // DEBUG_SYNC
-#include "sql/derror.h"                      // ER_THD
-#include "sql/error_handler.h"               // Internal_error_handler
-#include "sql/field.h"                       // Field
-#include "sql/filesort.h"                    // filesort_free_buffers
-#include "sql/item.h"                        // Item_empty_string
-#include "sql/log.h"                         // query_logger
-#include "sql/mysqld.h"                      // lower_case_table_names
-#include "sql/mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql/opt_trace.h"                   // fill_optimizer_trace_info
-#include "sql/partition_info.h"              // partition_info
-#include "sql/protocol.h"                    // Protocol
-#include "sql/sp_head.h"                     // sp_head
-#include "sql/sql_base.h"                    // close_thread_tables
-#include "sql/sql_class.h"                   // THD
-#include "sql/sql_db.h"                      // get_default_db_collation
-#include "sql/sql_executor.h"                // QEP_TAB
-#include "sql/sql_lex.h"                     // LEX
-#include "sql/sql_optimizer.h"               // JOIN
-#include "sql/sql_parse.h"                   // command_name
-#include "sql/sql_partition.h"               // HA_USE_AUTO_PARTITION
-#include "sql/sql_plugin.h"                  // PLUGIN_IS_DELETED, LOCK_plugin
-#include "sql/sql_profile.h"                 // query_profile_statistics_info
-#include "sql/sql_table.h"                   // primary_key_name
-#include "sql/sql_tmp_table.h"               // create_ondisk_from_heap
-#include "sql/sql_trigger.h"                 // acquire_shared_mdl_for_trigger
-#include "sql/strfunc.h"                     // lex_string_strmake
-#include "sql/table_trigger_dispatcher.h"    // Table_trigger_dispatcher
-#include "sql/temp_table_param.h"            // Temp_table_param
-#include "sql/trigger.h"                     // Trigger
-#include "sql/tztime.h"                      // my_tz_SYSTEM
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"  // dd::Column
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"  // dd::Table
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/field.h"          // Field
+#include "sql/handler.h"
+#include "sql/item.h"  // Item_empty_string
+#include "sql/key.h"
+#include "sql/log.h"  // query_logger
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"              // lower_case_table_names
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/opt_trace.h"           // fill_optimizer_trace_info
+#include "sql/partition_info.h"      // partition_info
+#include "sql/protocol.h"            // Protocol
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"   // sp_head
+#include "sql/sql_base.h"  // close_thread_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_check_constraint.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"  // get_default_db_collation
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // QEP_TAB
+#include "sql/sql_lex.h"       // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_parse.h"      // command_name
+#include "sql/sql_partition.h"  // HA_USE_AUTO_PARTITION
+#include "sql/sql_plugin.h"     // PLUGIN_IS_DELETED, LOCK_plugin
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"    // query_profile_statistics_info
+#include "sql/sql_table.h"      // primary_key_name
+#include "sql/sql_tmp_table.h"  // create_ondisk_from_heap
+#include "sql/sql_trigger.h"    // acquire_shared_mdl_for_trigger
+#include "sql/strfunc.h"        // lex_string_strmake
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/trigger.h"                   // Trigger
+#include "sql/tztime.h"                    // my_tz_SYSTEM
+#include "sql_string.h"
+#include "template_utils.h"
+#include "thr_lock.h"
 
 /* @see dynamic_privileges_table.cc */
 bool iterate_all_dynamic_privileges(THD *thd,
