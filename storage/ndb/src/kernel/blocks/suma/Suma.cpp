@@ -6660,11 +6660,6 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   Uint32 nodeId = req->nodeId;
   Uint32 new_gci = Uint32(m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
   Uint32 requestType = req->requestType;
-  if (!ndbd_suma_stop_me(getNodeInfo(nodeId).m_version))
-  {
-    jam();
-    requestType = SumaHandoverReq::RT_START_NODE;
-  }
   
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
@@ -6773,12 +6768,6 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
   ndbout_c("Suma::execSUMA_HANDOVER_CONF, gci = %u", gci);
 #endif
 
-  if (!ndbd_suma_stop_me(getNodeInfo(nodeId).m_version))
-  {
-    jam();
-    requestType = SumaHandoverReq::RT_START_NODE;
-  }
-
   if (requestType == SumaHandoverReq::RT_START_NODE)
   {
     jam();
@@ -6844,34 +6833,6 @@ Suma::execSTOP_ME_REQ(Signal* signal)
   NdbTick_Invalidate(&c_startup.m_wait_handover_expire);
   c_shutdown.m_senderRef = req.senderRef;
   c_shutdown.m_senderData = req.senderData;
-
-  for (Uint32 i = c_nodes_in_nodegroup_mask.find(0);
-       i != c_nodes_in_nodegroup_mask.NotFound ;
-       i = c_nodes_in_nodegroup_mask.find(i + 1))
-  {
-    jam();
-    jamLine(i);
-    /**
-     * Check that all SUMA nodes support graceful shutdown...
-     *   and it's too late to stop it...
-     * Shutdown instead...
-     *
-     * Only check live nodes, if version is 0 then the node is
-     * already dead.
-     */
-    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version) &&
-        getNodeInfo(i).m_version != 0)
-    {
-      jam();
-      char buf[255];
-      BaseString::snprintf(buf, sizeof(buf),
-			   "Not all versions support graceful shutdown (suma)."
-			   " Shutdown directly instead");
-      progError(__LINE__,
-		NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR,
-		buf);
-    }
-  }
   send_handover_req(signal, SumaHandoverReq::RT_STOP_NODE);
 }
 
