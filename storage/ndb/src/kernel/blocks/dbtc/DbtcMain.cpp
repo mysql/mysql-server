@@ -605,16 +605,6 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   Uint32 Tnode = hostptr.i;
 
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
-
-  if (m_deferred_enabled)
-  {
-    jam();
-    if (!ndbd_deferred_unique_constraints(getNodeInfo(Tnode).m_version))
-    {
-      jam();
-      m_deferred_enabled = 0;
-    }
-  }
 }
 
 void Dbtc::execREAD_NODESREF(Signal* signal) 
@@ -1305,11 +1295,6 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         con_lineNodes++;
         hostptr.p->hostStatus = HS_ALIVE;
         c_alive_nodes.set(i);
-        if (!ndbd_deferred_unique_constraints(getNodeInfo(i).m_version))
-        {
-          jam();
-          m_deferred_enabled = 0;
-        }
       }//if
     }//if
   }//for
@@ -10437,23 +10422,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   if (m_deferred_enabled == 0)
   {
     jam();
-    Uint32 ok = 1;
-    for(Uint32 n = c_alive_nodes.find_first();
-        n != c_alive_nodes.NotFound;
-        n = c_alive_nodes.find_next(n+1))
-    {
-      if (!ndbd_deferred_unique_constraints(getNodeInfo(n).m_version))
-      {
-        jam();
-        ok = 0;
-        break;
-      }
-    }
-    if (ok)
-    {
-      jam();
-      m_deferred_enabled = ~Uint32(0);
-    }
+    m_deferred_enabled = ~Uint32(0);
   }
 }//Dbtc::execNODE_FAILREP()
 
