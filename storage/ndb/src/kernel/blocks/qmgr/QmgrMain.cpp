@@ -1684,10 +1684,9 @@ retry:
       else if (packed_bitmask_length <= 2)
       {
         jam();
-        bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(i)).m_version);
         c_clusterNodes.copyto(NdbNodeBitmask48::Size, rep->partitioned.partition_v1);
         sendSignal(ref, GSN_FAIL_REP, signal,
-                   length + (sendSourceId ? FailRep::SourceExtraLength : 0),
+                   length + FailRep::SourceExtraLength,
                    JBA);
       }
       else
@@ -1723,9 +1722,8 @@ retry:
     else if (packed_bitmask_length <= 2)
     {
       jam();
-      bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(nodeId)).m_version);
       sendSignal(ref, GSN_FAIL_REP, signal,
-                 length + (sendSourceId ? FailRep::SourceExtraLength : 0),
+                 length + FailRep::SourceExtraLength,
                  JBB);
     }
     else
