@@ -91,6 +91,10 @@ GRANT engineering ON *.*, SUPER ON *.* TO joan, sally;
 GRANT SUPER, engineering ON *.* TO joan, sally;
 --error ER_SYNTAX_ERROR
 GRANT engineering,SELECT ON *.* TO joan;
+--echo # Revoking a role on SQL objects results in warning indicating that user
+--echo # is trying to revoke a privilege that is not registered with the server
+REVOKE engineering ON *.* FROM joan, sally;
+REVOKE wp_administrators, engineering ON *.* FROM joan, sally;
 
 --echo # Make sure current_user() works correctly!
 GRANT 'role',engineering TO current_user();
@@ -127,7 +131,7 @@ SELECT CURRENT_ROLE();
 --echo # roles are picked.
 SET ROLE ALL;
 SELECT CURRENT_ROLE();
---echo # Make sure ALL EXCEPT works as an intended reserved word and that all 
+--echo # Make sure ALL EXCEPT works as an intended reserved word and that all
 --echo # granted roles but the exceptions are picked.
 SET ROLE ALL EXCEPT role1;
 SELECT CURRENT_ROLE();
@@ -150,7 +154,7 @@ REVOKE engineering_role FROM foo@localhost;
 REVOKE engineering FROM managers;
 REVOKE engineering FROM joan;
 REVOKE engineering, role1 FROM root@localhost;
---echo # List all subgraphs as a graphml document. This should verify that 
+--echo # List all subgraphs as a graphml document. This should verify that
 --echo # revoking worked too.
 --echo # WL988.I-14,R-2.1
 --echo # only count nodes and edges as the sorting order is depending on platform
@@ -282,7 +286,7 @@ SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 SELECT IF (COUNT(*) > 0, "ERROR! There shouldn't be any edges in the table", "ALL OK!") AS health_check FROM mysql.role_edges;
 DROP TABLE t_external;
 
---echo # 
+--echo #
 --echo # Verify that all privileges are applied correctly.
 --echo #
 CREATE ROLE maintenance_admin;
@@ -346,7 +350,7 @@ SET ROLE `schema_admin`;
 DROP TABLE t1;
 --echo ++ Global create privileges makes it possible to create schemas!
 CREATE DATABASE joes;
---echo ++ And more tables! All this comes from schema_designer which from which 
+--echo ++ And more tables! All this comes from schema_designer which from which
 --echo ++ schema_admin inhert most of its privileges.
 CREATE TABLE joes.t1 (c1 INT);
 DROP TABLE joes.t1;
@@ -468,7 +472,7 @@ disconnect con4;
 disconnect con5;
 SHOW STATUS LIKE '%acl_cache%';
 SELECT count_alloc - count_free FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE '%acl_map_cache';
-# 
+#
 # Make sure we're using CURRENT_USER for host names
 #
 CREATE ROLE r1;
@@ -584,7 +588,7 @@ DROP ROLE r1;
 DROP USER u1@localhost;
 
 #
-# Default role 
+# Default role
 #
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 GRANT SELECT ON test.* TO u1@localhost;
@@ -819,7 +823,7 @@ CREATE ROLE r1, r2;
 GRANT SELECT ON mysql.db to r1;
 GRANT SELECT ON mysql.user to r2;
 GRANT SELECT ON test.* to r2;
-GRANT r1, r2 TO baseuser; 
+GRANT r1, r2 TO baseuser;
 ALTER USER baseuser default role r2;
 
 connect(con_base,localhost, baseuser,,);

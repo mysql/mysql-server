@@ -67,7 +67,7 @@ t_select_priv	CREATE TABLE `t_select_priv` (
   `b` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
-** SHOW CREATE TABLE will fail if there is no grants at all: 
+** SHOW CREATE TABLE will fail if there is no grants at all:
 show create table mysqltest_db1.t_no_priv;
 ERROR 42000: SHOW command denied to user 'mysqltest_u1'@'localhost' for table 't_no_priv'
 
@@ -148,4 +148,21 @@ REVOKE r3 FROM r2;
 DELETE FROM mysql.user;
 INSERT INTO mysql.user SELECT * FROM save_user;
 FLUSH PRIVILEGES;
+#
+# Bug#29395197 REVOKE ALLOWS INCORRECT VALUES
+#
+CREATE USER testuser@localhost;
+GRANT abc ON *.* TO testuser@localhost;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+REVOKE abc ON *.* FROM testuser@localhost;
+Warnings:
+Warning	3929	Dynamic privilege 'ABC' is not registered with the server.
+CREATE ROLE testrole;
+GRANT abc ON *.* TO testrole;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+REVOKE abc ON *.* FROM testrole;
+Warnings:
+Warning	3929	Dynamic privilege 'ABC' is not registered with the server.
+DROP USER testuser@localhost;
+DROP USER testrole;
 # End of 8.0 tests
