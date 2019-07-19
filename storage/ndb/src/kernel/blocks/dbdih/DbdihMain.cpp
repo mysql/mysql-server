@@ -336,11 +336,6 @@ void
 Dbdih::sendSUB_GCP_COMPLETE_REP(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
-  if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))
-  {
-    jam();
-    c_SUB_GCP_COMPLETE_REP_Counter.clearWaitingFor(nodeId);
-  }
   BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_SUB_GCP_COMPLETE_REP, signal,
              SubGcpCompleteRep::SignalLength, JBA);
@@ -18252,13 +18247,6 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
     m_micro_gcp.m_last_sent_gci = gci;
   }
 reply:
-  Uint32 nodeId = refToNode(masterRef);
-  if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))
-  {
-    jam();
-    return;
-  }
-
   SubGcpCompleteAck* ack = CAST_PTR(SubGcpCompleteAck,
                                     signal->getDataPtrSend());
   ack->rep = rep;
