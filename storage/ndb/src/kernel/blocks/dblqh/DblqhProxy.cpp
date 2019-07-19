@@ -1321,9 +1321,7 @@ DblqhProxy::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
   ss.phaseToSend++;
   Uint32 masterNodeId = refToNode(ss.m_req.senderRef);
   Uint32 master_version = getNodeInfo(masterNodeId).m_version;
-  if (master_version >= NDBD_NODE_RECOVERY_STATUS_VERSION)
   {
-    /* Only send this information to masters that have code to handle it. */
     jam();
     rep->nodeId = getOwnNodeId();
     rep->phaseId = (Uint32)phaseId;
@@ -1331,8 +1329,6 @@ DblqhProxy::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
                LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
     return;
   }
-  jam();
-  return;
 }
 
 void

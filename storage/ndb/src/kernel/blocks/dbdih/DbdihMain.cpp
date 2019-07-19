@@ -3597,7 +3597,6 @@ void Dbdih::init_lcp_pausing_module(void)
   /* Master state variables */
   c_pause_lcp_master_state = PAUSE_LCP_IDLE;
   c_lcp_runs_with_pause_support = false;
-  c_old_node_waiting_for_lcp_end = false;
 
   /* Pause participant state variables */
   c_dequeue_lcp_rep_ongoing = false;
@@ -3630,8 +3629,6 @@ bool Dbdih::check_pause_state_sanity(void)
   ndbrequire(c_lcp_id_paused == RNIL ||
              is_lcp_paused() ||
              c_dequeue_lcp_rep_ongoing);
-  ndbrequire(!c_old_node_waiting_for_lcp_end ||
-             c_lcp_runs_with_pause_support);
   return true;
 }
 
@@ -3703,39 +3700,6 @@ void Dbdih::start_copy_meta_data(Signal *signal)
 /**---------------------------------------------------------------
  * MASTER FUNCTIONALITY
  **--------------------------------------------------------------*/
-/**
- * If all nodes that are currently running the LCP can support PAUSE of an
- * LCP then we can use this function to find this out. We compute this
- * variable at a point where we start the LCP. We can still not get an old
- * node up and running until we get to a natural pause between two LCPs.
- * 
- * If an old node comes around then it will block until the LCP is done,
- * this will also ensure that no other nodes will try to become part of
- * this LCP. However we could have new node already being included in
- * this LCP and then have more new nodes arriving that want to be included
- * and we can also have an old node arriving while we are including a new
- * node. But only one node at a time will be in the copy meta data phase
- * so this will work fine.
- */
-bool Dbdih::check_if_pause_lcp_possible(void)
-{
-  NodeRecordPtr nodePtr;
-  ndbrequire(isMaster());
-  for (nodePtr.i = 1; nodePtr.i <= m_max_node_id; nodePtr.i++)
-  {
-    ptrAss(nodePtr, nodeRecord);
-    if (nodePtr.p->nodeStatus == NodeRecord::ALIVE)
-    {
-      if (getNodeInfo(nodePtr.i).m_version < NDBD_SUPPORT_PAUSE_LCP)
-      {
-        jam();
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
 /* Support function to check if LCP is still runnning */
 bool Dbdih::check_if_lcp_idle(void)
 {
@@ -4021,13 +3985,6 @@ void Dbdih::pause_lcp(Signal *signal,
       /* Ignore, node already died */
       return;
     }
-    /**
-     * Verify that the master isn't starting PAUSE protocol for old nodes
-     * that doesn't support the PAUSE LCP protocol. We make it an assert mostly
-     * to find bugs early on, a proper handling would probably be to shoot
-     * down the master node.
-     */
-    ndbassert(getNodeInfo(startNode).m_version >= NDBD_SUPPORT_PAUSE_LCP);
   }
 
   ndbrequire(sender_ref == cmasterdihref);
@@ -4644,8 +4601,6 @@ void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
 
   if (c_lcp_runs_with_pause_support)
   {
-    if (getNodeInfo(c_nodeStartMaster.startNode).m_version >=
-        NDBD_SUPPORT_PAUSE_LCP)
     {
       /**
        * All nodes running the LCP supports the PAUSE LCP protocol. Also the
@@ -4655,24 +4610,6 @@ void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
        */
       jam();
       sendPAUSE_LCP_REQ(signal, true);
-      return;
-    }
-    else
-    {
-      jam();
-      /**
-       * We can only come here trying to start an old version with a master of
-       * a new version. In this case we cannot use the PAUSE LCP protocol since
-       * the new node can only handle copying of meta data outside the LCP
-       * protocol.
-       *
-       * We come here holding the Fragment Info mutex. We will keep this mutex
-       * and this means that a new LCP cannot start. We also set an indicator
-       * to ensure that the LCP finish will know that we're waiting to copy
-       * the data.
-       */
-      ndbrequire(!c_old_node_waiting_for_lcp_end);
-      c_old_node_waiting_for_lcp_end = true;
       return;
     }
   }
@@ -5933,17 +5870,8 @@ void Dbdih::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
   if (reference() != cmasterdihref)
   {
     jam();
-    if (likely(getNodeInfo(refToNode(cmasterdihref)).m_version >=
-               NDBD_NODE_RECOVERY_STATUS_VERSION))
-    {
-      jam();
-      sendSignal(cmasterdihref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
-                 LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
-    }
-    else
-    {
-      jam();
-    }
+    sendSignal(cmasterdihref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+               LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
     return;
   }
   LocalRecoveryCompleteRep *rep =
@@ -5985,13 +5913,7 @@ void Dbdih::sendEND_TOREP(Signal *signal, Uint32 startingNodeId)
   do
   {
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    if (likely(getNodeInfo(nodePtr.i).m_version >=
-               NDBD_NODE_RECOVERY_STATUS_VERSION))
     {
-      /**
-       * Don't send to nodes with earlier versions that don't have support
-       * for this code.
-       */
       jamLine(nodePtr.i);
       BlockReference ref = calcDihBlockRef(nodePtr.i);
       if (ref != cmasterdihref)
@@ -6101,16 +6023,6 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
      */
     if (!isMaster())
     {
-      if (getNodeInfo(nodePtr.i).m_version <
-          NDBD_NODE_RECOVERY_STATUS_VERSION)
-      {
-        jam();
-        /**
-         * We ignore state changes for non-master nodes that are from
-         * too old versions to support all state transitions.
-         */
-        return;
-      }
       if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_NOT_RESTARTED_YET &&
           new_status != NodeRecord::NODE_GETTING_PERMIT)
       {
@@ -6341,12 +6253,8 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
        * new version of the starting node we come here rather from
        * EXECUTE_REDO_LOG_COMPLETED.
        */
-      ndbrequire((nodePtr.p->nodeRecoveryStatus ==
-                  NodeRecord::EXECUTE_REDO_LOG_COMPLETED) ||
-                 ((nodePtr.p->nodeRecoveryStatus ==
-                  NodeRecord::LOCAL_RECOVERY_STARTED) &&
-                  (getNodeInfo(nodePtr.i).m_version <
-                  NDBD_NODE_RECOVERY_STATUS_VERSION)));
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::EXECUTE_REDO_LOG_COMPLETED);
       if (nodePtr.p->nodeRecoveryStatus ==
           NodeRecord::LOCAL_RECOVERY_STARTED)
       {
@@ -12794,26 +12702,10 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        * reason is that a starting node will always fail also if any node
        * fails in the middle of the start process.
        */
-      c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
-      if (!c_lcp_runs_with_pause_support)
-      {
-        jam();
-        /**
-         * We need to reaquire the mutex...
-         */
-        Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
-        Callback c = 
-          { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked),
-            failedNodePtr.i
-          };
-        ndbrequire(mutex.lock(c, false));
-      }
-      else
-      {
-        jam();
-        /* No mutex is needed, call callback function immediately */
-        master_lcp_fragmentMutex_locked(signal, failedNodePtr.i, 0);
-      }
+      c_lcp_runs_with_pause_support = true;
+      jam();
+      /* No mutex is needed, call callback function immediately */
+      master_lcp_fragmentMutex_locked(signal, failedNodePtr.i, 0);
       return;
     }
   case LMTOS_LCP_CONCLUDING:
@@ -12840,7 +12732,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        */
       ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE ||
                  lcp_already_completed);
-
+   
       if (c_lcpState.lcpStatus == LCP_STATUS_IDLE)
       {
         jam();
@@ -12855,27 +12747,11 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
          */
         c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
       }
-      c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
-      if (!c_lcp_runs_with_pause_support)
-      {
-        jam();
-        /**
-         * We need to reaquire the mutex...
-         * We have nodes in the cluster without support of pause lcp.
-         */
-        Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
-        Callback c = 
-          { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked),
-            failedNodePtr.i
-          };
-        ndbrequire(mutex.lock(c, false));
-      }
-      else
-      {
-        jam();
-        /* No mutex is needed, call callback function immediately */
-        master_lcp_fragmentMutex_locked(signal, failedNodePtr.i, 0);
-      }
+
+      c_lcp_runs_with_pause_support = true;
+      jam();
+      /* No mutex is needed, call callback function immediately */
+      master_lcp_fragmentMutex_locked(signal, failedNodePtr.i, 0);
       return;
     }
   default:
@@ -18871,9 +18747,7 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
     req->participatingDIH = req->participatingDIH_v1;
   }
 
-  if (((getNodeInfo(refToNode(req->senderRef)).m_version <
-        NDBD_SUPPORT_PAUSE_LCP) ||
-        req->pauseStart == StartLcpReq::NormalLcpStart) &&
+  if ((req->pauseStart == StartLcpReq::NormalLcpStart) &&
         ownNodeIdSet)
   {
     jam();
@@ -18889,8 +18763,6 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
 
 void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 {
-  if (getNodeInfo(refToNode(req->senderRef)).m_version >=
-      NDBD_SUPPORT_PAUSE_LCP)
   {
     if (req->pauseStart == StartLcpReq::PauseLcpStartFirst)
     {
@@ -19928,8 +19800,6 @@ void Dbdih::execCOPY_TABREQ(Signal* signal)
      * master here to ensure that we're up to date with this value.
      */
     c_lcp_id_while_copy_meta_data = req->currentLcpId;
-    Uint32 masterNodeId = refToNode(ref);
-    if (getNodeInfo(masterNodeId).m_version >= NDBD_SUPPORT_PAUSE_LCP)
     {
       if (req->tabLcpStatus == CopyTabReq::LcpCompleted)
       {
@@ -19942,11 +19812,6 @@ void Dbdih::execCOPY_TABREQ(Signal* signal)
         ndbrequire(req->tabLcpStatus == CopyTabReq::LcpActive);
         tabPtr.p->tabLcpStatus = TabRecord::TLS_ACTIVE;
       }
-    }
-    else
-    {
-      jam();
-      tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
     }
   }//if
   ndbrequire(tabPtr.p->noPages < NDB_ARRAY_SIZE(tabPtr.p->pageRef));
@@ -21550,8 +21415,7 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
   DEB_LCP(("startLcpMutex_unlocked: m_LAST_LCP_FRAG_ORD = %s",
 	   c_lcpState.m_LAST_LCP_FRAG_ORD.getText()));
 
-  c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
-  if (c_lcp_runs_with_pause_support)
+  c_lcp_runs_with_pause_support = true;
   {
     jam();
     /**
@@ -23152,12 +23016,6 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     jam();
     Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
     mutex.unlock();
-  }
-  else if (c_old_node_waiting_for_lcp_end)
-  {
-    jam();
-    c_old_node_waiting_for_lcp_end = false;
-    start_copy_meta_data(signal);
   }
 
   c_lcp_runs_with_pause_support = false;
@@ -27781,10 +27639,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
               cmasterdihref,
               is_lcp_paused(),
               c_dequeue_lcp_rep_ongoing);
-    infoEvent("c_pause_lcp_master_state: %u,"
-              " c_old_node_waiting_for_lcp_end: %u",
-              Uint32(c_pause_lcp_master_state),
-              c_old_node_waiting_for_lcp_end);
+    infoEvent("c_pause_lcp_master_state: %u,",
+              Uint32(c_pause_lcp_master_state));
     infoEvent("c_queued_lcp_complete_rep: %u,"
               " c_lcp_id_paused: %u",
               c_queued_lcp_complete_rep,

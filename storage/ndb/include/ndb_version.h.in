@@ -208,22 +208,6 @@ ndbd_spj_multifrag_scan(Uint32 x)
 }
 
 /**
- * Support for PAUSE LCPs
- */
-#define NDBD_SUPPORT_PAUSE_LCP NDB_MAKE_VERSION(7,4,3)
-
-/**
- * Support for Node Recovery Status module, including sending
- * END_TOREP.
- */
-#define NDBD_NODE_RECOVERY_STATUS_VERSION NDB_MAKE_VERSION(7,4,3)
-
-/**
- * Support for removing EMPTY_LCP_REQ protocol in master takeover
- */
-#define NDBD_EMPTY_LCP_NOT_NEEDED NDB_MAKE_VERSION(7,4,3)
-
-/**
  * Support for multiple take over threads per node group in parallel
  * in master node.
  */

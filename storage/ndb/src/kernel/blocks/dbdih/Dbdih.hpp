@@ -1097,7 +1097,6 @@ private:
   void dequeue_lcp_rep(Signal*);
   void start_copy_meta_data(Signal*);
   void start_lcp(Signal*);
-  bool check_if_pause_lcp_possible(void);
   void start_lcp_before_mutex(Signal*);
   void queue_lcp_frag_rep(Signal *signal, LcpFragRep *lcpReport);
   void queue_lcp_complete_rep(Signal *signal, Uint32 lcpId);
@@ -1113,7 +1112,6 @@ private:
    * lcp protocol with all nodes.
    */
   bool c_lcp_runs_with_pause_support; /* Master state */
-  bool c_old_node_waiting_for_lcp_end; /* Master state */
 
   /**
    * This is the state in the master that keeps track of where the master is 
