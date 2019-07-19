@@ -8847,17 +8847,6 @@ Dbdih::check_takeover_thread(TakeOverRecordPtr takeOverPtr,
   lqhWorkers = MAX(lqhWorkers, 1);
   Uint32 instanceId = fragmentReplicaInstanceKey % lqhWorkers;
 
-  if (getNodeInfo(refToNode(cmasterdihref)).m_version <
-      NDBD_SUPPORT_PARALLEL_SYNCH)
-  {
-    jam();
-    /**
-     * The master node has no support to receive multiple requests to copy a
-     * fragment on the same node group. We fix this by ensuring that we only
-     * use one thread in the parallel copy scheme.
-     */
-    instanceId = 0;
-  }
   if ((instanceId % takeOverPtr.p->m_number_of_copy_threads) ==
       takeOverPtr.p->m_copy_thread_id)
   {

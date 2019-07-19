@@ -1319,8 +1319,6 @@ DblqhProxy::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
   /* All LDM workers have completed this phase */
   ndbrequire(Uint32(ss.phaseToSend) == Uint32(phaseId));
   ss.phaseToSend++;
-  Uint32 masterNodeId = refToNode(ss.m_req.senderRef);
-  Uint32 master_version = getNodeInfo(masterNodeId).m_version;
   {
     jam();
     rep->nodeId = getOwnNodeId();

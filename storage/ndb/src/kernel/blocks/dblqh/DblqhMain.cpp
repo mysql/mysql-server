@@ -23917,13 +23917,8 @@ void Dblqh::sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
   else
   {
     jam();
-    Uint32 master_node_id = refToNode(cmasterDihBlockref);
-    Uint32 master_version = getNodeInfo(master_node_id).m_version;
-    {
-      jam();
-      sendSignal(cmasterDihBlockref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
-                 LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
-    }
+    sendSignal(cmasterDihBlockref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+               LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
   }
 }
 

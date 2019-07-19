@@ -208,12 +208,6 @@ ndbd_spj_multifrag_scan(Uint32 x)
 }
 
 /**
- * Support for multiple take over threads per node group in parallel
- * in master node.
- */
-#define NDBD_SUPPORT_PARALLEL_SYNCH NDB_MAKE_VERSION(7,4,3)
-
-/**
  * Support for wl#9819 ndbinfo.processes
  */
 #define NDBD_PROCESSINFO_VERSION_75 NDB_MAKE_VERSION(7,5,7)
