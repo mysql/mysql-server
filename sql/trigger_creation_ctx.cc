@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,3 +99,14 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
   return new (thd->mem_root)
       Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }
+
+Stored_program_creation_ctx *Trigger_creation_ctx::clone(MEM_ROOT *mem_root) {
+  return new (mem_root)
+      Trigger_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+}
+
+Object_creation_ctx *Trigger_creation_ctx::create_backup_ctx(THD *thd) const {
+  return new (thd->mem_root) Trigger_creation_ctx(thd);
+}
+
+void Trigger_creation_ctx::delete_backup_ctx() { destroy(this); }

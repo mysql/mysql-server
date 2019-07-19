@@ -33,15 +33,19 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <new>
 #include <utility>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_hostname.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
+#include "my_systime.h"
 #include "my_user.h"  // parse_user
 #include "mysql/components/services/psi_error_bits.h"
 #include "mysql/plugin.h"
@@ -59,9 +63,9 @@
 #include "sql/derror.h"         // ER_THD
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
-#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/locked_tables_list.h"
 #include "sql/log_event.h"  // append_query_string, Query_log_event
 #include "sql/mdl.h"
 #include "sql/mysqld.h"     // atomic_global_query_id
@@ -76,6 +80,7 @@
 #include "sql/sp_pcontext.h"
 #include "sql/sp_rcontext.h"
 #include "sql/sql_base.h"  // close_thread_tables
+#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_db.h"  // mysql_opt_change_db, mysql_change_db
 #include "sql/sql_digest_stream.h"
@@ -3416,6 +3421,28 @@ void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp) {
   thd->reset_item_list();
 }
 
+void sp_parser_data::finish_parsing_sp_body(THD *thd) {
+  /*
+    In some cases the parser detects a syntax error and calls
+    THD::cleanup_after_parse_error() method only after finishing parsing
+    the whole routine. In such a situation sp_head::restore_thd_mem_root()
+    will be called twice - the first time as part of normal parsing process
+    and the second time by cleanup_after_parse_error().
+
+    To avoid ruining active arena/mem_root state in this case we skip
+    restoration of old arena/mem_root if this method has been already called
+    for this routine.
+  */
+  if (!is_parsing_sp_body()) return;
+
+  thd->free_items();
+  thd->mem_root = m_saved_memroot;
+  thd->set_item_list(m_saved_item_list);
+
+  m_saved_memroot = nullptr;
+  m_saved_item_list = nullptr;
+}
+
 bool sp_parser_data::add_backpatch_entry(sp_branch_instr *i, sp_label *label) {
   Backpatch_info *bp =
       (Backpatch_info *)(*THR_MALLOC)->Alloc(sizeof(Backpatch_info));
@@ -3467,4 +3494,13 @@ void sp_parser_data::process_new_sp_instr(THD *thd, sp_instr *i) {
   i->m_arena.set_item_list(thd->item_list());
 
   thd->reset_item_list();
+}
+
+Stored_program_creation_ctx::Stored_program_creation_ctx(THD *thd)
+    : Default_object_creation_ctx(thd),
+      m_db_cl(thd->variables.collation_database) {}
+
+void Stored_program_creation_ctx::change_env(THD *thd) const {
+  thd->variables.collation_database = m_db_cl;
+  Default_object_creation_ctx::change_env(thd);
 }

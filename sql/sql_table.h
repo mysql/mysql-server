@@ -30,12 +30,12 @@
 #include <utility>
 #include <vector>
 
-#include "dd/string_type.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
+#include "sql/dd/string_type.h"
+#include "sql/mdl.h"
 
 class Alter_info;
 class Alter_table_ctx;
