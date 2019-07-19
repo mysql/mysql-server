@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,10 +149,6 @@ private:
                                         Note: these bits are ignored since
                                         7.0.34, 7.1.23, 7.2.7 and should be
                                         zero-filled until future reuse.
-                                        For signal sent to old nodes they
-                                        should be filled in.
-                                        Check version with
-                                        ndbd_scan_tabreq_implicit_parallelism().
  l = Lock mode             - 1  Bit 8
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11

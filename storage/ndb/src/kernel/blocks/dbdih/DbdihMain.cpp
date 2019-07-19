@@ -25700,16 +25700,6 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
   fragPtr.p->distributionKey = TdistKey;
 
   fragPtr.p->m_log_part_id = readPageWord(rf);
-  if (!ndbd_128_instances_address(getMinVersion()))
-  {
-    jam();
-    /**
-     * Limit log-part to 0-3 as older version didn't handle
-     *   getting requests to instances > 4
-     *   (in reality 7 i think...but that is useless as log-part dividor anyway)
-     */
-    fragPtr.p->m_log_part_id %= 4;
-  }
 
   /* Older nodes stored unlimited log part ids in the fragment definition, 
    * now we constrain them to a valid range of actual values for this node.  
