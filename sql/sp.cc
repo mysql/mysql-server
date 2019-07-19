@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -68,8 +69,7 @@
 #include "sql/error_handler.h"     // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/lock.h"  // lock_object_name
-#include "sql/log.h"
+#include "sql/lock.h"       // lock_object_name
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // trust_function_creators
@@ -97,7 +97,6 @@
 #include "sql/transaction_info.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_lock.h"
 
 class sp_rcontext;
 
@@ -239,6 +238,20 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
   return new (thd->mem_root)
       Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
 }
+
+Stored_program_creation_ctx *Stored_routine_creation_ctx::clone(
+    MEM_ROOT *mem_root) {
+  return new (mem_root)
+      Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+}
+
+Object_creation_ctx *Stored_routine_creation_ctx::create_backup_ctx(
+    THD *thd) const {
+  DBUG_TRACE;
+  return new (thd->mem_root) Stored_routine_creation_ctx(thd);
+}
+
+void Stored_routine_creation_ctx::delete_backup_ctx() { destroy(this); }
 
 /**
   Acquire Shared MDL lock on the routine object.

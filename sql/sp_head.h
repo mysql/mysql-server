@@ -26,9 +26,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <string>
+#include <vector>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -40,20 +40,20 @@
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
-#include "sql/field.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/set_var.h"
-#include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 
+class Field;
 class Item;
 class Item_trigger_field;
 class Sroutine_hash_entry;
 class Table_trigger_field_support;
+class THD;
 class sp_head;
+struct CHARSET_INFO;
 struct MY_BITMAP;
 
 /**
@@ -93,9 +93,7 @@ class Stored_program_creation_ctx : public Default_object_creation_ctx {
   virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) = 0;
 
  protected:
-  Stored_program_creation_ctx(THD *thd)
-      : Default_object_creation_ctx(thd),
-        m_db_cl(thd->variables.collation_database) {}
+  explicit Stored_program_creation_ctx(THD *thd);
 
   Stored_program_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,
@@ -103,11 +101,7 @@ class Stored_program_creation_ctx : public Default_object_creation_ctx {
       : Default_object_creation_ctx(client_cs, connection_cl), m_db_cl(db_cl) {}
 
  protected:
-  virtual void change_env(THD *thd) const {
-    thd->variables.collation_database = m_db_cl;
-
-    Default_object_creation_ctx::change_env(thd);
-  }
+  void change_env(THD *thd) const override;
 
  protected:
   /**
@@ -188,27 +182,7 @@ class sp_parser_data {
 
     @param thd  Thread context.
   */
-  void finish_parsing_sp_body(THD *thd) {
-    /*
-      In some cases the parser detects a syntax error and calls
-      THD::cleanup_after_parse_error() method only after finishing parsing
-      the whole routine. In such a situation sp_head::restore_thd_mem_root()
-      will be called twice - the first time as part of normal parsing process
-      and the second time by cleanup_after_parse_error().
-
-      To avoid ruining active arena/mem_root state in this case we skip
-      restoration of old arena/mem_root if this method has been already called
-      for this routine.
-    */
-    if (!is_parsing_sp_body()) return;
-
-    thd->free_items();
-    thd->mem_root = m_saved_memroot;
-    thd->set_item_list(m_saved_item_list);
-
-    m_saved_memroot = NULL;
-    m_saved_item_list = NULL;
-  }
+  void finish_parsing_sp_body(THD *thd);
 
   /**
     @retval true if SP-body statement is being parsed.
