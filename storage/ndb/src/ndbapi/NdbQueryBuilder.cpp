@@ -60,7 +60,6 @@ static const bool doPrintQueryTree = false;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_MemoryAlloc = 4000;
-static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_FinaliseNotCalled = 4519;
 

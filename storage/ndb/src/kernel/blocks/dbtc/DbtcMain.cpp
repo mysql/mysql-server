@@ -10930,15 +10930,7 @@ void Dbtc::startTakeOverLab(Signal* signal,
       lqhTransReq->senderRef = cownref;
       lqhTransReq->failedNodeId = failedNodeId;
       lqhTransReq->instanceId = instanceId;
-      if (ndbd_multi_tc_instance_takeover(getNodeInfo(hostptr.i).m_version))
-      {
-        /* The node does support the new LQH_TRANSREQ protocol */
-        sig_len = LqhTransReq::SignalLength;
-      }
-      else
-      {
-        sig_len = LqhTransReq::OldSignalLength;
-      }
+      sig_len = LqhTransReq::SignalLength;
       if (ERROR_INSERTED(8064) && hostptr.i == getOwnNodeId())
       {
         ndbout_c("sending delayed GSN_LQH_TRANSREQ to self");

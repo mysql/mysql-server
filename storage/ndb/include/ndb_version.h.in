@@ -207,39 +207,6 @@ ndbd_spj_multifrag_scan(Uint32 x)
   return x >= NDBD_SPJ_MULTIFRAG_SCAN;
 }
 
-#define NDBD_MULTI_TC_INSTANCE_TAKEOVER_72 NDB_MAKE_VERSION(7,2,17)
-#define NDBD_MULTI_TC_INSTANCE_TAKEOVER_73 NDB_MAKE_VERSION(7,3,6)
-
-static
-inline
-int
-ndbd_multi_tc_instance_takeover(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major < 7)
-  {
-    return 0;
-  }
-  else if (major == 7)
-  {
-    if (minor < 2)
-    {
-      return 0;
-    }
-    else if (minor == 2)
-    {
-      return x >= NDBD_MULTI_TC_INSTANCE_TAKEOVER_72;
-    }
-    else if (minor == 3)
-    {
-      return x >= NDBD_MULTI_TC_INSTANCE_TAKEOVER_73;
-    }
-  }
-  return 1;
-}
-
 /**
  * Support for more parallel fragment LCPs
  */
