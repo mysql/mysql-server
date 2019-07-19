@@ -37,17 +37,17 @@ show columns from mysqltest_db1.t_column_priv_only;
 show columns from mysqltest_db1.t_no_priv;
 --echo ** However, select from I_S.COLUMNS will succeed but not show anything:
 select column_name as 'Field',column_type as 'Type',is_nullable as 'Null',column_key as 'Key',column_default as 'Default',extra as 'Extra' from information_schema.columns where table_schema='mysqltest_db1' and table_name='t_no_priv';
---echo 
+--echo
 #########################################################################
 --echo ** CREATE TABLE ... LIKE ... require SELECT privleges and will fail.
 --error 1142
 create table test.t_no_priv like mysqltest_db1.column_priv_only;
---echo  
+--echo
 #########################################################################
 --echo ** Just to be sure... SELECT also fails.
 --error 1142
 select * from mysqltest_db1.t_column_priv_only;
---echo 
+--echo
 #########################################################################
 --echo ** SHOW CREATE TABLE ... require any privileges on all columns (the entire table).
 --echo ** First we try and fail on a table with only one column privilege.
@@ -75,7 +75,7 @@ drop table test.t_duplicated;
 show create table mysqltest_db1.t_select_priv;
 --echo
 #########################################################################
---echo ** SHOW CREATE TABLE will fail if there is no grants at all: 
+--echo ** SHOW CREATE TABLE will fail if there is no grants at all:
 --error 1142
 show create table mysqltest_db1.t_no_priv;
 --echo
@@ -171,5 +171,21 @@ DELETE FROM mysql.user;
 INSERT INTO mysql.user SELECT * FROM save_user;
 FLUSH PRIVILEGES;
 
+--echo #
+--echo # Bug#29395197 REVOKE ALLOWS INCORRECT VALUES
+--echo #
+# Test with the user
+CREATE USER testuser@localhost;
+--error ER_SYNTAX_ERROR
+GRANT abc ON *.* TO testuser@localhost;
+REVOKE abc ON *.* FROM testuser@localhost;
+# Test with the role
+CREATE ROLE testrole;
+--error ER_SYNTAX_ERROR
+GRANT abc ON *.* TO testrole;
+REVOKE abc ON *.* FROM testrole;
+# Cleanup
+DROP USER testuser@localhost;
+DROP USER testrole;
 
 --echo # End of 8.0 tests

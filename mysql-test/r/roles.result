@@ -92,6 +92,18 @@ GRANT SUPER, engineering ON *.* TO joan, sally;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 GRANT engineering,SELECT ON *.* TO joan;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+# Revoking a role on SQL objects results in warning indicating that user
+# is trying to revoke a privilege that is not registered with the server
+REVOKE engineering ON *.* FROM joan, sally;
+Warnings:
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+REVOKE wp_administrators, engineering ON *.* FROM joan, sally;
+Warnings:
+Warning	3929	Dynamic privilege 'WP_ADMINISTRATORS' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+Warning	3929	Dynamic privilege 'WP_ADMINISTRATORS' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
 # Make sure current_user() works correctly!
 GRANT 'role',engineering TO current_user();
 # WL988.I-6 SET ROLE
@@ -145,7 +157,7 @@ SET ROLE ALL;
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()
 `engineering`@`%`,`role`@`%`
-# Make sure ALL EXCEPT works as an intended reserved word and that all 
+# Make sure ALL EXCEPT works as an intended reserved word and that all
 # granted roles but the exceptions are picked.
 SET ROLE ALL EXCEPT role1;
 SELECT CURRENT_ROLE();
@@ -181,7 +193,7 @@ REVOKE engineering FROM managers;
 ERROR HY000: Unknown authorization ID `managers`@`%`
 REVOKE engineering FROM joan;
 REVOKE engineering, role1 FROM root@localhost;
-# List all subgraphs as a graphml document. This should verify that 
+# List all subgraphs as a graphml document. This should verify that
 # revoking worked too.
 # WL988.I-14,R-2.1
 # only count nodes and edges as the sorting order is depending on platform
@@ -429,7 +441,7 @@ SELECT IF (COUNT(*) > 0, "ERROR! There shouldn't be any edges in the table", "AL
 health_check
 ALL OK!
 DROP TABLE t_external;
-# 
+#
 # Verify that all privileges are applied correctly.
 #
 CREATE ROLE maintenance_admin;
@@ -490,7 +502,7 @@ SET ROLE `schema_admin`;
 DROP TABLE t1;
 ++ Global create privileges makes it possible to create schemas!
 CREATE DATABASE joes;
-++ And more tables! All this comes from schema_designer which from which 
+++ And more tables! All this comes from schema_designer which from which
 ++ schema_admin inhert most of its privileges.
 CREATE TABLE joes.t1 (c1 INT);
 DROP TABLE joes.t1;

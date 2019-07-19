@@ -481,6 +481,27 @@ bool Grant_validator::validate() {
   return false;
 }
 
+/**
+  The dynamic privilege is probed in the global map that keeps track of
+  dynamic privileges registered with server. The policy is that
+  - Plugin/Component may register a privilege ID
+  - Any privilege ID that exist in mysql.global_grants is a valid privilege ID
+
+  This method assumes that caller must have acquired the necessory ACL_LOCK.
+
+  @param [in] privilege Privilege to be checked in the dynamic privilege map
+
+  @return
+    @retval true Privilege is registered
+    @retval false Otherwise
+*/
+bool is_dynamic_privilege_registered(const std::string &privilege) {
+  if (get_dynamic_privilege_register()->find(privilege) !=
+      get_dynamic_privilege_register()->end()) {
+    return true;
+  }
+  return false;
+}
 }  // namespace
 
 Granted_roles_graph *g_granted_roles = 0;
@@ -6639,12 +6660,9 @@ bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
                              bool with_grant_option,
                              Update_dynamic_privilege_table &update_table) {
   try {
-    Role_id id(str_user, str_host);
-    std::string priv(str_priv.str, str_priv.length);
-    if (get_dynamic_privilege_register()->find(priv) ==
-        get_dynamic_privilege_register()->end()) {
-      return true;
-    }
+    const std::string priv(str_priv.str, str_priv.length);
+    if (!is_dynamic_privilege_registered(priv)) return true;
+    const Role_id id(str_user, str_host);
     /*
       Is this grant already present? If so we will make an update by removing
       the previous grant only if the grant_option property has changed.
@@ -6843,17 +6861,25 @@ bool revoke_dynamic_privilege(const LEX_CSTRING &str_priv,
                               const LEX_CSTRING &str_host,
                               Update_dynamic_privilege_table &update_table) {
   try {
-    Role_id id(str_user, str_host);
-    std::string priv(str_priv.str, str_priv.length);
-    auto range = g_dynamic_privileges_map->equal_range(id);
-    for (auto it = range.first; it != range.second; ++it) {
-      if (it->second.first == priv) {
-        if (update_table(priv, {str_user, str_host}, false,
-                         Update_dynamic_privilege_table::REVOKE))
-          return true;
-        g_dynamic_privileges_map->erase(it);
-        break;
+    const std::string priv(str_priv.str, str_priv.length);
+    const Role_id id(str_user, str_host);
+    if (is_dynamic_privilege_registered(priv)) {
+      auto range = g_dynamic_privileges_map->equal_range(id);
+      for (auto it = range.first; it != range.second; ++it) {
+        if (it->second.first == priv) {
+          if (update_table(priv, {str_user, str_host}, false,
+                           Update_dynamic_privilege_table::REVOKE))
+            return true;
+          g_dynamic_privileges_map->erase(it);
+          break;
+        }
       }
+    } else {
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_WARN_DA_PRIVILEGE_NOT_REGISTERED,
+          ER_THD(current_thd, ER_WARN_DA_PRIVILEGE_NOT_REGISTERED),
+          str_priv.str);
     }
   } catch (...) {
     return true;
