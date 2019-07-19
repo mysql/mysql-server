@@ -55,10 +55,6 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
 
 ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/daemon
-  )
-
 SET(MEMCACHED_SOURCES
   daemon/memcached_mysql.h
   daemon/memcached_mysql.cc
