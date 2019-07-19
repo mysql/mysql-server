@@ -123,26 +123,6 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,12)
 
-/**
- * Does not support CopyFragReq::CFR_NON_TRANSACTIONAL
- */
-#define NDBD_NON_TRANS_COPY_FRAG_REQ_70 NDB_MAKE_VERSION(7,0,22)
-#define NDBD_NON_TRANS_COPY_FRAG_REQ_71 NDB_MAKE_VERSION(7,1,11)
-
-static
-inline
-int
-ndbd_non_trans_copy_frag_req(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor == 0)
-    return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_70;
-
-  return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_71;
-}
-
 #define NDBD_PING_REQ_70 NDB_MAKE_VERSION(7,0,24)
 #define NDBD_PING_REQ_71 NDB_MAKE_VERSION(7,1,13)
 

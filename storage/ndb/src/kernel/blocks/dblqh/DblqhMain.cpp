@@ -22985,8 +22985,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   {
     jam();
     ndbrequire(lcpNo == ZNIL);
-    Uint32 n = fragptr.p->srLqhLognode[0] = startFragReq->lqhLogNode[0]; // src
-    ndbrequire(ndbd_non_trans_copy_frag_req(getNodeInfo(n).m_version));
+    fragptr.p->srLqhLognode[0] = startFragReq->lqhLogNode[0]; // src
 
     // Magic no, meaning to COPY_FRAGREQ instead of read from disk
     fragptr.p->srChkpnr = Z8NIL;

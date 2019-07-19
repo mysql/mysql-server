@@ -2785,16 +2785,6 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
       if (readNodes->inactiveNodes.get(nodeArray[i]))
         continue;
 
-      if (!ndbd_non_trans_copy_frag_req(getNodeInfo(nodeArray[i]).m_version))
-      {
-        jam();
-        c_2pass_inr = false;
-#ifdef VM_TRACE
-        printf("not ok (version node %u) => disabled\n", nodeArray[i]);
-#endif
-        break;
-      }
-
       if (workers > 1 &&
           workers != getNodeInfo(nodeArray[i]).m_lqh_workers)
       {
