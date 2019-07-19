@@ -3973,9 +3973,18 @@ sub mysql_install_db {
     mtr_appendfile_to_file($init_file, $bootstrap_sql_file);
   }
 
-  # Set blacklist option early so it works during bootstrap
-  $ENV{'TSAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/tsan.supp"
-    if $opt_sanitize;
+  if ($opt_sanitize) {
+    if ($ENV{'TSAN_OPTIONS'}) {
+      # Don't want TSAN_OPTIONS to start with a leading separator. XSanitizer
+      # options are pretty relaxed about what to use as a
+      # separator: ',' ':' and ' ' all work.
+      $ENV{'TSAN_OPTIONS'} .= ",";
+    }
+    # Append TSAN_OPTIONS already present in the environment
+    # Set blacklist option early so it works during bootstrap
+    $ENV{'TSAN_OPTIONS'} =
+      $ENV{'TSAN_OPTIONS'} . "suppressions=${glob_mysql_test_dir}/tsan.supp"
+  }
 
   if ($opt_manual_boot_gdb) {
     # The configuration has been set up and user has been prompted for
