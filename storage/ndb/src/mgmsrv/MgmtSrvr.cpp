@@ -5156,13 +5156,6 @@ MgmtSrvr::show_variables(NdbOut& out)
 void
 MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
 {
-  const trp_node node = ss.getNodeInfo(nodeId);
-  if (!ndbd_sync_req_support(node.m_info.m_version))
-  {
-    /* The node hasn't got SYNC_REQ support */
-    return;
-  }
-
   /**
    * This subroutine is used to make a async request(error insert/dump)
    *   "more" syncronous, i.e increasing the likelyhood that
