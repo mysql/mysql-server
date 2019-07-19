@@ -23,19 +23,20 @@
 */
 
 #include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/mysql_client_thread_token.h"
-#define MYSQL_ROUTER_LOG_DOMAIN "sql"
-#include "mysql/harness/logging/logging.h"
-
-#include <assert.h>  // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
-#include <ctype.h>  // not <cctype> because we don't want std::toupper(), which causes problems with std::transform()
-#include <mysql.h>
 #include <algorithm>
+#include <cassert>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+
+#include <mysql.h>
+
+#include "mysqlrouter/mysql_client_thread_token.h"
+#define MYSQL_ROUTER_LOG_DOMAIN "sql"
+#include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -715,9 +716,8 @@ void MySQLSession::query(const std::string &q, const RowProcessor &processor) {
 
 class RealResultRow : public MySQLSession::ResultRow {
  public:
-  RealResultRow(const MySQLSession::Row &row, MYSQL_RES *res) : res_(res) {
-    row_ = row;
-  }
+  RealResultRow(MySQLSession::Row row, MYSQL_RES *res)
+      : ResultRow(std::move(row)), res_(res) {}
 
   virtual ~RealResultRow() { mysql_free_result(res_); }
 
@@ -725,7 +725,8 @@ class RealResultRow : public MySQLSession::ResultRow {
   MYSQL_RES *res_;
 };
 
-MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
+std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
+    const std::string &q) {
   if (connection_) {
     MOCK_REC_QUERY_ONE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
@@ -755,7 +756,7 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
         mysql_free_result(res);
         return nullptr;
       }
-      return new RealResultRow(outrow, res);
+      return std::make_unique<RealResultRow>(outrow, res);
     } else {
       std::stringstream ss;
       ss << "Error fetching query results: ";
