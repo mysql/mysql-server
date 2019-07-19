@@ -3689,17 +3689,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }
   
-  if (unlikely(TViaSPJFlag &&
-               /* Check that all nodes can handle SPJ requests. */
-               !ndbd_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
-                                   .m_min_version)))
-  {
-    jam();
-    releaseSections(handle);
-    TCKEY_abort(signal, 66, apiConnectptr);
-    return;
-  }
-
   /* KeyInfo and AttrInfo are buffered in segmented sections
    * If they arrived in segmented sections then there's nothing to do
    * If they arrived in short signals then they are appended into
@@ -13092,16 +13081,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (unlikely(tabptr.i >= ctabrecFilesize))
   {
     errCode = ZUNKNOWN_TABLE_ERROR;
-    goto SCAN_TAB_error;
-  }
-
-  if (unlikely (ScanTabReq::getViaSPJFlag(ri) &&
-                /* Check that all nodes can handle SPJ requests. */
-                !ndbd_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
-                                    .m_min_version)))
-  {
-    jam();
-    errCode = 4003; // Function not implemented
     goto SCAN_TAB_error;
   }
 

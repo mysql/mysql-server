@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -694,13 +694,6 @@ NdbQueryBuilder* NdbQueryBuilder::create()
   NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
   if (likely (impl != NULL))
   {
-    if((!ndbd_join_pushdown(ndbGetOwnVersion())))
-    {
-      /* The SPJ code is present in releases where the SPJ feature is
-       * not yet enabled.
-       */
-      impl->setErrorCode(Err_FunctionNotImplemented);
-    }
     return &impl->m_interface;
   }
   else

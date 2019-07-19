@@ -186,24 +186,6 @@ ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
 }
 
 /**
- * NOTE1:
- *   Even though pushed join support wasn't GA intil 7.2.4
- *   we claim support for it in all 7.2.x versions.
- * NOTE2:
- *   By a mistake this online upgrade check was not
- *   added until version 7.2.6
- */
-#define NDBD_JOIN_PUSHDOWN NDB_MAKE_VERSION(7,2,0)
-
-static
-inline
-int
-ndbd_join_pushdown(Uint32 x)
-{
-  return x >= NDBD_JOIN_PUSHDOWN;
-}
-
-/**
  * An enhanced version of the SCAN_FRAGREQ signal has been
  * introduced in 7.6.4, where multiple fragments to be scanned
  * can be specified in a single 'REQ'.

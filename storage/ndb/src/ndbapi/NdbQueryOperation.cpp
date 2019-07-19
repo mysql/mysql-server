@@ -1904,12 +1904,6 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef)
 {
   assert(queryDef.getNoOfOperations() > 0);
-  // Check for online upgrade/downgrade.
-  if (unlikely(!ndbd_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
-  {
-    trans.setOperationErrorCodeAbort(Err_FunctionNotImplemented);
-    return NULL;
-  }
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);

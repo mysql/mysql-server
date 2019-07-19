@@ -5327,14 +5327,6 @@ Dbspj::lookup_send(Signal* signal,
       err = DbspjErr::NodeFailure;
       break;
     }
-    // Test for online downgrade.
-    if (unlikely(!ndbd_join_pushdown(getNodeInfo(Tnode).m_version)))
-    {
-      jam();
-      releaseSections(handle);
-      err = 4003; // Function not implemented.
-      break;
-    }
 
     if (unlikely(!c_alive_nodes.get(Tnode)))
     {
@@ -7692,15 +7684,6 @@ Dbspj::scanFrag_send(Signal* signal,
       req->senderData = fragPtr.i;
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
       req->variableData[0] = batchRange;
-
-      // Test for online downgrade.
-      if (unlikely(ref != 0 && 
-                   !ndbd_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
-      {
-        jam();
-        err = 4003; // Function not implemented.
-        break;
-      }
 
       /**
        * Set up the key-/attrInfo to be sent with the SCAN_FRAGREQ.

@@ -13862,9 +13862,7 @@ static int ndbcluster_make_pushed_join(handlerton *, THD *thd,
                                        const AQP::Join_plan *plan) {
   DBUG_TRACE;
 
-  if (THDVAR(thd, join_pushdown) &&
-      // Check for online upgrade/downgrade.
-      ndbd_join_pushdown(g_ndb_cluster_connection->get_min_db_version())) {
+  if (THDVAR(thd, join_pushdown)) {
     ndb_pushed_builder_ctx pushed_builder(*plan);
 
     for (uint i = 0; i < plan->get_access_count() - 1; i++) {

@@ -1416,7 +1416,6 @@ NegativeTest::runFeatureDisabledTest() const
   
   int result = NDBT_OK;
 
-  if (ndbd_join_pushdown(ndbGetOwnVersion()))
   {
     if (parentOperation == NULL)
     {
@@ -1428,28 +1427,6 @@ NegativeTest::runFeatureDisabledTest() const
     {
       g_info << "scanTable() succeeded in version "
              << ndbGetOwnVersionString() << " as expected." << endl;
-    }
-  }
-  else
-  {
-    // Query pushdown should not be enabled in this version.
-    if (parentOperation != NULL)
-    {
-      g_err << "Succeeded with creating scan operation, which should not be "
-        "possible in version " << ndbGetOwnVersionString() << endl;
-      result = NDBT_FAILED;      
-    }
-    else if (builder->getNdbError().code != Err_FunctionNotImplemented)
-    {
-      g_err << "scanTable() failed with unexpected error: " 
-            << builder->getNdbError() << endl;
-      result = NDBT_FAILED;
-    }
-    else
-    {
-      g_info << "scanTable() failed in version "
-             << ndbGetOwnVersionString() << " as expected with error: " 
-             << builder->getNdbError() << endl;
     }
   }
 
