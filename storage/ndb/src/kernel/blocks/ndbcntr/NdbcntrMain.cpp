@@ -3337,9 +3337,6 @@ Ndbcntr::wait_sp(Signal* signal, Uint32 sp)
     return false;
   }
 
-  if (!ndb_wait_sp(getNodeInfo(cmasterNodeId).m_version))
-    return false;
-
   CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtrSend();
   rep->nodeId = getOwnNodeId();
   rep->waitPoint = RNIL;
@@ -3381,9 +3378,6 @@ Ndbcntr::wait_sp_rep(Signal* signal)
   for (; node != NdbNodeBitmask::NotFound;
        node = c_start.m_starting.find(node + 1))
   {
-    if (!ndb_wait_sp(getNodeInfo(node).m_version))
-      continue;
-
     if (c_start.m_wait_sp[node] < min)
     {
       min = c_start.m_wait_sp[node];
@@ -3403,9 +3397,6 @@ Ndbcntr::wait_sp_rep(Signal* signal)
   for (; node != NdbNodeBitmask::NotFound;
        node = c_start.m_starting.find(node + 1))
   {
-    if (!ndb_wait_sp(getNodeInfo(node).m_version))
-      continue;
-
     if (c_start.m_wait_sp[node] == min)
     {
       grantnodes.set(node);
