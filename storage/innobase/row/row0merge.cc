@@ -3734,15 +3734,8 @@ dberr_t row_merge_build_indexes(
     }
   }
 
-  /* Reset the MySQL row buffer that is used when reporting duplicate keys.
-  Return needs to be checked since innobase_rec_reset tries to evaluate
-  set_default() which can also be a function and might return errors */
+  /* Reset the MySQL row buffer that is used when reporting duplicate keys. */
   innobase_rec_reset(table);
-
-  if (table->in_use->is_error()) {
-    error = DB_COMPUTE_VALUE_FAILED;
-    goto func_exit;
-  }
 
   /* Read clustered index of the table and create files for
   secondary index entries for merge sort */

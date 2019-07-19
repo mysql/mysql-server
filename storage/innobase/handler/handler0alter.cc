@@ -2105,7 +2105,11 @@ void innobase_rec_reset(TABLE *table) /*!< in/out: MySQL table */
   uint i;
 
   for (i = 0; i < n_fields; i++) {
-    table->field[i]->set_default();
+    if (!table->field[i]->m_default_val_expr) {
+      table->field[i]->set_default();
+    } else {
+      table->field[i]->copy_data(table->default_values_offset());
+    }
   }
 }
 
