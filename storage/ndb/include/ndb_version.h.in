@@ -167,25 +167,6 @@ ndbd_scan_tabreq_implicit_parallelism(Uint32 x)
   return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_72;
 }
 
-#define NDBD_FIXED_LOOKUP_QUERY_ABORT_72 NDB_MAKE_VERSION(7,2,5)
-
-static
-inline
-int
-ndbd_fixed_lookup_query_abort(Uint32 x)
-{
-  const Uint32 major = (x >> 16) & 0xFF;
-  const Uint32 minor = (x >>  8) & 0xFF;
-
-  if (major == 7 && minor < 2)
-  {
-    // Only experimental support of SPJ pre 7.2.0.
-    // Assume we support 'fixed-abort' as we want it tested.
-    return 1;
-  }
-  return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
-}
-
 /**
  * Including vers. 'NDBD_SPJ_API_ONLY_LONG_TRANSID_AI',
  * TRANSID_AI received from a SPJ query execution

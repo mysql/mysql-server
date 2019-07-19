@@ -3294,31 +3294,6 @@ void
 Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
 {
   jam();
-
-  /**
-   * Need to handle online upgrade as the protocol for 
-   * signaling errors for Lookup-request changed in 7.2.5.
-   * If API-version is <= 7.2.4 we increase the severity 
-   * of the error to a 'NodeFailure' as this is the only
-   * errorcode for which the API will stop further
-   * 'outstanding-counting' in pre 7.2.5.
-   * (Starting from 7.2.5 we will stop counting for all 'hard errors')
-   * 
-   * In case we are only partially connected, there might be no 
-   * valid 'API-version' info yet: We do the optimistic assumption that
-   * version > 7.2.4 rather than sending a NodeFailure (bug#23049170)
-   * (Partly based on assumption that there are few/no left on <= 7.2.4)
-   */
-  if (requestPtr.p->isLookup())
-  {
-    const Uint32 API_version = getNodeInfo(getResultRef(requestPtr)).m_version;
-    if (unlikely(API_version != 0 && !ndbd_fixed_lookup_query_abort(API_version)))
-    {
-      jam();
-      errCode = DbspjErr::NodeFailure;
-    }
-  }
-
   if ((requestPtr.p->m_state & Request::RS_ABORTING) != 0)
   {
     jam();
