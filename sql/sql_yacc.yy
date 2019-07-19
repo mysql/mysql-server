@@ -1554,7 +1554,6 @@ void warn_about_deprecated_binary(THD *thd)
 %type <ulonglong_number> query_spec_option
 
 %type <select_options> select_option select_option_list select_options
-        empty_select_options
 
 %type <node>
           option_value
@@ -11768,19 +11767,12 @@ into_destination:
 */
 
 do_stmt:
-          DO_SYM empty_select_options select_item_list
+          DO_SYM select_item_list
           {
             $$= NEW_PTN PT_select_stmt(SQLCOM_DO,
                   NEW_PTN PT_query_expression(
                     NEW_PTN PT_query_expression_body_primary(
-                      NEW_PTN PT_query_specification($2, $3))));
-          }
-        ;
-
-empty_select_options:
-          /* empty */
-          {
-            $$.query_spec_options= 0;
+                      NEW_PTN PT_query_specification({}, $2))));
           }
         ;
 
