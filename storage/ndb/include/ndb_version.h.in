@@ -208,11 +208,6 @@ ndbd_spj_multifrag_scan(Uint32 x)
 }
 
 /**
- * Support for more parallel fragment LCPs
- */
-#define NDBD_EXTRA_PARALLEL_FRAG_LCP NDB_MAKE_VERSION(7,4,1)
-
-/**
  * Support for PAUSE LCPs
  */
 #define NDBD_SUPPORT_PAUSE_LCP NDB_MAKE_VERSION(7,4,3)

@@ -29537,15 +29537,7 @@ Dbdih::getMinVersion() const
 Uint8
 Dbdih::getMaxStartedFragCheckpointsForNode(Uint32 nodeId) const
 {
-  if (likely(getNodeInfo(nodeId).m_version >= NDBD_EXTRA_PARALLEL_FRAG_LCP))
-  {
-    return MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE;
-  }
-  else
-  {
-    /* Older node - only 2 parallel frag checkpoints supported */
-    return 2;
-  }
+  return MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE;
 }
   
   
