@@ -784,11 +784,9 @@ class Field {
   */
   static uchar dummy_null_buffer;
 
-  const uchar *get_null_ptr() const { return m_null_ptr; }
-
+ public:
   uchar *get_null_ptr() { return m_null_ptr; }
 
- public:
   /*
     Note that you can use table->in_use as replacement for current_thd member
     only inside of val_*() and store() members (e.g. you can't use it in cons)
@@ -1780,19 +1778,6 @@ class Field {
     @retval covering prefix keys.
   */
   Key_map get_covering_prefix_keys() const;
-
-  friend class Copy_field;
-  friend class Item_avg_field;
-  friend class Item_std_field;
-  friend class Item_sum_num;
-  friend class Item_sum_sum;
-  friend class Item_sum_str;
-  friend class Item_sum_count;
-  friend class Item_sum_avg;
-  friend class Item_sum_std;
-  friend class Item_sum_min;
-  friend class Item_sum_max;
-  friend class Item_func_group_concat;
 
   /// Whether the field is a typed array
   virtual bool is_array() const { return false; }
@@ -3893,6 +3878,7 @@ class Field_blob : public Field_longstr {
                                const CHARSET_INFO *charset) override;
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override;
+  type_conversion_status store(const Field *from);
   double val_real() const override;
   longlong val_int() const override;
   String *val_str(String *, String *) const override;
@@ -4009,7 +3995,6 @@ class Field_blob : public Field_longstr {
     old_value.mem_free();
     m_blob_backup.mem_free();
   }
-  friend type_conversion_status field_conv(Field *to, Field *from);
   bool has_charset() const override {
     return charset() == &my_charset_bin ? false : true;
   }
@@ -4349,7 +4334,6 @@ class Field_json : public Field_blob {
 };
 
 class Json_array;
-class Item_func_array_cast;
 
 /**
   Field that stores array of values of the same type.
@@ -4486,7 +4470,6 @@ class Field_typed_array : public Field_json {
     to match collations in optimizer.
   */
   bool match_collation_to_optimize_range() const override { return false; }
-  friend class Item_func_array_cast;
 
   /**
     Convert arbitrary JSON value to the array's type using the conversion field.

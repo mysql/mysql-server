@@ -7103,6 +7103,19 @@ type_conversion_status Field_blob::store(longlong nr, bool unsigned_val) {
   return Field_blob::store(value.ptr(), value.length(), cs);
 }
 
+type_conversion_status Field_blob::store(const Field *from) {
+  from->val_str(&value);
+
+  /*
+    Copy value if copy_blobs is set, or source is part of the table's
+    writeset.
+  */
+  if (table->copy_blobs || (!value.is_alloced() && from->is_updatable()))
+    value.copy();
+
+  return store(value.ptr(), value.length(), from->charset());
+}
+
 double Field_blob::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;

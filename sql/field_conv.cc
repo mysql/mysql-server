@@ -898,18 +898,7 @@ type_conversion_status field_conv(Field *to, Field *from) {
   }
   if (to->type() == MYSQL_TYPE_BLOB) {  // Be sure the value is stored
     Field_blob *blob = (Field_blob *)to;
-    from->val_str(&blob->value);
-
-    /*
-      Copy value if copy_blobs is set, or source is part of the table's
-      writeset.
-    */
-    if (to->table->copy_blobs ||
-        (!blob->value.is_alloced() && from->is_updatable()))
-      blob->value.copy();
-
-    return blob->store(blob->value.ptr(), blob->value.length(),
-                       from->charset());
+    return blob->store(from);
   }
   if (from->real_type() == MYSQL_TYPE_ENUM &&
       to->real_type() == MYSQL_TYPE_ENUM && from->val_int() == 0) {
