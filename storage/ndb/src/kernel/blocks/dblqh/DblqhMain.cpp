@@ -22563,11 +22563,6 @@ void Dblqh::openSrFrontpageLab(Signal* signal)
 void Dblqh::readSrFrontpageLab(Signal* signal) 
 {
   Uint32 num_parts_used;
-  if (!ndb_configurable_log_parts(logPagePtr.p->logPageWord[ZPOS_VERSION])) {
-    jam();
-    num_parts_used= 4;
-  }
-  else
   {
     jam();
     num_parts_used = logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS];
