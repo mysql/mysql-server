@@ -6695,27 +6695,6 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   tabRequire(keyCount <= MAX_ATTRIBUTES_IN_INDEX,
              CreateTableRef::InvalidPrimaryKeySize);
 
-  /* Check that all currently running nodes data support
-   * table features
-   */
-  for (Uint32 nodeId=1; nodeId < MAX_NODES; nodeId++)
-  {
-    const NodeInfo& ni = getNodeInfo(nodeId);
-
-    if (ni.m_connected &&
-        (ni.m_type == NODE_TYPE_DB))
-    {
-      /* Check that all nodes support extra bits */
-      if (tablePtr.p->m_extra_row_gci_bits ||
-          tablePtr.p->m_extra_row_author_bits)
-      {
-        tabRequire(ndb_tup_extrabits(ni.m_version),
-                   CreateTableRef::FeatureRequiresUpgrade);
-      }
-    }
-  }
-
-
   if(tablePtr.p->m_tablespace_id != RNIL || counts[3] || counts[4])
   {
     FilegroupPtr tablespacePtr;

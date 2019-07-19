@@ -2441,7 +2441,6 @@ private:
   void checkNodeFailComplete(Signal* signal, Uint32 failedNodeId, Uint32 bit);
 
   void apiFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
-  bool isRefreshSupported() const;
   
   // Initialisation
   void initData();
