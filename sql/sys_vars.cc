@@ -6260,8 +6260,7 @@ static bool sysvar_check_authid_string(sys_var *, THD *thd, set_var *var) {
     var->save_result.string_value.str = const_cast<char *>("");
     var->save_result.string_value.length = 0;
   }
-  return check_authorization_id_string(thd, var->save_result.string_value.str,
-                                       var->save_result.string_value.length);
+  return check_authorization_id_string(thd, var->save_result.string_value);
 }
 
 static bool sysvar_update_mandatory_roles(sys_var *, THD *, enum_var_type) {

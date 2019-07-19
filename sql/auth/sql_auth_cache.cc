@@ -2110,8 +2110,7 @@ bool grant_init(bool skip_grant_tables) {
            thd->get_stmt_da()->message_text());
 
   if (opt_mandatory_roles.length > 0) {
-    return_val |= check_authorization_id_string(thd, opt_mandatory_roles.str,
-                                                opt_mandatory_roles.length);
+    return_val |= check_authorization_id_string(thd, opt_mandatory_roles);
   }
 
   thd->release_resources();
