@@ -1522,18 +1522,6 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
-  if (!ndb_check_hb_order_version(cmRegConf->presidentVersion) &&
-      m_hb_order_config_used) {
-    jam();
-    char buf[128];
-    BaseString::snprintf(buf,sizeof(buf), 
-			 "incompatible version own=0x%x other=0x%x, "
-			 "due to user-defined HeartbeatOrder, shutting down", 
-			 NDB_VERSION, cmRegConf->presidentVersion);
-    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);  
-    return;
-  }
-
   if (m_connectivity_check.m_enabled &&
       !ndbd_connectivity_check(cmRegConf->presidentVersion))
   {
