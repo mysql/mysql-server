@@ -863,15 +863,6 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
   }
 
   const Uint32 version = node.m_info.m_version;
-
-  if (!ndbd_get_config_supported(version))
-  {
-    error.assfmt("Data node %d (version %d.%d.%d) does not support getting config. ",
-                 nodeId, ndbGetMajor(version),
-                 ndbGetMinor(version), ndbGetBuild(version));
-    DBUG_RETURN(false);
-  }
-
   bool v2_data_node = ndb_config_version_v2(version);
   INIT_SIGNAL_SENDER(ss,nodeId);
 
