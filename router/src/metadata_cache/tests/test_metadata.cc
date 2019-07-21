@@ -22,7 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// must have these first, before #includes that rely on it
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <memory>
+#include <set>
+#include <utility>
+
+// enable support for move-only support in googlemock with gmock 1.8.0 on msvc
+//
+// works around https://github.com/google/googletest/issues/799
+#ifndef GTEST_LANG_CXX11
+#define GTEST_LANG_CXX11 1
+#endif
+
+// include before header with FRIEND_TEST is used.
 #include <gtest/gtest_prod.h>
 
 #include "cluster_metadata.h"
@@ -31,12 +45,6 @@
 #include "metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "test/helpers.h"
-
-#include <algorithm>
-#include <cmath>
-#include <map>
-#include <memory>
-#include <set>
 
 // ignore GMock warnings
 #ifdef __clang__
@@ -50,13 +58,12 @@
 #if __has_warning("-Wsign-conversion")
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
-#include "gmock/gmock.h"
-#else
-#include "gmock/gmock.h"
 #endif
+#include <gmock/gmock.h>
 
 using ::testing::_;
 using ::testing::Assign;
+using ::testing::ByMove;
 using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Mock;
@@ -144,7 +151,8 @@ class MockMySQLSession : public MySQLSession {
  public:
   MOCK_METHOD2(query,
                void(const std::string &query, const RowProcessor &processor));
-  MOCK_METHOD1(query_one, ResultRow *(const std::string &query));
+  MOCK_METHOD1(query_one, std::unique_ptr<MySQLSession::ResultRow>(
+                              const std::string &query));
   MOCK_METHOD2(flag_succeed, void(const std::string &, unsigned int));
   MOCK_METHOD2(flag_fail, void(const std::string &, unsigned int));
 
@@ -230,12 +238,6 @@ class MockMySQLSessionFactory {
   std::vector<std::shared_ptr<MockMySQLSession>> sessions_;
 
   mutable unsigned next_ = 0;
-};
-
-// tiny helper to create a row on the fly
-class MockRow : public MySQLSession::ResultRow {
- public:
-  explicit MockRow(const MySQLSession::Row &row) { row_ = row; }
 };
 
 static bool cmp_mi_FIFMS(const ManagedInstance &lhs,
@@ -468,7 +470,8 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
     EXPECT_CALL(session_factory.get(0),
                 query_one(StartsWith(query_schema_version)))
         .Times(1)
-        .WillOnce(Return(new MockRow({"1", "0", "1"})));
+        .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+            MySQLSession::Row{"1", "0", "1"}))));
 
     auto resultset_metadata = [this](
                                   const std::string &,
@@ -524,7 +527,8 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
     EXPECT_CALL(session_factory.get(0),
                 query_one(StartsWith(query_schema_version)))
         .Times(1)
-        .WillOnce(Return(new MockRow({"1", "0", "1"})));
+        .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+            MySQLSession::Row{"1", "0", "1"}))));
     auto resultset_metadata = [this](
                                   const std::string &,
                                   const MySQLSession::RowProcessor &processor) {
@@ -547,7 +551,8 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
     EXPECT_CALL(session_factory.get(0),
                 query_one(StartsWith(query_schema_version)))
         .Times(1)
-        .WillOnce(Return(new MockRow({"1", "0", "1"})));
+        .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+            MySQLSession::Row{"1", "0", "1"}))));
     auto resultset_metadata = [this](
                                   const std::string &,
                                   const MySQLSession::RowProcessor &processor) {
@@ -611,7 +616,8 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
     EXPECT_CALL(session_factory.get(0),
                 query_one(StartsWith(query_schema_version)))
         .Times(1)
-        .WillOnce(Return(new MockRow({"1", "0", "1"})));
+        .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+            MySQLSession::Row{"1", "0", "1"}))));
     auto resultset_metadata = [this](
                                   const std::string &,
                                   const MySQLSession::RowProcessor &processor) {
@@ -1920,7 +1926,8 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
   EXPECT_CALL(session_factory.get(session),
               query_one(StartsWith(query_schema_version)))
       .Times(1)
-      .WillOnce(Return(new MockRow({"1", "0", "1"})));
+      .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+          MySQLSession::Row{"1", "0", "1"}))));
 
   auto resultset_metadata =
       [this](const std::string &, const MySQLSession::RowProcessor &processor) {
@@ -1982,7 +1989,8 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
   EXPECT_CALL(session_factory.get(session),
               query_one(StartsWith(query_schema_version)))
       .Times(1)
-      .WillOnce(Return(new MockRow({"1", "0", "1"})));
+      .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+          MySQLSession::Row{"1", "0", "1"}))));
 
   auto resultset_metadata =
       [this](const std::string &, const MySQLSession::RowProcessor &processor) {

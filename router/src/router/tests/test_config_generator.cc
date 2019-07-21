@@ -429,7 +429,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
   auto gen_check_users_SQL =
       [this](const std::vector<const char *> &hostnames_to_return) {
-        std::vector<std::vector<MySQLSessionReplayer::string>> results;
+        std::vector<std::vector<MySQLSessionReplayer::optional_string>> results;
         for (const char *h : hostnames_to_return)
           results.push_back({mock_mysql->string_or_null(h)});
 
@@ -1383,7 +1383,7 @@ struct query_entry_t {
   const char *query;
   action_t action;
   unsigned result_cols;
-  std::vector<std::vector<MySQLSessionReplayer::string>> results;
+  std::vector<std::vector<MySQLSessionReplayer::optional_string>> results;
   uint64_t last_insert_id;
   unsigned error_code;
 
@@ -1396,7 +1396,8 @@ struct query_entry_t {
         error_code(error_code_) {}
   query_entry_t(
       const char *query_, action_t action_, unsigned results_cols_,
-      const std::vector<std::vector<MySQLSessionReplayer::string>> &results_,
+      const std::vector<std::vector<MySQLSessionReplayer::optional_string>>
+          &results_,
       uint64_t last_insert_id_ = 0, unsigned error_code_ = 0)
       : query(query_),
         action(action_),

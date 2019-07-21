@@ -865,7 +865,7 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// check connection is killed");
-  EXPECT_THROW_LIKE(result.reset(client.query_one("select @@port")),
+  EXPECT_THROW_LIKE(client.query_one("select @@port"),
                     mysqlrouter::MySQLSession::Error,
                     "Lost connection to MySQL server during query");
 }
