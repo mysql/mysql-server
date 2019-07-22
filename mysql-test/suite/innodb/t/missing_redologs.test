@@ -1,3 +1,4 @@
+--source include/have_innodb_max_16k.inc
 --source include/not_asan.inc
 --source include/not_valgrind.inc
 
