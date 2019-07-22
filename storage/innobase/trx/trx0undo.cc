@@ -880,7 +880,7 @@ buf_block_t *trx_undo_add_page(
 
   rseg = undo_ptr->rseg;
 
-  if (rseg->curr_size == rseg->max_size) {
+  if (rseg->get_curr_size() == rseg->max_size) {
     return (NULL);
   }
 
@@ -914,7 +914,7 @@ buf_block_t *trx_undo_add_page(
   flst_add_last(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_PAGE_LIST,
                 new_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
   undo->size++;
-  rseg->curr_size++;
+  rseg->incr_curr_size();
 
   return (new_block);
 }
@@ -956,7 +956,8 @@ static page_no_t trx_undo_free_page(
 
   last_addr =
       flst_get_last(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_PAGE_LIST, mtr);
-  rseg->curr_size--;
+
+  rseg->decr_curr_size();
 
   if (in_history) {
     rseg_header = trx_rsegf_get(space, rseg->page_no, rseg->page_size, mtr);
@@ -1170,7 +1171,7 @@ static void trx_undo_seg_free(const trx_undo_t *undo, bool noredo) {
       mtr.set_log_mode(MTR_LOG_NO_REDO);
     }
 
-    mutex_enter(&(rseg->mutex));
+    rseg->latch();
 
     seg_header = trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
                                    undo->page_size, &mtr) +
@@ -1186,10 +1187,11 @@ static void trx_undo_seg_free(const trx_undo_t *undo, bool noredo) {
           trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
       trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, &mtr);
 
+      rseg->decr_curr_size(undo->size);
       MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_USED);
     }
 
-    mutex_exit(&(rseg->mutex));
+    rseg->unlatch();
     mtr_commit(&mtr);
   } while (!finished);
 }
@@ -1251,9 +1253,7 @@ static trx_undo_t *trx_undo_mem_init(
     trx_undo_read_xid(undo_header, &xid);
   }
 
-  mutex_enter(&(rseg->mutex));
   undo = trx_undo_mem_create(rseg, id, type, trx_id, &xid, page_no, offset);
-  mutex_exit(&(rseg->mutex));
 
   undo->dict_operation =
       mtr_read_ulint(undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
@@ -1380,8 +1380,6 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
                                        page_no_t page_no, ulint offset) {
   trx_undo_t *undo;
 
-  ut_ad(mutex_own(&(rseg->mutex)));
-
   ut_a(id < TRX_RSEG_N_SLOTS);
 
   undo = static_cast<trx_undo_t *>(ut_malloc_nokey(sizeof(*undo)));
@@ -1477,11 +1475,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   ut_ad(mutex_own(&(rseg->mutex)));
 
-  if (rseg->curr_size == rseg->max_size) {
+  if (rseg->get_curr_size() == rseg->max_size) {
     return (DB_OUT_OF_FILE_SPACE);
   }
 
-  rseg->curr_size++;
+  rseg->incr_curr_size();
 
   rseg_header =
       trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, mtr);
@@ -1491,7 +1489,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   if (err != DB_SUCCESS) {
     /* Did not succeed */
 
-    rseg->curr_size--;
+    rseg->decr_curr_size();
 
     return (err);
   }
@@ -1662,7 +1660,7 @@ dberr_t trx_undo_assign_undo(
     ut_ad(&trx->rsegs.m_redo == undo_ptr);
   }
 
-  mutex_enter(&rseg->mutex);
+  rseg->latch();
 
   DBUG_EXECUTE_IF("ib_create_table_fail_too_many_trx",
                   err = DB_TOO_MANY_CONCURRENT_TRXS;
@@ -1711,7 +1709,7 @@ dberr_t trx_undo_assign_undo(
   }
 
 func_exit:
-  mutex_exit(&(rseg->mutex));
+  rseg->unlatch();
   mtr_commit(&mtr);
 
   return (err);
@@ -1857,7 +1855,7 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
 
   ut_ad(noredo == fsp_is_system_temporary(rseg->space_id));
 
-  mutex_enter(&(rseg->mutex));
+  rseg->latch();
 
   UT_LIST_REMOVE(rseg->insert_undo_list, undo);
   undo_ptr->insert_undo = NULL;
@@ -1871,20 +1869,16 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
 
     /* Delete first the undo log segment in the file */
 
-    mutex_exit(&(rseg->mutex));
+    rseg->unlatch();
 
     trx_undo_seg_free(undo, noredo);
 
-    mutex_enter(&(rseg->mutex));
-
-    ut_ad(rseg->curr_size > undo->size);
-
-    rseg->curr_size -= undo->size;
+    rseg->latch();
 
     trx_undo_mem_free(undo);
   }
 
-  mutex_exit(&(rseg->mutex));
+  rseg->unlatch();
 }
 
 /** At shutdown, frees the undo logs of a PREPARED transaction. */
@@ -2038,13 +2032,13 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
         mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);
 
     /* Initialize the undo log lists according to the rseg header */
-    rseg->curr_size =
+    rseg->set_curr_size(
         mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr) +
-        1;
+        1);
 
     mtr_commit(&mtr);
 
-    ut_ad(rseg->curr_size == 1);
+    ut_ad(rseg->get_curr_size() == 1);
     ut_ad(rseg->trx_ref_count == 0);
 
     rseg->last_page_no = FIL_NULL;

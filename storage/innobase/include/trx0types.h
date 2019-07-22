@@ -185,6 +185,45 @@ typedef ib_mutex_t TrxSysMutex;
 
 /** The rollback segment memory object */
 struct trx_rseg_t {
+#ifdef UNIV_DEBUG
+  /** Validate the curr_size member by re-calculating it.
+  @param[in]  take_mutex  take the rseg->mutex. default is true.
+  @return true if valid, false otherwise. */
+  bool validate_curr_size(bool take_mutex = true);
+#endif /* UNIV_DEBUG */
+
+  /** Enter the rseg->mutex. */
+  void latch() {
+    mutex_enter(&mutex);
+    ut_ad(validate_curr_size(false));
+  }
+
+  /** Exit the rseg->mutex. */
+  void unlatch() {
+    ut_ad(validate_curr_size(false));
+    mutex_exit(&mutex);
+  }
+
+  /** Decrement the current size of the rollback segment by the given number
+  of pages.
+  @param[in]  npages  number of pages to reduce in size. */
+  void decr_curr_size(page_no_t npages = 1) {
+    ut_ad(curr_size >= npages);
+    curr_size -= npages;
+  }
+
+  /** Increment the current size of the rollback segment by the given number
+  of pages. */
+  void incr_curr_size() { ++curr_size; }
+
+  /* Get the current size of the rollback segment in pages.
+   @return current size of the rollback segment in pages. */
+  page_no_t get_curr_size() const { return (curr_size); }
+
+  /* Set the current size of the rollback segment in pages.
+  @param[in]  npages  new value for the current size. */
+  void set_curr_size(page_no_t npages) { curr_size = npages; }
+
   /*--------------------------------------------------------*/
   /** rollback segment id == the index of its slot in the trx
   system file copy */
@@ -206,9 +245,11 @@ struct trx_rseg_t {
   /** maximum allowed size in pages */
   ulint max_size;
 
+ private:
   /** current size in pages */
-  ulint curr_size;
+  page_no_t curr_size;
 
+ public:
   /*--------------------------------------------------------*/
   /* Fields for update undo logs */
   /** List of update undo logs */
@@ -242,7 +283,18 @@ struct trx_rseg_t {
 
   /** Reference counter to track rseg allocated transactions. */
   std::atomic<ulint> trx_ref_count;
+
+  std::ostream &print(std::ostream &out) const {
+    out << "[trx_rseg_t: this=" << (void *)this << ", id=" << id
+        << ", space_id=" << space_id << ", page_no=" << page_no
+        << ", curr_size=" << curr_size << "]";
+    return (out);
+  }
 };
+
+inline std::ostream &operator<<(std::ostream &out, const trx_rseg_t &rseg) {
+  return (rseg.print(out));
+}
 
 using Rsegs_Vector = std::vector<trx_rseg_t *, ut_allocator<trx_rseg_t *>>;
 using Rseg_Iterator = Rsegs_Vector::iterator;

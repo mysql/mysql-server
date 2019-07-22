@@ -214,7 +214,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
 
         mtr.start();
 
-        mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
+        trx->rsegs.m_redo.rseg->latch();
 
         if (undo_ptr->insert_undo != NULL) {
           trx_undo_set_state_at_prepare(trx, undo_ptr->insert_undo, true, &mtr);
@@ -224,7 +224,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
           trx_undo_gtid_set(trx, undo_ptr->update_undo);
           trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
         }
-        mutex_exit(&trx->rsegs.m_redo.rseg->mutex);
+        trx->rsegs.m_redo.rseg->unlatch();
 
         /* Persist the XA ROLLBACK, so that crash
         recovery will replay the rollback in case
@@ -836,11 +836,11 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   mutex_enter(&trx->undo_mutex);
 
   if (trx->pages_undone >= TRX_ROLL_TRUNC_THRESHOLD) {
-    mutex_enter(&rseg->mutex);
+    rseg->latch();
 
     trx_roll_try_truncate(trx, undo_ptr);
 
-    mutex_exit(&rseg->mutex);
+    rseg->unlatch();
   }
 
   ins_undo = undo_ptr->insert_undo;
@@ -857,9 +857,9 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   }
 
   if (!undo || undo->empty || limit > undo->top_undo_no) {
-    mutex_enter(&rseg->mutex);
+    rseg->latch();
     trx_roll_try_truncate(trx, undo_ptr);
-    mutex_exit(&rseg->mutex);
+    rseg->unlatch();
     mutex_exit(&trx->undo_mutex);
     return (NULL);
   }

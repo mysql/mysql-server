@@ -922,6 +922,13 @@ class Truncate {
     m_purge_rseg_truncate_frequency = frequency;
   }
 
+  /** Check if the given space id is equal to the space ID that is marked for
+  truncation.
+  @return true if they are equal, false otherwise. */
+  bool is_equal(space_id_t space_id) const {
+    return (m_space_id_marked == space_id);
+  }
+
  private:
   /** UNDO space ID that is marked for truncate. */
   space_id_t m_space_id_marked;

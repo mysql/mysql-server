@@ -1564,7 +1564,7 @@ static ulint srv_mon_get_rseg_size(void) {
   /* Rollback segments used in the temporary tablespace */
   trx_sys->tmp_rsegs.s_lock();
   for (const auto tmp_rseg : trx_sys->tmp_rsegs) {
-    value += tmp_rseg->curr_size;
+    value += tmp_rseg->get_curr_size();
   }
   trx_sys->tmp_rsegs.s_unlock();
 
@@ -1575,7 +1575,7 @@ static ulint srv_mon_get_rseg_size(void) {
         break;
       }
 
-      value += rseg->curr_size;
+      value += rseg->get_curr_size();
     }
   }
   undo::spaces->s_unlock();
