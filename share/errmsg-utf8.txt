@@ -11828,7 +11828,7 @@ ER_INNODB_UNREGISTERED_TRX_ACTIVE
   eng "Transaction not registered for MySQL 2PC, but transaction is active"
 
 ER_INNODB_CLOSING_CONNECTION_ROLLS_BACK
-  eng "MySQL is closing a connection that has an active InnoDB transaction.  %s row modifications will roll back."
+  eng "MySQL is closing a connection that has an active InnoDB transaction. %llu row modifications will roll back."
 
 ER_INNODB_TRX_XLATION_TABLE_OOM
   eng "InnoDB: fail to allocate memory for index translation table. Number of Index:%lu, array size:%lu"
