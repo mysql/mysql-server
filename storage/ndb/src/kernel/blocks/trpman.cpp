@@ -793,7 +793,10 @@ Trpman::sendSYNC_THREAD_VIA_CONF(Signal* signal, Uint32 senderData, Uint32 retVa
   jamEntry();
   SyncThreadViaReqConf* conf = (SyncThreadViaReqConf*)signal->getDataPtr();
   conf->senderData = senderData;
-  sendSignal(TRPMAN_REF, GSN_SYNC_THREAD_VIA_CONF, signal, signal->getLength(), JBA);
+  const BlockReference receiver = isMultiThreaded() ?
+    TRPMAN_REF :
+    QMGR_REF;
+  sendSignal(receiver, GSN_SYNC_THREAD_VIA_CONF, signal, signal->getLength(), JBA);
 }
 
 void
@@ -801,6 +804,13 @@ Trpman::execSYNC_THREAD_VIA_REQ(Signal *signal)
 {
   jam();
   SyncThreadViaReqConf* req = (SyncThreadViaReqConf*)signal->getDataPtr();
+
+  /* Some ugliness as we have nowhere handy to put the sender's reference */
+  ndbassert(refToMain(req->senderRef) ==
+            (isMultiThreaded() ?
+             TRPMAN :
+             QMGR));
+
   Callback cb = { safe_cast(&Trpman::sendSYNC_THREAD_VIA_CONF), req->senderData};
   /* Make sure all external signals handled by transporters belonging to this
    * TRPMAN have been processed.
