@@ -30,7 +30,7 @@ Warnings:
 Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
-INDEX_SCAN,HASH_SCAN
+SCAN_METHOD,SCAN_METHOD
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_restart_server.inc [server_number=2]

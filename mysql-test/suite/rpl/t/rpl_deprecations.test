@@ -36,6 +36,7 @@ SET @@global.relay_log_info_repository="TABLE";
 SELECT @@global.log_bin_use_v1_row_events;
 SET @@global.log_bin_use_v1_row_events = TRUE;
 SELECT @@global.relay_log_info_file;
+--replace_regex /INDEX_SCAN,HASH_SCAN/SCAN_METHOD,SCAN_METHOD/ /TABLE_SCAN,INDEX_SCAN/SCAN_METHOD,SCAN_METHOD/
 SELECT @@global.slave_rows_search_algorithms;
 
 # Check bootstrap warnings ######
