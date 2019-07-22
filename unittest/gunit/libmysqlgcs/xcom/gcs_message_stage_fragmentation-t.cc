@@ -270,6 +270,12 @@ TEST_F(GcsMessageStageFragmentationTest, ReassemblyOfFragmentsThatCrossViews) {
   auto last_fragment = Gcs_packet::make_incoming_packet(
       std::move(buffer_pointer), buffer_size, synod_last_fragment,
       m_xcom_comm_if.get_msg_pipeline());
+  Gcs_view mock_view(
+      {Gcs_member_identifier(m_mock_xcom_address.get_member_address())},
+      Gcs_xcom_view_identifier(0, 0), {}, {}, m_mock_gid);
+  EXPECT_CALL(m_mock_vce, get_unsafe_current_view())
+      .Times(1)
+      .WillOnce(Return(&mock_view));
   m_xcom_comm_if.process_user_data_packet(std::move(last_fragment),
                                           std::move(xcom_nodes_last_view));
 
