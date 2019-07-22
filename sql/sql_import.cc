@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ Sql_cmd_import_table::Sql_cmd_import_table(
 bool Sql_cmd_import_table::execute(THD *thd) {
   DBUG_ASSERT(!m_sdi_patterns.empty());
 
-  auto rbgrd = dd::sdi_utils::make_guard(thd, [](THD *thd) {
+  auto rbgrd = dd::sdi_utils::make_guard(thd, [&](THD *) {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
   });

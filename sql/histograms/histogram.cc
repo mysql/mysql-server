@@ -1118,16 +1118,16 @@ bool Histogram::store_histogram(THD *thd) const {
       get_database_name().str, get_table_name().str, get_column_name().str);
 
   // Do we have an existing histogram for this column?
-  dd::Column_statistics *column_statistics = nullptr;
-  if (client->acquire_for_modification(dd_name, &column_statistics)) {
+  dd::Column_statistics *column_stats = nullptr;
+  if (client->acquire_for_modification(dd_name, &column_stats)) {
     // Error has already been reported
     return true; /* purecov: deadcode */
   }
 
-  if (column_statistics != nullptr) {
+  if (column_stats != nullptr) {
     // Update the existing object.
-    column_statistics->set_histogram(this);
-    if (client->update(column_statistics)) {
+    column_stats->set_histogram(this);
+    if (client->update(column_stats)) {
       /* purecov: begin inspected */
       my_error(ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS, MYF(0),
                get_column_name().str, get_database_name().str,

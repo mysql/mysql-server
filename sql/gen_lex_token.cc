@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,7 +164,6 @@ static void set_start_expr_token(int tok) {
 
 static void compute_tokens() {
   int tok;
-  unsigned int i;
   char *str;
 
   /*
@@ -234,9 +233,9 @@ static void compute_tokens() {
   /*
     See symbols[] in sql/lex.h
   */
-  for (i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
-    if (!(symbols[i].group & SG_MAIN_PARSER)) continue;
-    set_token(symbols[i].tok, symbols[i].name);
+  for (const SYMBOL &sym : symbols) {
+    if (!(sym.group & SG_MAIN_PARSER)) continue;
+    set_token(sym.tok, sym.name);
   }
 
   max_token_seen_in_sql_yacc = max_token_seen;

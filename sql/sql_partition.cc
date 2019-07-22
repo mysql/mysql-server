@@ -731,7 +731,6 @@ static void clear_field_flag(TABLE *table) {
 
 static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
                                   partition_info *part_info, bool is_sub_part) {
-  Field *field;
   bool result;
   char *field_name;
   bool is_list_empty = true;
@@ -739,7 +738,7 @@ static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
 
   while ((field_name = it++)) {
     is_list_empty = false;
-    field = find_field_in_table_sef(table, field_name);
+    Field *field = find_field_in_table_sef(table, field_name);
     if (likely(field != 0))
       field->flags |= GET_FIXED_FIELDS_FLAG;
     else {

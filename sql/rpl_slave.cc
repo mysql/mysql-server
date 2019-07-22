@@ -436,7 +436,6 @@ int init_slave() {
   DBUG_TRACE;
   int error = 0;
   int thread_mask = SLAVE_SQL | SLAVE_IO;
-  Master_info *mi = nullptr;
 
 #ifdef HAVE_PSI_INTERFACE
   init_slave_psi_keys();
@@ -502,7 +501,7 @@ int init_slave() {
   if (!opt_skip_slave_start) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
-      mi = it->second;
+      Master_info *mi = it->second;
 
       /* If server id is not set, start_slave_thread() will say it */
       if (Master_info::is_configured(mi) && mi->rli->inited) {
@@ -3102,12 +3101,12 @@ static int register_slave_on_master(MYSQL *mysql, Master_info *mi,
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED) {
       *suppress_warnings = true;  // Suppress reconnect warning
     } else if (!check_io_slave_killed(mi->info_thd, mi, nullptr)) {
-      char buf[256];
-      snprintf(buf, sizeof(buf), "%s (Errno: %d)", mysql_error(mysql),
+      char err_buf[256];
+      snprintf(err_buf, sizeof(err_buf), "%s (Errno: %d)", mysql_error(mysql),
                mysql_errno(mysql));
       mi->report(ERROR_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
                  ER_THD(current_thd, ER_SLAVE_MASTER_COM_FAILURE),
-                 "COM_REGISTER_SLAVE", buf);
+                 "COM_REGISTER_SLAVE", err_buf);
     }
     return 1;
   }
@@ -6364,7 +6363,6 @@ err:
            non-zero  as failure
 */
 static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
-  uint i;
   int error = 0;
   /**
     gtid_monitoring_info must be cleared when MTS is enabled or
@@ -6427,7 +6425,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
     goto err;
   }
 
-  for (i = 0; i < n; i++) {
+  for (uint i = 0; i < n; i++) {
     if ((error = slave_start_single_worker(rli, i))) goto err;
     rli->slave_parallel_workers++;
   }

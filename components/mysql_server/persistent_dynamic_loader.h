@@ -133,7 +133,7 @@ class mysql_persistent_dynamic_loader_imp {
     Stores last group ID used in component table. It is initialized on init()
     on component table scan with maximum group ID used in table.
   */
-  static std::atomic<uint64> group_id;
+  static std::atomic<uint64> s_group_id;
   /**
     Stores mapping of component URNs to their component_id used in component
     table, to ease row deletion.

@@ -1285,12 +1285,12 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
   n_sids = uint8korr(encoded);
   pos += 8;
   // iterate over SIDs
-  for (uint i = 0; i < n_sids; i++) {
+  for (uint sid_counter = 0; sid_counter < n_sids; sid_counter++) {
     // read SID and number of intervals
     if (length - pos < 16 + 8) {
       DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
                            "[n_sids=%" PRIu64 " i=%u]",
-                           (ulong)length, (ulong)pos, n_sids, i));
+                           (ulong)length, (ulong)pos, n_sids, sid_counter));
       goto report_error;
     }
     rpl_sid sid;

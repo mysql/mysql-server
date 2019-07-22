@@ -299,7 +299,7 @@ class DB_restrictions_aggregator_set_role final
       Db_access_map *db_map);
 
   Status validate() override;
-  void aggregate(DB_restrictions &restrictions) override;
+  void aggregate(DB_restrictions &db_restrictions) override;
   friend class Restrictions_aggregator_factory;
 
  private:

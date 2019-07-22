@@ -1161,7 +1161,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
     while (oldest_unused_share->next)
       table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
   } else {
-    bool found = 0;
+    bool share_found = false;
     for (TABLE_LIST *table = tables; table; table = table->next_local) {
       TABLE_SHARE *share = get_cached_table_share(table->db, table->table_name);
 
@@ -1172,10 +1172,10 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
         */
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
                          table->table_name, true);
-        found = 1;
+        share_found = true;
       }
     }
-    if (!found) wait_for_refresh = 0;  // Nothing to wait for
+    if (!share_found) wait_for_refresh = false;  // Nothing to wait for
   }
 
   table_cache_manager.unlock_all_and_tdc();
@@ -1530,14 +1530,13 @@ static inline bool belongs_to_p_s(TABLE_LIST *tl) {
 */
 
 void close_thread_tables(THD *thd) {
-  TABLE *table;
   DBUG_TRACE;
 
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("tcache", ("open tables:"));
-  for (table = thd->open_tables; table; table = table->next)
-    DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
-                          table->s->table_name.str, (long)table));
+  for (TABLE *table = thd->open_tables; table; table = table->next)
+    DBUG_PRINT("tcache", ("table: '%s'.'%s' %p", table->s->db.str,
+                          table->s->table_name.str, table));
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -1562,7 +1561,7 @@ void close_thread_tables(THD *thd) {
   //            (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
 
   /* Detach MERGE children after every statement. Even under LOCK TABLES. */
-  for (table = thd->open_tables; table; table = table->next) {
+  for (TABLE *table = thd->open_tables; table; table = table->next) {
     /* Table might be in use by some outer statement. */
     DBUG_PRINT("tcache", ("table: '%s'  query_id: %lu",
                           table->s->table_name.str, (ulong)table->query_id));
@@ -4766,8 +4765,8 @@ static bool open_and_process_routine(
           }
         }
 
-        auto release_table_lambda = [thd](TABLE *table) {
-          release_or_close_table(thd, table);
+        auto release_table_lambda = [thd](TABLE *tab) {
+          release_or_close_table(thd, tab);
         };
         std::unique_ptr<TABLE, decltype(release_table_lambda)>
             release_table_guard(table, release_table_lambda);
@@ -4776,9 +4775,9 @@ static bool open_and_process_routine(
           We need to explicitly release TABLE_SHARE only if we don't
           have TABLE object.
         */
-        auto release_share_lambda = [](TABLE_SHARE *share) {
+        auto release_share_lambda = [](TABLE_SHARE *tsh) {
           mysql_mutex_lock(&LOCK_open);
-          release_table_share(share);
+          release_table_share(tsh);
           mysql_mutex_unlock(&LOCK_open);
         };
         std::unique_ptr<TABLE_SHARE, decltype(release_share_lambda)>
@@ -5373,10 +5372,10 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
       Scoped locks: Take intention exclusive locks on all involved
       schemas.
     */
-    for (const TABLE_LIST *table : schema_set) {
+    for (const TABLE_LIST *table_l : schema_set) {
       MDL_request *schema_request = new (thd->mem_root) MDL_request;
       if (schema_request == NULL) return true;
-      MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, table->db, "",
+      MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, table_l->db, "",
                        MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(schema_request);
       if (schema_reqs) schema_reqs->push_back(schema_request);
@@ -8763,7 +8762,7 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
         /* purecov: end */
       }
       if (want_privilege & (INSERT_ACL | UPDATE_ACL)) {
-        Column_privilege_tracker column_privilege(thd, want_privilege);
+        Column_privilege_tracker column_privilege_tr(thd, want_privilege);
         if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                        pointer_cast<uchar *>(thd)))
           return true;
@@ -9495,9 +9494,9 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
       updated by the triggers.
     */
     if (!rc && *ptr) {
-      TABLE *table = (*ptr)->table;
-      if (table->has_gcol())
-        rc = update_generated_write_fields(table->write_set, table);
+      TABLE *table_p = (*ptr)->table;
+      if (table_p->has_gcol())
+        rc = update_generated_write_fields(table_p->write_set, table_p);
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
@@ -9666,9 +9665,9 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       it == table_def_cache->end() || it->second->has_secondary_engine();
 
   // Helper function that evicts the TABLE_SHARE pointed to by an iterator.
-  auto remove_table = [&](Table_definition_cache::iterator it) {
-    if (it == table_def_cache->end()) return;
-    TABLE_SHARE *share = it->second.get();
+  auto remove_table = [&](Table_definition_cache::iterator my_it) {
+    if (my_it == table_def_cache->end()) return;
+    TABLE_SHARE *share = my_it->second.get();
     /*
       Since share->ref_count is incremented when a table share is opened
       in get_table_share(), before LOCK_open is temporarily released, it

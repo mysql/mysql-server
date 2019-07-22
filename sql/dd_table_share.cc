@@ -709,9 +709,10 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Storage media flags
   if (table_options.exists("storage")) {
-    uint32 option_value = 0;
-    table_options.get("storage", &option_value);
-    share->default_storage_media = static_cast<ha_storage_media>(option_value);
+    uint32 storage_option_value = 0;
+    table_options.get("storage", &storage_option_value);
+    share->default_storage_media =
+        static_cast<ha_storage_media>(storage_option_value);
   } else
     share->default_storage_media = HA_SM_DEFAULT;
 

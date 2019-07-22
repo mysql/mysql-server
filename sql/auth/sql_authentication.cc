@@ -94,6 +94,7 @@
 #include "sql/tztime.h"  // Time_zone
 #include "sql_common.h"  // mpvio_info
 #include "sql_string.h"
+#include "template_utils.h"
 #include "violite.h"
 
 struct MEM_ROOT;
@@ -3925,10 +3926,10 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
         return CR_AUTH_USER_CREDENTIALS;
       } else {
         if (second) {
-          MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
+          MPVIO_EXT *mpvio_second = pointer_cast<MPVIO_EXT *>(vio);
           const char *username =
               *info->authenticated_as ? info->authenticated_as : "";
-          const char *hostname = mpvio->acl_user->host.get_host();
+          const char *hostname = mpvio_second->acl_user->host.get_host();
           LogPluginErr(
               INFORMATION_LEVEL,
               ER_MYSQL_NATIVE_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,

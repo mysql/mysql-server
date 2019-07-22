@@ -169,7 +169,7 @@ bool SELECT_LEX::prepare(THD *thd) {
                              : outer_select()->allow_merge_derived);
 
   Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_wrapper_prepare(trace);
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
@@ -746,18 +746,18 @@ bool Item_in_subselect::subquery_allows_materialization(
 
     List_iterator<Item> it(unit->first_select()->item_list);
     for (uint i = 0; i < elements; i++) {
-      Item *const inner = it++;
-      Item *const outer = left_expr->element_index(i);
-      if (!types_allow_materialization(outer, inner)) {
+      Item *const inner_item = it++;
+      Item *const outer_item = left_expr->element_index(i);
+      if (!types_allow_materialization(outer_item, inner_item)) {
         cause = "type mismatch";
         break;
       }
-      if (inner->is_blob_field())  // 6
+      if (inner_item->is_blob_field())  // 6
       {
         cause = "inner blob";
         break;
       }
-      has_nullables |= inner->maybe_null;
+      has_nullables |= inner_item->maybe_null;
     }
 
     if (!cause) {
@@ -4157,7 +4157,6 @@ bool SELECT_LEX::setup_group(THD *thd) {
 static bool find_and_change_grouped_expr(
     THD *thd, SELECT_LEX *select, uint i, Item *func_or_cond, Item *item,
     bool wf, bool *arg_changed, std::function<void(Item *)> update_functor) {
-  Item *real_item = item->real_item();
   const bool is_grouping_func =
       (wf ? false
           : (func_or_cond->type() == Item::FUNC_ITEM &&
@@ -4166,6 +4165,7 @@ static bool find_and_change_grouped_expr(
 
   bool found_match = false;
   for (ORDER *group = select->group_list.first; group; group = group->next) {
+    Item *real_item = item->real_item();
     if (real_item->eq((*group->item)->real_item(), 0)) {
       // If to-be-replaced Item is alias, make replacing Item an alias.
       bool alias_of_expr = (item->type() == Item::FIELD_ITEM ||

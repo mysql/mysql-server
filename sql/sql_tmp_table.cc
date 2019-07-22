@@ -1260,7 +1260,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     share->keys = 1;
     table->is_distinct = true;
     if (!unique_constraint_via_hash_field) {
-      Field **reg_field;
+      Field **reg_field_1;
       keyinfo->user_defined_key_parts = field_count - param->hidden_field_count;
       keyinfo->actual_key_parts = keyinfo->user_defined_key_parts;
       share->key_parts = keyinfo->user_defined_key_parts;
@@ -1275,9 +1275,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
       /* Create a distinct key over the columns we are going to return */
-      for (i = param->hidden_field_count, reg_field = table->field + i;
-           i < field_count; i++, reg_field++, key_part_info++) {
-        key_part_info->init_from_field(*reg_field);
+      for (i = param->hidden_field_count, reg_field_1 = table->field + i;
+           i < field_count; i++, reg_field_1++, key_part_info++) {
+        key_part_info->init_from_field(*reg_field_1);
         if (key_part_info->store_length > max_key_part_length) {
           unique_constraint_via_hash_field = true;
           break;
@@ -1645,21 +1645,21 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
 
   /* Create the field */
   if (unique_constraint_via_hash_field) {
-    Field_longlong *field = new (&share->mem_root)
+    Field_longlong *field_ll = new (&share->mem_root)
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
-    if (!field) {
+    if (!field_ll) {
       DBUG_ASSERT(thd->is_fatal_error());
       goto err;  // Got OOM
     }
     // Mark hash_field as NOT NULL
-    field->flags = NOT_NULL_FLAG;
-    *(reg_field++) = hash_field = field;
-    if (sjtbl) sjtbl->hash_field = field;
-    table->hash_field = field;
-    field->table = field->orig_table = table;
+    field_ll->flags = NOT_NULL_FLAG;
+    *(reg_field++) = hash_field = field_ll;
+    if (sjtbl) sjtbl->hash_field = field_ll;
+    table->hash_field = field_ll;
+    field_ll->table = field_ll->orig_table = table;
     share->fields++;
-    field->field_index = 0;
-    reclength = field->pack_length();
+    field_ll->field_index = 0;
+    reclength = field_ll->pack_length();
     table->hidden_field_count++;
   }
   {
@@ -1707,15 +1707,15 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   pos = table->record[0] + null_pack_length;
   null_count = 1;
   for (i = 0, reg_field = table->field; i < share->fields; i++, reg_field++) {
-    Field *field = *reg_field;
+    Field *field_r = *reg_field;
     uint length;
 
-    relocate_field(field, pos, null_flags, &null_count);
-    length = field->pack_length();
+    relocate_field(field_r, pos, null_flags, &null_count);
+    length = field_r->pack_length();
     pos += length;
 
     // fix table name in field entry
-    field->table_name = &table->alias;
+    field_r->table_name = &table->alias;
   }
 
   // Create a key over param->hash_field to enforce unique constraint
@@ -1903,11 +1903,11 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
     /* Set up field pointers */
     uchar *null_flags = table->record[0];
     uchar *pos = null_flags + share->null_bytes;
-    uint null_count = 0;
+    uint null_counter = 0;
 
     for (reg_field = table->field; *reg_field; ++reg_field) {
       Field *field = *reg_field;
-      relocate_field(field, pos, null_flags, &null_count);
+      relocate_field(field, pos, null_flags, &null_counter);
       pos += field->pack_length();
     }
   }

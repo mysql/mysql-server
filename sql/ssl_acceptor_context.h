@@ -135,7 +135,7 @@ class SslAcceptorContext {
   class AutoLock : SslAcceptorContextLockType::ReadLock {
    public:
     AutoLock()
-        : SslAcceptorContextLockType::ReadLock(SslAcceptorContext::lock) {}
+        : SslAcceptorContextLockType::ReadLock(SslAcceptorContext::s_lock) {}
     ~AutoLock() {}
 
     /**
@@ -282,7 +282,7 @@ class SslAcceptorContext {
       current_crlpath_;
 
   /** singleton lock */
-  static SslAcceptorContextLockType *lock;
+  static SslAcceptorContextLockType *s_lock;
 };
 
 #endif  // SSL_ACCEPTOR_CONTEXT_INCLUDED

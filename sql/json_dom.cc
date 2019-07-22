@@ -2234,22 +2234,21 @@ get_seek_func(const Json_path_iterator &it, const Json_seek_params &params) {
   if (it != params.m_last_leg) {
     switch ((*it)->get_type()) {
       case jpl_member:
-        return [](Val v, It it, Param p) { return seek_member(v, it, p); };
+        return [](Val v, It i, Param p) { return seek_member(v, i, p); };
       case jpl_array_cell:
-        return [](Val v, It it, Param p) { return seek_array_cell(v, it, p); };
+        return [](Val v, It i, Param p) { return seek_array_cell(v, i, p); };
       case jpl_array_range:
       case jpl_array_cell_wildcard:
-        return [](Val v, It it, Param p) { return seek_array_range(v, it, p); };
+        return [](Val v, It i, Param p) { return seek_array_range(v, i, p); };
       case jpl_member_wildcard:
-        return [](Val v, It it, Param p) {
-          return seek_member_wildcard(v, it, p);
-        };
+        return
+            [](Val v, It i, Param p) { return seek_member_wildcard(v, i, p); };
       case jpl_ellipsis:
-        return [](Val v, It it, Param p) { return seek_ellipsis(v, it, p); };
+        return [](Val v, It i, Param p) { return seek_ellipsis(v, i, p); };
     }
   }
 
-  return [](Val v, It it, Param p) { return seek_end(v, it, p); };
+  return [](Val v, It i, Param p) { return seek_end(v, i, p); };
 }
 
 bool Json_wrapper::seek(const Json_seekable_path &path, size_t legs,
@@ -2563,9 +2562,9 @@ int Json_wrapper::compare(const Json_wrapper &other,
   DBUG_ASSERT(other_type != enum_json_type::J_ERROR);
 
   // Check if the type tells us which value is bigger.
-  int cmp = type_comparison[static_cast<int>(this_type)]
-                           [static_cast<int>(other_type)];
-  if (cmp != 0) return cmp;
+  int type_cmp = type_comparison[static_cast<int>(this_type)]
+                                [static_cast<int>(other_type)];
+  if (type_cmp != 0) return type_cmp;
 
   // Same or similar type. Go on and inspect the values.
 
@@ -2604,7 +2603,7 @@ int Json_wrapper::compare(const Json_wrapper &other,
           If their sizes are different, the object with the smallest
           number of elements is smaller than the other object.
         */
-        cmp = compare_numbers(length(), other.length());
+        int cmp = compare_numbers(length(), other.length());
         if (cmp != 0) return cmp;
 
         /*
@@ -2755,7 +2754,7 @@ int Json_wrapper::compare(const Json_wrapper &other,
         return compare_numbers(TIME_to_longlong_packed(val_a),
                                TIME_to_longlong_packed(val_b));
       }
-    case enum_json_type::J_OPAQUE:
+    case enum_json_type::J_OPAQUE: {
       if (other_type == enum_json_type::J_STRING) {
         // String might be stored as J_OPAQUE, check this case
         if (field_type() == MYSQL_TYPE_VARCHAR ||
@@ -2771,11 +2770,12 @@ int Json_wrapper::compare(const Json_wrapper &other,
         Opaque values are equal to other opaque values with the same
         field type and the same binary representation.
       */
-      cmp = compare_numbers(field_type(), other.field_type());
+      int cmp = compare_numbers(field_type(), other.field_type());
       if (cmp == 0)
         cmp = compare_json_strings(get_data(), get_data_length(),
                                    other.get_data(), other.get_data_length());
       return cmp;
+    }
     case enum_json_type::J_NULL:
       // Null is always equal to other nulls.
       DBUG_ASSERT(this_type == other_type);

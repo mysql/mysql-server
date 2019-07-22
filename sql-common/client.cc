@@ -890,12 +890,12 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
               if (is_charset == 1) {
                 char charset_name[MY_CS_NAME_SIZE * 8];  // MY_CS_BUFFER_SIZE
-                size_t length =
+                size_t charset_name_length =
                     std::min(data->length, sizeof(charset_name) - 1);
                 saved_cs = mysql->charset;
 
-                memcpy(charset_name, data->str, length);
-                charset_name[length] = 0;
+                memcpy(charset_name, data->str, charset_name_length);
+                charset_name[charset_name_length] = 0;
 
                 if (!(mysql->charset = get_charset_by_csname(
                           charset_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
@@ -7749,11 +7749,11 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
               mysql->options.extension->connection_attributes->hash.find(key);
           if (it !=
               mysql->options.extension->connection_attributes->hash.end()) {
-            const string &key = it->first;
-            const string &value = it->second;
+            const string &attr_key = it->first;
+            const string &attr_value = it->second;
             mysql->options.extension->connection_attributes_length -=
-                get_length_store_length(key.size()) + key.size() +
-                get_length_store_length(value.size()) + value.size();
+                get_length_store_length(attr_key.size()) + attr_key.size() +
+                get_length_store_length(attr_value.size()) + attr_value.size();
 
             mysql->options.extension->connection_attributes->hash.erase(it);
           }

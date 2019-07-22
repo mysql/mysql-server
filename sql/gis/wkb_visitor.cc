@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -65,8 +65,8 @@ bool Wkb_visitor::visit_enter(Polygon *py) {
   int4store(m_wkb_current_position, py->size());
   m_wkb_current_position += sizeof(std::uint32_t);
 
-  for (size_t i = 0; i < py->size(); i++) {
-    Linearring &lr = i == 0 ? py->exterior_ring() : py->interior_ring(i - 1);
+  for (size_t ix = 0; ix < py->size(); ix++) {
+    Linearring &lr = ix == 0 ? py->exterior_ring() : py->interior_ring(ix - 1);
     int4store(m_wkb_current_position, lr.size());
     m_wkb_current_position += sizeof(std::uint32_t);
     if (m_srs != nullptr && m_srs->is_geographic()) {

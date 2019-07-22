@@ -572,11 +572,11 @@ static bool auth_verify_password_history(
   }
 end:
   if (table->file->inited != handler::NONE) {
-    int rc = table->file->ha_index_end();
+    int rc_end = table->file->ha_index_end();
 
-    if (rc) {
+    if (rc_end) {
       /* purecov: begin inspected */
-      table->file->print_error(rc, MYF(ME_ERRORLOG));
+      table->file->print_error(rc_end, MYF(ME_ERRORLOG));
       DBUG_ASSERT(false);
       /* purecov: end */
     }
@@ -695,11 +695,11 @@ static bool handle_password_history_table(THD *thd, TABLE_LIST *tables,
 
 end:
   if (table->file->inited != handler::NONE) {
-    int rc = table->file->ha_index_end();
+    int rc_end = table->file->ha_index_end();
 
-    if (rc) {
+    if (rc_end) {
       /* purecov: begin inspected */
-      table->file->print_error(rc, MYF(ME_ERRORLOG));
+      table->file->print_error(rc_end, MYF(ME_ERRORLOG));
       DBUG_ASSERT(false);
       /* purecov: end */
     }
@@ -1222,7 +1222,6 @@ bool set_and_validate_user_attributes(
   */
   if (!is_role && (Str->uses_identified_by_clause ||
                    (Str->auth.length == 0 && !user_exists))) {
-    st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
     inbuf = Str->auth.str;
     inbuflen = (unsigned)Str->auth.length;
     std::string gen_password;
@@ -1294,7 +1293,6 @@ bool set_and_validate_user_attributes(
       interdependencies if mysql_create_user() is refactored.
     */
     DBUG_ASSERT(!is_role);
-    st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
     if (auth->validate_authentication_string(const_cast<char *>(Str->auth.str),
                                              (unsigned)Str->auth.length)) {
       my_error(ER_PASSWORD_FORMAT, MYF(0));
@@ -2395,8 +2393,8 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
 bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
   int result = 0;
   String wrong_users;
-  LEX_USER *user_from, *tmp_user_from;
-  LEX_USER *user_to, *tmp_user_to;
+  LEX_USER *tmp_user_from;
+  LEX_USER *tmp_user_to;
   List_iterator<LEX_USER> user_list(list);
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   std::unique_ptr<Security_context> orig_sctx = nullptr;
@@ -2446,6 +2444,8 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
     }
 
     while ((tmp_user_from = user_list++)) {
+      LEX_USER *user_from;
+      LEX_USER *user_to;
       if (!(user_from = get_current_user(thd, tmp_user_from))) {
         result = 1;
         continue;

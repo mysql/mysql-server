@@ -408,11 +408,11 @@ class Hint_scanner {
     for (const char *s = from, *end = from + len; s < end;) {
       switch (char_classes[(uchar)*s]) {
         case HINT_CHR_MB: {
-          size_t len = my_ismbchar(cs, s, end);
-          DBUG_ASSERT(len > 1);
-          memcpy(t, s, len);
-          t += len;
-          s += len;
+          size_t hint_len = my_ismbchar(cs, s, end);
+          DBUG_ASSERT(hint_len > 1);
+          memcpy(t, s, hint_len);
+          t += hint_len;
+          s += hint_len;
         }
           continue;
         case Separator:

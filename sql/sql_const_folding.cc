@@ -493,9 +493,9 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
 
     } break;
     case REAL_RESULT: {
-      my_decimal tmp;
+      my_decimal val_dec;
       double v = (*const_val)->val_real();
-      err = double2decimal(v, &tmp);
+      err = double2decimal(v, &val_dec);
 
       if (err & E_DEC_OVERFLOW) {
         if (v < 0)
@@ -1244,18 +1244,19 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
   *cond_value = Item::COND_OK;
   *retcond = cond;
 
-  const Item::Type type = cond->type();
-  if (!(type == Item::FUNC_ITEM || type == Item::COND_ITEM)) return false;
+  const Item::Type cond_type = cond->type();
+  if (!(cond_type == Item::FUNC_ITEM || cond_type == Item::COND_ITEM))
+    return false;
 
-  if (type == Item::COND_ITEM) {
+  if (cond_type == Item::COND_ITEM) {
     const auto and_or = down_cast<Item_cond *>(cond);
     return fold_arguments(thd, and_or);
   }
 
   Item_func *const func = down_cast<Item_func *>(cond);
-  Item_func::Functype ft = func->functype();
+  Item_func::Functype func_type = func->functype();
 
-  switch (ft) {
+  switch (func_type) {
     case Item_func::ISNOTNULL_FUNC:
       if (func->arguments()[0]->maybe_null) {
         return fold_arguments(thd, func);
@@ -1287,7 +1288,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
   Item **args = nullptr;
 
-  if (ft != Item_func::MULT_EQUAL_FUNC) {
+  if (func_type != Item_func::MULT_EQUAL_FUNC) {
     args = func->arguments();
   } else {
     /*
@@ -1370,9 +1371,10 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
           func, &place, &discount_eq, &negative))
     return true; /* purecov: inspected */
 
-  if (discount_eq && (ft == Item_func::LE_FUNC || ft == Item_func::GE_FUNC)) {
+  if (discount_eq &&
+      (func_type == Item_func::LE_FUNC || func_type == Item_func::GE_FUNC)) {
     bool ignore_unknown = down_cast<Item_bool_func2 *>(cond)->ignore_unknown();
-    if (ft == Item_func::LE_FUNC) {
+    if (func_type == Item_func::LE_FUNC) {
       if (!(cond = new (thd->mem_root) Item_func_lt(args[0], args[1])))
         return true; /* purecov: inspected */
     } else {
@@ -1382,19 +1384,20 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
     auto cond_alias = down_cast<Item_bool_func2 *>(cond);
     if (ignore_unknown) cond_alias->apply_is_true();
     if (cond->fix_fields(thd, &cond)) return true;
-    ft = cond_alias->functype();
+    func_type = cond_alias->functype();
     thd->change_item_tree(retcond, cond);
     args = cond_alias->arguments();
     c = &args[left_has_field];
   }
 
   // Fold >, >= handling with <, <=
-  if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC) {
+  if (func_type == Item_func::GT_FUNC || func_type == Item_func::GE_FUNC) {
     place = map_less_to_greater(place);
-    ft = ft == Item_func::GT_FUNC ? Item_func::LT_FUNC : Item_func::LE_FUNC;
+    func_type = func_type == Item_func::GT_FUNC ? Item_func::LT_FUNC
+                                                : Item_func::LE_FUNC;
   }
 
-  switch (ft) {
+  switch (func_type) {
     case Item_func::EQ_FUNC:
     case Item_func::EQUAL_FUNC:
     case Item_func::NE_FUNC:
@@ -1406,8 +1409,9 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_INSIDE_YEAR_HOLE:
         case RP_ROUNDED_DOWN:
         case RP_ROUNDED_UP:
-          if (fold_or_simplify(thd, ref_or_field, ft, ft == Item_func::NE_FUNC,
-                               manifest_result, retcond, cond_value))
+          if (fold_or_simplify(thd, ref_or_field, func_type,
+                               func_type == Item_func::NE_FUNC, manifest_result,
+                               retcond, cond_value))
             return true; /* purecov: inspected */
           break;
         case RP_INSIDE:
@@ -1415,7 +1419,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_ON_MIN:
           break;
       }
-      if (ft == Item_func::MULT_EQUAL_FUNC && (*retcond != nullptr)) {
+      if (func_type == Item_func::MULT_EQUAL_FUNC && (*retcond != nullptr)) {
         // The constant may have been modified, update the multi-equal
         const auto equal = down_cast<Item_equal *>(func);
         DBUG_ASSERT(equal->m_const_folding[1] != nullptr);  // the constant
@@ -1450,24 +1454,24 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
             return true; /* purecov: inspected */
         } break;
         case RP_OUTSIDE_HIGH:
-          if (fold_or_simplify(thd, ref_or_field, ft, left_has_field,
+          if (fold_or_simplify(thd, ref_or_field, func_type, left_has_field,
                                manifest_result, retcond, cond_value))
             return true; /* purecov: inspected */
           break;
         case RP_OUTSIDE_LOW:
-          if (fold_or_simplify(thd, ref_or_field, ft, !left_has_field,
+          if (fold_or_simplify(thd, ref_or_field, func_type, !left_has_field,
                                manifest_result, retcond, cond_value))
             return true; /* purecov: inspected */
           break;
         case RP_ON_MIN:
-          if (ft == Item_func::LT_FUNC && left_has_field) {
-            if (fold_or_simplify(thd, ref_or_field, ft, false, manifest_result,
-                                 retcond, cond_value))
+          if (func_type == Item_func::LT_FUNC && left_has_field) {
+            if (fold_or_simplify(thd, ref_or_field, func_type, false,
+                                 manifest_result, retcond, cond_value))
               return true; /* purecov: inspected */
-          } else if (ft == Item_func::LE_FUNC) {
+          } else if (func_type == Item_func::LE_FUNC) {
             if (!left_has_field) {
-              if (fold_or_simplify(thd, ref_or_field, ft, true, manifest_result,
-                                   retcond, cond_value))
+              if (fold_or_simplify(thd, ref_or_field, func_type, true,
+                                   manifest_result, retcond, cond_value))
                 return true; /* purecov: inspected */
             } else {
               /*
@@ -1483,14 +1487,14 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_INSIDE_YEAR_HOLE:
           break;
         case RP_ON_MAX:
-          if (ft == Item_func::LT_FUNC && !left_has_field) {
-            if (fold_or_simplify(thd, ref_or_field, ft, false, manifest_result,
-                                 retcond, cond_value))
+          if (func_type == Item_func::LT_FUNC && !left_has_field) {
+            if (fold_or_simplify(thd, ref_or_field, func_type, false,
+                                 manifest_result, retcond, cond_value))
               return true; /* purecov: inspected */
-          } else if (ft == Item_func::LE_FUNC) {
+          } else if (func_type == Item_func::LE_FUNC) {
             if (left_has_field) {
-              if (fold_or_simplify(thd, ref_or_field, ft, true, manifest_result,
-                                   retcond, cond_value))
+              if (fold_or_simplify(thd, ref_or_field, func_type, true,
+                                   manifest_result, retcond, cond_value))
                 return true; /* purecov: inspected */
             } else {
               /*

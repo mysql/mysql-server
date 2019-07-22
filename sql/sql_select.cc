@@ -4245,8 +4245,9 @@ bool JOIN::make_tmp_tables_info() {
   */
   if (need_tmp_before_win) {
     curr_tmp_table = primary_tables;
-    Opt_trace_object trace_this_tbl(trace);
-    trace_this_tbl.add("adding_tmp_table_in_plan_at_position", curr_tmp_table);
+    Opt_trace_object trace_this_outer(trace);
+    trace_this_outer.add("adding_tmp_table_in_plan_at_position",
+                         curr_tmp_table);
     tmp_tables++;
     if (plan_is_const()) first_select = sub_select_op;
 
@@ -4320,7 +4321,7 @@ bool JOIN::make_tmp_tables_info() {
     // Need to set them now for correct group_fields setup, reset at the end.
     set_ref_item_slice(REF_SLICE_TMP1);
     qep_tab[curr_tmp_table].ref_item_slice = REF_SLICE_TMP1;
-    setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
+    setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_outer);
     last_slice_before_windowing = REF_SLICE_TMP1;
 
     if (rollup.state == ROLLUP::STATE_READY)
@@ -4480,7 +4481,7 @@ bool JOIN::make_tmp_tables_info() {
         having_cond = NULL;
       }
       qep_tab[curr_tmp_table].needs_duplicate_removal = true;
-      trace_this_tbl.add("reading_from_table_eliminates_duplicates", true);
+      trace_this_outer.add("reading_from_table_eliminates_duplicates", true);
       explain_flags.set(ESC_DISTINCT, ESP_DUPS_REMOVAL);
       select_distinct = false;
     }

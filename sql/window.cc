@@ -1172,14 +1172,14 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
           const Window *seen_orderer = nullptr;
 
           /* SR 10.d) No redefines of ORDER BY along inheritance path */
-          for (const Window *w = leaf; w != nullptr; w = w->m_ancestor) {
-            if (w->m_order_by != nullptr) {
+          for (const Window *w3 = leaf; w3 != nullptr; w3 = w3->m_ancestor) {
+            if (w3->m_order_by != nullptr) {
               if (seen_orderer != nullptr) {
                 my_error(ER_WINDOW_NO_REDEFINE_ORDER_BY, MYF(0),
-                         seen_orderer->printable_name(), w->printable_name());
+                         seen_orderer->printable_name(), w3->printable_name());
                 return true;
               } else {
-                seen_orderer = w;
+                seen_orderer = w3;
               }
             }
           }

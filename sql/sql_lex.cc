@@ -1401,20 +1401,21 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
 
         if (yylval->lex_str.str[0] == '_') {
           auto charset_name = yylval->lex_str.str + 1;
-          const CHARSET_INFO *cs =
+          const CHARSET_INFO *underscore_cs =
               get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
-          if (cs) {
-            lip->warn_on_deprecated_charset(cs, charset_name);
-            if (cs == &my_charset_utf8mb4_0900_ai_ci) {
+          if (underscore_cs) {
+            lip->warn_on_deprecated_charset(underscore_cs, charset_name);
+            if (underscore_cs == &my_charset_utf8mb4_0900_ai_ci) {
               /*
-                If cs is utf8mb4, and the collation of cs is the default
-                collation of utf8mb4, then update cs with a value of the
-                default_collation_for_utf8mb4 system variable:
+                If underscore_cs is utf8mb4, and the collation of underscore_cs
+                is the default collation of utf8mb4, then update underscore_cs
+                with a value of the default_collation_for_utf8mb4 system
+                variable:
               */
-              cs = thd->variables.default_collation_for_utf8mb4;
+              underscore_cs = thd->variables.default_collation_for_utf8mb4;
             }
-            yylval->charset = cs;
-            lip->m_underscore_cs = cs;
+            yylval->charset = underscore_cs;
+            lip->m_underscore_cs = underscore_cs;
 
             lip->body_utf8_append(lip->m_cpp_text_start,
                                   lip->get_cpp_tok_start() + length);

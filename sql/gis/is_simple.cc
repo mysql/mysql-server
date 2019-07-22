@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -120,15 +120,13 @@ bool Is_simple::eval(const Geometrycollection &g) const {
     // 'touch'.
 
     // Extend `touches` to give false for zero-dim geometries.
-    auto extension_of_touches = [&](const Geometry &g1, const Geometry &g2) {
-      try {
-        return touches(&g1, &g2);
-      } catch (const null_value_exception &) {
-        return false;
-      }
-    };
+    if (!intersects(&g1, &g2)) return false;
 
-    return (intersects(&g1, &g2) && !extension_of_touches(g1, g2));
+    try {
+      return !touches(&g1, &g2);
+    } catch (const null_value_exception &) {
+      return true;
+    }
   };
 
   // The two requirements for simplicity of a gemetrycollection as described in

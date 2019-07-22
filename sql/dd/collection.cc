@@ -109,10 +109,7 @@ void Collection<T>::remove(typename Collection<T>::impl_type *item) {
 template <typename T>
 typename Collection<T>::iterator Collection<T>::find(const impl_type *item) {
   // Find the element and prepare iterator pointing to found element.
-  typename Collection<T>::iterator iterator(
-      &m_items, std::find(m_items.begin(), m_items.end(), item));
-
-  return iterator;
+  return iterator(&m_items, std::find(m_items.begin(), m_items.end(), item));
 }
 
 /**

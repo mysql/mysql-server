@@ -923,11 +923,11 @@ DB_restrictions_aggregator_set_role::validate() {
   - else if grantee has restrictions
     - Remove the restrictions on which global grant is requested.
 
-  @param  [out]  restrictions  Fills the paramter with the generated
-                               DB_restrictions
+  @param  [out]  db_restrictions  Fills the paramter with the generated
+                                  DB_restrictions
 */
 void DB_restrictions_aggregator_set_role::aggregate(
-    DB_restrictions &restrictions) {
+    DB_restrictions &db_restrictions) {
   DBUG_ASSERT(m_status == Status::Validated);
 
   if (m_grantee_rl.is_not_empty()) {
@@ -956,7 +956,7 @@ void DB_restrictions_aggregator_set_role::aggregate(
       }
     }
   }
-  aggregate_restrictions(SQL_OP::SET_ROLE, m_db_map, restrictions);
+  aggregate_restrictions(SQL_OP::SET_ROLE, m_db_map, db_restrictions);
   m_status = Status::Aggregated;
 }
 

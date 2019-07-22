@@ -2689,8 +2689,7 @@ void Dictionary_client::remove_uncommitted_objects(
 #ifndef DBUG_OFF
   // Note: The ifdef'ed block below is only for consistency checks in
   // debug builds.
-  typename Multi_map_base<typename T::Cache_partition>::Const_iterator it;
-  for (it = m_registry_dropped.begin<typename T::Cache_partition>();
+  for (auto it = m_registry_dropped.begin<typename T::Cache_partition>();
        it != m_registry_dropped.end<typename T::Cache_partition>(); it++) {
     const typename T::Cache_partition *dropped_object = it->second->object();
     DBUG_ASSERT(dropped_object != nullptr);

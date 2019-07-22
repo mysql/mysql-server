@@ -2858,10 +2858,11 @@ String *Item_func_conv::val_str(String *str) {
                        &res_as_dec);
         if (res_as_dec.sign()) dec = 0;
       }
-      ErrConvString err(res);
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
-          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DECIMAL", err.ptr());
+      ErrConvString err_str(res);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                          "DECIMAL", err_str.ptr());
     }
   }
 
@@ -4207,11 +4208,11 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   // Read used_flags
-  uint opt_value = 0;
   char option_buff[350], *ptr;
   ptr = option_buff;
 
   if (p->exists("max_rows")) {
+    uint opt_value = 0;
     p->get("max_rows", &opt_value);
     if (opt_value != 0) {
       ptr = my_stpcpy(ptr, " max_rows=");
@@ -4220,6 +4221,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("min_rows")) {
+    uint opt_value = 0;
     p->get("min_rows", &opt_value);
     if (opt_value != 0) {
       ptr = my_stpcpy(ptr, " min_rows=");
@@ -4228,6 +4230,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("avg_row_length")) {
+    uint opt_value = 0;
     p->get("avg_row_length", &opt_value);
     if (opt_value != 0) {
       ptr = my_stpcpy(ptr, " avg_row_length=");
@@ -4236,11 +4239,13 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("row_type")) {
+    uint opt_value = 0;
     p->get("row_type", &opt_value);
     ptr = strxmov(ptr, " row_format=", ha_row_type[(uint)opt_value], NullS);
   }
 
   if (p->exists("stats_sample_pages")) {
+    uint opt_value = 0;
     p->get("stats_sample_pages", &opt_value);
     if (opt_value != 0) {
       ptr = my_stpcpy(ptr, " stats_sample_pages=");
@@ -4249,6 +4254,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("stats_auto_recalc")) {
+    uint opt_value = 0;
     p->get("stats_auto_recalc", &opt_value);
     enum_stats_auto_recalc sar = (enum_stats_auto_recalc)opt_value;
 
@@ -4258,11 +4264,13 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
       ptr = my_stpcpy(ptr, " stats_auto_recalc=0");
   }
 
-  if (p->exists("key_block_size")) p->get("key_block_size", &opt_value);
-
-  if (opt_value != 0) {
-    ptr = my_stpcpy(ptr, " KEY_BLOCK_SIZE=");
-    ptr = longlong10_to_str(opt_value, ptr, 10);
+  if (p->exists("key_block_size")) {
+    uint opt_value = 0;
+    p->get("key_block_size", &opt_value);
+    if (opt_value != 0) {
+      ptr = my_stpcpy(ptr, " KEY_BLOCK_SIZE=");
+      ptr = longlong10_to_str(opt_value, ptr, 10);
+    }
   }
 
   if (p->exists("compress")) {
@@ -4296,6 +4304,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("stats_persistent")) {
+    uint opt_value = 0;
     p->get("stats_persistent", &opt_value);
     if (opt_value)
       ptr = my_stpcpy(ptr, " stats_persistent=1");
@@ -4304,6 +4313,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("pack_keys")) {
+    uint opt_value = 0;
     p->get("pack_keys", &opt_value);
     if (opt_value)
       ptr = my_stpcpy(ptr, " pack_keys=1");
@@ -4312,11 +4322,13 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   }
 
   if (p->exists("checksum")) {
+    uint opt_value = 0;
     p->get("checksum", &opt_value);
     if (opt_value) ptr = my_stpcpy(ptr, " checksum=1");
   }
 
   if (p->exists("delay_key_write")) {
+    uint opt_value = 0;
     p->get("delay_key_write", &opt_value);
     if (opt_value) ptr = my_stpcpy(ptr, " delay_key_write=1");
   }

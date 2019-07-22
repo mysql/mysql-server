@@ -1010,8 +1010,8 @@ static bool rea_create_base_table(
           as we anyway report error.
         */
         if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
-          bool result = dd::drop_table(thd, db, table_name, *table_def);
-          (void)trans_intermediate_ddl_commit(thd, result);
+          bool drop_result = dd::drop_table(thd, db, table_name, *table_def);
+          (void)trans_intermediate_ddl_commit(thd, drop_result);
         }
 
         return true;
@@ -8804,12 +8804,12 @@ static bool fetch_fk_children_uncached_uncommitted_normalized(
   return false;
 }
 
-bool collect_fk_children(THD *thd, const char *db, const char *table_name,
+bool collect_fk_children(THD *thd, const char *db, const char *arg_table_name,
                          handlerton *hton, enum_mdl_type lock_type,
                          MDL_request_list *mdl_requests) {
   Normalized_fk_children fk_children;
   if (fetch_fk_children_uncached_uncommitted_normalized(
-          thd, db, table_name, ha_resolve_storage_engine_name(hton),
+          thd, db, arg_table_name, ha_resolve_storage_engine_name(hton),
           &fk_children))
     return true;
 
@@ -11389,8 +11389,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map,
                                          enum_walk::PREFIX,
                                          reinterpret_cast<uchar *>(&mark_fld));
-      for (const Field *field : dropped_or_renamed_cols) {
-        if (bitmap_is_set(table->read_set, field->field_index)) {
+      for (const Field *dr_field : dropped_or_renamed_cols) {
+        if (bitmap_is_set(table->read_set, dr_field->field_index)) {
           gcol_needs_reeval = true;
           break;
         }
@@ -12909,19 +12909,19 @@ static bool mysql_inplace_alter_table(
       Finally we can tell SE supporting atomic DDL that the changed table
       in the data-dictionary.
     */
-    TABLE_LIST table_list(alter_ctx->new_db, alter_ctx->new_name,
-                          alter_ctx->new_alias, TL_READ);
-    table_list.mdl_request.ticket = alter_ctx->is_table_renamed()
-                                        ? alter_ctx->target_mdl_request.ticket
-                                        : mdl_ticket;
+    TABLE_LIST new_table_list(alter_ctx->new_db, alter_ctx->new_name,
+                              alter_ctx->new_alias, TL_READ);
+    new_table_list.mdl_request.ticket =
+        alter_ctx->is_table_renamed() ? alter_ctx->target_mdl_request.ticket
+                                      : mdl_ticket;
 
     Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
 
-    if (open_table(thd, &table_list, &ot_ctx)) return true;
+    if (open_table(thd, &new_table_list, &ot_ctx)) return true;
 
-    table_list.table->file->ha_notify_table_changed(ha_alter_info);
+    new_table_list.table->file->ha_notify_table_changed(ha_alter_info);
 
-    DBUG_ASSERT(table_list.table == thd->open_tables);
+    DBUG_ASSERT(new_table_list.table == thd->open_tables);
     close_thread_table(thd, &thd->open_tables);
   }
 
@@ -12990,12 +12990,12 @@ cleanup2:
   }
 
   if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
-    const dd::Table *table_def = nullptr;
+    const dd::Table *drop_table_def = nullptr;
     if (!thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
-                                   &table_def) &&
-        (table_def != nullptr)) {
+                                   &drop_table_def) &&
+        (drop_table_def != nullptr)) {
       bool result = dd::drop_table(thd, alter_ctx->new_db, alter_ctx->tmp_name,
-                                   *table_def);
+                                   *drop_table_def);
       (void)trans_intermediate_ddl_commit(thd, result);
     }
   }
@@ -13966,8 +13966,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                                    b->field_name) < 0;
             });
 
-  for (Create_field *field : functional_index_columns) {
-    new_create_list.push_back(field);
+  for (Create_field *ic_field : functional_index_columns) {
+    new_create_list.push_back(ic_field);
   }
 
   if (!new_create_list.elements) {
@@ -15082,9 +15082,9 @@ static bool handle_drop_functional_index(THD *thd, Alter_info *alter_info,
             const KEY_PART_INFO &key_part = key_info.key_part[k];
             if (key_part.field->is_field_for_functional_index()) {
               // Add column to drop list
-              Alter_drop *drop = new (thd->mem_root)
+              Alter_drop *column_drop = new (thd->mem_root)
                   Alter_drop(Alter_drop::COLUMN, key_part.field->field_name);
-              alter_info->drop_list.push_back(drop);
+              alter_info->drop_list.push_back(column_drop);
               alter_info->flags |= Alter_info::ALTER_DROP_COLUMN;
             }
           }
@@ -16757,7 +16757,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     MDL_request backup_name_mdl_request;
     MDL_REQUEST_INIT(&backup_name_mdl_request, MDL_key::TABLE, alter_ctx.db,
                      backup_name, MDL_EXCLUSIVE, MDL_STATEMENT);
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::cache::Dictionary_client::Auto_releaser releaser_2(thd->dd_client());
     const dd::Table *backup_table = nullptr;
 
     if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
@@ -16918,13 +16918,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   // Handle trigger name, check constraint names and histograms statistics.
   {
     dd::Table *backup_table = nullptr;
-    dd::Table *new_table = nullptr;
+    dd::Table *new_dd_table = nullptr;
     if (thd->dd_client()->acquire_for_modification(alter_ctx.db, backup_name,
                                                    &backup_table) ||
         thd->dd_client()->acquire_for_modification(
-            alter_ctx.new_db, alter_ctx.new_alias, &new_table))
+            alter_ctx.new_db, alter_ctx.new_alias, &new_dd_table))
       goto err_with_mdl;
-    DBUG_ASSERT(backup_table != nullptr && new_table != nullptr);
+    DBUG_ASSERT(backup_table != nullptr && new_dd_table != nullptr);
 
     /*
       Check if this is an ALTER command that will cause histogram statistics to
@@ -16932,15 +16932,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
       This will take care of scenarios when COPY alter is used, but not INPLACE.
       Do this before the commit for non-transactional tables, because the
-      new_table is invalidated on commit.
+      new_dd_table is invalidated on commit.
     */
     if (alter_table_drop_histograms(thd, table_list, alter_info, create_info,
-                                    columns, backup_table, new_table))
+                                    columns, backup_table, new_dd_table))
       goto err_with_mdl; /* purecov: deadcode */
 
-    bool update = (new_table->check_constraints()->size() > 0);
-    // Set mode for new_table's check constraints.
-    set_check_constraints_alter_mode(new_table, alter_info);
+    bool update = (new_dd_table->check_constraints()->size() > 0);
+    // Set mode for new_dd_table's check constraints.
+    set_check_constraints_alter_mode(new_dd_table, alter_info);
 
     /*
       Check constraint names are unique per schema, we cannot create them while
@@ -16952,7 +16952,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_with_mdl;
 
     // Reset check constraint's mode.
-    reset_check_constraints_alter_mode(new_table);
+    reset_check_constraints_alter_mode(new_dd_table);
 
     /*
       Since trigger names have to be unique per schema, we cannot
@@ -16960,18 +16960,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       table exist.
     */
     if (backup_table->has_trigger()) {
-      new_table->copy_triggers(backup_table);
+      new_dd_table->copy_triggers(backup_table);
       backup_table->drop_all_triggers();
       update = true;
     }
-    if (!new_table->is_checked_for_upgrade() &&
+    if (!new_dd_table->is_checked_for_upgrade() &&
         backup_table->is_checked_for_upgrade()) {
-      new_table->mark_as_checked_for_upgrade();
+      new_dd_table->mark_as_checked_for_upgrade();
       update = true;
     }
     if (update) {
       if (thd->dd_client()->update(backup_table) ||
-          thd->dd_client()->update(new_table))
+          thd->dd_client()->update(new_dd_table))
         goto err_with_mdl;
 
       Disable_gtid_state_update_guard disabler(thd);
@@ -17052,17 +17052,17 @@ end_inplace_noop:
 
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL6049
   {
-    TABLE_LIST table_list(alter_ctx.new_db, alter_ctx.new_name,
-                          alter_ctx.new_alias, TL_READ);
-    table_list.mdl_request.ticket = alter_ctx.is_table_renamed()
-                                        ? alter_ctx.target_mdl_request.ticket
-                                        : mdl_ticket;
+    TABLE_LIST table_list_reopen(alter_ctx.new_db, alter_ctx.new_name,
+                                 alter_ctx.new_alias, TL_READ);
+    table_list_reopen.mdl_request.ticket =
+        alter_ctx.is_table_renamed() ? alter_ctx.target_mdl_request.ticket
+                                     : mdl_ticket;
 
     Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
 
-    if (open_table(thd, &table_list, &ot_ctx)) return true;
+    if (open_table(thd, &table_list_reopen, &ot_ctx)) return true;
 
-    DBUG_ASSERT(table_list.table == thd->open_tables);
+    DBUG_ASSERT(table_list_reopen.table == thd->open_tables);
     close_thread_table(thd, &thd->open_tables);
   }
 #endif
@@ -17123,13 +17123,14 @@ err_new_table_cleanup:
     if (!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
       if (no_ha_table)  // Only remove from DD.
       {
-        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Table *table_def = nullptr;
+        dd::cache::Dictionary_client::Auto_releaser releaser_3(
+            thd->dd_client());
+        const dd::Table *drop_table_def = nullptr;
         if (!thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name,
-                                       &table_def)) {
-          DBUG_ASSERT(table_def != nullptr);
+                                       &drop_table_def)) {
+          DBUG_ASSERT(drop_table_def != nullptr);
           bool result = dd::drop_table(thd, alter_ctx.new_db,
-                                       alter_ctx.tmp_name, *table_def);
+                                       alter_ctx.tmp_name, *drop_table_def);
           (void)trans_intermediate_ddl_commit(thd, result);
         }
       } else  // Remove from both DD and SE.

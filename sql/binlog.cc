@@ -1076,7 +1076,8 @@ class binlog_cache_mngr {
     int error = stmt_cache.flush(thd, &stmt_bytes, wrote_xid);
     if (error) return error;
     DEBUG_SYNC(thd, "after_flush_stm_cache_before_flush_trx_cache");
-    if (int error = trx_cache.flush(thd, &trx_bytes, wrote_xid)) return error;
+    error = trx_cache.flush(thd, &trx_bytes, wrote_xid);
+    if (error) return error;
     *bytes_written = stmt_bytes + trx_bytes;
     return 0;
   }
@@ -2088,8 +2089,10 @@ inline xa_status_code binlog_xa_commit_or_rollback(THD *thd, XID *xid,
   int error = 0;
 
 #ifndef DBUG_OFF
-  binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
-  DBUG_ASSERT(!cache_mngr || !cache_mngr->has_logged_xid);
+  {
+    binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
+    DBUG_ASSERT(!cache_mngr || !cache_mngr->has_logged_xid);
+  }
 #endif
   if (!(error = do_binlog_xa_commit_rollback(thd, xid, commit))) {
     /*

@@ -2069,7 +2069,6 @@ failure:
     other error code
 */
 int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
-  int error;
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
@@ -2091,6 +2090,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
     const MY_BITMAP *const save_read_set = quick->head->read_set;
     const MY_BITMAP *const save_write_set = quick->head->write_set;
 #endif
+    int error;
     if ((error = quick->init_ror_merged_scan(false))) return error;
     quick->file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     // Sets are shared by all members of "quick_selects" so must not change
@@ -2101,6 +2101,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
   }
 
   /* Prepare for ha_rnd_pos calls if needed. */
+  int error;
   if (need_to_fetch_row && (error = head->file->ha_rnd_init(false))) {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
     return error;
@@ -3401,8 +3402,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           Calculate cost of single index range scan and possible
           intersections of these
         */
-        Opt_trace_object trace_range(trace, "analyzing_range_alternatives",
-                                     Opt_trace_context::RANGE_OPTIMIZER);
+        Opt_trace_object trace_range_alt(trace, "analyzing_range_alternatives",
+                                         Opt_trace_context::RANGE_OPTIMIZER);
         TRP_RANGE *range_trp;
         TRP_ROR_INTERSECT *rori_trp;
 

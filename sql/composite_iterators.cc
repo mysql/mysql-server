@@ -1053,9 +1053,9 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
 
       // Inform each reader that the table has changed under their feet,
       // so they'll need to reposition themselves.
-      for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
-        if (query_block.is_recursive_reference) {
-          query_block.recursive_reader->RepositionCursorAfterSpillToDisk();
+      for (const QueryBlock &query_b : m_query_blocks_to_materialize) {
+        if (query_b.is_recursive_reference) {
+          query_b.recursive_reader->RepositionCursorAfterSpillToDisk();
         }
       }
     } else {
@@ -1341,10 +1341,10 @@ bool TemptableAggregateIterator::Init() {
 
   PFSBatchMode pfs_batch_mode(m_subquery_iterator.get());
   for (;;) {
-    int error = m_subquery_iterator->Read();
-    if (error > 0 || thd()->is_error())  // Fatal error
+    int read_error = m_subquery_iterator->Read();
+    if (read_error > 0 || thd()->is_error())  // Fatal error
       return true;
-    else if (error < 0)
+    else if (read_error < 0)
       break;
     else if (thd()->killed)  // Aborted by user
     {
@@ -1440,7 +1440,7 @@ bool TemptableAggregateIterator::Init() {
       if (copy_funcs(m_temp_table_param, thd())) return 1;
     }
     init_tmptable_sum_functions(m_join->sum_funcs);
-    error = table()->file->ha_write_row(table()->record[0]);
+    int error = table()->file->ha_write_row(table()->record[0]);
     if (error != 0) {
       /*
          If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a

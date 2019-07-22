@@ -441,10 +441,9 @@ static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
 #endif
 ) {
   Field_typed_array *field = down_cast<Field_typed_array *>(fld);
-  uint length = field->data_length();
-  const char *ptr = field->get_binary();
 
-  json_binary::Value v(json_binary::parse_binary(ptr, length));
+  json_binary::Value v(
+      json_binary::parse_binary(field->get_binary(), field->data_length()));
   uint elems = v.element_count();
   if (!elems || field->is_null()) {
     // Multi-valued key part doesn't contain actual values.

@@ -1253,7 +1253,7 @@ bool partition_info::compare_column_values(
 */
 
 bool partition_info::check_list_constants(THD *thd) {
-  uint i, size_entries, num_column_values;
+  uint size_entries, num_column_values;
   uint list_index = 0;
   part_elem_value *list_value;
   bool result = true;
@@ -1280,7 +1280,7 @@ bool partition_info::check_list_constants(THD *thd) {
     list.
   */
 
-  i = 0;
+  uint part_id = 0;
   do {
     part_def = list_func_it++;
     if (part_def->has_null_value) {
@@ -1289,12 +1289,12 @@ bool partition_info::check_list_constants(THD *thd) {
         goto end;
       }
       has_null_value = true;
-      has_null_part_id = i;
+      has_null_part_id = part_id;
       found_null = true;
     }
     List_iterator<part_elem_value> list_val_it1(part_def->list_val_list);
     while (list_val_it1++) num_list_values++;
-  } while (++i < num_parts);
+  } while (++part_id < num_parts);
   list_func_it.rewind();
   num_column_values = part_field_list.elements;
   size_entries = column_list
@@ -1309,19 +1309,19 @@ bool partition_info::check_list_constants(THD *thd) {
     part_column_list_val *loc_list_col_array;
     loc_list_col_array = (part_column_list_val *)ptr;
     list_col_array = (part_column_list_val *)ptr;
-    i = 0;
+    part_id = 0;
     do {
       part_def = list_func_it++;
       List_iterator<part_elem_value> list_val_it2(part_def->list_val_list);
       while ((list_value = list_val_it2++)) {
         part_column_list_val *col_val = list_value->col_val_array;
-        if (unlikely(fix_column_value_functions(thd, list_value, i))) {
+        if (unlikely(fix_column_value_functions(thd, list_value, part_id))) {
           return true;
         }
         memcpy(loc_list_col_array, (const void *)col_val, size_entries);
         loc_list_col_array += num_column_values;
       }
-    } while (++i < num_parts);
+    } while (++part_id < num_parts);
 
     varlen_sort(list_col_array,
                 list_col_array + num_list_values * num_column_values,
@@ -1337,7 +1337,7 @@ bool partition_info::check_list_constants(THD *thd) {
     }
   } else {
     list_array = (LIST_PART_ENTRY *)ptr;
-    i = 0;
+    part_id = 0;
     /*
       Fix to be able to reuse signed sort functions also for unsigned
       partition functions.
@@ -1351,9 +1351,9 @@ bool partition_info::check_list_constants(THD *thd) {
       while ((list_value = list_val_it2++)) {
         calc_value = list_value->value | type_add;
         list_array[list_index].list_value = calc_value;
-        list_array[list_index++].partition_id = i;
+        list_array[list_index++].partition_id = part_id;
       }
-    } while (++i < num_parts);
+    } while (++part_id < num_parts);
 
     LIST_PART_ENTRY *list_array_end = list_array + num_list_values;
     std::sort(list_array, list_array_end,
@@ -2552,13 +2552,15 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
   }
 
   /* Check that it will use the same fields in KEY (fields) list. */
-  List_iterator<char> old_field_name_it(part_field_list);
-  List_iterator<char> new_field_name_it(new_part_info->part_field_list);
-  char *old_name, *new_name;
-  while ((old_name = old_field_name_it++)) {
-    new_name = new_field_name_it++;
-    if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
-      return false;
+  {
+    List_iterator<char> old_field_name_it(part_field_list);
+    List_iterator<char> new_field_name_it(new_part_info->part_field_list);
+    char *old_name, *new_name;
+    while ((old_name = old_field_name_it++)) {
+      new_name = new_field_name_it++;
+      if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
+        return false;
+    }
   }
 
   if (is_sub_partitioned()) {

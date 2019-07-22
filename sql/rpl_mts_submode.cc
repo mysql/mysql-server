@@ -191,12 +191,11 @@ int Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
 void Mts_submode_database::detach_temp_tables(THD *thd,
                                               const Relay_log_info *rli,
                                               Query_log_event *ev) {
-  int i, parts;
   DBUG_TRACE;
   if (!is_mts_worker(thd)) return;
-  parts = ((ev->mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
-               ? 1
-               : ev->mts_accessed_dbs);
+  int parts = ((ev->mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
+                   ? 1
+                   : ev->mts_accessed_dbs);
   /*
     todo: optimize for a case of
 
@@ -209,7 +208,7 @@ void Mts_submode_database::detach_temp_tables(THD *thd,
        unmodified lists provided that the attach_ method does not
        destroy references to them.
   */
-  for (i = 0; i < parts; i++) {
+  for (int i = 0; i < parts; i++) {
     ev->mts_assigned_partitions[i]->temporary_tables = nullptr;
   }
 

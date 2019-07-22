@@ -3135,16 +3135,16 @@ double Item_string::val_real() {
 
 longlong longlong_from_string_with_check(const CHARSET_INFO *cs,
                                          const char *cptr, const char *end) {
-  int err;
+  int err_int;
   longlong tmp;
   const char *endptr = end;
 
-  tmp = (*(cs->cset->strtoll10))(cs, cptr, &endptr, &err);
+  tmp = (*(cs->cset->strtoll10))(cs, cptr, &endptr, &err_int);
   /*
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
-  if ((err > 0 ||
+  if ((err_int > 0 ||
        (end != endptr && !check_if_only_end_space(cs, endptr, end)))) {
     ErrConvString err(cptr, cs);
     push_warning_printf(
@@ -5237,9 +5237,10 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
             if (!rf->fixed) {
               // No need for recursive resolving of aliases.
               thd->lex->current_select()->group_fix_field = false;
-              bool ret = rf->fix_fields(thd, (Item **)&rf) || rf->check_cols(1);
+              bool fix_error =
+                  rf->fix_fields(thd, (Item **)&rf) || rf->check_cols(1);
               thd->lex->current_select()->group_fix_field = group_fix_field;
-              if (ret) return true;
+              if (fix_error) return true;
             }
             if (group_fix_field && m_alias_of_expr)
               thd->change_item_tree(reference, *rf->ref);

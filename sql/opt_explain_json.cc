@@ -1233,11 +1233,11 @@ class window_ctx : public join_ctx {
         }
       }
       if (w->needs_buffering()) {
-        Opt_trace_object to(json, K_FRAME_BUFFER);
-        to.add(K_USING_TMP_TABLE, true);
+        Opt_trace_object to_buf(json, K_FRAME_BUFFER);
+        to_buf.add(K_USING_TMP_TABLE, true);
         if (w->optimizable_range_aggregates() ||
             w->optimizable_row_aggregates() || w->static_aggregates())
-          to.add(K_OPTIMIZED_FRAME_EVALUATION, true);
+          to_buf.add(K_OPTIMIZED_FRAME_EVALUATION, true);
       }
       Opt_trace_array wfs(json, K_FUNCTIONS);
       List_iterator<Item_sum> wfs_it(w->functions());
@@ -1658,13 +1658,13 @@ bool union_result_ctx::format(Opt_trace_context *json) {
 
 qep_row *Explain_format_JSON::entry() { return current_context->entry(); }
 
-bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
+bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                                         SELECT_LEX_UNIT *subquery,
                                         const Explain_format_flags *flags) {
   using namespace opt_explain_json_namespace;
 
   context *prev_context = current_context;
-  switch (ctx) {
+  switch (ctx_arg) {
     case CTX_JOIN:
       DBUG_ASSERT(current_context == NULL ||
                   // subqueries:

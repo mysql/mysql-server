@@ -282,7 +282,6 @@ Persisted_variables_cache *Persisted_variables_cache::get_instance() {
 */
 void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   char val_buf[1024] = {0};
-  String str(val_buf, sizeof(val_buf), system_charset_info), *res;
   String utf8_str;
   bool is_null = false;
 
@@ -293,6 +292,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       Persisted_variables_cache::get_variable_name(system_var);
   const char *var_value = val_buf;
   if (setvar->type == OPT_PERSIST_ONLY) {
+    String str(val_buf, sizeof(val_buf), system_charset_info), *res;
     const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
     uint dummy_err;
     if (setvar->value) {
@@ -339,10 +339,10 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
      at end of vector to restore insertion order.
     */
     string str = tmp_var.key;
-    auto it =
+    auto itt =
         std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
                      [str](st_persist_var const &s) { return s.key == str; });
-    if (it != m_persist_variables.end()) m_persist_variables.erase(it);
+    if (itt != m_persist_variables.end()) m_persist_variables.erase(itt);
     m_persist_variables.push_back(tmp_var);
     /* for plugin variables update m_persist_plugin_variables */
     if (setvar->var->cast_pluginvar()) {

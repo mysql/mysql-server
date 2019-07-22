@@ -1618,7 +1618,7 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
 */
 
 bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
-  SQL_I_List<TABLE_LIST> update;
+  SQL_I_List<TABLE_LIST> update_list;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
   DBUG_TRACE;
@@ -1668,7 +1668,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     Don't use key read on tables that are updated
   */
 
-  update.empty();
+  update_list.empty();
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
     /* TODO: add support of view of join support */
     if (tables_to_update & tr->map()) {
@@ -1677,7 +1677,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
       TABLE *const table = tr->table;
 
-      update.link_in_list(dup, &dup->next_local);
+      update_list.link_in_list(dup, &dup->next_local);
       tr->shared = dup->shared = update_table_count++;
       table->no_keyread = 1;
       table->covering_keys.clear_all();
@@ -1694,8 +1694,8 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     }
   }
 
-  update_table_count = update.elements;
-  update_tables = update.first;
+  update_table_count = update_list.elements;
+  update_tables = update_list.first;
 
   tmp_tables = (TABLE **)thd->mem_calloc(sizeof(TABLE *) * update_table_count);
   if (tmp_tables == NULL) return true;
@@ -1927,8 +1927,9 @@ bool Query_result_update::optimize() {
             update of main_table.
           */
           if (tab > join->join_tab + 1) {
-            for (uint i = 0; i < tab->ref().key_parts; i++) {
-              Item *ref_item = tab->ref().items[i];
+            for (uint key_part_idx = 0; key_part_idx < tab->ref().key_parts;
+                 key_part_idx++) {
+              Item *ref_item = tab->ref().items[key_part_idx];
               if ((table_ref->map() & ref_item->used_tables()) != 0)
                 ref_item->walk(&Item::add_field_to_set_processor,
                                enum_walk::SUBQUERY_POSTFIX,

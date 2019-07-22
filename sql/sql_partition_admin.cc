@@ -494,24 +494,24 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
         Ensure that we call post-DDL hook and re-open tables even
         in case of error.
       */
-      auto rollback_post_ddl_reopen_lambda = [hton](THD *thd) {
+      auto rollback_post_ddl_reopen_lambda = [hton](THD *thd_arg) {
         /*
           Rollback all possible changes to data-dictionary and SE which
           Partition_handler::exchange_partitions() might have done before
           reporting an error. Do this before we downgrade metadata locks.
         */
-        (void)trans_rollback_stmt(thd);
+        (void)trans_rollback_stmt(thd_arg);
         /*
           Full rollback in case we have THD::transaction_rollback_request
           and to synchronize DD state in cache and on disk (as statement
           rollback doesn't clear DD cache of modified uncommitted objects).
         */
-        (void)trans_rollback(thd);
+        (void)trans_rollback(thd_arg);
         /*
           Call SE post DDL hook. This handles both rollback and commit cases.
         */
-        if (hton->post_ddl) hton->post_ddl(thd);
-        (void)thd->locked_tables_list.reopen_tables(thd);
+        if (hton->post_ddl) hton->post_ddl(thd_arg);
+        (void)thd_arg->locked_tables_list.reopen_tables(thd_arg);
       };
 
       std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
@@ -693,8 +693,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     init_tmp_table_share(thd, &share, first_table->db, 0,
                          first_table->table_name, path, nullptr);
 
-    auto free_share_lambda = [](TABLE_SHARE *share) {
-      free_table_share(share);
+    auto free_share_lambda = [](TABLE_SHARE *share_arg) {
+      free_table_share(share_arg);
     };
     std::unique_ptr<TABLE_SHARE, decltype(free_share_lambda)> free_share_guard(
         &share, free_share_lambda);
@@ -711,7 +711,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
                                     &table, true, nullptr);
 
       if (!error) {
-        auto closefrm_lambda = [](TABLE *table) { (void)closefrm(table, 0); };
+        auto closefrm_lambda = [](TABLE *t) { (void)closefrm(t, 0); };
         std::unique_ptr<TABLE, decltype(closefrm_lambda)> closefrm_guard(
             &table, closefrm_lambda);
 

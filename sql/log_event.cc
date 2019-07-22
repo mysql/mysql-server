@@ -6287,9 +6287,6 @@ void XA_prepare_log_event::print(FILE *,
 */
 
 bool XA_prepare_log_event::do_commit(THD *thd_arg) {
-  bool error = false;
-  xid_t xid;
-
   enum_gtid_statement_status state = gtid_pre_statement_checks(thd_arg);
   if (state == GTID_STATEMENT_EXECUTE) {
     if (gtid_pre_statement_post_implicit_commit_checks(thd_arg))
@@ -6306,6 +6303,8 @@ bool XA_prepare_log_event::do_commit(THD *thd_arg) {
   } else if (state == GTID_STATEMENT_SKIP)
     return false;
 
+  bool error = false;
+  xid_t xid;
   xid.set(my_xid.formatID, my_xid.data, my_xid.gtrid_length,
           my_xid.data + my_xid.gtrid_length, my_xid.bqual_length);
   if (!one_phase) {
@@ -9297,9 +9296,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     }
 
     if (state == GTID_STATEMENT_CANCEL) {
-      uint error = thd->get_stmt_da()->mysql_errno();
-      DBUG_ASSERT(error != 0);
-      rli->report(ERROR_LEVEL, error, "Error executing row event: '%s'",
+      uint mysql_error = thd->get_stmt_da()->mysql_errno();
+      DBUG_ASSERT(mysql_error != 0);
+      rli->report(ERROR_LEVEL, mysql_error, "Error executing row event: '%s'",
                   thd->get_stmt_da()->message_text());
       thd->is_slave_error = 1;
       return -1;
@@ -9468,10 +9467,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         RUN_HOOK(binlog_relay_io, applier_log_event, (thd, out_value));
     if (hook_error || out_value) {
       char buf[256];
-      uint error = ER_APPLIER_LOG_EVENT_VALIDATION_ERROR;
+      uint applier_error = ER_APPLIER_LOG_EVENT_VALIDATION_ERROR;
 
       if (hook_error) {
-        error = ER_RUN_HOOK_ERROR;
+        applier_error = ER_RUN_HOOK_ERROR;
         strcpy(buf, "applier_log_event");
       } else {
         if (!thd->owned_gtid_is_empty() && thd->owned_gtid.sidno > 0) {
@@ -9482,7 +9481,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       }
 
       if (thd->slave_thread) {
-        rli->report(ERROR_LEVEL, error, ER_THD_NONCONST(thd, error), buf);
+        rli->report(ERROR_LEVEL, applier_error,
+                    ER_THD_NONCONST(thd, applier_error), buf);
         thd->is_slave_error = 1;
         const_cast<Relay_log_info *>(rli)->slave_close_thread_tables(thd);
       } else {
@@ -9490,9 +9490,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
           For the cases in which a 'BINLOG' statement is set to
           execute in a user session
         */
-        my_printf_error(error, ER_THD_NONCONST(thd, error), MYF(0), buf);
+        my_printf_error(error, ER_THD_NONCONST(thd, applier_error), MYF(0),
+                        buf);
       }
-      return error;
+      return applier_error;
     }
   }
 
@@ -10937,9 +10938,9 @@ bool Table_map_log_event::init_set_str_value_field() {
     | Value number | value1 len | value 1|  .... |  // second SET column
     ----------------------------------------------
    */
-  for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-    if (is_set_field(m_table->field[i])) {
-      TYPELIB *typelib = dynamic_cast<Field_set *>(m_table->field[i])->typelib;
+  for (unsigned int ix = 0; ix < m_table->s->fields; ++ix) {
+    if (is_set_field(m_table->field[ix])) {
+      TYPELIB *typelib = dynamic_cast<Field_set *>(m_table->field[ix])->typelib;
 
       store_compressed_length(buf, typelib->count);
       for (unsigned int i = 0; i < typelib->count; i++) {
@@ -10957,9 +10958,9 @@ bool Table_map_log_event::init_enum_str_value_field() {
   StringBuffer<1024> buf;
 
   /* ENUM is same to SET columns, see comment in init_set_str_value_field */
-  for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-    if (is_enum_field(m_table->field[i])) {
-      TYPELIB *typelib = dynamic_cast<Field_enum *>(m_table->field[i])->typelib;
+  for (unsigned int ix = 0; ix < m_table->s->fields; ++ix) {
+    if (is_enum_field(m_table->field[ix])) {
+      TYPELIB *typelib = down_cast<Field_enum *>(m_table->field[ix])->typelib;
 
       store_compressed_length(buf, typelib->count);
       for (unsigned int i = 0; i < typelib->count; i++) {

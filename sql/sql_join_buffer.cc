@@ -619,14 +619,15 @@ int JOIN_CACHE_BNL::init() {
     - if in a regular execution, start with the first non-const table.
     - if in a materialized subquery, start with the first table of the subquery.
   */
-  QEP_TAB *tab = prev_cache
-                     ? prev_cache->qep_tab
-                     : sj_is_materialize_strategy(qep_tab->get_sj_strategy())
-                           ? &QEP_AT(qep_tab, first_sj_inner())
-                           : &join->qep_tab[join->const_tables];
+  {
+    QEP_TAB *tab = prev_cache
+                       ? prev_cache->qep_tab
+                       : sj_is_materialize_strategy(qep_tab->get_sj_strategy())
+                             ? &QEP_AT(qep_tab, first_sj_inner())
+                             : &join->qep_tab[join->const_tables];
 
-  tables = qep_tab - tab;
-
+    tables = qep_tab - tab;
+  }
   for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
     filter_virtual_gcol_base_cols(tab, join->thd->mem_root,
                                   &save_read_set_for_gcol);
@@ -771,14 +772,15 @@ int JOIN_CACHE_BKA::init() {
   /*
     Reference JOIN_CACHE_BNL::init() for details.
   */
-  QEP_TAB *tab = prev_cache
-                     ? prev_cache->qep_tab
-                     : sj_is_materialize_strategy(qep_tab->get_sj_strategy())
-                           ? &QEP_AT(qep_tab, first_sj_inner())
-                           : &join->qep_tab[join->const_tables];
+  {
+    QEP_TAB *tab = prev_cache
+                       ? prev_cache->qep_tab
+                       : sj_is_materialize_strategy(qep_tab->get_sj_strategy())
+                             ? &QEP_AT(qep_tab, first_sj_inner())
+                             : &join->qep_tab[join->const_tables];
 
-  tables = qep_tab - tab;
-
+    tables = qep_tab - tab;
+  }
   for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
     filter_virtual_gcol_base_cols(tab, join->thd->mem_root,
                                   &save_read_set_for_gcol);
@@ -931,7 +933,6 @@ int JOIN_CACHE_BKA::init() {
 
 bool JOIN_CACHE_BKA::check_emb_key_usage() {
   uint i;
-  Item *item;
   KEY_PART_INFO *key_part;
   CACHE_FIELD *copy;
   CACHE_FIELD *copy_end;
@@ -963,7 +964,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage() {
     - some of the key components are nullable
   */
   for (i = 0; i < ref->key_parts; i++) {
-    item = ref->items[i]->real_item();
+    Item *item = ref->items[i]->real_item();
     if (item->type() != Item::FIELD_ITEM) return false;
     key_part = keyinfo->key_part + i;
     if (key_part->key_part_flag & HA_PART_KEY_SEG) return false;

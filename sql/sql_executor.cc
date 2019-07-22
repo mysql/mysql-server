@@ -1174,8 +1174,8 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     condition = conditions[0];
   } else {
     List<Item> items;
-    for (Item *condition : conditions) {
-      items.push_back(condition);
+    for (Item *cond : conditions) {
+      items.push_back(cond);
     }
     condition = new Item_cond_and(items);
     condition->quick_fix_field();
@@ -1304,10 +1304,10 @@ void ConvertItemsToCopy(List<Item> *items, Field **fields,
       if (replaced_items_for_rollup) {
         for (size_t rollup_level = 0; rollup_level < join->send_group_parts;
              ++rollup_level) {
-          for (Item &item : join->rollup.fields_list[rollup_level]) {
-            if (item.type() == Item::NULL_RESULT_ITEM &&
-                item.get_result_field() == from_field) {
-              item.set_result_field(to_field);
+          for (Item &item_r : join->rollup.fields_list[rollup_level]) {
+            if (item_r.type() == Item::NULL_RESULT_ITEM &&
+                item_r.get_result_field() == from_field) {
+              item_r.set_result_field(to_field);
             }
           }
         }

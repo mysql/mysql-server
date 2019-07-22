@@ -193,10 +193,11 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
                               1))
           return CR_ERROR;
 
-        int pkt_len = 0;
-        unsigned char *pkt;
-        if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_ERROR;
-        BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
+        int packet_len = 0;
+        unsigned char *packet;
+        if ((packet_len = vio->read_packet(vio, &packet)) == -1)
+          return CR_ERROR;
+        BIO *bio = BIO_new_mem_buf(packet, packet_len);
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0) {

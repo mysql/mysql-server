@@ -599,9 +599,9 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
         String temp_result;
 
         res.set_srid((*i)->get_srid());
-        Geometry::wkbType gtype = (*i)->get_type();
-        if (dist < 0 && gtype != Geometry::wkb_multipolygon &&
-            gtype != Geometry::wkb_polygon) {
+        Geometry::wkbType g_type = (*i)->get_type();
+        if (dist < 0 && g_type != Geometry::wkb_multipolygon &&
+            g_type != Geometry::wkb_polygon) {
           my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
           return error_str();
         }

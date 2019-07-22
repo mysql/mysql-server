@@ -292,8 +292,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     return true;
 
   const dd::Table *table_def = nullptr;
-  TABLE_LIST *table;
-  for (table = table_list; table && table->next_local;
+  for (TABLE_LIST *table = table_list; table && table->next_local;
        table = table->next_local) {
     if (thd->dd_client()->acquire(table->db, table->table_name, &table_def)) {
       return true;

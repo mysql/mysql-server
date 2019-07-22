@@ -6054,7 +6054,7 @@ int mysqld_main(int argc, char **argv)
   /* Write mysys error messages to the error log. */
   local_message_hook = error_log_print;
 
-  int ho_error;
+  int heo_error;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
@@ -6063,7 +6063,7 @@ int mysqld_main(int argc, char **argv)
   init_pfs_instrument_array();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-  ho_error = handle_early_options();
+  heo_error = handle_early_options();
 
   init_sql_statement_names();
   sys_var_init();
@@ -6074,7 +6074,7 @@ int mysqld_main(int argc, char **argv)
   if (!opt_validate_config) adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  if (ho_error == 0) {
+  if (heo_error == 0) {
     if (!is_help_or_validate_option() && !opt_initialize) {
       int pfs_rc;
       /* Add sizing hints from the server sizing parameters. */
@@ -6099,7 +6099,7 @@ int mysqld_main(int argc, char **argv)
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef WITH_LOCK_ORDER
-  if (ho_error == 0) {
+  if (heo_error == 0) {
     if (lo_param.m_enabled && !opt_help && !opt_initialize) {
       int lo_rc;
       lo_rc = LO_init(&lo_param, &psi_thread_hook, &psi_mutex_hook,
@@ -6304,7 +6304,7 @@ int mysqld_main(int argc, char **argv)
   */
   query_logger.init();
 
-  if (ho_error) {
+  if (heo_error) {
     /*
       Parsing command line option failed,
       Since we don't have a workable remaining_argc/remaining_argv

@@ -966,10 +966,10 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
         DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
         DBUG_ASSERT(!thd->temporary_tables || !thd->temporary_tables->prev);
 
-        db_worker_hash_entry *entry = it->second.get();
-        if (entry->usage == 0) {
-          mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
-          entry->temporary_tables = nullptr;
+        db_worker_hash_entry *zero_entry = it->second.get();
+        if (zero_entry->usage == 0) {
+          mts_move_temp_tables_to_thd(thd, zero_entry->temporary_tables);
+          zero_entry->temporary_tables = nullptr;
           it = rli->mapping_db_to_worker.erase(it);
         } else
           ++it;

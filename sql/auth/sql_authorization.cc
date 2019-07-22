@@ -1019,12 +1019,10 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
                                        const DB_restrictions &restrictions) {
   DBUG_ASSERT(assert_acl_cache_read_lock(thd));
 
-  auto make_grant_stmts = [](THD *thd, ACL_USER *role, Protocol *protocol,
-                             const Db_access_map &db_map) {
-    Db_access_map::const_iterator it = db_map.begin();
-    for (; it != db_map.end(); ++it) {
-      ulong want_access = it->second;
-      std::string db_name = it->first;
+  auto make_grant_stmts = [thd, role, protocol](const Db_access_map &map) {
+    for (const Db_access_map::value_type &it : map) {
+      ulong want_access = it.second;
+      const std::string &db_name = it.first;
 
       String db;
       db.length(0);
@@ -1062,9 +1060,8 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       protocol->end_row();
     }
   };
-  auto make_partial_db_revoke_stmts = [](THD *thd, ACL_USER *acl_user,
-                                         Protocol *protocol,
-                                         const DB_restrictions &restrictions) {
+  auto make_partial_db_revoke_stmts = [thd, protocol,
+                                       restrictions](ACL_USER *acl_user) {
     if (mysqld_partial_revokes()) {
       /*
        Copy the unordered restrictions into an array.
@@ -1111,9 +1108,9 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
     }
   };
 
-  make_grant_stmts(thd, role, protocol, db_map);
-  make_grant_stmts(thd, role, protocol, db_wild_map);
-  make_partial_db_revoke_stmts(thd, role, protocol, restrictions);
+  make_grant_stmts(db_map);
+  make_grant_stmts(db_wild_map);
+  make_partial_db_revoke_stmts(role);
 }
 
 /**
@@ -1494,9 +1491,9 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
           DBUG_PRINT("info", ("Collecting column privileges for %s@%s",
                               acl_user->user, acl_user->host.get_host()));
           // Iterate over all column ACLs for this table.
-          for (const auto &key_and_value : grant_table->hash_columns) {
+          for (const auto &key_and_value_acl : grant_table->hash_columns) {
             String q_col_name;
-            GRANT_COLUMN *col = key_and_value.second.get();
+            GRANT_COLUMN *col = key_and_value_acl.second.get();
             // TODO why can this be 0x0 ?!
             if (col) {
               std::string str_column_name(col->column);
@@ -3050,7 +3047,6 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
   LEX_USER *lex_user;
   TABLE *table = NULL;
   int ret;
-  LEX_USER *role = 0;
   bool transactional_tables;
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     return ret != 1; /* purecov: deadcode */
@@ -3072,13 +3068,13 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
 
     std::vector<Role_id> mandatory_roles;
     get_mandatory_roles(&mandatory_roles);
-    while ((role = roles_it++) != 0) {
+    while (LEX_USER *mand_role = roles_it++) {
       if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
                        [&](const Role_id &id) -> bool {
-                         Role_id id2(role->user, role->host);
+                         Role_id id2(mand_role->user, mand_role->host);
                          return id == id2;
                        }) != mandatory_roles.end()) {
-        Role_id authid(role->user, role->host);
+        Role_id authid(mand_role->user, mand_role->host);
         std::string out;
         authid.auth_str(&out);
         my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
@@ -3087,7 +3083,6 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
     }
     while ((lex_user = users_it++) && !errors) {
       roles_it.rewind();
-      LEX_USER *role;
       if (lex_user->user.str == 0) {
         // HACK: We're using CURRENT_USER()
         lex_user = get_current_user(thd, lex_user);
@@ -3103,6 +3098,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
         errors = true;
         break;
       }
+      LEX_USER *role;
       while ((role = roles_it++) && !errors) {
         ACL_USER *acl_role;
         if ((acl_role = find_acl_user(role->host.str, role->user.str, true)) ==
@@ -3476,15 +3472,17 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
         }
       }
       if (!db && grant_option) {
-        bool error = 0;
+        bool dynamic_privileges_error = false;
         Update_dynamic_privilege_table update_table(thd, dynpriv_table);
         if (!revoke_grant)
-          error = grant_grant_option_for_all_dynamic_privileges(
-              user->user, user->host, update_table);
+          dynamic_privileges_error =
+              grant_grant_option_for_all_dynamic_privileges(
+                  user->user, user->host, update_table);
         else
-          error = revoke_grant_option_for_all_dynamic_privileges(
-              user->user, user->host, update_table);
-        if (error) {
+          dynamic_privileges_error =
+              revoke_grant_option_for_all_dynamic_privileges(
+                  user->user, user->host, update_table);
+        if (dynamic_privileges_error) {
           if (!thd->get_stmt_da()->is_error())
             my_error(ER_SYNTAX_ERROR, MYF(0));
         }
@@ -5656,8 +5654,8 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *) {
         int cnt;
         for (cnt = 0, j = SELECT_ACL; j <= TABLE_ACLS; cnt++, j <<= 1) {
           if (test_access & j) {
-            for (const auto &key_and_value : grant_table->hash_columns) {
-              GRANT_COLUMN *grant_column = key_and_value.second.get();
+            for (const auto &key_and_value_gt : grant_table->hash_columns) {
+              GRANT_COLUMN *grant_column = key_and_value_gt.second.get();
               if ((grant_column->rights & j) && (table_access & j)) {
                 if (update_schema_privilege(
                         thd, table, buff, grant_table->db, grant_table->tname,
@@ -7208,10 +7206,10 @@ Sctx_ptr<Security_context> Security_context_factory::create(
     return nullptr;
   }
 
-  return Sctx_ptr<Security_context>(sctx, [](Security_context *sctx) {
-    if (sctx->has_drop_policy()) {
-      sctx->execute_drop_policy();
-      if (sctx->has_executed_drop_policy()) delete sctx;
+  return Sctx_ptr<Security_context>(sctx, [](Security_context *ptr) {
+    if (ptr->has_drop_policy()) {
+      ptr->execute_drop_policy();
+      if (ptr->has_executed_drop_policy()) delete ptr;
     }
   });
 }

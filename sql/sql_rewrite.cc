@@ -998,7 +998,6 @@ bool Rewriter_grant::rewrite() const {
   rlb->mem_free();
 
   TABLE_LIST *first_table = lex->select_lex->table_list.first;
-  bool comma = false, comma_inner;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
@@ -1023,12 +1022,13 @@ bool Rewriter_grant::rewrite() const {
   else if (lex->grant_privilege)
     rlb->append(STRING_WITH_LEN("GRANT OPTION"));
   else {
+    bool comma = false;
     ulong priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
       if (priv == GRANT_ACL) continue;
 
-      comma_inner = false;
+      bool comma_inner = false;
 
       if (lex->columns.elements)  // show columns, if any
       {
@@ -1066,10 +1066,10 @@ bool Rewriter_grant::rewrite() const {
     /* List extended global privilege IDs */
     if (!first_table && !lex->current_select()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
-      LEX_CSTRING *priv;
-      while ((priv = it++)) {
+      LEX_CSTRING *privilege;
+      while ((privilege = it++)) {
         comma_maybe(rlb, &comma);
-        rlb->append(priv->str, priv->length);
+        rlb->append(privilege->str, privilege->length);
       }
     }
     if (!comma)  // no privs, default to USAGE
@@ -1090,9 +1090,9 @@ bool Rewriter_grant::rewrite() const {
 
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(lex->users_list);
-  comma = false;
 
   if (proxy_grant) {
+    bool comma = false;
     tmp_user_name = user_list++;
     user_name = get_current_user(m_thd, tmp_user_name);
     if (user_name) append_auth_id(m_thd, user_name, comma, rlb);

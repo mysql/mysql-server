@@ -420,9 +420,10 @@ DEFINE_METHOD(int, mysql_clone_get_response,
   auto func_before = [](NET *, void *, size_t) {};
 
   /* Callback function called after receiving header. */
-  auto func_after = [](NET *net, void *ctx, size_t, bool) {
+  auto func_after = [](NET *net_arg, void *ctx, size_t, bool) {
     auto net_bytes = static_cast<size_t *>(ctx);
-    *net_bytes += static_cast<size_t>(uint3korr(net->buff + net->where_b));
+    *net_bytes +=
+        static_cast<size_t>(uint3korr(net_arg->buff + net_arg->where_b));
   };
 
   /* Use server extension callback to capture network byte information. */

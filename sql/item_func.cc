@@ -1027,9 +1027,11 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // Can only substitute if all the operands on the right-hand
       // side are constants of the same type.
       Item_result type = args[1]->result_type();
-      if (!std::all_of(args + 1, args + arg_count, [type](const Item *arg) {
-            return arg->const_item() && arg->result_type() == type;
-          })) {
+      if (!std::all_of(args + 1, args + arg_count,
+                       [type](const Item *item_arg) {
+                         return item_arg->const_item() &&
+                                item_arg->result_type() == type;
+                       })) {
         break;
       }
       Item **to_subst = args;
@@ -5124,12 +5126,12 @@ longlong Item_func_benchmark::val_int() {
   if (args[0]->null_value ||
       (!args[0]->unsigned_flag && (((longlong)loop_count) < 0))) {
     if (!args[0]->null_value) {
-      char buff[22];
-      llstr(((longlong)loop_count), buff);
+      char errbuff[22];
+      llstr(((longlong)loop_count), errbuff);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_WRONG_VALUE_FOR_TYPE,
                           ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "count",
-                          buff, "benchmark");
+                          errbuff, "benchmark");
     }
 
     null_value = 1;
@@ -7701,10 +7703,10 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     /*
       Try to set and restore the security context to see whether it's valid
     */
-    Security_context *save_security_ctx;
-    res = m_sp->set_security_ctx(thd, &save_security_ctx);
+    Security_context *save_security_context;
+    res = m_sp->set_security_ctx(thd, &save_security_context);
     if (!res)
-      m_sp->m_security_ctx.restore_security_context(thd, save_security_ctx);
+      m_sp->m_security_ctx.restore_security_context(thd, save_security_context);
   }
 
   return res;

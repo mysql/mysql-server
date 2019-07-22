@@ -1105,10 +1105,10 @@ static bool setup_index(keytype key_type, const LEX_STRING name,
   if (contextualize_nodes(options, pc)) return true;
 
   List_iterator<PT_key_part_specification> li(*columns);
-  PT_key_part_specification *kp;
 
   if ((key_type == KEYTYPE_FULLTEXT || key_type == KEYTYPE_SPATIAL ||
        pc->key_create_info->algorithm == HA_KEY_ALG_HASH)) {
+    PT_key_part_specification *kp;
     while ((kp = li++)) {
       if (kp->is_explicit()) {
         my_error(ER_WRONG_USAGE, MYF(0), "spatial/fulltext/hash index",

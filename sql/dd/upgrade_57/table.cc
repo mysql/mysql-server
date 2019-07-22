@@ -1137,17 +1137,17 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
     */
 
     // Get 1st Trigger
-    ::Trigger *t = it++;
+    ::Trigger *t1st = it++;
 
     // If no Trigger found, return
-    if (!t) return false;
+    if (!t1st) return false;
 
     ulonglong order = 1;
-    enum_trigger_event_type t_type = t->get_event();
-    enum_trigger_action_time_type t_time = t->get_action_time();
+    enum_trigger_event_type t_type = t1st->get_event();
+    enum_trigger_action_time_type t_time = t1st->get_action_time();
 
     // Set order for 1st Trigger as 1.
-    t->set_action_order(order);
+    t1st->set_action_order(order);
     order = order + 1;
 
     // Set action order for rest of the Triggers.

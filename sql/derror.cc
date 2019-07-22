@@ -220,14 +220,12 @@ void deinit_errmessage() {
 */
 
 bool MY_LOCALE_ERRMSGS::read_texts() {
-  uint i;
   uint no_of_errmsgs;
   size_t length;
   File file;
   char name[FN_REFLEN];
   char lang_path[FN_REFLEN];
   uchar *start_of_errmsgs = nullptr;
-  uchar *pos = nullptr;
   uchar head[32];
   uint error_messages = 0;
 
@@ -298,9 +296,12 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
     goto read_err_init;
 
   // Copy the message offsets to Section1.
-  for (i = 0, pos = start_of_errmsgs; i < no_of_errmsgs; i++) {
-    errmsgs[i] = (char *)start_of_errmsgs + uint4korr(pos);
-    pos += 4;
+  {
+    const uchar *pos = start_of_errmsgs;
+    for (uint i = 0; i < no_of_errmsgs; i++) {
+      errmsgs[i] = pointer_cast<char *>(start_of_errmsgs) + uint4korr(pos);
+      pos += 4;
+    }
   }
 
   // Copy all the error text messages into Section2.

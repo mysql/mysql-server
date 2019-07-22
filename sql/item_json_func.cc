@@ -1920,8 +1920,8 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
       Json_array_ptr a(new (std::nothrow) Json_array());
       if (a == nullptr) return error_json(); /* purecov: inspected */
       const THD *thd = current_thd;
-      for (Json_wrapper &w : v) {
-        if (a->append_clone(w.to_dom(thd)))
+      for (Json_wrapper &ww : v) {
+        if (a->append_clone(ww.to_dom(thd)))
           return error_json(); /* purecov: inspected */
       }
       *wr = Json_wrapper(std::move(a));

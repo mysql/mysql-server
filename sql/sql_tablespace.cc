@@ -1279,9 +1279,9 @@ bool Sql_cmd_alter_tablespace_rename::execute(THD *thd) {
 
   // TODO WL#9536: Until crash-safe ddl is implemented we need to do
   // manual compensation in case of rollback
-  auto compensate_grd = dd::sdi_utils::make_guard(hton, [&](handlerton *hton) {
+  auto compensate_grd = dd::sdi_utils::make_guard(hton, [&](handlerton *ht) {
     std::unique_ptr<dd::Tablespace> comp{tsmp.first->clone()};
-    (void)hton->alter_tablespace(hton, thd, &ts_info, tsmp.second, comp.get());
+    (void)ht->alter_tablespace(ht, thd, &ts_info, tsmp.second, comp.get());
   });
 
   DBUG_EXECUTE_IF("tspr_post_se", {

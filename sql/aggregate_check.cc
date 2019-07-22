@@ -178,13 +178,11 @@ bool Group_check::check_query(THD *thd) {
   ORDER *order = select->order_list.first;
 
   // Validate SELECT list
-  List_iterator<Item> select_exprs_it(select->item_list);
-  Item *expr;
   uint number_in_list = 1;
   const char *place = "SELECT list";
 
-  while ((expr = select_exprs_it++)) {
-    if (check_expression(thd, expr, true)) goto err;
+  for (Item &sel_expr : select->item_list) {
+    if (check_expression(thd, &sel_expr, true)) goto err;
     ++number_in_list;
   }
 

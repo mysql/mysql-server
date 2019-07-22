@@ -2013,7 +2013,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   }
 
   Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_wrapper_1(trace);
   Opt_trace_object trace_skip_sort_order(
       trace, "reconsidering_access_paths_for_index_ordering");
   trace_skip_sort_order.add_alnum(
@@ -2072,7 +2072,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           Key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key);  // only for new_ref_key.
 
-          Opt_trace_object trace_wrapper(trace);
+          Opt_trace_object trace_wrapper_2(trace);
           Opt_trace_object trace_recest(trace, "rows_estimation");
           trace_recest.add_utf8_table(tab->table_ref)
               .add_utf8("index", table->key_info[new_ref_key].name);
@@ -2177,7 +2177,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     if (table->quick_keys.is_set(best_key) &&
         !tab->quick_order_tested.is_set(best_key) && best_key != ref_key) {
       tab->quick_order_tested.set_bit(best_key);
-      Opt_trace_object trace_wrapper(trace);
+      Opt_trace_object trace_wrapper_3(trace);
       Opt_trace_object trace_recest(trace, "rows_estimation");
       trace_recest.add_utf8_table(tab->table_ref)
           .add_utf8("index", table->key_info[best_key].name);
@@ -4697,9 +4697,9 @@ void JOIN::update_depend_map(ORDER *order) {
 
 bool JOIN::update_equalities_for_sjm() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
-  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
+  List_iterator<Semijoin_mat_exec> sj_it(sjm_exec_list);
   Semijoin_mat_exec *sjm_exec;
-  while ((sjm_exec = it++)) {
+  while ((sjm_exec = sj_it++)) {
     TABLE_LIST *const sj_nest = sjm_exec->sj_nest;
 
     Item *cond;
@@ -6057,9 +6057,9 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
         e.g. func(x AND y).
       */
       List_iterator<Item> li(*((Item_cond *)item)->argument_list());
-      Item *item;
-      while ((item = li++)) {
-        if (!uses_index_fields_only(item, tbl, keyno, other_tbls_ok))
+      Item *cond_item;
+      while ((cond_item = li++)) {
+        if (!uses_index_fields_only(cond_item, tbl, keyno, other_tbls_ok))
           return false;
       }
       return true;
@@ -8815,9 +8815,9 @@ void JOIN::finalize_derived_keys() {
       // (deduplication) whether any expression refers to them or not.
       // In particular, they are used if we want to materialize a UNION DISTINCT
       // directly into the derived table.
-      for (uint i = 0; i < table->s->keys; ++i) {
-        if (table->key_info[i].flags & HA_NOSAME) {
-          used_keys.set_bit(i);
+      for (uint key_idx = 0; key_idx < table->s->keys; ++key_idx) {
+        if (table->key_info[key_idx].flags & HA_NOSAME) {
+          used_keys.set_bit(key_idx);
         }
       }
 
@@ -8854,9 +8854,9 @@ void JOIN::finalize_derived_keys() {
           used_keys is a mix of possible used keys and existing used keys.
         */
         if (t->pos_in_table_list->select_lex == select_lex) {
-          JOIN_TAB *tab = t->reginfo.join_tab;
-          Key_use *keyuse = tab->position()->key;
-          if (keyuse) used_keys.set_bit(keyuse->key);
+          JOIN_TAB *jtab = t->reginfo.join_tab;
+          Key_use *keyuse_1 = jtab->position()->key;
+          if (keyuse_1) used_keys.set_bit(keyuse_1->key);
         }
       }
 
@@ -8895,19 +8895,19 @@ void JOIN::finalize_derived_keys() {
       it.rewind();
       while (TABLE *t = it.get_next()) {
         if (t->pos_in_table_list->select_lex != select_lex) continue;
-        JOIN_TAB *tab = t->reginfo.join_tab;
-        Key_use *keyuse = tab->position()->key;
-        if (keyuse && keyuse->key == old_idx) {
+        JOIN_TAB *jtab = t->reginfo.join_tab;
+        Key_use *keyuse_1 = jtab->position()->key;
+        if (keyuse_1 && keyuse_1->key == old_idx) {
           processed_tables |= t->pos_in_table_list->map();
-          const bool key_is_const = tab->const_keys.is_set(old_idx);
+          const bool key_is_const = jtab->const_keys.is_set(old_idx);
           // tab->keys() was never set, so must be set
-          tab->keys().clear_all();
-          tab->keys().set_bit(new_idx);
-          tab->const_keys.clear_all();
+          jtab->keys().clear_all();
+          jtab->keys().set_bit(new_idx);
+          jtab->const_keys.clear_all();
           if (key_is_const) tab->const_keys.set_bit(new_idx);
-          for (Key_use *it = keyuse;
-               it->table_ref == tab->table_ref && it->key == old_idx; it++)
-            it->key = new_idx;
+          for (Key_use *kit = keyuse_1;
+               kit->table_ref == jtab->table_ref && kit->key == old_idx; kit++)
+            kit->key = new_idx;
         }
       }
     }
@@ -9477,10 +9477,10 @@ static bool make_join_select(JOIN *join, Item *cond) {
     for (uint i = join->const_tables; i < join->tables; i++) {
       JOIN_TAB *const tab = join->best_ref[i];
       if (!tab->table()) continue;
-      Item *const cond = tab->condition();
+      Item *const tab_cond = tab->condition();
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(tab->table_ref).add("attached", cond);
-      if (cond && cond->has_subquery())  // traverse only if needed
+      trace_one_table.add_utf8_table(tab->table_ref).add("attached", tab_cond);
+      if (tab_cond && tab_cond->has_subquery())  // traverse only if needed
       {
         /*
           Why we pass walk_subquery=false: imagine
@@ -9491,8 +9491,8 @@ static bool make_join_select(JOIN *join, Item *cond) {
           correct calculation of the number of its executions.
         */
         std::pair<SELECT_LEX *, int> pair_object(join->select_lex, i);
-        cond->walk(&Item::inform_item_in_cond_of_tab, enum_walk::POSTFIX,
-                   pointer_cast<uchar *>(&pair_object));
+        tab_cond->walk(&Item::inform_item_in_cond_of_tab, enum_walk::POSTFIX,
+                       pointer_cast<uchar *>(&pair_object));
       }
     }
   }
