@@ -77,6 +77,7 @@ const std::string path_sep = ";";
 #endif
 
 IMPORT_LOG_FUNCTIONS()
+using namespace std::string_literals;
 
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
@@ -312,7 +313,7 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   }
   if (needs_keyring) {
     // Initialize keyring
-    keyring_info_.init(config, origin_.str());
+    keyring_info_.init(config);
 
     if (keyring_info_.use_master_key_external_facility()) {
       init_keyring_using_external_facility(config);
@@ -1181,17 +1182,19 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   auto default_paths = get_default_paths();
 
   if (bootstrap_directory_.empty()) {
-    std::string config_file_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.conf", "{origin}",
-        origin_.str());
-    std::string state_file_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_DATA_FOLDER "/state.json", "{origin}", origin_.str());
-    std::string master_key_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.key", "{origin}",
-        origin_.str());
-    std::string default_keyring_file;
-    default_keyring_file = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_DATA_FOLDER, "{origin}", origin_.str());
+    std::string config_file_path =
+        mysql_harness::Path(default_paths.at("config_folder"s))
+            .join("mysqlrouter.conf"s)
+            .str();
+    std::string state_file_path =
+        mysql_harness::Path(default_paths.at("data_folder"s))
+            .join("state.json"s)
+            .str();
+    std::string master_key_path =
+        mysql_harness::Path(default_paths.at("config_folder"s))
+            .join("mysqlrouter.key"s)
+            .str();
+    std::string default_keyring_file = default_paths.at("data_folder"s);
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysql_harness::mkdir(default_keyring_file,
