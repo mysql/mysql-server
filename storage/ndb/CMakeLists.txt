@@ -171,7 +171,7 @@ ELSE()
   # Turn on NDB tests automatically for "-devbld" debug builds
   # to increase test coverage
   IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
-     CMAKE_BUILD_TYPE MATCHES "Debug")
+     CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
@@ -192,7 +192,7 @@ OPTION(WITH_ERROR_INSERT
 OPTION(WITH_NDB_DEBUG
   "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
 
-IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
+IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   MESSAGE(STATUS "Turning on special NDB debug features")
   ADD_DEFINITIONS(-DVM_TRACE)
   ADD_DEFINITIONS(-DNDB_DEBUG)

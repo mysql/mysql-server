@@ -134,10 +134,9 @@ if(WIN32)
 else()
   if(NODE_VERSION VERSION_GREATER "4.0.0")
     # Remove any -std=xxx compiler flag present, and add -std=c++11
-    string(TOUPPER "${CMAKE_BUILD_TYPE}" BTYPE)
-    set(CXX_FLAGS_VAL ${CMAKE_CXX_FLAGS_${BTYPE}})
+    SET(CXX_FLAGS_VAL ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER}})
     STRING(REGEX REPLACE "-std=[cgnu]+..[0-9]+" "" CXX_FLAGS_VAL "${CXX_FLAGS_VAL}")
-    set(CMAKE_CXX_FLAGS_${BTYPE} "${CXX_FLAGS_VAL} -std=c++11")
+    SET(CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} "${CXX_FLAGS_VAL} -std=c++11")
   endif()
   set(ADAPTER_REQUIRED_LIBS ndbclient_static)
  

@@ -396,7 +396,7 @@ IF(MY_COMPILER_IS_CLANG OR MY_COMPILER_IS_GNU)
 ENDIF()
 
 # Maintainer mode is default on only for debug builds using GCC/G++
-IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
+IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
   IF(MY_COMPILER_IS_GNU)
     SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
         "MySQL maintainer-specific development environment")
@@ -914,14 +914,15 @@ OPTION(WITH_TEST_TRACE_PLUGIN
 # Sanity checks for protocol tracing options
 
 IF(WITH_TEST_TRACE_PLUGIN AND NOT WITH_CLIENT_PROTOCOL_TRACING)
-MESSAGE("WARNING: Test trace plugin was selected but client protocol tracing infrastructure is not enabled - ignoring")
-SET(WITH_TEST_TRACE_PLUGIN 0)
+  MESSAGE("WARNING: Test trace plugin was selected but client protocol tracing
+           infrastructure is not enabled - ignoring")
+  SET(WITH_TEST_TRACE_PLUGIN 0)
 ENDIF()
 
-IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   MESSAGE(SEND_ERROR 
-          "Test trace plugin was selected but it can be included only in debug binaries.
-          Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
+    "Test trace plugin was selected but it can be included only in
+     debug binaries. Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
 ENDIF()
 
 # Set DBUG_OFF for non-debug project types.
