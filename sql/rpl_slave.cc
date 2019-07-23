@@ -681,6 +681,8 @@ bool start_slave_cmd(THD *thd) {
 
   channel_map.wrlock();
 
+  DEBUG_SYNC(thd, "after_locking_channel_map_in_start_slave");
+
   if (!is_slave_configured()) {
     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     goto err;
