@@ -582,6 +582,11 @@ class logger {
   }
 
  protected:
+  /** Uses LogEvent to report the log entry, using provided message
+  @param[in]    msg    message to be logged
+  */
+  void log_event(std::string msg);
+
   /** Constructor.
   @param[in]	level		Logging level
   @param[in]	err		Error message code. */
@@ -695,24 +700,14 @@ class fatal : public logger {
  public:
 #ifndef UNIV_NO_ERR_MSGS
   /** Default constructor uses ER_IB_MSG_0 */
-  fatal() : logger(ERROR_LEVEL) { m_oss << "[FATAL] "; }
-
-  /** Default constructor uses ER_IB_MSG_0 */
-  explicit fatal(int err) : logger(ERROR_LEVEL) {
-    m_oss << "[FATAL] ";
-
-    m_oss << msg(err, "");
-  }
+  fatal() : logger(ERROR_LEVEL) {}
 
   /** Constructor.
   @param[in]	err		Error code from errmsg-*.txt.
   @param[in]	args		Variable length argument list */
   template <class... Args>
-  explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL, err) {
-    m_oss << "[FATAL] ";
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
+  explicit fatal(int err, Args &&... args)
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
 
   /** Destructor. */
   virtual ~fatal();
@@ -751,24 +746,7 @@ class fatal_or_error : public logger {
 #ifndef UNIV_NO_ERR_MSGS
   /** Default constructor uses ER_IB_MSG_0
   @param[in]	fatal		true if it's a fatal message */
-  fatal_or_error(bool fatal) : logger(ERROR_LEVEL), m_fatal(fatal) {
-    if (m_fatal) {
-      m_oss << "[fatal]";
-    }
-  }
-
-  /** Constructor.
-  @param[in]	fatal		true if it's a fatal message
-  @param[in]	err		Error code from errmsg-*.txt. */
-  template <class... Args>
-  explicit fatal_or_error(bool fatal, int err)
-      : logger(ERROR_LEVEL, err), m_fatal(fatal) {
-    if (m_fatal) {
-      m_oss << "[fatal]";
-    }
-
-    m_oss << msg(err, "");
-  }
+  fatal_or_error(bool fatal) : logger(ERROR_LEVEL), m_fatal(fatal) {}
 
   /** Constructor.
   @param[in]	fatal		true if it's a fatal message
@@ -776,13 +754,7 @@ class fatal_or_error : public logger {
   @param[in]	args		Variable length argument list */
   template <class... Args>
   explicit fatal_or_error(bool fatal, int err, Args &&... args)
-      : logger(ERROR_LEVEL, err), m_fatal(fatal) {
-    if (m_fatal) {
-      m_oss << "[fatal]";
-    }
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...), m_fatal(fatal) {}
 
   /** Destructor */
   virtual ~fatal_or_error();
