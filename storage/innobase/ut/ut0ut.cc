@@ -517,31 +517,27 @@ namespace ib {
 
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
 
-logger::~logger() {
-  auto s = m_oss.str();
-
+void logger::log_event(std::string msg) {
   LogEvent()
       .type(LOG_TYPE_ERROR)
       .prio(m_level)
       .errcode(m_err)
       .subsys("InnoDB")
-      .verbatim(s.c_str());
+      .verbatim(msg.c_str());
 }
+logger::~logger() { log_event(m_oss.str()); }
 
 fatal::~fatal() {
-  auto s = m_oss.str();
-
-  LogEvent()
-      .type(LOG_TYPE_ERROR)
-      .prio(m_level)
-      .errcode(m_err)
-      .subsys("InnoDB")
-      .verbatim(s.c_str());
-
+  log_event("[FATAL] " + m_oss.str());
   ut_error;
 }
 
-fatal_or_error::~fatal_or_error() { ut_a(!m_fatal); }
+fatal_or_error::~fatal_or_error() {
+  if (m_fatal) {
+    log_event("[FATAL] " + m_oss.str());
+    ut_error;
+  }
+}
 
 #endif /* !UNIV_NO_ERR_MSGS */
 
