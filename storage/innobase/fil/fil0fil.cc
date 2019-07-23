@@ -2500,13 +2500,12 @@ bool Fil_shard::open_file(fil_node_t *file, bool extend) {
                        OS_FILE_AIO, OS_DATA_FILE, read_only_mode, &success);
   }
 
-  ut_a(success);
+  if (success) {
+    /* The file is ready for IO. */
+    file_opened(file);
+  }
 
-  /* The file is ready for IO. */
-
-  file_opened(file);
-
-  return (true);
+  return (success);
 }
 
 /** Close a tablespace file.
