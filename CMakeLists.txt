@@ -501,6 +501,7 @@ INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
 INCLUDE(curl)
 INCLUDE(rapidjson)
+INCLUDE(fprofile)
 
 OPTION(WITH_JEMALLOC "Use jemalloc rather than builtin malloc/free etc." OFF)
 IF(WITH_JEMALLOC)
