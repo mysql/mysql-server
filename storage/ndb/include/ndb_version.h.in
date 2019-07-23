@@ -121,8 +121,6 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
 
-#define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,12)
-
 /**
  * Including vers. 'NDBD_SPJ_API_ONLY_LONG_TRANSID_AI',
  * TRANSID_AI received from a SPJ query execution

@@ -886,8 +886,6 @@ private:
 
   void execDROP_TABLE_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
   void execDROP_TABLE_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execOLD_LIST_TABLES_CONF(const NdbApiSignal*,
-				const LinearSectionPtr ptr[3]);
   void execLIST_TABLES_CONF(const NdbApiSignal*, const LinearSectionPtr pt[3]);
 
   void execCREATE_FILE_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);

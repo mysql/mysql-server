@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2166,33 +2166,28 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
           /* If the kernel supports it we'll ask for a lockhandle
            * to allow us to unlock the main table row when the
            * Blob handle is closed
+           * We've upgraded the lock from Committed/Simple to LM_Read
+           * Now modify the read operation to request an NdbLockHandle
+           * so that we can unlock the main table op on close()
            */
-          if (likely(theNdb->getMinDbNodeVersion() >=
-                     NDBD_UNLOCK_OP_SUPPORTED))
+          if (theNdbOp->m_attribute_record)
           {
-            /* We've upgraded the lock from Committed/Simple to LM_Read
-             * Now modify the read operation to request an NdbLockHandle
-             * so that we can unlock the main table op on close()
-             */
-            if (theNdbOp->m_attribute_record)
+            /* NdbRecord op, need to set-up NdbLockHandle */
+            int rc = theNdbOp->prepareGetLockHandleNdbRecord();
+            if (rc != 0)
             {
-              /* NdbRecord op, need to set-up NdbLockHandle */
-              int rc = theNdbOp->prepareGetLockHandleNdbRecord();
-              if (rc != 0)
-              {
-                setErrorCode(rc, true);
-                return -1;
-              }
+              setErrorCode(rc, true);
+              return -1;
             }
-            else
+          }
+          else
+          {
+            /* NdbRecAttr op, request lock handle read */
+            int rc = theNdbOp->getLockHandleImpl();
+            if (rc != 0)
             {
-              /* NdbRecAttr op, request lock handle read */
-              int rc = theNdbOp->getLockHandleImpl();
-              if (rc != 0)
-              {
-                setErrorCode(rc, true);
-                return -1;
-              }
+              setErrorCode(rc, true);
+              return -1;
             }
           }
         }        

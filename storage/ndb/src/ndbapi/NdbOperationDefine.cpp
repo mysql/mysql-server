@@ -1401,13 +1401,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
 
   if (opts->optionsPresent & OperationOptions::OO_LOCKHANDLE)
   {
-    if (unlikely(op->theNdb->getMinDbNodeVersion() <
-                 NDBD_UNLOCK_OP_SUPPORTED))
-    {
-      /* Function not implemented yet */
-      return 4003;
-    }
-
     /* Check that this is a pk read with a lock 
      * No need to worry about Blob lock upgrade issues as
      * Blobs have not been handled at this stage

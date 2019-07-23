@@ -8785,7 +8785,6 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
   Treqinfo = preComputedRequestInfoMask & regTcPtr->reqinfo;
 
   Uint32 nextNodeId = regTcPtr->nextReplica;
-  Uint32 nextVersion = getNodeInfo(nextNodeId).m_version;
 
   jam();
   /* Send long LqhKeyReq to next replica if it can support it */
@@ -8811,16 +8810,9 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
   LqhKeyReq::setAIInLqhKeyReq(Treqinfo, TAiLen);
   LqhKeyReq::setKeyLen(Treqinfo,lqhKeyLen);
   
-  if (unlikely(nextVersion < NDBD_ROWID_VERSION))
-  {
-    LqhKeyReq::setLockType(Treqinfo, regTcPtr->lockType);
-  }
-  else
-  {
-    regTcPtr->m_use_rowid |= 
-      fragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY;
-    LqhKeyReq::setRowidFlag(Treqinfo, regTcPtr->m_use_rowid);
-  }
+  regTcPtr->m_use_rowid |=
+    fragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY;
+  LqhKeyReq::setRowidFlag(Treqinfo, regTcPtr->m_use_rowid);
 
   if (LqhKeyReq::getRowidFlag(Treqinfo))
   {

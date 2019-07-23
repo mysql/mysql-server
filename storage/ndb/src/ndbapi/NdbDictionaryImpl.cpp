@@ -7458,23 +7458,6 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
   m_impl->theWaiter.signal(NO_WAIT);
 }
 
-
-void
-NdbDictInterface::execOLD_LIST_TABLES_CONF(const NdbApiSignal* signal,
-                                           const LinearSectionPtr ptr[3])
-{
-  const unsigned off = OldListTablesConf::HeaderLength;
-  const unsigned len = (signal->getLength() - off);
-  if (m_buffer.append(signal->getDataPtr() + off, len << 2))
-  {
-    m_error.code= 4000;
-  }
-  if (signal->getLength() < OldListTablesConf::SignalLength) {
-    // last signal has less than full length
-    m_impl->theWaiter.signal(NO_WAIT);
-  }
-}
-
 int
 NdbDictionaryImpl::forceGCPWait(int type)
 {

@@ -1522,6 +1522,17 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
+  if (!ndbd_upgrade_ok(cmRegConf->presidentVersion)) {
+    jam();
+    char buf[128];
+    BaseString::snprintf(buf,sizeof(buf),
+      "Not okay to upgrade from 0x%x, "
+      "shutting down",
+      cmRegConf->presidentVersion);
+    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);
+    return;
+  }
+
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   
@@ -4201,6 +4212,11 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     return;
   }
   
+  if (!ndbd_upgrade_ok(version))
+  {
+    compatability_check = false;
+  }
+
   if (!compatability_check) {
     jam();
     char buf[NDB_VERSION_STRING_BUF_SZ];
