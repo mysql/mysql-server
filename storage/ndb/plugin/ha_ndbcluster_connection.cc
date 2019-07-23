@@ -145,52 +145,22 @@ static bool parse_pool_nodeids(const char *opt_str, uint pool_size,
 
 /* Get the port number, hostname, and socket path for processinfo.
 
-   NDB is being initialized before server networking, so mysqld_port
-   has not yet been set, and we are forced to duplicate some code
-   from set_ports() in mysqld.cc here to calculate the port number.
-
-   It would be sensible to modify mysqld.cc to call set_ports()
-   before ha_init(), allowing us to remove the getenv() and getservbyname()
-   calls below.
-
-   An alternative implementation could set the ProcessInfo from
-   ndb_wait_setup_func(), which is called after server networking is set up,
-   rather than from ndbcluster_init(). This would have the disadvantage
-   of waiting an extra heartbeat interval before ProcessInfo is published.
-
    opt_disable_networking, mysqld_port, my_bind_addr_str, report_port,
    report_host, and mysqld_unix_port are all server global variables.
 */
-
-// Using variables from mysqld.cc
 extern uint report_port;
+extern char *report_host;
+extern char *my_bind_addr_str;
 
 static int get_processinfo_port() {
   int port = 0;
 
   if (!opt_disable_networking) {
-    port = report_port;
-    if (port == 0) {
-      port = mysqld_port;
-      if (port == 0) {
-        const char *env = getenv("MYSQL_TCP_PORT");
-        if (MYSQL_PORT_DEFAULT == 0) {
-          struct servent *serv_ptr = getservbyname("mysql", "tcp");
-          if (serv_ptr)
-            port = ntohs((u_short)serv_ptr->s_port); /* purecov: inspected */
-        } else if (env)
-          port = atoi(env);
-        else
-          port = MYSQL_PORT;
-      }
-    }
+    port = report_port ? report_port : mysqld_port;
+    DBUG_ASSERT(port);
   }
   return port;
 }
-
-// Using variables from mysqld.cc
-extern char *report_host;
-extern char *my_bind_addr_str;
 
 static const char *get_processinfo_host() {
   const char *host = report_host;
@@ -206,26 +176,7 @@ static const char *get_processinfo_host() {
   return host;
 }
 
-/* Like get_processinfo_port(), this code must be duplicated from
-   set_ports() in mysqld.cc.
-*/
-#ifdef _WIN32
-#define URI_PATH_SOCKET MYSQL_NAMEDPIPE;
-#else
-#define URI_PATH_SOCKET MYSQL_UNIX_ADDR;
-#endif
-
-static const char *get_processinfo_path() {
-  const char *uri_path = mysqld_unix_port;
-  char *env;
-  if (!uri_path) {
-    if ((env = getenv("MYSQL_UNIX_PORT")))
-      uri_path = env; /* purecov: inspected */
-    else
-      uri_path = URI_PATH_SOCKET;
-  }
-  return uri_path;
-}
+static const char *get_processinfo_path() { return mysqld_unix_port; }
 
 /*
   Global flag in ndbapi to specify if api should wait to connect

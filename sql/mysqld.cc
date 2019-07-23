@@ -2782,8 +2782,6 @@ static bool check_admin_address_has_valid_value(
 static bool network_init(void) {
   if (opt_initialize) return false;
 
-  set_ports();
-
 #ifdef HAVE_SYS_UN_H
   std::string const unix_sock_name(mysqld_unix_port ? mysqld_unix_port : "");
 #else
@@ -6507,6 +6505,9 @@ int mysqld_main(int argc, char **argv)
     send_service_status(msg);
   }
 #endif
+
+  /* Determine default TCP port and unix socket name */
+  set_ports();
 
   if (init_server_components()) unireg_abort(MYSQLD_ABORT_EXIT);
 
