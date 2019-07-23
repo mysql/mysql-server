@@ -246,6 +246,8 @@
 # Step #7 of WL#12966
 #
 
+# Temporarily disabling it on windows (Bug#30033297)
+--source include/not_windows.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_group_replication_plugin.inc
