@@ -76,8 +76,8 @@ let $cleanup= drop TABLE t1,t2,t3,t4;
 --exec $MYSQLD_CMD
 
 --echo # Restart mysqld with keyring plugin
---let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQL_TMP_DIR/keys2.txt
 --source include/start_mysqld_no_echo.inc
 
 drop TABLE t1,t2,t3,t4;
---remove_file $MYSQLTEST_VARDIR/std_data/keys2.txt
+--remove_file $MYSQL_TMP_DIR/keys2.txt

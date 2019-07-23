@@ -1,3 +1,3 @@
 $KEYRING_PLUGIN_OPT
 --early-plugin-load="keyring_file=$KEYRING_PLUGIN"
---loose-keyring_file_data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--loose-keyring_file_data=$MYSQL_TMP_DIR/keys2.txt
