@@ -119,7 +119,7 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     }
   }
   {
-    char var[160];
+    char var[FN_REFLEN];
     char *pvar;
     size_t len = sizeof(var) - 1;
 
