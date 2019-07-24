@@ -2126,10 +2126,14 @@ int detect_backup_format()
                            ga_nodeId);
       if (my_stat(name, &buf, 0))
       {
+        info << "Found backup " << ga_backupId << " with " << ga_part_count
+             << " backup parts" << endl;
         break;  // part found, end of parts
       }
       if (ga_part_count == g_max_parts)
       {
+        err << "Failed to find backup " << ga_backupId << " in path "
+            << ga_backupPath << endl;
         return NdbToolsProgramExitCode::FAILED;  // too many parts
       }
     }
