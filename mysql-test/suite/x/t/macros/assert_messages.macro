@@ -4,6 +4,7 @@
 # * Assert_metadata
 # * Assert_message
 # * Assert_frame
+# * Assert_received_messages
 #
 
 
@@ -38,4 +39,10 @@ noquery_result;
 echo [ASSERT %NAME%];
 recvtype %NAME%;
 query_result;
+-->endmacro
+
+-->macro Assert_received_messages	%MESSAGE_NAME%	%COUNT%
+received %MESSAGE_NAME%	%MYSQLXTEST_NO_OF_MSG%;
+echo [ASSERT %MESSAGE_NAME% == %COUNT%];
+assert %COUNT%	==	%MYSQLXTEST_NO_OF_MSG%;
 -->endmacro
