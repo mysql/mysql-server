@@ -3979,11 +3979,10 @@ sub mysql_install_db {
       # options are pretty relaxed about what to use as a
       # separator: ',' ':' and ' ' all work.
       $ENV{'TSAN_OPTIONS'} .= ",";
-    }
+    } else { $ENV{'TSAN_OPTIONS'} = ""; }
     # Append TSAN_OPTIONS already present in the environment
     # Set blacklist option early so it works during bootstrap
-    $ENV{'TSAN_OPTIONS'} =
-      $ENV{'TSAN_OPTIONS'} . "suppressions=${glob_mysql_test_dir}/tsan.supp"
+    $ENV{'TSAN_OPTIONS'} .= "suppressions=${glob_mysql_test_dir}/tsan.supp"
   }
 
   if ($opt_manual_boot_gdb) {
