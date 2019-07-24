@@ -1500,6 +1500,8 @@ public:
   bool check_pause_lcp();
   void update_pause_lcp_counter(Uint32 loop_count);
   void pausing_lcp(Uint32 place, Uint32 val);
+  void get_lcp_record(BackupRecordPtr &ptr);
+  bool get_backup_record(BackupRecordPtr &ptr);
 public:
   bool is_change_part_state(Uint32 page_id);
   Uint32 get_max_words_per_scan_batch(Uint32, Uint32&, Uint32, Uint32);

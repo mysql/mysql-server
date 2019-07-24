@@ -2602,17 +2602,8 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       result_ref = signal->theData[1];
 
     BackupRecordPtr ptr;
-    int reported = 0;
-    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
-    {
-      if (!ptr.p->is_lcp())
-      {
-        reportStatus(signal, ptr, result_ref);
-        reported++;
-      }
-    }
-    if (!reported)
-      reportStatus(signal, ptr, result_ref);
+    get_backup_record(ptr);
+    reportStatus(signal, ptr, result_ref);
     return;
   }
   case DumpStateOrd::BackupMinWriteSpeed32:
@@ -2867,7 +2858,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
        * Handle LCP
        */
       BackupRecordPtr lcp;
-      ndbrequire(c_backups.first(lcp));
+      get_lcp_record(lcp);
       
       ndbrequire(c_backupPool.getSize() == c_backupPool.getNoOfFree() + 1);
       ndbrequire(c_tablePool.getSize() == c_tablePool.getNoOfFree() + 2);
@@ -3455,7 +3446,10 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
   {
     jam();
     BackupRecordPtr ptr;
-    ndbrequire(c_backups.first(ptr));
+    if (!get_backup_record(ptr))
+    {
+      break;
+    }
 
     jam();
     Uint32 files[2] = { ptr.p->dataFilePtr[0], ptr.p->logFilePtr };
@@ -3884,7 +3878,8 @@ Backup::execNODE_FAILREP(Signal* signal)
 
   NodeId newCoordinator = c_masterNodeId;
   BackupRecordPtr ptr;
-  for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr)) {
+  if (get_backup_record(ptr))
+  {
     jam();
     checkNodeFail(signal, ptr, newCoordinator, theFailedNodes);
   }
@@ -11110,14 +11105,10 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   BackupRecordPtr ptr;
   if(requestType == AbortBackupOrd::ClientAbort) {
     jam();
-    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr)) {
-      jam();
-      if(ptr.p->backupId == backupId && ptr.p->clientData == senderData) {
-        jam();
-	break;
-      }//if
-    }//for
-    if(ptr.i == RNIL) {
+    if ((!get_backup_record(ptr)) ||
+         ptr.p->backupId != backupId ||
+         ptr.p->clientData != senderData)
+    {
       jam();
       return;
     }//if
@@ -11228,7 +11219,8 @@ Backup::dumpUsedResources()
   jam();
   BackupRecordPtr ptr;
 
-  for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr)) {
+  if (get_backup_record(ptr))
+  {
     ndbout_c("Backup id=%u, slaveState.getState = %u, errorCode=%u",
 	     ptr.p->backupId,
 	     ptr.p->slaveState.getState(),
@@ -16341,6 +16333,7 @@ Backup::execWAIT_LCP_IDLE_REQ(Signal *signal)
   jamEntry();
   c_backupPool.getPtr(ptr, signal->theData[0]);
   jamDebug();
+  ndbrequire(ptr.p->is_lcp());
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
   if (queue.isEmpty() && ptr.p->slaveState.getState() == DEFINED)
@@ -16360,6 +16353,7 @@ Backup::execWAIT_LCP_IDLE_REQ(Signal *signal)
 void
 Backup::check_empty_queue_waiters(Signal *signal, BackupRecordPtr ptr)
 {
+  ndbrequire(ptr.p->is_lcp());
   if (ptr.p->m_wait_empty_queue)
   {
     jam();
@@ -16380,7 +16374,7 @@ void
 Backup::execINFORM_BACKUP_DROP_TAB_REQ(Signal *signal)
 {
   BackupRecordPtr ptr;
-  ndbrequire(c_backups.first(ptr));
+  get_lcp_record(ptr);
   ptr.p->m_informDropTabTableId = signal->theData[0];
   ptr.p->m_informDropTabReference = signal->theData[1];
   if (ptr.p->currentDeleteLcpFile != RNIL)
@@ -16407,6 +16401,7 @@ Backup::check_wait_end_lcp(Signal *signal, BackupRecordPtr ptr)
 {
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
+  ndbrequire(ptr.p->is_lcp());
   if (queue.isEmpty() && ptr.p->m_wait_end_lcp)
   {
     jam();
@@ -16634,6 +16629,7 @@ Backup::execEND_LCPREQ(Signal* signal)
     ptr.p->senderData = req->senderData;
   }
   jamEntry();
+  ndbrequire(ptr.p->is_lcp());
 
   BackupFilePtr filePtr;
   ptr.p->files.getPtr(filePtr, ptr.p->prepareCtlFilePtr[0]);
@@ -16798,18 +16794,15 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   Uint32 failCode = LcpStatusRef::NoLCPRecord;
 
-  /* Find LCP backup, if there is one */
+  /* Find LCP record */
   BackupRecordPtr ptr;
-  bool found_lcp = false;
-  for (c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+  get_lcp_record(ptr);
+  do
   {
     jam();
-    if (ptr.p->is_lcp())
+    ndbrequire(ptr.p->is_lcp());
     {
       jam();
-      ndbrequire(found_lcp == false); /* Just one LCP */
-      found_lcp = true;
-      
       LcpStatusConf::LcpState state = LcpStatusConf::LCP_IDLE;
       if (ptr.p->m_wait_end_lcp)
       {
@@ -17056,7 +17049,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       
       failCode = 0;
     }
-  }
+  } while (false);
 
   if (failCode == 0)
   {
@@ -17078,4 +17071,34 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
   return;
 }
 
+bool
+Backup::get_backup_record(BackupRecordPtr &ptr)
+{
+  /**
+   * The first record in c_backups is the LCP record when no backup
+   * is running, if a backup is running, it will be first one. We will
+   * return true if a backup record is found and false otherwise.
+   */
+  c_backups.first(ptr);
+  if (ptr.p->is_lcp())
+  {
+    ptr.i = RNIL;
+    ptr.p = 0;
+    return false;
+  }
+  return true;
+}
+
+void
+Backup::get_lcp_record(BackupRecordPtr &ptr)
+{
+  for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+  {
+    if (ptr.p->is_lcp())
+    {
+      return;
+    }
+  }
+  ndbrequire(false);
+}
 bool Backup::g_is_single_thr_backup_running = false;
