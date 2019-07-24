@@ -20,13 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want release-1.8.0.zip in order to build these unit tests.
+# We want release-1.8.1.zip in order to build these unit tests.
 # If you have already downloaded it,
-# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.0.zip
+# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.1.zip
 #                or -DWITH_GMOCK=/path/to
 #
 # Alternatively, set an environment variable
-# export WITH_GMOCK=/path/to/release-1.8.0.zip
+# export WITH_GMOCK=/path/to/release-1.8.1.zip
 #
 # You can also do cmake -DENABLE_DOWNLOADS=1
 # and we will download it from https://github.com/google/googletest/archive/
@@ -41,7 +41,7 @@ IF(NOT DOWNLOAD_ROOT)
 ENDIF()
 
 # We want googletest version 1.8, which also contains googlemock.
-SET(GMOCK_PACKAGE_NAME "release-1.8.0")
+SET(GMOCK_PACKAGE_NAME "release-1.8.1")
 
 IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
   FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)
@@ -207,6 +207,54 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
     COMPILE_FLAGS "-Wno-undef -Wno-conversion")
 ENDIF()
 
+IF(SOLARIS)
+  ## https://community.oracle.com/thread/4106985
+  ## Assertion: (../lnk/symdescr.cc, line 96) while processing ....
+  IF(NOT EXISTS ${CMAKE_BINARY_DIR}/hack/src/)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/hack/src
+      )
+  ENDIF()
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/hack/src/gtest.cc
+    COMMAND sed -e "/using internal::ParseStringFlag/d"
+         < ${GTEST_SOURCE_DIR}/src/gtest.cc
+         > ${CMAKE_BINARY_DIR}/hack/src/gtest.cc
+    DEPENDS ${GTEST_SOURCE_DIR}/src/gtest.cc
+    COMMENT "Filtering ${GTEST_SOURCE_DIR}/src/gtest.cc"
+    VERBATIM
+    )
+  ADD_CUSTOM_TARGET(generate_gtest_hack
+    DEPENDS ${CMAKE_BINARY_DIR}/hack/src/gtest.cc)
+
+  ## gtest-port.h contains checks for __GLIBCXX__ and gcc older than 4.4.2
+  ## We *do* have __GLIBCXX__ defined, but not __GNUC__
+  ## so we need to filter away the undef GTEST_HAS_STD_TUPLE
+  IF(NOT EXISTS ${CMAKE_BINARY_DIR}/hack/gtest/internal/)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E
+      make_directory ${CMAKE_BINARY_DIR}/hack/gtest/internal
+      )
+  ENDIF()
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/hack/gtest/internal/gtest-port.h
+    COMMAND sed -e "/undef GTEST_HAS_STD_TUPLE_/d"
+         < ${GTEST_SOURCE_DIR}/include/gtest/internal/gtest-port.h
+         > ${CMAKE_BINARY_DIR}/hack/gtest/internal/gtest-port.h
+    DEPENDS ${GTEST_SOURCE_DIR}/include/gtest/internal/gtest-port.h
+    COMMENT "Filtering gtest-port.h"
+    VERBATIM
+    )
+  ADD_CUSTOM_TARGET(generate_gtest_port_hack
+    DEPENDS ${CMAKE_BINARY_DIR}/hack/gtest/internal/gtest-port.h)
+
+  FOREACH(target gtest gmock gtest_main gmock_main)
+    ADD_DEPENDENCIES(${target} generate_gtest_hack generate_gtest_port_hack)
+    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/hack)
+  ENDFOREACH()
+
+ENDIF()
+
 FOREACH(googletest_library
     gmock
     gtest
@@ -217,3 +265,8 @@ FOREACH(googletest_library
     ${GMOCK_INCLUDE_DIRS}
     )
 ENDFOREACH()
+
+IF(SOLARIS)
+  ADD_DEFINITIONS(-DGTEST_LANG_CXX11=1)
+  LIST(INSERT GMOCK_INCLUDE_DIRS 0 ${CMAKE_BINARY_DIR}/hack)
+ENDIF()

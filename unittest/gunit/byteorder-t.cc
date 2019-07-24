@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,6 @@
 namespace byteorder_unittest {
 
 using std::numeric_limits;
-
-#if defined(GTEST_HAS_PARAM_TEST)
 
 /*
   This class is used to instantiate parameterized tests for float and double.
@@ -101,8 +99,6 @@ TEST_P(Float8Test, PutAndGet) {
   doubleget(&output, buf);
   EXPECT_EQ(input, output);
 }
-
-#endif  // GTEST_HAS_PARAM_TEST
 
 #if defined(GTEST_HAS_TYPED_TEST)
 
