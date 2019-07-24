@@ -767,18 +767,18 @@ static task_env *extract_first_delayed() {
 
 static iotasks iot;
 
-static void iotasks_init(iotasks *iot) {
+static void iotasks_init(iotasks *iot_to_init) {
   DBGOUT(FN);
-  iot->nwait = 0;
-  init_pollfd_array(&iot->fd);
-  init_task_env_p_array(&iot->tasks);
+  iot_to_init->nwait = 0;
+  init_pollfd_array(&iot_to_init->fd);
+  init_task_env_p_array(&iot_to_init->tasks);
 }
 
-static void iotasks_deinit(iotasks *iot) {
+static void iotasks_deinit(iotasks *iot_to_deinit) {
   DBGOUT(FN);
-  iot->nwait = 0;
-  free_pollfd_array(&iot->fd);
-  free_task_env_p_array(&iot->tasks);
+  iot_to_deinit->nwait = 0;
+  free_pollfd_array(&iot_to_deinit->fd);
+  free_task_env_p_array(&iot_to_deinit->tasks);
 }
 
 static void poll_wakeup(int i) {
@@ -1181,8 +1181,8 @@ void task_loop() {
       done_wait:
         /* While tasks with expired timers */
         while (delayed_tasks() && msdiff(time) <= 0) {
-          task_env *t = extract_first_delayed(); /* May be NULL */
-          if (t) activate(t);                    /* Make it runnable */
+          task_env *delayed_task = extract_first_delayed(); /* May be NULL */
+          if (delayed_task) activate(delayed_task); /* Make it runnable */
         }
       } else {
         ADD_T_EV(task_now(), __FILE__, __LINE__, "poll_wait(-1)");

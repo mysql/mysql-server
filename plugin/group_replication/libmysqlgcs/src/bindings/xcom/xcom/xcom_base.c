@@ -5750,13 +5750,13 @@ void set_app_snap_getter(app_snap_getter x) { get_app_snap = x; }
 
 static result checked_create_socket(int domain, int type, int protocol) {
   result retval = {0, 0};
-  int retry = 1000;
+  int nr_attempts = 1000;
 
   do {
     SET_OS_ERR(0);
     retval.val = (int)socket(domain, type, protocol);
     retval.funerr = to_errno(GET_OS_ERR);
-  } while (--retry && retval.val == -1 &&
+  } while (--nr_attempts && retval.val == -1 &&
            (from_errno(retval.funerr) == SOCK_EAGAIN));
 
   if (retval.val == -1) {
