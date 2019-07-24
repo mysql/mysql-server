@@ -92,6 +92,30 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
   const char* process_args = command.column("process_args");
   atrt_process& proc = *config.m_processes[command.columnAsInt("process_id")];
+
+  if ((proc.m_type == atrt_process::AP_NDB_API) && proc.m_proc.m_changed) {
+    g_logger.critical("Changing API processes back is not supported");
+    return false;
+  }
+
+  if (!proc.m_proc.m_changed) {
+    // Save current proc state
+    proc.m_save.m_proc = proc.m_proc;
+    proc.m_save.m_saved = true;
+    proc.m_proc.m_changed = true;
+  } else {
+    proc.m_proc = proc.m_save.m_proc;
+    proc.m_save.m_saved = false;
+    proc.m_proc.m_changed = false;
+  }
+
+  if (process_args && strlen(process_args)) {
+    /* Beware too long args */
+    proc.m_proc.m_args.append(" ");
+    proc.m_proc.m_args.append(process_args);
+  }
+
+  int new_prefix_idx = proc.m_proc.m_changed ? 1 : 0;
   BaseString newEnv = set_env_var(
       proc.m_proc.m_env, BaseString("MYSQL_BASE_DIR"), BaseString(new_prefix));
   proc.m_proc.m_env.assign(newEnv);
@@ -100,21 +124,15 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   BaseString exename(proc.m_proc.m_path.substr(pos));
 
   proc.m_proc.m_path =
-      g_resources.getExecutableFullPath(exename.c_str(), 1).c_str();
+      g_resources.getExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
   if (proc.m_proc.m_path == "") {
     // Atempt to dynamically find executable that was not previously registered
     proc.m_proc.m_path =
-        g_resources.findExecutableFullPath(exename.c_str(), 1).c_str();
+        g_resources.findExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
   }
   if (proc.m_proc.m_path == "") {
     g_logger.critical("Could not find full path for exe %s", exename.c_str());
     return false;
-  }
-
-  if (process_args && strlen(process_args)) {
-    /* Beware too long args */
-    proc.m_proc.m_args.append(" ");
-    proc.m_proc.m_args.append(process_args);
   }
 
   {
@@ -138,7 +156,7 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
 
     proc.m_proc.m_env.assfmt("%s%s", part0.c_str(), part1.c_str());
 
-    BaseString libdir = g_resources.getLibraryDirectory(libname, 1).c_str();
+    BaseString libdir = g_resources.getLibraryDirectory(libname, new_prefix_idx).c_str();
 #if defined(__MACH__)
     proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", libdir.c_str());
 #else
@@ -183,28 +201,6 @@ static bool do_stop_process(atrt_config& config, SqlResultSet& command,
   atrt_process& proc = *config.m_processes[process_id];
   proc.m_atrt_stopped = true;
 
-  const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
-  const char* old_prefix = g_prefix0;
-  const char* start = strstr(proc.m_proc.m_path.c_str(), old_prefix);
-  if (!start) {
-    /* Process path does not contain old prefix.
-     * Perhaps it contains the new prefix - e.g. is already
-     * upgraded?
-     */
-    if (strstr(proc.m_proc.m_path.c_str(), new_prefix)) {
-      /* Process is already upgraded, *assume* that this
-       * is ok
-       * Alternatives could be - error, or downgrade.
-       */
-      g_logger.info("Process already upgraded");
-      return true;
-    }
-
-    g_logger.critical("Could not find '%s' in '%s'", old_prefix,
-                      proc.m_proc.m_path.c_str());
-    return false;
-  }
-
   g_logger.info("stopping process - %s", proc.m_name.c_str());
   if (!stop_process(proc)) {
     return false;
@@ -216,11 +212,6 @@ static bool do_stop_process(atrt_config& config, SqlResultSet& command,
     return false;
   }
 
-  // Save current proc state
-  if (proc.m_save.m_saved == false) {
-    proc.m_save.m_proc = proc.m_proc;
-    proc.m_save.m_saved = true;
-  }
   return true;
 }
 
