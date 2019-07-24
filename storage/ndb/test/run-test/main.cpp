@@ -43,7 +43,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 3
+#define ATRT_VERSION_NUMBER 4
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";

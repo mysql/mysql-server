@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,8 @@ class SimpleCpcClient {
     int m_id;
     BaseString m_name;
 
+    //To indicate whether the process is in a state in which it was started
+    bool m_changed = false;
     BaseString m_owner;
     BaseString m_group;
     BaseString m_runas;
