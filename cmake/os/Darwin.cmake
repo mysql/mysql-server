@@ -44,3 +44,9 @@ ENDIF()
 IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(MYSQL_MACHINE_TYPE "x86_64")
 ENDIF()
+
+# Use Libtool -static rather than ranlib
+SET(CMAKE_C_CREATE_STATIC_LIBRARY
+  "/usr/bin/libtool -static -no_warning_for_no_symbols -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
+SET(CMAKE_CXX_CREATE_STATIC_LIBRARY
+  "/usr/bin/libtool -static -no_warning_for_no_symbols -o <TARGET> <LINK_FLAGS> <OBJECTS> ")

@@ -337,7 +337,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     STRING(REGEX REPLACE "[ ]+" ";" STATIC_LIBS_STRING "${STATIC_LIBS_STRING}" )
     ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
       COMMAND rm $<TARGET_FILE:${TARGET}>
-      COMMAND /usr/bin/libtool -static -o $<TARGET_FILE:${TARGET}>
+      COMMAND /usr/bin/libtool -static -no_warning_for_no_symbols
+      -o $<TARGET_FILE:${TARGET}>
       ${STATIC_LIBS_STRING}
       )
   ELSE()
