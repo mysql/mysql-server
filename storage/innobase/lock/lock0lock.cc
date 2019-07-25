@@ -1457,6 +1457,8 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 
   MONITOR_INC(MONITOR_LOCKREC_WAIT);
 
+  lock_update_age(lock, m_rec_id.m_heap_no);
+
   /* m_trx->mysql_thd is NULL if it's an internal trx. So current_thd
    is used */
 
