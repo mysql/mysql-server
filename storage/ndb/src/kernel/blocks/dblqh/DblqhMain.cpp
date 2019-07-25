@@ -885,26 +885,23 @@ void Dblqh::execSTTOR(Signal* signal)
     ndbrequire(cstartRecReq == SRR_FIRST_LCP_DONE);
     if (is_first_instance())
     {
-      if (c_outstanding_write_local_sysfile)
-      {
-        jam();
-        c_start_phase_49_waiting = true;
-        DEB_LCP(("(%u)Start phase 49 wait started", instance()));
-        return;
-      }
-    }
-    sendsttorryLab(signal);
-    return;
-  case 50:
-    jam();
-    if (is_first_instance())
-    {
-      jam();
-      write_local_sysfile_restart_complete(signal);
+      c_start_phase_49_waiting = true;
+      /**
+       * Restart is completed, we need to wait until this has been
+       * reflected in the local sysfile. It becomes reflected in
+       * local sysfile in the next processing of GCP_SAVEREQ. This
+       * avoids complex interaction handling of writes to the
+       * local sysfile.
+       */
+      DEB_LCP(("(%u)Start phase 49 wait started", instance()));
     }
     else
     {
       jam();
+      /**
+       * Restart is done, record this fact and move on in restart
+       * processing.
+       */
       write_local_sysfile_restart_complete_done(signal);
     }
     return;
@@ -918,21 +915,11 @@ void Dblqh::execSTTOR(Signal* signal)
 }//Dblqh::execSTTOR()
 
 void
-Dblqh::check_start_phase_49_waiting(Signal *signal)
-{
-  if (c_start_phase_49_waiting)
-  {
-    jam();
-    c_start_phase_49_waiting = false;
-    DEB_LCP(("(%u)Start phase 49 wait completed", instance()));
-    sendsttorryLab(signal);
-  }
-}
-void
 Dblqh::write_local_sysfile_restart_complete_done(Signal *signal)
 {
   cstartPhase = ZNIL;
   cstartType = ZNIL;
+  c_start_phase_49_waiting = false;
   sendsttorryLab(signal);
 }
 
@@ -1495,10 +1482,9 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[5] = 4;
   signal->theData[6] = 6;
   signal->theData[7] = 49;
-  signal->theData[8] = 50;
-  signal->theData[9] = 255;
+  signal->theData[8] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 10, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 9, JBB);
   return;
 }//Dblqh::sendsttorryLab()
 
@@ -20491,7 +20477,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
      * also we won't report the GCI as restorable just yet.
      * This will not have any major impact since after the restart LCP
      * is completed a very short time should pass before we get to
-     * phase 50 where the LQH restart is fully completed and we know
+     * phase 49 where the LQH restart is fully completed and we know
      * that we are restorable again.
      */
     sendRESTORABLE_GCI_REP(signal, gci);
@@ -20504,6 +20490,46 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   gcpPtr.p->gcpBlockref = dihBlockRef;
   gcpPtr.p->gcpUserptr = dihPtr;
   gcpPtr.p->gcpId = gci;
+
+  if (cstartPhase != ZNIL)
+  {
+    jam();
+    if (is_first_instance())
+    {
+      if (c_start_phase_49_waiting)
+      {
+        jam();
+        /**
+         * We have reached Start phase 49 and no one is writing local sysfile
+         * since we arrive here. Thus we will write restart completed into the
+         * local sysfile before we flush the GCI into the REDO logs.
+         */
+        write_local_sysfile_restart_complete(signal);
+      }
+      else
+      {
+        jam();
+        /**
+         * We need to keep the local sysfile up to date with the
+         * maximum restartable GCI until the restart is completed.
+         * This GCI is not necessarily restartable, it is only a
+         * maximum GCI that can be restarted. DIH decides what is
+         * restartable. LQH keeps this information only to verify
+         * that DIH is performing its action correctly.
+         */
+        write_local_sysfile_gcp_complete_late(signal, gci);
+      }
+      return;
+    }
+  }
+  start_synch_gcp(signal);
+}
+
+void Dblqh::start_synch_gcp(Signal *signal)
+{
+  ccurrentGcprec = 0;
+  gcpPtr.i = ccurrentGcprec;
+  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
   bool tlogActive = false;
   for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
@@ -20536,7 +20562,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   initGcpRecLab(signal);
   startTimeSupervision(signal);
   return;
-}//Dblqh::execGCP_SAVEREQ()
+}
 
 void Dblqh::sendRESTORABLE_GCI_REP(Signal *signal, Uint32 gci)
 {
@@ -23530,11 +23556,30 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
 
 #define WLS_GCP_COMPLETE 0
 #define WLS_RESTART_COMPLETE 2
+#define WLS_GCP_COMPLETE_LATE 3
 
+/**
+ * The local sysfile ensures that we keep track of what is recoverable
+ * locally. It doesn't have to be updated all the time since this is
+ * the job of the distributed sysfile in DBDIH. It is used to keep
+ * track of GCI restorable during restarts. We also validate that
+ * GCI coming from DBDIH is recoverable. We need to maintain the
+ * maximum restorable GCI until we have written that the restart
+ * is completed into the local sysfile.
+ *
+ * After the restart is completed we need not update the local sysfile
+ * anymore.
+ */
 void
 Dblqh::write_local_sysfile_gcp_complete(Signal *signal, Uint32 gci)
 {
   write_local_sysfile(signal, WLS_GCP_COMPLETE, gci);
+}
+
+void
+Dblqh::write_local_sysfile_gcp_complete_late(Signal *signal, Uint32 gci)
+{
+  write_local_sysfile(signal, WLS_GCP_COMPLETE_LATE, gci);
 }
 
 void
@@ -23554,6 +23599,7 @@ Dblqh::write_local_sysfile(Signal *signal, Uint32 type, Uint32 gci)
   switch (type)
   {
     case WLS_GCP_COMPLETE:
+    case WLS_GCP_COMPLETE_LATE:
     {
       jam();
       nodeRestorableFlag = ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN;
@@ -23597,17 +23643,65 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
        * taken care of by the NDBCNTR block in this case.
        */
       ndbrequire(cstartPhase != ZNIL);
-      check_start_phase_49_waiting(signal);
-      write_local_sysfile_gcp_complete_done(signal);
+      if (c_start_phase_49_waiting)
+      {
+        jam();
+        /**
+         * We have reached phase 49 during writing of the local sysfile.
+         * We proceed immediately to update the local sysfile with the
+         * fact that the restart is complete. After this we can synchronize
+         * the GCP and report GCP_SAVECONF.
+         */
+        c_send_gcp_saveref_needed = false;
+        write_local_sysfile_restart_complete(signal);
+      }
+      else
+      {
+        jam();
+        write_local_sysfile_gcp_complete_done(signal);
+      }
+      return;
+    }
+    case WLS_GCP_COMPLETE_LATE:
+    {
+      jam();
+      ndbrequire(cstartPhase != ZNIL);
+      if (c_start_phase_49_waiting)
+      {
+        jam();
+        /**
+         * We have reached phase 49 during writing of local sysfile, proceed
+         * to write local sysfile with the information that the restart is
+         * completed before synching the GCP.
+         */
+        write_local_sysfile_restart_complete(signal);
+      }
+      else
+      {
+        jam();
+        /**
+         * We have completed the first LCP, but the restart isn't quite done
+         * yet. We wrote the local sysfile to keep the maximum restartable
+         * GCI value up to date. Now proceed to synch the GCP in this first
+         * instance of LDM threads.
+         */
+        start_synch_gcp(signal);
+      }
       return;
     }
     case WLS_RESTART_COMPLETE:
     {
       jam();
+      /**
+       * Restart is complete, we have written this into the local sysfile
+       * and we are ready to proceed with the last phases of restart and
+       * synching this GCP as requested.
+       */
       ndbrequire(cstartPhase != ZNIL);
-      ndbrequire(!c_start_phase_49_waiting);
+      ndbrequire(c_start_phase_49_waiting);
       g_eventLogger->info("Restart complete, updated local sysfile");
       write_local_sysfile_restart_complete_done(signal);
+      start_synch_gcp(signal);
       return;
     }
     default:

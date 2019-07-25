@@ -2512,6 +2512,7 @@ public:
   void send_read_local_sysfile(Signal*);
   void write_local_sysfile_restore_complete(Signal*);
   void write_local_sysfile_gcp_complete(Signal *signal, Uint32 gci);
+  void write_local_sysfile_gcp_complete_late(Signal *signal, Uint32 gci);
   void write_local_sysfile_restart_complete(Signal*);
   void write_local_sysfile_restore_complete_done(Signal*);
   void write_local_sysfile_gcp_complete_done(Signal *signal);
@@ -3929,6 +3930,7 @@ public:
   void set_min_keep_gci(Uint32 max_completed_gci);
 
   void sendRESTORABLE_GCI_REP(Signal*, Uint32 gci);
+  void start_synch_gcp(Signal*);
   void start_local_lcp(Signal*, Uint32 lcpId, Uint32 localLcpId);
 
   void execLCP_ALL_COMPLETE_CONF(Signal*);
@@ -3951,7 +3953,6 @@ public:
   bool c_start_phase_49_waiting;
   bool c_outstanding_write_local_sysfile;
   bool c_send_gcp_saveref_needed;
-  void check_start_phase_49_waiting(Signal*);
 
   /**
    * Variable that keeps track of maximum GCI that was recorded in the
