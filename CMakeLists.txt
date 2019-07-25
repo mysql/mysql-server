@@ -831,14 +831,8 @@ ENDIF()
 
 # Gold and LLD support the --gdb-index option, which adds a .gdb_index
 # section to the binaries. It makes loading the binaries in gdb much
-# faster. Enable it by default in debug builds on Linux when LLD is
-# used, as the overhead of generating the index is very small in LLD.
-IF(LINUX AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND
-   CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
-  OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." ON)
-ELSE()
-  OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." OFF)
-ENDIF()
+# faster. The overhead of generating the index is small in LLD.
+OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." OFF)
 
 IF(ADD_GDB_INDEX AND
     (CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" OR
@@ -857,6 +851,11 @@ IF(ADD_GDB_INDEX AND
   IF(CXX_LD_GDB_INDEX_RESULT)
     STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gdb-index")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gdb-index")
+    # gdb sometimes reports "incomplete type" after linking with
+    # --gdb-index. This flag makes the index contain enough
+    # information to avoid the problem.
+    STRING_APPEND(CMAKE_C_FLAGS " -ggnu-pubnames")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -ggnu-pubnames")
   ELSE()
     MESSAGE(STATUS "Seems like linker does not support --gdb-index")
   ENDIF()
