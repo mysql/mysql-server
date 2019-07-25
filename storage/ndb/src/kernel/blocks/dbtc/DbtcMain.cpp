@@ -15387,6 +15387,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
 {
   TcConnectRecordPtr rarTcConnectptr;
 
+  jamDebug();
   c_counters.cabortCount++;
   if (apiConnectptr.p->apiCopyRecord != RNIL)
   {
@@ -15402,10 +15403,13 @@ void Dbtc::releaseAbortResources(Signal* signal)
     apiConnectptr.p->apiCopyRecord = RNIL;
   }
   if (apiConnectptr.p->cachePtr != RNIL) {
+    jam();
     cachePtr.i = apiConnectptr.p->cachePtr;
     ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
     releaseAttrinfo();
+    jamDebug();
     releaseKeys();
+    jamDebug();
   }//if
   tcConnectptr.i = apiConnectptr.p->firstTcConnect;
   while (tcConnectptr.i != RNIL) {
@@ -15418,6 +15422,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
     tcConnectptr.i = rarTcConnectptr.i;
   }//while
 
+  jamDebug();
   ndbrequire(apiConnectptr.p->num_commit_ack_markers == 0);
   releaseMarker(apiConnectptr.p);
 
@@ -15433,8 +15438,11 @@ void Dbtc::releaseAbortResources(Signal* signal)
   // apiConnectptr.p->apiConnectstate = CS_CONNECTED;
   apiConnectptr.p->apiConnectstate = CS_ABORTING;
   apiConnectptr.p->abortState = AS_IDLE;
+  jamDebug();
   releaseAllSeizedIndexOperations(apiConnectptr.p);
+  jamDebug();
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
+  jamDebug();
 
   if (tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG) ||
       apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
