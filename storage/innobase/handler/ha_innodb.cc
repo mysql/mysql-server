@@ -6685,7 +6685,12 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     ib_table = dict_table_check_if_in_cache_low(norm_name);
     if (ib_table != nullptr) {
       if (ib_table->is_corrupted()) {
-        dict_table_remove_from_cache(ib_table);
+        /* Optionally remove this corrupted table from cache now
+        if no other thread is still using it. If not, the corrupted bit
+        will keep it from being used.*/
+        if (ib_table->get_ref_count() == 0) {
+          dict_table_remove_from_cache(ib_table);
+        }
         ib_table = nullptr;
         cached = true;
       } else if (ib_table->refresh_fk) {
