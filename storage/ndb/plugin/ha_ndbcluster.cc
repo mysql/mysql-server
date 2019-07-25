@@ -11578,6 +11578,22 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     }
 
     Ndb_dd_client dd_client(thd);
+    bool table_exists_in_DD;
+    // This function is called in two cases. 1) when the table is not present
+    // in DD or 2) when the metadata of the table gets changed. In 2nd case,
+    // this function updates the metadata of table from the storage engine,
+    // installs and commits the changes into DD . So, if there is
+    // an active transaction, then the changes done till now will also gets
+    // commited. So, Push error when there is an active transction.
+    if (dd_client.table_exists(db, name, table_exists_in_DD) &&
+        table_exists_in_DD && thd->in_active_multi_stmt_transaction()) {
+      thd_ndb->push_warning(
+          "Failed to discover table '%s' from NDB, table "
+          "definition changed",
+          name);
+      my_error(HA_ERR_TABLE_DEF_CHANGED, MYF(0), db, name);
+      return 1;
+    }
 
     if (version == 1) {
       // Upgrade the "old" metadata and install the table into DD,
