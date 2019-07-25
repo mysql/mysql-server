@@ -199,7 +199,7 @@ bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
  */
 bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
                             const std::string &logfile_group_name,
-                            std::vector<std::string> &undofile_names);
+                            std::vector<std::string> *undofile_names);
 
 /**
  * @brief Retrieves list of datafile names assigned to a tablespace from NDB
@@ -211,7 +211,7 @@ bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
  */
 bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
                             const std::string &tablespace_name,
-                            std::vector<std::string> &datafile_names);
+                            std::vector<std::string> *datafile_names);
 
 /**
  * @brief Retrieves list of database names in NDB Dictionary

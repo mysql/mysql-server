@@ -458,7 +458,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
   // Logfile group exists in NDB but not in DD. Correct this by installing the
   // logfile group in the DD
   std::vector<std::string> undofile_names;
-  if (!ndb_get_undofile_names(dict, lfg_name, undofile_names)) {
+  if (!ndb_get_undofile_names(dict, lfg_name, &undofile_names)) {
     ndb_log_error("Failed to get undofiles assigned to logfile group '%s'",
                   lfg_name.c_str());
     return false;
@@ -539,7 +539,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   // Tablespace exists in NDB but not in DD. Correct this by installing the
   // tablespace in the DD
   std::vector<std::string> datafile_names;
-  if (!ndb_get_datafile_names(dict, ts_name, datafile_names)) {
+  if (!ndb_get_datafile_names(dict, ts_name, &datafile_names)) {
     ndb_log_error("Failed to get datafiles assigned to tablespace '%s'",
                   ts_name.c_str());
     return false;

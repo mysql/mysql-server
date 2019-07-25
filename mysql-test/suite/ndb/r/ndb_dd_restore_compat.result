@@ -1,7 +1,7 @@
 SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
 SET GLOBAL ndb_metadata_check = true;
-SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check_interval = 0;
 SHOW CREATE TABLE t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
