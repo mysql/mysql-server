@@ -1548,6 +1548,8 @@ class Item_func_timestamp_diff final : public Item_int_func {
                            interval_type type_arg)
       : Item_int_func(pos, a, b), int_type(type_arg) {}
   const char *func_name() const override { return "timestampdiff"; }
+  enum Functype functype() const override { return TIMESTAMPDIFF_FUNC; }
+  interval_type intervaltype() const { return int_type; }
   longlong val_int() override;
   bool resolve_type(THD *) override {
     maybe_null = true;

@@ -205,6 +205,7 @@ class Item_func : public Item_result_field {
     WEEK_FUNC,
     WEEKDAY_FUNC,
     DATEADD_FUNC,
+    TIMESTAMPDIFF_FUNC,
     DATETIME_LITERAL,
     GREATEST_FUNC,
     COALESCE_FUNC,
