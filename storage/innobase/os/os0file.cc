@@ -4908,7 +4908,7 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
       path.append(dirent.cFileName);
 
       /* Ignore hidden files and directories. */
-      if (Fil_path::is_hidden(path)) {
+      if (Fil_path::is_hidden(dirent) || Fil_path::is_hidden(path)) {
         ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, path.c_str());
         continue;
       }

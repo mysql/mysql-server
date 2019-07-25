@@ -8813,6 +8813,17 @@ bool Fil_path::is_hidden(std::string path) {
   return (sep != std::string::npos && basename[sep + 1] == '.');
 }
 
+#ifdef _WIN32
+bool Fil_path::is_hidden(WIN32_FIND_DATA &dirent) {
+  if (dirent.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN ||
+      dirent.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) {
+    return (true);
+  }
+
+  return (false);
+}
+#endif /* WIN32 */
+
 /** @return true if the path exists and is a file . */
 os_file_type_t Fil_path::get_file_type(const std::string &path) {
   const std::string *ptr;
