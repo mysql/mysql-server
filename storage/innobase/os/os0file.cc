@@ -3614,9 +3614,9 @@ void os_aio_simulated_put_read_threads_to_sleep() { /* No op on non Windows */
 }
 
 /** Depth first traversal of the directory starting from basedir
-@param[in]	basedir		Start scanning from this directory
-@param[in]      recursive       True if scan should be recursive
-@param[in]	f		Function to call for each entry */
+@param[in]  basedir     Start scanning from this directory
+@param[in]  recursive  `true` if scan should be recursive
+@param[in]  f           Function to call for each entry */
 void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
   using Stack = std::stack<Entry>;
 
@@ -3628,6 +3628,12 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
     Entry current = directories.top();
 
     directories.pop();
+
+    /* Ignore hidden directories and files. */
+    if (Fil_path::is_hidden(current.m_path)) {
+      ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, current.m_path.c_str());
+      continue;
+    }
 
     DIR *parent = opendir(current.m_path.c_str());
 
@@ -3664,9 +3670,14 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
 
       path.append(dirent->d_name);
 
+      /* Ignore hidden subdirectories and files. */
+      if (Fil_path::is_hidden(path)) {
+        ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, path.c_str());
+        continue;
+      }
+
       if (is_directory(path) && recursive) {
         directories.push(Entry(path, current.m_depth + 1));
-
       } else {
         f(path, current.m_depth + 1);
       }
@@ -4821,10 +4832,9 @@ void AIO::simulated_put_read_threads_to_sleep() {
 }
 
 /** Depth first traversal of the directory starting from basedir
-@param[in]	basedir		Start scanning from this directory
-@param[in]      recursive       true if scan should be recursive
-@param[in]	f		Callback for each entry found
-@param[in,out]	args		Optional arguments for f */
+@param[in]      basedir    Start scanning from this directory
+@param[in]      recursive  `true` if scan should be recursive
+@param[in]      f          Callback for each entry found */
 void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
   using Stack = std::stack<Entry>;
 
@@ -4865,6 +4875,11 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 
     directories.pop();
 
+    if (Fil_path::is_hidden(current.m_path)) {
+      ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, current.m_path.c_str());
+      continue;
+    }
+
     HANDLE h;
     WIN32_FIND_DATA dirent;
 
@@ -4891,6 +4906,12 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 
       path.resize(path.size() - 1);
       path.append(dirent.cFileName);
+
+      /* Ignore hidden files and directories. */
+      if (Fil_path::is_hidden(path)) {
+        ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, path.c_str());
+        continue;
+      }
 
       if ((dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && recursive) {
         path.append("\\*");
