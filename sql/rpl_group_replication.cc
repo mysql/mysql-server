@@ -62,6 +62,7 @@ void st_server_ssl_variables::init() {
   ssl_ca = NULL;
   ssl_capath = NULL;
   tls_version = NULL;
+  tls_ciphersuites = NULL;
   ssl_cert = NULL;
   ssl_cipher = NULL;
   ssl_key = NULL;
@@ -74,6 +75,7 @@ void st_server_ssl_variables::deinit() {
   my_free(ssl_ca);
   my_free(ssl_capath);
   my_free(tls_version);
+  my_free(tls_ciphersuites);
   my_free(ssl_cert);
   my_free(ssl_cipher);
   my_free(ssl_key);
@@ -330,10 +332,11 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
 }
 
 void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables) {
-  OptionalString ca, capath, cert, cipher, key, crl, crlpath, version;
+  OptionalString ca, capath, cert, cipher, ciphersuites, key, crl, crlpath,
+      version;
 
   SslAcceptorContext::read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                      nullptr, &key, &crl, &crlpath);
+                                      &ciphersuites, &key, &crl, &crlpath);
 
 #ifdef HAVE_OPENSSL
   server_ssl_variables->have_ssl_opt = true;
@@ -343,6 +346,7 @@ void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables) {
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);
   server_ssl_variables->tls_version = my_strdup_nullable(version);
+  server_ssl_variables->tls_ciphersuites = my_strdup_nullable(ciphersuites);
   server_ssl_variables->ssl_cert = my_strdup_nullable(cert);
   server_ssl_variables->ssl_cipher = my_strdup_nullable(cipher);
   server_ssl_variables->ssl_key = my_strdup_nullable(key);

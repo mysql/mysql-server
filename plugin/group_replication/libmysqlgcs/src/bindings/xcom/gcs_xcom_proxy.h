@@ -373,15 +373,22 @@ class Gcs_xcom_proxy {
     server_key_file  - Path of file that contains the server's X509 key in PEM
                        format.
     server_cert_file - Path of file that contains the server's X509 certificate
-    in PEM format. client_key_file  - Path of file that contains the client's
-    X509 key in PEM format. client_cert_file - Path of file that contains the
-    client's X509 certificate in PEM format. ca_file          - Path of file
-    that contains list of trusted SSL CAs. ca_path          - Path of directory
-    that contains trusted SSL CA certificates in PEM format. crl_file         -
-    Path of file that contains certificate revocation lists. crl_path         -
-    Path of directory that contains certificate revocation list files. cipher
-    - List of permitted ciphers to use for connection encryption. tls_version
-    - Protocols permitted for secure connections.
+                       in PEM format.
+    client_key_file  - Path of file that contains the client's X509 key in PEM
+                       format.
+    client_cert_file - Path of file that contains the client's X509 certificate
+                       in PEM format.
+    ca_file          - Path of file that contains list of trusted SSL CAs.
+    ca_path          - Path of directory that contains trusted SSL CA
+                       certificates in PEM format.
+    crl_file         - Path of file that contains certificate revocation lists.
+    crl_path         - Path of directory that contains certificate revocation
+                       list files.
+    cipher           - List of permitted ciphers to use for connection
+                       encryption.
+    tls_version      - Protocols permitted for secure connections.
+    tls_ciphersuites - List of permitted ciphersuites to use for TLS 1.3
+                       connection encryption.
 
     Note that only the server_key_file/server_cert_file and the client_key_file/
     client_cert_file are required and the rest of the pointers can be NULL.
@@ -391,11 +398,23 @@ class Gcs_xcom_proxy {
     The caller can free the parameters after the SSL is started
     if this is necessary.
   */
-  virtual void xcom_set_ssl_parameters(
-      const char *server_key_file, const char *server_cert_file,
-      const char *client_key_file, const char *client_cert_file,
-      const char *ca_file, const char *ca_path, const char *crl_file,
-      const char *crl_path, const char *cipher, const char *tls_version) = 0;
+  struct ssl_parameters {
+    const char *server_key_file;
+    const char *server_cert_file;
+    const char *client_key_file;
+    const char *client_cert_file;
+    const char *ca_file;
+    const char *ca_path;
+    const char *crl_file;
+    const char *crl_path;
+    const char *cipher;
+  };
+  struct tls_parameters {
+    const char *tls_version;
+    const char *tls_ciphersuites;
+  };
+  virtual void xcom_set_ssl_parameters(ssl_parameters ssl,
+                                       tls_parameters tls) = 0;
 
   virtual site_def const *find_site_def(synode_no synode) = 0;
 
@@ -868,13 +887,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool xcom_init_ssl();
   void xcom_destroy_ssl();
   bool xcom_use_ssl();
-  void xcom_set_ssl_parameters(const char *server_key_file,
-                               const char *server_cert_file,
-                               const char *client_key_file,
-                               const char *client_cert_file,
-                               const char *ca_file, const char *ca_path,
-                               const char *crl_file, const char *crl_path,
-                               const char *cipher, const char *tls_version);
+  void xcom_set_ssl_parameters(ssl_parameters ssl, tls_parameters tls);
   site_def const *find_site_def(synode_no synode);
 
   enum_gcs_error xcom_wait_ready();
@@ -937,6 +950,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   const char *m_crl_path;
   const char *m_cipher;
   const char *m_tls_version;
+  const char *m_tls_ciphersuites;
 
   std::atomic_bool m_should_exit;
 

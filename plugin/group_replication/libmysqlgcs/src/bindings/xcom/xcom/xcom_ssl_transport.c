@@ -179,18 +179,27 @@ SSL_CTX *client_ctx = NULL;
 static long process_tls_version(const char *tls_version) {
   const char *separator = ", ";
   char *token = NULL;
+#ifdef HAVE_TLSv13
+  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
+                                         "TLSv1.3"};
+#else
   const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
+#endif /* HAVE_TLSv13 */
 #define TLS_VERSIONS_COUNTS \
   (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
   unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
+#ifdef HAVE_TLSv13
+  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
+      SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
+  const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3";
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
+                      SSL_OP_NO_TLSv1_3;
+#else
   const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
       SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
   const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2";
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
-#ifdef HAVE_TLSv13
-  /* Disable TLS 1.3 support. */
-  tls_ctx_flag |= SSL_OP_NO_TLSv1_3;
-#endif
+#endif /* HAVE_TLSv13 */
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
@@ -228,12 +237,16 @@ static int PasswordCallBack(char *passwd, int sz, int rw MY_ATTRIBUTE((unused)),
 }
 /* purecov: end */
 
-static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
-                                    const char *tls_version) {
+static int configure_ssl_algorithms(
+    SSL_CTX *ssl_ctx, const char *cipher, const char *tls_version,
+    const char *tls_ciphersuites MY_ATTRIBUTE((unused))) {
   DH *dh = NULL;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
   long ssl_ctx_flags = -1;
+#ifdef HAVE_TLSv13
+  int tlsv1_3_enabled = 0;
+#endif /* HAVE_TLSv13 */
 
   SSL_CTX_set_default_passwd_cb(ssl_ctx, PasswordCallBack);
   SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_OFF);
@@ -244,23 +257,47 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
     goto error;
   }
 
+#ifdef HAVE_TLSv13
+  ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
+                    (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
+                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3);
+#else
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
                     (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
                      SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2);
-#ifdef HAVE_TLSv13
-  /* Disable TLS 1.3 support. */
-  ssl_ctx_options |= SSL_OP_NO_TLSv1_3;
-#endif
+#endif /* HAVE_TLSv13 */
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
 
 #ifdef HAVE_TLSv13
-  /* Set invalid TLSv1.3 ciphersuites. */
-  if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
-    G_ERROR("Failed to disable TLSv1.3 ciphers.");
-    goto error;
+  tlsv1_3_enabled = ((ssl_ctx_options & SSL_OP_NO_TLSv1_3) == 0);
+  if (tlsv1_3_enabled) {
+    /* Set OpenSSL TLS v1.3 ciphersuites.
+       If the ciphersuites are unspecified, i.e. tls_ciphersuites == NULL, then
+       we use whatever OpenSSL uses by default. Note that an empty list is
+       permissible; it disallows all ciphersuites. */
+    if (tls_ciphersuites != NULL) {
+      /*
+        Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
+        (that's permissible and mentioned in the documentation),
+        the connection will fail with "no ciphers available" error.
+      */
+      if (SSL_CTX_set_ciphersuites(ssl_ctx, tls_ciphersuites) == 0) {
+        G_ERROR(
+            "Failed to set the list of ciphersuites. Check if the values "
+            "configured for ciphersuites are correct and valid and if the list "
+            "is not empty");
+        goto error;
+      }
+    }
+  } else {
+    /* Disable OpenSSL TLS v1.3 ciphersuites. */
+    if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
+      G_DEBUG("Failed to set empty ciphersuites with TLS v1.3 disabled.");
+      goto error;
+    }
   }
-#endif
+#endif /* HAVE_TLSv13 */
 
   /*
     Set the ciphers that can be used. Note, howerver, that the
@@ -409,7 +446,7 @@ static int init_ssl(const char *key_file, const char *cert_file,
                     const char *ca_file, const char *ca_path,
                     const char *crl_file, const char *crl_path,
                     const char *cipher, const char *tls_version,
-                    SSL_CTX *ssl_ctx) {
+                    const char *tls_ciphersuites, SSL_CTX *ssl_ctx) {
   G_DEBUG(
       "Initializing SSL with key_file: '%s'  cert_file: '%s'  "
       "ca_file: '%s'  ca_path: '%s'",
@@ -422,7 +459,12 @@ static int init_ssl(const char *key_file, const char *cert_file,
       cipher ? cipher : "NULL", crl_file ? crl_file : "NULL",
       crl_path ? crl_path : "NULL");
 
-  if (configure_ssl_algorithms(ssl_ctx, cipher, tls_version)) goto error;
+  G_DEBUG("TLS configuration is version: '%s', ciphersuites: '%s'",
+          tls_version ? tls_version : "NULL",
+          tls_ciphersuites ? tls_ciphersuites : "NULL");
+
+  if (configure_ssl_algorithms(ssl_ctx, cipher, tls_version, tls_ciphersuites))
+    goto error;
 
   if (configure_ssl_ca(ssl_ctx, ca_file, ca_path)) goto error;
 
@@ -508,7 +550,8 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                   const char *client_key_file, const char *client_cert_file,
                   const char *ca_file, const char *ca_path,
                   const char *crl_file, const char *crl_path,
-                  const char *cipher, const char *tls_version) {
+                  const char *cipher, const char *tls_version,
+                  const char *tls_ciphersuites) {
   int verify_server = SSL_VERIFY_NONE;
   int verify_client = SSL_VERIFY_NONE;
 
@@ -531,13 +574,18 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   }
 
   G_DEBUG("Configuring SSL for the server")
+#ifdef HAVE_TLSv13
+  server_ctx = SSL_CTX_new(TLS_server_method());
+#else
   server_ctx = SSL_CTX_new(SSLv23_server_method());
+#endif /* HAVE_TLSv13 */
+
   if (!server_ctx) {
     G_ERROR("Error allocating SSL Context object for the server");
     goto error;
   }
   if (init_ssl(server_key_file, server_cert_file, ca_file, ca_path, crl_file,
-               crl_path, cipher, tls_version, server_ctx))
+               crl_path, cipher, tls_version, tls_ciphersuites, server_ctx))
     goto error;
 
   if (ssl_mode != SSL_REQUIRED)
@@ -545,13 +593,17 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   SSL_CTX_set_verify(server_ctx, verify_server, NULL);
 
   G_DEBUG("Configuring SSL for the client")
+#ifdef HAVE_TLSv13
+  client_ctx = SSL_CTX_new(TLS_client_method());
+#else
   client_ctx = SSL_CTX_new(SSLv23_client_method());
+#endif /* HAVE_TLSv13 */
   if (!client_ctx) {
     G_ERROR("Error allocating SSL Context object for the client");
     goto error;
   }
   if (init_ssl(client_key_file, client_cert_file, ca_file, ca_path, crl_file,
-               crl_path, cipher, tls_version, client_ctx))
+               crl_path, cipher, tls_version, tls_ciphersuites, client_ctx))
     goto error;
 
   if (ssl_mode != SSL_REQUIRED) verify_client = SSL_VERIFY_PEER;

@@ -955,16 +955,24 @@ bool Gcs_xcom_interface::initialize_xcom(
     const std::string *cipher = interface_params.get_parameter("cipher");
     const std::string *tls_version =
         interface_params.get_parameter("tls_version");
+    const std::string *tls_ciphersuites =
+        interface_params.get_parameter("tls_ciphersuites");
 
-    xcom_proxy->xcom_set_ssl_parameters(
+    Gcs_xcom_proxy::ssl_parameters ssl_configuration = {
         server_key_file ? server_key_file->c_str() : NULL,
         server_cert_file ? server_cert_file->c_str() : NULL,
         client_key_file ? client_key_file->c_str() : NULL,
         client_cert_file ? client_cert_file->c_str() : NULL,
-        ca_file ? ca_file->c_str() : NULL, ca_path ? ca_path->c_str() : NULL,
+        ca_file ? ca_file->c_str() : NULL,
+        ca_path ? ca_path->c_str() : NULL,
         crl_file ? crl_file->c_str() : NULL,
-        crl_path ? crl_path->c_str() : NULL, cipher ? cipher->c_str() : NULL,
-        tls_version ? tls_version->c_str() : NULL);
+        crl_path ? crl_path->c_str() : NULL,
+        cipher ? cipher->c_str() : NULL,
+    };
+    Gcs_xcom_proxy::tls_parameters tls_configuration = {
+        tls_version ? tls_version->c_str() : NULL,
+        tls_ciphersuites ? tls_ciphersuites->c_str() : NULL};
+    xcom_proxy->xcom_set_ssl_parameters(ssl_configuration, tls_configuration);
 
     m_wait_for_ssl_init_mutex.lock();
     gcs_engine->push(new Initialize_notification(start_ssl));

@@ -1986,6 +1986,12 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
             "ca_path", ssl_capath); /* purecov: inspected */
       gcs_module_parameters.add_parameter("cipher", ssl_cipher);
       gcs_module_parameters.add_parameter("tls_version", tls_version);
+      if (sv.tls_ciphersuites != nullptr) {
+        /* Not specifying the ciphersuites means "use the OpenSSL default."
+           Specifying an empty string means "disallow all ciphersuites." */
+        gcs_module_parameters.add_parameter("tls_ciphersuites",
+                                            sv.tls_ciphersuites);
+      }
 
       if (!ssl_crl.empty())
         gcs_module_parameters.add_parameter("crl_file",
@@ -2001,6 +2007,7 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
                    ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),
                    ssl_key.c_str(), ssl_cert.c_str(), ssl_ca.c_str(),
                    ssl_capath.c_str(), ssl_cipher.c_str(), tls_version.c_str(),
+                   sv.tls_ciphersuites ? sv.tls_ciphersuites : "NOT_SET",
                    ssl_crl.c_str(), ssl_crlpath.c_str(), ssl_fips_mode.c_str());
     }
     // No SSL support on server.
