@@ -14210,7 +14210,7 @@ ER_GRP_RPL_APPLIER_INITIALIZED
   eng "Group Replication applier module successfully initialized!"
 
 ER_GRP_RPL_COMMUNICATION_SSL_CONF_INFO
-  eng "Group communication SSL configuration: group_replication_ssl_mode: \"%s\"; server_key_file: \"%s\"; server_cert_file: \"%s\"; client_key_file: \"%s\"; client_cert_file: \"%s\"; ca_file: \"%s\"; ca_path: \"%s\"; cipher: \"%s\"; tls_version: \"%s\"; crl_file: \"%s\"; crl_path: \"%s\"; ssl_fips_mode: \"%s\""
+  eng "Group communication SSL configuration: group_replication_ssl_mode: \"%s\"; server_key_file: \"%s\"; server_cert_file: \"%s\"; client_key_file: \"%s\"; client_cert_file: \"%s\"; ca_file: \"%s\"; ca_path: \"%s\"; cipher: \"%s\"; tls_version: \"%s\"; tls_ciphersuites: \"%s\"; crl_file: \"%s\"; crl_path: \"%s\"; ssl_fips_mode: \"%s\""
 
 ER_GRP_RPL_ABORTS_AS_SSL_NOT_SUPPORTED_BY_MYSQLD
   eng "MySQL server does not have SSL support and group_replication_ssl_mode is \"%s\", START GROUP_REPLICATION will abort"

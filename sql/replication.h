@@ -49,6 +49,7 @@ struct st_server_ssl_variables {
   char *ssl_ca;
   char *ssl_capath;
   char *tls_version;
+  char *tls_ciphersuites;
   char *ssl_cert;
   char *ssl_cipher;
   char *ssl_key;

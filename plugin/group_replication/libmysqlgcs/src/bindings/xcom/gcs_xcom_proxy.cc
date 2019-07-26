@@ -232,7 +232,8 @@ bool Gcs_xcom_proxy_impl::xcom_init_ssl() {
   bool const successful =
       (::xcom_init_ssl(m_server_key_file, m_server_cert_file, m_client_key_file,
                        m_client_cert_file, m_ca_file, m_ca_path, m_crl_file,
-                       m_crl_path, m_cipher, m_tls_version) == 1);
+                       m_crl_path, m_cipher, m_tls_version,
+                       m_tls_ciphersuites) == 1);
   return successful;
 }
 
@@ -243,21 +244,19 @@ bool Gcs_xcom_proxy_impl::xcom_use_ssl() {
   return will_use;
 }
 
-void Gcs_xcom_proxy_impl::xcom_set_ssl_parameters(
-    const char *server_key_file, const char *server_cert_file,
-    const char *client_key_file, const char *client_cert_file,
-    const char *ca_file, const char *ca_path, const char *crl_file,
-    const char *crl_path, const char *cipher, const char *tls_version) {
-  m_server_key_file = server_key_file;
-  m_server_cert_file = server_cert_file;
-  m_client_key_file = client_key_file;
-  m_client_cert_file = client_cert_file;
-  m_ca_file = ca_file;
-  m_ca_path = ca_path;
-  m_crl_file = crl_file;
-  m_crl_path = crl_path;
-  m_cipher = cipher;
-  m_tls_version = tls_version;
+void Gcs_xcom_proxy_impl::xcom_set_ssl_parameters(ssl_parameters ssl,
+                                                  tls_parameters tls) {
+  m_server_key_file = ssl.server_key_file;
+  m_server_cert_file = ssl.server_cert_file;
+  m_client_key_file = ssl.client_key_file;
+  m_client_cert_file = ssl.client_cert_file;
+  m_ca_file = ssl.ca_file;
+  m_ca_path = ssl.ca_path;
+  m_crl_file = ssl.crl_file;
+  m_crl_path = ssl.crl_path;
+  m_cipher = ssl.cipher;
+  m_tls_version = tls.tls_version;
+  m_tls_ciphersuites = tls.tls_ciphersuites;
 }
 
 /* purecov: begin deadcode */
@@ -283,6 +282,7 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
       m_crl_path(),
       m_cipher(),
       m_tls_version(),
+      m_tls_ciphersuites(),
       m_should_exit(false) {
   m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
                          NULL);
@@ -321,6 +321,7 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
       m_crl_path(),
       m_cipher(),
       m_tls_version(),
+      m_tls_ciphersuites(),
       m_should_exit(false) {
   m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
                          NULL);

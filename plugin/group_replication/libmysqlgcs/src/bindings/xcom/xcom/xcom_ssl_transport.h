@@ -163,7 +163,8 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                   const char *client_key_file, const char *client_cert_file,
                   const char *ca_file, const char *ca_path,
                   const char *crl_file, const char *crl_path,
-                  const char *cipher, const char *tls_version);
+                  const char *cipher, const char *tls_version,
+                  const char *tls_ciphersuites);
 
 /*
   Destroy the SSL Configuration freeing allocated memory.
