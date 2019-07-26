@@ -2190,7 +2190,7 @@ bool Ndb_schema_dist_client::write_schema_op_to_NDB(
   log query in ndb_schema table
 */
 
-int Ndb_schema_dist_client::log_schema_op_impl(
+bool Ndb_schema_dist_client::log_schema_op_impl(
     Ndb *ndb, const char *query, int query_length, const char *db,
     const char *table_name, uint32 ndb_table_id, uint32 ndb_table_version,
     SCHEMA_OP_TYPE type, uint32 anyvalue) {
@@ -2229,7 +2229,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   if (!write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
                               ndb_table_id, ndb_table_version, own_nodeid, type,
                               ndb_schema_object->schema_op_id(), anyvalue)) {
-    return 1;
+    return false;
   }
 
   ndb_log_verbose(19, "Distribution of '%s' - started!", op_name.c_str());
@@ -2276,12 +2276,9 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   for (auto &it : participant_results) {
     // Save result for later
     m_schema_op_results.push_back({it.nodeid, it.result, it.message});
-    // Push the result as warning
-    m_thd_ndb->push_warning("Node %d: '%u %s'", it.nodeid, it.result,
-                            it.message.c_str());
   }
 
-  return 0;
+  return true;
 }
 
 /*
@@ -3184,18 +3181,13 @@ class Ndb_schema_event_handler {
     this node. This is done by writing a new row to the ndb_schema_result table.
 
     @param schema The schema operation which has just been completed
-    @param schema_op_result The result of completed schema operation
 
     @return true if ack suceeds
     @return false if ack fails(writing to the table could not be done)
 
   */
-  bool ack_schema_op_with_result(
-      const Ndb_schema_op *schema,
-      const Ndb_schema_op_result &schema_op_result) const {
+  bool ack_schema_op_with_result(const Ndb_schema_op *schema) const {
     DBUG_TRACE;
-    DBUG_PRINT("enter", ("result: %d, message: '%s'", schema_op_result.result(),
-                         schema_op_result.message()));
 
     // Should only call this function if ndb_schema has a schema_op_id
     // column which enabled the client to send schema->schema_op_id != 0
@@ -3216,14 +3208,21 @@ class Ndb_schema_event_handler {
     const uint32 nodeid = schema->node_id;
     const uint32 schema_op_id = schema->schema_op_id;
     const uint32 participant_nodeid = own_nodeid();
-    const uint32 result = schema_op_result.result();
-    const char *message = schema_op_result.message();
+    const uint32 result = m_schema_op_result.result();
+    char message_buf[255];
+    if (!schema_result_table.pack_message(m_schema_op_result.message(),
+                                          message_buf)) {
+      ndb_log_warning(
+          "Failed to pack result for schema operation involving '%s.%s'",
+          schema->db, schema->name);
+      return false;
+    }
 
     // Function for inserting row with result in ndb_schema_result
     std::function<const NdbError *(NdbTransaction *)>
         ack_schema_op_with_result_func =
             [ndbtab, nodeid, schema_op_id, participant_nodeid, result,
-             message](NdbTransaction *trans) -> const NdbError * {
+             message_buf](NdbTransaction *trans) -> const NdbError * {
       DBUG_TRACE;
 
       NdbOperation *op = trans->getNdbOperation(ndbtab);
@@ -3237,7 +3236,7 @@ class Ndb_schema_event_handler {
           op->equal(Ndb_schema_result_table::COL_PARTICIPANT_NODEID,
                     participant_nodeid) != 0 ||
           op->setValue(Ndb_schema_result_table::COL_RESULT, result) != 0 ||
-          op->setValue(Ndb_schema_result_table::COL_MESSAGE, message) != 0)
+          op->setValue(Ndb_schema_result_table::COL_MESSAGE, message_buf) != 0)
         return &op->getNdbError();
 
       if (trans->execute(NdbTransaction::Commit,
@@ -3251,8 +3250,9 @@ class Ndb_schema_event_handler {
     NdbError ndb_err;
     if (!ndb_trans_retry(ndb, m_thd, ndb_err, ack_schema_op_with_result_func)) {
       log_NDB_error(ndb_err);
-      ndb_log_warning("Failed to send result for schema operation '%s.%s'",
-                      schema->db, schema->name);
+      ndb_log_warning(
+          "Failed to send result for schema operation involving '%s.%s'",
+          schema->db, schema->name);
       return false;
     }
 
@@ -3430,7 +3430,6 @@ class Ndb_schema_event_handler {
                         "handled after epoch"));
     assert(!is_post_epoch());  // Only before epoch
     m_post_epoch_handle_list.push_back(schema, m_mem_root);
-    return;
   }
 
   uint own_nodeid(void) const { return m_own_nodeid; }
@@ -3440,7 +3439,6 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
     Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, db_name, table_name);
     ndbtab_g.invalidate();
-    return;
   }
 
   NDB_SHARE *acquire_reference(const char *db, const char *name,
@@ -3579,8 +3577,8 @@ class Ndb_schema_event_handler {
                              ndbtab->getObjectId(), ndbtab->getObjectVersion(),
                              ndbtab->getPartitionCount(), tablespace_name,
                              force_overwrite, invalidate_referenced_tables)) {
-      ndb_log_warning(
-          "Failed to update table definition in DD, continue anyway...");
+      ndb_log_warning("Failed to update table definition in DD");
+      return false;
     }
 
     return true;
@@ -3672,7 +3670,6 @@ class Ndb_schema_event_handler {
     if (DBUG_EVALUATE_IF("ndb_binlog_schema_object_race", true, false)) {
       ndb_milli_sleep(10);
     }
-    return;
   }
 
   void handle_offline_alter_table_commit(const Ndb_schema_op *schema) {
@@ -3721,8 +3718,11 @@ class Ndb_schema_event_handler {
                                   true /* invalidate_referenced_tables */)) {
       ndb_log_error("Distribution of ALTER TABLE '%s.%s' failed", schema->db,
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of ALTER TABLE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
-    return;
   }
 
   void handle_online_alter_table_prepare(const Ndb_schema_op *schema) {
@@ -3784,6 +3784,10 @@ class Ndb_schema_event_handler {
                                     true /* invalidate_referenced_tables */)) {
         ndb_log_error("Distribution of ALTER TABLE '%s.%s' failed", schema->db,
                       schema->name);
+        m_schema_op_result.set_result(
+            Ndb_schema_dist::SCHEMA_OP_FAILURE,
+            "Distribution of ALTER TABLE " + std::string(1, '\'') +
+                std::string(schema->name) + std::string(1, '\'') + " failed");
       }
 
       // Check that no event_data have been prepared yet(that is only
@@ -3877,8 +3881,8 @@ class Ndb_schema_event_handler {
       if (share->op && event_data /* safety */) {
         Ndb_binlog_client binlog_client(m_thd, schema->db, schema->name);
         // The table have an event operation setup and during an inplace
-        // alter table that need to be recrated for the new table layout.
-        // NOTE! Nothing has changed here regarding wheter or not the
+        // alter table that need to be recreated for the new table layout.
+        // NOTE! Nothing has changed here regarding whether or not the
         // table should still have event operation, i.e if it had
         // it before, it should still have it after the alter. But
         // for consistency, check that table should have event op
@@ -3896,6 +3900,8 @@ class Ndb_schema_event_handler {
         // Get table from NDB
         Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, schema->db, schema->name);
         const NDBTAB *ndbtab = ndbtab_g.get_table();
+
+        DBUG_ASSERT(ndbtab != nullptr);
 
         // Create new NdbEventOperation
         if (binlog_client.create_event_op(share, ndbtab, event_data)) {
@@ -3996,13 +4002,16 @@ class Ndb_schema_event_handler {
     assert(m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
     if (!remove_table_from_dd(schema->db, schema->name)) {
-      // The table didn't exist in DD or it couldn't be removed,
-      // continue to invalidate the table in NdbApi, close cached tables
-      // etc. This case may happen when a MySQL Server drops a "shadow"
-      // table and afterwards someone drops also the table with same name
-      // in NDB
+      // The table couldn't be removed, continue to invalidate the table in
+      // NdbApi, close cached tables etc. This case may happen when a MySQL
+      // Server drops a "shadow" table and afterwards someone drops also the
+      // table with same name in NDB
       ndb_log_warning(
           "Failed to remove table definition from DD, continue anyway...");
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP TABLE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
 
     NDB_SHARE *share = acquire_reference(schema->db, schema->name,
@@ -4022,8 +4031,6 @@ class Ndb_schema_event_handler {
 
     ndbapi_invalidate_table(schema->db, schema->name);
     ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
-
-    return;
   }
 
   /*
@@ -4053,8 +4060,6 @@ class Ndb_schema_event_handler {
     // that it can be found later when the RENAME arrives)
     NDB_SHARE_KEY *new_prepared_key = NDB_SHARE::create_key(new_key_for_table);
     m_schema_dist_data.save_prepared_rename_key(new_prepared_key);
-
-    return;
   }
 
   bool rename_table_in_dd(const char *schema_name, const char *table_name,
@@ -4212,6 +4217,10 @@ class Ndb_schema_event_handler {
       log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
       ndb_log_error("Failed to rename, could not open table '%s.%s' from NDB",
                     new_db_name, new_table_name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of RENAME TABLE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4219,12 +4228,14 @@ class Ndb_schema_event_handler {
         ndb_table_tablespace_name(m_thd_ndb->ndb->getDictionary(), ndbtab);
 
     // Rename table in DD
-    if (!rename_table_in_dd(schema->db, schema->name,
-                            NDB_SHARE::key_get_db_name(prepared_key),
-                            NDB_SHARE::key_get_table_name(prepared_key), ndbtab,
-                            tablespace_name)) {
+    if (!rename_table_in_dd(schema->db, schema->name, new_db_name,
+                            new_table_name, ndbtab, tablespace_name)) {
       ndb_log_warning(
           "Failed to rename table definition in DD, continue anyway...");
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of RENAME TABLE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
 
     // Rename share and release the old key
@@ -4237,8 +4248,6 @@ class Ndb_schema_event_handler {
 
     ndbapi_invalidate_table(schema->db, schema->name);
     ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
-
-    return;
   }
 
   void handle_drop_db(const Ndb_schema_op *schema) {
@@ -4257,17 +4266,25 @@ class Ndb_schema_event_handler {
 
     // Lock the schema in DD
     if (!dd_client.mdl_lock_schema(schema->db)) {
+      // Failed to acquire lock, skip dropping
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to acquire MDL for db '%s'", schema->db);
-      // Failed to lock the DD, skip dropping
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
     bool schema_exists;
     if (!dd_client.schema_exists(schema->db, &schema_exists)) {
+      // Failed to check if database exists, skip dropping
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to determine if database '%s' exists", schema->db);
-      // Failed to check if database existed, skip dropping
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4290,6 +4307,10 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to get list of NDB tables in database '%s'",
                     schema->db);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4337,6 +4358,10 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to invalidate referenced tables for database '%s'",
                     schema->db);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4351,6 +4376,10 @@ class Ndb_schema_event_handler {
       ndb_log_error("Failed to check if database '%s' contained local tables.",
                     schema->db);
       ndb_log_error("Skipping drop of non NDB database artifacts.");
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4363,6 +4392,10 @@ class Ndb_schema_event_handler {
           "it contained local tables "
           "binlog schema event '%s' from node %d. ",
           schema->db, schema->query, schema->node_id);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4376,10 +4409,11 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to execute 'DROP DATABASE' for database '%s'",
                     schema->db);
-      return;
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
     }
-
-    return;
   }
 
   void handle_truncate_table(const Ndb_schema_op *schema) {
@@ -4409,9 +4443,11 @@ class Ndb_schema_event_handler {
                                   true /* force_overwrite */)) {
       ndb_log_error("Distribution of TRUNCATE TABLE '%s.%s' failed", schema->db,
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of TRUNCATE TABLE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
-
-    return;
   }
 
   void handle_create_table(const Ndb_schema_op *schema) {
@@ -4428,9 +4464,11 @@ class Ndb_schema_event_handler {
                                   true /* invalidate_referenced_tables */)) {
       ndb_log_error("Distribution of CREATE TABLE '%s.%s' failed", schema->db,
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of CREATE TABLE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
-
-    return;
   }
 
   void handle_create_db(const Ndb_schema_op *schema) {
@@ -4450,6 +4488,10 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to execute 'CREATE DATABASE' for database '%s'",
                     schema->db);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of CREATE DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4459,10 +4501,7 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to update schema version for database '%s'",
                     schema->db);
-      return;
     }
-
-    return;
   }
 
   void handle_alter_db(const Ndb_schema_op *schema) {
@@ -4482,6 +4521,10 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to execute 'ALTER DATABASE' for database '%s'",
                     schema->db);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of ALTER DATABASE " + std::string(1, '\'') +
+              std::string(schema->db) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4491,10 +4534,7 @@ class Ndb_schema_event_handler {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to update schema version for database '%s'",
                     schema->db);
-      return;
     }
-
-    return;
   }
 
   void handle_grant_op(const Ndb_schema_op *schema) {
@@ -4522,6 +4562,8 @@ class Ndb_schema_event_handler {
                                                          schema->query)) {
         ndb_log_error("Failed to apply ACL snapshot for users: %s",
                       schema->query);
+        m_schema_op_result.set_result(Ndb_schema_dist::SCHEMA_OP_FAILURE,
+                                      "Distribution of ACL change failed");
       }
       return;
     }
@@ -4544,7 +4586,13 @@ class Ndb_schema_event_handler {
     LEX_CSTRING set_db = {use_db.c_str(), use_db.length()};
     m_thd->reset_db(set_db);
     ndb_log_verbose(40, "Using database: %s", use_db.c_str());
-    sql_runner.run_acl_statement(query);
+    if (sql_runner.run_acl_statement(query)) {
+      ndb_log_error("Failed to execute ACL query: %s", query.c_str());
+      m_schema_op_result.set_result(Ndb_schema_dist::SCHEMA_OP_FAILURE,
+                                    "Distribution of ACL change failed");
+      m_thd->reset_db(thd_db_save);
+      return;
+    }
 
     /* Reset database */
     m_thd->reset_db(thd_db_save);
@@ -4552,8 +4600,6 @@ class Ndb_schema_event_handler {
     if (schema->type == SOT_ACL_STATEMENT_REFRESH) {
       Ndb_stored_grants::maintain_cache(m_thd);
     }
-
-    return;
   }
 
   bool create_tablespace_from_engine(Ndb_dd_client &dd_client,
@@ -4606,10 +4652,13 @@ class Ndb_schema_event_handler {
                                        schema->version)) {
       ndb_log_error("Distribution of CREATE TABLESPACE '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of CREATE TABLESPACE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
+      return;
     }
     dd_client.commit();
-
-    return;
   }
 
   bool get_tablespace_table_refs(
@@ -4703,6 +4752,10 @@ class Ndb_schema_event_handler {
     if (!get_tablespace_table_refs(schema->name, table_refs)) {
       ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of ALTER TABLESPACE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4711,6 +4764,10 @@ class Ndb_schema_event_handler {
                                        schema->version)) {
       ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of ALTER TABLESPACE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4724,11 +4781,14 @@ class Ndb_schema_event_handler {
             schema->name);
         ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
                       schema->name);
+        m_schema_op_result.set_result(
+            Ndb_schema_dist::SCHEMA_OP_FAILURE,
+            "Distribution of ALTER TABLESPACE " + std::string(1, '\'') +
+                std::string(schema->name) + std::string(1, '\'') + " failed");
         return;
       }
     }
     dd_client.commit();
-    return;
   }
 
   void handle_drop_tablespace(const Ndb_schema_op *schema) {
@@ -4749,6 +4809,10 @@ class Ndb_schema_event_handler {
                     schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP TABLESPACE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4758,11 +4822,14 @@ class Ndb_schema_event_handler {
       ndb_log_error("Failed to drop tablespace '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP TABLESPACE " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
     dd_client.commit();
-    return;
   }
 
   bool create_logfile_group_from_engine(const char *logfile_group_name,
@@ -4816,9 +4883,11 @@ class Ndb_schema_event_handler {
                                           schema->version)) {
       ndb_log_error("Distribution of CREATE LOGFILE GROUP '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of CREATE LOGFILE GROUP " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
-
-    return;
   }
 
   void handle_alter_logfile_group(const Ndb_schema_op *schema) {
@@ -4836,9 +4905,11 @@ class Ndb_schema_event_handler {
                                           schema->version)) {
       ndb_log_error("Distribution of ALTER LOGFILE GROUP '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of ALTER LOGFILE GROUP " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
     }
-
-    return;
   }
 
   void handle_drop_logfile_group(const Ndb_schema_op *schema) {
@@ -4859,6 +4930,10 @@ class Ndb_schema_event_handler {
                     schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP LOGFILE GROUP " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
@@ -4868,11 +4943,14 @@ class Ndb_schema_event_handler {
       ndb_log_error("Failed to drop logfile group '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
                     schema->name);
+      m_schema_op_result.set_result(
+          Ndb_schema_dist::SCHEMA_OP_FAILURE,
+          "Distribution of DROP LOGFILE GROUP " + std::string(1, '\'') +
+              std::string(schema->name) + std::string(1, '\'') + " failed");
       return;
     }
 
     dd_client.commit();
-    return;
   }
 
   int handle_schema_op(const Ndb_schema_op *schema) {
@@ -5034,7 +5112,7 @@ class Ndb_schema_event_handler {
 
       if (schema->schema_op_id) {
         // Use new protocol
-        if (!ack_schema_op_with_result(schema, schema_op_result)) {
+        if (!ack_schema_op_with_result(schema)) {
           // Fallback to old protocol as stop gap, no result will be returned
           // but at least the coordinator will be informed
           ack_schema_op(schema);
@@ -5051,8 +5129,7 @@ class Ndb_schema_event_handler {
     return 0;
   }
 
-  void handle_schema_op_post_epoch(const Ndb_schema_op *schema,
-                                   Ndb_schema_op_result &) {
+  void handle_schema_op_post_epoch(const Ndb_schema_op *schema) {
     DBUG_TRACE;
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d", schema->db,
                          schema->name, schema->query, schema->type));
@@ -5121,6 +5198,7 @@ class Ndb_schema_event_handler {
   MEM_ROOT *m_mem_root;
   uint m_own_nodeid;
   Ndb_schema_dist_data &m_schema_dist_data;
+  Ndb_schema_op_result m_schema_op_result;
   bool m_post_epoch;
 
   bool is_post_epoch(void) const { return m_post_epoch; }
@@ -5154,11 +5232,17 @@ class Ndb_schema_event_handler {
       return;
     }
 
+    // Unpack the message received
+    Ndb_schema_result_table schema_result_table(m_thd_ndb);
+    const std::string unpacked_message =
+        schema_result_table.unpack_message(message);
+
     ndb_log_verbose(
         19,
         "Received ndb_schema_result insert, nodeid: %d, schema_op_id: %d, "
         "participant_node_id: %d, result: %d, message: '%s'",
-        nodeid, schema_op_id, participant_node_id, result, message.c_str());
+        nodeid, schema_op_id, participant_node_id, result,
+        unpacked_message.c_str());
 
     // Lookup NDB_SCHEMA_OBJECT from nodeid + schema_op_id
     std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
@@ -5170,15 +5254,12 @@ class Ndb_schema_event_handler {
     }
 
     ndb_schema_object->result_received_from_node(participant_node_id, result,
-                                                 message);
+                                                 unpacked_message);
 
     if (ndb_schema_object->check_all_participants_completed()) {
       // All participants have completed(or failed) -> send final ack
       ack_schema_op_final(ndb_schema_object->db(), ndb_schema_object->name());
-      return;
     }
-
-    return;
   }
 
   void handle_schema_result_event(Ndb *s_ndb, NdbEventOperation *pOp,
@@ -5390,11 +5471,10 @@ class Ndb_schema_event_handler {
           continue;  // Handled an ack -> don't send new ack
         }
 
-        Ndb_schema_op_result schema_op_result;
-        handle_schema_op_post_epoch(schema, schema_op_result);
+        handle_schema_op_post_epoch(schema);
         if (schema->schema_op_id) {
           // Use new protocol
-          if (!ack_schema_op_with_result(schema, schema_op_result)) {
+          if (!ack_schema_op_with_result(schema)) {
             // Fallback to old protocol as stop gap, no result will be returned
             // but at least the coordinator will be informed
             ack_schema_op(schema);

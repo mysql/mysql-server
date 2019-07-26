@@ -69,6 +69,8 @@ call mtr.add_suppression("Failed to remove table definition");
 --connection mysqld2
 --echo At MySQL Server 2, DROP the NDB table:
 
+# This will not drop the shadow tables in both mysqld1 and mysqld3
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 DROP TABLE mysql.mtr__acl_test_table;
 
 --connection mysqld4

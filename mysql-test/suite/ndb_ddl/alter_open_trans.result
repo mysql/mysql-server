@@ -7,6 +7,8 @@ select count(*) from t1;
 count(*)
 2
 ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
 select a from t1 where b = 2;
 ERROR HY000: Table definition has changed, please retry transaction
 show warnings;
@@ -31,6 +33,8 @@ primary key(col0)) engine = ndb;
 begin;
 insert into t1 (col0) values (1);
 alter table t1 algorithm=inplace, add column col32 int COLUMN_FORMAT DYNAMIC;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
 select * from t1;
 ERROR HY000: Table definition has changed, please retry transaction
 show warnings;

@@ -96,21 +96,36 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
-create table t1 (a int) engine=myisam;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
+create table t1 (a int) engine=innodb;
 create table t1 (a int) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 drop table t1;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 't1' failed'
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 drop table t1;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 't1' failed'
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 drop table t1;
 select * from t1 /* force discovery */;
 a
@@ -122,10 +137,16 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
-create table t1 (a int) engine=myisam;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
+create table t1 (a int) engine=innodb;
 create table t1 (a int) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 alter table t1 algorithm=copy, add column b int column_format dynamic;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
 drop table t1;
 select * from t1 /* force discovery */;
 a	b
@@ -137,10 +158,16 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
-create table t1 (a int) engine=myisam;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
+create table t1 (a int) engine=innodb;
 create table t1 (a int primary key) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 alter table t1 algorithm=inplace, add column b int column_format dynamic;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
 drop table t1;
 select * from t1 /* force discovery */;
 a	b
@@ -152,9 +179,12 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
-create table t1 (a int) engine=myisam;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
+create table t1 (a int) engine=innodb;
 create table t1 (a int) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 rename table t1 to t2;
 select * from t2 /* force discovery */;
 a

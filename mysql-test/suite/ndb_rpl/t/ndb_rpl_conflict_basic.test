@@ -347,6 +347,7 @@ create table t3oneex$EX (
 # Now create actual tables on this server (id 1)
 create table t1allsame(a int primary key, b varchar(200), X int unsigned) engine=ndb;
 create table t2diffex(a int primary key, b varchar(200), X int unsigned) engine=ndb;
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 create table t3oneex(a int primary key, b varchar(200)) engine=ndb;
 
 # Now examine server logs to see that conflict detection and

@@ -56,7 +56,7 @@ class Ndb_util_table {
   void push_warning(const char *fmt, ...) const
       MY_ATTRIBUTE((format(printf, 2, 3)));
 
-  Ndb_util_table(class Thd_ndb *, std::string db_name, std::string table_name,
+  Ndb_util_table(Thd_ndb *, std::string db_name, std::string table_name,
                  bool hidden, bool create_events = true);
   ~Ndb_util_table();
 
@@ -109,6 +109,27 @@ class Ndb_util_table {
     */
   bool drop_event_in_NDB(const char *event_name) const;
 
+  /**
+     @brief Pack the string to be written to a column of a util table
+     @note Table definition must be loaded with open() before this function is
+           called
+     @param column_name  Column name
+     @param src          String to be packed
+     @param dst [out]    Packed string
+     @return true if successful, false if not
+  */
+  bool pack_varbinary(const char *column_name, const char *src, char *dst);
+
+  /**
+     @brief Unpack the string
+     @note Table definition must be loaded with open() before this function is
+           called
+     @param column_name  Column name
+     @param packed_str   String to be unpacked
+     @return Unpacked string which is empty on failure
+  */
+  std::string unpack_varbinary(const char *column_name, const char *packed_str);
+
  public:
   /**
     @brief Create or upgrade the table in NDB, and in the local Data Dictionary,
@@ -130,7 +151,7 @@ class Ndb_util_table {
   bool open();
 
   /**
-     @brief Check if actual table definition in NDB matches the expeJ??cted.
+     @brief Check if actual table definition in NDB matches the expected.
      @note This function may return true as long as the table supports minimal
      functionality, the caller still has to check further before using
      functionality which does not exist after or during an upgrade.

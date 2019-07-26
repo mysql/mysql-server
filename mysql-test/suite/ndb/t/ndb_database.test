@@ -38,12 +38,13 @@ drop database `mysqltest.db`;
 --connection server1
 # Create database with occluding table t1
 create database newdb;
-create table newdb.t1 (a int primary key) engine=myisam;
+create table newdb.t1 (a int primary key) engine=innodb;
 
 # Supress errors provoked by the "shadow table"
 --disable_query_log
 call mtr.add_suppression("Local table 'newdb.t1' .* shadows");
 call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Distribution of CREATE TABLE");
 --enable_query_log
 
 --connection server2
@@ -51,6 +52,7 @@ call mtr.add_suppression("Failed to update table definition");
 # Ndb-list-objects returns a blob part table before the main table.
 # NOTE! The create table works on this mysqld but fails on first mysqld which
 # has a "shadow table"
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 create table newdb.t1 (a int primary key,
                        b1  blob,
                        b2  blob,

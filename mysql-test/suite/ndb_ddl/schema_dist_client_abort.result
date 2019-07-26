@@ -10,7 +10,7 @@ CREATE TABLE t1(
 a int primary key
 ) engine = NDB;
 Warnings:
-Warning	1296	Node <nodeid> '9005 Schema distribution is not ready'
+Warning	1296	Node <nodeid> 'Schema distribution is not ready'
 set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
 DROP TABLE t1;
 # Setup to trigger the client to detect that it was killed while
@@ -22,11 +22,11 @@ CREATE TABLE t1(
 a int primary key
 ) engine = NDB;
 Warnings:
-Warning	1296	Node <nodeid> '9007 Client was killed'
-Warning	1296	Node <nodeid> '9007 Client was killed'
-Warning	1296	Node <nodeid> '9007 Client was killed'
-Warning	1296	Node <nodeid> '9007 Client was killed'
-Warning	1296	Node <nodeid> '9007 Client was killed'
-Warning	1296	Node <nodeid> '9007 Client was killed'
+Warning	1296	Node <nodeid> 'Client was killed'
+Warning	1296	Node <nodeid> 'Client was killed'
+Warning	1296	Node <nodeid> 'Client was killed'
+Warning	1296	Node <nodeid> 'Client was killed'
+Warning	1296	Node <nodeid> 'Client was killed'
+Warning	1296	Node <nodeid> 'Client was killed'
 set GLOBAL debug="-d,ndb_schema_dist_client_killed";
 DROP TABLE t1;
