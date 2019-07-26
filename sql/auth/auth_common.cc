@@ -25,16 +25,9 @@
 #include "sql/auth/sql_auth_cache.h"
 
 #include <string.h>
-#include "my_alloc.h"
-#include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
-#include "sql/auth/auth_internal.h"
-#include "sql/auth/sql_security_ctx.h"
+#include <cmath>
 #include "sql/field.h"
-#include "sql/sql_class.h"
-#include "sql/sql_const.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 
 namespace consts {

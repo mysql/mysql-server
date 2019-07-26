@@ -26,7 +26,6 @@
 
 #include "my_inttypes.h"
 #include "sql/merge_sort.h"
-#include "sql/sql_planner.h"
 #include "sql/sql_select.h"
 #include "unittest/gunit/test_utils.h"
 

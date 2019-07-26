@@ -27,12 +27,12 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "my_alloc.h"
 #include "sql/sp_head.h"  // Stored_program_creation_ctx
 
 class Object_creation_ctx;
 class THD;
-struct CHARSET_INFO;
-struct MEM_ROOT;
 
 /**
   Trigger_creation_ctx -- creation context of triggers.
@@ -47,15 +47,20 @@ class Trigger_creation_ctx : public Stored_program_creation_ctx {
                                       const LEX_CSTRING &db_cl_name);
 
  public:
-  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override;
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
+    return new (mem_root)
+        Trigger_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+  }
 
  protected:
-  Object_creation_ctx *create_backup_ctx(THD *thd) const override;
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
+    return new (thd->mem_root) Trigger_creation_ctx(thd);
+  }
 
-  void delete_backup_ctx() override;
+  virtual void delete_backup_ctx() { destroy(this); }
 
  private:
-  explicit Trigger_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
+  Trigger_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
 
   Trigger_creation_ctx(const CHARSET_INFO *client_cs,
                        const CHARSET_INFO *connection_cl,

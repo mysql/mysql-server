@@ -27,9 +27,10 @@
 #include <sys/types.h>
 #include <string>
 
-#include "field_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
@@ -40,9 +41,7 @@
 class Object_creation_ctx;
 class Query_arena;
 class THD;
-struct CHARSET_INFO;
 struct LEX_USER;
-struct MEM_ROOT;
 
 namespace dd {
 class Routine;
@@ -150,15 +149,21 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
                                                    TABLE *proc_tbl);
 
  public:
-  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override;
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
+    return new (mem_root)
+        Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+  }
 
  protected:
-  Object_creation_ctx *create_backup_ctx(THD *thd) const override;
-  void delete_backup_ctx() override;
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
+    DBUG_TRACE;
+    return new (thd->mem_root) Stored_routine_creation_ctx(thd);
+  }
+
+  virtual void delete_backup_ctx() { destroy(this); }
 
  private:
-  explicit Stored_routine_creation_ctx(THD *thd)
-      : Stored_program_creation_ctx(thd) {}
+  Stored_routine_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
 
   Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,

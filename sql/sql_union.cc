@@ -58,7 +58,6 @@
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
-#include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"

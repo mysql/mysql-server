@@ -29,13 +29,16 @@
 
 #include "errors.h"
 
-#include <cstddef>
+#include <functional>
 #include <unordered_map>
 
-#include "my_dbug.h"
-#include "my_inttypes.h"     // MYF
-#include "my_sys.h"          // my_error
-#include "mysqld_error.h"    // Error codes
+#include "my_inttypes.h"   // MYF
+#include "my_sys.h"        // my_error
+#include "mysqld_error.h"  // Error codes
+#include "sql/current_thd.h"
+#include "sql/derror.h"      // ER_THD()
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_error.h"   // Sql_condition
 #include "unicode/utypes.h"  // UErrorCode
 
 namespace regexp {

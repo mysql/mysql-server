@@ -1553,7 +1553,7 @@ int WeedoutIterator::Read() {
       return ret;
     }
 
-    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       TABLE *table = tab->qep_tab->table();
       if (!(table->is_nullable() && table->has_null_row()) &&
           !table->const_table && !table->ref_is_set_without_position_call) {
@@ -1582,7 +1582,7 @@ vector<string> WeedoutIterator::DebugString() const {
     ret += m_sj->tabs->qep_tab->table()->alias;
   } else {
     ret += "(";
-    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       if (tab != m_sj->tabs) {
         ret += ", ";
       }
@@ -1823,10 +1823,9 @@ int BufferingWindowingIterator::Read() {
         change so we had to finalize the previous partition first.
         Bring back saved row for next partition.
       */
-      if (bring_back_frame_row(
-              thd(), m_window, m_temp_table_param,
-              Window::FBC_FIRST_IN_NEXT_PARTITION,
-              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
+      if (bring_back_frame_row(thd(), *m_window, m_temp_table_param,
+                               Window::FBC_FIRST_IN_NEXT_PARTITION,
+                               Window::REA_WONT_UPDATE_HINT)) {
         return 1;
       }
 
@@ -1893,10 +1892,9 @@ int BufferingWindowingIterator::Read() {
         between out tmp record and frame buffer record, instead of
         involving the in record. FIXME.
       */
-      if (bring_back_frame_row(
-              thd(), m_window, nullptr /* no copy to OUT */,
-              Window::FBC_LAST_BUFFERED_ROW,
-              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
+      if (bring_back_frame_row(thd(), *m_window, nullptr /* no copy to OUT */,
+                               Window::FBC_LAST_BUFFERED_ROW,
+                               Window::REA_WONT_UPDATE_HINT)) {
         return 1;
       }
     }

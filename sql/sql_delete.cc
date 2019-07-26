@@ -502,17 +502,14 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       DBUG_ASSERT(!thd->is_error());
       thd->inc_examined_row_count(1);
 
-      if (qep_tab.condition() != nullptr) {
-        const bool skip_record = qep_tab.condition()->val_int() == 0;
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          // Row failed condition check, release lock
-          table->file->unlock_row();
-          continue;
-        }
+      bool skip_record;
+      if (qep_tab.skip_record(thd, &skip_record)) {
+        error = 1;
+        break;
+      }
+      if (skip_record) {
+        table->file->unlock_row();  // Row failed condition check, release lock
+        continue;
       }
 
       DBUG_ASSERT(!thd->is_error());

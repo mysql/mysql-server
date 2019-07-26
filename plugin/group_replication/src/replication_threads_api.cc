@@ -26,7 +26,6 @@
 
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
-#include "mysqld_error.h"
 
 using std::string;
 

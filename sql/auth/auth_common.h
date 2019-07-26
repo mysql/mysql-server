@@ -24,12 +24,11 @@
 #define AUTH_COMMON_INCLUDED
 
 #include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
 #include <functional>
 #include <list>
 #include <memory>
-#include <string>
+#include <set>
 #include <utility>
 #include <vector>
 
