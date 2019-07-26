@@ -40,19 +40,21 @@
 
 namespace protocol {
 
-class XRow_encoder {
+template <typename Encoder_type>
+class XRow_encoder_base {
  private:
-  XProtocol_encoder *m_encoder = nullptr;
-  XProtocol_encoder::Position m_row_begin;
+  using Position = typename Encoder_type::Position;
+  Encoder_type *m_encoder = nullptr;
+  Position m_row_begin;
   uint32_t m_fields;
 
  public:
-  explicit XRow_encoder(XProtocol_encoder *encoder) : m_encoder(encoder) {}
+  explicit XRow_encoder_base(Encoder_type *encoder) : m_encoder(encoder) {}
 
   uint32_t get_num_fields() const { return m_fields; }
 
   void begin_row() {
-    m_encoder->begin_xmessage<tags::Row::server_id, 100>(&m_row_begin);
+    m_encoder->template begin_xmessage<tags::Row::server_id, 100>(&m_row_begin);
     m_fields = 0;
   }
 
@@ -62,20 +64,25 @@ class XRow_encoder {
 
   void field_null() {
     ++m_fields;
-    m_encoder->encode_field_delimited_header<tags::Row::field>();
-    m_encoder->encode_const_var_uint<0>();
+    m_encoder->template ensure_buffer_size<20>();
+    m_encoder->template encode_field_delimited_header<tags::Row::field>();
+    m_encoder->template encode_const_var_uint<0>();
   }
 
   void field_signed_longlong(const longlong value) {
     ++m_fields;
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<30>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
     m_encoder->encode_var_sint64(static_cast<int64_t>(value));
     m_encoder->end_delimited_field(field_begin);
   }
 
   void field_unsigned_longlong(const ulonglong value) {
     ++m_fields;
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<30>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
     m_encoder->encode_var_uint64(static_cast<uint64_t>(value));
     m_encoder->end_delimited_field(field_begin);
   }
@@ -90,7 +97,9 @@ class XRow_encoder {
           ((static_cast<uint64_t>(value[i]) & 0xff) << ((length - i - 1) * 8));
     }
 
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<30>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
     m_encoder->encode_var_uint64(binary_value);
     m_encoder->end_delimited_field(field_begin);
   }
@@ -100,9 +109,10 @@ class XRow_encoder {
     // special case: empty SET
     if (0 == length) {
       // write length=0x01 to the buffer and we're done here
-      m_encoder->encode_field_delimited_header<tags::Row::field>();
-      m_encoder->encode_const_var_uint<1>();
-      m_encoder->encode_const_var_uint<1>();
+      m_encoder->template ensure_buffer_size<30>();
+      m_encoder->template encode_field_delimited_header<tags::Row::field>();
+      m_encoder->template encode_const_var_uint<1>();
+      m_encoder->template encode_const_var_uint<1>();
       return;
     }
 
@@ -124,9 +134,11 @@ class XRow_encoder {
       set_vals.push_back(std::string(p_value, elem_len));
     }
 
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<20>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
     for (size_t i = 0; i < set_vals.size(); ++i) {
-      m_encoder->ensure_buffer_size<100>();
+      m_encoder->template ensure_buffer_size<10>();
       m_encoder->encode_var_uint64(set_vals[i].length());
       m_encoder->encode_raw(
           reinterpret_cast<const uint8_t *>(set_vals[i].c_str()),
@@ -137,7 +149,8 @@ class XRow_encoder {
 
   void field_string(const char *value, const size_t length) {
     ++m_fields;
-    m_encoder->encode_field_delimited_header<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<30>();
+    m_encoder->template encode_field_delimited_header<tags::Row::field>();
     m_encoder->encode_var_uint32(static_cast<uint32_t>(length + 1));
     m_encoder->encode_raw(reinterpret_cast<const uint8_t *>(value), length);
     m_encoder->encode_raw(reinterpret_cast<const uint8_t *>("\0"), 1);
@@ -152,7 +165,9 @@ class XRow_encoder {
     assert(value->second < 60);
     assert(value->second_part < 1000000);
     ++m_fields;
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<32>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
 
     m_encoder->encode_fixedvar16_uint32(value->year);
     m_encoder->encode_fixedvar8_uint8(value->month);
@@ -178,12 +193,14 @@ class XRow_encoder {
     assert(value->second < 60);
     assert(value->second_part < 1000000);
     ++m_fields;
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<47>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
 
     if (value->neg)
-      m_encoder->encode_const_var_uint<1>();
+      m_encoder->template encode_const_var_uint<1>();
     else
-      m_encoder->encode_const_var_uint<0>();
+      m_encoder->template encode_const_var_uint<0>();
 
     if (value->hour || value->minute || value->second || value->second_part) {
       m_encoder->encode_var_uint64(value->hour);
@@ -205,7 +222,9 @@ class XRow_encoder {
     assert(value->month < 13);
     assert(value->day < 32);
     ++m_fields;
-    auto field_begin = m_encoder->begin_delimited_field<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<27>();
+    auto field_begin =
+        m_encoder->template begin_delimited_field<tags::Row::field>();
 
     m_encoder->encode_var_uint32(value->year);
     m_encoder->encode_fixedvar8_uint8(value->month);
@@ -215,16 +234,18 @@ class XRow_encoder {
 
   void field_float(const float value) {
     ++m_fields;
-    m_encoder->encode_field_delimited_header<tags::Row::field>();
-    m_encoder->encode_const_var_uint<4>();  // Field size
+    m_encoder->template ensure_buffer_size<24>();
+    m_encoder->template encode_field_delimited_header<tags::Row::field>();
+    m_encoder->template encode_const_var_uint<4>();  // Field size
     m_encoder->encode_fixed_uint32(
         google::protobuf::internal::WireFormatLite::EncodeFloat(value));
   }
 
   void field_double(const double value) {
     ++m_fields;
-    m_encoder->encode_field_delimited_header<tags::Row::field>();
-    m_encoder->encode_const_var_uint<8>();  // Field size
+    m_encoder->template ensure_buffer_size<28>();
+    m_encoder->template encode_field_delimited_header<tags::Row::field>();
+    m_encoder->template encode_const_var_uint<8>();  // Field size
     m_encoder->encode_fixed_uint64(
         google::protobuf::internal::WireFormatLite::EncodeDouble(value));
   }
@@ -235,7 +256,8 @@ class XRow_encoder {
     xcl::Decimal dec(dec_str);
     std::string dec_bytes = dec.to_bytes();
 
-    m_encoder->encode_field_delimited_header<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<30>();
+    m_encoder->template encode_field_delimited_header<tags::Row::field>();
     m_encoder->encode_var_uint32(static_cast<uint32_t>(dec_bytes.length()));
     m_encoder->encode_raw(reinterpret_cast<const uint8_t *>(dec_bytes.c_str()),
                           (static_cast<uint32_t>(dec_bytes.length())));
@@ -252,11 +274,18 @@ class XRow_encoder {
     xcl::Decimal dec(str_buf);
     std::string dec_bytes = dec.to_bytes();
 
-    m_encoder->encode_field_delimited_header<tags::Row::field>();
+    m_encoder->template ensure_buffer_size<30>();
+    m_encoder->template encode_field_delimited_header<tags::Row::field>();
     m_encoder->encode_var_uint32(static_cast<uint32_t>(dec_bytes.length()));
     m_encoder->encode_raw(reinterpret_cast<const uint8_t *>(dec_bytes.c_str()),
                           (static_cast<uint32_t>(dec_bytes.length())));
   }
+};
+
+class XRow_encoder : public XRow_encoder_base<XProtocol_encoder> {
+ public:
+  using Base = XRow_encoder_base<XProtocol_encoder>;
+  using Base::Base;
 };
 
 }  // namespace protocol

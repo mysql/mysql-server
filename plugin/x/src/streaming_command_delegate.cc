@@ -365,7 +365,7 @@ ulong Streaming_command_delegate::get_client_capabilities() {
 
 /****** Getting data ******/
 int Streaming_command_delegate::get_null() {
-  log_debug("Streaming_command_delegate::get_time");
+  log_debug("Streaming_command_delegate::get_null");
   m_proto->row_builder()->field_null();
 
   return false;

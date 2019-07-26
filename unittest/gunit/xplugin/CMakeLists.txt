@@ -118,6 +118,7 @@ SET(XPL_TEST_SRC
   xpl/xdatetime_t.cc
   xpl/xdecimal_t.cc
   xpl/xmessage_buffer_t.cc
+  xpl/xrow_buffer_t.cc
   xpl/xpl_regex_t.cc
 )
 
