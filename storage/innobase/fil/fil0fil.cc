@@ -8799,6 +8799,20 @@ Fil_path::Fil_path(const char *path, size_t len, bool normalize_path)
 Fil_path::Fil_path() : m_path(), m_abs_path() { /* No op */
 }
 
+bool Fil_path::is_hidden(std::string path) {
+  std::string basename(path);
+  while (!basename.empty()) {
+    char c = basename.back();
+    if (!(Fil_path::is_separator(c) || c == '*')) {
+      break;
+    }
+    basename.resize(basename.size() - 1);
+  }
+  auto sep = basename.find_last_of(SEPARATOR);
+
+  return (sep != std::string::npos && basename[sep + 1] == '.');
+}
+
 /** @return true if the path exists and is a file . */
 os_file_type_t Fil_path::get_file_type(const std::string &path) {
   const std::string *ptr;
@@ -9362,7 +9376,7 @@ static void convert_space_name_to_filesystem_charset(
   }
 
   /* Remove the trailing extension (if any), from the filename. */
-  pos = filename.find(".");
+  pos = filename.find_last_of(".");
   if (pos != std::string::npos) {
     filename.resize(pos);
   }
@@ -9383,8 +9397,10 @@ static void convert_space_name_to_filesystem_charset(
   char db_buf[MAX_DATABASE_NAME_LEN + 1];
   char tbl_buf[MAX_TABLE_NAME_LEN + 1];
 
+  /* This call sets stay_quiet to true because the subdir might be "." which
+  would cause an unnecessary warning. */
   auto len = filename_to_tablename(subdir.c_str(), db_buf,
-                                   (MAX_DATABASE_NAME_LEN + 1));
+                                   (MAX_DATABASE_NAME_LEN + 1), true);
   db_buf[len] = '\0';
 
   len = filename_to_tablename(filename.c_str(), tbl_buf,
@@ -10286,7 +10302,7 @@ static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
 @param[in]	old_name	old file name
 @param[in]	new_name	new file name
 @return	whether the operation was successfully applied (the name did not exist,
-or new_name did not exist and name was successfully renamed to new_name)  */
+or new_name did not exist and name was successfully renamed to new_name) */
 static bool fil_op_replay_rename(const page_id_t &page_id,
                                  const std::string &old_name,
                                  const std::string &new_name) {

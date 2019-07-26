@@ -1959,7 +1959,7 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 @retval	false	if O_DIRECT is not supported. */
 bool os_is_o_direct_supported() MY_ATTRIBUTE((warn_unused_result));
 
-/** Class to scan the directory heirarch using a depth first scan. */
+/** Class to scan the directory heirarchy using a depth first scan. */
 class Dir_Walker {
  public:
   using Path = std::string;
@@ -1970,9 +1970,9 @@ class Dir_Walker {
   static bool is_directory(const Path &path);
 
   /** Depth first traversal of the directory starting from basedir
-  @param[in]	basedir		Start scanning from this directory
-  @param[in]    recursive       True if scan should be recursive
-  @param[in]	f		Function to call for each entry */
+  @param[in]  basedir    Start scanning from this directory
+  @param[in]  recursive  `true` if scan should be recursive
+  @param[in]  f          Function to call for each entry */
   template <typename F>
   static void walk(const Path &basedir, bool recursive, F &&f) {
 #ifdef _WIN32
@@ -2003,9 +2003,9 @@ class Dir_Walker {
   using Function = std::function<void(const Path &, size_t)>;
 
   /** Depth first traversal of the directory starting from basedir
-  @param[in]	basedir		Start scanning from this directory
-  @param[in]    recursive       True if scan should be recursive
-  @param[in]	f		Function to call for each entry */
+  @param[in]      basedir    Start scanning from this directory
+  @param[in]      recursive  `true` if scan should be recursive
+  @param[in]      f          Callback for each entry found */
 #ifdef _WIN32
   static void walk_win32(const Path &basedir, bool recursive, Function &&f);
 #else
