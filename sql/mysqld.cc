@@ -10139,6 +10139,8 @@ static int fix_paths(void) {
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir)) return 1;
   if (!opt_mysql_tmpdir) opt_mysql_tmpdir = mysql_tmpdir;
   if (!slave_load_tmpdir) slave_load_tmpdir = mysql_tmpdir;
+
+  if (opt_help) return 0;
   /*
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
