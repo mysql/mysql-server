@@ -51,7 +51,7 @@ void Dblqh::initData()
   c_is_io_lag_reported = false;
   c_wait_lcp_surfacing = false;
   c_executing_redo_log = 0;
-  c_start_phase_49_waiting = false;
+  c_start_phase_9_waiting = false;
   c_outstanding_write_local_sysfile = false;
   c_send_gcp_saveref_needed = false;
   m_first_distributed_lcp_started = false;

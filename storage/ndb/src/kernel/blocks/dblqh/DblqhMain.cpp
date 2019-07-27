@@ -870,7 +870,7 @@ void Dblqh::execSTTOR(Signal* signal)
     init_elapsed_time(signal, c_latestTIME_SIGNAL);
     sendsttorryLab(signal);
     break;
-  case 49:
+  case 9:
     jam();
     /**
      * We add this wait phase to avoid having to handle multiple
@@ -885,7 +885,7 @@ void Dblqh::execSTTOR(Signal* signal)
     ndbrequire(cstartRecReq == SRR_FIRST_LCP_DONE);
     if (is_first_instance())
     {
-      c_start_phase_49_waiting = true;
+      c_start_phase_9_waiting = true;
       /**
        * Restart is completed, we need to wait until this has been
        * reflected in the local sysfile. It becomes reflected in
@@ -893,7 +893,7 @@ void Dblqh::execSTTOR(Signal* signal)
        * avoids complex interaction handling of writes to the
        * local sysfile.
        */
-      DEB_LCP(("(%u)Start phase 49 wait started", instance()));
+      DEB_LCP(("(%u)Start phase 9 wait started", instance()));
     }
     else
     {
@@ -919,7 +919,7 @@ Dblqh::write_local_sysfile_restart_complete_done(Signal *signal)
 {
   cstartPhase = ZNIL;
   cstartType = ZNIL;
-  c_start_phase_49_waiting = false;
+  c_start_phase_9_waiting = false;
   sendsttorryLab(signal);
 }
 
@@ -1481,7 +1481,7 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[4] = 3;
   signal->theData[5] = 4;
   signal->theData[6] = 6;
-  signal->theData[7] = 49;
+  signal->theData[7] = 9;
   signal->theData[8] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
   sendSignal(cntrRef, GSN_STTORRY, signal, 9, JBB);
@@ -20477,7 +20477,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
      * also we won't report the GCI as restorable just yet.
      * This will not have any major impact since after the restart LCP
      * is completed a very short time should pass before we get to
-     * phase 49 where the LQH restart is fully completed and we know
+     * phase 9 where the LQH restart is fully completed and we know
      * that we are restorable again.
      */
     sendRESTORABLE_GCI_REP(signal, gci);
@@ -20496,11 +20496,11 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     jam();
     if (is_first_instance())
     {
-      if (c_start_phase_49_waiting)
+      if (c_start_phase_9_waiting)
       {
         jam();
         /**
-         * We have reached Start phase 49 and no one is writing local sysfile
+         * We have reached Start phase 9 and no one is writing local sysfile
          * since we arrive here. Thus we will write restart completed into the
          * local sysfile before we flush the GCI into the REDO logs.
          */
@@ -23643,11 +23643,11 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
        * taken care of by the NDBCNTR block in this case.
        */
       ndbrequire(cstartPhase != ZNIL);
-      if (c_start_phase_49_waiting)
+      if (c_start_phase_9_waiting)
       {
         jam();
         /**
-         * We have reached phase 49 during writing of the local sysfile.
+         * We have reached phase 9 during writing of the local sysfile.
          * We proceed immediately to update the local sysfile with the
          * fact that the restart is complete. After this we can synchronize
          * the GCP and report GCP_SAVECONF.
@@ -23666,11 +23666,11 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
     {
       jam();
       ndbrequire(cstartPhase != ZNIL);
-      if (c_start_phase_49_waiting)
+      if (c_start_phase_9_waiting)
       {
         jam();
         /**
-         * We have reached phase 49 during writing of local sysfile, proceed
+         * We have reached phase 9 during writing of local sysfile, proceed
          * to write local sysfile with the information that the restart is
          * completed before synching the GCP.
          */
@@ -23698,7 +23698,7 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
        * synching this GCP as requested.
        */
       ndbrequire(cstartPhase != ZNIL);
-      ndbrequire(c_start_phase_49_waiting);
+      ndbrequire(c_start_phase_9_waiting);
       g_eventLogger->info("Restart complete, updated local sysfile");
       write_local_sysfile_restart_complete_done(signal);
       start_synch_gcp(signal);
