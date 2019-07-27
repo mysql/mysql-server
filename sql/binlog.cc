@@ -5517,7 +5517,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
 
   /* Save variables so that we can reopen the log */
   save_name = name;
-  name = 0;  // Protect against free
+  name = nullptr;  // Protect against free
   close(LOG_CLOSE_TO_BE_OPENED, false /*need_lock_log=false*/,
         false /*need_lock_index=false*/);
 
@@ -5614,10 +5614,15 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
                           thd->lex->next_binlog_file_nr) ||
               error;
   }
-  if (!error) my_free(const_cast<char *>(save_name));
+  /* String has been duplicated, free old file-name */
+  if (name != nullptr) {
+    my_free(const_cast<char *>(save_name));
+    save_name = nullptr;
+  }
 
 err:
-  if (error == 1) name = const_cast<char *>(save_name);
+  if (name == nullptr)
+    name = const_cast<char *>(save_name);  // restore old file-name
   sid_lock->unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
