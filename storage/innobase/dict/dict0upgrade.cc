@@ -708,6 +708,14 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
       return (true);
     }
 
+    /* Set table id to mysql.columns at runtime */
+    if (dd_part_is_first(part_obj)) {
+      for (auto dd_column : *dd_table->table().columns()) {
+        dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                         part_table->id);
+      }
+    }
+
     /* Set table id */
     part_obj->set_se_private_id(part_table->id);
 

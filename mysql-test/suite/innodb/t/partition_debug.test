@@ -1,7 +1,104 @@
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_debug_sync.inc
 
 --echo #
+--echo # Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows warning
+--echo # if the table is dropped while filling metadata
+--echo #
+
+--disable_query_log
+CALL mtr.add_suppression("Unable to open innodb table with id = .* in the data dictionary.");
+--enable_query_log
+
+CREATE TABLE t_part (a INT PRIMARY KEY, b INT, c VARCHAR(64))
+  PARTITION BY HASH (a) PARTITIONS 5;
+
+SELECT lower(t.name), lower(c.name) FROM
+  INFORMATION_SCHEMA.INNODB_COLUMNS c
+  JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+  WHERE t.table_id = c.table_id AND t.name LIKE '%t_part%'
+  ORDER BY t.name, c.name;
+
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG='+d,do_before_filling_i_s_innodb_columns';
+SET DEBUG_SYNC='wait_before_filling_i_s_innodb_columns SIGNAL parked WAIT_FOR go';
+
+SEND SELECT lower(t.name), lower(c.name) FROM
+  INFORMATION_SCHEMA.INNODB_COLUMNS c
+  JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+  WHERE t.table_id = c.table_id AND t.name LIKE '%t_part%'
+  ORDER BY t.name, c.name;
+
+CONNECT (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR parked';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST;
+DROP TABLE t_part;
+SET DEBUG_SYNC='now SIGNAL go';
+
+CONNECTION default;
+--reap
+
+SHOW WARNINGS;
+
+# Search the warning message in the error file
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Unable to open innodb table with id = .* in the data dictionary.
+--source include/search_pattern.inc
+
+DISCONNECT con1;
+SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,do_before_filling_i_s_innodb_columns';
+
+--echo #
+--echo # Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows warning
+--echo # if the table is locked while filling metadata
+--echo #
+
+CREATE TABLE t_nopart (a INT PRIMARY KEY, b INT, c VARCHAR(64));
+INSERT INTO t_nopart VALUES (1, 1, 'v');
+
+SET DEBUG='+d,do_before_filling_i_s_innodb_columns';
+SET DEBUG_SYNC='wait_before_filling_i_s_innodb_columns SIGNAL parked1 WAIT_FOR go1';
+SET SESSION lock_wait_timeout=1;
+
+SEND SELECT lower(t.name), lower(c.name) FROM
+  INFORMATION_SCHEMA.INNODB_COLUMNS c
+  JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+  WHERE t.table_id = c.table_id AND t.name LIKE '%t_nopart%'
+  ORDER BY t.name, c.name;
+
+CONNECT (con2, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+SET DEBUG_SYNC='mysql_rm_table_after_lock_table_names SIGNAL parked2 WAIT_FOR go2';
+SEND DROP TABLE t_nopart;
+
+CONNECT (con3, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR parked2';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST;
+SET DEBUG_SYNC='now SIGNAL go1';
+
+CONNECTION default;
+--error 1205
+--reap
+
+# There will be an error and a warning because the MDL lock is held
+# at two different places while filling metadata
+SHOW WARNINGS;
+SET DEBUG_SYNC='now SIGNAL go2';
+
+CONNECTION con2;
+--reap
+
+DISCONNECT con2;
+DISCONNECT con3;
+
+CONNECTION default;
+SET SESSION lock_wait_timeout=default;
+SET DEBUG='-d,do_before_filling_i_s_innodb_columns';
+
 --echo # Different partitions can have different row format
 --echo # Case one: between dynamic and redundant
 --echo #

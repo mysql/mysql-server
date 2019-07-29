@@ -1,4 +1,85 @@
 #
+# Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows all the columns
+# in a non-partitioned table
+#
+CREATE TABLE t_nopart (a int PRIMARY KEY, b int, c varchar(64));
+SELECT lower(t.name), lower(c.name)
+FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+WHERE t.table_id = c.table_id and t.name like '%t_nopart%'
+  ORDER BY t.name, c.name;
+lower(t.name)	lower(c.name)
+test/t_nopart	a
+test/t_nopart	b
+test/t_nopart	c
+DROP TABLE t_nopart;
+#
+# Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows columns for
+# all the partitions in a partitioned table
+#
+CREATE TABLE t_part
+(a int,
+b int,
+c varchar(64),
+PRIMARY KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+SELECT lower(t.name), lower(c.name)
+FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+WHERE t.table_id = c.table_id and t.name like '%t_part%'
+  ORDER BY t.name, c.name;
+lower(t.name)	lower(c.name)
+test/t_part#p#p0	a
+test/t_part#p#p0	b
+test/t_part#p#p0	c
+test/t_part#p#p1	a
+test/t_part#p#p1	b
+test/t_part#p#p1	c
+test/t_part#p#p2	a
+test/t_part#p#p2	b
+test/t_part#p#p2	c
+test/t_part#p#p3	a
+test/t_part#p#p3	b
+test/t_part#p#p3	c
+test/t_part#p#p4	a
+test/t_part#p#p4	b
+test/t_part#p#p4	c
+DROP TABLE t_part;
+#
+# Test that INFORMATION_SCHEMA.INNODB_COLUMNS shows columns for all
+# the subpartitions of a table
+#
+CREATE TABLE t_subpart (a INT, b INT)
+PARTITION BY RANGE(b)
+SUBPARTITION BY HASH(b)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (1000),
+PARTITION p1 VALUES LESS THAN (2000),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+SELECT lower(t.name), lower(c.name)
+FROM INFORMATION_SCHEMA.INNODB_COLUMNS c
+JOIN INFORMATION_SCHEMA.INNODB_TABLES t
+WHERE t.table_id = c.table_id and t.name like '%t_subpart%'
+  ORDER BY t.name, c.name;
+lower(t.name)	lower(c.name)
+test/t_subpart#p#p0#sp#p0sp0	a
+test/t_subpart#p#p0#sp#p0sp0	b
+test/t_subpart#p#p0#sp#p0sp1	a
+test/t_subpart#p#p0#sp#p0sp1	b
+test/t_subpart#p#p1#sp#p1sp0	a
+test/t_subpart#p#p1#sp#p1sp0	b
+test/t_subpart#p#p1#sp#p1sp1	a
+test/t_subpart#p#p1#sp#p1sp1	b
+test/t_subpart#p#p2#sp#p2sp0	a
+test/t_subpart#p#p2#sp#p2sp0	b
+test/t_subpart#p#p2#sp#p2sp1	a
+test/t_subpart#p#p2#sp#p2sp1	b
+DROP TABLE t_subpart;
+#
 # Test of optimizer estimates
 #
 CREATE TABLE t0 (a int PRIMARY KEY, b int, c varchar(64));
