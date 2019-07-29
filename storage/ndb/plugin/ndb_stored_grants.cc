@@ -593,12 +593,12 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   const std::string alter_user("ALTER USER ");
   const std::string revoke_all("REVOKE ALL ON *.* FROM ");
 
+  /* Run statement CREATE USER IF NOT EXISTS */
   if (!get_local_user(name)) {
     ndb_log_info("From stored snapshot, adding NDB stored user: %s",
                  name.c_str());
+    run_acl_statement(create_user + name);
   }
-  /* Run statement CREATE USER IF NOT EXISTS */
-  run_acl_statement(create_user + name);
 
   /* Rewrite CREATE to ALTER */
   statement = statement.replace(0, 6, "ALTER");
