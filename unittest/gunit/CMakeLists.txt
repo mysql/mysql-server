@@ -79,7 +79,7 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys strings  ${GTEST_LIBRARIES} libmysql_errmsg)
+  mysys strings ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
   mysys strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
@@ -283,60 +283,34 @@ SET_TARGET_PROPERTIES(sqlgunitlib
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
-## Merging tests into fewer executables saves *a lot* of
-## link time and disk space ...
-OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
-IF (MERGE_UNITTESTS)
-  MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
-    ADD_TEST merge_small_tests)
-  SET_TARGET_PROPERTIES(merge_small_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
-  TARGET_LINK_LIBRARIES(merge_small_tests-t
-    mysys sqlgunitlib gunit_small)
-  
-  IF(WIN32)
-    LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
-  ENDIF()
-  LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
+MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+  ENABLE_EXPORTS
+  ADD_TEST merge_small_tests)
+TARGET_LINK_LIBRARIES(merge_small_tests-t sqlgunitlib gunit_small)
 
-  MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS} SKIP_INSTALL)
-  SET_TARGET_PROPERTIES(merge_large_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t
-    gunit_large strings mysys ${ICU_LIBRARIES})
-
-  TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
-  TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
-
-  SET(ADD_MERGE_LARGE_TESTS 1)
-  IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-    MESSAGE(WARNING
-      "Likely link failure for this compiler, skipping merge_large_tests-t")
-    SET_PROPERTY(TARGET merge_large_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-    UNSET(ADD_MERGE_LARGE_TESTS)
-  ENDIF()
-  IF(ADD_MERGE_LARGE_TESTS)
-    ADD_TEST(merge_large_tests
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_large_tests-t)
-  ENDIF()
-
-ENDIF(MERGE_UNITTESTS)
-
-SET(EXCLUDE_FROM_ALL "EXCLUDE_FROM_ALL")
-IF (NOT MERGE_UNITTESTS)
-  UNSET(EXCLUDE_FROM_ALL)
+IF(WIN32)
+  LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
 ENDIF()
+LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
+
+MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
+  ENABLE_EXPORTS
+  EXCLUDE_ON_SOLARIS
+  ADD_TEST merge_large_tests)
+
+TARGET_LINK_LIBRARIES(merge_large_tests-t
+  gunit_large
+  perfschema
+  sql_main
+  ${ICU_LIBRARIES}
+  )
 
 FOREACH(test ${TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
   ADD_COMPILE_DEFINITIONS(${test}-t.cc
     COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
-  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings mysys)
-  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
-  IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t sqlgunitlib gunit_small)
 ENDFOREACH()
 
 # See comments about __builtin_memcmp in the source file.
@@ -355,18 +329,15 @@ FOREACH(test ${SERVER_TESTS})
   IF(test MATCHES "table_cache")
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
-  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
-  TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave)
-  TARGET_LINK_LIBRARIES(${test}-t sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
-  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
 
-  TARGET_LINK_LIBRARIES(${test}-t perfschema)
-
-  IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
-  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t
+    gunit_large
+    perfschema
+    sql_main
+    ${ICU_LIBRARIES}
+    )
 ENDFOREACH()
 
 ADD_SUBDIRECTORY(ddl_rewriter)
