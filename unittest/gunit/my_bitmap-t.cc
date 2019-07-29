@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -432,8 +432,6 @@ error:
   return true;
 }
 
-#if defined(GTEST_HAS_PARAM_TEST)
-
 class BitMapTest : public ::testing::TestWithParam<uint> {
  protected:
   virtual void SetUp() {
@@ -504,8 +502,6 @@ TEST_P(BitMapTest, TestCompare) {
 TEST_P(BitMapTest, TestIntersect) {
   EXPECT_FALSE(test_intersect(&map, bitsize)) << "bitsize=" << bitsize;
 }
-
-#endif
 
 // Bug#11761614
 

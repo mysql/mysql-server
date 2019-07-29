@@ -33,8 +33,6 @@ namespace byteorder_unittest {
 
 using std::numeric_limits;
 
-#if defined(GTEST_HAS_PARAM_TEST)
-
 /*
   This class is used to instantiate parameterized tests for float and double.
  */
@@ -101,8 +99,6 @@ TEST_P(Float8Test, PutAndGet) {
   output = doubleget(buf);
   EXPECT_EQ(input, output);
 }
-
-#endif  // GTEST_HAS_PARAM_TEST
 
 #if defined(GTEST_HAS_TYPED_TEST)
 
