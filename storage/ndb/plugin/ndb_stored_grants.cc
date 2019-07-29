@@ -260,14 +260,16 @@ void ThreadContext::deserialize_users(std::string &str) {
       end = str.find('\'', end + 1);
       if (end == std::string::npos) return;
     }
-    if (++nfound > max) {
+    size_t len = end + 1 - pos;
+    std::string user = str.substr(pos, len);
+    if (get_local_user(user) && (++nfound > max)) {
+      ndb_log_verbose(9, "deserialize_users() choosing complete refresh");
       m_read_keys.clear();
       return;
     }
     {
-      size_t len = end + 1 - pos;
       char *buf = getBuffer(len + 4);
-      metadata_table.packName(buf, str.substr(pos, len));
+      metadata_table.packName(buf, user);
       m_read_keys.push_back(buf);
     }
     pos = end + 2;
