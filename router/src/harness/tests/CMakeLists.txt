@@ -20,21 +20,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 IF(NOT BUILD_IS_SINGLE_CONFIG)
   FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
     execute_process(
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log/harness
+      COMMAND ${CMAKE_COMMAND} -E
+      make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var
+      COMMAND ${CMAKE_COMMAND} -E
+      make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log
+      COMMAND ${CMAKE_COMMAND} -E
+      make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log/harness
     )
   ENDFOREACH()
 ELSE()
   execute_process(
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
+    COMMAND ${CMAKE_COMMAND} -E
+    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
+    COMMAND ${CMAKE_COMMAND} -E
+    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
+    COMMAND ${CMAKE_COMMAND} -E
+    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
   )
 ENDIF()
 

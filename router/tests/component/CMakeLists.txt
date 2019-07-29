@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,27 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
-  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
-  LIB_DEPENDS mock_server_rest_client;http_client;http_common
-  DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
-          routing;metadata_cache;http_auth_realm;http_auth_backend;rest_api;
-          rest_router;rest_routing;rest_metadata_cache
+  LIB_DEPENDS
+  http_client
+  http_common
+  mock_server_rest_client
+
+  DEPENDS
+  http_auth_backend
+  http_auth_realm
+  http_server
+  master_key_test_writer
+  metadata_cache
+  mock_server
+  mysql_server_mock
+  mysqlrouter
+  rest_api
+  rest_metadata_cache
+  rest_router
+  rest_routing
+  routing
   )
 
 # When system deployment bootstrap is executed, files are

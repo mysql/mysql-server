@@ -20,11 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# PROJECT(lot0lot)
-INCLUDE_DIRECTORIES(
-  ${GTEST_INCLUDE_DIRS}
-)
-
 SET(ZLOB_SRC_FILES
   zlob0int-t.cc
   zlob0int.cc
