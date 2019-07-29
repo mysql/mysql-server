@@ -15,6 +15,7 @@ Warnings:
 Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
 Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable online ADD COLUMN
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
 update t1 set b = 0 where a = 2;
 ERROR HY000: Table definition has changed, please retry transaction
 show warnings;
