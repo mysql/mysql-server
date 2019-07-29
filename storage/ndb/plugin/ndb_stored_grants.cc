@@ -81,6 +81,7 @@ class ThreadContext : public Ndb_local_connection {
   ~ThreadContext();
 
   void apply_current_snapshot();
+  void write_status_message_to_server_log();
   int build_cache_of_ndb_users();
   Ndb_stored_grants::Strategy handle_change(ChangeNotice *);
   void deserialize_users(std::string &);
@@ -129,6 +130,8 @@ class ThreadContext : public Ndb_local_connection {
   Thd_ndb *m_thd_ndb;
   bool m_closed;
   bool m_rebuilt_cache;
+  size_t m_applied_users;
+  size_t m_applied_grants;
 
   Mem_root_array<char *> m_read_keys;
   Mem_root_array<unsigned short> m_grant_count;
@@ -185,6 +188,8 @@ ThreadContext::ThreadContext(THD *thd)
       m_thd_ndb(get_thd_ndb(thd)),
       m_closed(true),
       m_rebuilt_cache(false),
+      m_applied_users(0),
+      m_applied_grants(0),
       m_read_keys(&mem_root),
       m_grant_count(&mem_root),
       m_current_rows(&mem_root),
@@ -310,7 +315,7 @@ int ThreadContext::get_grants_for_user(std::string user) {
 
   List<Ed_row> results = *get_results();
   uint n = results.elements;
-  ndb_log_verbose(30, "SHOW GRANTS FOR %s returned %d rows", user.c_str(), n);
+  ndb_log_verbose(9, "SHOW GRANTS FOR %s returned %d rows", user.c_str(), n);
 
   for (uint seq = 0; seq < n; seq++) {
     Ed_row *result_row = results[seq];
@@ -419,8 +424,8 @@ const NdbError *ThreadContext::read_snapshot(NdbTransaction *tx) {
     }
   }
 
-  ndb_log_info("Ndb_stored_grants::snapshot_fetch, read %zu rows",
-               m_current_rows.size());
+  ndb_log_verbose(9, "Ndb_stored_grants::snapshot_fetch, read %zu rows",
+                  m_current_rows.size());
   return error;
 }
 
@@ -638,6 +643,7 @@ void ThreadContext::apply_current_snapshot() {
 
     switch (type) {
       case TYPE_USER:
+        m_applied_users++;
         is_null = !metadata_table.getNote(row, &note);
         if (is_null) {
           ndb_log_error("Unexpected NULL in ndb_sql_metadata table");
@@ -652,6 +658,7 @@ void ThreadContext::apply_current_snapshot() {
         }
         break;
       case TYPE_GRANT:
+        m_applied_grants++;
         run_acl_statement(statement);
         break;
       default:
@@ -663,6 +670,12 @@ void ThreadContext::apply_current_snapshot() {
 
   /* Extra DEFAULT ROLE statements added by create_user() */
   for (std::string grant : m_extra_grants) run_acl_statement(grant);
+}
+
+void ThreadContext::write_status_message_to_server_log() {
+  ndb_log_info("From NDB stored grants, applied %zu grant%s for %zu user%s.",
+               m_applied_grants, (m_applied_grants == 1 ? "" : "s"),
+               m_applied_users, (m_applied_users == 1 ? "" : "s"));
 }
 
 /* Fetch the list of users named in the SQL statement into m_statement_users.
@@ -848,6 +861,7 @@ bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
   (void)context.build_cache_of_ndb_users();
 
   context.apply_current_snapshot();
+  context.write_status_message_to_server_log();
   return true;  // success
 }
 
