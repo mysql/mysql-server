@@ -4408,6 +4408,13 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     if (!view_open_result)
     {
+      if (table_list.is_view())
+      {
+        // See comments in tdc_open_view() for explanation.
+        if (!table_list.prelocking_placeholder &&
+            table_list.prepare_security(thd))
+          goto end;
+      }
       // Actual view query is not needed, just indicate that this is a view:
       table_list.set_view_query((LEX *) 1);
       res= schema_table->process_table(thd, &table_list, table,
