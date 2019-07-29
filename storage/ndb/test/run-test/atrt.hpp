@@ -69,6 +69,13 @@ struct TestResult {
   int result;
 };
 
+enum FailureMode : ulong {
+  Restart,
+  Abort,
+  Skip,
+  Continue
+};
+
 struct atrt_host {
   unsigned m_index;
   BaseString m_user;
@@ -150,6 +157,7 @@ struct atrt_testcase {
   BaseString m_mysqld_options;
   int m_max_retries;
   bool m_force_cluster_restart;
+  FailureMode m_behaviour_on_failure;
 
   struct Command {
     atrt_process::Type m_cmd_type;
