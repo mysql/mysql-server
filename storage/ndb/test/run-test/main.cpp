@@ -40,10 +40,11 @@
 #include <ndb_version.h>
 #include <vector>
 #include <ndb_version.h>
+#include "typelib.h"
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 4
+#define ATRT_VERSION_NUMBER 5
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -79,6 +80,12 @@ int g_mt_rr = 0;
 int g_restart = 0;
 int g_default_max_retries = 0;
 static int g_default_force_cluster_restart = 0;
+FailureMode g_default_behaviour_on_failure = Restart;
+const char *default_behaviour_on_failure[] = {"Restart", "Abort", "Skip",
+                                              "Continue", NullS};
+TYPELIB behaviour_typelib = {array_elements(default_behaviour_on_failure) - 1,
+                             "default_behaviour_on_failure",
+                             default_behaviour_on_failure, NULL};
 
 const char *g_cwd = 0;
 const char *g_basedir = 0;
@@ -175,6 +182,10 @@ static struct my_option g_options[] = {
      (uchar **)&g_default_force_cluster_restart,
      (uchar **)&g_default_force_cluster_restart, 0, GET_BOOL, NO_ARG,
      g_default_force_cluster_restart, 0, 0, 0, 0, 0},
+    {"default-behaviour-on-failure", 256, "default to do when a test fails",
+     (uchar **)&g_default_behaviour_on_failure,
+     (uchar **)&g_default_behaviour_on_failure, &behaviour_typelib, GET_ENUM,
+     REQUIRED_ARG, g_default_behaviour_on_failure, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
@@ -358,10 +369,19 @@ int main(int argc, char **argv) {
    */
 
   g_logger.debug("Entering main loop");
+  FailureMode current_failure_mode = FailureMode::Continue;
   for (auto testcase : testcases) {
     g_logger.info("#%d - %s", testcase.test_no, testcase.m_name.c_str());
 
-    TestResult test_result = run_test_case(testcase);
+    TestResult test_result;
+    if (current_failure_mode == FailureMode::Skip) {
+      test_result = {0, 0, ERR_TEST_SKIPPED};
+    } else {
+      test_result = run_test_case(testcase);
+      if (test_result.result != ErrorCodes::ERR_OK) {
+        current_failure_mode = testcase.m_behaviour_on_failure;
+      }
+    }
     update_atrt_result_code(test_result, &return_code);
 
     if (g_report_file != 0) {
@@ -378,6 +398,11 @@ int main(int argc, char **argv) {
     const char *test_status = get_test_status(test_result.result);
     g_logger.info("#%d %s(%d)", testcase.test_no, test_status,
                   test_result.result);
+
+    if (current_failure_mode == FailureMode::Abort) {
+      g_logger.info("Aborting the test suite execution!");
+      break;
+    }
   }
 
   if (g_report_file != 0) {
@@ -1355,7 +1380,10 @@ TestResult run_test_case(const atrt_testcase &testcase) {
     remove_dir("result", true);
   }
 
-  if (reset_config(g_config) || test_result.result != ERR_OK) {
+  bool stop_cluster = reset_config(g_config) ||
+                      (test_result.result != ERR_OK &&
+                       testcase.m_behaviour_on_failure == FailureMode::Restart);
+  if (stop_cluster) {
     if (!shutdown_processes(g_config, ~0)) {
       g_logger.critical("Failed to stop all processes");
       test_result.result = ERR_CRITICAL;
@@ -1541,6 +1569,21 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
     g_logger.warning(
         "No of retries should be less than or equal to %d for test '%s'",
         TESTCASE_RETRIES_THRESHOLD_WARNING, tc.m_name.c_str());
+
+  tc.m_behaviour_on_failure = (FailureMode)g_default_behaviour_on_failure;
+  if (p.get("on-failure", &str)) {
+    std::map<std::string, FailureMode> failure_mode_values = {
+        {"Restart", FailureMode::Restart},
+        {"Abort", FailureMode::Abort},
+        {"Skip", FailureMode::Skip},
+        {"Continue", FailureMode::Continue}};
+    if (failure_mode_values.find(str) == failure_mode_values.end()) {
+      g_logger.critical("Invalid Failure mode!!");
+      return ERR_CORRUPT_TESTCASE;
+    }
+    tc.m_behaviour_on_failure = failure_mode_values[str];
+    used_elements++;
+  }
 
   if (used_elements != elements) {
     g_logger.critical(
