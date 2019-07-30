@@ -62,11 +62,6 @@ int my_rename(const char *from, const char *to, myf MyFlags) {
       my_error(EE_LINK, MYF(0), from, to, my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-  } else if (MyFlags & MY_SYNC_DIR) {
-    /* do only the needed amount of syncs: */
-    if (my_sync_dir_by_file(from, MyFlags) ||
-        (strcmp(from, to) && my_sync_dir_by_file(to, MyFlags)))
-      error = -1;
   }
   return error;
 } /* my_rename */

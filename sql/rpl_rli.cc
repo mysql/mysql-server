@@ -1873,7 +1873,7 @@ size_t Relay_log_info::get_number_info_rli_fields() {
 
 void Relay_log_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
   bitmap_init(nullable_fields, nullptr,
-              Relay_log_info::get_number_info_rli_fields(), false);
+              Relay_log_info::get_number_info_rli_fields());
   bitmap_clear_all(nullable_fields);
   bitmap_set_bit(nullable_fields, 9);
   bitmap_set_bit(nullable_fields, 10);

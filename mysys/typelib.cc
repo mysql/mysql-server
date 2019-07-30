@@ -131,21 +131,6 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
 } /* find_type */
 
 /**
-  Get name of type nr
-
-  @note
-  first type is 1, 0 = empty field
-*/
-
-void make_type(char *to, uint nr, TYPELIB *typelib) {
-  DBUG_TRACE;
-  if (!nr)
-    to[0] = 0;
-  else
-    (void)my_stpcpy(to, get_type(typelib, nr - 1));
-} /* make_type */
-
-/**
   Get type
 
   @note

@@ -68,12 +68,6 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
             CreateFlags ? CreateFlags : my_umask);
 #endif
 
-  if ((MyFlags & MY_SYNC_DIR) && (fd >= 0) &&
-      my_sync_dir_by_file(FileName, MyFlags)) {
-    my_close(fd, MyFlags);
-    fd = -1;
-  }
-
   rc = my_register_filename(fd, FileName, FILE_BY_CREATE, EE_CANTCREATEFILE,
                             MyFlags);
   /*

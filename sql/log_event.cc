@@ -7541,7 +7541,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : nullptr,
-                          m_width, false))) {
+                          m_width))) {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != nullptr)) {
       memcpy(m_cols.bitmap, cols->bitmap, no_bytes_in_map(cols));
@@ -7555,7 +7555,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     m_cols.bitmap = 0;
   }
 
-  if (bitmap_init(&write_set_backup, nullptr, tbl_arg->s->fields, false)) {
+  if (bitmap_init(&write_set_backup, nullptr, tbl_arg->s->fields)) {
     write_set_backup.bitmap = 0; /* purecov: deadcode */
   }
 
@@ -7613,7 +7613,7 @@ Rows_log_event::Rows_log_event(
   /* if bitmap_init fails, is_valid will be set to false */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : nullptr,
-                          m_width, false))) {
+                          m_width))) {
     if (!columns_before_image.empty()) {
       memcpy(m_cols.bitmap, &columns_before_image[0], n_bits_len);
       create_last_word_mask(&m_cols);
@@ -7638,8 +7638,8 @@ Rows_log_event::Rows_log_event(
     /* if bitmap_init fails, is_valid will be set to false*/
     if (likely(!bitmap_init(
             &m_cols_ai,
-            m_width <= sizeof(m_bitbuf_ai) * 8 ? m_bitbuf_ai : nullptr, m_width,
-            false))) {
+            m_width <= sizeof(m_bitbuf_ai) * 8 ? m_bitbuf_ai : nullptr,
+            m_width))) {
       if (!columns_after_image.empty()) {
         memcpy(m_cols_ai.bitmap, &columns_after_image[0], n_bits_len);
         create_last_word_mask(&m_cols_ai);
@@ -7676,7 +7676,7 @@ Rows_log_event::Rows_log_event(
     m_rows_cur = m_rows_end;
   }
 
-  if (bitmap_init(&write_set_backup, nullptr, m_cols.n_bits, false)) {
+  if (bitmap_init(&write_set_backup, nullptr, m_cols.n_bits)) {
     write_set_backup.bitmap = 0; /* purecov: deadcode */
   }
 
@@ -7738,7 +7738,7 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
     // the number of columns on the master.
     if (write_set_backup.n_bits != m_table->s->fields) {
       bitmap_free(&write_set_backup);
-      if (bitmap_init(&write_set_backup, nullptr, m_table->s->fields, false)) {
+      if (bitmap_init(&write_set_backup, nullptr, m_table->s->fields)) {
         return HA_ERR_OUT_OF_MEM; /* purecov: deadcode */
       }
     }
@@ -12058,8 +12058,8 @@ void Update_rows_log_event::init(MY_BITMAP const *cols,
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(
           &m_cols_ai,
-          m_width <= sizeof(m_bitbuf_ai) * 8 ? m_bitbuf_ai : nullptr, m_width,
-          false))) {
+          m_width <= sizeof(m_bitbuf_ai) * 8 ? m_bitbuf_ai : nullptr,
+          m_width))) {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != nullptr)) {
       memcpy(m_cols_ai.bitmap, cols->bitmap, no_bytes_in_map(cols));

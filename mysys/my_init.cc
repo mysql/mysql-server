@@ -90,8 +90,6 @@ static void my_win_init();
 
 bool my_init_done = false;
 ulong my_thread_stack_size = 65536;
-MYSQL_FILE *mysql_stdin = NULL;
-static MYSQL_FILE instrumented_stdin;
 
 static ulong atoi_octal(const char *str) {
   long int tmp;
@@ -148,10 +146,6 @@ bool my_init() {
   /* Default creation of new dir's */
   if ((str = getenv("UMASK_DIR")) != 0)
     my_umask_dir = (int)(atoi_octal(str) | 0700);
-
-  instrumented_stdin.m_file = stdin;
-  instrumented_stdin.m_psi = NULL; /* not yet instrumented */
-  mysql_stdin = &instrumented_stdin;
 
   if (my_thread_global_init()) return true;
 
@@ -430,17 +424,15 @@ PSI_stage_info stage_waiting_for_table_level_lock = {
 PSI_stage_info stage_waiting_for_disk_space = {0, "Waiting for disk space", 0,
                                                PSI_DOCUMENT_ME};
 
-PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-    key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_THR_LOCK_charset,
-    key_THR_LOCK_heap, key_THR_LOCK_lock, key_THR_LOCK_malloc,
-    key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
-    key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
-    key_THR_LOCK_myisam_mmap;
+PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
+    key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
+    key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
+    key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
+    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 
 static PSI_mutex_info all_mysys_mutexes[] = {
-    {&key_BITMAP_mutex, "BITMAP::mutex", 0, 0, PSI_DOCUMENT_ME},
     {&key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0, PSI_DOCUMENT_ME},

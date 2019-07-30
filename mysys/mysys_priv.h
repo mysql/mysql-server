@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,12 +38,11 @@
 #include "mysql/components/services/psi_stage_bits.h"   // for PSI_stage_info
 #include "mysql/components/services/psi_thread_bits.h"  // for PSI_thread_key
 
-extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-    key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_THR_LOCK_charset,
-    key_THR_LOCK_heap, key_THR_LOCK_lock, key_THR_LOCK_malloc,
-    key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
-    key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
-    key_THR_LOCK_myisam_mmap;
+extern PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
+    key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
+    key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
+    key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
+    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
 
 extern PSI_rwlock_key key_SAFE_HASH_lock;
 
@@ -52,7 +51,7 @@ extern PSI_cond_key key_IO_CACHE_SHARE_cond, key_IO_CACHE_SHARE_cond_writer,
 
 extern PSI_stage_info stage_waiting_for_table_level_lock;
 
-extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
+extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open;
 extern mysql_mutex_t THR_LOCK_net;
 extern mysql_mutex_t THR_LOCK_charset;
 
@@ -75,7 +74,6 @@ extern PSI_memory_key key_memory_SAFE_HASH_ENTRY;
 extern PSI_memory_key key_memory_MY_TMPDIR_full_list;
 extern PSI_memory_key key_memory_MY_BITMAP_bitmap;
 extern PSI_memory_key key_memory_my_compress_alloc;
-extern PSI_memory_key key_memory_pack_frm;
 extern PSI_memory_key key_memory_my_err_head;
 extern PSI_memory_key key_memory_my_file_info;
 extern PSI_memory_key key_memory_MY_DIR;

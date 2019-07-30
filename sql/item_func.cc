@@ -6908,7 +6908,7 @@ float Item_func_match::get_filtering_effect(THD *, table_map filter_for_table,
 static void update_table_read_set(Field *field) {
   TABLE *table = field->table;
 
-  if (!bitmap_fast_test_and_set(table->read_set, field->field_index))
+  if (!bitmap_test_and_set(table->read_set, field->field_index))
     table->covering_keys.intersect(field->part_of_key);
 }
 

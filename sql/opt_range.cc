@@ -1818,7 +1818,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     column_bitmap.bitmap = 0;
     *create_error = 1;
   } else
-    bitmap_init(&column_bitmap, bitmap, head->s->fields, false);
+    bitmap_init(&column_bitmap, bitmap, head->s->fields);
 }
 
 void QUICK_RANGE_SELECT::need_sorted_output() { mrr_flags |= HA_MRR_SORTED; }
@@ -3010,7 +3010,7 @@ static int fill_used_fields_bitmap(PARAM *param) {
   param->fields_bitmap_size = table->s->column_bitmap_size;
   if (!(tmp = (my_bitmap_map *)param->mem_root->Alloc(
             param->fields_bitmap_size)) ||
-      bitmap_init(&param->needed_fields, tmp, table->s->fields, false))
+      bitmap_init(&param->needed_fields, tmp, table->s->fields))
     return 1;
 
   bitmap_copy(&param->needed_fields, table->read_set);
@@ -3996,7 +3996,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
     */
     return find_used_partitions_imerge(ppar, merges.head());
   }
-  bitmap_init(&all_merges, bitmap_buf, n_bits, false);
+  bitmap_init(&all_merges, bitmap_buf, n_bits);
   bitmap_set_prefix(&all_merges, n_bits);
 
   List_iterator<SEL_IMERGE> it(merges);
@@ -4597,8 +4597,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar) {
     my_bitmap_map *buf;
     uint32 bufsize = bitmap_buffer_size(ppar->part_info->num_subparts);
     if (!(buf = (my_bitmap_map *)alloc->Alloc(bufsize))) return true;
-    bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->num_subparts,
-                false);
+    bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->num_subparts);
   }
   range_par->key_parts = key_part;
   Field **field = (ppar->part_fields) ? part_info->part_field_array
@@ -5115,10 +5114,10 @@ static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
     return NULL;
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf1,
-                  param->table->s->fields, false))
+                  param->table->s->fields))
     return NULL;
   if (bitmap_init(&ror_scan->covered_fields_remaining, bitmap_buf2,
-                  param->table->s->fields, false))
+                  param->table->s->fields))
     return NULL;
 
   bitmap_clear_all(&ror_scan->covered_fields);
@@ -5197,7 +5196,7 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
   if (!(map =
             (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     return;
-  bitmap_init(&fields_to_cover, map, param->needed_fields.n_bits, false);
+  bitmap_init(&fields_to_cover, map, param->needed_fields.n_bits);
   bitmap_copy(&fields_to_cover, &param->needed_fields);
 
   // Sort ROR scans in [start,...,end-1]
@@ -5293,7 +5292,7 @@ static ROR_INTERSECT_INFO *ror_intersect_init(const PARAM *param) {
   if (!(buf =
             (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     return NULL;
-  if (bitmap_init(&info->covered_fields, buf, param->table->s->fields, false))
+  if (bitmap_init(&info->covered_fields, buf, param->table->s->fields))
     return NULL;
   info->is_covering = false;
   info->index_scan_cost.reset();
@@ -14339,7 +14338,7 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
     my_bitmap_map *bitbuf =
         static_cast<my_bitmap_map *>(static_cast<void *>(&buf));
     MY_BITMAP ignored_fields;
-    bitmap_init(&ignored_fields, bitbuf, table->s->fields, false);
+    bitmap_init(&ignored_fields, bitbuf, table->s->fields);
     bitmap_set_all(&ignored_fields);
     bitmap_clear_bit(
         &ignored_fields,
@@ -14452,7 +14451,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
                                             MYF(MY_WME)))) {
     column_bitmap.bitmap = 0;
   } else
-    bitmap_init(&column_bitmap, bitmap, head->s->fields, false);
+    bitmap_init(&column_bitmap, bitmap, head->s->fields);
   bitmap_copy(&column_bitmap, head->read_set);
 
   for (uint i = 0; i < used_key_parts; i++, p++) {

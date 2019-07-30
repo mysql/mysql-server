@@ -530,7 +530,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
-  bitmap_init(&share->all_set, bitmaps, share->fields, false);
+  bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
   return false;

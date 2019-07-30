@@ -419,8 +419,8 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase) {
 
   if (handler->init_info()) goto err;
 
-  bitmap_init(&group_executed, nullptr, num_bits, false);
-  bitmap_init(&group_shifted, nullptr, num_bits, false);
+  bitmap_init(&group_executed, nullptr, num_bits);
+  bitmap_init(&group_shifted, nullptr, num_bits);
 
   if (is_gaps_collecting_phase &&
       (DBUG_EVALUATE_IF("mts_slave_worker_init_at_gaps_fails", true, false) ||
@@ -598,7 +598,7 @@ size_t Slave_worker::get_number_worker_fields() {
 
 void Slave_worker::set_nullable_fields(MY_BITMAP *nullable_fields) {
   bitmap_init(nullable_fields, nullptr,
-              Slave_worker::get_number_worker_fields(), false);
+              Slave_worker::get_number_worker_fields());
   bitmap_clear_all(nullable_fields);
 }
 

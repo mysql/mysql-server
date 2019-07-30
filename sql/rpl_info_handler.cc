@@ -49,7 +49,7 @@ Rpl_info_handler::Rpl_info_handler(const int nparam,
     delete field_values;
     field_values = 0;
   }
-  bitmap_init(&nullable_fields, nullptr, nparam, false);
+  bitmap_init(&nullable_fields, nullptr, nparam);
   bitmap_clear_all(&nullable_fields);
   if (nullable_bitmap != nullptr)
     bitmap_copy(&nullable_fields, nullable_bitmap);

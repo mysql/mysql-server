@@ -589,8 +589,8 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
     result = true;
     goto end;
   }
-  if (bitmap_init(&part_info->full_part_field_set, bitmap_buf, table->s->fields,
-                  false)) {
+  if (bitmap_init(&part_info->full_part_field_set, bitmap_buf,
+                  table->s->fields)) {
     mem_alloc_error(table->s->fields);
     result = true;
     goto end;

@@ -51,7 +51,7 @@ static inline void ndb_bitmap_init(MY_BITMAP &bitmap, my_bitmap_map (&buf)[sz],
   assert(bitmap_buffer_size(num_bits) <= (sz * sizeof(my_bitmap_map)));
 
   // Function never fails when called with a "buf" provided
-  (void)bitmap_init(&bitmap, buf, num_bits, false);
+  (void)bitmap_init(&bitmap, buf, num_bits);
 }
 
 /**

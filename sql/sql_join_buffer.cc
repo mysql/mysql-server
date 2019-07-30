@@ -513,7 +513,7 @@ static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
       my_bitmap_map
           bitbuf[(bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)) + 1];
       MY_BITMAP range_read_set;
-      bitmap_init(&range_read_set, bitbuf, table->s->fields, false);
+      bitmap_init(&range_read_set, bitbuf, table->s->fields);
 
       // Make a bitmap of which fields this covering index can read
       table->mark_columns_used_by_index_no_reset(key, &range_read_set,
@@ -554,7 +554,7 @@ void filter_virtual_gcol_base_cols(
   auto bitbuf =
       mem_root->ArrayAlloc<my_bitmap_map>(table->s->column_bitmap_size);
   auto save_read_set = new (mem_root) MY_BITMAP;
-  bitmap_init(save_read_set, bitbuf, table->s->fields, false);
+  bitmap_init(save_read_set, bitbuf, table->s->fields);
   bitmap_copy(save_read_set, table->read_set);
   /*
     restore_virtual_gcol_base_cols() will need old bitmap so we save a

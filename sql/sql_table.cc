@@ -11382,7 +11382,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       MY_BITMAP dependent_fields;
       my_bitmap_map
           bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-      bitmap_init(&dependent_fields, bitbuf, table->s->fields, 0);
+      bitmap_init(&dependent_fields, bitbuf, table->s->fields);
       MY_BITMAP *save_old_read_set = table->read_set;
       table->read_set = &dependent_fields;
       Mark_field mark_fld(MARK_COLUMNS_TEMP);
@@ -13559,7 +13559,7 @@ static bool check_if_field_used_by_generated_column_or_default(
     TABLE *table, const Field *field, const Alter_info *alter_info) {
   MY_BITMAP dependent_fields;
   my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-  bitmap_init(&dependent_fields, bitbuf, table->s->fields, 0);
+  bitmap_init(&dependent_fields, bitbuf, table->s->fields);
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &dependent_fields;
 

@@ -1389,7 +1389,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
       if (table->quick_keys.is_set(keyno)) {
         // The range optimizer made a row estimate for this index
 
-        bitmap_init(&fields_current_quick, bitbuf, table->s->fields, false);
+        bitmap_init(&fields_current_quick, bitbuf, table->s->fields);
 
         const KEY *key = table->key_info + keyno;
         for (uint i = 0; i < table->quick_key_parts[keyno]; i++)

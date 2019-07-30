@@ -2210,7 +2210,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   if (!(bitmaps =
             (my_bitmap_map *)share->mem_root.Alloc(share->column_bitmap_size)))
     goto err;
-  bitmap_init(&share->all_set, bitmaps, share->fields, false);
+  bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
   destroy(handler_file);
@@ -2493,7 +2493,7 @@ bool Value_generator::register_base_columns(TABLE *table) {
   my_bitmap_map *bitbuf = static_cast<my_bitmap_map *>(
       table->mem_root.Alloc(bitmap_buffer_size(table->s->fields)));
   DBUG_ASSERT(num_non_virtual_base_cols == 0);
-  bitmap_init(&base_columns_map, bitbuf, table->s->fields, 0);
+  bitmap_init(&base_columns_map, bitbuf, table->s->fields);
 
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &base_columns_map;
@@ -3005,23 +3005,19 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   bitmap_size = share->column_bitmap_size;
   if (!(bitmaps = root->ArrayAlloc<uchar>(bitmap_size * 7))) goto err;
-  bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields,
-              false);
+  bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields);
   bitmap_init(&outparam->def_write_set,
-              (my_bitmap_map *)(bitmaps + bitmap_size), share->fields, false);
+              (my_bitmap_map *)(bitmaps + bitmap_size), share->fields);
   bitmap_init(&outparam->tmp_set, (my_bitmap_map *)(bitmaps + bitmap_size * 2),
-              share->fields, false);
+              share->fields);
   bitmap_init(&outparam->cond_set, (my_bitmap_map *)(bitmaps + bitmap_size * 3),
-              share->fields, false);
+              share->fields);
   bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map *)(bitmaps + bitmap_size * 4), share->fields,
-              false);
+              (my_bitmap_map *)(bitmaps + bitmap_size * 4), share->fields);
   bitmap_init(&outparam->fields_for_functional_indexes,
-              (my_bitmap_map *)(bitmaps + bitmap_size * 5), share->fields,
-              false);
+              (my_bitmap_map *)(bitmaps + bitmap_size * 5), share->fields);
   bitmap_init(&outparam->pack_row_tmp_set,
-              (my_bitmap_map *)(bitmaps + bitmap_size * 6), share->fields,
-              false);
+              (my_bitmap_map *)(bitmaps + bitmap_size * 6), share->fields);
   outparam->default_column_bitmaps();
 
   /*
@@ -6144,7 +6140,7 @@ void TABLE::mark_generated_columns(bool is_update) {
     MY_BITMAP dependent_fields;
     my_bitmap_map
         bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-    bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
+    bitmap_init(&dependent_fields, bitbuf, s->fields);
 
     for (vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
       tmp_vfield = *vfield_ptr;
@@ -7320,15 +7316,13 @@ struct Partial_update_info {
 
     auto buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
     if (buffer != nullptr) {
-      bitmap_init(&m_enabled_binary_diff_columns, buffer, table->s->fields,
-                  false);
+      bitmap_init(&m_enabled_binary_diff_columns, buffer, table->s->fields);
       bitmap_copy(&m_enabled_binary_diff_columns, columns);
     }
 
     buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
     if (buffer != nullptr) {
-      bitmap_init(&m_enabled_logical_diff_columns, buffer, table->s->fields,
-                  false);
+      bitmap_init(&m_enabled_logical_diff_columns, buffer, table->s->fields);
       if (logical_diffs)
         bitmap_copy(&m_enabled_logical_diff_columns, columns);
       else
@@ -7403,8 +7397,7 @@ bool TABLE::mark_column_for_partial_update(const Field *field) {
     MY_BITMAP *map = new (&mem_root) MY_BITMAP;
     my_bitmap_map *buf =
         static_cast<my_bitmap_map *>(mem_root.Alloc(s->column_bitmap_size));
-    if (map == nullptr || buf == nullptr ||
-        bitmap_init(map, buf, s->fields, false))
+    if (map == nullptr || buf == nullptr || bitmap_init(map, buf, s->fields))
       return true; /* purecov: inspected */
     m_partial_update_columns = map;
   }

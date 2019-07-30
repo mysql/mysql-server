@@ -113,8 +113,8 @@ bool test_compare_operators(MY_BITMAP *map, uint bitsize) {
   MY_BITMAP *map2 = &map2_obj, *map3 = &map3_obj;
   my_bitmap_map map2buf[MAX_TESTED_BITMAP_SIZE];
   my_bitmap_map map3buf[MAX_TESTED_BITMAP_SIZE];
-  bitmap_init(&map2_obj, map2buf, bitsize, false);
-  bitmap_init(&map3_obj, map3buf, bitsize, false);
+  bitmap_init(&map2_obj, map2buf, bitsize);
+  bitmap_init(&map3_obj, map3buf, bitsize);
   bitmap_clear_all(map2);
   bitmap_clear_all(map3);
   for (i = 0; i < no_loops; i++) {
@@ -353,7 +353,7 @@ bool test_compare(MY_BITMAP *map, uint bitsize) {
   my_bitmap_map map2buf[MAX_TESTED_BITMAP_SIZE];
   uint i, test_bit;
   uint no_loops = bitsize > 128 ? 128 : bitsize;
-  bitmap_init(&map2, map2buf, bitsize, false);
+  bitmap_init(&map2, map2buf, bitsize);
 
   /* Test all 4 possible combinations of set/unset bits. */
   for (i = 0; i < no_loops; i++) {
@@ -398,7 +398,7 @@ bool test_intersect(MY_BITMAP *map, uint bitsize) {
   MY_BITMAP map2;
   my_bitmap_map *map2buf = new my_bitmap_map[bitsize2];
   uint i, test_bit1, test_bit2, test_bit3;
-  bitmap_init(&map2, map2buf, bitsize2, false);
+  bitmap_init(&map2, map2buf, bitsize2);
 
   test_bit1 = get_rand_bit(bitsize);
   test_bit2 = get_rand_bit(bitsize);
@@ -436,7 +436,7 @@ class BitMapTest : public ::testing::TestWithParam<uint> {
  protected:
   virtual void SetUp() {
     bitsize = GetParam();
-    ASSERT_FALSE(bitmap_init(&map, buf, bitsize, false));
+    ASSERT_FALSE(bitmap_init(&map, buf, bitsize));
     bitmap_clear_all(&map);
   }
 
@@ -509,7 +509,7 @@ bool bitmap_set_prefix_t() {
   MY_BITMAP map;
   my_bitmap_map buf[2]; /* 64-bit buffer */
   uint32 _max = ~((uint32)0);
-  bitmap_init(&map, buf, 32, false);
+  bitmap_init(&map, buf, 32);
 
   // set all bits in the 2nd half of the buf
   buf[1] = _max;

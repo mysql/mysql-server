@@ -2382,7 +2382,7 @@ class Ndb_schema_dist_data {
     Node_subscribers() = delete;
     Node_subscribers(uint max_subscribers) {
       // Initialize the bitmap
-      bitmap_init(&m_bitmap, nullptr, max_subscribers, false);
+      bitmap_init(&m_bitmap, nullptr, max_subscribers);
 
       // Assume that all bits are cleared by bitmap_init()
       DBUG_ASSERT(bitmap_is_clear_all(&m_bitmap));
@@ -2702,7 +2702,7 @@ class Ndb_schema_event_handler {
       ndbcluster::ndbrequire(slock_buf);
 
       // Initialize bitmap(always suceeds when buffer is already allocated)
-      (void)bitmap_init(&slock, slock_buf, field->field_length * 8, false);
+      (void)bitmap_init(&slock, slock_buf, field->field_length * 8);
 
       // Copy data into bitmap buffer
       memcpy(slock_buf, field->ptr, field->field_length);
@@ -2987,7 +2987,7 @@ class Ndb_schema_event_handler {
     const uint slock_bits = schema_dist_table.get_slock_bytes() * 8;
     // Make sure that own nodeid fits in slock
     ndbcluster::ndbrequire(own_nodeid() <= slock_bits);
-    (void)bitmap_init(&slock, nullptr, slock_bits, false);
+    (void)bitmap_init(&slock, nullptr, slock_bits);
 
     while (1) {
       if ((trans = ndb->startTransaction()) == 0) goto err;

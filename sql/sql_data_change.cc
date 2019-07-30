@@ -63,7 +63,7 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
                        NULL) == NULL)
     return true;
 
-  if (bitmap_init(the_struct, the_bits, number_bits, false) != 0) return true;
+  if (bitmap_init(the_struct, the_bits, number_bits) != 0) return true;
 
   *bitmap = the_struct;
 

@@ -40,8 +40,8 @@ Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns)
   ndb_value[1] = nullptr;
 
   // Initialize bitmaps, using dynamically allocated bitbuf
-  bitmap_init(&stored_columns, nullptr, num_columns, false);
-  bitmap_init(&pk_bitmap, nullptr, num_columns, false);
+  bitmap_init(&stored_columns, nullptr, num_columns);
+  bitmap_init(&pk_bitmap, nullptr, num_columns);
 
   // Initialize mem_root where the shadow_table will be allocated
   init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 1024, 0);

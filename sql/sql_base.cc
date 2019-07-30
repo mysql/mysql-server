@@ -9280,7 +9280,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
       DBUG_ASSERT(num_fields);
 
       MY_BITMAP insert_into_fields_bitmap;
-      bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
+      bitmap_init(&insert_into_fields_bitmap, NULL, num_fields);
 
       /*
         Evaluate DEFAULT functions like CURRENT_TIMESTAMP.
@@ -9462,7 +9462,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     table->triggers->enable_fields_temporary_nullability(thd);
 
     MY_BITMAP insert_into_fields_bitmap;
-    bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
+    bitmap_init(&insert_into_fields_bitmap, NULL, num_fields);
 
     rc = fill_record(thd, table, ptr, values, NULL, &insert_into_fields_bitmap);
 

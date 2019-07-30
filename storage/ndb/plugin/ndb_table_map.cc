@@ -42,8 +42,8 @@ Ndb_table_map::Ndb_table_map(struct TABLE *mysqlTable,
     m_map_by_col = new int[m_array_size];
 
     /* Initialize the two bitmaps */
-    bitmap_init(&m_moved_fields, 0, m_array_size, 0);
-    bitmap_init(&m_rewrite_set, 0, m_array_size, 0);
+    bitmap_init(&m_moved_fields, 0, m_array_size);
+    bitmap_init(&m_rewrite_set, 0, m_array_size);
 
     /* Initialize both arrays full of -1 */
     for (uint i = 0; i < m_array_size; i++) {

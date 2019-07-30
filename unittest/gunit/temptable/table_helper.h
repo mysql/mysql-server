@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ inline void Table_helper::finalize() {
   finalize_fields();
 
   EXPECT_EQ(0, bitmap_init(&m_table_share.all_set, &all_set_buf,
-                           m_table_share.fields, false));
+                           m_table_share.fields));
   bitmap_set_above(&m_table_share.all_set, 0, 1);
 
   m_table_share.key_parts = 0;
@@ -234,10 +234,9 @@ inline void Table_helper::initialize_table() {
   m_table.write_set = &write_set_struct;
   m_table.next_number_field = nullptr;  // No autoinc column
   m_table.pos_in_table_list = nullptr;
-  EXPECT_EQ(0, bitmap_init(m_table.write_set, &write_set_buf, m_table.s->fields,
-                           false));
-  EXPECT_EQ(0, bitmap_init(m_table.read_set, &read_set_buf, m_table.s->fields,
-                           false));
+  EXPECT_EQ(0,
+            bitmap_init(m_table.write_set, &write_set_buf, m_table.s->fields));
+  EXPECT_EQ(0, bitmap_init(m_table.read_set, &read_set_buf, m_table.s->fields));
 
   m_table.const_table = false;
 }

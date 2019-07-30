@@ -116,7 +116,6 @@ struct MEM_ROOT;
 #define MY_WME 16          /* Write message on error */
 #define MY_WAIT_IF_FULL 32 /* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32 /* my_sync: ignore 'bad descriptor' errors */
-#define MY_SYNC_DIR 8192   /* my_create/delete/rename: sync directory */
 #define MY_REPORT_WAITING_IF_FULL 64 /* my_write: set status as waiting */
 #define MY_FULL_IO 512 /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128  /* Option to init_io_cache() */
@@ -677,8 +676,6 @@ extern int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags);
 extern void thr_set_sync_wait_callback(void (*before_sync)(void),
                                        void (*after_sync)(void));
 extern int my_sync(File fd, myf my_flags);
-extern int my_sync_dir(const char *dir_name, myf my_flags);
-extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
 extern char *my_strerror(char *buf, size_t len, int errnum);
 extern const char *my_get_err_msg(int nr);
 extern void my_error(int nr, myf MyFlags, ...);
@@ -795,11 +792,7 @@ extern bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key key,
 /* Some functions are still in use in C++, because HASH uses DYNAMIC_ARRAY */
 extern bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
-extern void *pop_dynamic(DYNAMIC_ARRAY *);
-extern void claim_dynamic(DYNAMIC_ARRAY *array);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
-extern void freeze_size(DYNAMIC_ARRAY *array);
-static inline void reset_dynamic(DYNAMIC_ARRAY *array) { array->elements = 0; }
 
 extern bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
                                 size_t init_alloc, size_t alloc_increment);
@@ -974,9 +967,6 @@ extern void set_psi_thread_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_transaction_bootstrap *psi_transaction_hook;
 extern void set_psi_transaction_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
-
-struct MYSQL_FILE;
-extern MYSQL_FILE *mysql_stdin;
 
 /**
   @} (end of group MYSYS)

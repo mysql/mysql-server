@@ -803,7 +803,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
   DBUG_ASSERT(view->table == NULL && table != NULL &&
               view->field_translation != 0);
 
-  (void)bitmap_init(&used_fields, used_fields_buff, table->s->fields, 0);
+  (void)bitmap_init(&used_fields, used_fields_buff, table->s->fields);
   bitmap_clear_all(&used_fields);
 
   view->contain_auto_increment = false;
@@ -851,7 +851,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
     Item_field *field = down_cast<Item_field *>(trans->item);
     /* check fields belong to table in which we are inserting */
     if (field->field->table == table &&
-        bitmap_fast_test_and_set(&used_fields, field->field->field_index))
+        bitmap_test_and_set(&used_fields, field->field->field_index))
       return true;
   }
 
@@ -920,7 +920,7 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
                        NULL) == NULL)
     return true;
 
-  if (bitmap_init(the_struct, the_bits, number_bits, false) != 0) return true;
+  if (bitmap_init(the_struct, the_bits, number_bits) != 0) return true;
 
   *bitmap = the_struct;
 

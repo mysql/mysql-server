@@ -436,7 +436,7 @@ const uint *Master_info::get_table_pk_field_indexes() {
 
 void Master_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
   bitmap_init(nullable_fields, nullptr,
-              Master_info::get_number_info_mi_fields(), false);
+              Master_info::get_number_info_mi_fields());
   bitmap_clear_all(nullable_fields);
 }
 

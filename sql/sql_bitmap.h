@@ -44,7 +44,7 @@ class Bitmap {
   Bitmap() { init(); }
   Bitmap(const Bitmap &from) { *this = from; }
   explicit Bitmap(uint prefix_to_set) { init(prefix_to_set); }
-  void init() { bitmap_init(&map, buffer, default_width, 0); }
+  void init() { bitmap_init(&map, buffer, default_width); }
   void init(uint prefix_to_set) {
     init();
     set_prefix(prefix_to_set);
@@ -66,7 +66,7 @@ class Bitmap {
     ulonglong buf2;
     MY_BITMAP map2;
 
-    bitmap_init(&map2, (uint32 *)&buf2, sizeof(ulonglong) * 8, 0);
+    bitmap_init(&map2, (uint32 *)&buf2, sizeof(ulonglong) * 8);
 
     // Store the original bits.
     if (sizeof(ulonglong) >= 8) {

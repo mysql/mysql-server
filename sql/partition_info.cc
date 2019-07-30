@@ -2879,6 +2879,6 @@ bool partition_info::init_partition_bitmap(MY_BITMAP *bitmap,
     mem_alloc_error(bitmap_bytes);
     return true;
   }
-  bitmap_init(bitmap, bitmap_buf, bitmap_bits, false);
+  bitmap_init(bitmap, bitmap_buf, bitmap_bits);
   return false;
 }

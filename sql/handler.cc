@@ -8031,7 +8031,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   Field *mv_field = nullptr;
   MY_BITMAP fields_to_evaluate;
   my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-  bitmap_init(&fields_to_evaluate, bitbuf, table->s->fields, 0);
+  bitmap_init(&fields_to_evaluate, bitbuf, table->s->fields);
   bitmap_set_all(&fields_to_evaluate);
   bitmap_intersect(&fields_to_evaluate, fields);
   /*

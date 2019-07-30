@@ -42,7 +42,7 @@ bool Rpl_info_values::init() {
   DBUG_TRACE;
 
   if (!value && !(value = new String[ninfo])) return true;
-  if (bitmap_init(&is_null, nullptr, ninfo, false)) {
+  if (bitmap_init(&is_null, nullptr, ninfo)) {
     delete[] value;
     return true;
   }

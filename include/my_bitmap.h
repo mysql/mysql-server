@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/psi/mysql_mutex.h" /* mysql_mutex_t */
 
 typedef uint32 my_bitmap_map;
 
@@ -44,25 +43,16 @@ struct MY_BITMAP {
   uint n_bits{0}; /* number of bits occupied by the above */
   my_bitmap_map last_word_mask{0};
   my_bitmap_map *last_word_ptr{nullptr};
-  /*
-     mutex will be acquired for the duration of each bitmap operation if
-     thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
-     acquiring the mutex
-   */
-  mysql_mutex_t *mutex{nullptr};
 };
 
 extern void create_last_word_mask(MY_BITMAP *map);
-extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-                        bool thread_safe);
+extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits);
 extern bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern bool bitmap_is_set_all(const MY_BITMAP *map);
 extern bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
-extern bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
-extern bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);
@@ -78,9 +68,6 @@ extern void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_invert(MY_BITMAP *map);
 extern void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2);
 
-extern uint bitmap_lock_set_next(MY_BITMAP *map);
-extern void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit);
-/* Fast, not thread safe, bitmap functions */
 #define bitmap_buffer_size(bits) (((bits) + 31) / 32) * 4
 #define no_bytes_in_map(map) (((map)->n_bits + 7) / 8)
 #define no_words_in_map(map) (((map)->n_bits + 31) / 32)

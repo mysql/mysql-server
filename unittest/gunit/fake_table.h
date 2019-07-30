@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ class Fake_TABLE_SHARE : public TABLE_SHARE {
     path.str = const_cast<char *>(fakepath);
     path.length = strlen(path.str);
 
-    EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields, false));
+    EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields));
     bitmap_set_above(&all_set, 0, 1);
   }
   ~Fake_TABLE_SHARE() {}
@@ -141,8 +141,8 @@ class Fake_TABLE : public TABLE {
     pos_in_table_list = &table_list;
     pos_in_table_list->select_lex = &select_lex;
     table_list.table = this;
-    EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
-    EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));
+    EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
+    EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
 
     const_table = false;
     table_list.set_tableno(highest_table_id);

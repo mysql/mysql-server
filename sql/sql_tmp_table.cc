@@ -453,14 +453,13 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
 
 static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps) {
   uint field_count = table->s->fields;
-  bitmap_init(&table->def_read_set, (my_bitmap_map *)bitmaps, field_count,
-              false);
+  bitmap_init(&table->def_read_set, (my_bitmap_map *)bitmaps, field_count);
   bitmap_init(&table->tmp_set,
               (my_bitmap_map *)(bitmaps + bitmap_buffer_size(field_count)),
-              field_count, false);
+              field_count);
   bitmap_init(&table->cond_set,
               (my_bitmap_map *)(bitmaps + bitmap_buffer_size(field_count) * 2),
-              field_count, false);
+              field_count);
   /* write_set and all_set are copies of read_set */
   table->def_write_set = table->def_read_set;
   table->s->all_set = table->def_read_set;

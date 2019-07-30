@@ -1442,7 +1442,7 @@ static void init_slave_skip_errors() {
   DBUG_TRACE;
   DBUG_ASSERT(!use_slave_mask);  // not already initialized
 
-  if (bitmap_init(&slave_error_mask, 0, MAX_SLAVE_ERROR, 0)) {
+  if (bitmap_init(&slave_error_mask, 0, MAX_SLAVE_ERROR)) {
     fprintf(stderr, "Badly out of memory, please check your system status\n");
     exit(MYSQLD_ABORT_EXIT);
   }
@@ -6014,7 +6014,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   DBUG_ASSERT(!rli->recovery_groups_inited);
 
   if (!above_lwm_jobs.empty()) {
-    bitmap_init(groups, nullptr, MTS_MAX_BITS_IN_GROUP, false);
+    bitmap_init(groups, nullptr, MTS_MAX_BITS_IN_GROUP);
     rli->recovery_groups_inited = true;
     bitmap_clear_all(groups);
   }
@@ -6100,7 +6100,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
                  i <= w->worker_checkpoint_seqno; i++, j++) {
               if (bitmap_is_set(&w->group_executed, i)) {
                 DBUG_PRINT("mts", ("Setting bit %u.", j));
-                bitmap_fast_test_and_set(groups, j);
+                bitmap_test_and_set(groups, j);
               }
             }
             not_reached_commit = false;

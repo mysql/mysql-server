@@ -54,8 +54,7 @@ int my_delete(const char *name, myf MyFlags) {
       my_error(EE_DELETE, MYF(0), name, errno,
                my_strerror(errbuf, sizeof(errbuf), errno));
     }
-  } else if ((MyFlags & MY_SYNC_DIR) && my_sync_dir_by_file(name, MyFlags))
-    err = -1;
+  }
   return err;
 } /* my_delete */
 

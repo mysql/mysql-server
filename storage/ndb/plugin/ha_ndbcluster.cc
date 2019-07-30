@@ -4453,8 +4453,8 @@ int ha_ndbcluster::prepare_conflict_detection(
     if (ex_data.write_set == NULL) {
       return HA_ERR_OUT_OF_MEM;
     }
-    bitmap_init(ex_data.write_set, ex_data.bitmap_buf, table->write_set->n_bits,
-                false);
+    bitmap_init(ex_data.write_set, ex_data.bitmap_buf,
+                table->write_set->n_bits);
     bitmap_copy(ex_data.write_set, table->write_set);
   }
 
@@ -4933,7 +4933,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
       /* Copy table write set so that we can add to it */
       user_cols_written_bitmap = &tmpBitmap;
       bitmap_init(user_cols_written_bitmap, tmpBitmapSpace,
-                  table->write_set->n_bits, false);
+                  table->write_set->n_bits);
       bitmap_copy(user_cols_written_bitmap, table->write_set);
 
       for (uint i = 0; i < table->s->fields; i++) {
@@ -11156,7 +11156,7 @@ int ha_ndbcluster::open(const char *name, int, uint,
         m_pk_bitmap_p = m_key_fields[i];
         bitbuf = m_pk_bitmap_buf;
       }
-      if (bitmap_init(m_key_fields[i], bitbuf, table_share->fields, false)) {
+      if (bitmap_init(m_key_fields[i], bitbuf, table_share->fields)) {
         m_key_fields[i] = NULL;
         local_close(thd, false);
         return 1;

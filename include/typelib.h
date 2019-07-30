@@ -53,7 +53,6 @@ extern int find_type_or_exit(const char *x, TYPELIB *typelib,
 #define FIND_TYPE_COMMA_TERM (1 << 3)
 
 extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
-extern void make_type(char *to, unsigned int nr, TYPELIB *typelib);
 extern const char *get_type(TYPELIB *typelib, unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 

@@ -283,11 +283,11 @@ class Ndb_expect_stack {
         next(nullptr) {
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
-    bitmap_init(&expect_mask, m_expect_buf, MAX_EXPECT_ITEMS, false);
+    bitmap_init(&expect_mask, m_expect_buf, MAX_EXPECT_ITEMS);
     bitmap_init(&expect_field_type_mask, m_expect_field_type_buf,
-                MAX_EXPECT_FIELD_TYPES, false);
+                MAX_EXPECT_FIELD_TYPES);
     bitmap_init(&expect_field_result_mask, m_expect_field_result_buf,
-                MAX_EXPECT_FIELD_RESULTS, false);
+                MAX_EXPECT_FIELD_RESULTS);
   }
   ~Ndb_expect_stack() {
     if (next) destroy(next);

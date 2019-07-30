@@ -411,7 +411,7 @@ bool Partition_helper::open_partitioning(Partition_share *part_share) {
   DBUG_ASSERT(m_part_info == m_table->part_info);
   m_part_share = part_share;
   m_tot_parts = m_part_info->get_tot_partitions();
-  if (bitmap_init(&m_key_not_found_partitions, NULL, m_tot_parts, false)) {
+  if (bitmap_init(&m_key_not_found_partitions, NULL, m_tot_parts)) {
     return true;
   }
   bitmap_clear_all(&m_key_not_found_partitions);

@@ -22804,7 +22804,7 @@ dfield_t *innobase_get_computed_value(
   MY_BITMAP column_map;
   my_bitmap_map col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
 
-  bitmap_init(&column_map, col_map_storage, REC_MAX_N_FIELDS, false);
+  bitmap_init(&column_map, col_map_storage, REC_MAX_N_FIELDS);
 
   /* Specify the column the server should evaluate */
   bitmap_set_bit(&column_map, col->m_col.ind);
