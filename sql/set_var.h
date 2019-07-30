@@ -185,7 +185,6 @@ class sys_var {
     option.def_value = new_def_value;
   }
   longlong get_default() { return option.def_value; }
-  virtual bool is_default(THD *thd, set_var *var);
   virtual longlong get_min_value() { return option.min_value; }
   virtual ulonglong get_max_value() { return option.max_value; }
   /**

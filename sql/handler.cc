@@ -1513,35 +1513,6 @@ int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr) {
 }
 
 /**
-  The function is a wrapper of commit_owned_gtids(...). It is invoked
-  at committing a partially failed statement or transaction.
-
-  @param thd  Thread context.
-
-  @retval -1 if error when persisting owned gtid.
-  @retval 0 if succeed to commit owned gtid.
-  @retval 1 if do not meet conditions to commit owned gtid.
-*/
-int commit_owned_gtid_by_partial_command(THD *thd) {
-  DBUG_TRACE;
-  bool need_clear_owned_gtid_ptr = false;
-  int ret = 0;
-
-  if (commit_owned_gtids(thd, true, &need_clear_owned_gtid_ptr)) {
-    /* Error when saving gtid into mysql.gtid_executed table. */
-    gtid_state->update_on_rollback(thd);
-    ret = -1;
-  } else if (need_clear_owned_gtid_ptr) {
-    gtid_state->update_on_commit(thd);
-    ret = 0;
-  } else {
-    ret = 1;
-  }
-
-  return ret;
-}
-
-/**
   @param[in] thd                       Thread handle.
   @param[in] all                       Session transaction if true, statement
                                        otherwise.

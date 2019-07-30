@@ -429,48 +429,6 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
   return rc;
 }
 
-bool sys_var_pluginvar::is_default(THD *thd, set_var *var) {
-  void *tgt = real_value_ptr(thd, var->type);
-
-  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL)) {
-    case PLUGIN_VAR_INT:
-      return (((sysvar_uint_t *)plugin_var)->def_val == *(uint *)tgt);
-    case PLUGIN_VAR_LONG:
-      return (((sysvar_ulong_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_LONGLONG:
-      return (((sysvar_ulonglong_t *)plugin_var)->def_val == *(ulonglong *)tgt);
-    case PLUGIN_VAR_ENUM:
-      return (((sysvar_enum_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_SET:
-      return (((sysvar_set_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_BOOL:
-      return (((sysvar_bool_t *)plugin_var)->def_val == *(bool *)tgt);
-    case PLUGIN_VAR_STR:
-      return !strcmp(pointer_cast<sysvar_str_t *>(plugin_var)->def_val,
-                     *static_cast<char **>(tgt));
-    case PLUGIN_VAR_DOUBLE:
-      return (((sysvar_double_t *)plugin_var)->def_val == *(double *)tgt);
-    case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_uint_t *)plugin_var)->def_val == *(uint *)tgt);
-    case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_ulong_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_ulonglong_t *)plugin_var)->def_val == *(ulonglong *)tgt);
-    case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_enum_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_set_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_bool_t *)plugin_var)->def_val == *(bool *)tgt);
-    case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-      return !strcmp(pointer_cast<thdvar_str_t *>(plugin_var)->def_val,
-                     *static_cast<char **>(tgt));
-    case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_double_t *)plugin_var)->def_val == *(double *)tgt);
-  }
-  return 0;
-}
-
 longlong sys_var_pluginvar::get_min_value() {
   switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL)) {
     case PLUGIN_VAR_INT:

@@ -2248,31 +2248,6 @@ bool Stage_manager::Mutex_queue::append(THD *first) {
   return empty;
 }
 
-std::pair<bool, THD *> Stage_manager::Mutex_queue::pop_front() {
-  DBUG_TRACE;
-  lock();
-  THD *result = m_first;
-  bool more = true;
-  /*
-    We do not set next_to_commit to NULL here since this is only used
-    in the flush stage. We will have to call fetch_queue last here,
-    and will then "cut" the linked list by setting the end of that
-    queue to NULL.
-  */
-  if (result) m_first = result->next_to_commit;
-  if (m_first == nullptr) {
-    more = false;
-    m_last = &m_first;
-  }
-  DBUG_ASSERT(m_size.load() > 0);
-  --m_size;
-  DBUG_ASSERT(m_first || m_last == &m_first);
-  unlock();
-  DBUG_PRINT("return",
-             ("result: 0x%llx, more: %s", (ulonglong)result, YESNO(more)));
-  return std::make_pair(more, result);
-}
-
 bool Stage_manager::enroll_for(StageID stage, THD *thd,
                                mysql_mutex_t *stage_mutex) {
   // If the queue was empty: we're the leader for this batch

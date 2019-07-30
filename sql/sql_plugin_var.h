@@ -279,7 +279,6 @@ class sys_var_pluginvar : public sys_var {
   virtual void global_save_default(THD *, set_var *) {}
   bool session_update(THD *thd, set_var *var);
   bool global_update(THD *thd, set_var *var);
-  bool is_default(THD *thd, set_var *var);
   longlong get_min_value();
   ulonglong get_max_value();
   void set_arg_source(get_opt_arg_source *src) {

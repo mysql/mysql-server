@@ -820,13 +820,6 @@ class I_List_iterator : public base_ilist_iterator<T> {
   inline T *operator++(int) { return base_ilist_iterator<T>::next(); }
 };
 
-void free_list(I_List<i_string_pair> *list);
 void free_list(I_List<i_string> *list);
-
-template <class T>
-List<T> *List_merge(T *head, List<T> *tail) {
-  tail->push_front(head);
-  return tail;
-}
 
 #endif  // INCLUDES_MYSQL_SQL_LIST_H

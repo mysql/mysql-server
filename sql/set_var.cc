@@ -389,40 +389,6 @@ bool sys_var::set_default(THD *thd, set_var *var) {
   return ret;
 }
 
-bool sys_var::is_default(THD *, set_var *var) {
-  DBUG_TRACE;
-  bool ret = false;
-  longlong def = option.def_value;
-  switch (get_var_type()) {
-    case GET_INT:
-    case GET_UINT:
-    case GET_LONG:
-    case GET_ULONG:
-    case GET_LL:
-    case GET_ULL:
-    case GET_BOOL:
-    case GET_ENUM:
-    case GET_SET:
-    case GET_FLAGSET:
-    case GET_ASK_ADDR:
-      if (def == (longlong)var->save_result.ulonglong_value) ret = true;
-      break;
-    case GET_DOUBLE:
-      if ((double)def == (double)var->save_result.double_value) ret = true;
-      break;
-    case GET_STR_ALLOC:
-    case GET_STR:
-    case GET_NO_ARG:
-    case GET_PASSWORD:
-      if ((def == (longlong)var->save_result.string_value.str) ||
-          (((char *)def) &&
-           !strcmp((char *)def, var->save_result.string_value.str)))
-        ret = true;
-      break;
-  }
-  return ret;
-}
-
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
   DBUG_ASSERT(thd->security_context()->user().length < sizeof(user));

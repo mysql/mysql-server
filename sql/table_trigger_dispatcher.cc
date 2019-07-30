@@ -77,48 +77,6 @@ Table_trigger_dispatcher *Table_trigger_dispatcher::create(
   return new (&subject_table->mem_root) Table_trigger_dispatcher(subject_table);
 }
 
-bool Table_trigger_dispatcher::check_n_load(THD *thd, const dd::Table &table,
-                                            const char *db_name,
-                                            const char *table_name) {
-  MEM_ROOT mem_root;
-  init_sql_alloc(key_memory_Table_trigger_dispatcher, &mem_root, 8192, 0);
-
-  // Load triggers from Data Dictionary.
-
-  List<Trigger> triggers;
-
-  if (dd::load_triggers(thd, &mem_root, db_name, table_name, table,
-                        &triggers)) {
-    free_root(&mem_root, MYF(0));
-    return true;
-  }
-
-  Table_trigger_dispatcher ttd(nullptr);
-  // 'false' flag for 'is_upgrade' as we read Trigger from DD.
-  ttd.parse_triggers(thd, &triggers, false);
-
-  // Create trigger chains and assigns triggers to chains.
-
-  Trigger_chain unparseable_triggers;
-  List_iterator_fast<Trigger> it(triggers);
-  Trigger *t;
-
-  while ((t = it++)) {
-    Trigger_chain *tc = t->has_parse_error() ? &unparseable_triggers
-                                             : ttd.create_trigger_chain(
-                                                   &mem_root, t->get_event(),
-                                                   t->get_action_time());
-
-    if (!tc || tc->add_trigger(&mem_root, t)) {
-      free_root(&mem_root, MYF(0));
-      return true;
-    }
-  }
-
-  free_root(&mem_root, MYF(0));
-  return ttd.check_for_broken_triggers();
-}
-
 /**
   Private form of Table_trigger_dispatcher constructor. In order to construct an
   instance of Table_trigger_dispatcher with a valid pointer to the subject

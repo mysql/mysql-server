@@ -141,37 +141,6 @@ bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
   return false;
 }
 
-// Only used by NDB.
-bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name) {
-  // Check if there is at least one trigger for the given table.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  dd::Table *table = nullptr;
-  if (thd->dd_client()->acquire_for_modification(db_name, table_name, &table)) {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (table == nullptr || !table->has_trigger()) return false;
-
-#ifdef HAVE_PSI_SP_INTERFACE
-  // Not very "transactional", but this is the same order it happens
-  // during drop table.
-  remove_all_triggers_from_perfschema(db_name, *table);
-#endif
-
-  for (const dd::Trigger *trigger : *table->triggers())
-    table->drop_trigger(trigger);
-
-  if (thd->dd_client()->update(table)) {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) || trans_commit(thd);
-}
-
 #ifdef HAVE_PSI_SP_INTERFACE
 void remove_all_triggers_from_perfschema(const char *schema_name,
                                          const dd::Table &table) {
@@ -199,49 +168,6 @@ bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
   }
 
   return false;
-}
-
-// Only used by NDB
-bool reload_triggers_for_table(THD *thd, const char *db_name,
-                               const char *table_alias MY_ATTRIBUTE((unused)),
-                               const char *table_name MY_ATTRIBUTE((unused)),
-                               const char *new_db_name,
-                               const char *new_table_name) {
-  // Check if there is at least one trigger for the given table.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  const dd::Table *table = nullptr;
-
-  if (thd->dd_client()->acquire(new_db_name, new_table_name, &table)) {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (table == nullptr || !table->has_trigger()) return false;
-
-  /*
-    Since triggers should be in the same schema as their subject tables
-    moving table with them between two schemas raises too many questions.
-    (E.g. what should happen if in new schema we already have trigger
-     with same name ?).
-  */
-
-  if (my_strcasecmp(table_alias_charset, db_name, new_db_name)) {
-    my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
-    return true;
-  }
-
-  /*
-    This method interfaces the mysql server code protected by
-    an exclusive metadata lock.
-  */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
-      MDL_key::TABLE, db_name, table_name, MDL_EXCLUSIVE));
-
-  DBUG_ASSERT(my_strcasecmp(table_alias_charset, table_alias, new_table_name));
-
-  return Table_trigger_dispatcher::check_n_load(thd, *table, new_db_name,
-                                                new_table_name);
 }
 
 bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,

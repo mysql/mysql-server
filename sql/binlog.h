@@ -213,10 +213,6 @@ class Stage_manager {
    */
   bool enroll_for(StageID stage, THD *first, mysql_mutex_t *stage_mutex);
 
-  std::pair<bool, THD *> pop_front(StageID stage) {
-    return m_queue[stage].pop_front();
-  }
-
 #ifndef DBUG_OFF
   /**
      The method ensures the follower's execution path can be preempted

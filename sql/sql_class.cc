@@ -2651,10 +2651,6 @@ bool add_item_to_list(THD *thd, Item *item) {
   return thd->lex->select_lex->add_item_to_list(item);
 }
 
-void add_order_to_list(THD *thd, ORDER *order) {
-  thd->lex->select_lex->add_order_to_list(order);
-}
-
 THD::Transaction_state::Transaction_state()
     : m_query_tables_list(new Query_tables_list()),
       m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity) {}
