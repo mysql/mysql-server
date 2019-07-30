@@ -550,10 +550,10 @@ private:
   int try_alloc(NodeId id,
                 ndb_mgm_node_type type,
                 Uint32 timeout_ms);
-  bool try_alloc_from_list(NodeId& nodeid,
-                           ndb_mgm_node_type type,
-                           Uint32 timeout_ms,
-                           Vector<PossibleNode>& nodes_info);
+  int try_alloc_from_list(NodeId& nodeid,
+                          ndb_mgm_node_type type,
+                          Uint32 timeout_ms,
+                          Vector<PossibleNode>& nodes_info);
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
                      const struct sockaddr* client_addr,

@@ -660,6 +660,7 @@ ErrorBundle ErrorCodes[] = {
   { 1702, DMEC, AE, "Node already connected" },
   { 1703, DMEC, IT, "Node failure handling not completed" },
   { 1704, DMEC, AE, "Node type mismatch" },
+  { 1705, DMEC, IT, "Not ready for connection allocation yet" },
 
   /*
    * Index stats error codes
