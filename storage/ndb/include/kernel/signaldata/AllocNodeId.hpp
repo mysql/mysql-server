@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,8 @@ public:
     NodeReserved = 1701,
     NodeConnected = 1702,
     NodeFailureHandlingNotCompleted = 1703,
-    NodeTypeMismatch = 1704
+    NodeTypeMismatch = 1704,
+    NotReady = 1705,
   };
 
   Uint32 senderRef;
