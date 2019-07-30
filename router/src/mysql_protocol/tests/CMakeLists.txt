@@ -26,10 +26,17 @@ INCLUDE_DIRECTORIES(
 )
 
 SET(TEST_MODULE mysql_protocol)
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+FOREACH(test_file
+    test_base_packet.cc
+    test_constants.cc
+    test_error_packet.cc
+    test_handshake_packet.cc
+    )
+  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE ${TEST_MODULE}
   LIB_DEPENDS mysql_protocol_static
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
+ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_base_packet.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}

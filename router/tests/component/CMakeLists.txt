@@ -25,7 +25,32 @@ SET_TARGET_PROPERTIES(master_key_test_writer PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+FOREACH(test_file
+    test_bootstrap.cc
+    test_bootstrap_system_deployment.cc
+    test_component_test_framework.cc
+    test_config.cc
+    test_gr_notifications.cc
+    test_http_server.cc
+    test_logging.cc
+    test_logging_eventlog.cc
+    test_master_key_reader_writer.cc
+    test_metadata_ttl.cc
+    test_mock_server.cc
+    test_rest_api.cc
+    test_rest_metadata_cache.cc
+    test_rest_mock_server.cc
+    test_rest_router.cc
+    test_rest_routing.cc
+    test_router_configuration_errors.cc
+    test_routing.cc
+    test_routing_connection.cc
+    test_routing_strategy.cc
+    test_shutdown.cc
+    test_state_file.cc
+    test_user_option.cc
+    )
+add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/http/include/
@@ -52,6 +77,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   rest_routing
   routing
   )
+ENDFOREACH()
 
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.
