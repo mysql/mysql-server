@@ -3869,7 +3869,6 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           However, some other data nodes might be 'up' (node(s) in
           NOT_STARTED state).
         */
-<<<<<<< HEAD
         bool next;
         while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
               getNodeInfo(nodeId).is_confirmed() == false)
