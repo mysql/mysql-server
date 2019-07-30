@@ -44,61 +44,45 @@ FOREACH(test ${TESTS})
   LIST(APPEND ALL_INNODB_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-IF (MERGE_UNITTESTS)
-  IF(WIN32)
-    LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
-  ENDIF()
-  MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS} SKIP_INSTALL)
-  SET_TARGET_PROPERTIES(merge_innodb_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
+IF(WIN32)
+  LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
+ENDIF()
+MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
+  ENABLE_EXPORTS
+  EXCLUDE_ON_SOLARIS
+  ADD_TEST merge_innodb_tests-t)
 
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    gunit_large strings mysys)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t ${ICU_LIBRARIES})
+TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+  gunit_large
+  perfschema
+  sql_main
+  ${ICU_LIBRARIES}
+  )
 
-  # Download TBB from https://www.threadingbuildingblocks.org
-  #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
-  #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
-  #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
-  #INCLUDE_DIRECTORIES(${TBB_INCDIR})
+# Download TBB from https://www.threadingbuildingblocks.org
+#SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
+#SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
+#TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
+#INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
-
-  ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
-
-  # See ../CMakeLists.txt
-  IF(ADD_MERGE_LARGE_TESTS)
-    ADD_TEST(merge_innodb_tests-t
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_innodb_tests-t)
-  ELSE()
-    MESSAGE(WARNING
-      "Likely link failure for this compiler, skipping merge_innodb_tests-t")
-    SET_PROPERTY(TARGET merge_innodb_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-  ENDIF()
-
-ENDIF(MERGE_UNITTESTS)
+ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
   ENDIF()
-  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
 
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_gis sql_dd)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings mysys)
-  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
-
-  TARGET_LINK_LIBRARIES(${test}-t perfschema)
-
+    gunit_large
+    perfschema
+    sql_main
+    ${ICU_LIBRARIES}
+    )
   ADD_DEPENDENCIES(${test}-t GenError)
 
-  IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
-  ENDIF()
 ENDFOREACH()
 
 ADD_SUBDIRECTORY(lob)

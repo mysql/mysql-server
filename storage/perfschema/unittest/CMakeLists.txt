@@ -48,46 +48,26 @@ FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})
 ENDFOREACH()
 
-SET(ADD_LARGE_UNIT_TESTS 1)
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  MESSAGE(WARNING
-    "Likely link failure for this compiler, skipping pfs_connect_attr-t")
-  UNSET(ADD_LARGE_UNIT_TESTS)
-ENDIF()
-
 IF(WIN32)
   SET(MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 ENDIF()
 
 # We need the server libs to test the blob parser.
 # Add sql_builtin.cc here, to force linkage of plugins below.
-# Also add mysys/my_string.cc (see Bug#45488)
 MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_SOURCE_DIR}/mysys/my_string.cc
   ${MYSQLD_EXTRA_SOURCES}
-  SKIP_INSTALL
+  EXCLUDE_ON_SOLARIS
+  ADD_TEST pfs_connect_attr
 )
 
-IF(ADD_LARGE_UNIT_TESTS)
-  ADD_TEST(pfs_connect_attr
-    ${CMAKE_BINARY_DIR}/runtime_output_directory/pfs_connect_attr-t)
-ELSE()
-  SET_PROPERTY(TARGET pfs_connect_attr-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-ENDIF()
-
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema)
 # We need to explicitly link in everything referenced in sql/sql_builtin.cc
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t ${MYSQLD_STATIC_PLUGIN_LIBS})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_main binlog rpl master slave)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_dd sql_gis)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings mysys ${ZLIB_LIBRARY} ${ZSTD_LIBRARY})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema ${ICU_LIBRARIES})
-
-# ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
-# TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
-# ADD_TEST(pfs_benchmark pfs_benchmark-t)
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t
+  mytap
+  perfschema
+  sql_main
+  ${MYSQLD_STATIC_PLUGIN_LIBS}
+  ${ICU_LIBRARIES}
+  )
