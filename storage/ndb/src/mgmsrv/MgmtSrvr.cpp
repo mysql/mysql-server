@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3425,7 +3425,14 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           The data nodes haven't decided who is the president (yet)
           and thus can't allocate nodeids -> return "no contact"
         */
-        g_eventLogger->info("Alloc node id %u failed, no new president yet",
+        g_eventLogger->info("Alloc node id %u rejected, no new president yet",
+                            free_node_id);
+        return NO_CONTACT_WITH_DB_NODES;
+      }
+
+      if (ref->errorCode == AllocNodeIdRef::NotReady)
+      {
+        g_eventLogger->info("Alloc node id %u request rejected, cluster not ready yet",
                             free_node_id);
         return NO_CONTACT_WITH_DB_NODES;
       }
@@ -3443,7 +3450,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           if (first_attempt)
           {
             first_attempt = false;
-            g_eventLogger->info("Alloc node id %u failed with error code %u, will retry",
+            g_eventLogger->info("Alloc node id %u rejected with error code %u, will retry",
                                 free_node_id,
                                 ref->errorCode);
           }
@@ -3699,14 +3706,14 @@ MgmtSrvr::try_alloc(NodeId id,
           Have waited long enough time for data nodes to
           decide on a master, return error
         */
-        g_eventLogger->debug("Failed to allocate nodeid %u for API node " \
+        g_eventLogger->debug("Unable to allocate nodeid %u for API node " \
                              "in cluster (retried during %u milliseconds)",
                              id, (unsigned)elapsed);
         return -1;
       }
 
       g_eventLogger->debug("Retrying allocation of nodeid %u...", id);
-      NdbSleep_MilliSleep(100);
+      NdbSleep_MilliSleep(1000);
       continue;
     }
 
@@ -3730,8 +3737,15 @@ MgmtSrvr::try_alloc(NodeId id,
   return 0;
 }
 
-
-bool
+/**
+ * try_alloc_from_list
+ *
+ * returns :
+ *    0 : Nodeid allocated
+ *   -1 : Nodeid not available
+ *   -2 : No contact with cluster
+ */
+int
 MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
                               ndb_mgm_node_type type,
                               Uint32 timeout_ms,
@@ -3777,7 +3791,7 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
         release_local_nodeid_reservation(id);
       }
 
-      return true;
+      return 0; /* Nodeid allocated */
     }
 
     /* Release the local reservation */
@@ -3786,10 +3800,10 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
     if (res < 0)
     {
       // Don't try any more nodes from the list
-      return false;
+      return -2; /* No contact with cluster */
     }
   }
-  return false;
+  return -1; /* Nodeid not available */
 }
 
 
@@ -3916,7 +3930,10 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     }
   }
 
-  if (try_alloc_from_list(nodeid, type, timeout_ms, nodes))
+  const int try_alloc_rc =
+    try_alloc_from_list(nodeid, type, timeout_ms, nodes);
+
+  if (try_alloc_rc == 0)
   {
     if (type == NDB_MGM_NODE_TYPE_NDB)
     {
@@ -3927,23 +3944,33 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     return true;
   }
 
-  /*
-    there are nodes with correct type available but
-    allocation failed for some reason
-  */
-  if (nodeid)
+  error_code = NDB_MGM_ALLOCID_ERROR;
+
+  if (try_alloc_rc == -1)
   {
-    error_string.appfmt("Id %d already allocated by another node.",
-                        nodeid);
+    /*
+      there are nodes with correct type available but
+      allocation failed for some reason
+    */
+    if (nodeid)
+    {
+      error_string.appfmt("Id %d already allocated by another node.",
+                          nodeid);
+    }
+    else
+    {
+      const char *alias, *str;
+      alias= ndb_mgm_get_node_type_alias_string(type, &str);
+      error_string.appfmt("No free node id found for %s(%s).",
+                          alias, str);
+    }
   }
   else
   {
-    const char *alias, *str;
-    alias= ndb_mgm_get_node_type_alias_string(type, &str);
-    error_string.appfmt("No free node id found for %s(%s).",
-                        alias, str);
+    assert(try_alloc_rc == -2); /* No contact with cluster */
+    error_string.appfmt("Cluster not ready for nodeid allocation.");
   }
-  error_code = NDB_MGM_ALLOCID_ERROR;
+
   return false;
 }
 
@@ -3981,7 +4008,7 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
   if (!log_event)
     return false;
 
-  g_eventLogger->warning("Failed to allocate nodeid for %s at %s. "
+  g_eventLogger->warning("Unable to allocate nodeid for %s at %s. "
                          "Returned error: '%s'",
                          type_str, addr_str, error_string.c_str());
 
