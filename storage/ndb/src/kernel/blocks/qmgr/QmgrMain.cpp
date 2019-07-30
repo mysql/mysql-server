@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -324,6 +324,13 @@ void Qmgr::execSTTOR(Signal* signal)
      * Enable communication to all API nodes by setting state
      *   to ZFAIL_CLOSING (which will make it auto-open in checkStartInterface)
      */
+    if (ERROR_INSERTED(949))
+    {
+      jam();
+      g_eventLogger->info("QMGR : Delaying allow-api-connect processing");
+      sendSignalWithDelay(reference(), GSN_STTOR, signal, 1000, 2);
+      return;
+    }
     c_allow_api_connect = 1;
     NodeRecPtr nodePtr;
     for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++)
@@ -6641,7 +6648,7 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     else if (req.nodeType == NodeInfo::API && c_allow_api_connect == 0)
     {
       jam();
-      error = AllocNodeIdRef::NodeReserved;
+      error = AllocNodeIdRef::NotReady;
     }
 
     if (error)
@@ -6733,7 +6740,15 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     else
     {
       jam();
-      error = AllocNodeIdRef::NodeReserved;
+      if (nodePtr.p->phase == ZFAIL_CLOSING)
+      {
+        /* Occurs during node startup */
+        error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
+      }
+      else
+      {
+        error = AllocNodeIdRef::NodeReserved;
+      }
     }
   }
 #if 0
