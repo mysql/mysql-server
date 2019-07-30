@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -519,10 +519,10 @@ private:
   int try_alloc(NodeId id,
                 ndb_mgm_node_type type,
                 Uint32 timeout_ms);
-  bool try_alloc_from_list(NodeId& nodeid,
-                           ndb_mgm_node_type type,
-                           Uint32 timeout_ms,
-                           Vector<PossibleNode>& nodes_info);
+  int try_alloc_from_list(NodeId& nodeid,
+                          ndb_mgm_node_type type,
+                          Uint32 timeout_ms,
+                          Vector<PossibleNode>& nodes_info);
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
                      const struct sockaddr* client_addr,
