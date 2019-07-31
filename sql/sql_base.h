@@ -200,7 +200,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
                                           List<Item> &fields,
                                           List<Item> &values, TABLE *table,
                                           enum enum_trigger_event_type event,
-                                          int num_fields);
+                                          int num_fields, bool *is_row_changed);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values, TABLE *table,
                                           enum enum_trigger_event_type event,

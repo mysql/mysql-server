@@ -794,14 +794,8 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
 
     if (thd->killed || fill_record_n_invoke_before_triggers(
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
-                           TRG_EVENT_INSERT, table->s->fields))
+                           TRG_EVENT_INSERT, table->s->fields, nullptr))
       return true;
-
-    if (invoke_table_check_constraints(thd, table)) {
-      if (thd->is_error()) return true;
-      // continue when IGNORE clause is used.
-      goto continue_loop;
-    }
 
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
@@ -809,6 +803,12 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
         goto continue_loop;
       case VIEW_CHECK_ERROR:
         return true;
+    }
+
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) return true;
+      // continue when IGNORE clause is used.
+      goto continue_loop;
     }
 
     err = write_record(thd, table, &info, NULL);
@@ -997,7 +997,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
     if (thd->killed || fill_record_n_invoke_before_triggers(
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
-                           TRG_EVENT_INSERT, table->s->fields))
+                           TRG_EVENT_INSERT, table->s->fields, nullptr))
       return true;
 
     if (!table->triggers) {
@@ -1022,18 +1022,18 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
     if (thd->is_error()) return true;
 
-    if (invoke_table_check_constraints(thd, table)) {
-      if (thd->is_error()) return true;
-      // continue when IGNORE clause is used.
-      goto continue_loop;
-    }
-
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
         read_info.next_line();
         goto continue_loop;
       case VIEW_CHECK_ERROR:
         return true;
+    }
+
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) return true;
+      // continue when IGNORE clause is used.
+      goto continue_loop;
     }
 
     err = write_record(thd, table, &info, NULL);
@@ -1187,14 +1187,8 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
 
     if (thd->killed || fill_record_n_invoke_before_triggers(
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
-                           TRG_EVENT_INSERT, table->s->fields))
+                           TRG_EVENT_INSERT, table->s->fields, nullptr))
       return true;
-
-    if (invoke_table_check_constraints(thd, table)) {
-      if (thd->is_error()) return true;
-      // continue when IGNORE clause is used.
-      goto continue_loop;
-    }
 
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
@@ -1202,6 +1196,12 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
         goto continue_loop;
       case VIEW_CHECK_ERROR:
         return true;
+    }
+
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) return true;
+      // continue when IGNORE clause is used.
+      goto continue_loop;
     }
 
     if (write_record(thd, table, &info, NULL)) return true;

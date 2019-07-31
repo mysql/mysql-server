@@ -816,23 +816,25 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       table->clear_partial_update_diffs();
 
       store_record(table, record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, &update, *update_field_list,
-                                               *update_value_list, table,
-                                               TRG_EVENT_UPDATE, 0)) {
+      bool is_row_changed = false;
+      if (fill_record_n_invoke_before_triggers(
+              thd, &update, *update_field_list, *update_value_list, table,
+              TRG_EVENT_UPDATE, 0, &is_row_changed)) {
         error = 1;
         break;
       }
-      if (invoke_table_check_constraints(thd, table)) {
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        // continue when IGNORE clause is used.
-        continue;
-      }
       found_rows++;
 
-      if (!records_are_comparable(table) || compare_records(table)) {
+      if (is_row_changed) {
+        /*
+          Default function and default expression values are filled before
+          evaluating the view check option. Check option on view using table(s)
+          with default function and default expression breaks otherwise.
+
+          It is safe to not invoke CHECK OPTION for VIEW if records are same.
+          In this case the row is coming from the view and thus should satisfy
+          the CHECK OPTION.
+        */
         int check_result = table_list->view_check_option(thd);
         if (check_result != VIEW_CHECK_OK) {
           found_rows--;
@@ -845,11 +847,25 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         /*
-          In order to keep MySQL legacy behavior, we do this update *after*
-          the CHECK OPTION test. Proper behavior is probably to throw an
-          error, though.
+          Existing rows in table should normally satisfy CHECK constraints. So
+          it should be safe to check constraints only for rows that has really
+          changed (i.e. after compare_records()).
+
+          In future, once addition/enabling of CHECK constraints without their
+          validation is supported, we might encounter old rows which do not
+          satisfy CHECK constraints currently enabled. However, rejecting no-op
+          updates to such invalid pre-existing rows won't make them valid and is
+          probably going to be confusing for users. So it makes sense to stick
+          to current behavior.
         */
-        update.set_function_defaults(table);
+        if (invoke_table_check_constraints(thd, table)) {
+          if (thd->is_error()) {
+            error = 1;
+            break;
+          }
+          // continue when IGNORE clause is used.
+          continue;
+        }
 
         if (will_batch) {
           /*
@@ -2090,16 +2106,12 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       table->clear_partial_update_diffs();
       table->set_updated_row();
       store_record(table, record[1]);
+      bool is_row_changed = false;
       if (fill_record_n_invoke_before_triggers(
               thd, update_operations[offset], *fields_for_table[offset],
-              *values_for_table[offset], table, TRG_EVENT_UPDATE, 0))
+              *values_for_table[offset], table, TRG_EVENT_UPDATE, 0,
+              &is_row_changed))
         return true;
-
-      if (invoke_table_check_constraints(thd, table)) {
-        if (thd->is_error()) return true;
-        // continue when IGNORE clause is used.
-        continue;
-      }
 
       /*
         Reset the table->auto_increment_field_not_null as it is valid for
@@ -2108,9 +2120,7 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       table->auto_increment_field_not_null = false;
       found_rows++;
       int error = 0;
-      if (!records_are_comparable(table) || compare_records(table)) {
-        update_operations[offset]->set_function_defaults(table);
-
+      if (is_row_changed) {
         if ((error = cur_table->view_check_option(thd)) != VIEW_CHECK_OK) {
           found_rows--;
           if (error == VIEW_CHECK_SKIP)
@@ -2118,6 +2128,25 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
           else if (error == VIEW_CHECK_ERROR)
             return true;
         }
+
+        /*
+          Existing rows in table should normally satisfy CHECK constraints. So
+          it should be safe to check constraints only for rows that has really
+          changed (i.e. after compare_records()).
+
+          In future, once addition/enabling of CHECK constraints without their
+          validation is supported, we might encounter old rows which do not
+          satisfy CHECK constraints currently enabled. However, rejecting
+          no-op updates to such invalid pre-existing rows won't make them
+          valid and is probably going to be confusing for users. So it makes
+          sense to stick to current behavior.
+        */
+        if (invoke_table_check_constraints(thd, table)) {
+          if (thd->is_error()) return true;
+          // continue when IGNORE clause is used.
+          continue;
+        }
+
         if (!updated_rows++) {
           /*
             Inform the main table that we are going to update the table even
@@ -2418,14 +2447,19 @@ bool Query_result_update::do_updates(THD *thd) {
         if (rc || check_record(thd, table->field)) goto err;
       }
 
-      if (invoke_table_check_constraints(thd, table)) {
-        if (thd->is_error()) goto err;
-        // continue when IGNORE clause is used.
-        continue;
-      }
-
       if (!records_are_comparable(table) || compare_records(table)) {
+        /*
+          This function does not call the fill_record_n_invoke_before_triggers
+          which sets function defaults automagically. Hence calling
+          set_function_defaults here explicitly to set the function defaults.
+        */
         update_operations[offset]->set_function_defaults(table);
+
+        /*
+          It is safe to not invoke CHECK OPTION for VIEW if records are same.
+          In this case the row is coming from the view and thus should satisfy
+          the CHECK OPTION.
+        */
         int error;
         if ((error = cur_table->view_check_option(thd)) != VIEW_CHECK_OK) {
           if (error == VIEW_CHECK_SKIP)
@@ -2434,6 +2468,25 @@ bool Query_result_update::do_updates(THD *thd) {
             // No known handler error code present, print_error makes no sense
             goto err;
         }
+
+        /*
+          Existing rows in table should normally satisfy CHECK constraints. So
+          it should be safe to check constraints only for rows that has really
+          changed (i.e. after compare_records()).
+
+          In future, once addition/enabling of CHECK constraints without their
+          validation is supported, we might encounter old rows which do not
+          satisfy CHECK constraints currently enabled. However, rejecting no-op
+          updates to such invalid pre-existing rows won't make them valid and is
+          probably going to be confusing for users. So it makes sense to stick
+          to current behavior.
+        */
+        if (invoke_table_check_constraints(thd, table)) {
+          if (thd->is_error()) goto err;
+          // continue when IGNORE clause is used.
+          continue;
+        }
+
         local_error =
             table->file->ha_update_row(table->record[1], table->record[0]);
         if (!local_error)

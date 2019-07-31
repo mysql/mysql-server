@@ -1447,9 +1447,9 @@ delete from t1;
 # TIMESTAMP NOT NULL (e) gets NOW.
 drop table t1;
 #
-# Test of updatable views with check options. The option can be violated
-# using ON UPDATE updates which is very strange as this offers a loophole
-# in this integrity check.
+# Test of updatable views with check options.
+# Test case provides coverage for Bug#29834066 "DEFAULT EXPRESSION CAN
+# BREAK VIEW CHECK OPTION".
 #
 SET TIME_ZONE = "+03:00";
 # 1970-01-01 03:16:40
@@ -1472,11 +1472,11 @@ a	b
 1	1970-01-01 03:16:40
 # 1970-01-01 03:33:20
 SET TIMESTAMP = 2000.000234;
-Logically, there should be an ER_VIEW_CHECK_FAILED here.
 UPDATE v1 SET a = 2;
+ERROR HY000: CHECK OPTION failed 'test.v1'
 SELECT * FROM t1;
 a	b
-2	1970-01-01 03:33:20
+1	1970-01-01 03:16:40
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1495,10 +1495,11 @@ SELECT * FROM v1;
 a	c
 1973-08-14 09:11:22	1
 SET TIMESTAMP = 1.126789;
-Logically, there should be an ER_VIEW_CHECK_FAILED here.
 INSERT INTO v1 ( c ) VALUES ( 1 ) ON DUPLICATE KEY UPDATE c = 2;
+ERROR HY000: CHECK OPTION failed 'test.v1'
 SELECT * FROM v1;
 a	c
+1973-08-14 09:11:22	1
 DROP VIEW v1;
 DROP TABLE t1;
 #
