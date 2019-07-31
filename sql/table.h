@@ -2478,22 +2478,46 @@ struct TABLE_LIST {
       : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
                    table_name, lock_type) {}
 
+  /**
+    Creates a TABLE_LIST object with pre-allocated strings for database, table
+    and alias.
+  */
+  TABLE_LIST(TABLE *table_arg, const char *db_name_arg, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum thr_lock_type lock_type_arg)
+      : db(db_name_arg),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        table(table_arg),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+  }
+
   /// Constructor that can be used when the strings are null terminated.
   TABLE_LIST(const char *db_name, const char *table_name, const char *alias,
              enum thr_lock_type lock_type)
       : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
                    alias, lock_type) {}
 
-  TABLE_LIST(TABLE *table_arg, const char *alias_arg,
-             thr_lock_type lock_type_arg)
-      : db(table_arg->s->db.str),
-        table_name(table_arg->s->table_name.str),
+  /**
+    This constructor can be used when a TABLE_LIST is needed for an existing
+    temporary table. These typically have very long table names, since it is
+    a fully qualified path. For this reason, the table is set to the alias.
+    The database name is left blank. The lock descriptor is set to TL_READ.
+  */
+  TABLE_LIST(TABLE *table_arg, const char *alias_arg)
+      : db(""),
+        table_name(alias_arg),
         alias(alias_arg),
         m_map(1),
         table(table_arg),
-        m_lock_descriptor{lock_type_arg},
-        db_length(table_arg->s->db.length),
-        table_name_length(table_arg->s->table_name.length) {
+        m_lock_descriptor{TL_READ},
+        db_length(0),
+        table_name_length(strlen(alias_arg)) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
