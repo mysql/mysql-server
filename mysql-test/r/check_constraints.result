@@ -2777,3 +2777,553 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_chk_1` CHECK ((`f1` <> 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
+#########################################################################
+# Bug#29706689 - CHECK CONSTRAINT COMPARING COLUMN WITH DEFAULT VALUE IS
+#                NOT ENFORCED.
+#########################################################################
+#------------------------------------------------------------------------
+# Case 1: Simple test case to verify check constraint expression evaluation
+#         with the column using function CURDATE() as default.
+#------------------------------------------------------------------------
+CREATE TABLE tst (
+id INT,
+start_date DATE,
+end_date DATE,
+created DATE DEFAULT (CURDATE()),
+PRIMARY KEY (id),
+CONSTRAINT chk_dat CHECK (start_date >= created)
+);
+INSERT INTO tst (id, start_date) VALUES (1, CURDATE());
+# Without fix, check constraint chk_dat evaluation succeeds. With fix,
+# check constraint evaluation fails and an error is reported.
+INSERT INTO tst (id, start_date) VALUES (2, '2019-04-25');
+ERROR HY000: Check constraint 'chk_dat' is violated.
+DROP TABLE tst;
+#------------------------------------------------------------------------
+# Case 2: Test case to verify check constraint expression evaluation
+#         with the column using function CURDATE() as default.
+#         Test case verifies behavior with INSERT, REPLACE and LOAD
+#         operations.
+#------------------------------------------------------------------------
+SET TIME_ZONE = "+00:00";
+#Time set to May 7, 2019 17:51:02 GMT
+SET TIMESTAMP=1557251462;
+CREATE TABLE tst (id INT PRIMARY KEY,
+scol DATE DEFAULT(CURDATE()),
+col DATE,
+CHECK ( scol < col));
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` date DEFAULT (curdate()),
+  `col` date DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20');
+# Check constraint evaluation (after setting default value) fails during
+# INSERT operation.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-06');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting default value) fails during
+# REPLACE operation.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-20');
+# Check constraint evaluation (after setting default value) fails during
+# LOAD operation.
+CREATE TABLE tmp(id INT, col DATE);
+INSERT INTO tmp VALUES(3, '2019-05-06');
+SELECT * FROM tmp INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "tmp". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "tmp". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+DROP TABLE tmp;
+DELETE FROM tst;
+#------------------------------------------------------------------------
+# Case 3: Test case to verify check constraint expression evaluation
+#         with the column using function CURTIME() as default.
+#         Test case verifies behavior with INSERT, REPLACE and LOAD
+#         operations.
+#------------------------------------------------------------------------
+ALTER TABLE tst MODIFY COLUMN scol TIME DEFAULT(CURTIME()), MODIFY COLUMN col TIME;
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` time DEFAULT (curtime()),
+  `col` time DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '20:20:20');
+# Check constraint evaluation (after setting default value) fails during
+# INSERT operation.
+INSERT INTO tst(id, col) VALUES (1, '15:15:15');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting default value) fails during
+# REPLACE operation.
+REPLACE INTO tst(id, col) VALUES (2, '15:15:15');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '20:20:20');
+# Check constraint evaluation (after setting default value) fails during
+# LOAD operation.
+CREATE TABLE tmp(id INT, col TIME);
+INSERT INTO tmp VALUES(3, '15:15:15');
+SELECT * FROM tmp INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "tmp". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "tmp". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+# LOAD XML with invalid values.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+DROP TABLE tmp;
+DELETE FROM tst;
+#------------------------------------------------------------------------
+# Case 4: Test case to verify check constraint expression evaluation
+#         with the column of type "timestamp" using function
+#         CURRENT_TIMESTAMP() as default.
+#         Test case verifies behavior with INSERT, REPLACE, UPDATE,
+#         INSERT ON DUPLICATE KEY UPDATE and LOAD operations.
+#------------------------------------------------------------------------
+ALTER TABLE tst MODIFY COLUMN scol timestamp DEFAULT(CURRENT_TIMESTAMP()),
+MODIFY COLUMN col  timestamp;
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` timestamp NULL DEFAULT (now()),
+  `col` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12');
+# Check constraint evaluation (after setting default value) fails during
+# INSERT operation.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-06 12:12:12');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting default value) fails during
+# REPLACE operation.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06 12:12:12');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-20 12:12:12');
+# Check constraint evaluation (after setting default value) fails during
+# LOAD operation.
+CREATE TABLE tmp(id INT, col TIMESTAMP);
+INSERT INTO tmp VALUES(3, '2019-05-06 12:12:12');
+SELECT * FROM tmp INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "tmp". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "tmp". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Cases to verify behavior with ON UPDATE CURRENT_TIMESTAMP
+ALTER TABLE tst MODIFY COLUMN scol timestamp ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  `col` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Time set to May 25, 2019 21:09:09 GMT
+SET TIMESTAMP=1558818549;
+# Check constraint evaluation (after setting on update value) fails during
+# UPDATE ON DUPLICATE KEY.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12') ON DUPLICATE KEY UPDATE id=3;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting on update value) fails during
+# UPDATE operation.
+UPDATE tst SET col='2019-05-21 12:12:12' WHERE id = 1;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting on update value) fails during
+# multi-table UPDATE operation.
+CREATE TABLE tst1 (id INT, col timestamp DEFAULT('2019-05-21 12:12:12'));
+SHOW CREATE TABLE tst1;
+Table	Create Table
+tst1	CREATE TABLE `tst1` (
+  `id` int(11) DEFAULT NULL,
+  `col` timestamp NULL DEFAULT (_utf8mb4'2019-05-21 12:12:12')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO tst1(id) VALUES(1);
+UPDATE tst,tst1 SET tst.col = tst1.col WHERE tst.id = tst1.id;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+DROP TABLE tmp;
+DELETE FROM tst;
+DELETE FROM tst1;
+#------------------------------------------------------------------------
+# Case 5: Test cases to verify check constraint expression evaluation
+#         with the column of type "datetime" using function
+#         CURRENT_TIMESTAMP() as default.
+#         Test case verifies behavior with INSERT, REPLACE, UPDATE,
+#         INSERT ON DUPLICATE KEY UPDATE and LOAD operations.
+#------------------------------------------------------------------------
+#Time set to May 7, 2019 17:51:02 GMT
+SET TIMESTAMP=1557251462;
+ALTER TABLE tst MODIFY COLUMN scol datetime DEFAULT(CURRENT_TIMESTAMP()),
+MODIFY COLUMN col  datetime;
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` datetime DEFAULT (now()),
+  `col` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# INSERT with valid values.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12');
+# Check constraint evaluation (after setting default value) fails during
+# INSERT operation.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-06 12:12:12');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting default value) fails during
+# REPLACE operation.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06 12:12:12');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# REPLACE with valid values.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-20 12:12:12');
+# Check constraint evaluation (after setting default value) fails during
+# REPLACE operation.
+REPLACE INTO tst(id, col) VALUES (2, '2019-05-06 12:12:12');
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting default value) fails during
+# LOAD operation.
+CREATE TABLE tmp(id INT, col TIMESTAMP);
+INSERT INTO tmp VALUES(3, '2019-05-06 12:12:12');
+SELECT * FROM tmp INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "tmp". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "tmp". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Cases to verify behavior with ON UPDATE CURRENT_TIMESTAMP
+ALTER TABLE tst MODIFY COLUMN scol datetime ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  `col` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Time set to May 25, 2019 21:09:09 GMT
+SET TIMESTAMP=1558818549;
+# Check constraint evaluation (after setting on update value) fails during
+# UPDATE ON DUPLICATE KEY.
+INSERT INTO tst(id, col) VALUES (1, '2019-05-20 12:12:12') ON DUPLICATE KEY UPDATE id=3;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting on update value) fails during
+# UPDATE operation.
+UPDATE tst SET col='2019-05-21 12:12:12' WHERE id  = 1;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting on update value) fails during
+# multi-table UPDATE operation.
+ALTER TABLE tst1 MODIFY COLUMN col datetime DEFAULT('2019-05-21 12:12:12');
+SHOW CREATE TABLE tst1;
+Table	Create Table
+tst1	CREATE TABLE `tst1` (
+  `id` int(11) DEFAULT NULL,
+  `col` datetime DEFAULT (_utf8mb4'2019-05-21 12:12:12')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO tst1(id) VALUES(1);
+UPDATE tst,tst1 SET tst.col = tst1.col WHERE tst.id = tst1.id;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+DROP TABLE tmp, tst, tst1;
+SET TIMESTAMP=DEFAULT;
+SET TIME_ZONE=DEFAULT;
+#------------------------------------------------------------------------
+# Case 6: Test case to verify check constraint expression evaluation
+#         with the column using default expression.
+#         Test case verifies behavior with INSERT, REPLACE, UPDATE,
+#         and LOAD operations.
+#------------------------------------------------------------------------
+CREATE TABLE tst (id INT PRIMARY KEY,
+scol INT DEFAULT(col * col),
+col INT,
+CHECK ( scol < col));
+SHOW CREATE TABLE tst;
+Table	Create Table
+tst	CREATE TABLE `tst` (
+  `id` int(11) NOT NULL,
+  `scol` int(11) DEFAULT ((`col` * `col`)),
+  `col` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# INSERT with valid values.
+INSERT INTO tst VALUES (1, 10, 20);
+SELECT * FROM tst;
+id	scol	col
+1	10	20
+# Check constraint evaluation (after setting default value) fails during
+# INSERT operation.
+INSERT INTO tst(id, col) VALUES (2, 10);
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# Check constraint evaluation (after setting default value) fails during
+# REPLACE operation.
+REPLACE INTO tst(id, col) VALUES (2, 10);
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# REPLACE with valid values.
+REPLACE INTO tst VALUES (2, 10, 20);
+# Check constraint evaluation (after setting default value) fails during
+# LOAD operation.
+CREATE TABLE tmp(id INT, col INT);
+INSERT INTO tmp VALUES(3, 10);
+SELECT * FROM tmp INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "tmp". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "tmp". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE tst(id, col);;
+ERROR HY000: Check constraint 'tst_chk_1' is violated.
+DROP TABLE tst, tmp;
+#------------------------------------------------------------------------
+# Case 7: Test case to verify set function defaults, before trigger,
+#         CHECK OPTION and Check constraint execution order with the
+#         INSERT, REPLACE, UPDATE, INSERT ON DUPLICATE KEY UPDATE and
+#         LOAD operations.
+#         The execution order should be,
+#              1. Set function defaults (using CURRENT_TIMESTAMP here)
+#              2. Before triggers
+#              3. View CHECK OPTION
+#              4. CHECK CONSTRAINT
+#------------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT PRIMARY KEY,
+f2 TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CHECK (f2 < '2018-01-01 00:00:00'));
+INSERT INTO t1 VALUES (4, '2017-06-06 00:00:00'),
+(5, '2017-06-06 00:00:00'),
+(6, '2017-06-06 00:00:00');
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1 WHERE f2 < '2019-01-01 00:00:00' WITH CHECK OPTION;
+CREATE TRIGGER t1_before_insert_trg BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+IF NEW.f1 = 1 THEN
+-- Valid value case.
+SET NEW.f2 = '2017-06-06 00:00:00';
+ELSEIF NEW.f1 = 2 THEN
+-- Check option failure case.
+SET NEW.f2 = '2019-06-06 00:00:00';
+ELSEIF NEW.f1 = 3 THEN
+-- Check constraint failure case.
+SET NEW.f2 = '2018-06-06 00:00:00';
+END IF;
+END;$
+CREATE TRIGGER t1_before_update_trg BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+IF OLD.f1 = 4 THEN
+-- Valid value case.
+SET NEW.f2 = '2017-06-06 00:00:00';
+ELSEIF OLD.f1 = 5 THEN
+-- Check option failure case.
+SET NEW.f2 = '2019-06-06 00:00:00';
+ELSEIF OLD.f1 = 6 THEN
+-- Check constraint failure case.
+SET NEW.f2 = '2018-06-06 00:00:00';
+END IF;
+END;$
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# INSERT operations.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# INSERT with valid values.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger with valid values. CHECK OPTION and CHECK CONSTRAINT passes
+# with the adjusted value (fails without adjustment).
+# Which means BEFORE trigger is executed after setting function defaults
+# and before executing CHECK OPTION and CHECK CONSTRAINTS.
+INSERT INTO v1(f1) VALUES(1);
+# INSERT with invalid value. View CHECK OPTION fails.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger with the invalid value (CHECK OPTION and CHECK CONSTRAINT fails
+# with this value). Error from CHECK OPTION is reported in this case.
+# Which means CHECK OPTION is executed after BEFORE trigger and before
+# CHECK CONSTRAINTS.
+INSERT INTO v1(f1) VALUES(2);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+# INSERT with invalid value. CHECK CONSTRAINT evaluation fails.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger invalid value (Only CHECK CONSTRAINT evaluation fails with this
+# value. CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+# reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+INSERT INTO v1(f1) VALUES(3);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# INSERT ... ON DUPLICATE UPDATE operations.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# INSERT with valid values.
+# When update part of statement is processed f2 gets CURRENT_TIMESTAMP as
+# its value as result of ON UPDATE clause, which is adjusted by the BEFORE
+# UPDATE trigger. CHECK OPTION and CHECK CONSTRAINT evaluation passes with
+# adjusted value (fails without adjustment).
+# Which means BEFORE trigger is executed after setting function defaults
+# and before executing CHECK OPTION and CHECK CONSTRAINTS.
+INSERT INTO v1 VALUES (4, '2017-01-01 00:00:00') ON DUPLICATE KEY UPDATE f1 = 7;
+# INSERT with invalid value. View CHECK OPTION fails.
+# When update part of statement is processed f2 gets CURRENT_TIMESTAMP as
+# its value as result of ON UPDATE clause, which is adjusted by the BEFORE
+# UPDATE trigger(CHECK OPTION and check constraint evaluation fails with
+# this value). Error from CHECK OPTION is reported in this case.
+# Which means CHECK OPTION is executed after BEFORE trigger and before
+# CHECK CONSTRAINTS.
+INSERT INTO v1 VALUES (5, '2017-01-01 00:00:00') ON DUPLICATE KEY UPDATE f1 = 7;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+# INSERT with invalid value. CHECK CONSTRAINT evaluation fails.
+# When update part of statement is processed f2 gets CURRENT_TIMESTAMP as
+# its value as result of ON UPDATE clause, which is adjusted by the BEFORE
+# UPDATE trigger(only check constraint evaluation fails with this value.
+# CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+# reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+INSERT INTO v1 VALUES (6, '2017-01-01 00:00:00') ON DUPLICATE KEY UPDATE f1 = 7;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# REPLACE operations.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# REPLACE with valid values.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger with the valid values. CHECK OPTION and CHECK CONSTRAINT passes
+# with adjusted value (fails without adjustment).
+# Which means BEFORE trigger is executed after setting function defaults
+# and before executing CHECK OPTION and CHECK CONSTRAINTS.
+DELETE FROM v1 WHERE f1 = 7;
+REPLACE INTO v1 VALUES(4, '2017-06-06 00:00:00');
+# REPLACE with invalid value. View CHECK OPTION fails.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger with the invalid value (CHECK OPTION and CHECK CONSTRAINT evaluation
+# fails with this value). Error from CHECK OPTION is reported in this case.
+# Which means CHECK OPTION is executed after BEFORE trigger and before
+# CHECK CONSTRAINTS.
+REPLACE INTO v1(f1) VALUES(2);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+# REPLACE with invalid value. CHECK CONSTRAINT evaluation fails.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE TRIGGER
+# with the invalid value (Only CHECK CONSTRAINT evaluation fails with
+# this value. CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+# reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+REPLACE INTO v1(f1) VALUES(3);
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# UPDATE operations.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# UPDATE with valid values.
+# When update is processed f2 gets CURRENT_TIMESTAMP as its value as result
+# of ON UPDATE clause, which is adjusted by the BEFORE UPDATE trigger.
+# CHECK OPTION and CHECK CONSTRAINT evaluation passes with adjusted
+# value (fails without adjustment).
+# Which means BEFORE trigger is executed after setting function defaults
+# and before executing CHECK OPTION and CHECK CONSTRAINTS.
+UPDATE v1 SET f1 = 7 WHERE f1 = 4;
+# When update is processed f2 gets CURRENT_TIMESTAMP as its value as result
+# of ON UPDATE clause, which is adjusted by the BEFORE UPDATE trigger(CHECK
+# OPTION and check constraint evaluation fails with this value). Error from
+# CHECK OPTION is reported in this case.
+# Which means CHECK OPTION is executed after BEFORE trigger and before
+# CHECK CONSTRAINTS.
+UPDATE v1 SET f1 = 8 WHERE f1 = 5;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+# UPDATE with invalid value. CHECK CONSTRAINT evaluation fails.
+# When update is processed f2 gets CURRENT_TIMESTAMP as its value as result
+# of ON UPDATE clause, which is adjusted by the BEFORE UPDATE trigger
+# (Only CHECK CONSTRAINT evaluation fails with this value. CHECK OPTION passes).
+# Error from CHECK CONSTRAINT evaluation is reported in this case. CHECK
+# CONSTRAINT is evaluated after CHECK OPTION.
+UPDATE v1 SET f1 = 8 WHERE f1 = 6;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+UPDATE v1 SET f1 = 4, f2 = '2017-06-06 00:00:00' WHERE f1 = 7;
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# LOAD operations.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+CREATE TABLE t2 (f1 INT);
+INSERT INTO t2 VALUES (1);
+SELECT * FROM t2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD with valid values.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger with the valid values. CHECK OPTION and CHECK CONSTRAINT passes
+# with adjusted value (fails without adjustment).
+# Which means BEFORE trigger is executed after setting function defaults
+# and before executing CHECK OPTION and CHECK CONSTRAINTS.
+DELETE FROM t1 WHERE f1 = 1;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "t2". Check constraint evaluation succeeds with the value
+# from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE v1(f1);;
+DELETE FROM t1 WHERE f1 = 1;
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "t2". Check constraint evaluation succeeds with the
+# value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE v1(f1);;
+# LOAD with invalid value. View CHECK OPTION fails.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE INSERT
+# trigger with the invalid value (CHECK OPTION and CHECK CONSTRAINT evaluation
+# fails with this value). Error from CHECK OPTION is reported in this case.
+# Which means CHECK OPTION is executed after BEFORE trigger and before
+# CHECK CONSTRAINTS.
+DELETE FROM t2;
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "t2". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE v1(f1);;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "t2". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE v1(f1);;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+# LOAD with invalid value. CHECK CONSTRAINT evaluation fails.
+# Default CURRENT_TIMESTAMP value of f2 is adjusted by the BEFORE TRIGGER
+# with the invalid value (Only CHECK CONSTRAINT evaluation fails with
+# this value. CHECK OPTION passes). Error from CHECK CONSTRAINT evaluation is
+# reported in this case. CHECK CONSTRAINT is evaluated after CHECK OPTION.
+DELETE FROM t2;
+INSERT INTO t2 VALUES (3);
+SELECT * FROM t2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# LOAD data in table from file tmp1.txt. tmp1.txt contains data from
+# the table "t2". Check constraint evaluation fails during LOAD operation
+# with the value from tmp1.txt.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' INTO TABLE v1(f1);;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+# LOAD data in table from file tmp1.xml. tmp1.xml contains data dumped
+# from the table "t2". Check constraint evaluation fails during LOAD
+# operation with the value from tmp1.xml.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE v1(f1);;
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1, t2;
+DROP VIEW v1;
+#########################################################################

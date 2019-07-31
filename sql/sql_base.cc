@@ -9243,12 +9243,19 @@ inline bool call_before_insert_triggers(THD *thd, TABLE *table,
   Fill fields in list with values from the list of items and invoke
   before triggers.
 
-  @param thd           thread context
-  @param optype_info   COPY_INFO structure used for default values handling
-  @param fields        Item_fields list to be filled
-  @param values        values to fill with
-  @param table         TABLE-object holding list of triggers to be invoked
-  @param event         event type for triggers to be invoked
+  @param      thd                 thread context
+  @param      optype_info         COPY_INFO structure used for default values
+                                  handling.
+  @param      fields              Item_fields list to be filled
+  @param      values              values to fill with
+  @param      table               TABLE-object holding list of triggers to be
+                                  invoked.
+  @param      event               event type for triggers to be invoked
+  @param      num_fields          Number of fields.
+  @param[out] is_row_changed      Set to true if a row is changed after
+                                  filling record and invoking before triggers
+                                  for UPDATE operation. Otherwise set to
+                                  false.
 
   NOTE
     This function assumes that fields which values will be set and triggers
@@ -9264,7 +9271,36 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
                                           List<Item> &fields,
                                           List<Item> &values, TABLE *table,
                                           enum enum_trigger_event_type event,
-                                          int num_fields) {
+                                          int num_fields,
+                                          bool *is_row_changed) {
+  // is_row_changed is used by UPDATE operation to set compare_record() result.
+  DBUG_ASSERT(is_row_changed == nullptr ||
+              optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION);
+  /*
+    Fill DEFAULT functions (like CURRENT_TIMESTAMP) and DEFAULT expressions on
+    the columns that are not on the list of assigned columns.
+  */
+  auto fill_function_defaults = [table, optype_info, is_row_changed]() {
+    /*
+      Unlike INSERT and LOAD, UPDATE operation requires comparison of old
+      and new records to determine whether function defaults have to be
+      evaluated.
+    */
+    if (optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION) {
+      *is_row_changed =
+          (!records_are_comparable(table) || compare_records(table));
+      /*
+        Evaluate function defaults for columns with ON UPDATE clause only
+        if any other column of the row is updated.
+      */
+      if (*is_row_changed &&
+          (optype_info->function_defaults_apply_on_columns(table->write_set)))
+        optype_info->set_function_defaults(table);
+    } else if (optype_info->function_defaults_apply_on_columns(
+                   table->write_set))
+      optype_info->set_function_defaults(table);
+  };
+
   /*
     If it's 'INSERT INTO ... ON DUPLICATE KEY UPDATE ...' statement
     the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
@@ -9282,13 +9318,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
       MY_BITMAP insert_into_fields_bitmap;
       bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-      /*
-        Evaluate DEFAULT functions like CURRENT_TIMESTAMP.
-        COPY_INFO::set_function_defaults() causes store_timestamp to be called
-        on the columns that are not on the list of assigned_columns.
-      */
-      if (optype_info->function_defaults_apply_on_columns(table->write_set))
-        optype_info->set_function_defaults(table);
+      fill_function_defaults();
 
       rc = fill_record(thd, table, fields, values, NULL,
                        &insert_into_fields_bitmap);
@@ -9302,26 +9332,15 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
       rc = fill_record(thd, table, fields, values, NULL, NULL);
 
       if (!rc) {
-        /*
-          Unlike INSERT and LOAD, UPDATE operation requires comparison of old
-          and new records to determine whether function defaults have to be
-          evaluated.
-        */
-        if (optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION) {
-          /*
-            Evaluate function defaults for columns with ON UPDATE clause only
-            if any other column of the row is updated.
-          */
-          if ((!records_are_comparable(table) || compare_records(table)) &&
-              (optype_info->function_defaults_apply_on_columns(
-                  table->write_set)))
-            optype_info->set_function_defaults(table);
-        } else if (optype_info->function_defaults_apply_on_columns(
-                       table->write_set))
-          optype_info->set_function_defaults(table);
-
+        fill_function_defaults();
         rc = table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
                                                true);
+        // For UPDATE operation, check if row is updated by the triggers.
+        if (!rc &&
+            optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION &&
+            !(*is_row_changed))
+          *is_row_changed =
+              (!records_are_comparable(table) || compare_records(table));
       }
     }
     /*
@@ -9337,8 +9356,9 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
 
     return rc || check_inserting_record(thd, table->field);
   } else {
-    return fill_record(thd, table, fields, values, NULL, NULL) ||
-           check_record(thd, fields);
+    if (fill_record(thd, table, fields, values, NULL, NULL)) return true;
+    fill_function_defaults();
+    return check_record(thd, fields);
   }
 }
 

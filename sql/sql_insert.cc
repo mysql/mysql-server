@@ -565,7 +565,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         }
         if (fill_record_n_invoke_before_triggers(
                 thd, &info, insert_field_list, *values, insert_table,
-                TRG_EVENT_INSERT, insert_table->s->fields)) {
+                TRG_EVENT_INSERT, insert_table->s->fields, nullptr)) {
           DBUG_ASSERT(thd->is_error());
           /*
             TODO: Convert warnings to errors if values_list.elements == 1
@@ -593,6 +593,14 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         }
       }
 
+      const int check_result = table_list->view_check_option(thd);
+      if (check_result == VIEW_CHECK_SKIP)
+        continue;
+      else if (check_result == VIEW_CHECK_ERROR) {
+        has_error = true;
+        break;
+      }
+
       if (invoke_table_check_constraints(thd, insert_table)) {
         if (thd->is_error()) {
           has_error = true;
@@ -602,13 +610,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         continue;
       }
 
-      const int check_result = table_list->view_check_option(thd);
-      if (check_result == VIEW_CHECK_SKIP)
-        continue;
-      else if (check_result == VIEW_CHECK_ERROR) {
-        has_error = true;
-        break;
-      }
       if (write_record(thd, insert_table, &info, &update)) {
         has_error = true;
         break;
@@ -1594,8 +1595,6 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
   save_read_set = table->read_set;
   save_write_set = table->write_set;
 
-  if (info->set_function_defaults(table)) return true;
-
   const enum_duplicates duplicate_handling = info->get_duplicate_handling();
 
   if (duplicate_handling == DUP_REPLACE || duplicate_handling == DUP_UPDATE) {
@@ -1720,9 +1719,11 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         restore_record(table, record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
+        bool is_row_changed = false;
         if (fill_record_n_invoke_before_triggers(
                 thd, update, *update->get_changed_columns(),
-                *update->update_values, table, TRG_EVENT_UPDATE, 0))
+                *update->update_values, table, TRG_EVENT_UPDATE, 0,
+                &is_row_changed))
           goto before_trg_err;
 
         bool insert_id_consumed = false;
@@ -1752,26 +1753,41 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         if (!insert_id_consumed)
           table->file->restore_auto_increment(prev_insert_id);
 
-        if (invoke_table_check_constraints(thd, table)) {
-          if (thd->is_error()) goto before_trg_err;
-          goto ok_or_after_trg_err;  // return false when IGNORE clause is used
-        }
-
-        /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
-        {
-          const TABLE_LIST *inserted_view =
-              table->pos_in_table_list->belong_to_view;
-          if (inserted_view != NULL) {
-            res = inserted_view->view_check_option(thd);
-            if (res == VIEW_CHECK_SKIP) goto ok_or_after_trg_err;
-            if (res == VIEW_CHECK_ERROR) goto before_trg_err;
-          }
-        }
-
         info->stats.touched++;
-        if (!records_are_comparable(table) || compare_records(table)) {
-          // Handle the INSERT ON DUPLICATE KEY UPDATE operation
-          update->set_function_defaults(table);
+        if (is_row_changed) {
+          /*
+            CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ...
+            It is safe to not invoke CHECK OPTION for VIEW if records are
+            same. In this case the row is coming from the view and thus
+            should satisfy the CHECK OPTION.
+          */
+          {
+            const TABLE_LIST *inserted_view =
+                table->pos_in_table_list->belong_to_view;
+            if (inserted_view != NULL) {
+              res = inserted_view->view_check_option(thd);
+              if (res == VIEW_CHECK_SKIP) goto ok_or_after_trg_err;
+              if (res == VIEW_CHECK_ERROR) goto before_trg_err;
+            }
+          }
+
+          /*
+            Existing rows in table should normally satisfy CHECK constraints. So
+            it should be safe to check constraints only for rows that has really
+            changed (i.e. after compare_records()).
+
+            In future, once addition/enabling of CHECK constraints without their
+            validation is supported, we might encounter old rows which do not
+            satisfy CHECK constraints currently enabled. However, rejecting
+            no-op updates to such invalid pre-existing rows won't make them
+            valid and is probably going to be confusing for users. So it makes
+            sense to stick to current behavior.
+          */
+          if (invoke_table_check_constraints(thd, table)) {
+            if (thd->is_error()) goto before_trg_err;
+            // return false when IGNORE clause is used.
+            goto ok_or_after_trg_err;
+          }
 
           if ((error = table->file->ha_update_row(table->record[1],
                                                   table->record[0])) &&
@@ -2103,11 +2119,6 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
   */
   prepare_triggers_for_insert_stmt(thd, table);
 
-  if (invoke_table_check_constraints(thd, table)) {
-    // return false when IGNORE clause is used.
-    return thd->is_error();
-  }
-
   if (table_list)  // Not CREATE ... SELECT
   {
     switch (table_list->view_check_option(thd)) {
@@ -2116,6 +2127,11 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
       case VIEW_CHECK_ERROR:
         return true;
     }
+  }
+
+  if (invoke_table_check_constraints(thd, table)) {
+    // return false when IGNORE clause is used.
+    return thd->is_error();
   }
 
   error = write_record(thd, table, &info, &update);
@@ -2156,7 +2172,8 @@ void Query_result_insert::store_values(THD *thd, List<Item> &values) {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
       fill_record_n_invoke_before_triggers(thd, &info, *fields, values, table,
-                                           TRG_EVENT_INSERT, table->s->fields);
+                                           TRG_EVENT_INSERT, table->s->fields,
+                                           nullptr);
   } else
     fill_record_n_invoke_before_triggers(thd, table->field, values, table,
                                          TRG_EVENT_INSERT, table->s->fields);
@@ -2744,6 +2761,18 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
 }
 
 void Query_result_create::store_values(THD *thd, List<Item> &values) {
+  /*
+    Evaluate function defaults and default expressions for the columns defined
+    in the CREATE TABLE SELECT.
+    fill_record_n_invoke_before_triggers version which does *not* set function
+    default and default expression automagically is called from here. As a
+    result function default and default expression is not evaluated for the
+    columns defined in CREATE TABLE SELECT. Hence calling set_function_defaults
+    explicitly.
+  */
+  if (info.function_defaults_apply_on_columns(table->write_set))
+    info.set_function_defaults(table);
+
   fill_record_n_invoke_before_triggers(thd, field, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);
 }
