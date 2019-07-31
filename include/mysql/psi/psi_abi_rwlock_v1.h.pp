@@ -54,9 +54,9 @@ struct PSI_rwlock_locker_state_v1 {
   enum PSI_rwlock_operation m_operation;
   struct PSI_rwlock *m_rwlock;
   struct PSI_thread *m_thread;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state_v1;
 typedef void (*register_rwlock_v1_t)(const char *category,

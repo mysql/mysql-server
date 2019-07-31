@@ -41,9 +41,9 @@ struct PSI_mutex_locker_state_v1 {
   enum PSI_mutex_operation m_operation;
   struct PSI_mutex *m_mutex;
   struct PSI_thread *m_thread;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
 typedef void (*register_mutex_v1_t)(const char *category,

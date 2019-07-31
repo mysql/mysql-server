@@ -129,11 +129,11 @@ struct PSI_mutex_locker_state_v1 {
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   /** Timer function. */
   unsigned long long (*m_timer)(void);
   /** Internal data. */
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
 
