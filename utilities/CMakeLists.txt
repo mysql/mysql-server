@@ -21,14 +21,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 IF(NOT CMAKE_CROSSCOMPILING)
-  MYSQL_ADD_EXECUTABLE(comp_err comp_err.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(comp_err mysys)
+  MYSQL_ADD_EXECUTABLE(comp_err
+    comp_err.cc
+    LINK_LIBRARIES mysys
+    SKIP_INSTALL
+    )
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(comp_client_err
-  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
-  SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(comp_client_err mysys)
+  comp_client_err.cc
+  ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
+  LINK_LIBRARIES mysys
+  SKIP_INSTALL
+  )
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
   COMMAND comp_client_err
@@ -40,7 +45,7 @@ ADD_CUSTOM_TARGET(GenClientError ALL
   DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
 
 
-IF (BUILD_BUNDLED_LZ4)
+IF(BUILD_BUNDLED_LZ4)
   ADD_LIBRARY(lz4_lib STATIC
     ../extra/lz4/lz4.c
     ../extra/lz4/lz4frame.c
@@ -70,16 +75,19 @@ ADD_CUSTOM_TARGET(GenError ALL
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
 
-MYSQL_ADD_EXECUTABLE(range_check_err range_check_err.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(range_check_err mysys)
-add_dependencies(range_check_err GenError)
+MYSQL_ADD_EXECUTABLE(range_check_err
+  range_check_err.cc
+  DEPENDENCIES GenError
+  LINK_LIBRARIES mysys
+  SKIP_INSTALL
+  )
 
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
 ## Most executables depend on SSL shared libraries (through mysys).
 ## For 'comp_err' we need it to be available during build.
-IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
+IF(WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
   ADD_DEPENDENCIES(GenError copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
@@ -91,21 +99,31 @@ IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc COMPONENT Server)
-TARGET_LINK_LIBRARIES(my_print_defaults  mysys)
-
-MYSQL_ADD_EXECUTABLE(perror perror.cc COMPONENT Server)
-ADD_DEPENDENCIES(perror GenError)
-TARGET_LINK_LIBRARIES(perror mysys)
-
-IF (BUILD_BUNDLED_LZ4)
-  MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc COMPONENT Server)
-  TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY} mysys)
+MYSQL_ADD_EXECUTABLE(my_print_defaults
+  my_print_defaults.cc
+  COMPONENT Server
+  LINK_LIBRARIES mysys
+  )
+MYSQL_ADD_EXECUTABLE(perror
+  perror.cc
+  COMPONENT Server
+  DEPENDENCIES GenError
+  LINK_LIBRARIES mysys
+  )
+IF(BUILD_BUNDLED_LZ4)
+  MYSQL_ADD_EXECUTABLE(lz4_decompress
+    lz4_decompress.cc
+    COMPONENT Server
+    LINK_LIBRARIES ${LZ4_LIBRARY} mysys
+    )
 ENDIF()
 
-IF (BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
-  MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc COMPONENT Server)
-  TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY} mysys)
+IF(BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
+  MYSQL_ADD_EXECUTABLE(zlib_decompress
+    zlib_decompress.cc
+    COMPONENT Server
+    LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
+    )
 ENDIF()
 
 # All targets below belong to COMPONENT Server and depend on InnoDB.
@@ -147,22 +165,26 @@ INCLUDE_DIRECTORIES(
   )
 
 # We use the InnoDB code directly in case the code changes.
-MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc COMPONENT Server)
+MYSQL_ADD_EXECUTABLE(innochecksum
+  innochecksum.cc
+  COMPONENT Server
+  DEPENDENCIES GenError
+  LINK_LIBRARIES mysys innodb_zipdecompress ${LZ4_LIBRARY}
+  )
 TARGET_COMPILE_DEFINITIONS(innochecksum PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(innochecksum.cc
     COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
 ENDIF()
-TARGET_LINK_LIBRARIES(innochecksum
-  mysys innodb_zipdecompress ${LZ4_LIBRARY})
-ADD_DEPENDENCIES(innochecksum GenError)
 
-MYSQL_ADD_EXECUTABLE(ibd2sdi ibd2sdi.cc COMPONENT Server)
+MYSQL_ADD_EXECUTABLE(ibd2sdi
+  ibd2sdi.cc
+  COMPONENT Server
+  DEPENDENCIES GenError
+  LINK_LIBRARIES mysys innodb_zipdecompress ${LZ4_LIBRARY}
+  )
 TARGET_COMPILE_DEFINITIONS(ibd2sdi PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(ibd2sdi.cc
     COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
 ENDIF()
-TARGET_LINK_LIBRARIES(ibd2sdi
-  mysys innodb_zipdecompress ${LZ4_LIBRARY})
-ADD_DEPENDENCIES(ibd2sdi GenError)

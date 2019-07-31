@@ -49,8 +49,11 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
 
 # Gen_lex_token
 # Make sure sql_yacc.h is generated before compiling gen_lex_token
-MYSQL_ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc SKIP_INSTALL)
-ADD_DEPENDENCIES(gen_lex_token GenServerSource)
+MYSQL_ADD_EXECUTABLE(gen_lex_token
+  gen_lex_token.cc
+  DEPENDENCIES GenServerSource
+  SKIP_INSTALL
+  )
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -60,9 +63,13 @@ ADD_CUSTOM_COMMAND(
 
 # gen_keyword_list
 # Make sure sql_yacc.h is generated before compiling gen_keyword_list
-MYSQL_ADD_EXECUTABLE(gen_keyword_list gen_keyword_list.cc SKIP_INSTALL)
-ADD_DEPENDENCIES(gen_keyword_list GenServerSource)
-TARGET_LINK_LIBRARIES(gen_keyword_list ${ICU_LIBRARIES} ${CMAKE_DL_LIBS})
+MYSQL_ADD_EXECUTABLE(gen_keyword_list
+  gen_keyword_list.cc
+  DEPENDENCIES GenServerSource
+  LINK_LIBRARIES ${ICU_LIBRARIES} ${CMAKE_DL_LIBS}
+  SKIP_INSTALL
+  )
+
 # ICU headers for WIN32 need extra info about their libs state
 IF(WIN32)
   ADD_COMPILE_DEFINITIONS(gen_keyword_list.cc COMPILE_DEFINITIONS
@@ -1044,11 +1051,13 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_lex_hash
 )
 
-MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
+MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql
+  tztime.cc
+  DEPENDENCIES GenError
+  LINK_LIBRARIES mysys
+  )
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql
   PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
-ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource
