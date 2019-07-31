@@ -451,6 +451,14 @@ int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
     goto EXIT;
   }
   if (!(rc = FIPS_mode_set(fips_mode))) {
+    /*
+      If OS doesn't have FIPS enabled openssl library and user sets FIPS mode
+      ON, It fails with proper error. But in the same time it doesn't allow to
+      perform any cryptographic operation. Now if FIPS mode set fails with
+      error, setting old working FIPS mode value in the OpenSSL library. It will
+      allow successful cryptographic operation and will not abort the server.
+    */
+    FIPS_mode_set(fips_mode_old);
     err_library = ERR_get_error();
     ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
     err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';

@@ -9,6 +9,10 @@ Failed to set ssl related options.
 ##Test: Set the variable SSL FIPS mode to ON, since OS doesn't support it. operation will throw error.
 Variable_name	Value
 ssl_fips_mode	OFF
+MD5 digest
+If FIPS ON set fails, FIPS mode will be set to OFF. All the openssl cryptography should work fine.
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
 ##Test: Start the server with SSL FIPS mode ON, server will throw error and abort.
-Pattern "FIPS_mode_set:fips mode not supported" found
+Pattern "(FIPS_mode_set:fips mode not supported|FIPS_module_mode_set:fingerprint does not match)" found
 Restart server with FIPS mode OFF.
