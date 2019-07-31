@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <sql_tablespace.h>
+#include <regex>
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -1098,6 +1099,10 @@ int dd_upgrade_tablespace(THD *thd) {
   mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
 
+  /* Pattern for matching the FTS auxiliary tablespace name which starts with
+  "FTS", followed by the table id. */
+  std::regex fts_regex("\\S+FTS_[a-f0-9]{16,16}_\\S+");
+
   for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES); rec != NULL;
        rec = dict_getnext_system(&pcur, &mtr)) {
     const char *err_msg;
@@ -1113,7 +1118,7 @@ int dd_upgrade_tablespace(THD *thd) {
     mutex_exit(&dict_sys->mutex);
     std::string tablespace_name(name);
 
-    if (!err_msg && (tablespace_name.find("FTS") == std::string::npos)) {
+    if (!err_msg && !regex_search(tablespace_name, fts_regex)) {
       // Fill the dictionary object here
       DBUG_EXECUTE_IF("dd_upgrade",
                       ib::info(ER_IB_MSG_264)
@@ -1211,7 +1216,7 @@ int dd_upgrade_tablespace(THD *thd) {
   for (auto space : missing_spaces) {
     std::string tablespace_name(space->name);
     /* FTS tablespaces will be registered later */
-    if (tablespace_name.find("FTS") != std::string::npos) {
+    if (regex_search(tablespace_name, fts_regex)) {
       continue;
     }
     std::string new_tablespace_name;
