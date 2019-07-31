@@ -8784,8 +8784,6 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
   UintR sig0, sig1, sig2, sig3, sig4, sig5, sig6;
   Treqinfo = preComputedRequestInfoMask & regTcPtr->reqinfo;
 
-  Uint32 nextNodeId = regTcPtr->nextReplica;
-
   jam();
   /* Send long LqhKeyReq to next replica if it can support it */
   bool sendLongReq= true;
@@ -8820,11 +8818,14 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
   }
   else
   {
+#ifdef VM_TRACE
     if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
     {
+      Uint32 nextNodeId = regTcPtr->nextReplica;
       ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT ||
                 get_node_status(nextNodeId) != ZNODE_UP);
     }
+#endif
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);
