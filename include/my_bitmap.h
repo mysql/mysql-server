@@ -61,7 +61,7 @@ extern uint bitmap_bits_set(const MY_BITMAP *map);
 extern void bitmap_free(MY_BITMAP *map);
 extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
-extern void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2);

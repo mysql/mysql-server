@@ -55,12 +55,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
-#include "thr_mutex.h"
 
 void create_last_word_mask(MY_BITMAP *map) {
   /* Get the number of used bits (1..8) in the last byte */
@@ -317,21 +314,21 @@ bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2) {
   return false;
 }
 
-void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
-  my_bitmap_map *to = map->bitmap, *from = map2->bitmap, *end;
-  uint len = no_words_in_map(map), len2 = no_words_in_map(map2);
+void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
+  DBUG_ASSERT(to->bitmap && from->bitmap);
 
-  DBUG_ASSERT(map->bitmap && map2->bitmap);
+  uint to_length = no_words_in_map(to);
+  uint from_length = no_words_in_map(from);
+  uint min_length = std::min(to_length, from_length);
 
-  end = to + MY_MIN(len, len2);
-  for (; to < end; to++, from++) *to &= *from;
+  // Clear bits in 'to' not set in 'from'
+  for (uint i = 0; i < min_length; i++) to->bitmap[i] &= from->bitmap[i];
 
-  if (len >= len2) map->bitmap[len2 - 1] &= ~map2->last_word_mask;
+  if (to_length >= from_length)
+    to->bitmap[from_length - 1] &= ~from->last_word_mask;
 
-  if (len2 < len) {
-    end += len - len2;
-    for (; to < end; to++) *to = 0;
-  }
+  // Clear bits in 'to' where no corresponding bits exist in 'from'
+  for (uint i = min_length; i < to_length; i++) to->bitmap[i] = 0;
 }
 
 /*
