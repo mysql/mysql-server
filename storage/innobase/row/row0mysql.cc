@@ -1941,6 +1941,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
       row_upd_changes_field_size_or_external(index, offsets, node->update);
 
   if (size_changes) {
+    mtr_commit(&mtr);
     return (DB_FAIL);
   }
 
