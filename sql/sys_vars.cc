@@ -6594,12 +6594,27 @@ bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
   bool new_value = var->save_result.ulonglong_value;
   if (new_value == rpl_encryption.is_enabled()) return false;
 
+  DEBUG_SYNC(thd, "after_locking_global_sys_var_set_binlog_enc");
+  /* We unlock in following statement to avoid deadlock involving following
+   * conditions.
+   * ---------------------------------------------------------------------------------
+   * Thread 1 (START SLAVE)  has locked channel_map and waiting for cond_wait
+   * that is supposed to be done by Thread 2.
+   *
+   * Thread 2 (handle_slave_io) is supposed to signal Thread 1 but waiting to
+   * lock LOCK_global_system_variables.
+   *
+   * Thread 3 (SET GLOBAL binlog_encryption=ON|OFF) has locked
+   * LOCK_global_system_variables and waiting for channel_map.
+   */
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   /* Set the option new value */
   bool res = false;
   if (new_value)
     res = rpl_encryption.enable(thd);
   else
     rpl_encryption.disable(thd);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   return res;
 }
 
