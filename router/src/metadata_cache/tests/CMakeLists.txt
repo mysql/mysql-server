@@ -71,7 +71,14 @@ SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
 TARGET_INCLUDE_DIRECTORIES(metadata_cache_tests PRIVATE ${include_dirs})
 
 SET(TEST_MODULE metadata_cache)
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+FOREACH(test_file 
+    test_cache_plugin.cc
+    test_failover.cc
+    test_metadata.cc
+    test_metadata_cache.cc
+    test_plugin_config.cc
+    )
+  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
              MODULE ${TEST_MODULE}
              LIB_DEPENDS
                metadata_cache_tests
@@ -83,7 +90,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
                ${PROJECT_SOURCE_DIR}/tests/helpers
                ${PROJECT_SOURCE_DIR}/src/harness/shared/include
 )
-
+ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}

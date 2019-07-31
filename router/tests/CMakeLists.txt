@@ -54,11 +54,9 @@ ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib
   rest_api_lib mock_server_rest_client)
 
-FOREACH(test_dir tools)
-  IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})
-    add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
-  ENDIF()
-ENDFOREACH()
+add_test_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/tools/gtest_cxx.cc
+  MODULE project)
 
 ADD_SUBDIRECTORY(component)
 ADD_SUBDIRECTORY(fuzzers)

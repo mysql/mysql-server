@@ -56,9 +56,16 @@ add_test_file(test_keyring_frontend.cc
   EXTRA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../src/keyring_frontend.cc
   )
 
-add_test_dir(issues MODULE issues
+FOREACH(test_file
+    issues/test_bug22084430.cc
+    issues/test_bug22572346.cc
+    issues/test_bug24909259.cc
+    )
+  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+    MODULE issues
   LIB_DEPENDS test-helpers
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
+ENDFOREACH()
 
 IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")

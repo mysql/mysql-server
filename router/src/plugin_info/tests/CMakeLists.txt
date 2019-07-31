@@ -47,7 +47,7 @@ SET_PATH_TO_SSL(plugin_info_tests ${CMAKE_BINARY_DIR}/library_output_directory)
 
 TARGET_INCLUDE_DIRECTORIES(plugin_info_tests PRIVATE ${include_dirs})
 
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/test_plugin_info_app.cc
              MODULE "mysqlrouter_plugin_info"
              LIB_DEPENDS plugin_info_tests
              INCLUDE_DIRS ${include_dirs}
