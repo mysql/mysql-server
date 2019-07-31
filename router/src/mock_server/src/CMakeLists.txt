@@ -175,6 +175,7 @@ TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/
     ${PROJECT_SOURCE_DIR}/src/http/include/
     )
+TARGET_LINK_LIBRARIES(mock_server_rest_client http_client)
 
 # add all targets to the build-all target
 ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
