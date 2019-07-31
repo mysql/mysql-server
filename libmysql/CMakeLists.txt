@@ -365,13 +365,12 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 # to run if not all of these symbols are exported by the library.
 #
 MYSQL_ADD_EXECUTABLE(libmysql_api_test
-  ${CMAKE_CURRENT_BINARY_DIR}/api_test.c SKIP_INSTALL)
+  ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+  LINK_LIBRARIES libmysql ${LIBRT}
+  SKIP_INSTALL
+  )
 # Clang/UBSAN needs this on some platforms.
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
-
-IF(LIBRT)
-  TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
-ENDIF()
 
 IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(
@@ -379,8 +378,6 @@ IF(MY_COMPILER_IS_GNU)
     COMPILE_FLAGS -Wstrict-prototypes
     )
 ENDIF()
-
-TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 
 # Verify that libmysql_api_test runs OK
 ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
