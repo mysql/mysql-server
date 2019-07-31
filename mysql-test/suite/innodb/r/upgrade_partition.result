@@ -12,7 +12,7 @@
 # Copy and unzip the datadir.
 ######################################################################
 # Restart the server against the unzipped datadir
-# restart: --datadir=BUGDATADIR
+# restart: --datadir=BUGDATADIR --innodb_page_size=16k
 # Checks the contents of INFORMATION_SCHEMA.INNODB_COLUMNS
 SELECT lower(t.name), lower(c.name) FROM
 INFORMATION_SCHEMA.INNODB_COLUMNS c
