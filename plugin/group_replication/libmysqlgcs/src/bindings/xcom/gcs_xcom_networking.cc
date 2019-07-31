@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -520,7 +520,6 @@ bool Gcs_ip_whitelist_entry_hostname::init_value() { return false; }
 
 std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     *Gcs_ip_whitelist_entry_hostname::get_value() {
-  std::string ip;
   bool error = false;
   std::pair<std::vector<unsigned char>, std::vector<unsigned char>> value;
 

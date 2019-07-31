@@ -162,6 +162,19 @@ ADD_COMPILE_DEFINITIONS(
 ADD_COMPILE_DEFINITIONS(../../../extra/lz4/xxhash.c
   COMPILE_DEFINITIONS "XXH_NAMESPACE=GCS_")
 
+# Warn about variable shadowing
+IF(MYSQL_MAINTAINER_MODE)
+  IF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_OPTIONS("-Wshadow")
+  ELSEIF(MY_COMPILER_IS_GNU)
+    # GCC's -Wshadow is too noisy. Starting with GCC 7 we can use the
+    # more surgical -Wshadow=compatible-local
+    IF(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+      ADD_COMPILE_OPTIONS("-Wshadow=compatible-local")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 ADD_LIBRARY(${GCS_LIBRARY} STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
 # Dependency on mysys from gcs_logging_system.cc
 # but pick up symbols from the server:
