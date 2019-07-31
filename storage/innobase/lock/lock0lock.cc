@@ -1238,7 +1238,10 @@ static void lock_update_age(lock_t *new_lock, ulint heap_no) {
     }
 
   } else if (age > 0) {
-    ut_a(new_lock->trx->state == TRX_STATE_ACTIVE);
+    DEBUG_SYNC_C("lock_update_age_will_check_state_again");
+
+    ut_ad(new_lock->trx->state == TRX_STATE_ACTIVE ||
+          new_lock->trx->state == TRX_STATE_PREPARED);
 
     lock_update_trx_age(new_lock->trx, age);
   }

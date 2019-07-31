@@ -1,0 +1,117 @@
+--echo #
+--echo # Bug #30086559 CATS ASSERTION FAILURE:
+--echo #               NEW_LOCK->TRX->STATE == TRX_STATE_ACTIVE
+--echo #
+
+--source include/have_debug_sync.inc
+
+--source include/count_sessions.inc
+# We had an assert that the state of transaction has to stay TRX_STATE_ACTIVE
+# while updating its weight in CATS algorithm.
+# The main goal of this scenario is to demonstrate that a transaction can change
+# a state from TRX_STATE_ACTIVE to TRX_STATE_PREPARED in parallel to another
+# thread performing cats weight updating on it.
+# Arguably there is nothing wrong about this, and the assert is not needed.
+# In this scenario the transaction which changes state is C_grantee, and the
+# thread which updates C_grantee's weight is C_resizer.
+# We start by creating a queue :
+# 1. C_blocker has a granted lock on a gap
+# 2. C_waiter is waiting for an insert intention lock to the same gap
+# 3. C_grantee has a granted lock on the same gap (gap locks don't wait)
+# We then in parallel do two things:
+# - C_grantee is performing XA PREPARE
+# - C_resizer is increasing the length of string in a column of a row, which
+#   requires the row to be relocated to a different heap_no, which moves all
+#   locks from one heap_no to another. In particular it causes the C_grantee
+#   lock to be removed from one queue, and added to another, which requires
+#   updating its weight.
+# The scenario is a bit complicated, because we need to "turn on CATS" algorithm
+# after the queue is formed and before it is relocated. If we turn it on too
+# early, then the granted locks will be prepended in front of the queue, and
+# thus will have computed weight 0 during updating. If we turn it on too late
+# the algorithm will not be executed at all.
+# Another complication is in that XA PREPARE does acquire trx mutex for a short
+# period, which would block because weight updating thread might also hold this
+# lock. For this reason we make sure that XA PREPARE manages to get in and out
+# of critical section before we reach weight updating routine.
+
+# Save the original settings, to be restored at the end of test
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+# Make sure that transactions will not finish prematurely
+SET @@global.innodb_lock_wait_timeout = 20;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(200)) ENGINE=InnoDB;
+# Mind the gap before 3:
+INSERT INTO t1 (id,val) VALUES (1,"a"),   (3,"c"),(4,"d");
+
+--connect (C_blocker, localhost, root,,)
+  BEGIN;
+  SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+
+--connect (C_waiter, localhost, root,,)
+  BEGIN;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C_waiter_will_wait';
+  --send INSERT INTO t1 (id,val) VALUES (2,"b")
+
+
+--connect (C_grantee, localhost, root,,)
+  SET DEBUG_SYNC = 'now WAIT_FOR C_waiter_will_wait';
+  XA START 'xa1';
+  # Lock the gap before 3
+  SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+  XA END 'xa1';
+  SET DEBUG_SYNC = 'trx_prepare_for_mysql_has_entered_innodb
+                    SIGNAL C_grantee_has_entered_innodb
+                    WAIT_FOR C_grantee_can_change_state';
+  SET DEBUG_SYNC = 'trx_prepare_has_changed_state
+                    SIGNAL C_grantee_has_changed_state';
+  --send XA PREPARE 'xa1'
+
+
+--source suite/innodb/include/force_cats.inc
+
+--connect (C_resizer, localhost, root,,)
+  SET DEBUG_SYNC = 'now WAIT_FOR C_grantee_has_entered_innodb';
+  SET DEBUG_SYNC = 'lock_update_age_will_check_state_again
+                    SIGNAL C_resizer_checked_state_once
+                    WAIT_FOR C_resizer_can_check_state_again
+                    EXECUTE 3';
+  --send UPDATE t1 SET val="cccccccccccccccc" WHERE id=3
+
+--connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR C_resizer_checked_state_once';
+  SET DEBUG_SYNC = 'now SIGNAL C_resizer_can_check_state_again';
+  SET DEBUG_SYNC = 'now WAIT_FOR C_resizer_checked_state_once';
+  SET DEBUG_SYNC = 'now SIGNAL C_grantee_can_change_state';
+  SET DEBUG_SYNC = 'now WAIT_FOR C_grantee_has_changed_state';
+  SET DEBUG_SYNC = 'now SIGNAL C_resizer_can_check_state_again';
+
+--connection C_grantee
+  --reap
+  XA COMMIT 'xa1';
+
+--connection C_resizer
+  --reap
+
+--connection C_blocker
+  COMMIT;
+
+--connection C_waiter
+  --reap
+  COMMIT;
+
+--disconnect C_blocker
+--disconnect C_grantee
+--disconnect C_waiter
+--disconnect C_resizer
+--connection default
+
+DROP TABLE t1;
+
+--source suite/innodb/include/discourage_cats.inc
+
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;
+
+--source include/wait_until_count_sessions.inc
+
