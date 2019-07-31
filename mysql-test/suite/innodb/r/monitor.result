@@ -283,6 +283,10 @@ dml_reads	disabled
 dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
+dml_system_reads	disabled
+dml_system_inserts	disabled
+dml_system_deletes	disabled
+dml_system_updates	disabled
 ddl_background_drop_tables	disabled
 ddl_online_create_index	disabled
 ddl_pending_alter_table	disabled
@@ -526,6 +530,10 @@ dml_reads	4	NULL	4	4	NULL	4	enabled
 dml_inserts	1	NULL	1	1	NULL	1	enabled
 dml_deletes	0	NULL	0	0	NULL	0	enabled
 dml_updates	2	NULL	2	2	NULL	2	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 delete from monitor_test;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -536,6 +544,10 @@ dml_reads	6	NULL	6	6	NULL	6	enabled
 dml_inserts	1	NULL	1	1	NULL	1	enabled
 dml_deletes	2	NULL	2	2	NULL	2	enabled
 dml_updates	2	NULL	2	2	NULL	2	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 set global innodb_monitor_reset =  module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -546,6 +558,10 @@ dml_reads	6	NULL	6	0	NULL	0	enabled
 dml_inserts	1	NULL	1	0	NULL	0	enabled
 dml_deletes	2	NULL	2	0	NULL	0	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 insert into monitor_test values(9);
 insert into monitor_test values(1);
 delete from monitor_test;
@@ -558,6 +574,10 @@ dml_reads	8	NULL	8	2	NULL	2	enabled
 dml_inserts	3	NULL	3	2	NULL	2	enabled
 dml_deletes	4	NULL	4	2	NULL	2	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 set global innodb_monitor_reset_all  =  module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -568,6 +588,10 @@ dml_reads	8	NULL	8	2	NULL	2	enabled
 dml_inserts	3	NULL	3	2	NULL	2	enabled
 dml_deletes	4	NULL	4	2	NULL	2	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
+dml_system_reads	0	NULL	0	0	NULL	0	enabled
+dml_system_inserts	0	NULL	0	0	NULL	0	enabled
+dml_system_deletes	0	NULL	0	0	NULL	0	enabled
+dml_system_updates	0	NULL	0	0	NULL	0	enabled
 set global innodb_monitor_disable = module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -578,6 +602,10 @@ dml_reads	8	NULL	8	2	NULL	2	disabled
 dml_inserts	3	NULL	3	2	NULL	2	disabled
 dml_deletes	4	NULL	4	2	NULL	2	disabled
 dml_updates	2	NULL	2	0	NULL	0	disabled
+dml_system_reads	0	NULL	0	0	NULL	0	disabled
+dml_system_inserts	0	NULL	0	0	NULL	0	disabled
+dml_system_deletes	0	NULL	0	0	NULL	0	disabled
+dml_system_updates	0	NULL	0	0	NULL	0	disabled
 set global innodb_monitor_reset_all  = module_dml;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -588,6 +616,10 @@ dml_reads	NULL	NULL	0	NULL	NULL	0	disabled
 dml_inserts	NULL	NULL	0	NULL	NULL	0	disabled
 dml_deletes	NULL	NULL	0	NULL	NULL	0	disabled
 dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_reads	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_inserts	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_deletes	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_updates	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_enable = dml_inserts;
 insert into monitor_test values(9);
 insert into monitor_test values(1);
@@ -601,6 +633,10 @@ dml_reads	NULL	NULL	0	NULL	NULL	0	disabled
 dml_inserts	2	NULL	2	2	NULL	2	enabled
 dml_deletes	NULL	NULL	0	NULL	NULL	0	disabled
 dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_reads	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_inserts	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_deletes	NULL	NULL	0	NULL	NULL	0	disabled
+dml_system_updates	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_disable = module_dml;
 drop table monitor_test;
 set global innodb_monitor_enable = file_num_open_files;

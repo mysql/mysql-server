@@ -1296,6 +1296,22 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_UPDTATED},
 
+    {"dml_system_reads", "dml", "Number of system rows read",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OLVD_SYSTEM_ROW_READ},
+
+    {"dml_system_inserts", "dml", "Number of system rows inserted",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OLVD_SYSTEM_ROW_INSERTED},
+
+    {"dml_system_deletes", "dml", "Number of system rows deleted",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OLVD_SYSTEM_ROW_DELETED},
+
+    {"dml_system_updates", "dml", "Number of system rows updated",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OLVD_SYSTEM_ROW_UPDATED},
+
     /* ========== Counters for DDL operations ========== */
     {"module_ddl", "ddl", "Statistics for DDLs", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_MODULE_DDL_STATS},
@@ -1816,6 +1832,26 @@ void srv_mon_process_existing_counter(
     /* innodb_rows_updated */
     case MONITOR_OLVD_ROW_UPDTATED:
       value = srv_stats.n_rows_updated;
+      break;
+
+    /* innodb_system_rows_read */
+    case MONITOR_OLVD_SYSTEM_ROW_READ:
+      value = srv_stats.n_system_rows_read;
+      break;
+
+    /* innodb_system_rows_inserted */
+    case MONITOR_OLVD_SYSTEM_ROW_INSERTED:
+      value = srv_stats.n_system_rows_inserted;
+      break;
+
+    /* innodb_system_rows_deleted */
+    case MONITOR_OLVD_SYSTEM_ROW_DELETED:
+      value = srv_stats.n_system_rows_deleted;
+      break;
+
+    /* innodb_system_rows_updated */
+    case MONITOR_OLVD_SYSTEM_ROW_UPDATED:
+      value = srv_stats.n_system_rows_updated;
       break;
 
     /* innodb_row_lock_current_waits */

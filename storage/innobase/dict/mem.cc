@@ -144,6 +144,38 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
   mem_heap_free(table->heap);
 }
 
+/** System databases */
+static std::string innobase_system_databases[] = {
+    "mysql/", "information_schema/", "performance_schema/", ""};
+
+/** Determines if a table is a system table
+@param[in]  name  table_name
+@return true if table is system table */
+static bool dict_mem_table_is_system(const std::string name) {
+  /* Table has the following format: database/table and some system table are
+  of the form SYS_* */
+  if (name.find('/') != std::string::npos) {
+    int table_len = name.length();
+
+    std::string system_db = std::string(innobase_system_databases[0]);
+    int i = 0;
+
+    while (system_db.compare("") != 0) {
+      int len = system_db.length();
+
+      if (table_len > len && name.compare(0, len, system_db) == 0) {
+        return true;
+      }
+
+      system_db = std::string(innobase_system_databases[++i]);
+    }
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
 /** Creates a table memory object.
  @return own: table object */
 dict_table_t *dict_mem_table_create(
@@ -185,6 +217,7 @@ dict_table_t *dict_mem_table_create(
   table->flags = (unsigned int)flags;
   table->flags2 = (unsigned int)flags2;
   table->name.m_name = mem_strdup(name);
+  table->is_system_table = dict_mem_table_is_system(table->name.m_name);
   table->space = (unsigned int)space;
   table->dd_space_id = dd::INVALID_OBJECT_ID;
   table->n_t_cols = (unsigned int)(n_cols + table->get_n_sys_cols());

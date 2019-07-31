@@ -1063,7 +1063,11 @@ static ib_err_t ib_execute_insert_query_graph(
 
     dict_table_n_rows_inc(table);
 
-    srv_stats.n_rows_inserted.inc();
+    if (table->is_system_table) {
+      srv_stats.n_system_rows_inserted.inc();
+    } else {
+      srv_stats.n_rows_inserted.inc();
+    }
   }
 
   trx->op_info = "";
@@ -1387,9 +1391,17 @@ ib_err_t ib_execute_update_query_graph(
     if (node->is_delete) {
       dict_table_n_rows_dec(table);
 
-      srv_stats.n_rows_deleted.inc();
+      if (table->is_system_table) {
+        srv_stats.n_system_rows_deleted.inc();
+      } else {
+        srv_stats.n_rows_deleted.inc();
+      }
     } else {
-      srv_stats.n_rows_updated.inc();
+      if (table->is_system_table) {
+        srv_stats.n_system_rows_updated.inc();
+      } else {
+        srv_stats.n_rows_updated.inc();
+      }
     }
 
   } else if (err == DB_RECORD_NOT_FOUND) {

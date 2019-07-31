@@ -1693,6 +1693,10 @@ struct dict_table_t {
   /** Virtual column names */
   const char *v_col_names;
 
+  /** True if the table belongs to a system database (mysql, information_schema
+  or performance_schema) */
+  bool is_system_table;
+
   /** Hash chain node. */
   hash_node_t name_hash;
 

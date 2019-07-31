@@ -1028,6 +1028,14 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_SCOPE_GLOBAL},
     {"rows_updated", (char *)&export_vars.innodb_rows_updated, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"system_rows_deleted", (char *)&export_vars.innodb_system_rows_deleted,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"system_rows_inserted", (char *)&export_vars.innodb_system_rows_inserted,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"system_rows_read", (char *)&export_vars.innodb_system_rows_read,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"system_rows_updated", (char *)&export_vars.innodb_system_rows_updated,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"num_open_files", (char *)&export_vars.innodb_num_open_files, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"truncated_status_writes",
@@ -9780,8 +9788,13 @@ int ha_innobase::index_read(
   switch (ret) {
     case DB_SUCCESS:
       error = 0;
-      srv_stats.n_rows_read.add(thd_get_thread_id(m_prebuilt->trx->mysql_thd),
-                                1);
+      if (m_prebuilt->table->is_system_table) {
+        srv_stats.n_system_rows_read.add(
+            thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
+      } else {
+        srv_stats.n_rows_read.add(thd_get_thread_id(m_prebuilt->trx->mysql_thd),
+                                  1);
+      }
       break;
 
     case DB_RECORD_NOT_FOUND:
@@ -10019,7 +10032,13 @@ int ha_innobase::general_fetch(
   switch (ret) {
     case DB_SUCCESS:
       error = 0;
-      srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
+      if (m_prebuilt->table->is_system_table) {
+        srv_stats.n_system_rows_read.add(
+            thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
+      } else {
+        srv_stats.n_rows_read.add(thd_get_thread_id(m_prebuilt->trx->mysql_thd),
+                                  1);
+      }
       break;
     case DB_RECORD_NOT_FOUND:
       error = HA_ERR_END_OF_FILE;

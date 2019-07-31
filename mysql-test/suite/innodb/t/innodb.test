@@ -39,9 +39,9 @@ SET @innodb_thread_sleep_delay_orig = @@innodb_thread_sleep_delay;
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 
 --disable_warnings
-SET @innodb_rows_deleted_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
-SET @innodb_rows_inserted_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted');
-SET @innodb_rows_updated_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated');
+SET @innodb_rows_deleted_orig = (SELECT sum(variable_value) FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_deleted');
+SET @innodb_rows_inserted_orig = (SELECT sum(variable_value) FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_inserted');
+SET @innodb_rows_updated_orig = (SELECT sum(variable_value) FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_updated');
 SET @innodb_row_lock_waits_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits');
 SET @innodb_row_lock_current_waits_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits');
 SET @innodb_row_lock_time_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time');
@@ -1334,9 +1334,9 @@ drop table t1;
 SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --replace_result 4096 {checked_valid} 8192 {checked_valid} 16384 {checked_valid}
 SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
-SELECT variable_value - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
-SELECT variable_value - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
-SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+SELECT sum(variable_value) - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_deleted';
+SELECT sum(variable_value) - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_inserted';
+SELECT sum(variable_value) - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_updated';
 --enable_warnings
 
 # Test for row locks InnoDB status variables.
