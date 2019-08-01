@@ -96,10 +96,12 @@
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
+#include "sql-common/net_ns.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/binlog_reader.h"
+#include "sql/clone_handler.h"  // is_provisioning
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"   // DEBUG_SYNC
 #include "sql/derror.h"       // ER_THD
@@ -111,10 +113,6 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // ER
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
-#ifdef HAVE_SETNS
-#include "sql/net_ns.h"
-#endif
-#include "sql/clone_handler.h"  // is_provisioning
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"

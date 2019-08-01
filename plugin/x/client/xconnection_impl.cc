@@ -52,7 +52,7 @@
 #include "plugin/x/client/context/xssl_config.h"
 #include "plugin/x/generated/mysqlx_error.h"
 #include "plugin/x/src/config/config.h"
-#include "sql/net_ns.h"
+#include "sql-common/net_ns.h"
 
 #ifndef WIN32
 #include <netdb.h>

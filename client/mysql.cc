@@ -91,7 +91,7 @@
 
 #include "sql_common.h"
 
-#include "sql/net_ns.h"
+#include "sql-common/net_ns.h"
 
 using std::max;
 using std::min;

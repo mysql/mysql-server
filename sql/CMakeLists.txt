@@ -392,7 +392,6 @@ SET(SQL_SHARED_SOURCES
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
-  net_ns.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
   opt_costmodel.cc
@@ -662,6 +661,7 @@ SET(SQL_SOURCE
   ../sql-common/compression.cc
   ../sql-common/get_password.cc
   ../sql-common/my_path_permissions.cc
+  ../sql-common/net_ns.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc

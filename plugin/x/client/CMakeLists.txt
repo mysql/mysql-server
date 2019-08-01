@@ -24,19 +24,19 @@ SET(CLIENT_FULL_LIB_NAME mysqlxclient)
 SET(CLIENT_LITE_LIB_NAME mysqlxclient_lite)
 
 SET(CLIENT_SRC
- "${CMAKE_CURRENT_SOURCE_DIR}/authentication/mysql41_hash.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/authentication/password_hasher.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/authentication/sha256_scramble_generator.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xrow_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xquery_result_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xsession_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xconnection_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xcompression_negotiator.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xcompression_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xrow.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/validator/capability_compression_validator.cc"
- "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
+  authentication/mysql41_hash.cc
+  authentication/password_hasher.cc
+  authentication/sha256_scramble_generator.cc
+  xprotocol_impl.cc
+  xrow_impl.cc
+  xquery_result_impl.cc
+  xsession_impl.cc
+  xconnection_impl.cc
+  xcompression_negotiator.cc
+  xcompression_impl.cc
+  xrow.cc
+  validator/capability_compression_validator.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
 )
 
 INCLUDE_DIRECTORIES(

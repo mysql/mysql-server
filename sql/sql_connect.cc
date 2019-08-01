@@ -68,6 +68,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql-common/net_ns.h"  // set_network_namespace
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -77,7 +78,6 @@
 #include "sql/item_func.h"       // mqh_used
 #include "sql/log.h"
 #include "sql/mysqld.h"  // LOCK_user_conn
-#include "sql/net_ns.h"  // set_network_namespace
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
