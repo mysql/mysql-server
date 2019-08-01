@@ -62,12 +62,12 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysqld_error.h"
+#include "sql-common/net_ns.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/channel_info.h"               // Channel_info
 #include "sql/conn_handler/init_net_server_extension.h"  // init_net_server_extension
 #include "sql/log.h"
-#include "sql/mysqld.h"  // key_socket_tcpip
-#include "sql/net_ns.h"
+#include "sql/mysqld.h"     // key_socket_tcpip
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "violite.h"  // Vio

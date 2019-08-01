@@ -26,12 +26,12 @@ ADD_SUBDIRECTORY(base)
 ADD_SUBDIRECTORY(dump)
 
 MYSQL_ADD_EXECUTABLE(mysql
+  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   completion_hash.cc
   mysql.cc
-  readline.cc
-  ../sql-common/sql_string.cc
   pattern_matcher.cc
-  ${CMAKE_SOURCE_DIR}/sql/net_ns.cc
+  readline.cc
   LINK_LIBRARIES mysqlclient ${EDITLINE_LIBRARY}
   )
 

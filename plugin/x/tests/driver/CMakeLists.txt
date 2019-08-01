@@ -59,7 +59,7 @@ SET(XTEST_SRC
   processor/commands/macro.cc
   processor/commands/mysqlxtest_error_names.cc
 
-  "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
+  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
   )
 
 INCLUDE_DIRECTORIES(

@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql/net_ns.h"
+#include "sql-common/net_ns.h"
 
 #ifdef HAVE_SETNS
 
