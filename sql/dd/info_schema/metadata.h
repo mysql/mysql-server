@@ -62,7 +62,7 @@ namespace info_schema {
     Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
     to INT.
 
-  Current 80012: Published in 8.0.12
+  80012: Published in 8.0.12
   ------------------------------------
   Changes from version 80011:
 
@@ -96,7 +96,7 @@ namespace info_schema {
   There are no changes from version 80014. Hence server version 80015 used
   I_S version 80013.
 
-  80016: Published in 8.0.14
+  80016: Published in 8.0.16
   ------------------------------------
   Changes from version 80015.
 
@@ -110,8 +110,8 @@ namespace info_schema {
     - information_schema.tables.options UDF definition is changed to pass
       schema default encryption.
 
-  80017: Current
-  ----------------------------------------------------------------------------
+  80017: Published in 8.0.17
+  ------------------------------------
   Changes from version 80016:
 
   - WL#12984 INFORMATION_SCHEMA and metadata related to secondary engine.
@@ -124,14 +124,26 @@ namespace info_schema {
     Modifies the INFORMATION_SCHEMA.TABLES dynamic column definitions to
     return NULL, if it finds a view.
 
-  80018: Next IS version number after the previous is public.
-  ----------------------------------------------------------------------------
-  Changes from version 80016:
-  - No changes, this version number is not active yet.
+  80018: Current
+  ------------------------------------
+  Changes from version 80017:
 
+  - Bug#28278220: wrong column type , view , binary
+    Changes type of following I_S table column's
+      KEY_COLUMN_USAGE:    CONSTRAINT_NAME, POSITION_IN_UNIQUE_CONSTRAINT,
+                           REFERENCED_TABLE_SCHEMA, FIELD_REFERENCED_TABLE_NAME,
+                           REFERENCED_COLUMN_NAME
+
+      TABLE_CONSTRAINTS:   CONSTRAINT_NAME.
+    Column metadata of views on these system views or tables created using
+    CREATE TABLE SELECT from these system views will *not* be similar to one
+    created with previous version of system views.
+
+  80019: Next IS version number after the previous is public.
+  ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80017;
+static const uint IS_DD_VERSION = 80018;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

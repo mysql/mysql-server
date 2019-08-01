@@ -6696,3 +6696,13 @@ CREATE VIEW v1 AS SELECT COUNT(*) FROM t1
 ORDER BY (SELECT 1 FROM t1 WHERE 1 IN (SELECT * FROM (SELECT 1 as field) AS dt));
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug #28278220 - WRONG COLUMN TYPE , VIEW , BINARY
+#
+CREATE VIEW v AS SELECT null AS 'c' UNION SELECT 'a' AS 'c';
+# Without fix, type for field c is listed as binary instead of
+# varchar(1). With fix type is listed correctly.
+SHOW FIELDS FROM v;
+Field	Type	Null	Key	Default	Extra
+c	varchar(1)	YES		NULL	
+DROP VIEW v;

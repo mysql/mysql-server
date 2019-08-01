@@ -129,7 +129,7 @@ SET debug = '+d,skip_dd_table_access_check,fetch_system_view_definition';
 ########################################################################
 # The actual I_S version stored on disk.
 ########################################################################
-IS_VERSION=80017
+IS_VERSION=80018
 ########################################################################
 # List the CREATE VIEW statements for the I_S system views.
 # Mask collations that depend on the lower case table names setting.
@@ -1473,5 +1473,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to I_S version 80017.
+The schema checksum corresponds to I_S version 80018.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

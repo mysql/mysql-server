@@ -6196,3 +6196,13 @@ ORDER BY (SELECT 1 FROM t1 WHERE 1 IN (SELECT * FROM (SELECT 1 as field) AS dt))
 
 DROP TABLE t1;
 DROP VIEW v1;
+
+
+--echo #
+--echo # Bug #28278220 - WRONG COLUMN TYPE , VIEW , BINARY
+--echo #
+CREATE VIEW v AS SELECT null AS 'c' UNION SELECT 'a' AS 'c';
+--echo # Without fix, type for field c is listed as binary instead of
+--echo # varchar(1). With fix type is listed correctly.
+SHOW FIELDS FROM v;
+DROP VIEW v;
