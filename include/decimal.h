@@ -94,8 +94,6 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
 int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
-int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
-                        int param);
 
 int decimal_intg(const decimal_t *from);
 int decimal_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to);

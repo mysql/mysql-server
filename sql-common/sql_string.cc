@@ -440,10 +440,6 @@ bool String::fill(size_t max_length, char fill_char) {
   return false;
 }
 
-void String::strip_sp() {
-  while (m_length && my_isspace(m_charset, m_ptr[m_length - 1])) m_length--;
-}
-
 bool String::append(const String &s) {
   if (s.length()) {
     DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
@@ -542,17 +538,6 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs) {
     memcpy(m_ptr + m_length, s, arg_length);
     m_length += arg_length;
   }
-  return false;
-}
-
-bool String::append(IO_CACHE *file, size_t arg_length) {
-  if (mem_realloc(m_length + arg_length)) return true;
-  if (my_b_read(file, reinterpret_cast<uchar *>(m_ptr) + m_length,
-                arg_length)) {
-    shrink(m_length);
-    return true;
-  }
-  m_length += arg_length;
   return false;
 }
 

@@ -741,19 +741,6 @@ static int my_vio_is_secure(MYSQL_PLUGIN_VIO *vio) {
 }
 
 /**
-  Check if server has valid public key/private key
-  pair for RSA communication.
-
-  @return
-    @retval false RSA support is available
-    @retval true RSA support is not available
-*/
-bool caching_sha2_rsa_auth_status() {
-  return (!g_caching_sha2_rsa_keys->get_private_key() ||
-          !g_caching_sha2_rsa_keys->get_public_key());
-}
-
-/**
   Save the scramble in mpvio for future re-use.
 
   It is useful when we need to pass the scramble to another plugin.

@@ -1202,18 +1202,6 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
   }
 }
 
-bool is_granted_role_with_admin(const std::string &authid,
-                                const List_of_granted_roles &granted_roles) {
-  for (auto &role : granted_roles) {
-    std::string granted_role_str;
-    role.first.auth_str(&granted_role_str);
-    if (role.second && (authid == granted_role_str)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void make_with_admin_privilege_statement(
     THD *thd, ACL_USER *acl_user, Protocol *protocol,
     const Grant_acl_set &with_admin_acl,
@@ -1543,36 +1531,6 @@ void get_dynamic_privileges(ACL_USER *acl_user, Dynamic_privileges *acl) {
     } else
       acl->insert(it->second);
   }
-}
-
-bool has_wildcards_in_db_grant(const std::string &db_string) {
-  size_t wild_one_pos = db_string.find(wild_one);
-  size_t wild_many_pos = db_string.find(wild_many);
-
-  // No escape character
-  if (wild_one_pos == 0 || wild_many_pos == 0) return true;
-  // No wildcard characters
-  if (wild_one_pos == std::string::npos && wild_many_pos == std::string::npos)
-    return false;
-
-  // Find first wild_one that's not prefixed by wild_prefix
-  while (wild_one_pos != std::string::npos) {
-    if (db_string[wild_one_pos - 1] == wild_prefix)
-      wild_one_pos = db_string.find(wild_one, wild_one_pos + 1);
-    else
-      return true;
-  }
-
-  // Find first wild_many that's not prefixed by wild_prefix
-  while (wild_many_pos != std::string::npos) {
-    if (db_string[wild_many_pos - 1] == wild_prefix)
-      wild_many_pos = db_string.find(wild_many, wild_many_pos + 1);
-    else
-      return true;
-  }
-
-  // All wild_one and wild_many are prefixed with wild_prefix
-  return false;
 }
 
 bool has_wildcard_characters(const LEX_CSTRING &db) {
@@ -6514,15 +6472,6 @@ std::string create_authid_str_from(const Auth_id_ref &user) {
   return std::string(tmp.c_ptr_quick());
 }
 
-std::string create_authid_str_from(const LEX_CSTRING &user,
-                                   const LEX_CSTRING &host) {
-  String tmp;
-  append_identifier(&tmp, user.str, user.length);
-  tmp.append('@');
-  append_identifier(&tmp, host.str, host.length);
-  return std::string(tmp.c_ptr_quick());
-}
-
 Auth_id_ref create_authid_from(const ACL_USER *user) {
   Auth_id_ref id;
   LEX_CSTRING username;
@@ -6536,12 +6485,6 @@ Auth_id_ref create_authid_from(const ACL_USER *user) {
   host.length = user->host.get_host_len();
   id = std::make_pair(username, host);
   return id;
-}
-
-std::string create_authid_str_from(const Role_id &user) {
-  std::string tmp;
-  user.auth_str(&tmp);
-  return tmp;
 }
 
 /**
@@ -7271,15 +7214,6 @@ Sctx_ptr<Security_context> Security_context_factory::create(
       if (sctx->has_executed_drop_policy()) delete sctx;
     }
   });
-}
-
-void Security_context_factory::apply_policies_to_security_ctx() {
-  Security_context *sctx = m_thd->security_context();
-  /* Update the security context iff it is not already updated. */
-  DBUG_ASSERT(sctx == &(m_thd->m_main_security_ctx));
-
-  /* check if policies applied  successfully */
-  apply_pre_constructed_policies(sctx);
 }
 
 bool operator==(const Role_id &a, const std::string &b) {

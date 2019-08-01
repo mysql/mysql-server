@@ -1046,52 +1046,6 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id) {
   mysql_mutex_unlock(&lock->mutex);
 }
 
-/*
-  Downgrade a WRITE_* to a lower WRITE level
-  SYNOPSIS
-    thr_downgrade_write_lock()
-    in_data                   Lock data of thread downgrading its lock
-    new_lock_type             New write lock type
-  RETURN VALUE
-    NONE
-  DESCRIPTION
-    This can be used to downgrade a lock already owned. When the downgrade
-    occurs also other waiters, both readers and writers can be allowed to
-    start.
-    The previous lock is often TL_WRITE_ONLY but can also be
-    TL_WRITE. The normal downgrade variants are:
-    TL_WRITE_ONLY => TL_WRITE after a short exclusive lock while holding a
-    write table lock
-    TL_WRITE_ONLY => TL_WRITE_ALLOW_WRITE After a short exclusive lock after
-    already earlier having dongraded lock to TL_WRITE_ALLOW_WRITE
-    The implementation is conservative and rather don't start rather than
-    go on unknown paths to start, the common cases are handled.
-
-    NOTE:
-    In its current implementation it is only allowed to downgrade from
-    TL_WRITE_ONLY. In this case there are no waiters. Thus no wake up
-    logic is required.
-*/
-
-void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
-                              enum thr_lock_type new_lock_type) {
-  THR_LOCK *lock = in_data->lock;
-#ifndef DBUG_OFF
-  enum thr_lock_type old_lock_type = in_data->type;
-#endif
-  DBUG_TRACE;
-
-  mysql_mutex_lock(&lock->mutex);
-  DBUG_ASSERT(old_lock_type == TL_WRITE_ONLY);
-  DBUG_ASSERT(old_lock_type > new_lock_type);
-  in_data->type = new_lock_type;
-  check_locks(lock, "after downgrading lock", 0);
-
-  mysql_mutex_unlock(&lock->mutex);
-}
-
-#include "my_sys.h"
-
 static void thr_print_lock(const char *name, struct st_lock_list *list) {
   THR_LOCK_DATA *data, **prev;
   uint count = 0;

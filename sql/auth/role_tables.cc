@@ -70,20 +70,6 @@ extern Role_index_map *g_authid_to_vertex;
 #define MYSQL_DEFAULT_ROLE_FIELD_ROLE_HOST 2
 #define MYSQL_DEFAULT_ROLE_FIELD_ROLE_USER 3
 
-TABLE *open_role_edges_table(THD *thd) {
-  DBUG_TRACE;
-  TABLE_LIST tablelst("mysql", "role_edges", TL_WRITE,
-                      MDL_SHARED_NO_READ_WRITE);
-
-  if (open_and_lock_tables(thd, &tablelst, MYSQL_LOCK_IGNORE_TIMEOUT)) {
-    DBUG_PRINT("error", ("An error occurred while trying to open the "
-                         "mysql.roles_edges table"));
-    return 0;
-  }
-
-  return tablelst.table;
-}
-
 TABLE *open_default_role_table(THD *thd) {
   DBUG_TRACE;
   TABLE_LIST tablelst("mysql", "default_roles", TL_WRITE,

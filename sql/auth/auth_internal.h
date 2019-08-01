@@ -88,8 +88,6 @@ typedef std::unordered_set<std::string> Grant_acl_set;
 
 std::string create_authid_str_from(const LEX_USER *user);
 std::string create_authid_str_from(const ACL_USER *user);
-std::string create_authid_str_from(const LEX_CSTRING &user,
-                                   const LEX_CSTRING &host);
 std::string create_authid_str_from(const Auth_id_ref &user);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 Auth_id_ref create_authid_from(const ACL_USER *user);
@@ -122,7 +120,6 @@ bool assert_acl_cache_write_lock(THD *thd);
 
 /*sql_authentication */
 bool sha256_rsa_auth_status();
-bool caching_sha2_rsa_auth_status();
 
 /* sql_auth_cache */
 void rebuild_check_host(void);
@@ -175,8 +172,6 @@ void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
 
 /* sql_user_table */
-Json_object *get_user_attributes(THD *thd, TABLE *user_table,
-                                 Json_wrapper &json_wrapper);
 ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
 int replace_db_table(THD *thd, TABLE *table, const char *db,
                      const LEX_USER &combo, ulong rights, bool revoke_grant);
@@ -201,10 +196,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
 void grant_tables_setup_for_open(
     TABLE_LIST *tables, thr_lock_type lock_type = TL_WRITE,
     enum_mdl_type mdl_type = MDL_SHARED_NO_READ_WRITE);
-
-int replace_roles_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
-                             const LEX_USER *role, bool with_grant_arg,
-                             bool revoke_grant);
 
 void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
@@ -290,9 +281,6 @@ void get_granted_roles(LEX_USER *user, List_of_granted_roles *granted_roles);
 bool drop_default_role_policy(THD *thd, TABLE *table,
                               const Auth_id_ref &default_role_policy,
                               const Auth_id_ref &user);
-int iterate_granted_roles(
-    Auth_id_ref &authid,
-    std::function<bool(const std::pair<const Auth_id_ref &, bool> &p)> f);
 void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user);
 bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
                                 TABLE *defaults_table, LEX_USER *user);
@@ -326,7 +314,6 @@ void activate_all_granted_roles(const ACL_USER *acl_user,
                                 Security_context *sctx);
 void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
                                               Security_context *sctx);
-extern std::vector<std::string> builtin_auth_plugins;
 
 bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
                                   const List_of_auth_id_refs &new_auth_ids);
@@ -340,6 +327,5 @@ bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
   privilege checks for one user at a time.
 */
 bool check_system_user_privilege(THD *thd, List<LEX_USER> list);
-bool has_wildcards_in_db_grant(const std::string &db_string);
 
 #endif /* AUTH_INTERNAL_INCLUDED */

@@ -909,7 +909,6 @@ class Security_context_factory {
         m_drop_policy(drop_policy) {}
 
   Sctx_ptr<Security_context> create(MEM_ROOT *mem_root);
-  void apply_policies_to_security_ctx();
 
  private:
   bool apply_pre_constructed_policies(Security_context *sctx);

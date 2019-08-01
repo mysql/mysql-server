@@ -488,7 +488,6 @@ class String {
   bool append(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
   bool append_longlong(longlong val);
-  bool append(IO_CACHE *file, size_t arg_length);
   bool append_with_prefill(const char *s, size_t arg_length, size_t full_length,
                            char fill_char);
   bool append_parenthesized(long nr, int radix = 10);
@@ -531,7 +530,6 @@ class String {
     return 0;
   }
   bool fill(size_t max_length, char fill);
-  void strip_sp();
   friend int sortcmp(const String *a, const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a, const String *b);
   friend String *copy_if_not_alloced(String *to, String *from,

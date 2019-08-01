@@ -88,13 +88,10 @@ class DB_restrictions final : public Abstract_restrictions {
   DB_restrictions &operator=(const DB_restrictions &restrictions);
   DB_restrictions &operator=(DB_restrictions &&restrictions);
   bool operator==(const DB_restrictions &restrictions) const;
-  void add(const std::string &db_name, const std::set<std::string> &privs);
   void add(const std::string &db_name, const ulong revoke_privs);
   void add(const DB_restrictions &restrictions);
   bool add(const Json_object &json_object);
 
-  void remove(const std::string &db_name,
-              const std::set<std::string> &revoke_privs);
   void remove(const std::string &db_name, const ulong revoke_privs);
   void remove(const ulong revoke_privs);
 
@@ -137,7 +134,6 @@ class Restrictions {
 
   const DB_restrictions &db() const;
   void set_db(const DB_restrictions &db_restrictions);
-  void add_db(const DB_restrictions &db_restrictions);
   void clear_db();
   bool is_empty() const;
 

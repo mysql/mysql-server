@@ -120,21 +120,6 @@ bool DB_restrictions::operator==(const DB_restrictions &restrictions) const {
 }
 
 /**
-  Add given set of privileges (in string format) and
-  add them to restriction list for given database.
-
-  @param [in] db_name Database information
-  @param [in] privs   Restricted access - In string format
-*/
-void DB_restrictions::add(const std::string &db_name,
-                          const std::set<std::string> &privs) {
-  for (const auto &priv : privs) {
-    auto priv_itr = global_acls_map.find(priv);
-    if (priv_itr != global_acls_map.end()) add(db_name, priv_itr->second);
-  }
-}
-
-/**
   Add given privileges as restricted for the database
 
   @param [in] db_name      Database information
@@ -213,26 +198,6 @@ bool DB_restrictions::add(const Json_object &json_object) {
     }
   }
   return false;
-}
-
-/**
-  Remove given set of privileges for a database from restriction list
-
-  @param [in] db_name      Database information
-  @param [in] revoke_privs List of privileges to remove
-*/
-void DB_restrictions::remove(const std::string &db_name,
-                             const std::set<std::string> &revoke_privs) {
-  auto rest_itr = m_restrictions.find(db_name);
-  if (rest_itr != m_restrictions.end()) {
-    for (auto &priv : revoke_privs) {
-      const auto &itr = global_acls_map.find(priv);
-      if (itr != global_acls_map.end()) {
-        auto &priv_mask = rest_itr->second;
-        priv_mask ^= (1UL << itr->second);
-      }
-    }
-  }
 }
 
 /**
@@ -1520,11 +1485,6 @@ const DB_restrictions &Restrictions::db() const { return m_db_restrictions; }
 /** Set given database restrictions */
 void Restrictions::set_db(const DB_restrictions &db_restrictions) {
   m_db_restrictions = db_restrictions;
-}
-
-/** Add given database restrictions */
-void Restrictions::add_db(const DB_restrictions &db_restrictions) {
-  m_db_restrictions.add(db_restrictions);
 }
 
 /** Clear database restrictions */

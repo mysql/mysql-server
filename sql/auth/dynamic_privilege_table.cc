@@ -73,19 +73,6 @@ Dynamic_privilege_register *get_dynamic_privilege_register(void) {
 }
 
 /**
-
-*/
-
-void unregister_all_dynamic_privileges(void) {
-  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
-  try {
-    g_dynamic_privilege_register.clear();
-  } catch (...) {
-    // ignore
-  }
-}
-
-/**
   Given an open table handler this function refresh the list of dynamic
   privilege grants by reading the dynamic_privilege table.
 
