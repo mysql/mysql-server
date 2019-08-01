@@ -3503,13 +3503,6 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
 
   CRASH_INSERTION(1006);
 
-  if (ERROR_INSERTED(1001))
-  {
-    sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100,
-                        signal->getLength());
-    return;
-  }
-
   Uint32 senderRef = signal->getSendersBlockRef();
   Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
 
@@ -3525,12 +3518,24 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
     SegmentedSectionPtr ptr;
     handle.getSection(ptr, 0);
 
+    if (ERROR_INSERTED(1001))
+    {
+      sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100,
+                          signal->getLength(), &handle);
+      return;
+    }
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(allFailed.rep.data, ptr);
     releaseSections(handle);
   }
   else
   {
+    if (ERROR_INSERTED(1001))
+    {
+      sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100,
+                          signal->getLength());
+      return;
+    }
     allFailed.assign(NdbNodeBitmask48::Size, nodeFail->theNodes);
   }
   packed_nodebitmask_length = allFailed.getPackedLengthInWords();
