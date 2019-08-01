@@ -6597,7 +6597,7 @@ bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
   DEBUG_SYNC(thd, "after_locking_global_sys_var_set_binlog_enc");
   /* We unlock in following statement to avoid deadlock involving following
    * conditions.
-   * ---------------------------------------------------------------------------------
+   * ------------------------------------------------------------------------
    * Thread 1 (START SLAVE)  has locked channel_map and waiting for cond_wait
    * that is supposed to be done by Thread 2.
    *
