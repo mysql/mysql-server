@@ -78,7 +78,7 @@ protected int
 parse_line(EditLine *el, const Char *line)
 {
 	const Char **argv;
-	int argc;
+	int argc = 0;
 	TYPE(Tokenizer) *tok;
 
 	tok = FUN(tok,init)(NULL);
