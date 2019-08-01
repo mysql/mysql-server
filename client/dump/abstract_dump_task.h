@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 #define ABSTRACT_DUMP_TASK_INCLUDED
 
 #include <functional>
+#include <mutex>
 #include <vector>
 
-#include "client/base/mutex.h"
 #include "client/dump/abstract_data_object.h"
 #include "client/dump/abstract_simple_dump_task.h"
 
@@ -72,7 +72,7 @@ class Abstract_dump_task : public Abstract_simple_dump_task {
   std::vector<Abstract_dump_task *> m_dependents;
   std::vector<std::function<void(const Abstract_dump_task *)> *>
       m_availability_callbacks;
-  my_boost::mutex m_task_mutex;
+  std::mutex m_task_mutex;
 };
 
 }  // namespace Dump
