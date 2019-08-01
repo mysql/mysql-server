@@ -97,6 +97,11 @@ IF(POLICY CMP0026)
   CMAKE_POLICY(SET CMP0026 NEW)
 ENDIF()
 
+# INTERPROCEDURAL_OPTIMIZATION is enforced when enabled (CMake 3.9+)
+IF(POLICY CMP0069)
+  CMAKE_POLICY(SET CMP0069 NEW)
+ENDIF()
+
 # In CMake 3.12 and above, the
 #
 # * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
@@ -1054,37 +1059,46 @@ ELSE()
 ENDIF()
 
 OPTION(WITH_LTO
-  "Enable the link-time optimizer. Currently works for gcc7/gcc8 only."
+  "Enable the link-time optimizer. Currently works for gcc7/gcc8/gcc9/macos only."
   ${WITH_LTO_DEFAULT}
   )
 IF(WITH_LTO)
-  MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
-  IF(NOT CXX_LTO_RESULT)
-    MESSAGE(FATAL_ERROR "Compiler does not support -flto")
-  ENDIF()
-  STRING_APPEND(CMAKE_C_FLAGS   " -flto")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -flto")
-
-  # Test for parallel linking.
-  SET(NUM_PROCESSING_UNITS 4)
-  MY_CHECK_CXX_COMPILER_FLAG(
-    "-flto=${NUM_PROCESSING_UNITS}" CXX_LTO_PARALLEL_RESULT)
-  IF(CXX_LTO_PARALLEL_RESULT)
-    FIND_PROGRAM(NPROC_EXECUTABLE nproc)
-    IF(NPROC_EXECUTABLE)
-      EXECUTE_PROCESS(COMMAND ${NPROC_EXECUTABLE}
-        OUTPUT_VARIABLE NPROC_NUM
-        RESULT_VARIABLE NPROC_RESULT
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-      IF(NOT NPROC_RESULT)
-        SET(NUM_PROCESSING_UNITS ${NPROC_NUM})
-      ENDIF()
-    ENDIF()
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto=${NUM_PROCESSING_UNITS}")
-    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto=${NUM_PROCESSING_UNITS}")
+  IF(APPLE)
+    # Requires CMake 3.9+
+    INCLUDE(CheckIPOSupported)
+    # Will terminate cmake if the check fails.
+    CHECK_IPO_SUPPORTED()
+    # macOS has problems with enabling LTO for shared libs, so we only set it
+    # as target property for mysqld later.
   ELSE()
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto")
-    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto")
+    MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
+    IF(NOT CXX_LTO_RESULT)
+      MESSAGE(FATAL_ERROR "Compiler does not support -flto")
+    ENDIF()
+    STRING_APPEND(CMAKE_C_FLAGS   " -flto")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -flto")
+
+    # Test for parallel linking.
+    SET(NUM_PROCESSING_UNITS 4)
+    MY_CHECK_CXX_COMPILER_FLAG(
+      "-flto=${NUM_PROCESSING_UNITS}" CXX_LTO_PARALLEL_RESULT)
+    IF(CXX_LTO_PARALLEL_RESULT)
+      FIND_PROGRAM(NPROC_EXECUTABLE nproc)
+      IF(NPROC_EXECUTABLE)
+        EXECUTE_PROCESS(COMMAND ${NPROC_EXECUTABLE}
+          OUTPUT_VARIABLE NPROC_NUM
+          RESULT_VARIABLE NPROC_RESULT
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+        IF(NOT NPROC_RESULT)
+          SET(NUM_PROCESSING_UNITS ${NPROC_NUM})
+        ENDIF()
+      ENDIF()
+      STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto=${NUM_PROCESSING_UNITS}")
+      STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto=${NUM_PROCESSING_UNITS}")
+    ELSE()
+      STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto")
+      STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto")
+    ENDIF()
   ENDIF()
 
   # On some platforms (Fedora) we *must* use gcc-ar / gcc-ranlib
