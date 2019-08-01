@@ -19,16 +19,16 @@
 # 9. Stop GR and try to call group_replication_{get,set}_write_concurrency
 #    outside of a group
 ################################################################################
-# Create table before GR because it is incompatible.
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+# Create table with integers to test UDF further down.
 CREATE TABLE t1 (i INT, v INT, PRIMARY KEY (i));
 INSERT INTO t1 VALUES (1, NULL);
 INSERT INTO t1 VALUES (2, 9);
 INSERT INTO t1 VALUES (3, 42);
 INSERT INTO t1 VALUES (4, 201);
-
---source include/have_group_replication_plugin.inc
---let $rpl_server_count= 2
---source include/group_replication.inc
 
 --let $gr_write_concurrency_default= 10
 
@@ -151,7 +151,7 @@ SELECT group_replication_set_write_concurrency(v) FROM test.t1 WHERE i=4;
 # Stop slave SQL thread on M1, so that M2 stays in RECOVERING state.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+--source include/gr_stop_applier_sql_thread.inc
 
 # Start GR on M2, It should be in RECOVERING state.
 --let $rpl_connection_name= server2
@@ -172,7 +172,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 --echo # 8. Check that it is not possible to update wc value when a member is in ERROR state.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+--source include/gr_start_applier_sql_thread.inc
 # Wait until M2 becomes ONLINE
 --echo Wait until server2 becomes ONLINE
 --let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -217,6 +217,7 @@ DELETE FROM t2;
 SET SESSION sql_log_bin=1;
 --source include/start_group_replication.inc
 
+DROP TABLE t1;
 DROP TABLE t2;
 --source include/rpl_sync.inc
 
@@ -232,5 +233,3 @@ SELECT group_replication_get_write_concurrency();
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_write_concurrency(10);
-
-DROP TABLE t1;
