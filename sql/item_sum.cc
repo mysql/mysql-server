@@ -92,6 +92,7 @@ bool Item_sum::itemize(Parse_context *pc, Item **res) {
       m_window->set_def_pos(pc->select->m_windows.elements);
     }
     m_is_window_function = true;
+    pc->select->n_sum_items++;
     set_wf();
   } else {
     mark_as_sum_func(pc->select);

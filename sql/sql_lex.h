@@ -1261,7 +1261,11 @@ class SELECT_LEX {
     in an outer query block.
   */
   bool with_sum_func;
-  /// Number of Item_sum-derived objects in this SELECT
+  /**
+    Number of Item_sum-derived objects in this SELECT. Keeps count of
+    aggregate functions and window functions(to allocate items in ref array).
+    See SELECT_LEX::setup_base_ref_items.
+  */
   uint n_sum_items;
   /// Number of Item_sum-derived objects in children and descendant SELECTs
   uint n_child_sum_items;
