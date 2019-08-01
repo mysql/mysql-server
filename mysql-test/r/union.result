@@ -2912,12 +2912,12 @@ CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(4)	YES		NULL	
-b	int(11)	YES		NULL	
+a	bigint(4)	YES		NULL	
+b	bigint(11)	YES		NULL	
 c	bigint(20)	YES		NULL	
-1	int(1)	NO		0	
-My_exp_1	int(1)	NO		0	
-My_exp_1_1	int(1)	NO		0	
+1	bigint(2)	NO		0	
+My_exp_1	bigint(2)	NO		0	
+My_exp_1_1	bigint(2)	NO		0	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 1	int(1)	NO		0	

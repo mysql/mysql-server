@@ -262,10 +262,14 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
 
   const dd::Properties &names_dict = view_obj->column_names();
 
-  // Iterate through all the items of first SELECT_LEX of the view query.
-  Item *item;
+  /*
+    Iterate through all the items of first SELECT_LEX if view query is of
+    single query block. Otherwise iterate through all the type holders items
+    created for unioned column types of all the query blocks.
+  */
+  List_iterator_fast<Item> it(*(thd->lex->unit->get_unit_column_types()));
   List<Create_field> create_fields;
-  List_iterator_fast<Item> it(thd->lex->select_lex->item_list);
+  Item *item;
   uint i = 0;
   while ((item = it++) != nullptr) {
     i++;
@@ -334,7 +338,6 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       return true;
     }
 
-    if (is_sp_func_item) cr_field->field_name = item->item_name.ptr();
     if (!names_dict.empty())  // Explicit names were provided
     {
       std::string i_s = std::to_string(i);
@@ -346,6 +349,14 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       }
       if (!name) return true; /* purecov: inspected */
       cr_field->field_name = name;
+    } else if (thd->lex->unit->is_union()) {
+      /*
+        If view query has any duplicate column names then generated unique name
+        is stored only with the first SELECT_LEX. So when Create_field instance
+        is created with type holder item, store name from first SELECT_LEX.
+      */
+      cr_field->field_name =
+          thd->lex->select_lex->item_list[i - 1]->item_name.ptr();
     }
 
     cr_field->after = nullptr;
@@ -546,8 +557,17 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
                     String_type(view->timestamp.str, view->timestamp.length));
   view_options->set("view_valid", true);
 
-  // Fill view columns information in View object.
-  if (fill_dd_view_columns(thd, view_obj, view)) return true;
+  /*
+    Fill view columns information in View object.
+
+    During DD upgrade, view metadata is stored in 2 phases. In first phase,
+    view metadata is stored without column information. In second phase view
+    metadata stored with column information. Fill view columns only when view
+    metadata is stored with column information.
+  */
+  if ((thd->lex->select_lex->item_list.elements > 0) &&
+      fill_dd_view_columns(thd, view_obj, view))
+    return true;
 
   // Fill view tables information in View object.
   fill_dd_view_tables(view_obj, view, thd->lex->query_tables);
