@@ -115,6 +115,22 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
   for (const auto logfile_group_name : lfg_in_NDB) {
     if (lfg_in_DD.find(logfile_group_name) == lfg_in_DD.end()) {
       // Exists in NDB but not in DD
+      std::vector<std::string> undofile_names;
+      if (!ndb_get_undofile_names(dict, logfile_group_name, &undofile_names)) {
+        log_info(
+            "Failed to get undofiles assigned to logfile group '%s', skip "
+            "submission",
+            logfile_group_name.c_str());
+        continue;
+      }
+      // Check if the logfile group's undofiles have been created
+      if (undofile_names.size() == 0) {
+        log_info(
+            "No undofiles assigned to logfile group '%s' found, skip "
+            "submission",
+            logfile_group_name.c_str());
+        continue;
+      }
       if (ndbcluster_binlog_check_logfile_group_async(logfile_group_name)) {
         increment_metadata_detected_count();
       } else {
@@ -163,6 +179,21 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
   for (const auto tablespace_name : tablespaces_in_NDB) {
     if (tablespaces_in_DD.find(tablespace_name) == tablespaces_in_DD.end()) {
       // Exists in NDB but not in DD
+      std::vector<std::string> datafile_names;
+      if (!ndb_get_datafile_names(dict, tablespace_name, &datafile_names)) {
+        log_info(
+            "Failed to get datafiles assigned to tablespace '%s', skip "
+            "submission",
+            tablespace_name.c_str());
+        continue;
+      }
+      // Check if the tablespace's datafiles have been created
+      if (datafile_names.size() == 0) {
+        log_info(
+            "No datafiles assigned to tablespace '%s' found, skip submission",
+            tablespace_name.c_str());
+        continue;
+      }
       if (ndbcluster_binlog_check_tablespace_async(tablespace_name)) {
         increment_metadata_detected_count();
       } else {

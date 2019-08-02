@@ -8,7 +8,7 @@
 SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
 SET GLOBAL ndb_metadata_check = true;
-SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check_interval = 0;
 
 --exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT

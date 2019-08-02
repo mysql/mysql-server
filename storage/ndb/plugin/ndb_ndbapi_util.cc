@@ -290,7 +290,7 @@ bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
 
 bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
                             const std::string &logfile_group_name,
-                            std::vector<std::string> &undofile_names) {
+                            std::vector<std::string> *undofile_names) {
   NdbDictionary::Dictionary::List undofile_list;
   if (dict->listObjects(undofile_list, NdbDictionary::Object::Undofile) != 0) {
     return false;
@@ -300,7 +300,7 @@ bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
     NdbDictionary::Dictionary::List::Element &elmt = undofile_list.elements[i];
     NdbDictionary::Undofile uf = dict->getUndofile(-1, elmt.name);
     if (logfile_group_name.compare(uf.getLogfileGroup()) == 0) {
-      undofile_names.push_back(elmt.name);
+      undofile_names->push_back(elmt.name);
     }
   }
   return true;
@@ -308,7 +308,7 @@ bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
 
 bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
                             const std::string &tablespace_name,
-                            std::vector<std::string> &datafile_names) {
+                            std::vector<std::string> *datafile_names) {
   NdbDictionary::Dictionary::List datafile_list;
   if (dict->listObjects(datafile_list, NdbDictionary::Object::Datafile) != 0) {
     return false;
@@ -318,7 +318,7 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
     NdbDictionary::Dictionary::List::Element &elmt = datafile_list.elements[i];
     NdbDictionary::Datafile df = dict->getDatafile(-1, elmt.name);
     if (tablespace_name.compare(df.getTablespace()) == 0) {
-      datafile_names.push_back(elmt.name);
+      datafile_names->push_back(elmt.name);
     }
   }
   return true;

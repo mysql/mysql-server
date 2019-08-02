@@ -72,7 +72,7 @@ DROP TABLE t1;
 # Set low interval so changes are detected quickly
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check_interval = 0;
 
 --exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_basic_backup >> $NDB_TOOLS_OUTPUT

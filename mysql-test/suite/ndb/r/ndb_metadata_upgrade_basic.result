@@ -53,7 +53,7 @@ a
 DROP TABLE t1;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 5;
+SET GLOBAL ndb_metadata_check_interval = 0;
 SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 SELECT * FROM t1;
 a	b

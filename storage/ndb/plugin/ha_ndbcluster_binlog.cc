@@ -1609,7 +1609,7 @@ class Ndb_binlog_setup {
       ndb_log_info("Logfile group '%s' does not exist in DD, installing..",
                    logfile_group_name);
       std::vector<std::string> undofile_names;
-      if (!ndb_get_undofile_names(dict, logfile_group_name, undofile_names)) {
+      if (!ndb_get_undofile_names(dict, logfile_group_name, &undofile_names)) {
         log_NDB_error(dict->getNdbError());
         ndb_log_error(
             "Failed to get undofiles assigned to logfile group '%s' "
@@ -1663,7 +1663,7 @@ class Ndb_binlog_setup {
     const int object_version_in_NDB = ndb_lfg.getObjectVersion();
     std::vector<std::string> undofile_names_in_NDB;
     if (!ndb_get_undofile_names(dict, logfile_group_name,
-                                undofile_names_in_NDB)) {
+                                &undofile_names_in_NDB)) {
       log_NDB_error(dict->getNdbError());
       ndb_log_error(
           "Failed to get undofiles assigned to logfile group '%s' "
@@ -1797,7 +1797,7 @@ class Ndb_binlog_setup {
       ndb_log_info("Tablespace '%s' does not exist in DD, installing..",
                    tablespace_name);
       std::vector<std::string> datafile_names;
-      if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names)) {
+      if (!ndb_get_datafile_names(dict, tablespace_name, &datafile_names)) {
         log_NDB_error(dict->getNdbError());
         ndb_log_error("Failed to get datafiles assigned to tablespace '%s'",
                       tablespace_name);
@@ -1847,7 +1847,8 @@ class Ndb_binlog_setup {
     const int object_id_in_NDB = ndb_tablespace.getObjectId();
     const int object_version_in_NDB = ndb_tablespace.getObjectVersion();
     std::vector<std::string> datafile_names_in_NDB;
-    if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names_in_NDB)) {
+    if (!ndb_get_datafile_names(dict, tablespace_name,
+                                &datafile_names_in_NDB)) {
       log_NDB_error(dict->getNdbError());
       ndb_log_error(
           "Failed to get datafiles assigned to tablespace '%s' from "
@@ -4612,7 +4613,7 @@ class Ndb_schema_event_handler {
     Ndb *ndb = m_thd_ndb->ndb;
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
     std::vector<std::string> datafile_names;
-    if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names)) {
+    if (!ndb_get_datafile_names(dict, tablespace_name, &datafile_names)) {
       log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to get data files assigned to tablespace '%s'",
                     tablespace_name);
@@ -4841,7 +4842,7 @@ class Ndb_schema_event_handler {
     Ndb *ndb = m_thd_ndb->ndb;
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
     std::vector<std::string> undofile_names;
-    if (!ndb_get_undofile_names(dict, logfile_group_name, undofile_names)) {
+    if (!ndb_get_undofile_names(dict, logfile_group_name, &undofile_names)) {
       log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to get undo files assigned to logfile group '%s'",
                     logfile_group_name);
