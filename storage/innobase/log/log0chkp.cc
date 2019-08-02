@@ -73,6 +73,11 @@ the file COPYING.Google.
 @param[in,out]  log   redo log */
 static void log_update_limits_low(log_t &log);
 
+/** Updates lsn available for checkpoint.
+@param[in,out]  log redo log
+@return the updated lsn value */
+static lsn_t log_update_available_for_checkpoint_lsn(log_t &log);
+
 /** Calculates margin which has to be used in log_free_check() call,
 when checking if user thread should wait for more space in redo log.
 @return size of the margin to use */
@@ -148,8 +153,6 @@ the log.last_checkpoint_lsn.
 
 @return lsn for which we might write the checkpoint */
 static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
-  ut_ad(log_limits_mutex_own(log));
-
   /* The log_buffer_dirty_pages_added_up_to_lsn() can only increase,
   and that happens only after all related dirty pages have been added
   to the flush lists.
@@ -170,7 +173,8 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
 
   const lsn_t dpa_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
 
-  ut_a(dpa_lsn >= log.last_checkpoint_lsn.load());
+  ut_ad(dpa_lsn >= log.last_checkpoint_lsn.load() ||
+        !log_checkpointer_mutex_own(log));
 
   LOG_SYNC_POINT("log_get_available_for_chkp_lsn_before_buf_pool");
 
@@ -237,33 +241,36 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
 
   lsn = std::max(lsn, log.last_checkpoint_lsn.load());
 
-  ut_a(lsn >= log.last_checkpoint_lsn.load());
+  ut_ad(lsn >= log.last_checkpoint_lsn.load() ||
+        !log_checkpointer_mutex_own(log));
+
   ut_a(lsn <= log.flushed_to_disk_lsn.load());
 
   return (lsn);
 }
 
-/** Calculates and updates lsn at which we might write a next checkpoint.
-@param[in,out]  log   redo log */
-static void log_update_available_for_checkpoint_lsn_low(log_t &log) {
-  ut_ad(log_limits_mutex_own(log));
-
+static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
   /* Update lsn available for checkpoint. */
   const lsn_t oldest_lsn = log_compute_available_for_checkpoint_lsn(log);
 
-  /* oldest_lsn can decrease in case previously buffer pool flush lists
-  were empty and now a new dirty page appeared, which causes a maximum
-  delay of log.recent_closed_size being suddenly subtracted. */
+  log_limits_mutex_enter(log);
+
+  /* 1. The oldest_lsn can decrease in case previously buffer pool flush
+        lists were empty and now a new dirty page appeared, which causes
+        a maximum delay of log.recent_closed_size being suddenly subtracted.
+
+     2. Race between concurrent log_update_available_for_checkpoint_lsn is
+        also possible. */
 
   if (oldest_lsn > log.available_for_checkpoint_lsn) {
     log.available_for_checkpoint_lsn = oldest_lsn;
   }
-}
 
-static void log_update_available_for_checkpoint_lsn(log_t &log) {
-  log_limits_mutex_enter(log);
-  log_update_available_for_checkpoint_lsn_low(log);
+  const lsn_t result = log.available_for_checkpoint_lsn;
+
   log_limits_mutex_exit(log);
+
+  return (result);
 }
 
 /* @} */
@@ -677,6 +684,8 @@ static bool log_request_checkpoint_validate(const log_t &log) {
 }
 
 void log_request_checkpoint(log_t &log, bool sync) {
+  log_update_available_for_checkpoint_lsn(log);
+
   log_limits_mutex_enter(log);
 
   if (!log_request_checkpoint_validate(log)) {
@@ -686,8 +695,6 @@ void log_request_checkpoint(log_t &log, bool sync) {
     }
     return;
   }
-
-  log_update_available_for_checkpoint_lsn_low(log);
 
   const lsn_t lsn = log.available_for_checkpoint_lsn;
 
