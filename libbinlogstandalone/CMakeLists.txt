@@ -23,15 +23,6 @@
 
 ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 
-# this will be moved to the top level CMakeLists(outside libbinlogevents)
-# in the independent repo mysql-binlog
-# Options for building
-#OPTION(WITH_SERVER_TESTS
-#       "Build the unit test suite with tests requiring a server" OFF)
-
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
 ADD_SUBDIRECTORY(src)
-
-# Configure installation
-INSTALL(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
