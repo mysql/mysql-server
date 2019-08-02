@@ -28,8 +28,8 @@
 #include <lz4frame.h>
 #include <string.h>
 #include <functional>
+#include <mutex>
 
-#include "client/base/mutex.h"
 #include "client/dump/abstract_output_writer_wrapper.h"
 #include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
@@ -73,7 +73,7 @@ class Compression_lz4_writer : public I_output_writer,
 
   void prepare_buffer(size_t src_size);
 
-  my_boost::mutex m_lz4_mutex;
+  std::mutex m_lz4_mutex;
   LZ4F_compressionContext_t m_compression_context;
   std::vector<char> m_buffer;
 };

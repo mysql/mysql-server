@@ -29,8 +29,8 @@
 #include <sys/types.h>
 #include <zlib.h>
 #include <functional>
+#include <mutex>
 
-#include "client/base/mutex.h"
 #include "client/dump/abstract_output_writer_wrapper.h"
 #include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
@@ -72,7 +72,7 @@ class Compression_zlib_writer : public I_output_writer,
  private:
   void process_buffer(bool flush_stream);
 
-  my_boost::mutex m_zlib_mutex;
+  std::mutex m_zlib_mutex;
   z_stream m_compression_context;
   uint m_compression_level;
   std::vector<char> m_buffer;

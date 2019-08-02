@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 #define SINGLE_TRANSACTION_CONNECTION_PROVIDER_INCLUDED
 
 #include <functional>
+#include <mutex>
 
 #include "client/base/message_data.h"
-#include "client/base/mutex.h"
 #include "client/base/mysql_query_runner.h"
 #include "client/dump/i_connection_provider.h"
 #include "client/dump/thread_specific_connection_provider.h"
@@ -52,7 +52,7 @@ class Single_transaction_connection_provider
 
  private:
   std::vector<Mysql::Tools::Base::Mysql_query_runner *> m_runner_pool;
-  my_boost::mutex m_pool_mutex;
+  std::mutex m_pool_mutex;
   unsigned int m_connections;
 };
 

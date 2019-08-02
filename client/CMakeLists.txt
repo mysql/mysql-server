@@ -27,12 +27,11 @@ ADD_SUBDIRECTORY(dump)
 
 MYSQL_ADD_EXECUTABLE(mysql
   ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
-  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   completion_hash.cc
   mysql.cc
   pattern_matcher.cc
   readline.cc
-  LINK_LIBRARIES mysqlclient ${EDITLINE_LIBRARY}
+  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
   )
 
 IF(NOT WITHOUT_SERVER)
@@ -83,11 +82,9 @@ MYSQL_ADD_EXECUTABLE(mysqlshow
   )
 MYSQL_ADD_EXECUTABLE(mysqlbinlog
   mysqlbinlog.cc
-  ${CMAKE_SOURCE_DIR}/strings/decimal.cc
   ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
   ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
-  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
@@ -102,7 +99,7 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
 
   DEPENDENCIES GenError
-  LINK_LIBRARIES mysqlclient binlogevents_static
+  LINK_LIBRARIES mysqlclient client_base binlogevents_static
   )
 
 TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)

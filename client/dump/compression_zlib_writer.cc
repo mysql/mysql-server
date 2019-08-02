@@ -50,7 +50,7 @@ void Compression_zlib_writer::process_buffer(bool flush_stream) {
 }
 
 void Compression_zlib_writer::append(const std::string &data_to_append) {
-  my_boost::mutex::scoped_lock lock(m_zlib_mutex);
+  std::lock_guard<std::mutex> lock(m_zlib_mutex);
   m_compression_context.avail_in = data_to_append.size();
   m_compression_context.next_in =
       pointer_cast<Bytef *>(const_cast<char *>(data_to_append.data()));
@@ -58,7 +58,7 @@ void Compression_zlib_writer::append(const std::string &data_to_append) {
 }
 
 Compression_zlib_writer::~Compression_zlib_writer() {
-  my_boost::mutex::scoped_lock lock(m_zlib_mutex);
+  std::lock_guard<std::mutex> lock(m_zlib_mutex);
   this->process_buffer(true);
   deflateEnd(&m_compression_context);
 }
