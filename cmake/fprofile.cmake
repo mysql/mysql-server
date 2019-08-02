@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Options for doing PGO (profile guided optimization) with gcc.
+# Options for doing PGO (profile guided optimization) with gcc/clang.
 #
 # gcc8 and gcc9 handle naming and location of the .gcda files
 # (containing profile data) completely differently, hence the slightly
@@ -57,12 +57,30 @@
 #   cmake <path to source> -DFPROFILE_USE=1
 #   make
 #
+# HowTo for clang:
+# Assuming we have three build directories
+#   <some path>/build-gen
+#   <some path>/build-use
+#   <some path>/profile-data
+#
+# in build-gen
+#   cmake <path to source> -DFPROFILE_GENERATE=1
+#   make
+#   rm -rf ../profile-data
+#   run whatever test suite is an appropriate training set
+# in profile-data
+#   llvm-profdata merge -output=default.profdata .
+# in build-use
+#   cmake <path to source> -DFPROFILE_USE=1
+#   make
+#
+#
 # Your executables should hopefully be faster than a default build.
 # In order to share the profile data, we turn on REPRODUCIBLE_BUILD.
 # We also switch off USE_LD_LLD since it resulted in some linking problems.
 
-# Currently only implemented for gcc.
-IF(NOT MY_COMPILER_IS_GNU)
+# Currently only implemented for gcc and clang.
+IF(NOT MY_COMPILER_IS_GNU_OR_CLANG)
   RETURN()
 ENDIF()
 
@@ -73,19 +91,19 @@ ENDIF()
 
 OPTION(FPROFILE_GENERATE "Add -fprofile-generate" OFF)
 IF(FPROFILE_GENERATE)
-  STRING_APPEND(CMAKE_C_FLAGS
-    " -fprofile-generate -fprofile-dir=${FPROFILE_DIR}")
-  STRING_APPEND(CMAKE_CXX_FLAGS
-    " -fprofile-generate -fprofile-dir=${FPROFILE_DIR}")
+  STRING_APPEND(CMAKE_C_FLAGS " -fprofile-generate=${FPROFILE_DIR}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-generate=${FPROFILE_DIR}")
 ENDIF()
 
-# Collection of profile data is not thread safe, use -fprofile-correction
 OPTION(FPROFILE_USE "Add -fprofile-use" OFF)
 IF(FPROFILE_USE)
-  STRING_APPEND(CMAKE_C_FLAGS
-    " -fprofile-use -fprofile-correction -fprofile-dir=${FPROFILE_DIR}")
-  STRING_APPEND(CMAKE_CXX_FLAGS
-    " -fprofile-use -fprofile-correction -fprofile-dir=${FPROFILE_DIR}")
+  STRING_APPEND(CMAKE_C_FLAGS " -fprofile-use=${FPROFILE_DIR}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-use=${FPROFILE_DIR}")
+  # Collection of profile data is not thread safe, use -fprofile-correction for GCC
+  IF(MY_COMPILER_IS_GNU)
+    STRING_APPEND(CMAKE_C_FLAGS " -fprofile-correction")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-correction")
+  ENDIF()
 ENDIF()
 
 IF(FPROFILE_GENERATE AND FPROFILE_USE)
