@@ -9123,7 +9123,7 @@ void Item_cache_row::bring_value() {
   for (uint i = 0; i < item_count; i++) values[i]->bring_value();
 }
 
-Item_type_holder::Item_type_holder(THD *thd, Item *item)
+Item_aggregate_type::Item_aggregate_type(THD *thd, Item *item)
     : Item(thd, item), enum_set_typelib(0) {
   DBUG_ASSERT(item->fixed);
   maybe_null = item->maybe_null;
@@ -9136,13 +9136,13 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
 }
 
 /**
-  Return expression type of Item_type_holder.
+  Return expression type of Item_aggregate_type.
 
   @return
     Item_result (type of internal MySQL expression result)
 */
 
-Item_result Item_type_holder::result_type() const {
+Item_result Item_aggregate_type::result_type() const {
   return Field::result_merge_type(data_type());
 }
 
@@ -9153,7 +9153,7 @@ Item_result Item_type_holder::result_type() const {
     data type which should be used to store item value
 */
 
-enum_field_types Item_type_holder::real_data_type(Item *item) {
+enum_field_types Item_aggregate_type::real_data_type(Item *item) {
   item = item->real_item();
 
   switch (item->type()) {
@@ -9211,7 +9211,7 @@ enum_field_types Item_type_holder::real_data_type(Item *item) {
 }
 
 /**
-  Find field type which can carry current Item_type_holder type and
+  Find field type which can carry current Item_aggregate_type type and
   type of given Item.
 
   @param thd     the thread/connection descriptor
@@ -9223,7 +9223,7 @@ enum_field_types Item_type_holder::real_data_type(Item *item) {
     false  OK
 */
 
-bool Item_type_holder::join_types(THD *thd, Item *item) {
+bool Item_aggregate_type::join_types(THD *thd, Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info:",
              ("was type %d len %d, dec %d name %s", data_type(), max_length,
@@ -9293,7 +9293,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item) {
     length
 */
 
-uint32 Item_type_holder::display_length(Item *item) {
+uint32 Item_aggregate_type::display_length(Item *item) {
   if (item->type() == Item::FIELD_ITEM)
     return ((Item_field *)item)->max_disp_length();
 
@@ -9352,7 +9352,7 @@ uint32 Item_type_holder::display_length(Item *item) {
     created field
 */
 
-Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict) {
+Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
   */
@@ -9401,7 +9401,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict) {
 
   @param item    Item for information collection
 */
-void Item_type_holder::get_full_info(Item *item) {
+void Item_aggregate_type::get_full_info(Item *item) {
   if (data_type() == MYSQL_TYPE_ENUM || data_type() == MYSQL_TYPE_SET) {
     if (item->type() == Item::SUM_FUNC_ITEM &&
         (((Item_sum *)item)->sum_func() == Item_sum::MAX_FUNC ||
@@ -9443,6 +9443,16 @@ my_decimal *Item_type_holder::val_decimal(my_decimal *) {
 String *Item_type_holder::val_str(String *) {
   DBUG_ASSERT(0);  // should never be called
   return 0;
+}
+
+bool Item_type_holder::get_date(MYSQL_TIME *, my_time_flags_t) {
+  DBUG_ASSERT(0);
+  return true;
+}
+
+bool Item_type_holder::get_time(MYSQL_TIME *) {
+  DBUG_ASSERT(0);
+  return true;
 }
 
 void Item_result_field::cleanup() {

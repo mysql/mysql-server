@@ -6068,13 +6068,13 @@ class Item_cache_json : public Item_cache {
 };
 
 /**
-  Item_type_holder stores type, name, length of Item for UNIONS &
-  derived tables.
+  Interface for storing an aggregation of type and type specification of
+  multiple Item objects.
 
-  Item_type_holder do not need cleanup() because its time of live limited by
-  single SP/PS execution.
+  This is useful for cases where a field is an amalgamation of multiple types,
+  such as in UNION where type conversions must be done to a common denominator.
 */
-class Item_type_holder final : public Item {
+class Item_aggregate_type : public Item {
  protected:
   TYPELIB *enum_set_typelib;
   Field::geometry_type geometry_type;
@@ -6082,22 +6082,16 @@ class Item_type_holder final : public Item {
   void get_full_info(Item *item);
 
  public:
-  Item_type_holder(THD *, Item *);
+  Item_aggregate_type(THD *, Item *);
+
+  double val_real() override = 0;
+  longlong val_int() override = 0;
+  my_decimal *val_decimal(my_decimal *) override = 0;
+  String *val_str(String *) override = 0;
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override = 0;
+  bool get_time(MYSQL_TIME *) override = 0;
 
   Item_result result_type() const override;
-  enum Type type() const override { return TYPE_HOLDER; }
-  double val_real() override;
-  longlong val_int() override;
-  my_decimal *val_decimal(my_decimal *) override;
-  String *val_str(String *) override;
-  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
-    return true;
-  }
-  bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
-    return true;
-  }
   bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
@@ -6116,6 +6110,29 @@ class Item_type_holder final : public Item {
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
+};
+
+/**
+  Item_type_holder stores an aggregation of name, type and type specification of
+  UNIONS and derived tables.
+*/
+class Item_type_holder final : public Item_aggregate_type {
+  typedef Item_aggregate_type super;
+
+ public:
+  /// @todo Consider giving Item_type_holder objects default names from the item
+  /// they are initialized by. This would ensure that
+  /// SELECT_LEX_UNIT::get_unit_column_types() always contains named items.
+  Item_type_holder(THD *thd, Item *item) : super(thd, item) {}
+
+  enum Type type() const override { return TYPE_HOLDER; }
+
+  double val_real() override;
+  longlong val_int() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  String *val_str(String *) override;
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override;
+  bool get_time(MYSQL_TIME *) override;
 };
 
 /// A class that represents a constant JSON value.
