@@ -473,14 +473,24 @@ class Fil_path {
   bool is_circular() const MY_ATTRIBUTE((warn_unused_result));
 
   /** Determine if the file or directory is considered HIDDEN.
-  On Windows, a HIDDEN path is identified by a file attribute.
-  Most other file systems identify the HIDDEN attribute by a '.'
-  preceeding the basename.  We will use the preceeding '.' to indicate
-  a HIDDEN attribute on ALL file systems so that InnoDB tablespaces
-  and their directory structure remain portable.
+  Most file systems identify the HIDDEN attribute by a '.' preceeding the
+  basename.  On Windows, a HIDDEN path is identified by a file attribute.
+  We will use the preceeding '.' to indicate a HIDDEN attribute on ALL
+  file systems so that InnoDB tablespaces and their directory structure
+  remain portable.
   @param[in]  path  The full or relative path of a file or directory.
   @return true if the directory or path is HIDDEN. */
   static bool is_hidden(std::string path);
+
+#ifdef _WIN32
+  /** Use the WIN32_FIND_DATA struncture to determine if the file or
+  directory is HIDDEN.  Consider a SYSTEM attribute also as an indicator
+  that it is HIDDEN to InnoDB.
+  @param[in]  dirent  A directory entry obtained from a call to FindFirstFile()
+  or FindNextFile()
+  @return true if the directory or path is HIDDEN. */
+  static bool is_hidden(WIN32_FIND_DATA &dirent);
+#endif /* WIN32 */
 
   /** Remove quotes e.g., 'a;b' or "a;b" -> a;b.
   Assumes matching quotes.
