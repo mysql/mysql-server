@@ -31614,14 +31614,33 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
           
           NdbNodeBitmask victims;
           victims.set(cownNodeid);
-          victims.copyto(NdbNodeBitmask::Size, ord->nodesToIsolate);
 
           /* QMGR handles this */
-          sendSignal(QMGR_REF,
-                     GSN_ISOLATE_ORD,
-                     signal,
-                     IsolateOrd::SignalLength,
-                     JBA);
+          if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
+          {
+            jam();
+            LinearSectionPtr lsptr[3];
+            lsptr[0].p = (Uint32*)&victims;
+            lsptr[0].sz = victims.getPackedLengthInWords();
+            sendSignal(QMGR_REF,
+                       GSN_ISOLATE_ORD,
+                       signal,
+                       IsolateOrd::SignalLength,
+                       JBA,
+                       lsptr,
+                       1);
+
+          }
+          else
+          {
+            ndbrequire(victims.getPackedLengthInWords() <= 2);
+            victims.copyto(NdbNodeBitmask48::Size, ord->nodesToIsolate);
+            sendSignal(QMGR_REF,
+                       GSN_ISOLATE_ORD,
+                       signal,
+                       IsolateOrd::SignalLengthWithBitmask48,
+                       JBA);
+          }
         }
       }
       

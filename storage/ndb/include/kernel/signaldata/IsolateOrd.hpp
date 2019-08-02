@@ -65,7 +65,7 @@ private:
 
   // First two words may be part of signal to old nodes.
   // For new nodes bitmask is sent in section instead.
-  Uint32 nodesToIsolate[NdbNodeBitmask::Size];
+  Uint32 nodesToIsolate[NdbNodeBitmask48::Size];
 };
   
 #undef JAM_FILE_ID
