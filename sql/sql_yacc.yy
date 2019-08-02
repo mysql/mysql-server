@@ -1229,7 +1229,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> ACTIVE_SYM                    /* MYSQL */
 %token<lexer.keyword> INACTIVE_SYM                  /* MYSQL */
 %token          LATERAL_SYM                   /* SQL-1999-R */
-%token<lexer.keyword>ARRAY_SYM                     /* SQL-2003-R */
+%token          ARRAY_SYM                     /* SQL-2003-R */
 %token          MEMBER_SYM                    /* SQL-2003-R */
 %token<lexer.keyword> OPTIONAL_SYM                  /* MYSQL */
 %token<lexer.keyword> SECONDARY_SYM                 /* MYSQL */
