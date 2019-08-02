@@ -3230,11 +3230,15 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
     /* If the trunc log file is still around, this undo tablespace needs to be
     rebuilt now. */
-    if (srv_undo_tablespace_fixup(space_name, filename, space_id) !=
-        DB_SUCCESS) {
-      ib::error(ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE, prefix.c_str(),
-                space_name);
-      continue;
+    if (fsp_is_undo_tablespace(space_id)) {
+      mutex_enter(&(undo::ddl_mutex));
+      dberr_t err = srv_undo_tablespace_fixup(space_name, filename, space_id);
+      mutex_exit(&(undo::ddl_mutex));
+      if (err != DB_SUCCESS) {
+        ib::error(ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE, prefix.c_str(),
+                  space_name);
+        continue;
+      }
     }
 
     /* If IBD tablespaces exist in mem correctly, we can continue. */
