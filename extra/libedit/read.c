@@ -268,6 +268,7 @@ read_getcmd(EditLine *el, el_action_t *cmdnum, Char *ch)
 			cmd = el->el_map.current[(unsigned char) *ch];
 		if (cmd == ED_SEQUENCE_LEAD_IN) {
 			keymacro_value_t val;
+			val.str = NULL;
 			switch (keymacro_get(el, ch, &val)) {
 			case XK_CMD:
 				cmd = val.cmd;

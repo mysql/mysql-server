@@ -1111,7 +1111,7 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
 
 static uchar *compress_packet(NET *net, const uchar *packet, size_t *length) {
   uchar *compr_packet;
-  size_t compr_length;
+  size_t compr_length = 0;
   const uint header_length = NET_HEADER_SIZE + COMP_HEADER_SIZE;
 
   compr_packet = (uchar *)my_malloc(key_memory_NET_compress_packet,
