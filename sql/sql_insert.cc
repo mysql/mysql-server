@@ -475,8 +475,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
                                       insert_table, insert_table->write_set))
     return true; /* purecov: inspected */
 
-  insert_table->auto_increment_field_not_null = false;
-
   // Current error state inside and after the insert loop
   bool has_error = false;
 
@@ -552,6 +550,9 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     }
 
     while ((values = its++)) {
+      Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(
+          insert_table);
+
       if (insert_field_list.elements || !value_count) {
         restore_record(insert_table, s->default_values);  // Get empty record
 
@@ -565,7 +566,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         }
         if (fill_record_n_invoke_before_triggers(
                 thd, &info, insert_field_list, *values, insert_table,
-                TRG_EVENT_INSERT, insert_table->s->fields, nullptr)) {
+                TRG_EVENT_INSERT, insert_table->s->fields, true, nullptr)) {
           DBUG_ASSERT(thd->is_error());
           /*
             TODO: Convert warnings to errors if values_list.elements == 1
@@ -715,8 +716,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
   // Remember to restore warning handling before leaving
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
-
-  insert_table->auto_increment_field_not_null = false;
 
   DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
   if (has_error) return true;
@@ -1574,6 +1573,11 @@ static bool last_uniq_key(TABLE *table, uint keynr) {
   Call thd->transaction.stmt.mark_modified_non_trans_table() if table is a
   non-transactional table.
 
+  @note In ON DUPLICATE KEY UPDATE case this call may set
+        TABLE::autoinc_field_has_explicit_non_null_value flag to true (even
+        in case of failure) so its caller should make sure that it is reset
+        appropriately (@sa fill_record()).
+
   @returns false if success, true if error
 */
 
@@ -1719,16 +1723,24 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         restore_record(table, record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
+        /*
+          Reset TABLE::autoinc_field_has_explicit_non_null_value so we can
+          figure out if ON DUPLICATE KEY UPDATE clause specifies value for
+          auto-increment field as a side-effect of fill_record(). There is
+          no need to clean-up this flag afterwards as this is responsibility
+          of the caller.
+        */
+        table->autoinc_field_has_explicit_non_null_value = false;
         bool is_row_changed = false;
         if (fill_record_n_invoke_before_triggers(
                 thd, update, *update->get_changed_columns(),
-                *update->update_values, table, TRG_EVENT_UPDATE, 0,
+                *update->update_values, table, TRG_EVENT_UPDATE, 0, true,
                 &is_row_changed))
           goto before_trg_err;
 
         bool insert_id_consumed = false;
         if (  // UPDATE clause specifies a value for the auto increment field
-            table->auto_increment_field_not_null &&
+            table->autoinc_field_has_explicit_non_null_value &&
             // An auto increment value has been generated for this row
             (insert_id_for_cur_row > 0)) {
           // After-update value:
@@ -2094,7 +2106,6 @@ void Query_result_insert::cleanup(THD *thd) {
   DBUG_TRACE;
   if (table) {
     table->next_number_field = 0;
-    table->auto_increment_field_not_null = false;
     table->file->ha_reset();
   }
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
@@ -2104,11 +2115,11 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
   DBUG_TRACE;
   bool error = 0;
 
+  Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
   thd->check_for_truncated_fields = CHECK_FIELD_WARN;
   store_values(thd, values);
   thd->check_for_truncated_fields = CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error()) {
-    table->auto_increment_field_not_null = false;
     return true;
   }
 
@@ -2135,7 +2146,6 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
   }
 
   error = write_record(thd, table, &info, &update);
-  table->auto_increment_field_not_null = false;
 
   DEBUG_SYNC(thd, "create_select_after_write_rows_event");
 
@@ -2173,7 +2183,7 @@ void Query_result_insert::store_values(THD *thd, List<Item> &values) {
     if (!validate_default_values_of_unset_fields(thd, table))
       fill_record_n_invoke_before_triggers(thd, &info, *fields, values, table,
                                            TRG_EVENT_INSERT, table->s->fields,
-                                           nullptr);
+                                           true, nullptr);
   } else
     fill_record_n_invoke_before_triggers(thd, table->field, values, table,
                                          TRG_EVENT_INSERT, table->s->fields);
@@ -3037,7 +3047,6 @@ void Query_result_create::abort_result_set(THD *thd) {
   }
 
   if (table) {
-    table->auto_increment_field_not_null = false;
     drop_open_table(thd);
     table = 0;  // Safety
   }

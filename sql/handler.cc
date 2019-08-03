@@ -3499,7 +3499,7 @@ inline ulonglong prev_insert_id(ulonglong nr,
   Updates columns with type NEXT_NUMBER if:
 
   - If column value is set to NULL (in which case
-    auto_increment_field_not_null is 0)
+    autoinc_field_has_explicit_non_null_value is 0)
   - If column is set to 0 and (sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO) is not
     set. In the future we will only set NEXT_NUMBER fields if one sets them
     to NULL (or they are not included in the insert list).
@@ -3555,7 +3555,7 @@ inline ulonglong prev_insert_id(ulonglong nr,
   @todo
     Replace all references to "next number" or NEXT_NUMBER to
     "auto_increment", everywhere (see below: there is
-    table->auto_increment_field_not_null, and there also exists
+    table->autoinc_field_has_explicit_non_null_value, and there also exists
     table->next_number_field, it's not consistent).
 
   @retval
@@ -3587,7 +3587,7 @@ int handler::update_auto_increment() {
   DBUG_ASSERT(next_insert_id >= auto_inc_interval_for_cur_row.minimum());
 
   if ((nr = table->next_number_field->val_int()) != 0 ||
-      (table->auto_increment_field_not_null &&
+      (table->autoinc_field_has_explicit_non_null_value &&
        thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)) {
     /*
       First test if the query was aborted due to strict mode constraints.

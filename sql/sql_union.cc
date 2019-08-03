@@ -92,7 +92,8 @@ bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
 }
 
 bool Query_result_union::send_data(THD *thd, List<Item> &values) {
-  if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL))
+  if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL,
+                  false))
     return true; /* purecov: inspected */
 
   if (!check_unique_constraint(table)) return false;
@@ -325,7 +326,7 @@ bool Query_result_union_direct::send_data(THD *thd, List<Item> &items) {
     return false;
   }
 
-  if (fill_record(thd, table, table->field, items, NULL, NULL))
+  if (fill_record(thd, table, table->field, items, NULL, NULL, false))
     return true; /* purecov: inspected */
 
   return result->send_data(thd, unit->item_list);

@@ -486,14 +486,14 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
   if (copy_default_values) restore_record(table, s->default_values);
 
   if (fields.elements || !values.elements) {
-    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL))
+    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL,
+                    false))
       return true;
   } else {
     if (fill_record(thd, table, table->field, values, &full_part_field_set,
-                    NULL))
+                    NULL, false))
       return true;
   }
-  DBUG_ASSERT(!table->auto_increment_field_not_null);
 
   /*
     Evaluate DEFAULT functions like CURRENT_TIMESTAMP.

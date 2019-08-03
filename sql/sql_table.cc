@@ -17448,7 +17448,7 @@ static int copy_data_between_tables(
     }
     if (to->next_number_field) {
       if (auto_increment_field_copied)
-        to->auto_increment_field_not_null = true;
+        to->autoinc_field_has_explicit_non_null_value = true;
       else
         to->next_number_field->reset();
     }
@@ -17501,7 +17501,7 @@ static int copy_data_between_tables(
     if (error) break;
 
     error = to->file->ha_write_row(to->record[0]);
-    to->auto_increment_field_not_null = false;
+    to->autoinc_field_has_explicit_non_null_value = false;
     if (error) {
       if (!to->file->is_ignorable_error(error)) {
         /* Not a duplicate key error. */

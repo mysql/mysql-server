@@ -474,7 +474,8 @@ int Partition_helper::ph_write_row(uchar *buf) {
       m_table->next_number_field && buf == m_table->record[0];
   THD *thd = get_thd();
   sql_mode_t saved_sql_mode = thd->variables.sql_mode;
-  bool saved_auto_inc_field_not_null = m_table->auto_increment_field_not_null;
+  bool saved_autoinc_field_has_expl_non_null_value =
+      m_table->autoinc_field_has_explicit_non_null_value;
 #ifndef DBUG_OFF
   my_bitmap_map *old_map;
 #endif /* DBUG_OFF */
@@ -506,7 +507,7 @@ int Partition_helper::ph_write_row(uchar *buf) {
       partitions.
     */
     if (m_table->next_number_field->val_int() == 0) {
-      m_table->auto_increment_field_not_null = true;
+      m_table->autoinc_field_has_explicit_non_null_value = true;
       thd->variables.sql_mode |= MODE_NO_AUTO_VALUE_ON_ZERO;
     }
   }
@@ -542,7 +543,8 @@ int Partition_helper::ph_write_row(uchar *buf) {
   }
 exit:
   thd->variables.sql_mode = saved_sql_mode;
-  m_table->auto_increment_field_not_null = saved_auto_inc_field_not_null;
+  m_table->autoinc_field_has_explicit_non_null_value =
+      saved_autoinc_field_has_expl_non_null_value;
   return error;
 }
 

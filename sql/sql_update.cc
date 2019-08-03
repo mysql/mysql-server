@@ -819,7 +819,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       bool is_row_changed = false;
       if (fill_record_n_invoke_before_triggers(
               thd, &update, *update_field_list, *update_value_list, table,
-              TRG_EVENT_UPDATE, 0, &is_row_changed)) {
+              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
         error = 1;
         break;
       }
@@ -974,7 +974,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
     end_semi_consistent_read.rollback();
 
-    table->auto_increment_field_not_null = false;
     dup_key_found = 0;
     /*
       Caching the killed status to pass as the arg to query event constuctor;
@@ -2109,15 +2108,10 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       bool is_row_changed = false;
       if (fill_record_n_invoke_before_triggers(
               thd, update_operations[offset], *fields_for_table[offset],
-              *values_for_table[offset], table, TRG_EVENT_UPDATE, 0,
+              *values_for_table[offset], table, TRG_EVENT_UPDATE, 0, false,
               &is_row_changed))
         return true;
 
-      /*
-        Reset the table->auto_increment_field_not_null as it is valid for
-        only one row.
-      */
-      table->auto_increment_field_not_null = false;
       found_rows++;
       int error = 0;
       if (is_row_changed) {
@@ -2225,7 +2219,7 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       fill_record(thd, tmp_table,
                   tmp_table->visible_field_ptr() + 1 +
                       unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], NULL, NULL);
+                  *values_for_table[offset], NULL, NULL, false);
 
       /* Write row, ignoring duplicated updates to a row */
       error = tmp_table->file->ha_write_row(tmp_table->record[0]);

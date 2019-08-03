@@ -768,7 +768,7 @@ static enum_nested_loop_state end_sj_materialize(JOIN *join, QEP_TAB *qep_tab,
       if (item.is_null()) return NESTED_LOOP_OK;
     }
     fill_record(thd, table, table->visible_field_ptr(),
-                sjm->sj_nest->nested_join->sj_inner_exprs, NULL, NULL);
+                sjm->sj_nest->nested_join->sj_inner_exprs, NULL, NULL, false);
     if (thd->is_error()) return NESTED_LOOP_ERROR; /* purecov: inspected */
     if (!check_unique_constraint(table)) return NESTED_LOOP_OK;
     if ((error = table->file->ha_write_row(table->record[0]))) {
