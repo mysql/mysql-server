@@ -1403,8 +1403,6 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
   ulonglong now = 0;
   int count = 0;
 
-  now = my_micro_time();
-
   /*
     If we were actually given an event, add it to the buffer.
   */
@@ -1426,7 +1424,7 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
     log_line_duplicate(&llb->ll, ll);
 
     /*
-      Remember when an ERROR or SYSTEM prio event was buffered.
+      Remember it when an ERROR or SYSTEM prio event was buffered.
       If buffered logging times out and the buffer contains such an event,
       we force a premature flush so the user will know what's going on.
     */
@@ -1437,15 +1435,6 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
           (llb->ll.item[index_prio].data.data_integer <= ERROR_LEVEL))
         log_buffering_flushworthy = true;
     }
-
-    /*
-      Save the current time so we can regenerate the textual timestamp
-      later when we have the command-line options telling us what format
-      it should be in (e.g. UTC or system time).
-    */
-    if (!log_line_full(&llb->ll)) {
-      log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer = now;
-    }
   }
 
   /*
@@ -1454,7 +1443,18 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
   */
   if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
+  now = my_micro_time();
+
   if (ll != nullptr) {
+    /*
+      Save the current time so we can regenerate the textual timestamp
+      later when we have the command-line options telling us what format
+      it should be in (e.g. UTC or system time).
+    */
+    if (!log_line_full(&llb->ll)) {
+      log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer = now;
+    }
+
     *log_line_buffer_tail = llb;
     log_line_buffer_tail = &(llb->next);
 
@@ -1587,7 +1587,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   /*
     "steal" public list of buffered log events
 
-    The general mechanism is that move the buffered events from
+    The general mechanism is that we move the buffered events from
     the global list to one local to this function, iterate over
     it, and then put it back. If anything was added to the global
     list we emptied while were working, we append the new items
@@ -1603,6 +1603,14 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     a lock nor stole the list.
   */
 
+  /*
+    If the lock hasn't been init'd yet, don't get it.
+
+    Likewise don't get it in LOG_BUFFER_REPORT_AND_KEEP mode as
+    then the caller already has it. We generally only grab the lock
+    here when coming from log.cc's discard_error_log_messages() or
+    flush_error_log_messages().
+  */
   if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
     mysql_mutex_lock(&THR_LOCK_log_buffered);
 
@@ -1705,8 +1713,11 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
 
           log_line_duplicate(&temp_line, &llp->ll);
 
+          // Only run the built-in filter if any rules are defined.
           if (log_filter_builtin_rules != nullptr)
             log_builtins_filter_run(log_filter_builtin_rules, &temp_line);
+
+          // Emit to the built-in writer. Empty lines will be ignored.
           log_sink_trad(nullptr, &temp_line);
 
           log_line_item_free_all(&temp_line);  // release our temporary copy
@@ -1734,8 +1745,10 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
             down before we'll ever get full logging, so keeping
             the info around is pointless.
           */
+
           if (log_filter_builtin_rules != nullptr)
             log_builtins_filter_run(log_filter_builtin_rules, &llp->ll);
+
           log_sink_trad(nullptr, &llp->ll);
         }
       } else {  // !LOG_SERVICE_BUFFER
@@ -1744,7 +1757,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
           we can write out the log-events using the configuration
           requested by the user, as it should be!
         */
-        log_line_submit(&llp->ll);  // frees keys + values
+        log_line_submit(&llp->ll);  // frees keys + values (but not llp itself)
         goto kv_freed;
       }
     }

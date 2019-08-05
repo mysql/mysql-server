@@ -39,14 +39,59 @@
 #         directory as the first server
 
 --let $MYSQLD_LOG=$MYSQL_TMP_DIR/buffered.log
---exec_in_background $MYSQLD --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK
---sleep 55
---copy_file $MYSQLD_LOG $MYSQL_TMP_DIR/errlog_after_55s
---sleep 10
---copy_file $MYSQLD_LOG $MYSQL_TMP_DIR/errlog_after_65s
---sleep 10
---copy_file $MYSQLD_LOG $MYSQL_TMP_DIR/errlog_after_75s
---sleep 30
+
+--let ENV_LOG_FILE=$MYSQLD_LOG
+--let ENV_LOG_SERVICES="log_filter_internal,log_filter_internal,log_sink_internal"
+--let ENV_DATADIR=$MYSQLD_DATADIR
+
+# Bug#30019632:
+# "ERROR LOG REPORTING DELAYED DURING INNODB START-UP WHEN UNNECESSARY"
+#
+# This improvement results in the deferred error-logging during InnoDB
+# start-up only being active in rare configurations where it is needed,
+# but being inactive by default. Therefore to trigger the delay, we must
+# create the corner case below by using a non-standard log-error-services
+# and at the same time use stderr (instead of a named file) as a logging
+# destination. Finally due to the workings of the original test, the
+# server must run concurrently to mysql-test so the latter can get the
+# timing right. This specific combination can not be created by
+# --exec_in_background, so we use a specially crafted perl snippet
+# to give us everything we need. -T-
+
+--perl
+  use File::Copy;
+
+  # Run the server with a non-standard log-error-services.
+  # Do not supply log-error, but do pipe stderr into a file
+  # so we can evaluate the output-over-time later.
+  system("$ENV{'MYSQLD'} --no-defaults --datadir=$ENV{'ENV_DATADIR'} --secure-file-priv=\"\" --port=$ENV{'MASTER_MYPORT'} --socket=$ENV{'MASTER_MYSOCK'} --log-error-services=$ENV{'ENV_LOG_SERVICES'} 2>$ENV{'ENV_LOG_FILE'} &");
+
+  # Wait till just before the initial timeout. Log should still be empty.
+  sleep 55;
+  # Save the error log messages that were output so far.
+  copy($ENV{'ENV_LOG_FILE'}, $ENV{'MYSQL_TMP_DIR'}."/errlog_after_55s");
+
+  # Wait till just after the initial timeout. Log should contain first batch.
+  sleep 10;
+  # Save the error log messages that were output so far.
+  copy($ENV{'ENV_LOG_FILE'}, $ENV{'MYSQL_TMP_DIR'}."/errlog_after_65s");
+
+  # Wait till after first subsequent timeout.
+  # Log should contain first 2 batches.
+  sleep 10;
+  # Save the error log messages that were output so far.
+  copy($ENV{'ENV_LOG_FILE'}, $ENV{'MYSQL_TMP_DIR'}."/errlog_after_75s");
+
+  # Wait for the server to give up trying to get a lock on the Inno
+  # database and abort.
+  sleep 30;
+EOF
+
+# Here ends the main change for Bug#30019632; while we had to make
+# some changes above to create the same situation as before, the
+# output should be generally the same as before, and so should the
+# processing below.
+
 
 # Verify that the second server has aborted
 --let SEARCH_FILE=$MYSQLD_LOG
@@ -92,10 +137,14 @@ EOF
 --remove_files_wildcard $MYSQL_TMP_DIR errlog_after_*
 --remove_file $MYSQLD_LOG
 
+
 # Case 2: Shutdown the first server during the waiting period of the
 #         second server and verify that the content of JSON and the
 #         traditional log of the second server has the same messages
 
+# We can add the JSON-writer to the components-set in this instance
+# and have it picked up in the other (once the other instance gains
+# access to the tables). The prettiness of this is debatable.
 INSTALL COMPONENT "file://component_log_sink_json";
 
 --let LOG_FILE_TRAD=$MYSQL_TMP_DIR/buffered1.err
@@ -106,7 +155,7 @@ INSTALL COMPONENT "file://component_log_sink_json";
 # To test filtering on non-buffered messages
 --let SUPPRESSED_ERRCODE2=convert_error(ER_DD_INIT_FAILED)
 
---let $log_services="log_filter_internal;log_sink_internal;log_sink_json"
+--let $log_services="log_filter_internal,log_sink_internal,log_sink_json"
 --let $log_sup_list="ER_CHANGED_MAX_OPEN_FILES,ER_DD_INIT_FAILED"
 
 --exec_in_background $MYSQLD_CMD --socket=$MASTER_MYSOCK --port $MASTER_MYPORT --log-error=$LOG_FILE_TRAD $LOGGING_COMPONENTS_OPT --log-error-services=$log_services --log-error-suppression-list=$log_sup_list
