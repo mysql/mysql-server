@@ -9490,8 +9490,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
           For the cases in which a 'BINLOG' statement is set to
           execute in a user session
         */
-        my_printf_error(error, ER_THD_NONCONST(thd, applier_error), MYF(0),
-                        buf);
+        my_printf_error(applier_error, ER_THD_NONCONST(thd, applier_error),
+                        MYF(0), buf);
       }
       return applier_error;
     }
