@@ -20,6 +20,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF(MYSQL_MAINTAINER_MODE)
+  IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+    ADD_COMPILE_OPTIONS("-Wshadow=local")
+  ELSEIF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_OPTIONS("-Wshadow-uncaptured-local")
+  ENDIF()
+ENDIF()
+
 ## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.

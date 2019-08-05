@@ -2320,11 +2320,13 @@ static uint dump_routines_for_db(char *db) {
                                  '\'');
 
   /* nice comments */
-  bool freemem = false;
-  char const *text = fix_identifier_with_newline(db, &freemem);
+  bool routines_freemem = false;
+  char const *routines_text =
+      fix_identifier_with_newline(db, &routines_freemem);
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping routines for database '%s'\n--\n", text);
-  if (freemem) my_free(const_cast<char *>(text));
+                "\n--\n-- Dumping routines for database '%s'\n--\n",
+                routines_text);
+  if (routines_freemem) my_free(const_cast<char *>(routines_text));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -3608,33 +3610,36 @@ static void dump_table(char *table, char *db) {
       return;
     }
   } else {
-    bool freemem = false;
-    char const *text = fix_identifier_with_newline(result_table, &freemem);
+    bool data_freemem = false;
+    char const *data_text =
+        fix_identifier_with_newline(result_table, &data_freemem);
     print_comment(md_result_file, 0, "\n--\n-- Dumping data for table %s\n--\n",
-                  text);
-    if (freemem) my_free(const_cast<char *>(text));
+                  data_text);
+    if (data_freemem) my_free(const_cast<char *>(data_text));
 
     dynstr_append_checked(&query_string,
                           "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where) {
-      freemem = false;
-      char const *text = fix_identifier_with_newline(where, &freemem);
-      print_comment(md_result_file, 0, "-- WHERE:  %s\n", text);
-      if (freemem) my_free(const_cast<char *>(text));
+      bool where_freemem = false;
+      char const *where_text =
+          fix_identifier_with_newline(where, &where_freemem);
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where_text);
+      if (where_freemem) my_free(const_cast<char *>(where_text));
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
     if (order_by) {
-      freemem = false;
-      char const *text = fix_identifier_with_newline(order_by, &freemem);
-      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", text);
-      if (freemem) my_free(const_cast<char *>(text));
+      bool order_by_freemem = false;
+      char const *order_by_text =
+          fix_identifier_with_newline(order_by, &order_by_freemem);
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by_text);
+      if (order_by_freemem) my_free(const_cast<char *>(order_by_text));
 
       dynstr_append_checked(&query_string, " ORDER BY ");
-      dynstr_append_checked(&query_string, order_by);
+      dynstr_append_checked(&query_string, order_by_text);
       my_free(order_by);
       order_by = 0;
     }

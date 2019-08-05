@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,9 +97,8 @@ void Abstract_crawler::wait_for_tasks_completion() {
     while ((*it)->is_completed() == false) {
       /* in case of error stop all running queues */
       if (get_program()->get_error_code()) {
-        for (std::vector<I_chain_maker *>::iterator it = m_chain_makers.begin();
-             it != m_chain_makers.end(); ++it) {
-          (*it)->stop_queues();
+        for (const auto &chain_maker : m_chain_makers) {
+          chain_maker->stop_queues();
         }
         return;
       }

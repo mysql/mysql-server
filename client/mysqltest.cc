@@ -758,9 +758,9 @@ static MYSQL_ROW async_mysql_fetch_row_wrapper(MYSQL_RES *res) {
 }
 
 static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
-  MYSQL_RES *result;
+  MYSQL_RES *mysql_result;
   AsyncTimer t(__func__);
-  while (mysql_store_result_nonblocking(mysql, &result) ==
+  while (mysql_store_result_nonblocking(mysql, &mysql_result) ==
          NET_ASYNC_NOT_READY) {
     t.check();
     NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
@@ -768,7 +768,7 @@ static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
                                      mysql_get_socket_descriptor(mysql));
     if (result == -1) return NULL;
   }
-  return result;
+  return mysql_result;
 }
 
 static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
@@ -889,9 +889,9 @@ static void async_mysql_free_result_wrapper(MYSQL_RES *result) {
     t.check();
     MYSQL *mysql = result->handle;
     NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
-    if (result == -1) return;
+    int listen_result = socket_event_listen(net_async->async_blocking_state,
+                                            mysql_get_socket_descriptor(mysql));
+    if (listen_result == -1) return;
   }
   return;
 }
