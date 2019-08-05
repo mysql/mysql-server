@@ -53,8 +53,16 @@ DO innodb_redo_log_archive_start('label1');
 --echo # Check the redo log archive file for existence and permissions.
 --echo #
 --file_exists $IRLA_PATHNAME_1
---replace_regex /[[:blank:]]+[0-9].*//
---exec ls -log $IRLA_PATHNAME_1
+
+--let _INPUT_FILE_ = $IRLA_PATHNAME_1
+--source include/get_file_permissions.inc
+--source $MYSQL_TMP_DIR/permissions.inc
+--remove_file $MYSQL_TMP_DIR/permissions.inc
+--let $assert_cond= $FILE_PERMISSIONS= 440
+--let $assert_text= File permissions should be equal to 440
+--source include/assert.inc
+--let _INPUT_FILE_ =
+
 --echo #
 --echo # Stop redo log archiving.
 --echo #
@@ -63,8 +71,16 @@ DO innodb_redo_log_archive_stop();
 --echo # Check the redo log archive file again.
 --echo #
 --file_exists $IRLA_PATHNAME_1
---replace_regex /[[:blank:]]+[0-9].*//
---exec ls -log $IRLA_PATHNAME_1
+
+--let _INPUT_FILE_ = $IRLA_PATHNAME_1
+--source include/get_file_permissions.inc
+--source $MYSQL_TMP_DIR/permissions.inc
+--remove_file $MYSQL_TMP_DIR/permissions.inc
+--let $assert_cond= $FILE_PERMISSIONS= 440
+--let $assert_text= File permissions should be equal to 440
+--source include/assert.inc
+--let _INPUT_FILE_ =
+
 --echo #
 --echo # Remove the redo log archive file.
 --echo #
