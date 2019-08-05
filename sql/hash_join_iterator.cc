@@ -121,12 +121,35 @@ static bool EnableBatchModeForBuildInput(
             qep_tab->condition()->has_subquery()));  // case 3
 }
 
-bool HashJoinIterator::Init() {
+bool HashJoinIterator::InitRowBuffer() {
+  // After the row buffer is initialized, we want the row buffer iterators to
+  // point to the end of the row buffer in order to have a clean state. But on
+  // some platforms, especially windows, the iterator assignment operator will
+  // try to access the data it points to. This may be problematic if the hash
+  // join iterator is being re-inited; the iterators will point to data that has
+  // already been freed when doing the iterator assignment. To avoid the
+  // iterators to point to any data, call the destructors so that they have a
+  // clean state.
+  {
+    // Due to a bug in LLVM, we have to introduce a non-nested alias in order to
+    // call the destructor (https://bugs.llvm.org//show_bug.cgi?id=12350).
+    using iterator = hash_join_buffer::HashJoinRowBuffer::hash_map_iterator;
+    m_hash_map_iterator.iterator::~iterator();
+    m_hash_map_end.iterator::~iterator();
+  }
+
   if (m_row_buffer.Init(kHashTableSeed)) {
-    // We do not know at this point how much memory we did try to allocate, so
-    // just report 'join_buffer_size' as the amount we tried to allocate.
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             thd()->variables.join_buff_size);
+    DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+    return true;
+  }
+
+  m_hash_map_iterator = m_row_buffer.end();
+  m_hash_map_end = m_row_buffer.end();
+  return false;
+}
+
+bool HashJoinIterator::Init() {
+  if (InitRowBuffer()) {
     return true;
   }
 
@@ -493,19 +516,7 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
     return false;
   }
 
-  // Clear the row buffer, and fill it up with as many rows as possible from the
-  // current chunk file on disk. Destroy the iterator that points in to this row
-  // buffer, so that it does not point to invalid data.
-  {
-    // Due to this LLVM bug https://bugs.llvm.org//show_bug.cgi?id=12350,
-    // we have to use "using" in order to call the iterator destructor.
-    using iterator = hash_join_buffer::HashJoinRowBuffer::hash_map_iterator;
-    m_hash_map_iterator.iterator::~iterator();
-    m_hash_map_end.iterator::~iterator();
-  }
-
-  if (m_row_buffer.Init(kHashTableSeed)) {
-    DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+  if (InitRowBuffer()) {
     return true;
   }
 

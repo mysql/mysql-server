@@ -1157,3 +1157,22 @@ ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
 COUNT(*)
 3
 DROP TABLE t1, t2, t4;
+#
+# Bug#30035890 SIG 11 IN HASHJOINITERATOR::READJOINEDROW AT
+#              SQL/HASH_JOIN_ITERATOR.CC
+#
+# Note that this test case needs ASAN to reproduce.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (7), (7);
+CREATE TABLE t2 (b INT, c DATETIME);
+INSERT IGNORE INTO t2 VALUES (7, NULL), (7, '2006'), (7, '2002');
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
+# Set up a case where the hash join row buffer will be re-inited.
+UPDATE t1
+SET a = 42
+WHERE a NOT IN (
+SELECT alias2.b FROM t2 AS alias2 JOIN t2 AS alias1 ON (alias2.c = alias1.c)
+);
+DROP TABLE t1, t2;
