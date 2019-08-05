@@ -531,7 +531,8 @@ This will add new ones if we need them according to target_rsegs.
 undo tablespaces
 @return true if all rsegs are added, false if not. */
 bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
-                                    Rsegs *rsegs, ulint *n_total_created) {
+                                    Rsegs *rsegs,
+                                    ulint *const n_total_created) {
   bool success = true;
   mtr_t mtr;
   page_no_t page_no;
@@ -681,7 +682,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
   }
 
   if (n_total_created != nullptr) {
-    n_total_created += n_created;
+    *n_total_created += n_created;
   }
 
   return (success);
