@@ -753,6 +753,11 @@ class Gcs_xcom_proxy {
                                   xcom_port port) = 0;
 
   /**
+   * Closes the input channel to XCom.
+   */
+  virtual void xcom_input_disconnect() = 0;
+
+  /**
    * Attempts to send the command @c data to XCom. (Called by GCS.)
    *
    * The function takes ownership of @c data.
@@ -912,6 +917,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   void set_should_exit(bool should_exit);
 
   bool xcom_input_connect(std::string const &address, xcom_port port);
+  void xcom_input_disconnect();
   bool xcom_input_try_push(app_data_ptr data);
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
       app_data_ptr data);
