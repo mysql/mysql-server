@@ -1280,8 +1280,7 @@ class Item_func_int_val : public Item_func_num1 {
  public:
   Item_func_int_val(Item *a) : Item_func_num1(a) {}
   Item_func_int_val(const POS &pos, Item *a) : Item_func_num1(pos, a) {}
-  void fix_num_length_and_dec() override;
-  void set_numeric_type() override;
+  bool resolve_type(THD *thd) override;
 };
 
 class Item_func_ceiling final : public Item_func_int_val {

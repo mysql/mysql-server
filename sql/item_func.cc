@@ -2858,49 +2858,53 @@ bool Item_func_integer::resolve_type(THD *) {
   return reject_geometry_args(arg_count, args, this);
 }
 
-void Item_func_int_val::fix_num_length_and_dec() {
-  ulonglong tmp_max_length = (ulonglong)args[0]->max_length -
-                             (args[0]->decimals ? args[0]->decimals + 1 : 0) +
-                             2;
-  max_length = static_cast<uint32>(std::min(4294967295ULL, tmp_max_length));
-  /*
-    Avoid setting hybrid_type to INT_RESULT when we are in DECIMAL context.
-    See Item_func_int_val::find_num_type()
-  */
-  if (args[0]->result_type() != DECIMAL_RESULT) {
-    uint tmp = float_length(decimals);
-    set_if_smaller(max_length, tmp);
-  }
-  decimals = 0;
-}
-
-void Item_func_int_val::set_numeric_type() {
+bool Item_func_int_val::resolve_type(THD *) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("name %s", func_name()));
-  switch (hybrid_type = args[0]->result_type()) {
+
+  if (reject_geometry_args(arg_count, args, this)) return true;
+
+  switch (args[0]->result_type()) {
     case STRING_RESULT:
     case REAL_RESULT:
-      set_data_type(MYSQL_TYPE_DOUBLE);
+      set_data_type_double();
       hybrid_type = REAL_RESULT;
-      max_length = float_length(decimals);
       break;
     case INT_RESULT:
-    case DECIMAL_RESULT:
-      /*
-        -2 because in most high position can't be used any digit for longlong
-        and one position for increasing value during operation
-      */
-      if ((args[0]->max_length - args[0]->decimals) >=
-          (DECIMAL_LONGLONG_DIGITS - 2)) {
-        unsigned_flag = args[0]->unsigned_flag;
-        set_data_type(MYSQL_TYPE_NEWDECIMAL);
-        hybrid_type = DECIMAL_RESULT;
-      } else {
-        unsigned_flag = args[0]->unsigned_flag;
-        set_data_type(MYSQL_TYPE_LONGLONG);
+      set_data_type_longlong();
+      unsigned_flag = args[0]->unsigned_flag;
+      hybrid_type = INT_RESULT;
+      break;
+    case DECIMAL_RESULT: {
+      // For historical reasons, CEILING and FLOOR convert DECIMAL inputs into
+      // BIGINT (granted that they are small enough to fit) while ROUND and
+      // TRUNCATE don't. As items are not yet evaluated at this point,
+      // assumptions must be made about when a conversion from DECIMAL_RESULT to
+      // INT_RESULT can be safely achieved.
+      //
+      // During the rounding operation, we account for signedness by always
+      // assuming that the argument DECIMAL is signed. Additionally, since we
+      // call set_data_type_decimal with a scale of 0, we must increment the
+      // precision here, as the rounding operation may cause an increase in
+      // order of magnitude.
+      int precision = args[0]->decimal_precision() - args[0]->decimals;
+      if (args[0]->decimals != 0) ++precision;
+      set_data_type_decimal(precision, 0);
+      hybrid_type = DECIMAL_RESULT;
+
+      // The max_length of the biggest INT_RESULT, BIGINT, is 20 regardless of
+      // signedness, as a minus sign will be counted as one digit. A DECIMAL of
+      // length 20 could be bigger than the max BIGINT value, thus requiring a
+      // length < 20. DECIMAL_LONGLONG_DIGITS value is 22, which is presumably
+      // the sum of 20 digits, a minus sign and a decimal point; requiring -2
+      // when considering the conversion.
+      if (max_length < (DECIMAL_LONGLONG_DIGITS - 2)) {
+        set_data_type_longlong();
         hybrid_type = INT_RESULT;
       }
+
       break;
+    }
     default:
       DBUG_ASSERT(0);
   }
@@ -2911,6 +2915,8 @@ void Item_func_int_val::set_numeric_type() {
                                              : hybrid_type == INT_RESULT
                                                    ? "INT_RESULT"
                                                    : "--ILLEGAL!!!--")));
+
+  return false;
 }
 
 longlong Item_func_ceiling::int_op() {

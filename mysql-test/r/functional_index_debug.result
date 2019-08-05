@@ -83,7 +83,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
-  `607d81614fbad46c00e1b881fef889f5` bigint(13) GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
+  `607d81614fbad46c00e1b881fef889f5` bigint(21) GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
   KEY `my_index` ((floor(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME INDEX my_index TO foobar;
@@ -91,7 +91,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
-  `1f9c2f0af40893b27d4e43cfbd38d0ac` bigint(13) GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
+  `1f9c2f0af40893b27d4e43cfbd38d0ac` bigint(21) GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
   KEY `foobar` ((floor(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
