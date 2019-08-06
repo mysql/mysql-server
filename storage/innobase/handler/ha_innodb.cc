@@ -3668,33 +3668,12 @@ static void innobase_post_recover() {
     return;
   }
 
-  /* Resume unfinished (un)encryption process in background thread. */
-  if (!ts_encrypt_ddl_records.empty()) {
-    srv_threads.m_ts_alter_encrypt =
-        os_thread_create(srv_ts_alter_encrypt_thread_key,
-                         fsp_init_resume_alter_encrypt_tablespace);
-
-    srv_threads.m_ts_alter_encrypt.start();
-
-    /* Wait till shared MDL is taken by background thread for all tablespaces,
-    for which (un)encryption is to be rolled forward. */
-    mysql_mutex_lock(&resume_encryption_cond_m);
-    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
-    mysql_mutex_unlock(&resume_encryption_cond_m);
-  }
-
   Auto_THD thd;
   if (dd_tablespace_update_cache(thd.thd)) {
     ut_ad(0);
   }
 
-  /* Start and consume all GTIDs for recovered transactions. */
-  auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.start();
-
-  /* Now the InnoDB Metadata and file system should be consistent.
-  Start the Purge thread */
-  srv_start_purge_threads();
+  srv_start_threads_after_ddl_recovery();
 }
 
 /**

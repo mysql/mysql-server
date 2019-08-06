@@ -107,9 +107,13 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
 any tables (including data dictionary tables) can be accessed. */
 void srv_dict_recover_on_restart();
 
-/** Start up the remaining InnoDB service threads.
+/** Start up the InnoDB service threads which are independent of DDL recovery
 @param[in]	bootstrap	True if this is in bootstrap */
 void srv_start_threads(bool bootstrap);
+
+/** Start the remaining InnoDB service threads which must wait for
+complete DD recovery(post the DDL recovery) */
+void srv_start_threads_after_ddl_recovery();
 
 /** Shut down all InnoDB background tasks that may look up objects in
 the data dictionary. */
