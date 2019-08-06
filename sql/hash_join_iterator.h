@@ -238,6 +238,12 @@ class HashJoinIterator final : public RowIterator {
   // Have we degraded into on-disk hash join?
   bool on_disk_hash_join() const { return !m_chunk_files_on_disk.empty(); }
 
+  /// Clear the row buffer and reset all iterators pointing to it. This may be
+  /// called multiple times to re-init the row buffer.
+  ///
+  /// @retval true in case of error. my_error has been called
+  bool InitRowBuffer();
+
   enum class State {
     // We are reading a row from the probe input, where the row comes from
     // the iterator.
