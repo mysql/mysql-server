@@ -808,6 +808,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
     if (invoke_table_check_constraints(thd, table)) {
       if (thd->is_error()) return true;
       // continue when IGNORE clause is used.
+      read_info.next_line();
       goto continue_loop;
     }
 
@@ -1033,6 +1034,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
     if (invoke_table_check_constraints(thd, table)) {
       if (thd->is_error()) return true;
       // continue when IGNORE clause is used.
+      read_info.next_line();
       goto continue_loop;
     }
 
@@ -1192,7 +1194,6 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
 
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
-        read_info.next_line();
         goto continue_loop;
       case VIEW_CHECK_ERROR:
         return true;
