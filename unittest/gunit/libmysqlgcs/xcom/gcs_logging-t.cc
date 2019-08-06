@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ class Mock_Logger : public Logger_interface {
   ~Mock_Logger() {}
   MOCK_METHOD0(initialize, enum_gcs_error());
   MOCK_METHOD0(finalize, enum_gcs_error());
-  MOCK_METHOD2(log_event, void(const gcs_log_level_t l, const std::string &m));
+  MOCK_METHOD2(log_event, void(const gcs_log_level_t, const std::string &));
 };
 
 class LoggingInfrastructureTest : public GcsBaseTestNoLogging {
@@ -124,7 +124,7 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSetOfOptions) {
   int64_t options = GCS_DEBUG_NONE;
   for (unsigned int i = 0; i < Gcs_debug_manager::get_number_debug_options();
        i++) {
-    option = 1 << i;
+    option = static_cast<int64_t>(1) << i;
     ASSERT_TRUE(Gcs_debug_manager::is_valid_debug_options(option));
     options = options | option;
   }
@@ -154,37 +154,47 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSettingIntegerOptions) {
   std::string res_debug_options;
   Gcs_debug_manager::initialize(debugger);
 
+  /*
+    Check if the initial value is GCS_DEBUG_NONE.
+  */
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
+  /*
+    Check if it is possible to set GCS_DEBUG_BASIC.
+  */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_BASIC);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_BASIC"), 0);
 
+  /*
+    Check if it is possible to set GCS_DEBUG_TRACE.
+  */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_TRACE);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(),
             GCS_DEBUG_BASIC | GCS_DEBUG_TRACE);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_BASIC,GCS_DEBUG_TRACE"), 0);
 
+  /*
+    Check if it is possible to set GCS_DEBUG_ALL.
+  */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_ALL);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_ALL);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_ALL"), 0);
 
+  /*
+     Check if it is possible to set GCS_DEBUG_NONE.
+   */
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_NONE);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_ALL);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_ALL"), 0);
 
   Gcs_debug_manager::unset_debug_options(GCS_DEBUG_ALL);
-  ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options(GCS_INVALID_DEBUG));
-  Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC | GCS_INVALID_DEBUG);
-  ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
-  Gcs_debug_manager::get_current_debug_options(res_debug_options);
-  ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
   Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC | GCS_DEBUG_TRACE);
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(),
@@ -217,6 +227,14 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSettingIntegerOptions) {
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_ALL);
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_ALL"), 0);
+
+  Gcs_debug_manager::unset_debug_options(GCS_DEBUG_ALL);
+
+  ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options(GCS_INVALID_DEBUG));
+  Gcs_debug_manager::set_debug_options(GCS_DEBUG_BASIC | GCS_INVALID_DEBUG);
+  ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
+  Gcs_debug_manager::get_current_debug_options(res_debug_options);
+  ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
   /*
     Restore the environment.
