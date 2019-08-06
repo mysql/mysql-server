@@ -93,7 +93,7 @@ class Remote_clone_handler : public Group_event_observer {
     Launch the clone process with some preliminary checks.
 
     @param group_name  The group name
-    @param group_name  The view id when clone started
+    @param view_id     The view id when clone started
 
     @note: the given parameters are used when falling back to
            distributed recovery in case of a clone issue.

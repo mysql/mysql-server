@@ -79,7 +79,7 @@ class Election_member_info {
 
   /**
     Did the member left the group
-    @param running_channels did the member left the group
+    @param left did the member left the group
   */
   void set_member_left(bool left);
 

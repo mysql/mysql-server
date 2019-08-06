@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,10 +50,10 @@ class Plugin_stage_monitor_handler {
   /**
      Set that a new stage is now in progress.
      @param key The PSI key for the stage
-     @param function the file for this stage
+     @param file the file for this stage
      @param line the line of the file for this stage
      @param estimated_work what work is estimated for this stage
-     @param completed_work what work already completed for this stage
+     @param work_completed what work already completed for this stage
 
      @returns 0 in case of success, or 1 otherwise
    */

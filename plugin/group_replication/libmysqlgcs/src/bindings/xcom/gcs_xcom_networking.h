@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,7 @@ class Gcs_sock_probe_interface_impl : public Gcs_sock_probe_interface {
   This function gets all network addresses on this host and their
   subnet masks as a string.
 
+  @param[out] sock_probe Socket probe interface
   @param[out] out maps IP addresses to subnetmasks
   @param filter_out_inactive If set to true, only active interfaces will be
   added to out
@@ -115,7 +116,7 @@ bool get_local_private_addresses(std::map<std::string, int> &out,
  This function translates hostnames to all possible IP addresses.
 
  @param[in] name The hostname to translate.
- @param[out] ip  The IP addresses after translation.
+ @param[out] ips The IP addresses after translation.
 
  @return false on success, true otherwise.
  */

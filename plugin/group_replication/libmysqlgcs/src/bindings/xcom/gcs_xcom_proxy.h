@@ -681,7 +681,7 @@ class Gcs_xcom_proxy {
   /**
    Function to retrieve the application payloads decided on a set of synodes.
 
-   @param[in] xcom_instace The XCom instance to connect to
+   @param[in] xcom_instance The XCom instance to connect to
    @param[in] group_id_hash Hash of group identifier.
    @param[in] synode_set The desired synodes
    @param[out] reply Where the requested payloads will be written to

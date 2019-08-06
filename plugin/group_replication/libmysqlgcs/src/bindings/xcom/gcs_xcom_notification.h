@@ -472,6 +472,8 @@ class Global_view_notification : public Parameterized_notification<false> {
     @param message_id Messaged Id.
     @param xcom_nodes Set of nodes that participated in the consensus
                        to deliver the message.
+    @param event_horizon the XCom configuration's event horizon
+    @param max_synode XCom max synode
   */
 
   explicit Global_view_notification(xcom_global_view_functor *functor,
@@ -549,6 +551,7 @@ class Local_view_notification : public Parameterized_notification<false> {
     @param message_id Messaged Id.
     @param xcom_nodes Set of nodes that were defined when the notification
                        happened.
+    @param max_synode XCom max synode
   */
 
   explicit Local_view_notification(xcom_local_view_functor *functor,
@@ -702,7 +705,8 @@ class Protocol_change_notification : public Parameterized_notification<false> {
 
     @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param control_if Reference to Communication Interface.
+    @param protocol_changer communication protocol change logic
+    @param tag tag reference to the lock
   */
 
   explicit Protocol_change_notification(

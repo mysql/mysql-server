@@ -6248,6 +6248,7 @@ static inline int is_cargo_type(app_data_ptr a, cargo_type t) {
  * @brief Retrieves the address that was used in the add_node request
  *
  * @param a app data containing the node to add
+ * @param member address we used to present ourselves to other nodes
  * @return char* a pointer to the address being added.
  */
 static char *get_add_node_address(app_data_ptr a, unsigned int *member) {

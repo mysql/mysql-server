@@ -315,7 +315,7 @@ void init_prepare_msg(pax_msg *p);
  * Executed by Proposers.
  *
  * @param p The no-op message to send
- * @retval @c p
+ * @retval created paxos message of type no_op
  */
 pax_msg *create_noop(pax_msg *p);
 /**
@@ -325,6 +325,7 @@ pax_msg *create_noop(pax_msg *p);
  *
  * @param p Paxos instance
  * @param pm Incoming Prepare message
+ * @param synode Synode of the Paxos instance/Accept message
  * @retval pax_msg* the reply to send to the Proposer (as in the Phase 1 (b)
  * message of the Paxos protocol) if the Acceptor accepts the Prepare
  * @retval NULL otherwise
@@ -410,7 +411,8 @@ void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
  * @retval 0 otherwise
  */
 int pm_finished(pax_machine *p);
-/** @returns true if we should process the incomding need_boot_op message @p. */
+/** @return true if we should process the incoming need_boot_op message passed
+ * in parameter p. */
 bool should_handle_boot(site_def const *site, pax_msg *p);
 /**
  * Initializes the message @c p as a need_boot_op message.

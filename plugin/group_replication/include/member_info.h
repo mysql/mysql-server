@@ -250,6 +250,7 @@ class Group_member_info : public Plugin_gcs_message {
     check
     @param[in] member_weight_arg                      member_weight
     @param[in] lower_case_table_names_arg             lower case table names
+    @param[in] default_table_encryption_arg           default table encryption
    */
   void update(char *hostname_arg, uint port_arg, char *uuid_arg,
               int write_set_extraction_algorithm,
@@ -510,7 +511,7 @@ class Group_member_info : public Plugin_gcs_message {
 
   /**
     Sets if the member is currently running a primary election
-    @param is_runnning is an election running
+    @param is_running is an election running
   */
   void set_is_primary_election_running(bool is_running);
 

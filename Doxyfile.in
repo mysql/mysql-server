@@ -860,6 +860,7 @@ INPUT                  = ./client \
                          ./plugin/daemon_example \
                          ./plugin/ddl_rewriter \
                          ./plugin/fulltext \
+                         ./plugin/group_replication \
                          ./plugin/innodb_memcached \
                          ./plugin/password_validation \
                          ./plugin/replication_observers_example \

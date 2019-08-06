@@ -210,6 +210,8 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
                  Gcs_xcom_communication_proxy
     @param[in] view_control a reference to a
     gcs_xcom_view_change_control_interface implementation
+    @param[in] gcs_engine Pointer to gcs engine
+    @param[in] group_id reference to the group identifier
   */
 
   explicit Gcs_xcom_communication(

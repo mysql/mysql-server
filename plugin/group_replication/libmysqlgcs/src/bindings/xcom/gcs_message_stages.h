@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,15 +42,15 @@
  Error code for the pipeline's processing of incoming packets.
  */
 enum class Gcs_pipeline_incoming_result {
-  // Successful, and returned a packet.
+  /** Successful, and returned a packet. */
   OK_PACKET,
-  /*
+  /**
    Successful, but produces no packet.
    E.g. the incoming packet is a fragment, so it was buffered until all
    fragments arrive and we reassemble the original message.
    */
   OK_NO_PACKET,
-  // Unsuccessful.
+  /** Unsuccessful. */
   ERROR
 };
 
@@ -86,8 +86,8 @@ class Gcs_message_stage {
    Check if the apply operation which affects outgoing packets should be
    executed (i.e. applied), skipped or aborted.
 
-   If the outcome is @code apply or @code skip, the stage will process or skip
-   the message, respectively. However, if the outcome is @code abort, the
+   If the outcome is code apply or code skip, the stage will process or skip
+   the message, respectively. However, if the outcome is code abort, the
    message will be discarded and an error will be reported thus stopping the
    pipeline execution.
 
@@ -95,7 +95,7 @@ class Gcs_message_stage {
    packet is not compressed.
 
    @param original_payload_size The size of the packet to which the
-   transformation should be applied.
+          transformation should be applied.
    @return a status specifying whether the transformation should be executed,
            skipped or aborted
    */
@@ -109,8 +109,8 @@ class Gcs_message_stage {
    Check if the revert operation which affects incoming packets should be
    executed (i.e. applied), skipped or aborted.
 
-   If the outcome is @code apply or @code skip, the stage will process or skip
-   the message, respectively. However, if the outcome is @code abort, the
+   If the outcome is code apply or code skip, the stage will process or skip
+   the message, respectively. However, if the outcome is code abort, the
    message will be discarded and an error will be reported thus stopping the
    pipeline execution.
 
@@ -119,7 +119,7 @@ class Gcs_message_stage {
 
    @param packet The packet upon which the transformation should be applied
    @return a status specifying whether the transformation should be executed,
-   skipped or aborted
+           skipped or aborted
    */
   virtual stage_status skip_revert(const Gcs_packet &packet) const = 0;
 
@@ -127,10 +127,10 @@ class Gcs_message_stage {
    Implements the logic of this stage's transformation to the packet, and
    returns a set of one, or more, transformed packets.
 
-   @param[in] The packet upon which the transformation should be applied
+   @param[in] packet The packet upon which the transformation should be applied
    @retval {true, _} If there was an error applying the transformation
    @retval {false, P} If the transformation was successful, and produced the
-   set of transformed packets P
+           set of transformed packets P
    */
   virtual std::pair<bool, std::vector<Gcs_packet>> apply_transformation(
       Gcs_packet &&packet) = 0;
@@ -139,12 +139,12 @@ class Gcs_message_stage {
    Implements the logic to revert this stage's transformation to the packet,
    and returns one, or none, transformed packet.
 
-   @param[in] The packet upon which the transformation should be reverted
+   @param[in] packet The packet upon which the transformation should be reverted
    @retval {ERROR, _} If there was an error reverting the transformation
    @retval {OK_NO_PACKET, _} If the transformation was reverted, but produced
-   no packet
+           no packet
    @retval {OK_PACKET, P} If the transformation was reverted, and produced the
-   packet P
+           packet P
    */
   virtual std::pair<Gcs_pipeline_incoming_result, Gcs_packet>
   revert_transformation(Gcs_packet &&packet) = 0;
@@ -166,10 +166,10 @@ class Gcs_message_stage {
    Apply some transformation to the outgoing packet, and return a set of one,
    or more, transformed packets.
 
-   @param[in] The packet upon which the transformation should be applied
+   @param[in] packet The packet upon which the transformation should be applied
    @retval {true, _} If there was an error applying the transformation
    @retval {false, P} If the transformation was successful, and produced the
-   set of transformed packets P
+           set of transformed packets P
    */
   std::pair<bool, std::vector<Gcs_packet>> apply(Gcs_packet &&packet);
 
@@ -177,12 +177,12 @@ class Gcs_message_stage {
    Revert some transformation from the incoming packet, and return one, or
    none, transformed packet.
 
-   @param[in] The packet upon which the transformation should be reverted
+   @param[in] packet The packet upon which the transformation should be reverted
    @retval {ERROR, _} If there was an error reverting the transformation
    @retval {OK_NO_PACKET, _} If the transformation was reverted, but produced
-   no packet
+           no packet
    @retval {OK_PACKET, P} If the transformation was reverted, and produced the
-   packet P
+           packet P
    */
   std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert(
       Gcs_packet &&packet);
@@ -197,8 +197,6 @@ class Gcs_message_stage {
    stages in the communication pipeline. By default though, the call is simply
    ignored.
 
-   @param me The local member identifier.
-   @param xcom_nodes List of members in the group.
    @return If there is an error, true is returned. Otherwise, false is returned.
    */
   virtual bool update_members_information(const Gcs_member_identifier &,
@@ -234,15 +232,12 @@ class Gcs_message_stage {
    @param header Pointer to the header buffer
    @param[out] header_length Pointer to the length of the header information
    @param[out] old_payload_length Pointer to the length of previous stage
-   payload
+               payload
    */
   void decode(const unsigned char *header, unsigned short *header_length,
               unsigned long long *old_payload_length);
 
  private:
-  /**
-   Whether the message stage is enabled or disabled.
-   */
   bool m_is_enabled;
 };
 
@@ -414,7 +409,7 @@ class Gcs_message_pipeline {
    @param[in] cargo The cargo type of the message to send
    @retval {true, _} If there was an error in the pipeline
    @retval {false, P} If the pipeline was successful, and produced the
-   set of transformed packets P
+           set of transformed packets P
    */
   std::pair<bool, std::vector<Gcs_packet>> process_outgoing(
       Gcs_message_data const &msg_data, Cargo_type cargo) const;
@@ -427,9 +422,9 @@ class Gcs_message_pipeline {
    @param packet The packet to process.
    @retval {ERROR, _} If there was an error in the pipeline
    @retval {OK_NO_PACKET, _} If the pipeline was successful, but produced no
-   packet
+           packet
    @retval {OK_PACKET, P} If the pipeline was successful, and produced the
-   packet P
+           packet P
    */
   std::pair<Gcs_pipeline_incoming_result, Gcs_packet> process_incoming(
       Gcs_packet &&packet) const;
@@ -442,14 +437,16 @@ class Gcs_message_pipeline {
    @param me The local member identifier.
    @param xcom_nodes List of members in the group.
    */
-  void update_members_information(const Gcs_member_identifier &,
-                                  const Gcs_xcom_nodes &) const;
+  void update_members_information(const Gcs_member_identifier &me,
+                                  const Gcs_xcom_nodes &xcom_nodes) const;
 
   Gcs_xcom_synode_set get_snapshot() const;
 
   /**
    Register a stage to be used by the pipeline.
 
+   @tparam T Stage class type
+   @tparam Args Type of Parameters to the stage constructor
    @param args Parameters to the stage constructor
    */
   template <class T, class... Args>
@@ -492,15 +489,15 @@ class Gcs_message_pipeline {
   /**
    Register the stages per version that form the different pipelines.
 
-   This method must be called after registering all the desired stages using @c
+   This method must be called after registering all the desired stages using
    register_stage.
 
    This method must only be called on an unregistered pipeline.
    If you want to reuse the pipeline, new calls to this method must be preceded
-   by calls to @c cleanup and @c register_stage.
+   by calls to cleanup and register_stage.
 
    @param stages Initialization list that contains a mapping between a
-                 version and the associated pipeline stages.
+          version and the associated pipeline stages.
 
    @return false on success, true otherwise.
    */
@@ -579,16 +576,16 @@ class Gcs_message_pipeline {
    @param original_payload_size The size of the outgoing message
    @retval {true, _} If there was an error
    @retval {false, S} If successful, and the message should go through the
-   sequence of stages S
+           sequence of stages S
    */
   std::pair<bool, std::vector<Stage_code>> get_stages_to_apply(
       Gcs_protocol_version const &pipeline_version,
       uint64_t const &original_payload_size) const;
 
   /**
-   Create a packet for a message with size @c original_payload_size and type
-   @c cargo, that will go through the stages @c stages_to_apply from pipeline
-   version @c current_version.
+   Create a packet for a message with size original_payload_size and type
+   cargo, that will go through the stages stages_to_apply from pipeline
+   version current_version.
 
    @param cargo The message type
    @param current_version The pipeline version
@@ -609,7 +606,7 @@ class Gcs_message_pipeline {
    @param stages The stages to apply
    @retval {true, _} If there was an error applying the stages
    @retval {false, P} If the stages were successfully applied, and produced
-   the set of transformed packets P
+           the set of transformed packets P
    */
   std::pair<bool, std::vector<Gcs_packet>> apply_stages(
       Gcs_packet &&packet, std::vector<Stage_code> const &stages) const;
@@ -617,11 +614,11 @@ class Gcs_message_pipeline {
   /**
    Apply the given stage to the given outgoing packet.
 
-   @param packet The packet to transform
+   @param packets The packet to transform
    @param stage The stage to apply
    @retval {true, _} If there was an error applying the stage
    @retval {false, P} If the stage was successfully applied, and produced the
-   set of transformed packets P
+           set of transformed packets P
    */
   std::pair<bool, std::vector<Gcs_packet>> apply_stage(
       std::vector<Gcs_packet> &&packets, Gcs_message_stage &stage) const;
@@ -630,14 +627,15 @@ class Gcs_message_pipeline {
    Revert the given stage to the given incoming packet.
 
    @param packet The packet to transform
-   @param stage The stage to revert
+   @param stage_code The stage to revert
    @retval {ERROR, _} If there was an error in the stage
    @retval {OK_NO_PACKET, _} If the stage was successfully reverted, but
-   produced no packet
+           produced no packet
    @retval {OK_PACKET, P} If the stage was successfully reverted, and produced
-   the packet P
+           the packet P
    */
   std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert_stage(
       Gcs_packet &&packet, Stage_code const &stage_code) const;
 };
+
 #endif

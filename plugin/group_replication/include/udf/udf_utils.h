@@ -167,7 +167,7 @@ bool group_contains_recovering_member();
  *   3. It belongs to the group
  *
  * @param      uuid    the uuid string
- * @param      ulenght the length of the uuid string
+ * @param      ulength the length of the uuid string
  * @param[out] error_message the returned error message
  *
  * @retval true if uuid is not valid
