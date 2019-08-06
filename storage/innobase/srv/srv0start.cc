@@ -808,9 +808,7 @@ is available so now we know the space_name, file_name and previous space_id.
 @return error code */
 dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
                                   space_id_t space_id) {
-  if (!fsp_is_undo_tablespace(space_id)) {
-    return (DB_SUCCESS);
-  }
+  ut_ad(fsp_is_undo_tablespace(space_id));
 
   space_id_t space_num = undo::id2num(space_id);
   if (!undo::is_active_truncate_log_present(space_num)) {
