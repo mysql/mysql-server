@@ -5120,7 +5120,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
         remove_condition = true;
         continue;
       }
-      Cleanup_after_removal_context ctx(select, true);
+      Cleanup_after_removal_context ctx(select);
       item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
@@ -5151,7 +5151,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
 
     li.rewind();
     while ((item = li++)) {
-      Cleanup_after_removal_context ctx(select, true);
+      Cleanup_after_removal_context ctx(select);
       item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
