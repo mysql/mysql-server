@@ -1644,8 +1644,6 @@ fi
 %changelog
 * Fri Jun 28 2019 Ivan Svaljek <ivan.svaljek@oracle.com> - 8.0.18-1
 - Add keyring_hashicorp.so plugin
-
-* Thu Jun 26 2019 Mahi <maheedhar.panchalamarri.venka@oracle.com> - 8.0.18-1
 - Add component_mysqlbackup component
 
 * Mon May 13 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.17-1
@@ -1671,7 +1669,7 @@ fi
 - Adapt to numbered share directory for NDB files
 - Add Router
 
-* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'
