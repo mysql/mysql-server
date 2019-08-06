@@ -2980,12 +2980,6 @@ void srv_start_threads(bool bootstrap) {
     ibuf_update_max_tablespace_id();
   }
 
-  /* Create the buffer pool dump/load thread */
-  srv_threads.m_buf_dump =
-      os_thread_create(buf_dump_thread_key, buf_dump_thread);
-
-  srv_threads.m_buf_dump.start();
-
   /* Create the dict stats gathering thread */
   srv_threads.m_dict_stats =
       os_thread_create(dict_stats_thread_key, dict_stats_thread);
@@ -2998,6 +2992,38 @@ void srv_start_threads(bool bootstrap) {
   fts_optimize_init();
 
   srv_start_state_set(SRV_START_STATE_STAT);
+}
+
+void srv_start_threads_after_ddl_recovery() {
+  /* Start the buffer pool dump/load thread, which will access spaces thus
+        must wait for DDL recovery */
+  srv_threads.m_buf_dump =
+      os_thread_create(buf_dump_thread_key, buf_dump_thread);
+
+  srv_threads.m_buf_dump.start();
+
+  /* Resume unfinished (un)encryption process in background thread. */
+  if (!ts_encrypt_ddl_records.empty()) {
+    srv_threads.m_ts_alter_encrypt =
+        os_thread_create(srv_ts_alter_encrypt_thread_key,
+                         fsp_init_resume_alter_encrypt_tablespace);
+
+    srv_threads.m_ts_alter_encrypt.start();
+
+    /* Wait till shared MDL is taken by background thread for all tablespaces,
+    for which (un)encryption is to be rolled forward. */
+    mysql_mutex_lock(&resume_encryption_cond_m);
+    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
+    mysql_mutex_unlock(&resume_encryption_cond_m);
+  }
+
+  /* Start and consume all GTIDs for recovered transactions. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.start();
+
+  /* Now the InnoDB Metadata and file system should be consistent.
+  Start the Purge thread */
+  srv_start_purge_threads();
 }
 
 #if 0
