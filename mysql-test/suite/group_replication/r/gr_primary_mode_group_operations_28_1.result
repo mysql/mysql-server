@@ -35,7 +35,6 @@ SELECT group_replication_set_as_primary("MEMBER2_UUID");
 # 6. Check that the other members are waiting for members to be in
 #    super_read_only and executing primary election
 [connection server_2]
-include/assert.inc [stage/group_rpl/Primary Switch: executing Primary election]
 include/assert.inc [stage/group_rpl/Primary Election: waiting for members to enable super_read_only]
 
 # 7. Stop the new primary server2
