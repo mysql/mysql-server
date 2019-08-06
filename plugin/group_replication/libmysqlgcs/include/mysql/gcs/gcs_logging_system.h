@@ -149,7 +149,7 @@ class Gcs_log_event {
   size_t m_message_size{0};
 
   /**
-Flag used to indicate whether the message can be consumed or not..
+   Flag used to indicate whether the message can be consumed or not.
   */
   std::atomic<bool> m_ready_flag{false};
 

@@ -73,7 +73,7 @@ class Sink_interface : public Common_interface {
  public:
   /**
     Define a virtual destructor as instances of this interface can be
-    polymorphically used..
+    polymorphically used.
   */
 
   virtual ~Sink_interface() {}
