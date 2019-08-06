@@ -2611,3 +2611,61 @@ DROP VIEW v1;
 remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
 remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
 --echo #########################################################################
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#30084966 - LOAD DATA WITH IGNORE CLAUSE TERMINATES ON CHECK
+--echo #                CONSTRAINT VIOLATION.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10), f2 CHAR(100));
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES (1, 10), (20, 20), (3, 30), (4, 40);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt';
+--echo # Without fix, LOAD DATA terminates after check constraint violation with
+--echo # Row-2 (20, 20). Row-3 and Row-4 are not inserted to table t1.
+--echo # With fix, LOAD DATA continues to insert Row-3 and Row-4.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' IGNORE INTO TABLE t1;
+SHOW WARNINGS;
+SELECT * FROM t1;
+DELETE FROM t1;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+
+--echo # Test case to verify LOAD DATA with fixed-row format.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t2 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/tmp1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+--echo # Without fix, LOAD DATA terminates after check constraint violation with
+--echo # Row-2 (20, 20). Row-3 and Row-4 are not inserted to table t1.
+--echo # With fix, LOAD DATA continues to insert Row-3 and Row-4.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.txt" IGNORE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';
+SHOW WARNINGS;
+SELECT * FROM t1;
+DELETE FROM t1;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.txt;
+
+--echo # Test case added for coverage. LOAD XML works as expected.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" IGNORE INTO TABLE t1;
+SHOW WARNINGS;
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo # Test case added for coverage. LOAD XML works as expected on CHECK
+--echo # OPTION violation.
+--echo # On CHECK OPTION violation for Row-2, LOAD DATA continues to insert
+--echo # Row-3 and Row-4 with IGNORE clause.
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1 WHERE f1 < 10 WITH CHECK OPTION;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" IGNORE INTO TABLE v1;
+SHOW WARNINGS;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+DROP TABLE t1, t2;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;

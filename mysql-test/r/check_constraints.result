@@ -580,10 +580,8 @@ Warnings:
 Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
 Warning	1262	Row 3 was truncated; it contained more data than there were input columns
 Warning	3819	Check constraint 't1_chk_1' is violated.
-Warning	1261	Row 4 doesn't contain data for all columns
-Warning	1261	Row 4 doesn't contain data for all columns
-Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
-Warning	1262	Row 5 was truncated; it contained more data than there were input columns
+Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 4
+Warning	1262	Row 4 was truncated; it contained more data than there were input columns
 DROP TABLE t1;
 # LOAD XML operations.
 CREATE TABLE t2(f1 INT,f2 INT);
@@ -3327,3 +3325,81 @@ ERROR HY000: Check constraint 't1_chk_1' is violated.
 DROP TABLE t1, t2;
 DROP VIEW v1;
 #########################################################################
+#-----------------------------------------------------------------------
+# Bug#30084966 - LOAD DATA WITH IGNORE CLAUSE TERMINATES ON CHECK
+#                CONSTRAINT VIOLATION.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10), f2 CHAR(100));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` char(100) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2(f1 INT, f2 INT);
+INSERT INTO t2 VALUES (1, 10), (20, 20), (3, 30), (4, 40);
+SELECT * FROM t2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt';;
+# Without fix, LOAD DATA terminates after check constraint violation with
+# Row-2 (20, 20). Row-3 and Row-4 are not inserted to table t1.
+# With fix, LOAD DATA continues to insert Row-3 and Row-4.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' IGNORE INTO TABLE t1;;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	10
+3	30
+4	40
+DELETE FROM t1;
+# Test case to verify LOAD DATA with fixed-row format.
+SELECT * FROM t2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/tmp1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';;
+# Without fix, LOAD DATA terminates after check constraint violation with
+# Row-2 (20, 20). Row-3 and Row-4 are not inserted to table t1.
+# With fix, LOAD DATA continues to insert Row-3 and Row-4.
+LOAD DATA INFILE "MYSQLTEST_VARDIR/tmp/tmp1.txt" IGNORE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	10
+3	30
+4	40
+DELETE FROM t1;
+# Test case added for coverage. LOAD XML works as expected.
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" IGNORE INTO TABLE t1;;
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3819	Check constraint 't1_chk_1' is violated.
+SELECT * FROM t1;
+f1	f2
+1	10
+3	30
+4	40
+DELETE FROM t1;
+# Test case added for coverage. LOAD XML works as expected on CHECK
+# OPTION violation.
+# On CHECK OPTION violation for Row-2, LOAD DATA continues to insert
+# Row-3 and Row-4 with IGNORE clause.
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1 WHERE f1 < 10 WITH CHECK OPTION;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" IGNORE INTO TABLE v1;;
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v1'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1369	CHECK OPTION failed 'test.v1'
+SELECT * FROM v1;
+f1	f2
+1	10
+3	30
+4	40
+DROP VIEW v1;
+DROP TABLE t1, t2;
