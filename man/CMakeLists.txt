@@ -21,20 +21,96 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Copy man pages
-FILE(GLOB MAN1 *.1)
-FILE(GLOB MAN1_NDB ndb*.1)
-FILE(GLOB MAN1_ROUTER mysqlrouter*.1)
-FILE(GLOB MAN8 *.8)
-FILE(GLOB MAN8_NDB ndb*.8)
-IF(MAN1_NDB AND NOT WITH_NDBCLUSTER)
-  LIST(REMOVE_ITEM MAN1 ${MAN1_NDB})
-ENDIF()
-IF(MAN1_ROUTER AND NOT WITH_ROUTER)
-  LIST(REMOVE_ITEM MAN1 ${MAN1_ROUTER})
-ENDIF()
-INSTALL(FILES ${MAN1} DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages)
+SET(MAN1
+  comp_err.1
+  ibd2sdi.1
+  innochecksum.1
+  lz4_decompress.1
+  my_print_defaults.1
+  myisam_ftdump.1
+  myisamchk.1
+  myisamlog.1
+  myisampack.1
+  mysql.1
+  mysql.server.1
+  mysql_config.1
+  mysql_config_editor.1
+  mysql_secure_installation.1
+  mysql_ssl_rsa_setup.1
+  mysql_tzinfo_to_sql.1
+  mysql_upgrade.1
+  mysqladmin.1
+  mysqlbinlog.1
+  mysqlcheck.1
+  mysqld_multi.1
+  mysqld_safe.1
+  mysqldump.1
+  mysqldumpslow.1
+  mysqlimport.1
+  mysqlman.1
+  mysqlpump.1
+  mysqlshow.1
+  mysqlslap.1
+  perror.1
+  zlib_decompress.1
+  )
+SET(MAN1_NDB
+  ndb-common-options.1
+  ndb_blob_tool.1
+  ndb_config.1
+  ndb_cpcd.1
+  ndb_delete_all.1
+  ndb_desc.1
+  ndb_drop_index.1
+  ndb_drop_table.1
+  ndb_error_reporter.1
+  ndb_import.1
+  ndb_index_stat.1
+  ndb_mgm.1
+  ndb_move_data.1
+  ndb_perror.1
+  ndb_print_backup_file.1
+  ndb_print_file.1
+  ndb_print_frag_file.1
+  ndb_print_schema_file.1
+  ndb_print_sys_file.1
+  ndb_redo_log_reader.1
+  ndb_restore.1
+  ndb_select_all.1
+  ndb_select_count.1
+  ndb_setup.py.1
+  ndb_show_tables.1
+  ndb_size.pl.1
+  ndb_top.1
+  ndb_waiter.1
+  ndbinfo_select_all.1
+)
+SET(MAN1_ROUTER
+  mysqlrouter.1
+  mysqlrouter_passwd.1
+  mysqlrouter_plugin_info.1
+)
+SET(MAN8
+  mysqld.8
+  )
+SET(MAN8_NDB
+  ndb_mgmd.8
+  ndbd.8
+  ndbmtd.8
+)
 
-IF(MAN8_NDB AND NOT WITH_NDBCLUSTER)
-  LIST(REMOVE_ITEM MAN8 ${MAN8_NDB})
-ENDIF()
+INSTALL(FILES ${MAN1} DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages)
 INSTALL(FILES ${MAN8} DESTINATION ${INSTALL_MANDIR}/man8 COMPONENT ManPages)
+
+IF(WITH_ROUTER)
+  INSTALL(FILES ${MAN1_ROUTER}
+    DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages
+    )
+ENDIF()
+
+IF(WITH_NDBCLUSTER)
+  INSTALL(FILES ${MAN1_NDB}
+    DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages)
+  INSTALL(FILES ${MAN8_NDB}
+    DESTINATION ${INSTALL_MANDIR}/man8 COMPONENT ManPages)
+ENDIF()

@@ -39,7 +39,7 @@ ENDMACRO()
 MACRO(COULD_NOT_FIND_PROTOBUF)
   ECHO_PROTOBUF_VARIABLES()
   MESSAGE(STATUS "Could not find (the correct version of) protobuf.")
-  MESSAGE(STATUS "MySQL currently requires at least protobuf version 2.5")
+  MESSAGE(STATUS "MySQL currently requires at least protobuf version 3.0")
   MESSAGE(FATAL_ERROR
     "You can build with the bundled sources"
     )
@@ -129,7 +129,7 @@ MACRO(MYSQL_CHECK_PROTOBUF)
   MESSAGE(STATUS
     "PROTOBUF_VERSION_NUMBER is ${PROTOBUF_VERSION_NUMBER}")
 
-  IF("${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}" VERSION_LESS "2.5")
+  IF("${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}" VERSION_LESS "3.0")
     COULD_NOT_FIND_PROTOBUF()
   ENDIF()
   ECHO_PROTOBUF_VARIABLES()
