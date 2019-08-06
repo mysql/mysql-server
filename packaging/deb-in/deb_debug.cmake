@@ -89,6 +89,7 @@ SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/daemon_example.ini
+usr/lib/mysql/plugin/debug/ha_example.so
 usr/lib/mysql/plugin/debug/libdaemon_example.so
 usr/lib/mysql/plugin/debug/qa_auth_client.so
 usr/lib/mysql/plugin/debug/qa_auth_interface.so

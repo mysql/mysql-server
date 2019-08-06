@@ -29,6 +29,7 @@ usr/bin/mysqltest_embedded
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so
 usr/lib/mysql/plugin/daemon_example.ini
+usr/lib/mysql/plugin/ha_example.so
 usr/lib/mysql/plugin/libdaemon_example.so
 usr/lib/mysql/plugin/qa_auth_client.so
 usr/lib/mysql/plugin/qa_auth_interface.so
