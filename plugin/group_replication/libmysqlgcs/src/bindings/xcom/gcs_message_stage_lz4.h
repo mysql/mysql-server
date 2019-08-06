@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
   /**
    Creates an instance of the stage with the given threshold in bytes.
 
+   @param enabled enables this message stage
    @param compress_threshold messages with the payload larger
                              than compress_threshold in bytes are compressed.
    */
@@ -121,6 +122,7 @@ class Gcs_message_stage_lz4_v2 : public Gcs_message_stage_lz4 {
   /**
    Creates an instance of the stage with the given threshold in bytes.
 
+   @param enabled enables this message stage
    @param compress_threshold messages with the payload larger
    than compress_threshold in bytes are compressed.
    */

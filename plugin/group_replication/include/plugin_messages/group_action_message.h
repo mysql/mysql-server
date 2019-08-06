@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,8 +171,9 @@ class Group_action_message : public Plugin_gcs_message {
     Message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    the end of the buffer.
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *);
+  void decode_payload(const unsigned char *buffer, const unsigned char *end);
 
  private:
   /** The action type for this message */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class Group_transaction_listener {
     @param thread_id   the transaction thread id
     @param gr_consistency_level  the current consistency level for this session
     @param hold_timeout the max time to execute an action on this transaction
-    @param rpl_channel_type type channel that receives transaction
+    @param channel_type type channel that receives transaction
   */
   virtual int before_transaction_begin(my_thread_id thread_id,
                                        ulong gr_consistency_level,

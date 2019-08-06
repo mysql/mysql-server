@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -389,7 +389,8 @@ class Gcs_internal_message_header {
   /**
    Create a string representation of the fixed header to be logged.
 
-   @param ouput Reference to the output stream where the string will be created.
+   @param output Reference to the output stream where the string will be
+   created.
    */
   void dump(std::ostringstream &output) const;
 
@@ -466,8 +467,6 @@ class Gcs_dynamic_header {
 
    @param stage_code Stage code.
    @param payload_length Payload length while the packet is in the stage.
-   @param stage_header Pointer to a header object specific to the stage.
-
    */
   explicit Gcs_dynamic_header(Stage_code stage_code,
                               unsigned long long payload_length) noexcept;
@@ -594,8 +593,7 @@ class Gcs_stage_metadata {
   /**
    Create a string representation of the header to be logged.
 
-   @param ouput Reference to the output stream where the string will be
-   created.
+   @param output Reference to the output stream where the string will be created
    */
   virtual void dump(std::ostringstream &output) const = 0;
 };

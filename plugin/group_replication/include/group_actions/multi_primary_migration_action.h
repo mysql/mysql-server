@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
 
 /**
-  @Multi_primary_migration_action
+  @class Multi_primary_migration_action
   The group action class to do migration to multi primary mode
 */
 class Multi_primary_migration_action : public Group_action,

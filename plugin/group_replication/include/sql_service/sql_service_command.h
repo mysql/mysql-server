@@ -154,6 +154,7 @@ class Sql_service_commands {
    Method to kill the session identified by the given session id in those
    cases where the server hangs while executing the sql query.
 
+   @param sql_interface  the server session interface for query execution
    @param session_id  id of the session to be killed.
 
    @return the error value returned
@@ -161,7 +162,7 @@ class Sql_service_commands {
     @retval >0 - Failure
   */
   long internal_kill_session(Sql_service_interface *sql_interface,
-                             void *arg = NULL);
+                             void *session_id = NULL);
 
   /**
    Method to set a variable using SET PERSIST_ONLY

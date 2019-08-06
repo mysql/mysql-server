@@ -1423,6 +1423,7 @@ static result create_server_socket_v4() {
  * @param sock_len socklen_t out parameter. It will contain the length of
  *                 sock_addr
  * @param port the port to bind.
+ * @param family the address family
  */
 static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
                              xcom_port port, int family) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,8 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
 
   /**
     Get the list of running transactions from the server
-    @param ids[out] an array of thread ids
-    @param size[out] the size of the array returned on ids
+    @param[out] ids an array of thread ids
+    @param[out] size the size of the array returned on ids
     @returns 0 in case of success, 1 in case of error
   */
   bool get_server_running_transactions(ulong **ids, ulong *size);
