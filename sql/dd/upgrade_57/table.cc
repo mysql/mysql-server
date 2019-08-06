@@ -1786,7 +1786,7 @@ bool migrate_plugin_table_to_dd(THD *thd) {
 
 /**
   Check whether the table is a NDB table. This is done by checking for the
-  presence of a <table_name>.ndb file in the data directory. Note that these
+  presence of a table_name.ndb file in the data directory. Note that these
   files are permanently removed at a later step in the upgrade
 */
 static bool is_ndb_table(const char *db_name, const char *table_name) {
