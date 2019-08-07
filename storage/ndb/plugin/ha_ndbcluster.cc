@@ -15027,7 +15027,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       Alter_inplace_info::ADD_FOREIGN_KEY |
       Alter_inplace_info::DROP_FOREIGN_KEY |
       Alter_inplace_info::ALTER_INDEX_COMMENT |
-      Alter_inplace_info::ALTER_COLUMN_NAME;
+      Alter_inplace_info::ALTER_COLUMN_NAME | Alter_inplace_info::RENAME_INDEX;
 
   const Alter_inplace_info::HA_ALTER_FLAGS not_supported = ~supported;
 
@@ -15197,6 +15197,19 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       return inplace_unsupported(ha_alter_info,
                                  "Only rename column exclusively can be "
                                  "performed inplace");
+    }
+  }
+
+  if (alter_flags & Alter_inplace_info::RENAME_INDEX) {
+    /*
+     Server sets same flag(Alter_inplace_info::RENAME_INDEX) for ALTER INDEX and
+     RENAME INDEX. RENAME INDEX cannot be done inplace and only the ALTER INDEX
+     which changes the visibility of the index can be done inplace.
+    */
+
+    if (alter_info->flags & Alter_info::ALTER_RENAME_INDEX) {
+      return inplace_unsupported(ha_alter_info,
+                                 "Rename index can not be performed inplace");
     }
   }
 

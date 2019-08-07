@@ -184,12 +184,19 @@ SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO	NULL
 t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
-# See Bug#29700179
 ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM = DEFAULT;
-affected rows: 3
-info: Records: 3  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -198,8 +205,8 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO	NULL
 t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES	NULL
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
-affected rows: 3
-info: Records: 3  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -336,4 +343,15 @@ SELECT * FROM t1 IGNORE INDEX FOR ORDER BY (a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
 SELECT * FROM t1 IGNORE INDEX FOR GROUP BY (a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
+DROP TABLE t1;
+#
+# Tests Specific to ndbcluster
+#
+CREATE TABLE t1 (
+a INT, KEY (a),
+b INT, KEY (b) INVISIBLE
+) engine=NDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+ALTER TABLE t1 ALGORITHM=INPLACE, RENAME INDEX a TO x, ALTER INDEX b VISIBLE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Rename index can not be performed inplace. Try ALGORITHM=COPY.
 DROP TABLE t1;

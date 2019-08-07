@@ -1,7 +1,6 @@
 # To disable parts that are not supported by all engines, such as ndbcluster,
 # define corresponding variables as below.
 # Note they will be cleared before exit.
-# let $invisible_indexes_skip_inplace=1;
 # let $invisible_indexes_skip_fulltext=1;
 # let $invisible_indexes_skip_spatial=1;
 # let $invisible_indexes_skip_non_pk_autoincrement=1;
@@ -159,29 +158,12 @@ ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM = COPY;
 ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
-if (!$invisible_indexes_skip_inplace)
-{
 --enable_info
 ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
 --disable_info
 ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
-}
 
-if ($invisible_indexes_skip_inplace)
-{
-let $is_ndbcluster=
-SELECT 1
-FROM information_schema.tables
-WHERE table_schema = 'test' AND table_name = 't1' AND engine = 'ndbcluster';
-
-if ($is_ndbcluster)
-{
---echo # See Bug#29700179
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
-}
-}
 
 --enable_info
 ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM = DEFAULT;
@@ -451,7 +433,6 @@ SELECT * FROM t1 IGNORE INDEX FOR GROUP BY (a);
 
 DROP TABLE t1;
 
-let $invisible_indexes_skip_inplace=;
 let $invisible_indexes_skip_fulltext=;
 let $invisible_indexes_skip_spatial=;
 let $invisible_indexes_skip_non_pk_autoincrement=;
