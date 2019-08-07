@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2017, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates.
 
 The code in this file is copied from Boost 1.63.0
 boost/functional/hash/hash.hpp, which contains the following copyright notice:
@@ -61,12 +61,14 @@ Steinar */
 #define MY_FUNCTIONAL_HASH_ROTL32(x, r) (x << r) | (x >> (32 - r))
 #endif /* _MSC_VER */
 
+#include <stdint.h>
+
 template <typename SizeT>
 inline void my_hash_combine(SizeT &seed, SizeT value) {
   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-inline void my_hash_combine(std::uint32_t &h1, std::uint32_t k1) {
+inline void my_hash_combine(uint32_t &h1, uint32_t k1) {
   const uint32_t c1 = 0xcc9e2d51;
   const uint32_t c2 = 0x1b873593;
 
@@ -79,8 +81,8 @@ inline void my_hash_combine(std::uint32_t &h1, std::uint32_t k1) {
   h1 = h1 * 5 + 0xe6546b64;
 }
 
-inline void my_hash_combine(std::uint64_t &h, std::uint64_t k) {
-  const std::uint64_t m = 0xc6a4a7935bd1e995ull;
+inline void my_hash_combine(uint64_t &h, uint64_t k) {
+  const uint64_t m = 0xc6a4a7935bd1e995ull;
   const int r = 47;
 
   k *= m;
