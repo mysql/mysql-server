@@ -177,8 +177,6 @@ class Item_func : public Item_result_field {
     MUL_FUNC,
     DIV_FUNC,
     CEILING_FUNC,
-    ROUND_FUNC,
-    TRUNCATE_FUNC,
     SQRT_FUNC,
     ABS_FUNC,
     FLOOR_FUNC,
@@ -1328,9 +1326,6 @@ class Item_func_round final : public Item_func_num1 {
   longlong int_op() override;
   my_decimal *decimal_op(my_decimal *) override;
   bool resolve_type(THD *) override;
-  enum Functype functype() const override {
-    return truncate ? TRUNCATE_FUNC : ROUND_FUNC;
-  }
 };
 
 class Item_func_rand final : public Item_real_func {
