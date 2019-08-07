@@ -262,6 +262,12 @@ IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(segfault-t.cc COMPILE_FLAGS ${HAS_WARN_FLAG})
 ENDIF()
 
+# Warnings about missing PGO profile data are not useful for unit tests.
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
 SET(ALL_LARGE_TESTS)
 FOREACH(test ${SERVER_TESTS})
   LIST(APPEND ALL_LARGE_TESTS ${test}-t.cc)
