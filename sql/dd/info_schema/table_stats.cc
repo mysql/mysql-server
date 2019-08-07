@@ -440,7 +440,12 @@ ulonglong Table_statistics::read_stat(
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
-  // Check if engine supports fetching table statistics.
+  /*
+    Check if engine supports fetching table statistics.
+    The engine name for partitioned table is empty string, because the
+    hton->get_table_statistics is not yet implemented to support
+    partitioned table.
+  */
   plugin_ref tmp_plugin = ha_resolve_by_name_raw(
       thd, lex_cstring_handle(dd::String_type(engine_name_ptr.ptr())));
   handlerton *hton = nullptr;
