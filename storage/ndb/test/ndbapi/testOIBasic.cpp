@@ -2104,8 +2104,16 @@ Val::cmp(const Par& par, const Val& val2) const
     break;
   case Col::Char:
     {
-      uint len = col.m_bytelength;
-      return cmpchars(par, m_char, len, val2.m_char, len);
+      uint len1, len2;
+      len1 = len2 = col.m_bytelength;
+      const Chs* chs = col.m_chs;
+      CHARSET_INFO* cs = chs->m_cs;
+      if (cs->pad_attribute == NO_PAD)
+      {
+        len1 = cs->cset->lengthsp(cs, (const char *)m_char, len1);
+        len2 = cs->cset->lengthsp(cs, (const char *)val2.m_char, len2);
+      }
+      return cmpchars(par, m_char, len1, val2.m_char, len2);
     }
     break;
   case Col::Varchar:
