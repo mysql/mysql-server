@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include <mysqld_error.h>
 
 /* keep it in sync with enum_server_command in my_command.h */
-const LEX_STRING command_name[]={
+const LEX_STRING command_name[] MY_ATTRIBUTE((unused)) = {
   { C_STRING_WITH_LEN("Sleep") },
   { C_STRING_WITH_LEN("Quit") },
   { C_STRING_WITH_LEN("Init DB") },

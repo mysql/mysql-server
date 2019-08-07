@@ -813,9 +813,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
             if (is_charset == 1) {
               char charset_name[MY_CS_NAME_SIZE * 8]; // MY_CS_BUFFER_SIZE
-              size_t length = data->length > (sizeof(charset_name) - 1)
-                                  ? sizeof(charset_name - 1)
-                                  : data->length;
+              size_t length = MY_MIN(data->length, (sizeof(charset_name) - 1));
               saved_cs = mysql->charset;
 
               memcpy(charset_name, data->str, length);
