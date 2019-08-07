@@ -3443,41 +3443,15 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   NodeFailRep * rep = (NodeFailRep *)&signal->theData[0];  
   rep->masterNodeId = cmasterNodeId;
 
-  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-  
-  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
+  /* QMGR and DBDIH are notified first since some of the other blocks will
+   * send NF_COMPLETREP when they complete NODE_FAILREP.
+   */
+  sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB);
   
   sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB);
-  
-  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-  
-  sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
-
-  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
-             NodeFailRep::SignalLength, JBB);
+  /* DBDIH sends NODE_FAILREP to the other blocks that need it. */
 
   if (c_stopRec.stopReq.senderRef)
   {
