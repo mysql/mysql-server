@@ -7583,7 +7583,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
   else
   {
     switch (type) {
-    case REAL_RESULT:
+    case REAL_TYPE:
       double real_val;
       float8get(&real_val, val);
       if (!(buf= (char*) my_malloc(key_memory_log_event,
@@ -7593,7 +7593,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
       event_len+= my_gcvt(real_val, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
                           buf + val_offset, NULL);
       break;
-    case INT_RESULT:
+    case INT_TYPE:
       if (!(buf= (char*) my_malloc(key_memory_log_event,
                                    val_offset + 22, MYF(MY_WME))))
         return 1;
@@ -7601,7 +7601,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
                                    ((flags & User_var_log_event::UNSIGNED_F) ? 
                                     10 : -10))-buf;
       break;
-    case DECIMAL_RESULT:
+    case DECIMAL_TYPE:
     {
       if (!(buf= (char*) my_malloc(key_memory_log_event,
                                    val_offset + DECIMAL_MAX_STR_LENGTH + 1,
@@ -7615,7 +7615,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
       event_len= str.length() + val_offset;
       break;
     } 
-    case STRING_RESULT:
+    case STRING_TYPE:
       /* 15 is for 'COLLATE' and other chars */
       buf= (char*) my_malloc(key_memory_log_event,
                              event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15,
@@ -7636,7 +7636,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
         event_len= p-buf;
       }
       break;
-    case ROW_RESULT:
+    case ROW_TYPE:
     default:
       DBUG_ASSERT(1);
       return 1;
@@ -7690,14 +7690,14 @@ bool User_var_log_event::write(IO_CACHE* file)
     int4store(buf1 + 2, charset_number);
 
     switch (type) {
-    case REAL_RESULT:
+    case REAL_TYPE:
       float8store(buf2, *(double*) val);
       break;
-    case INT_RESULT:
+    case INT_TYPE:
       int8store(buf2, *(longlong*) val);
       unsigned_len= 1;
       break;
-    case DECIMAL_RESULT:
+    case DECIMAL_TYPE:
     {
       my_decimal *dec= (my_decimal *)val;
       dec->sanity_check();
@@ -7707,10 +7707,10 @@ bool User_var_log_event::write(IO_CACHE* file)
       val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
       break;
     }
-    case STRING_RESULT:
+    case STRING_TYPE:
       pos= (uchar*) val;
       break;
-    case ROW_RESULT:
+    case ROW_TYPE:
     default:
       DBUG_ASSERT(1);
       return 0;
@@ -7895,7 +7895,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   else
   {
     switch (type) {
-    case REAL_RESULT:
+    case REAL_TYPE:
       if (val_len != 8)
       {
         rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
@@ -7908,7 +7908,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
-    case INT_RESULT:
+    case INT_TYPE:
       if (val_len != 8)
       {
         rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
@@ -7921,7 +7921,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       val= (char*) &int_val;		// Pointer to value in native format
       val_len= 8;
       break;
-    case DECIMAL_RESULT:
+    case DECIMAL_TYPE:
     {
       if (val_len < 3)
       {
@@ -7936,10 +7936,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       val_len= sizeof(my_decimal);
       break;
     }
-    case STRING_RESULT:
+    case STRING_TYPE:
       it= new Item_string(val, val_len, charset);
       break;
-    case ROW_RESULT:
+    case ROW_TYPE:
     default:
       DBUG_ASSERT(1);
       DBUG_RETURN(0);
