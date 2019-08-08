@@ -4089,9 +4089,9 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   reginfo.impossible_range = 0;
   ref_is_set_without_position_call = false;
 
-  /* Catch wrong handling of the auto_increment_field_not_null. */
-  DBUG_ASSERT(!auto_increment_field_not_null);
-  auto_increment_field_not_null = false;
+  /* Catch wrong handling of the autoinc_field_has_explicit_non_null_value. */
+  DBUG_ASSERT(!autoinc_field_has_explicit_non_null_value);
+  autoinc_field_has_explicit_non_null_value = false;
 
   pos_in_table_list = tl;
 

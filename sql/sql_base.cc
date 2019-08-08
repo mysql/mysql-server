@@ -8993,19 +8993,33 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
 
-/*
+/**
   Fill fields with given items.
 
-  @param thd                        thread handler
-  @param table                      table reference
-  @param fields                     Item_fields list to be filled
-  @param values                     values to fill with
-  @param bitmap                     Bitmap over fields to fill
-  @param insert_into_fields_bitmap  Bitmap for fields that is set
-                                    in fill_record
-  @note fill_record() may set table->auto_increment_field_not_null and a
-  caller should make sure that it is reset after their last call to this
-  function.
+  @param thd                                  Thread handler.
+  @param table                                Table reference.
+  @param fields                               Item_fields list to be filled
+  @param values                               Values to fill with.
+  @param bitmap                               Bitmap over fields to fill.
+  @param insert_into_fields_bitmap            Bitmap for fields that is set
+                                              in fill_record.
+  @param raise_autoinc_has_expl_non_null_val  Set corresponding flag in TABLE
+                                              object to true if non-NULL value
+                                              is explicitly assigned to
+                                              auto-increment field.
+
+  @note fill_record() may set TABLE::autoinc_field_has_explicit_non_null_value
+        to true (even in case of failure!) and its caller should make sure that
+        it is reset before next call to this function (i.e. before processing
+        next row) and/or before TABLE instance is returned to table cache.
+        One can use helper Auto_increment_field_not_null_reset_guard class
+        to do this.
+
+  @note In order to simplify implementation this call is allowed to reset
+        TABLE::autoinc_field_has_explicit_non_null_value flag even in case
+        when raise_autoinc_has_expl_non_null_val is false. However, this
+        should be fine since this flag is supposed to be reset already in
+        such cases.
 
   @return Operation status
     @retval false   OK
@@ -9013,15 +9027,25 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 */
 
 bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap) {
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+                 bool raise_autoinc_has_expl_non_null_val) {
   DBUG_TRACE;
 
   DBUG_ASSERT(fields.elements == values.elements);
   /*
-    Reset the table->auto_increment_field_not_null as it is valid for
-    only one row.
+    In case when TABLE object comes to fill_record() from Table Cache it
+    should have autoinc_field_has_explicit_non_null_value flag set to false.
+    In case when TABLE object comes to fill_record() after processing
+    previous row this flag should be reset to false by caller.
+
+    Code which implements LOAD DATA is the exception to the above rule
+    as it calls fill_record() to handle SET clause, after values for
+    the columns directly coming from loaded from file are set and thus
+    autoinc_field_has_explicit_non_null_value possibly set to true.
   */
-  if (fields.elements) table->auto_increment_field_not_null = false;
+  DBUG_ASSERT(table->autoinc_field_has_explicit_non_null_value == false ||
+              (raise_autoinc_has_expl_non_null_val &&
+               thd->lex->sql_command == SQLCOM_LOAD));
 
   Item *fld;
   List_iterator_fast<Item> f(fields), v(values);
@@ -9042,31 +9066,40 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
     /* Generated columns will be filled after all base columns are done. */
     if (rfield->is_gcol()) continue;
 
-    if (rfield == table->next_number_field)
-      table->auto_increment_field_not_null = true;
+    if (raise_autoinc_has_expl_non_null_val &&
+        rfield == table->next_number_field)
+      table->autoinc_field_has_explicit_non_null_value = true;
     /*
       We handle errors from save_in_field() by first checking the return
       value and then testing thd->is_error(). thd->is_error() can be set
       even when save_in_field() does not return a negative value.
       @todo save_in_field returns an enum which should never be a negative
       value. We should change this test to check for correct enum value.
+
+      The below call can reset TABLE::autoinc_field_has_explicit_non_null_value
+      flag depending on value provided (for details please see
+      set_field_to_null_with_conversions()). So evaluation of this flag can't
+      be moved outside of fill_record(), to be done once per statement.
     */
     if (value->save_in_field(rfield, false) < 0) {
       my_error(ER_UNKNOWN_ERROR, MYF(0));
-      goto err;
+      return true;
     }
-    if (thd->is_error()) goto err;
+    if (thd->is_error()) return true;
   }
 
   if (table->has_gcol() &&
       update_generated_write_fields(bitmap ? bitmap : table->write_set, table))
-    goto err;
+    return true;
+
+  /*
+    TABLE::autoinc_field_has_explicit_non_null_value should not be set to
+    true in raise_autoinc_has_expl_non_null_val == false mode.
+  */
+  DBUG_ASSERT(table->autoinc_field_has_explicit_non_null_value == false ||
+              raise_autoinc_has_expl_non_null_val);
 
   return thd->is_error();
-
-err:
-  table->auto_increment_field_not_null = false;
-  return true;
 }
 
 /**
@@ -9238,40 +9271,47 @@ inline bool call_before_insert_triggers(THD *thd, TABLE *table,
   return table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
 }
 
-/*
+/**
   Fill fields in list with values from the list of items and invoke
   before triggers.
 
-  @param      thd                 thread context
-  @param      optype_info         COPY_INFO structure used for default values
-                                  handling.
-  @param      fields              Item_fields list to be filled
-  @param      values              values to fill with
-  @param      table               TABLE-object holding list of triggers to be
-                                  invoked.
-  @param      event               event type for triggers to be invoked
-  @param      num_fields          Number of fields.
-  @param[out] is_row_changed      Set to true if a row is changed after
-                                  filling record and invoking before triggers
-                                  for UPDATE operation. Otherwise set to
-                                  false.
+  @param      thd                                 Thread context.
+  @param      optype_info                         COPY_INFO structure used for
+                                                  default values handling.
+  @param      fields                              Item_fields list to be filled.
+  @param      values                              Values to fill with.
+  @param      table                               TABLE-object for the table.
+  @param      event                               Event type for triggers to be
+                                                  invoked.
+  @param      num_fields                          Number of fields in table.
+  @param      raise_autoinc_has_expl_non_null_val Set corresponding flag in
+                                                  TABLE to true if non-NULL
+                                                  value is explicitly assigned
+                                                  to auto-increment field.
+  @param[out] is_row_changed                      Set to true if a row is
+                                                  changed after filling record
+                                                  and invoking before triggers
+                                                  for UPDATE operation.
+                                                  Otherwise set to false.
 
-  NOTE
-    This function assumes that fields which values will be set and triggers
-    to be invoked belong to the same table, and that TABLE::record[0] and
-    record[1] buffers correspond to new and old versions of row respectively.
+  @note This function assumes that fields which values will be set and
+        triggers to be invoked belong to the same table, and that
+        TABLE::record[0] and record[1] buffers correspond to new and old
+        versions of row respectively.
+
+  @note This call may set TABLE::autoinc_field_has_explicit_non_null_value to
+        true (even in case of failure!) and its caller should make sure that
+        it is reset appropriately (@sa fill_record()).
 
   @return Operation status
     @retval false   OK
     @retval true    Error occurred
 */
 
-bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
-                                          List<Item> &fields,
-                                          List<Item> &values, TABLE *table,
-                                          enum enum_trigger_event_type event,
-                                          int num_fields,
-                                          bool *is_row_changed) {
+bool fill_record_n_invoke_before_triggers(
+    THD *thd, COPY_INFO *optype_info, List<Item> &fields, List<Item> &values,
+    TABLE *table, enum enum_trigger_event_type event, int num_fields,
+    bool raise_autoinc_has_expl_non_null_val, bool *is_row_changed) {
   // is_row_changed is used by UPDATE operation to set compare_record() result.
   DBUG_ASSERT(is_row_changed == nullptr ||
               optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION);
@@ -9320,7 +9360,8 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
       fill_function_defaults();
 
       rc = fill_record(thd, table, fields, values, NULL,
-                       &insert_into_fields_bitmap);
+                       &insert_into_fields_bitmap,
+                       raise_autoinc_has_expl_non_null_val);
 
       if (!rc)
         rc = call_before_insert_triggers(thd, table, event,
@@ -9328,7 +9369,8 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
 
       bitmap_free(&insert_into_fields_bitmap);
     } else {
-      rc = fill_record(thd, table, fields, values, NULL, NULL);
+      rc = fill_record(thd, table, fields, values, NULL, NULL,
+                       raise_autoinc_has_expl_non_null_val);
 
       if (!rc) {
         fill_function_defaults();
@@ -9355,7 +9397,9 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
 
     return rc || check_inserting_record(thd, table->field);
   } else {
-    if (fill_record(thd, table, fields, values, NULL, NULL)) return true;
+    if (fill_record(thd, table, fields, values, NULL, NULL,
+                    raise_autoinc_has_expl_non_null_val))
+      return true;
     fill_function_defaults();
     return check_record(thd, fields);
   }
@@ -9364,17 +9408,30 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
 /**
   Fill field buffer with values from Field list.
 
-  @param thd                        thread handler
-  @param table                      table reference
-  @param ptr                        pointer on pointer to record
-  @param values                     list of fields
-  @param bitmap                     Bitmap over fields to fill
-  @param insert_into_fields_bitmap  Bitmap for fields that is set
-                                    in fill_record
+  @param thd                                  Thread handler.
+  @param table                                Table reference.
+  @param ptr                                  Array of fields to fill in.
+  @param values                               List of values to fill with.
+  @param bitmap                               Bitmap over fields to fill.
+  @param insert_into_fields_bitmap            Bitmap for fields that is set
+                                              in fill_record.
+  @param raise_autoinc_has_expl_non_null_val  Set corresponding flag in TABLE
+                                              object to true if non-NULL value
+                                              is explicitly assigned to
+                                              auto-increment field.
 
-  @note fill_record() may set table->auto_increment_field_not_null and a
-  caller should make sure that it is reset after their last call to this
-  function.
+  @note fill_record() may set TABLE::autoinc_field_has_explicit_non_null_value
+        to true (even in case of failure!) and its caller should make sure that
+        it is reset before next call to this function (i.e. before processing
+        next row) and/or before TABLE instance is returned to table cache.
+        One can use helper Auto_increment_field_not_null_reset_guard class
+        to do this.
+
+  @note In order to simplify implementation this call is allowed to reset
+        TABLE::autoinc_field_has_explicit_non_null_value flag even in case
+        when raise_autoinc_has_expl_non_null_val is false. However, this
+        should be fine since this flag is supposed to be reset already in
+        such cases.
 
   @return Operation status
     @retval false   OK
@@ -9382,14 +9439,17 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
 */
 
 bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap) {
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+                 bool raise_autoinc_has_expl_non_null_val) {
   DBUG_TRACE;
 
   /*
-    Reset the table->auto_increment_field_not_null as it is valid for
-    only one row.
+    In case when TABLE object comes to fill_record() from Table Cache it
+    should have autoinc_field_has_explicit_non_null_value flag set to false.
+    In case when TABLE object comes to fill_record() after processing
+    previous row this flag should be reset to false by caller.
   */
-  if (*ptr) table->auto_increment_field_not_null = false;
+  DBUG_ASSERT(table->autoinc_field_has_explicit_non_null_value == false);
 
   Field *field;
   List_iterator_fast<Item> v(values);
@@ -9415,56 +9475,70 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
     /* Generated columns will be filled after all base columns are done. */
     if (field->is_gcol()) continue;
 
-    if (field == table->next_number_field)
-      table->auto_increment_field_not_null = true;
+    if (raise_autoinc_has_expl_non_null_val &&
+        field == table->next_number_field)
+      table->autoinc_field_has_explicit_non_null_value = true;
 
     /*
       @todo We should evaluate what other return values from save_in_field()
       that should be treated as errors instead of checking thd->is_error().
+
+      The below call can reset TABLE::autoinc_field_has_explicit_non_null_value
+      flag depending on value provided (for details please see
+      set_field_to_null_with_conversions()). So evaluation of this flag can't
+      be moved outside of fill_record(), to be done once per statement.
     */
     if (value->save_in_field(field, false) ==
             TYPE_ERR_NULL_CONSTRAINT_VIOLATION ||
         thd->is_error())
-      goto err;
+      return true;
   }
 
   if (table->has_gcol() &&
       update_generated_write_fields(bitmap ? bitmap : table->write_set, table))
-    goto err;
+    return true;
 
   DBUG_ASSERT(thd->is_error() || !v++);  // No extra value!
-  return thd->is_error();
 
-err:
-  table->auto_increment_field_not_null = false;
-  return true;
+  /*
+    TABLE::autoinc_field_has_explicit_non_null_value should not be set to
+    true in raise_autoinc_has_expl_non_null_val == false mode.
+  */
+  DBUG_ASSERT(table->autoinc_field_has_explicit_non_null_value == false ||
+              raise_autoinc_has_expl_non_null_val);
+
+  return thd->is_error();
 }
 
-/*
+/**
   Fill fields in array with values from the list of items and invoke
   before triggers.
 
-  SYNOPSIS
-    fill_record_n_invoke_before_triggers()
-      thd           thread context
-      ptr           NULL-ended array of fields to be filled
-      values        values to fill with
-      table         TABLE-object holding list of triggers to be invoked
-      event         event type for triggers to be invoked
+  @param  thd         Thread context.
+  @param  ptr         NULL-ended array of fields to be filled.
+  @param  values      Values to fill with.
+  @param  table       TABLE-object holding list of triggers to be invoked.
+  @param  event       Event type for triggers to be invoked.
+  @param  num_fields  Number of fields in table.
 
-  NOTE
-    This function assumes that fields which values will be set and triggers
-    to be invoked belong to the same table, and that TABLE::record[0] and
-    record[1] buffers correspond to new and old versions of row respectively.
-    This function is called during handling of statements
-    INSERT/INSERT SELECT/CREATE SELECT. It means that the only trigger's type
-    that can be invoked when this function is called is a BEFORE INSERT
-    trigger so we don't need to make branching based on the result of execution
-    function command_can_invoke_insert_triggers().
+  @note This function assumes that fields which values will be set and triggers
+        to be invoked belong to the same table, and that TABLE::record[0] and
+        record[1] buffers correspond to new and old versions of row
+        respectively.
+  @note This function is called during handling of statements INSERT/
+        INSERT SELECT/CREATE SELECT. It means that the only trigger's type
+        that can be invoked when this function is called is a BEFORE INSERT
+        trigger so we don't need to make branching based on the result of
+        execution function command_can_invoke_insert_triggers().
 
-  RETURN
-    false   OK
-    true    error occurred
+  @note Unlike another version of fill_record_n_invoke_before_triggers() this
+        call tries to set TABLE::autoinc_field_has_explicit_non_null_value to
+        correct value unconditionally. So this flag can be set to true (even
+        in case of failure!) and the caller should make sure that it is reset
+        appropriately (@sa fill_record()).
+
+  @retval false   OK
+  @retval true    Error occurred.
 */
 
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
@@ -9483,7 +9557,8 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     MY_BITMAP insert_into_fields_bitmap;
     bitmap_init(&insert_into_fields_bitmap, NULL, num_fields);
 
-    rc = fill_record(thd, table, ptr, values, NULL, &insert_into_fields_bitmap);
+    rc = fill_record(thd, table, ptr, values, NULL, &insert_into_fields_bitmap,
+                     true);
 
     if (!rc)
       rc = call_before_insert_triggers(thd, table, event,
@@ -9501,7 +9576,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
   } else
-    rc = fill_record(thd, table, ptr, values, NULL, NULL);
+    rc = fill_record(thd, table, ptr, values, NULL, NULL, true);
 
   if (rc) return true;
 

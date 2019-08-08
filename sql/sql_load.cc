@@ -654,7 +654,6 @@ err:
       !(info.stats.copied || info.stats.deleted) ||
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
-  table->auto_increment_field_not_null = false;
   return error;
 }
 
@@ -743,6 +742,8 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
       break;
     }
 
+    Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
+
     Item *item;
     while ((item = it++)) {
       /*
@@ -753,7 +754,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
       Item_field *sql_field = static_cast<Item_field *>(item->real_item());
       Field *field = sql_field->field;
       if (field == table->next_number_field)
-        table->auto_increment_field_not_null = true;
+        table->autoinc_field_has_explicit_non_null_value = true;
       /*
         No fields specified in fields_vars list can be null in this format.
         Mark field as not null, we should do this for each row because of
@@ -794,7 +795,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
 
     if (thd->killed || fill_record_n_invoke_before_triggers(
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
-                           TRG_EVENT_INSERT, table->s->fields, nullptr))
+                           TRG_EVENT_INSERT, table->s->fields, true, nullptr))
       return true;
 
     switch (table_list->view_check_option(thd)) {
@@ -813,7 +814,6 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
     }
 
     err = write_record(thd, table, &info, NULL);
-    table->auto_increment_field_not_null = false;
     if (err) return true;
 
     /*
@@ -889,6 +889,8 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
       break;
     }
 
+    Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
+
     while ((item = it++)) {
       uint length;
       uchar *pos;
@@ -942,7 +944,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
         field->set_notnull();
         read_info.row_end[0] = 0;  // Safe to change end marker
         if (field == table->next_number_field)
-          table->auto_increment_field_not_null = true;
+          table->autoinc_field_has_explicit_non_null_value = true;
         field->store((char *)pos, length, read_info.read_charset);
       } else if (item->type() == Item::STRING_ITEM) {
         DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param *>(item));
@@ -998,7 +1000,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
     if (thd->killed || fill_record_n_invoke_before_triggers(
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
-                           TRG_EVENT_INSERT, table->s->fields, nullptr))
+                           TRG_EVENT_INSERT, table->s->fields, true, nullptr))
       return true;
 
     if (!table->triggers) {
@@ -1039,7 +1041,6 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
     }
 
     err = write_record(thd, table, &info, NULL);
-    table->auto_increment_field_not_null = false;
     if (err) return true;
     /*
       We don't need to reset auto-increment field since we are restoring
@@ -1107,6 +1108,8 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
       break;
     }
 
+    Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
+
     while ((item = it++)) {
       /* If this line is to be skipped we don't want to fill field or var */
       if (skip_lines) continue;
@@ -1127,7 +1130,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
           field->reset();
           field->set_null();
           if (field == table->next_number_field)
-            table->auto_increment_field_not_null = true;
+            table->autoinc_field_has_explicit_non_null_value = true;
           if (!field->maybe_null()) {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
               // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
@@ -1147,7 +1150,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
         Field *field = ((Item_field *)item)->field;
         field->set_notnull();
         if (field == table->next_number_field)
-          table->auto_increment_field_not_null = true;
+          table->autoinc_field_has_explicit_non_null_value = true;
         field->store(tag->value.ptr(), tag->value.length(), cs);
       } else {
         DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param *>(item));
@@ -1189,7 +1192,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
 
     if (thd->killed || fill_record_n_invoke_before_triggers(
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
-                           TRG_EVENT_INSERT, table->s->fields, nullptr))
+                           TRG_EVENT_INSERT, table->s->fields, true, nullptr))
       return true;
 
     switch (table_list->view_check_option(thd)) {

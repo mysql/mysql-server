@@ -291,7 +291,7 @@ Raw_new_record::Raw_new_record(TABLE *table) : Raw_record(table) {
   bitmap_set_all(m_table->read_set);
 
   m_table->next_number_field = m_table->found_next_number_field;
-  m_table->auto_increment_field_not_null = true;
+  m_table->autoinc_field_has_explicit_non_null_value = true;
 
   restore_record(m_table, s->default_values);
 }
@@ -332,7 +332,7 @@ Object_id Raw_new_record::get_insert_id() const {
 void Raw_new_record::finalize() {
   if (!m_table) return;
 
-  m_table->auto_increment_field_not_null = false;
+  m_table->autoinc_field_has_explicit_non_null_value = false;
   m_table->file->ha_release_auto_increment();
   m_table->next_number_field = NULL;
 

@@ -11554,15 +11554,15 @@ int Write_rows_log_event::do_before_row_operations(
    * Fixed Bug#45999, In RBR, Store engine of Slave auto-generates new
    * sequence numbers for auto_increment fields if the values of them are 0.
    * If generateing a sequence number is decided by the values of
-   * table->auto_increment_field_not_null and SQL_MODE(if includes
-   * MODE_NO_AUTO_VALUE_ON_ZERO) in update_auto_increment function.
+   * table->autoinc_field_has_explicit_non_null_value and SQL_MODE(if
+   * includes MODE_NO_AUTO_VALUE_ON_ZERO) in update_auto_increment function.
    * SQL_MODE of slave sql thread is always consistency with master's.
    * In RBR, auto_increment fields never are NULL, except if the auto_inc
    * column exists only on the slave side (i.e., in an extra column
    * on the slave's table).
    */
   if (!is_auto_inc_in_extra_columns())
-    m_table->auto_increment_field_not_null = true;
+    m_table->autoinc_field_has_explicit_non_null_value = true;
   else {
     /*
       Here we have checked that there is an extra field
@@ -11574,7 +11574,7 @@ int Write_rows_log_event::do_before_row_operations(
       (There can only be one AUTO_INC column, it is always
        indexed and it cannot have a DEFAULT value).
     */
-    m_table->auto_increment_field_not_null = false;
+    m_table->autoinc_field_has_explicit_non_null_value = false;
     m_table->mark_auto_increment_column();
   }
 
@@ -11604,7 +11604,7 @@ int Write_rows_log_event::do_after_row_operations(
     if (get_flags(STMT_END_F)) m_table->file->ha_release_auto_increment();
   }
   m_table->next_number_field = 0;
-  m_table->auto_increment_field_not_null = false;
+  m_table->autoinc_field_has_explicit_non_null_value = false;
   if ((local_error = m_table->file->ha_end_bulk_insert())) {
     m_table->file->print_error(local_error, MYF(0));
   }

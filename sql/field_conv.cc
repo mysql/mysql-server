@@ -220,7 +220,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
   field->reset();
 
   if (field == field->table->next_number_field) {
-    field->table->auto_increment_field_not_null = false;
+    field->table->autoinc_field_has_explicit_non_null_value = false;
     return TYPE_OK;  // field is set in fill_record()
   }
 
@@ -304,7 +304,7 @@ static void do_copy_timestamp(Copy_field *copy) {
 static void do_copy_next_number(Copy_field *copy) {
   if (copy->from_is_null()) {
     /* Same as in set_field_to_null_with_conversions() */
-    copy->to_field()->table->auto_increment_field_not_null = false;
+    copy->to_field()->table->autoinc_field_has_explicit_non_null_value = false;
     copy->to_field()->reset();
   } else
     copy->invoke_do_copy2(copy);

@@ -1549,12 +1549,23 @@ struct TABLE {
   bool no_cache{false};
   /* To signal that the table is associated with a HANDLER statement */
   bool open_by_handler{false};
-  /*
-    To indicate that a non-null value of the auto_increment field
-    was provided by the user or retrieved from the current record.
-    Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
+  /**
+    To indicate that value of the auto_increment field was provided
+    explicitly by the user or from some other source (e.g. in case of
+    INSERT ... SELECT, ALTER TABLE or LOAD DATA) and not as default
+    or result of conversion from NULL value.
+
+    @note Since auto_increment fields are always non-NULL we can't find
+          out using methods of Field class if 0 value stored in such field
+          was provided explicitly or is result of applying default/conversion
+          from NULL value. In the former case no new auto_increment value
+          needs to be generated in MODE_NO_AUTO_VALUE_ON_ZERO mode, while
+          the latter cases require new value generation. Hence the need
+          for this flag.
+    @note Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode and only
+          by handler::write_row().
   */
-  bool auto_increment_field_not_null{false};
+  bool autoinc_field_has_explicit_non_null_value{false};
   bool alias_name_used{false};         /* true if table_name is alias */
   bool get_fields_in_item_tree{false}; /* Signal to fix_field */
   /**
@@ -3923,6 +3934,22 @@ class Derived_refs_iterator {
   void rewind() { ref_idx = -1; }
   /// @returns true if the last get_next() returned the first element.
   bool is_first() const { return ref_idx == 0; }
+};
+
+/**
+  RAII class to reset TABLE::autoinc_field_has_explicit_non_null_value after
+  processing individual row in INSERT or LOAD DATA statements.
+*/
+class Autoinc_field_has_explicit_non_null_value_reset_guard {
+ public:
+  Autoinc_field_has_explicit_non_null_value_reset_guard(TABLE *table)
+      : m_table(table) {}
+  ~Autoinc_field_has_explicit_non_null_value_reset_guard() {
+    m_table->autoinc_field_has_explicit_non_null_value = false;
+  }
+
+ private:
+  TABLE *m_table;
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -2669,3 +2669,12 @@ DROP VIEW v1;
 
 DROP TABLE t1, t2;
 remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29903865 - AUTO_INCREMENT_FIELD_NOT_NULL ASSERT FAIL AT
+--echo #                TABLE::INIT WHILE SHOW CREATE TABLE.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, b INT, CONSTRAINT c CHECK (b IS NULL)) IGNORE AS SELECT 1 AS id, 1 AS b;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
