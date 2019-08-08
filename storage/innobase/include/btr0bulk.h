@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -191,6 +191,11 @@ class PageBulk {
   /** Check if table is compressed.
   @return true if table is compressed, false otherwise. */
   bool isTableCompressed() const { return (m_page_zip != nullptr); }
+
+#ifdef UNIV_DEBUG
+  /** Check if index is X locked */
+  bool isIndexXLocked();
+#endif  // UNIV_DEBUG
 
  private:
   /** Get page split point. We split a page in half when compression
@@ -408,6 +413,13 @@ class BtrBulk {
 
   /** Page cursor vector for all level */
   page_bulk_vector *m_page_bulks;
+
+#ifdef UNIV_DEBUG
+  /** State of the index. Used for asserting at the end of a
+  bulk load operation to ensure that the online status of the
+  index does not change */
+  unsigned m_index_online;
+#endif  // UNIV_DEBUG
 };
 
 #endif
