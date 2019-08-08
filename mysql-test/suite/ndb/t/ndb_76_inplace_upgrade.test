@@ -63,20 +63,21 @@
 
 --connection server1
 --echo # Restore 7.6 backup into NDB
---exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/76_inplace_upgrade_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/76_inplace_upgrade_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/76_inplace_upgrade_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes --include-databases=mysql,test,db1 $NDB_SAVED_BACKUPS/76_inplace_upgrade_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r --include-databases=mysql,test,db1 $NDB_SAVED_BACKUPS/76_inplace_upgrade_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes --include-databases=mysql,test,db1 $NDB_SAVED_BACKUPS/76_inplace_upgrade_backup >> $NDB_TOOLS_OUTPUT
 
 --echo # Setup the 7.6 data directory
 --echo # Copy zip files to tmp
---copy_file $MYSQLTEST_VARDIR/std_data/data76_server1.zip $MYSQL_TMP_DIR/data76_server1.zip
---copy_file $MYSQLTEST_VARDIR/std_data/data76_server2.zip $MYSQL_TMP_DIR/data76_server2.zip
---echo # Check that the files exist in the working folder
---file_exists $MYSQL_TMP_DIR/data76_server1.zip
---file_exists $MYSQL_TMP_DIR/data76_server2.zip
+--copy_file $MYSQLTEST_VARDIR/std_data/data76.zip $MYSQL_TMP_DIR/data76.zip
+--echo # Check that the file exists in the working folder
+--file_exists $MYSQL_TMP_DIR/data76.zip
 --echo # Unzip the contents
---exec unzip -qo $MYSQL_TMP_DIR/data76_server1.zip -d $MYSQL_TMP_DIR
---exec unzip -qo $MYSQL_TMP_DIR/data76_server2.zip -d $MYSQL_TMP_DIR
+--exec unzip -qo $MYSQL_TMP_DIR/data76.zip -d $MYSQL_TMP_DIR
+--echo # Rename the extracted root directory for server2
+--move_file $MYSQL_TMP_DIR/data76_server1 $MYSQL_TMP_DIR/data76_server2
+--echo # Unzip again for server1
+--exec unzip -qo $MYSQL_TMP_DIR/data76.zip -d $MYSQL_TMP_DIR
 
 --echo # Test upgrade on 7.6 data directory on MySQL server 1
 --let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data76_server1
@@ -112,6 +113,8 @@
 --connection server1
 # Check if the tables have been upgraded properly in server1
 SHOW TABLES;
+SELECT engine from information_schema.tables
+    WHERE table_schema='mysql' and table_name='user';
 SHOW TABLES IN db1;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE db1.t1;
@@ -125,6 +128,8 @@ ALTER TABLE t1 DROP COLUMN b;
 --connection server2
 # Check if the tables have been upgraded properly in server2
 SHOW TABLES;
+SELECT engine from information_schema.tables
+    WHERE table_schema='mysql' and table_name='user';
 SHOW TABLES IN db1;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE db1.t1;
@@ -164,7 +169,9 @@ DROP LOGFILE GROUP lg1
 
 --force-rmdir $MYSQLD_DATADIR1
 --force-rmdir $MYSQLD_DATADIR2
---remove_file $MYSQL_TMP_DIR/data76_server1.zip
---remove_file $MYSQL_TMP_DIR/data76_server2.zip
+--remove_file $MYSQL_TMP_DIR/data76.zip
+
+--exec $NDB_DROP_TABLE -d mysql db user tables_priv columns_priv procs_priv proxies_priv  >> $NDB_TOOLS_OUTPUT
+
 let NDB_RESTORE=;
 --remove_file $NDB_TOOLS_OUTPUT
