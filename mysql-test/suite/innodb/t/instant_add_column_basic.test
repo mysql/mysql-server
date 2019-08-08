@@ -1,3 +1,4 @@
+--source include/big_test.inc
 
 --echo ##############################################
 --echo # Test instant ADD COLUMN for REDUNDANT format
