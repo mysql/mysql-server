@@ -5568,6 +5568,10 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
       goto err;
     }
   }
+  DBUG_EXECUTE_IF("wait_for_kill_gtid_state_clear", {
+    const char action[] = "now WAIT_FOR kill_gtid_state_clear";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+  };);
 
   /*
     For relay logs we clear the gtid state associated per channel(i.e rli)

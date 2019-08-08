@@ -15,6 +15,11 @@
 # Bug#29125121: ASSERTION `M_PIPELINE_HEAD != __NULL' IN MYSQL_BIN_LOG::BINLOG_OFILE::WRITE
 
 # 1. Create table t1
+--source include/have_debug_sync.inc
+
+--let $debug_point= wait_for_kill_gtid_state_clear
+--source include/add_debug_point.inc
+
 CALL mtr.add_suppression('The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client.');
 CREATE TABLE t1(c1 int);
 
@@ -28,6 +33,7 @@ CREATE TABLE t1(c1 int);
 --connection default
 --disable_query_log
 --eval KILL $thread_id
+SET DEBUG_SYNC='now SIGNAL kill_gtid_state_clear';
 --enable_query_log
 
 --connection master_tmp
@@ -37,5 +43,6 @@ CREATE TABLE t1(c1 int);
 # 4. Now DROP TABLE t1(any DDL)
 --connection default
 DROP TABLE t1;
+--source include/remove_debug_point.inc
 
 --disconnect master_tmp
