@@ -164,6 +164,10 @@ set global ndb_dbg_check_shares=1;
 # alter db
 #
 connection server1;
+# Disable ps protocol for the next test case since the
+# ALTER DATABASE doesn't fail on the participant with
+# ps protocol enabled
+--disable_ps_protocol
 create database testdb;
 create table testdb.t1 (a int) engine = ndb;
 
@@ -177,6 +181,7 @@ alter database testdb charset = latin1;
 
 connection server2;
 commit;
+--enable_ps_protocol
 
 connection server1;
 drop database testdb;
