@@ -82,20 +82,20 @@ DROP TABLE t1, t2, t3, t4, t5;
 SELECT @@max_execution_time;
 @@max_execution_time
 0
-SET @@SESSION.max_execution_time= 1;
+SET @@SESSION.max_execution_time= 1000;
 SELECT @@max_execution_time;
 @@max_execution_time
-1
+1000
 SET @@SESSION.max_execution_time= 0;
 #
 # 3. Test the MAX_EXECUTION_TIME option by setting value for it at,
 #        - STATEMENT
 #        - SESSION
 #
-SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(5);
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ SLEEP(5);
 SLEEP(5)
 1
-SET @@SESSION.max_execution_time= 1;
+SET @@SESSION.max_execution_time= 1000;
 SELECT SLEEP(5);
 SLEEP(5)
 1
@@ -204,9 +204,9 @@ DROP PROCEDURE p1;
 DROP TABLE t2;
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
-SET @@global.max_execution_time= 1;
+SET @@global.max_execution_time= 1000;
 CREATE TABLE t2 (f1 int, f2 int);
-SELECT SLEEP(2) into @a;
+SELECT SLEEP(5) into @a;
 SELECT @a;
 @a
 1
@@ -243,7 +243,7 @@ INSERT INTO t3 VALUES(@a);
 END
 |
 SELECT SLEEP(5) into @a;
-SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ SLEEP(2) into @b;
 SELECT @a, @b;
 @a	@b
 1	1
@@ -255,13 +255,13 @@ DROP TABLE t1,t2,t3;
 #
 # 8. Test MAX_EXECUTION_TIME precedence set at different levels.
 #
-SET @@SESSION.max_execution_time= 3;
+SET @@SESSION.max_execution_time= 1000;
 SELECT sleep(5);
 sleep(5)
 1
-SELECT /*+ MAX_EXECUTION_TIME(2) */ sleep(5);
+SELECT /*+ MAX_EXECUTION_TIME(20000) */ sleep(5);
 sleep(5)
-1
+0
 SET @@SESSION.max_execution_time= 0;
 #
 # 9. MAX_EXECUTION_TIME status variables.
