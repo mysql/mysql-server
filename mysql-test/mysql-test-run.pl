@@ -1722,6 +1722,10 @@ sub command_line_setup {
       '../internal/mysql-test/include/i_excludenoskip.list';
     push(@noskip_exclude_lists, $i_noskip_exclude_list)
       if (-e $i_noskip_exclude_list);
+    my $cloud_noskip_exclude_list =
+      '../internal/cloud/mysql-test/include/cloud_excludenoskip.list';
+    push(@noskip_exclude_lists, $cloud_noskip_exclude_list)
+       if (-e $cloud_noskip_exclude_list);
 
     foreach my $excludedList (@noskip_exclude_lists) {
       open(my $fh, '<', $excludedList) or
