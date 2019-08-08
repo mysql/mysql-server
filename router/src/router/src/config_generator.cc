@@ -2009,7 +2009,8 @@ void ConfigGenerator::create_account(const std::string &username,
                                      const std::string &hostname,
                                      const std::string &password,
                                      bool hash_password) {
-  const std::string account = username + "@" + mysql_->quote(hostname);
+  const std::string account =
+      mysql_->quote(username) + "@" + mysql_->quote(hostname);
   out_stream_ << "- Creating mysql account " << account
               << " for cluster management\n";
 

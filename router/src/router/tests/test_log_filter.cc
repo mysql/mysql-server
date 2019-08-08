@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,43 +35,43 @@ class LogFilterTest : public testing::Test {
 
 TEST_F(LogFilterTest, IsStatementNotChangedWhenNoPatternMatched) {
   const std::string statement =
-      "CREATE USER router_xxxx WITH mysql_native_password AS 'password123'";
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS 'password123'";
   ASSERT_THAT(log_filter.filter(statement), testing::Eq(statement));
 }
 
 TEST_F(LogFilterTest, IsEmptyPasswordHiddenWhenPatternMatched) {
   const std::string statement =
-      "CREATE USER router_xxxx WITH mysql_native_password AS ''";
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS ''";
   const std::string pattern(
-      "CREATE USER ([[:graph:]]+) WITH mysql_native_password AS "
+      "CREATE USER '([[:graph:]]+)' WITH mysql_native_password AS "
       "([[:graph:]]*)");
   log_filter.add_pattern(pattern, 2);
   const std::string expected_result(
-      "CREATE USER router_xxxx WITH mysql_native_password AS ***");
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS ***");
   ASSERT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 
 TEST_F(LogFilterTest, IsSpecialCharacterPasswordHiddenWhenPatternMatched) {
   const std::string statement =
-      "CREATE USER router_xxxx WITH mysql_native_password AS '%$_*@'";
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS '%$_*@'";
   const std::string pattern(
-      "CREATE USER ([[:graph:]]+) WITH mysql_native_password AS "
+      "CREATE USER '([[:graph:]]+)' WITH mysql_native_password AS "
       "([[:graph:]]*)");
   log_filter.add_pattern(pattern, 2);
   const std::string expected_result(
-      "CREATE USER router_xxxx WITH mysql_native_password AS ***");
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS ***");
   ASSERT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 
 TEST_F(LogFilterTest, IsPasswordHiddenWhenPatternMatched) {
   const std::string statement =
-      "CREATE USER router_xxxx WITH mysql_native_password AS 'password123'";
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS 'password123'";
   const std::string pattern(
-      "CREATE USER ([[:graph:]]+) WITH mysql_native_password AS "
+      "CREATE USER '([[:graph:]]+)' WITH mysql_native_password AS "
       "([[:graph:]]*)");
   log_filter.add_pattern(pattern, 2);
   const std::string expected_result(
-      "CREATE USER router_xxxx WITH mysql_native_password AS ***");
+      "CREATE USER 'router_xxxx' WITH mysql_native_password AS ***");
   ASSERT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 

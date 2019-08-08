@@ -440,7 +440,7 @@ exports.get = function get(stmt_key, options) {
 
         router_create_user:
         {
-          "stmt_regex": "^CREATE USER mysql_router1_[0-9a-z]{12}@"
+          "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@"
                         + options.user_host_pattern
                         + " IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
           "ok": {}

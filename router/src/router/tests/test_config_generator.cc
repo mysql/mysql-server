@@ -515,22 +515,23 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql
-        ->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED BY 'secret'")
+        ->expect_execute(
+            "CREATE USER 'cluster_user'@'%' IDENTIFIED BY 'secret'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_members TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO cluster_user@'%'")
+            "TO 'cluster_user'@'%'")
         .then_ok();
 
     ConfigGenerator config_gen;
@@ -544,24 +545,24 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql
         ->expect_execute(
-            "CREATE USER cluster_user@'%' IDENTIFIED WITH "
+            "CREATE USER 'cluster_user'@'%' IDENTIFIED WITH "
             "mysql_native_password "
             "AS '*14E65567ABDB5135D0CFD9A70B3032C179A49EE7'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_members TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO cluster_user@'%'")
+            "TO 'cluster_user'@'%'")
         .then_ok();
 
     ConfigGenerator config_gen;
@@ -588,7 +589,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // CREATE USER using mysql_native_password and hashed password
         if (fail_on > 0)
           mock_mysql
-              ->expect_execute("CREATE USER cluster_user@'" + host +
+              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
                                "' IDENTIFIED WITH mysql_native_password AS "
                                "'*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'")
               .then_ok();
@@ -598,7 +599,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // fallback should be used on all subsequent CREATE USER calls
         if (first_create_user)
           mock_mysql
-              ->expect_execute("CREATE USER cluster_user@'" + host +
+              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
                                "' IDENTIFIED WITH mysql_native_password AS "
                                "'*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'")
               .then_error("no such plugin", 1524);
@@ -606,7 +607,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // CREATE USER using fallback method with plaintext password
         if (fail_on > 0)
           mock_mysql
-              ->expect_execute("CREATE USER cluster_user@'" + host +
+              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
                                "' IDENTIFIED BY '0123456789012345'")
               .then_ok();
       }
@@ -614,14 +615,14 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-                "cluster_user@'" +
+                "'cluster_user'@'" +
                 host + "'")
             .then_ok();
       if (fail_on > 2)
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON performance_schema.replication_group_members "
-                "TO cluster_user@'" +
+                "TO 'cluster_user'@'" +
                 host + "'")
             .then_ok();
       if (fail_on > 3)
@@ -629,7 +630,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
             ->expect_execute(
                 "GRANT SELECT ON "
                 "performance_schema.replication_group_member_stats TO "
-                "cluster_user@'" +
+                "'cluster_user'@'" +
                 host + "'")
             .then_ok();
 
@@ -1421,15 +1422,15 @@ std::vector<query_entry_t> expected_bootstrap_queries = {
      {}},
 
     // ConfigGenerator::create_account()
-    {"CREATE USER mysql_router4_012345678901@'%'", ACTION_EXECUTE},
+    {"CREATE USER 'mysql_router4_012345678901'@'%'", ACTION_EXECUTE},
     {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-     "mysql_router4_012345678901@'%'",
+     "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
     {"GRANT SELECT ON performance_schema.replication_group_members TO "
-     "mysql_router4_012345678901@'%'",
+     "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
     {"GRANT SELECT ON performance_schema.replication_group_member_stats TO "
-     "mysql_router4_012345678901@'%'",
+     "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
 
     {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ",
@@ -2648,7 +2649,7 @@ TEST_F(ConfigGeneratorTest,
   // we expect the user to be created without using HASHed password
   // and mysql_native_password plugin as we are forcing password validation
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2660,7 +2661,7 @@ TEST_F(ConfigGeneratorTest,
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY",
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2679,7 +2680,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2687,7 +2688,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2699,7 +2700,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY",
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2717,7 +2718,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_EXECUTE});
 
@@ -2729,7 +2730,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED WITH "
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED WITH "
       "mysql_native_password AS",
       ACTION_EXECUTE};
 
@@ -2748,7 +2749,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2758,7 +2759,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   // emulate error 1819) (password does not satisfy the current policy
   // requirements) after the call to second CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_ERROR, 0, 1819});
 
@@ -2766,7 +2767,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2778,7 +2779,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY",
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2797,7 +2798,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2809,7 +2810,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
     // each time emulate error 1819) (password does not satisfy the current
     // policy requirements) after the call to second CREATE USER
     bootstrap_queries.push_back(
-        {"CREATE USER mysql_router4_012345678901@'%'"
+        {"CREATE USER 'mysql_router4_012345678901'@'%'"
          " IDENTIFIED BY",
          ACTION_ERROR, 0, 1819});
   }
@@ -2836,7 +2837,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   }
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
