@@ -65,7 +65,7 @@ Geometry *SetRingOrderTest::geometry_from_text(const String &wkt, String *wkb,
 
   wkb->set_charset(&my_charset_bin);
   wkb->length(0);
-  return Geometry::create_from_wkt(geobuf, &trs, wkb, 1);
+  return Geometry::create_from_wkt(geobuf, &trs, wkb, true);
 }
 
 void SetRingOrderTest::set_order_and_compare(const std::string &s1,

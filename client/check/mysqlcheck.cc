@@ -53,16 +53,17 @@ using std::vector;
 #define EX_MYSQLERR 2
 
 static MYSQL mysql_connection, *sock = 0;
-static bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
-            opt_compress = 0, opt_databases = 0, opt_fast = 0,
-            opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
-            opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
-            tty_password = 0, opt_frm = 0, debug_info_flag = 0,
-            debug_check_flag = 0, opt_fix_table_names = 0, opt_fix_db_names = 0,
-            opt_upgrade = 0, opt_write_binlog = 1;
+static bool opt_alldbs = false, opt_check_only_changed = false,
+            opt_extended = false, opt_compress = false, opt_databases = false,
+            opt_fast = false, opt_medium_check = false, opt_quick = false,
+            opt_all_in_1 = false, opt_silent = false, opt_auto_repair = false,
+            ignore_errors = false, tty_password = false, opt_frm = false,
+            debug_info_flag = false, debug_check_flag = false,
+            opt_fix_table_names = false, opt_fix_db_names = false,
+            opt_upgrade = false, opt_write_binlog = true;
 static uint verbose = 0, opt_mysql_port = 0;
 static uint opt_enable_cleartext_plugin = 0;
-static bool using_opt_enable_cleartext_plugin = 0;
+static bool using_opt_enable_cleartext_plugin = false;
 static int my_end_arg;
 static char *opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, *current_host = 0;
@@ -296,7 +297,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case 'C':
       what_to_do = DO_CHECK;
-      opt_check_only_changed = 1;
+      opt_check_only_changed = true;
       break;
     case 'I': /* Fall through */
     case '?':
@@ -304,7 +305,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       exit(0);
     case 'm':
       what_to_do = DO_CHECK;
-      opt_medium_check = 1;
+      opt_medium_check = true;
       break;
     case 'o':
       what_to_do = DO_OPTIMIZE;
@@ -323,16 +324,16 @@ static bool get_one_option(int optid, const struct my_option *opt,
         opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = 0;
+        tty_password = false;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 'r':
       what_to_do = DO_REPAIR;
       break;
     case 'g':
       what_to_do = DO_CHECK;
-      opt_upgrade = 1;
+      opt_upgrade = true;
       break;
     case 'W':
 #ifdef _WIN32
@@ -341,12 +342,12 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case '#':
       DBUG_PUSH(argument ? argument : "d:t:o");
-      debug_check_flag = 1;
+      debug_check_flag = true;
       break;
 #include "sslopt-case.h"
 
     case OPT_TABLES:
-      opt_databases = 0;
+      opt_databases = false;
       break;
     case 'v':
       verbose++;
@@ -367,9 +368,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
     fprintf(stderr,
             "Error:  %s doesn't support multiple contradicting commands.\n",
             my_progname);
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 }
 
@@ -487,7 +488,7 @@ static int dbConnect(char *host, char *user, char *passwd) {
     DBerror(&mysql_connection, "when trying to connect");
     return 1;
   }
-  mysql_connection.reconnect = 1;
+  mysql_connection.reconnect = true;
   return 0;
 } /* dbConnect */
 

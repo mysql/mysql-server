@@ -2317,7 +2317,7 @@ bool Stage_manager::enroll_for(StageID stage, THD *thd,
       With setting the status the follower ensures it won't execute anything
       including thread-specific code.
     */
-    thd->get_transaction()->m_flags.ready_preempt = 1;
+    thd->get_transaction()->m_flags.ready_preempt = true;
     if (leader_await_preempt_status) mysql_cond_signal(&m_cond_preempt);
 #endif
     while (thd->tx_commit_pending) mysql_cond_wait(&m_cond_done, &m_lock_done);
@@ -3109,7 +3109,7 @@ bool purge_master_logs(THD *thd, const char *to_log) {
 bool purge_master_logs_before_date(THD *thd, time_t purge_time) {
   if (!mysql_bin_log.is_open()) {
     my_ok(thd);
-    return 0;
+    return false;
   }
   return purge_error_message(
       thd, mysql_bin_log.purge_logs_before_date(purge_time, false));
@@ -3170,10 +3170,10 @@ static bool copy_file(IO_CACHE *from, IO_CACHE *to, my_off_t offset) {
       goto err;
   }
 
-  return 0;
+  return false;
 
 err:
-  return 1;
+  return true;
 }
 
 /**
@@ -3213,7 +3213,7 @@ int log_loaded_block(IO_CACHE *file) {
                                    min(block_len, max_event_size),
                                    lf_info->log_delayed);
       if (mysql_bin_log.write_event(&b)) return 1;
-      lf_info->logged_data_file = 1;
+      lf_info->logged_data_file = true;
     }
   }
   return 0;
@@ -3377,7 +3377,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
       file_id(1),
       sync_period_ptr(sync_period),
       sync_counter(0),
-      is_relay_log(0),
+      is_relay_log(false),
       checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       previous_gtid_set_relaylog(nullptr),
@@ -3398,7 +3398,7 @@ MYSQL_BIN_LOG::~MYSQL_BIN_LOG() { delete m_binlog_file; }
 void MYSQL_BIN_LOG::cleanup() {
   DBUG_TRACE;
   if (inited) {
-    inited = 0;
+    inited = false;
     close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT, true /*need_lock_log=true*/,
           true /*need_lock_index=true*/);
     mysql_mutex_destroy(&LOCK_log);
@@ -3418,7 +3418,7 @@ void MYSQL_BIN_LOG::cleanup() {
 
 void MYSQL_BIN_LOG::init_pthread_objects() {
   DBUG_ASSERT(inited == 0);
-  inited = 1;
+  inited = true;
 
   mysql_mutex_init(m_key_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
@@ -3471,9 +3471,9 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
          str++, flag = 1)
       ;
   }
-  if (*str != 0 || flag == 0) return 0;
+  if (*str != 0 || flag == 0) return false;
   if (res) *res = atol(start);
-  return 1; /* Number ok */
+  return true; /* Number ok */
 } /* is_number */
 
 /**
@@ -3517,7 +3517,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number) {
   file_info = dir_info->dir_entry;
   for (i = dir_info->number_off_files; i--; file_info++) {
     if (strncmp(file_info->name, start, length) == 0 &&
-        is_number(file_info->name + length, &number, 0)) {
+        is_number(file_info->name + length, &number, false)) {
       set_if_bigger(max_found, number);
     }
   }
@@ -3642,7 +3642,7 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
   DBUG_TRACE;
   bool ret = false;
 
-  write_error = 0;
+  write_error = false;
   myf flags = MY_WME | MY_NABP | MY_WAIT_IF_FULL;
   if (is_relay_log) flags = flags | MY_REPORT_WAITING_IF_FULL;
 
@@ -3673,7 +3673,7 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
   if (ret) goto err;
 
   atomic_log_state = LOG_OPENED;
-  return 0;
+  return false;
 
 err:
   if (binlog_error_action == ABORT_SERVER) {
@@ -3687,7 +3687,7 @@ err:
   my_free(name);
   name = nullptr;
   atomic_log_state = LOG_CLOSED;
-  return 1;
+  return true;
 }
 
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
@@ -3740,7 +3740,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
       mysql_file_sync(index_file_nr, MYF(MY_WME)) ||
       init_io_cache_ext(&index_file, index_file_nr, IO_SIZE, READ_CACHE,
                         mysql_file_seek(index_file_nr, 0L, MY_SEEK_END, MYF(0)),
-                        0, MYF(MY_WME | MY_WAIT_IF_FULL),
+                        false, MYF(MY_WME | MY_WAIT_IF_FULL),
                         m_key_file_log_index_cache) ||
       DBUG_EVALUATE_IF("fault_injection_openning_index", 1, 0)) {
     /*
@@ -4709,7 +4709,7 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   if (init_and_set_log_file_name(log_name, new_name, new_index_number)) {
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_GENERATE_NEW_FILE_NAME);
-    return 1;
+    return true;
   }
 
   DBUG_PRINT("info", ("generated filename: %s", log_file_name));
@@ -4736,22 +4736,22 @@ bool MYSQL_BIN_LOG::open_binlog(
     });
 
     LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_SYNC_INDEX_FILE_IN_OPEN);
-    return 1;
+    return true;
   }
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index",
                   DBUG_SUICIDE(););
 
-  write_error = 0;
+  write_error = false;
 
   /* open the main log file */
   if (open(m_key_file_log, log_name, new_name, new_index_number)) {
     close_purge_index_file();
-    return 1; /* all warnings issued */
+    return true; /* all warnings issued */
   }
 
   max_size = max_size_arg;
 
-  bool write_file_name_to_index_file = 0;
+  bool write_file_name_to_index_file = false;
 
   /* This must be before goto err. */
 #ifndef DBUG_OFF
@@ -4771,7 +4771,7 @@ bool MYSQL_BIN_LOG::open_binlog(
                              BIN_LOG_HEADER_SIZE))
       goto err;
     bytes_written += BIN_LOG_HEADER_SIZE;
-    write_file_name_to_index_file = 1;
+    write_file_name_to_index_file = true;
   }
 
   /*
@@ -4947,7 +4947,7 @@ bool MYSQL_BIN_LOG::open_binlog(
   close_purge_index_file();
 
   update_binlog_end_pos();
-  return 0;
+  return false;
 
 err:
   if (is_inited_purge_index_file())
@@ -4963,7 +4963,7 @@ err:
            (new_name) ? new_name : name, errno);
     close(LOG_CLOSE_INDEX, false, need_lock_index);
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -5089,7 +5089,7 @@ recoverable_err:
                             O_RDWR | O_CREAT, MYF(MY_WME))) < 0 ||
       mysql_file_sync(fd, MYF(MY_WME)) ||
       init_io_cache_ext(&index_file, fd, IO_SIZE, READ_CACHE,
-                        mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(0)), 0,
+                        mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(0)), false,
                         MYF(MY_WME | MY_WAIT_IF_FULL),
                         key_file_binlog_index_cache)) {
     LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_INDEX_FILE_AFTER_REBUILDING,
@@ -5214,7 +5214,7 @@ bool MYSQL_BIN_LOG::check_write_error(const THD *thd) {
 void MYSQL_BIN_LOG::report_cache_write_error(THD *thd, bool is_transactional) {
   DBUG_TRACE;
 
-  write_error = 1;
+  write_error = true;
 
   if (check_write_error(thd)) return;
 
@@ -5460,7 +5460,7 @@ std::pair<int, std::list<std::string>> MYSQL_BIN_LOG::get_log_index(
 */
 bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
   LOG_INFO linfo;
-  bool error = 0;
+  bool error = false;
   int err;
   const char *save_name = nullptr;
   Checkable_rwlock *sid_lock = nullptr;
@@ -5474,7 +5474,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
   thd->set_log_reset();
   if (ha_flush_logs()) {
     thd->clear_log_reset();
-    return 1;
+    return true;
   }
   thd->clear_log_reset();
 
@@ -5514,7 +5514,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
     uint errcode = purge_log_get_error_code(err);
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_LOCATE_OLD_BINLOG_OR_RELAY_LOG_FILES);
     my_error(errcode, MYF(0));
-    error = 1;
+    error = true;
     goto err;
   }
 
@@ -5527,7 +5527,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
         LogErr(INFORMATION_LEVEL, ER_BINLOG_CANT_DELETE_FILE,
                linfo.log_file_name);
         set_my_errno(0);
-        error = 0;
+        error = false;
       } else {
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_BINLOG_PURGE_FATAL_ERR,
@@ -5536,7 +5536,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
                             "of your binlog index file "
                             "to the actual binlog files",
                             linfo.log_file_name);
-        error = 1;
+        error = true;
         goto err;
       }
     }
@@ -5555,7 +5555,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
           ER_THD(current_thd, ER_LOG_PURGE_NO_FILE), index_file_name);
       LogErr(INFORMATION_LEVEL, ER_BINLOG_CANT_DELETE_FILE, index_file_name);
       set_my_errno(0);
-      error = 0;
+      error = false;
     } else {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_PURGE_FATAL_ERR,
@@ -5564,7 +5564,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
                           "of your binlog index file "
                           "to the actual binlog files",
                           index_file_name);
-      error = 1;
+      error = true;
       goto err;
     }
   }
@@ -5579,7 +5579,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
   */
   if (!is_relay_log) {
     if (gtid_state->clear(thd)) {
-      error = 1;
+      error = true;
     }
     /*
       Don't clear global_sid_map because gtid_state->clear() above didn't
@@ -5655,8 +5655,8 @@ int MYSQL_BIN_LOG::open_crash_safe_index_file() {
 
     if ((file = my_open(crash_safe_index_file_name, O_RDWR | O_CREAT,
                         MYF(MY_WME))) < 0 ||
-        init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE, 0, 0,
-                      flags)) {
+        init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE, 0,
+                      false, flags)) {
       error = 1;
       LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_TEMPORARY_INDEX_FILE);
     }
@@ -5778,7 +5778,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log, bool included,
                               ulonglong *decrease_log_space, bool auto_purge) {
   int error = 0, no_of_log_files_to_purge = 0, no_of_log_files_purged = 0;
   int no_of_threads_locking_log = 0;
-  bool exit_loop = 0;
+  bool exit_loop = false;
   LOG_INFO log_info;
   THD *thd = current_thd;
   DBUG_TRACE;
@@ -5919,7 +5919,7 @@ int MYSQL_BIN_LOG::open_purge_index_file(bool destroy) {
     if ((file = my_open(purge_index_file_name, O_RDWR | O_CREAT, MYF(MY_WME))) <
             0 ||
         init_io_cache(&purge_index_file, file, IO_SIZE,
-                      (destroy ? WRITE_CACHE : READ_CACHE), 0, 0, flags)) {
+                      (destroy ? WRITE_CACHE : READ_CACHE), 0, false, flags)) {
       error = 1;
       LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_REGISTER_FILE);
     }
@@ -5986,7 +5986,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
 
   DBUG_ASSERT(my_b_inited(&purge_index_file));
 
-  if ((error = reinit_io_cache(&purge_index_file, READ_CACHE, 0, 0, 0))) {
+  if ((error =
+           reinit_io_cache(&purge_index_file, READ_CACHE, 0, false, false))) {
     LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_REINIT_REGISTER_FILE);
     goto err;
   }
@@ -6600,7 +6601,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
 #endif
 
   // Flush and sync
-  bool error = flush_and_sync(0);
+  bool error = flush_and_sync(false);
   if (error) {
     mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -6805,7 +6806,7 @@ int MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
 bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
   THD *thd = event_info->thd;
-  bool error = 1;
+  bool error = true;
   DBUG_TRACE;
 
   if (thd->binlog_evt_union.do_union) {
@@ -6816,7 +6817,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
     thd->binlog_evt_union.unioned_events = true;
     thd->binlog_evt_union.unioned_events_trans |=
         event_info->is_using_trans_cache();
-    return 0;
+    return false;
   }
 
   /*
@@ -6855,7 +6856,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
          (!event_info->is_no_filter_event() &&
           !binlog_filter->db_ok(local_db))))
-      return 0;
+      return false;
 
     DBUG_ASSERT(event_info->is_using_trans_cache() ||
                 event_info->is_using_stmt_cache());
@@ -6939,7 +6940,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
     if (is_trans_cache && stmt_cannot_safely_rollback(thd))
       cache_mngr->trx_cache.set_cannot_rollback();
 
-    error = 0;
+    error = false;
 
   err:
     if (error) {
@@ -7283,7 +7284,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
                                    bool do_flush_and_sync) {
   DBUG_TRACE;
 
-  if (!is_open()) return 0;
+  if (!is_open()) return false;
 
   LEX_CSTRING write_error_msg = {err_msg, strlen(err_msg)};
   binary_log::Incident_event::enum_incident incident =
@@ -8199,7 +8200,8 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
 void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
   mysql_mutex_assert_owner(&LOCK_commit);
 #ifndef DBUG_OFF
-  thd->get_transaction()->m_flags.ready_preempt = 1;  // formality by the leader
+  thd->get_transaction()->m_flags.ready_preempt =
+      true;  // formality by the leader
 #endif
   for (THD *head = first; head; head = head->next_to_commit) {
     DBUG_PRINT("debug", ("Thread ID: %u, commit_error: %d, commit_pending: %s",
@@ -8679,7 +8681,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
      execute any thread-specific write access code in this method, which is
      the case as of current.
   */
-  thd->get_transaction()->m_flags.ready_preempt = 0;
+  thd->get_transaction()->m_flags.ready_preempt = false;
 #endif
 
   DBUG_PRINT("enter", ("commit_pending: %s, commit_error: %d, thread_id: %u",
@@ -9474,10 +9476,10 @@ static bool has_write_table_with_auto_increment(TABLE_LIST *tables) {
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->is_placeholder() && table->table->found_next_number_field &&
         (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE))
-      return 1;
+      return true;
   }
 
-  return 0;
+  return false;
 }
 
 /*
@@ -9526,10 +9528,10 @@ static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables) {
     if (!table->is_placeholder() && table->table->found_next_number_field &&
         (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) &&
         table->table->s->next_number_keypart != 0)
-      return 1;
+      return true;
   }
 
-  return 0;
+  return false;
 }
 
 /**

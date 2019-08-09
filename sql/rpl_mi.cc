@@ -169,8 +169,8 @@ Master_info::Master_info(
       key_info_rotate_lock(param_key_info_rotate_lock),
       key_info_rotate_cond(param_key_info_rotate_cond),
 #endif
-      ssl(0),
-      ssl_verify_server_cert(0),
+      ssl(false),
+      ssl_verify_server_cert(false),
       get_public_key(false),
       port(MYSQL_PORT),
       connect_retry(DEFAULT_CONNECT_RETRY),
@@ -327,7 +327,7 @@ void Master_info::end_info() {
 
   handler->end_info();
 
-  inited = 0;
+  inited = false;
   reset = true;
 }
 
@@ -408,7 +408,7 @@ int Master_info::mi_init_info() {
     if (read_info(handler)) goto err;
   }
 
-  inited = 1;
+  inited = true;
   reset = false;
   if (flush_info(true)) goto err;
 
@@ -416,7 +416,7 @@ int Master_info::mi_init_info() {
 
 err:
   handler->end_info();
-  inited = 0;
+  inited = false;
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_MASTER_CONFIGURATION);
   return 1;
 }

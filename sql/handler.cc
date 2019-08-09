@@ -424,7 +424,7 @@ redo:
   /* my_strnncoll is a macro and gcc doesn't do early expansion of macro */
   if (thd && !my_charset_latin1.coll->strnncoll(
                  &my_charset_latin1, (const uchar *)name->str, name->length,
-                 (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
+                 (const uchar *)STRING_WITH_LEN("DEFAULT"), false))
     return is_temp_table ? ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
   LEX_CSTRING cstring_name = {name->str, name->length};
@@ -2124,7 +2124,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
   DBUG_TRACE;
 
   trn_ctx->set_rw_ha_count(trx_scope, 0);
-  trn_ctx->set_no_2pc(trx_scope, 0);
+  trn_ctx->set_no_2pc(trx_scope, false);
   /*
     rolling back to savepoint in all storage engines that were part of the
     transaction when the savepoint was set
@@ -3338,8 +3338,8 @@ int handler::ha_read_first_row(uchar *buf, uint primary_key) {
     TODO remove the test for HA_READ_ORDER
   */
   if (stats.deleted < 10 || primary_key >= MAX_KEY ||
-      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER)) {
-    if (!(error = ha_rnd_init(1))) {
+      !(index_flags(primary_key, 0, false) & HA_READ_ORDER)) {
+    if (!(error = ha_rnd_init(true))) {
       while ((error = ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
         /* skip deleted row */;
       const int end_error = ha_rnd_end();
@@ -3347,7 +3347,7 @@ int handler::ha_read_first_row(uchar *buf, uint primary_key) {
     }
   } else {
     /* Find the first row through the primary key */
-    if (!(error = ha_index_init(primary_key, 0))) {
+    if (!(error = ha_index_init(primary_key, false))) {
       error = ha_index_first(buf);
       const int end_error = ha_index_end();
       if (!error) error = end_error;
@@ -3782,7 +3782,7 @@ void handler::get_auto_increment(
                                              table->read_set);
   column_bitmaps_signal();
 
-  if (ha_index_init(table->s->next_number_index, 1)) {
+  if (ha_index_init(table->s->next_number_index, true)) {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
     *first_value = ULLONG_MAX;
@@ -4926,7 +4926,8 @@ int ha_enable_transaction(THD *thd, bool on) {
       is an optimization hint that storage engine is free to ignore.
       So, let's commit an open transaction (if any) now.
     */
-    if (!(error = ha_commit_trans(thd, 0))) error = trans_commit_implicit(thd);
+    if (!(error = ha_commit_trans(thd, false)))
+      error = trans_commit_implicit(thd);
   }
   return error;
 }
@@ -5065,7 +5066,7 @@ int ha_create_table(THD *thd, const char *path, const char *db,
       if (thd->dd_client()->update<dd::Table>(table_def)) error = 1;
     }
   }
-  (void)closefrm(&table, 0);
+  (void)closefrm(&table, false);
 err:
   free_table_share(&share);
   return error != 0;
@@ -5147,7 +5148,7 @@ int ha_create_table_from_engine(THD *thd, const char *db, const char *name) {
     necessary changes to the table_def should already have
     been done in ha_discover/import_serialized_meta_data.
   */
-  (void)closefrm(&table, 1);
+  (void)closefrm(&table, true);
 
   return error != 0;
 }
@@ -5372,7 +5373,7 @@ bool default_rm_tmp_tables(handlerton *hton, THD *, List<LEX_STRING> *files) {
   List_iterator<LEX_STRING> files_it(*files);
   LEX_STRING *file_path;
 
-  if (!hton->file_extensions) return 0;
+  if (!hton->file_extensions) return false;
 
   while ((file_path = files_it++)) {
     const char *file_ext = fn_ext(file_path->str);
@@ -7354,7 +7355,7 @@ int handler::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag) {
   int error, error1 = 0;
-  error = index_init(index, 0);
+  error = index_init(index, false);
   if (!error) {
     error = index_read_map(buf, key, keypart_map, find_flag);
     error1 = index_end();
@@ -7472,15 +7473,15 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat) {
     if (db_type->state != SHOW_OPTION_YES) {
       const LEX_CSTRING *name = &se_plugin_array[db_type->slot]->name;
       result = stat_print(thd, name->str, name->length, "", 0, "DISABLED", 8)
-                   ? 1
-                   : 0;
+                   ? true
+                   : false;
     } else {
       DBUG_EXECUTE_IF("simulate_show_status_failure",
                       DBUG_SET("+d,simulate_net_write_failure"););
       result = db_type->show_status &&
                        db_type->show_status(db_type, thd, stat_print, stat)
-                   ? 1
-                   : 0;
+                   ? true
+                   : false;
       DBUG_EXECUTE_IF("simulate_show_status_failure",
                       DBUG_SET("-d,simulate_net_write_failure"););
     }
@@ -7594,7 +7595,7 @@ static int write_locked_table_maps(THD *thd) {
 
 int binlog_log_row(TABLE *table, const uchar *before_record,
                    const uchar *after_record, Log_func *log_func) {
-  bool error = 0;
+  bool error = false;
   THD *const thd = table->in_use;
 
   if (check_table_binlog_row_based(thd, table)) {
@@ -8053,7 +8054,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
 
       const type_conversion_status save_in_field_status =
-          field->gcol_info->expr_item->save_in_field(field, 0);
+          field->gcol_info->expr_item->save_in_field(field, false);
       DBUG_ASSERT(!thd->is_error() || save_in_field_status != TYPE_OK);
 
       /*

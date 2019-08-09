@@ -182,7 +182,7 @@ bool GR_message_service_send_example::udf_init(UDF_INIT *init_id,
     return true;
   }
 
-  init_id->maybe_null = 0;
+  init_id->maybe_null = false;
 
   return false;
 }

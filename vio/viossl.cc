@@ -256,7 +256,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
-  while (1) {
+  while (true) {
     enum enum_vio_io_event event;
 
     /*
@@ -298,7 +298,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
-  while (1) {
+  while (true) {
     enum enum_vio_io_event event;
 
     /*
@@ -411,7 +411,7 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   vio->ssl_arg = ssl;
 
   /* Initiate the SSL handshake. */
-  while (1) {
+  while (true) {
     enum enum_vio_io_event event;
 
     /*

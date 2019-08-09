@@ -96,10 +96,10 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
 
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
-                   &first_table->grant.m_internal, 0, 0) ||
+                   &first_table->grant.m_internal, false, false) ||
       check_access(thd, priv_needed, first_table->next_local->db,
                    &first_table->next_local->grant.privilege,
-                   &first_table->next_local->grant.m_internal, 0, 0))
+                   &first_table->next_local->grant.m_internal, false, false))
     return true;
 
   if (check_grant(thd, priv_needed, first_table, false, UINT_MAX, false))
@@ -711,7 +711,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
                                     &table, true, nullptr);
 
       if (!error) {
-        auto closefrm_lambda = [](TABLE *t) { (void)closefrm(t, 0); };
+        auto closefrm_lambda = [](TABLE *t) { (void)closefrm(t, false); };
         std::unique_ptr<TABLE, decltype(closefrm_lambda)> closefrm_guard(
             &table, closefrm_lambda);
 

@@ -48,7 +48,7 @@ int mi_rsame_with_pos(MI_INFO *info, uchar *record, int inx, my_off_t filepos) {
   }
 
   info->update &= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  if ((*info->s->read_rnd)(info, record, filepos, 0)) {
+  if ((*info->s->read_rnd)(info, record, filepos, false)) {
     if (my_errno() == HA_ERR_RECORD_DELETED) set_my_errno(HA_ERR_KEY_NOT_FOUND);
     return my_errno();
   }

@@ -176,7 +176,7 @@ bool check_priv(THD *thd, bool static_variable) {
               .first)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or SYSTEM_VARIABLES_ADMIN");
-      return 1;
+      return true;
     }
   } else {
     /*
@@ -189,10 +189,10 @@ bool check_priv(THD *thd, bool static_variable) {
               .first)) {
       my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
                "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
-      return 1;
+      return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -1147,7 +1147,7 @@ int set_var_user::check(THD *) {
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return user_var_item->check(0) ? -1 : 0;
+  return user_var_item->check(false) ? -1 : 0;
 }
 
 /**

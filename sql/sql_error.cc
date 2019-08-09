@@ -846,7 +846,7 @@ size_t err_conv(char *buff, size_t to_length, const char *from,
   if (from_cs == &my_charset_bin) {
     uchar char_code;
     res = 0;
-    while (1) {
+    while (true) {
       if ((uint)(from - from_start) >= from_length || res >= to_length) {
         *to = 0;
         break;
@@ -919,7 +919,7 @@ size_t convert_error_message(char *to, size_t to_length,
   }
 
   wc_mb = to_cs->cset->wc_mb;
-  while (1) {
+  while (true) {
     if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
                            from_end)) > 0) {
       if (!wc) break;

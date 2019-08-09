@@ -19694,7 +19694,7 @@ static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
   DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
-  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, 0);
+  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, false);
 }
 
 /**
@@ -19712,7 +19712,7 @@ static size_t my_caseup_gb18030(const CHARSET_INFO *cs, char *src,
   DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
-  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, 1);
+  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, true);
 }
 
 /**
@@ -20165,8 +20165,8 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
 
   while (wildstr != wildend) {
-    while (1) {
-      bool escaped = 0;
+    while (true) {
+      bool escaped = false;
       if ((w_len = get_code_and_length(cs, wildstr, wildend, &w_gb)) == 0)
         return 1;
 
@@ -20181,7 +20181,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
           return 1;
 
         wildstr += w_len;
-        escaped = 1;
+        escaped = true;
       }
 
       if ((s_len = get_code_and_length(cs, str, str_end, &s_gb)) == 0) return 1;
@@ -20237,7 +20237,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
         }
       }
 
-      while (1) {
+      while (true) {
         /* Skip until the first character from wildstr is found */
         while (str != str_end) {
           if ((s_len = get_code_and_length(cs, str, str_end, &s_gb)) == 0)
@@ -20448,8 +20448,8 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* min_sort_char */
     0xFE39FE39,                                      /* max_sort_char */
     ' ',                                             /* pad char      */
-    1, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    true, /* escape_with_backslash_is_dangerous */
+    1,    /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
@@ -20483,7 +20483,7 @@ CHARSET_INFO my_charset_gb18030_bin = {
     0,                              /* min_sort_char */
     0xFEFEFEFE,                     /* max_sort_char */
     ' ',                            /* pad char      */
-    1,                              /* escape_with_backslash_is_dangerous */
+    true,                           /* escape_with_backslash_is_dangerous */
     1,                              /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_mb_bin_handler,

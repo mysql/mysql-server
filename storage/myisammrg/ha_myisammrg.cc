@@ -130,7 +130,7 @@ static handler *myisammrg_create_handler(handlerton *hton, TABLE_SHARE *table,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), file(0), is_cloned(0) {
+    : handler(hton, table_arg), file(0), is_cloned(false) {
   init_sql_alloc(rg_key_memory_children, &children_mem_root, FN_REFLEN, 0);
 }
 
@@ -1379,7 +1379,7 @@ int ha_myisammrg::create(const char *name, TABLE *, HA_CREATE_INFO *create_info,
   return myrg_create(
       fn_format(buff, name, "", "",
                 MY_RESOLVE_SYMLINKS | MY_UNPACK_FILENAME | MY_APPEND_EXT),
-      table_names, create_info->merge_insert_method, (bool)0);
+      table_names, create_info->merge_insert_method, false);
 }
 
 void ha_myisammrg::append_create_info(String *packet) {

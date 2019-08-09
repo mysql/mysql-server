@@ -131,7 +131,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables) {
   if (tables->table && !tables->table->s->tmp_table) {
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
-    tables->table->open_by_handler = 0;
+    tables->table->open_by_handler = false;
     close_thread_table(thd, &tables->table);
     thd->mdl_context.release_lock(tables->mdl_request.ticket);
   } else if (tables->table) {
@@ -139,7 +139,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables) {
     TABLE *table = tables->table;
     table->file->ha_index_or_rnd_end();
     table->query_id = thd->query_id;
-    table->open_by_handler = 0;
+    table->open_by_handler = false;
     mark_tmp_table_for_reuse(table);
   }
 
@@ -326,7 +326,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
     being used by this handler. For non-temp tables we use this flag
     in asserts.
   */
-  hash_tables->table->open_by_handler = 1;
+  hash_tables->table->open_by_handler = true;
 
   /*
     Generated column expressions have been resolved using the MEM_ROOT of the
@@ -599,7 +599,7 @@ retry:
   }
 
   if (insert_fields(thd, &select_lex->context, tables->db, tables->alias, &it,
-                    0))
+                    false))
     goto err;
 
   DBUG_EXECUTE_IF("simulate_handler_read_failure",
@@ -651,11 +651,11 @@ retry:
       case enum_ha_read_modes::RFIRST:
         if (m_key_name) {
           if (!(error = table->file->ha_index_or_rnd_end()) &&
-              !(error = table->file->ha_index_init(keyno, 1)))
+              !(error = table->file->ha_index_init(keyno, true)))
             error = table->file->ha_index_first(table->record[0]);
         } else {
           if (!(error = table->file->ha_index_or_rnd_end()) &&
-              !(error = table->file->ha_rnd_init(1)))
+              !(error = table->file->ha_rnd_init(true)))
             error = table->file->ha_rnd_next(table->record[0]);
         }
         mode = enum_ha_read_modes::RNEXT;
@@ -673,7 +673,7 @@ retry:
       case enum_ha_read_modes::RLAST:
         DBUG_ASSERT(m_key_name != 0);
         if (!(error = table->file->ha_index_or_rnd_end()) &&
-            !(error = table->file->ha_index_init(keyno, 1)))
+            !(error = table->file->ha_index_init(keyno, true)))
           error = table->file->ha_index_last(table->record[0]);
         mode = enum_ha_read_modes::RPREV;
         break;
@@ -736,7 +736,7 @@ retry:
         if (!(key = (uchar *)thd->mem_calloc(ALIGN_SIZE(key_len)))) goto err;
         if ((error = table->file->ha_index_or_rnd_end())) break;
         key_copy(key, table->record[0], table->key_info + keyno, key_len);
-        if (!(error = table->file->ha_index_init(keyno, 1)))
+        if (!(error = table->file->ha_index_init(keyno, true)))
           error = table->file->ha_index_read_map(table->record[0], key,
                                                  keypart_map, m_rkey_mode);
         mode = rkey_to_rnext[(int)m_rkey_mode];

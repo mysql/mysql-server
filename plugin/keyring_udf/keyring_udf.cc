@@ -199,7 +199,7 @@ static bool keyring_udf_func_init(
                                                 // passed to the function  it
                                                 // means that max_length stays
                                                 // default
-  initid->maybe_null = 1;
+  initid->maybe_null = true;
 
   if (size_of_memory_to_allocate != 0) {
     initid->ptr = new (std::nothrow) char[size_of_memory_to_allocate];

@@ -156,7 +156,7 @@ class READ_INFO {
   */
   void end_io_cache() {
     ::end_io_cache(&cache);
-    need_end_io_cache = 0;
+    need_end_io_cache = false;
   }
 
   /*
@@ -192,7 +192,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   const String *field_term = m_exchange.field.field_term;
   const String *escaped = m_exchange.field.escaped;
   const String *enclosed = m_exchange.field.enclosed;
-  bool is_fifo = 0;
+  bool is_fifo = false;
   SELECT_LEX *select = thd->lex->select_lex;
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status = THD::NOT_KILLED;
@@ -277,7 +277,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     table is marked to be 'used for insert' in which case we should never
     mark this table as 'const table' (ie, one that has only one row).
   */
-  if (unique_table(insert_table_ref, table_list->next_global, 0)) {
+  if (unique_table(insert_table_ref, table_list->next_global, false)) {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     return true;
   }
@@ -408,7 +408,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   prepare_triggers_for_insert_stmt(thd, table);
 
   uint tot_length = 0;
-  bool use_blobs = 0, use_vars = 0;
+  bool use_blobs = false, use_vars = false;
   List_iterator_fast<Item> it(m_opt_fields_or_vars);
   Item *item;
 
@@ -418,12 +418,12 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     if (real_item->type() == Item::FIELD_ITEM) {
       Field *field = ((Item_field *)real_item)->field;
       if (field->flags & BLOB_FLAG) {
-        use_blobs = 1;
+        use_blobs = true;
         tot_length += 256;  // Will be extended if needed
       } else
         tot_length += field->field_length;
     } else if (item->type() == Item::STRING_ITEM)
-      use_vars = 1;
+      use_vars = true;
   }
   if (use_blobs && m_exchange.line.line_term->is_empty() &&
       field_term->is_empty()) {
@@ -483,7 +483,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
       return true;
     }
-    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO) is_fifo = 1;
+    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO) is_fifo = true;
 #endif
     if ((file = mysql_file_open(key_file_load, name, O_RDONLY, MYF(MY_WME))) <
         0)
@@ -503,7 +503,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
 
   if (mysql_bin_log.is_open()) {
     lf_info.thd = thd;
-    lf_info.logged_data_file = 0;
+    lf_info.logged_data_file = false;
     lf_info.last_pos_in_file = HA_POS_ERROR;
     lf_info.log_delayed = transactional_table;
     read_info.set_io_cache_arg((void *)&lf_info);
@@ -530,7 +530,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       table->file->ha_extra(HA_EXTRA_WRITE_CAN_REPLACE);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       table->file->ha_start_bulk_insert((ha_rows)0);
-    table->copy_blobs = 1;
+    table->copy_blobs = true;
 
     if (m_exchange.filetype == FILETYPE_XML) /* load xml */
       error =
@@ -550,7 +550,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   }
   if (file >= 0) mysql_file_close(file, MYF(0));
   free_blobs(table); /* if pack_blob was used */
-  table->copy_blobs = 0;
+  table->copy_blobs = false;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
   /*
      simulated killing in the middle of per-row loop
@@ -1238,7 +1238,7 @@ char READ_INFO::unescape(char chr) {
     case 'Z':
       return '\032';  // Win32 end of file
     case 'N':
-      found_null = 1;
+      found_null = true;
 
       /* fall through */
     default:
@@ -1280,11 +1280,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   level = 0; /* for load xml */
   if (line_start.length() == 0) {
     line_start_ptr = 0;
-    start_of_line = 0;
+    start_of_line = false;
   } else {
     line_start_ptr = line_start.ptr();
     line_start_end = line_start_ptr + line_start.length();
-    start_of_line = 1;
+    start_of_line = true;
   }
   /* If field_terminator == line_terminator, don't use line_terminator */
   if (field_term_length == line_term_length &&
@@ -1312,7 +1312,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
     if (init_io_cache(
             &cache, (get_it_from_net) ? -1 : file, 0,
             (get_it_from_net) ? READ_NET : (is_fifo ? READ_FIFO : READ_CACHE),
-            0L, 1, MYF(MY_WME))) {
+            0L, true, MYF(MY_WME))) {
       my_free(buffer); /* purecov: inspected */
       buffer = NULL;
       error = true;
@@ -1322,7 +1322,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
         if the cache is READ_NET. So we work around the problem with a
         manual assignment
       */
-      need_end_io_cache = 1;
+      need_end_io_cache = true;
 
       if (get_it_from_net) cache.read_function = _my_b_net_read;
 
@@ -1395,17 +1395,17 @@ bool READ_INFO::read_field() {
   int chr, found_enclosed_char;
   uchar *to, *new_buffer;
 
-  found_null = 0;
+  found_null = false;
   if (found_end_of_line) return true;  // One have to call next_line
 
   /* Skip until we find 'line_start' */
 
   if (start_of_line) {  // Skip until line_start
-    start_of_line = 0;
+    start_of_line = false;
     if (find_start_of_fields()) return true;
   }
   if ((chr = GET) == my_b_EOF) {
-    found_end_of_line = eof = 1;
+    found_end_of_line = eof = true;
     return true;
   }
   to = buffer;
@@ -1459,8 +1459,8 @@ bool READ_INFO::read_field() {
       if (chr == line_term_char && found_enclosed_char == INT_MAX) {
         if (terminator(line_term_ptr,
                        line_term_length)) {  // Maybe unexpected linefeed
-          enclosed = 0;
-          found_end_of_line = 1;
+          enclosed = false;
+          found_end_of_line = true;
           row_start = buffer;
           row_end = to;
           return false;
@@ -1476,15 +1476,15 @@ bool READ_INFO::read_field() {
             (chr == line_term_char &&
              terminator(line_term_ptr,
                         line_term_length))) {  // Maybe unexpected linefeed
-          enclosed = 1;
-          found_end_of_line = 1;
+          enclosed = true;
+          found_end_of_line = true;
           row_start = buffer + 1;
           row_end = to;
           return false;
         }
         if (chr == field_term_char &&
             terminator(field_term_ptr, field_term_length)) {
-          enclosed = 1;
+          enclosed = true;
           row_start = buffer + 1;
           row_end = to;
           return false;
@@ -1498,7 +1498,7 @@ bool READ_INFO::read_field() {
         chr = found_enclosed_char;
       } else if (chr == field_term_char && found_enclosed_char == INT_MAX) {
         if (terminator(field_term_ptr, field_term_length)) {
-          enclosed = 0;
+          enclosed = false;
           row_start = buffer;
           row_end = to;
           return false;
@@ -1563,8 +1563,8 @@ bool READ_INFO::read_field() {
   }
 
 found_eof:
-  enclosed = 0;
-  found_end_of_line = eof = 1;
+  enclosed = false;
+  found_end_of_line = eof = true;
   row_start = buffer;
   row_end = to;
   return false;
@@ -1588,7 +1588,7 @@ bool READ_INFO::read_fixed_length() {
   if (found_end_of_line) return true;  // One have to call next_line
 
   if (start_of_line) {  // Skip until line_start
-    start_of_line = 0;
+    start_of_line = false;
     if (find_start_of_fields()) return true;
   }
 
@@ -1606,7 +1606,7 @@ bool READ_INFO::read_fixed_length() {
     if (chr == line_term_char) {
       if (terminator(line_term_ptr,
                      line_term_length)) {  // Maybe unexpected linefeed
-        found_end_of_line = 1;
+        found_end_of_line = true;
         row_end = to;
         return false;
       }
@@ -1617,7 +1617,7 @@ bool READ_INFO::read_fixed_length() {
   return false;
 
 found_eof:
-  found_end_of_line = eof = 1;
+  found_end_of_line = eof = true;
   row_start = buffer;
   row_end = to;
   return to == buffer;
@@ -1627,19 +1627,19 @@ found_eof:
   @returns true if error (unexpected end of file/line)
 */
 bool READ_INFO::next_line() {
-  line_truncated = 0;
+  line_truncated = false;
   start_of_line = line_start_ptr != 0;
   if (found_end_of_line || eof) {
-    found_end_of_line = 0;
+    found_end_of_line = false;
     return eof;
   }
-  found_end_of_line = 0;
+  found_end_of_line = false;
   if (!line_term_length) return false;  // No lines
   for (;;) {
     int chr = GET;
     uint ml;
     if (chr == my_b_EOF) {
-      eof = 1;
+      eof = true;
       return true;
     }
     GET_MBCHARLEN(read_charset, chr, ml);
@@ -1648,17 +1648,17 @@ bool READ_INFO::next_line() {
       if (chr == escape_char) continue;
     }
     if (chr == my_b_EOF) {
-      eof = 1;
+      eof = true;
       return true;
     }
     if (chr == escape_char) {
-      line_truncated = 1;
+      line_truncated = true;
       if (GET == my_b_EOF) return true;
       continue;
     }
     if (chr == line_term_char && terminator(line_term_ptr, line_term_length))
       return false;
-    line_truncated = 1;
+    line_truncated = true;
   }
 }
 
@@ -1670,8 +1670,8 @@ bool READ_INFO::find_start_of_fields() {
 try_again:
   do {
     if ((chr = GET) == my_b_EOF) {
-      found_end_of_line = eof = 1;
-      return 1;
+      found_end_of_line = eof = true;
+      return true;
     }
   } while ((char)chr != line_start_ptr[0]);
   for (const char *ptr = line_start_ptr + 1; ptr != line_start_end; ptr++) {
@@ -1684,7 +1684,7 @@ try_again:
       goto try_again;
     }
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -1968,7 +1968,7 @@ bool READ_INFO::read_xml() {
 
 found_eof:
   DBUG_PRINT("read_xml", ("Found eof"));
-  eof = 1;
+  eof = true;
   return true;
 }
 

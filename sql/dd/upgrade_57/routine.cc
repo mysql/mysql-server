@@ -460,7 +460,7 @@ bool migrate_routines_to_dd(THD *thd) {
 
   System_table_close_guard proc_table_guard(thd, proc_table);
 
-  if (proc_table->file->ha_index_init(0, 1)) {
+  if (proc_table->file->ha_index_init(0, true)) {
     LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
     return true;
   }

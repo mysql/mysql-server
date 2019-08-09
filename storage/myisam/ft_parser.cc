@@ -48,7 +48,7 @@ static int FT_WORD_cmp(const void *a, const void *b, const void *c) {
   const FT_WORD *w1 = static_cast<const FT_WORD *>(b);
   const FT_WORD *w2 = static_cast<const FT_WORD *>(c);
   return ha_compare_text(cs, (uchar *)w1->pos, w1->len, (uchar *)w2->pos,
-                         w2->len, 0);
+                         w2->len, false);
 }
 
 static int walk_and_copy(void *v_word, uint32 count, void *v_docstat) {
@@ -97,14 +97,14 @@ bool ft_boolean_check_syntax_string(const uchar *str) {
       (strlen(pointer_cast<const char *>(str)) + 1 !=
        sizeof(DEFAULT_FTB_SYNTAX)) ||
       (str[0] != ' ' && str[1] != ' '))
-    return 1;
+    return true;
   for (i = 0; i < sizeof(DEFAULT_FTB_SYNTAX); i++) {
     /* limiting to 7-bit ascii only */
-    if ((unsigned char)(str[i]) > 127 || isalnum(str[i])) return 1;
+    if ((unsigned char)(str[i]) > 127 || isalnum(str[i])) return true;
     for (j = 0; j < i; j++)
-      if (str[i] == str[j] && (i != 11 || j != 10)) return 1;
+      if (str[i] == str[j] && (i != 11 || j != 10)) return true;
   }
-  return 0;
+  return false;
 }
 
 /*

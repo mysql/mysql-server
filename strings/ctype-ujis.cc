@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -35816,42 +35816,43 @@ CHARSET_INFO my_charset_ujis_japanese_ci = {
     0,                 /* min_sort_char */
     0xFEFE,            /* max_sort_char */
     ' ',               /* pad char      */
-    0,                 /* escape_with_backslash_is_dangerous */
+    false,             /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_ujis_bin = {91,
-                                    0,
-                                    0, /* number       */
-                                    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
-                                    "ujis",     /* cs name    */
-                                    "ujis_bin", /* name         */
-                                    "",         /* comment      */
-                                    NULL,       /* tailoring    */
-                                    NULL,       /* coll_param   */
-                                    ctype_ujis,
-                                    to_lower_ujis,
-                                    to_upper_ujis,
-                                    NULL,              /* sort_order   */
-                                    NULL,              /* uca          */
-                                    NULL,              /* tab_to_uni   */
-                                    NULL,              /* tab_from_uni */
-                                    &my_caseinfo_ujis, /* caseinfo     */
-                                    NULL,              /* state_map    */
-                                    NULL,              /* ident_map    */
-                                    1,                 /* strxfrm_multiply */
-                                    1,                 /* caseup_multiply  */
-                                    2,                 /* casedn_multiply  */
-                                    1,                 /* mbminlen     */
-                                    3,                 /* mbmaxlen     */
-                                    1,                 /* mbmaxlenlen  */
-                                    0,                 /* min_sort_char */
-                                    0xFEFE,            /* max_sort_char */
-                                    ' ',               /* pad char      */
-                                    0, /* escape_with_backslash_is_dangerous */
-                                    1, /* levels_for_compare */
-                                    &my_charset_handler,
-                                    &my_collation_mb_bin_handler,
-                                    PAD_SPACE};
+CHARSET_INFO my_charset_ujis_bin = {
+    91,
+    0,
+    0,                              /* number       */
+    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
+    "ujis",                         /* cs name    */
+    "ujis_bin",                     /* name         */
+    "",                             /* comment      */
+    NULL,                           /* tailoring    */
+    NULL,                           /* coll_param   */
+    ctype_ujis,
+    to_lower_ujis,
+    to_upper_ujis,
+    NULL,              /* sort_order   */
+    NULL,              /* uca          */
+    NULL,              /* tab_to_uni   */
+    NULL,              /* tab_from_uni */
+    &my_caseinfo_ujis, /* caseinfo     */
+    NULL,              /* state_map    */
+    NULL,              /* ident_map    */
+    1,                 /* strxfrm_multiply */
+    1,                 /* caseup_multiply  */
+    2,                 /* casedn_multiply  */
+    1,                 /* mbminlen     */
+    3,                 /* mbmaxlen     */
+    1,                 /* mbmaxlenlen  */
+    0,                 /* min_sort_char */
+    0xFEFE,            /* max_sort_char */
+    ' ',               /* pad char      */
+    false,             /* escape_with_backslash_is_dangerous */
+    1,                 /* levels_for_compare */
+    &my_charset_handler,
+    &my_collation_mb_bin_handler,
+    PAD_SPACE};

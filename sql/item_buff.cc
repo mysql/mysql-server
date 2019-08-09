@@ -102,7 +102,7 @@ bool Cached_item_str::cmp(void) {
     if ((null_value = item->null_value)) return true;  // New value was null
     tmp = true;
   } else if (null_value)
-    return 0;  // new and old value was null
+    return false;  // new and old value was null
   else
     tmp = sortcmp(&value, res, item->collation.collation) != 0;
   if (tmp) value.copy(*res);  // Remember for next cmp

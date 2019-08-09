@@ -79,7 +79,7 @@ static bool load_db_schema_collation(THD *thd, const LEX_STRING *db_opt_path,
     return false;
   }
 
-  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0))) {
+  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, false, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_CACHE_FOR_DB_OPT, db_opt_path->str);
     goto err;
   }

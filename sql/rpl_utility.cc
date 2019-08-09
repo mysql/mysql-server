@@ -533,7 +533,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       field->sql_type(target_type);
       if (!ignored_error_code(ER_SERVER_SLAVE_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
-        thd->is_slave_error = 1;
+        thd->is_slave_error = true;
       } else if (log_error_verbosity >= 2)
         report_level = WARNING_LEVEL;
 
@@ -697,7 +697,7 @@ err:
     enum loglevel report_level = INFORMATION_LEVEL;
     if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION)) {
       report_level = ERROR_LEVEL;
-      thd->is_slave_error = 1;
+      thd->is_slave_error = true;
     } else if (log_error_verbosity >= 2)
       report_level = WARNING_LEVEL;
 
@@ -891,7 +891,7 @@ bool Hash_slave_rows::init(void) { return false; }
 bool Hash_slave_rows::deinit(void) {
   DBUG_TRACE;
   m_hash.clear();
-  return 0;
+  return false;
 }
 
 int Hash_slave_rows::size() { return m_hash.size(); }

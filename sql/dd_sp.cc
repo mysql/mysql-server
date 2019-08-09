@@ -108,7 +108,7 @@ static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
                     0, dd_get_old_field_type(param.data_type()),
                     dd_get_mysql_charset(param.collation_id()), geom_type,
                     Field::NONE, interval, "", false, param.is_zerofill(),
-                    param.is_unsigned(), numeric_scale, 0, 0, {}, false);
+                    param.is_unsigned(), numeric_scale, false, 0, {}, false);
 }
 
 /**

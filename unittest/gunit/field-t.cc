@@ -568,7 +568,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_longlong");
-    Field_longlong fll(NULL, 64, NULL, '\0', Field::NONE, "", 0, true);
+    Field_longlong fll(NULL, 64, NULL, '\0', Field::NONE, "", false, true);
     test_integer_field(&fll);
   }
   {

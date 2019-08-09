@@ -58,7 +58,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
     read_length = length;
     if ((my_off_t)read_length > (my_off_t)(info->pos_in_file - pos))
       read_length = (uint)(info->pos_in_file - pos);
-    info->seek_not_done = 1;
+    info->seek_not_done = true;
     if (mysql_file_pread(info->file, buff, read_length, pos, MYF(MY_NABP)))
       return 1;
     if (!(length -= read_length)) return 0;
@@ -81,13 +81,13 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
         (info->pos_in_file + (uint)(info->read_end - info->request_pos))) {
       info->pos_in_file = pos; /* Force start here */
       info->read_pos = info->read_end = info->request_pos; /* Everything used */
-      info->seek_not_done = 1;
+      info->seek_not_done = true;
     } else
       info->read_pos = info->read_end; /* All block used */
     if (!(*info->read_function)(info, buff, length)) return 0;
     read_length = info->error;
   } else {
-    info->seek_not_done = 1;
+    info->seek_not_done = true;
     if ((read_length =
              mysql_file_pread(info->file, buff, length, pos, MYF(0))) == length)
       return 0;

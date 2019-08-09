@@ -1189,7 +1189,7 @@ static bool rtr_cur_restore_position(
       }
 
       mem_heap_free(heap);
-    } while (0);
+    } while (false);
 #endif /* UNIV_DEBUG */
 
     return (true);

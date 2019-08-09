@@ -101,7 +101,7 @@ bool Stdin_istream::open(std::string *errmsg) {
   }
 #endif
   if (init_io_cache(
-          &m_io_cache, my_fileno(stdin), 0, READ_CACHE, 0, 0,
+          &m_io_cache, my_fileno(stdin), 0, READ_CACHE, 0, false,
           MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE | MY_FULL_IO))) {
     *errmsg = "Failed to init IO cache.";
     return true;

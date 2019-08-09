@@ -347,10 +347,10 @@ bool execute_test_init(UDF_INIT *, UDF_ARGS *, char *error_message_buffer) {
     snprintf(error_message_buffer, MYSQL_ERRMSG_SIZE,
              "Daemon plugin was not installed.");
 
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 /*

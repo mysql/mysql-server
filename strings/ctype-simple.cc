@@ -859,7 +859,7 @@ bool my_like_range_simple(const CHARSET_INFO *cs, const char *ptr,
         *min_str++ = 0;
         *max_str++ = (char)cs->max_sort_char;
       } while (min_str != min_end);
-      return 0;
+      return false;
     }
     *min_str++ = *max_str++ = *ptr;
   }
@@ -867,7 +867,7 @@ bool my_like_range_simple(const CHARSET_INFO *cs, const char *ptr,
   *min_length = *max_length = (size_t)(min_str - min_org);
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' '; /* Because if key compression */
-  return 0;
+  return false;
 }
 
 size_t my_scan_8bit(const CHARSET_INFO *cs, const char *str, const char *end,
@@ -1467,13 +1467,13 @@ ret_too_big:
 bool my_propagate_simple(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                          const uchar *str MY_ATTRIBUTE((unused)),
                          size_t length MY_ATTRIBUTE((unused))) {
-  return 1;
+  return true;
 }
 
 bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                           const uchar *str MY_ATTRIBUTE((unused)),
                           size_t length MY_ATTRIBUTE((unused))) {
-  return 0;
+  return false;
 }
 
 /*

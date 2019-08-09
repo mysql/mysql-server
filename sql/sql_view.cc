@@ -338,11 +338,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   // Allow creation of views on information_schema only during bootstrap
   if (!is_infoschema_db(view->db)) {
     if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                      &view->grant.m_internal, 0, 0) ||
+                      &view->grant.m_internal, false, false) ||
          check_grant(thd, CREATE_VIEW_ACL, view, false, 1, false)) ||
         (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
          (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                       &view->grant.m_internal, 0, 0) ||
+                       &view->grant.m_internal, false, false) ||
           check_grant(thd, DROP_ACL, view, false, 1, false))))
       goto err;
   }
@@ -387,7 +387,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
          any_privileges may be reset later by the Item_field::set_field
          method in case of a system temporary table.
         */
-        field->any_privileges = 1;
+        field->any_privileges = true;
       }
     }
   }
@@ -600,7 +600,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     names of the view's columns.
   */
   if (check_duplicate_names(view->derived_column_names(), select_lex->item_list,
-                            1)) {
+                            true)) {
     res = true;
     goto err;
   }

@@ -429,13 +429,13 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase) {
     bitmap_free(&group_shifted);
     goto err;
   }
-  inited = 1;
+  inited = true;
 
   return 0;
 
 err:
   // todo: handler->end_info(uidx, nidx);
-  inited = 0;
+  inited = false;
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_SLAVE_WORKER_CONFIGURATION);
   return 1;
 }
@@ -451,7 +451,7 @@ void Slave_worker::end_info() {
     bitmap_free(&group_executed);
     bitmap_free(&group_shifted);
   }
-  inited = 0;
+  inited = false;
 }
 
 int Slave_worker::flush_info(const bool force) {
@@ -1873,7 +1873,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     c_rli->retried_trans++;
     mysql_mutex_unlock(&c_rli->data_lock);
 
-    cleanup_context(thd, 1);
+    cleanup_context(thd, true);
     reset_order_commit_deadlock();
     worker_sleep(min<ulong>(trans_retries, MAX_SLAVE_RETRY_PAUSE));
 
@@ -2428,7 +2428,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   /* Current event with Worker associator. */
   RLI_current_event_raii worker_curr_ev(worker, ev);
 
-  while (1) {
+  while (true) {
     Slave_job_group *ptr_g;
 
     if (unlikely(thd->killed ||

@@ -192,31 +192,33 @@ static int opt_port = 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections = DEFAULT_MAX_CONN;
-static bool opt_colored_diff = 0;
-static bool opt_compress = 0, silent = 0, verbose = 0, trace_exec = 0;
-static bool debug_info_flag = 0, debug_check_flag = 0;
-static bool tty_password = 0;
-static bool opt_mark_progress = 0;
-static bool ps_protocol = 0, ps_protocol_enabled = 0;
-static bool sp_protocol = 0, sp_protocol_enabled = 0;
-static bool no_skip = 0;
-static bool view_protocol = 0, view_protocol_enabled = 0;
-static bool opt_trace_protocol = 0, opt_trace_protocol_enabled = 0;
-static bool explain_protocol = 0, explain_protocol_enabled = 0;
-static bool json_explain_protocol = 0, json_explain_protocol_enabled = 0;
-static bool cursor_protocol = 0, cursor_protocol_enabled = 0;
-static bool testcase_disabled = 0;
+static bool opt_colored_diff = false;
+static bool opt_compress = false, silent = false, verbose = false,
+            trace_exec = false;
+static bool debug_info_flag = false, debug_check_flag = false;
+static bool tty_password = false;
+static bool opt_mark_progress = false;
+static bool ps_protocol = false, ps_protocol_enabled = false;
+static bool sp_protocol = false, sp_protocol_enabled = false;
+static bool no_skip = false;
+static bool view_protocol = false, view_protocol_enabled = false;
+static bool opt_trace_protocol = false, opt_trace_protocol_enabled = false;
+static bool explain_protocol = false, explain_protocol_enabled = false;
+static bool json_explain_protocol = false,
+            json_explain_protocol_enabled = false;
+static bool cursor_protocol = false, cursor_protocol_enabled = false;
+static bool testcase_disabled = false;
 static bool display_result_vertically = false, display_result_lower = false,
             display_metadata = false, display_result_sorted = false,
             display_session_track_info = false;
 static int start_sort_column = 0;
-static bool disable_query_log = 0, disable_result_log = 0;
-static bool disable_connect_log = 1;
-static bool disable_warnings = 0;
-static bool disable_info = 1;
-static bool abort_on_error = 1;
-static bool server_initialized = 0;
-static bool is_windows = 0;
+static bool disable_query_log = false, disable_result_log = false;
+static bool disable_connect_log = true;
+static bool disable_warnings = false;
+static bool disable_info = true;
+static bool abort_on_error = true;
+static bool server_initialized = false;
+static bool is_windows = false;
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
@@ -260,16 +262,17 @@ struct Property {
 };
 
 static struct Property prop_list[] = {
-    {&abort_on_error, 0, 1, 0, "$ENABLE_ABORT_ON_ERROR"},
-    {&disable_connect_log, 0, 1, 1, "$ENABLE_CONNECT_LOG"},
-    {&disable_info, 0, 1, 1, "$ENABLE_INFO"},
-    {&display_session_track_info, 0, 1, 1, "$ENABLE_STATE_CHANGE_INFO"},
-    {&display_metadata, 0, 0, 0, "$ENABLE_METADATA"},
-    {&ps_protocol_enabled, 0, 0, 0, "$ENABLE_PS_PROTOCOL"},
-    {&disable_query_log, 0, 0, 1, "$ENABLE_QUERY_LOG"},
-    {&disable_result_log, 0, 0, 1, "$ENABLE_RESULT_LOG"},
-    {&disable_warnings, 0, 0, 1, "$ENABLE_WARNINGS"},
-    {&enable_async_client, 0, 0, 0, "$ENABLE_ASYNC_CLIENT"}};
+    {&abort_on_error, false, true, false, "$ENABLE_ABORT_ON_ERROR"},
+    {&disable_connect_log, false, true, true, "$ENABLE_CONNECT_LOG"},
+    {&disable_info, false, true, true, "$ENABLE_INFO"},
+    {&display_session_track_info, false, true, true,
+     "$ENABLE_STATE_CHANGE_INFO"},
+    {&display_metadata, false, false, false, "$ENABLE_METADATA"},
+    {&ps_protocol_enabled, false, false, false, "$ENABLE_PS_PROTOCOL"},
+    {&disable_query_log, false, false, true, "$ENABLE_QUERY_LOG"},
+    {&disable_result_log, false, false, true, "$ENABLE_RESULT_LOG"},
+    {&disable_warnings, false, false, true, "$ENABLE_WARNINGS"},
+    {&enable_async_client, false, false, false, "$ENABLE_ASYNC_CLIENT"}};
 
 static bool once_property = false;
 
@@ -1002,7 +1005,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
           escaped = 0;
           dynstr_append_mem(query_eval, p, 1);
         } else {
-          if (!(v = var_get(p, &p, 0, 0))) die("Bad variable in eval");
+          if (!(v = var_get(p, &p, false, false))) die("Bad variable in eval");
           dynstr_append_mem(query_eval, v->str_val, v->str_val_len);
         }
         break;
@@ -1694,14 +1697,14 @@ static int cat_file(DYNAMIC_STRING *ds, const char *filename) {
   int fd;
   size_t len;
   char buff[512];
-  bool dangling_cr = 0;
+  bool dangling_cr = false;
 
   if ((fd = my_open(filename, O_RDONLY, MYF(0))) < 0) return 1;
   while ((len = my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0))) > 0) {
     char *p = buff, *start = buff;
     if (dangling_cr) {
       if (*p != '\n') dynstr_append_mem(ds, "\r", 1);
-      dangling_cr = 0;
+      dangling_cr = false;
     }
     while (p < buff + len) {
       /* Convert cr/lf to lf */
@@ -1715,7 +1718,7 @@ static int cat_file(DYNAMIC_STRING *ds, const char *filename) {
       } else
         p++;
     }
-    if (*(p - 1) == '\r' && len == 512) dangling_cr = 1;
+    if (*(p - 1) == '\r' && len == 512) dangling_cr = true;
     /* Output any chars that migh be left */
     if (dangling_cr)
       dynstr_append_mem(ds, start, p - start - 1);
@@ -2340,7 +2343,7 @@ static void update_disabled_enabled_warnings_list_var() {
 /// @param value    Value for the property, either 0 or 1
 static void set_once_property(enum_prop property, bool value) {
   Property &prop = prop_list[property];
-  prop.set = 1;
+  prop.set = true;
   prop.old = *prop.var;
   *prop.var = value;
   var_set_int(prop.env_name, (value != prop.reverse));
@@ -2374,7 +2377,7 @@ static void set_property(st_command *command, enum_prop property, bool value) {
   }
 
   Property &prop = prop_list[property];
-  prop.set = 0;
+  prop.set = false;
   *prop.var = value;
   var_set_int(prop.env_name, (value != prop.reverse));
 }
@@ -2389,7 +2392,7 @@ void revert_properties() {
     Property &prop = prop_list[i];
     if (prop.set) {
       *prop.var = prop.old;
-      prop.set = 0;
+      prop.set = false;
       var_set_int(prop.env_name, (prop.old != prop.reverse));
     }
   }
@@ -2780,7 +2783,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
   if (*p == '$') {
     VAR *vp;
     const char *expected_end = *p_end;  // Remember var end
-    if ((vp = var_get(p, p_end, 0, 0))) var_copy(v, vp);
+    if ((vp = var_get(p, p_end, false, false))) var_copy(v, vp);
 
     /* Apparently it is not safe to assume null-terminated string */
     v->str_val[v->str_val_len] = 0;
@@ -3253,7 +3256,7 @@ static int do_modify_var(struct st_command *command, enum enum_operator op) {
   if (*p != '$')
     die("The argument to %.*s must be a variable (start with $)",
         static_cast<int>(command->first_word_len), command->query);
-  v = var_get(p, &p, 1, 0);
+  v = var_get(p, &p, true, false);
   if (!v->is_int) die("Cannot perform inc/dec on a non-numeric value");
   switch (op) {
     case DO_DEC:
@@ -4131,7 +4134,7 @@ static void do_list_files(struct st_command *command) {
       {"dirname", ARG_STRING, true, &ds_dirname, "Directory to list"},
       {"file", ARG_STRING, false, &ds_wild, "Filename (incl. wildcard)"}};
   DBUG_TRACE;
-  command->used_replace = 1;
+  command->used_replace = true;
 
   check_command_args(command, command->first_argument, list_files_args,
                      sizeof(list_files_args) / sizeof(struct command_arg), ' ');
@@ -4168,7 +4171,7 @@ static void do_list_files_write_file_command(struct st_command *command,
       {"dirname", ARG_STRING, true, &ds_dirname, "Directory to list"},
       {"file", ARG_STRING, false, &ds_wild, "Filename (incl. wildcard)"}};
   DBUG_TRACE;
-  command->used_replace = 1;
+  command->used_replace = true;
 
   check_command_args(command, command->first_argument, list_files_args,
                      sizeof(list_files_args) / sizeof(struct command_arg), ' ');
@@ -4211,7 +4214,7 @@ static void read_until_delimiter(DYNAMIC_STRING *ds,
     die("Max delimiter length(%d) exceeded", MAX_DELIMITER_LENGTH);
 
   /* Read from file until delimiter is found */
-  while (1) {
+  while (true) {
     c = my_getc(cur_file->file);
 
     if (c == '\n') {
@@ -4505,7 +4508,7 @@ static void do_change_user(struct st_command *command) {
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str)) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-    mysql->reconnect = 1;
+    mysql->reconnect = true;
     mysql_reconnect(&cur_con->mysql);
   }
 
@@ -5027,7 +5030,7 @@ static void do_expr(struct st_command *command) {
   while (*p && !is_operator(p) && !my_isspace(charset_info, *p)) p++;
   const char *operand_name_end = p;
   check_variable_name(operand_name, operand_name_end, false);
-  VAR *v1 = var_get(operand_name, &operand_name_end, 0, 0);
+  VAR *v1 = var_get(operand_name, &operand_name_end, false, false);
 
   double operand1;
   if ((my_isdigit(charset_info, *v1->str_val)) ||
@@ -5058,7 +5061,7 @@ static void do_expr(struct st_command *command) {
   while (*p && !my_isspace(charset_info, *p)) p++;
   operand_name_end = p;
   check_variable_name(operand_name, operand_name_end, false);
-  VAR *v2 = var_get(operand_name, &operand_name_end, 0, 0);
+  VAR *v2 = var_get(operand_name, &operand_name_end, false, false);
 
   double operand2;
   if ((my_isdigit(charset_info, *v2->str_val)) ||
@@ -5331,7 +5334,7 @@ static void do_disable_testcase(struct st_command *command) {
         command->query);
   }
 
-  testcase_disabled = 1;
+  testcase_disabled = true;
   free_dynamic_strings(&ds_bug_number);
 }
 
@@ -5515,7 +5518,7 @@ static void do_shutdown_server(struct st_command *command) {
     }
 
     const char *var_name = "$MTR_MANUAL_DEBUG";
-    VAR *var = var_get(var_name, &var_name, 0, 0);
+    VAR *var = var_get(var_name, &var_name, false, false);
     if (var->int_val) {
       if (!kill_process(pid) && is_process_active(pid)) error = 3;
     } else {
@@ -5686,7 +5689,7 @@ static void get_warning_codes(struct st_command *command,
         // enabled warnings, set the disable_warnings flag to 0.
         if (disable_warnings) {
           if (!disabled_warnings->count() && !enabled_warnings->count())
-            set_property(command, P_WARN, 0);
+            set_property(command, P_WARN, false);
         }
       }
     } else {
@@ -5771,7 +5774,7 @@ static void do_disable_warnings(struct st_command *command) {
     update_disabled_enabled_warnings_list_var();
 
     // Set 'disable_warnings' property value to 1
-    set_property(command, P_WARN, 1);
+    set_property(command, P_WARN, true);
     return;
   } else {
     // Parse the warning list argument specified with disable_warnings
@@ -5783,7 +5786,7 @@ static void do_disable_warnings(struct st_command *command) {
     update_disabled_enabled_warnings_list_var();
 
     // Set 'disable_warnings' property value to 1
-    set_property(command, P_WARN, 1);
+    set_property(command, P_WARN, true);
   }
 
   command->last_argument = command->end;
@@ -5817,7 +5820,7 @@ static void do_enable_warnings(struct st_command *command) {
     update_disabled_enabled_warnings_list_var();
 
     // Set 'disable_warnings' property value to 0
-    set_property(command, P_WARN, 0);
+    set_property(command, P_WARN, false);
   } else {
     // Parse the warning list argument specified with enable_warnings command.
     once_prop = parse_warning_list_argument(command);
@@ -5828,7 +5831,7 @@ static void do_enable_warnings(struct st_command *command) {
   }
 
   // Call set_once_property() to set once_propetry flag.
-  if (disable_warnings && once_prop) set_once_property(P_WARN, 1);
+  if (disable_warnings && once_prop) set_once_property(P_WARN, true);
 
   command->last_argument = command->end;
 }
@@ -5873,7 +5876,7 @@ static void do_error(struct st_command *command) {
     // Code to handle a variable containing an error.
     if (error.front() == '$') {
       const char *varname_end = NULL;
-      VAR *var = var_get(error.c_str(), &varname_end, 0, 0);
+      VAR *var = var_get(error.c_str(), &varname_end, false, false);
       error.assign(var->str_val);
     }
 
@@ -5985,7 +5988,7 @@ static char *get_string(char **to_ptr, const char **from_ptr,
   /* Check if this was a variable */
   if (*start == '$') {
     const char *end = to;
-    VAR *var = var_get(start, &end, 0, 1);
+    VAR *var = var_get(start, &end, false, true);
     if (var && to == end + 1) {
       DBUG_PRINT("info", ("var: '%s' -> '%s'", start, var->str_val));
       return var->str_val; /* return found variable value */
@@ -6319,8 +6322,8 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
 static void do_connect(struct st_command *command) {
   int con_port = opt_port;
   char *con_options;
-  bool con_ssl = 0, con_compress = 0;
-  bool con_pipe = 0, con_shm = 0, con_cleartext_enable = 0;
+  bool con_ssl = false, con_compress = false;
+  bool con_pipe = false, con_shm = false, con_cleartext_enable = false;
   struct st_connection *con_slot;
 #if defined(HAVE_OPENSSL)
   uint save_opt_ssl_mode = opt_ssl_mode;
@@ -6395,7 +6398,7 @@ static void do_connect(struct st_command *command) {
 
   /* Options */
   con_options = ds_options.str;
-  bool con_socket = 0, con_tcp = 0;
+  bool con_socket = false, con_tcp = false;
   while (*con_options) {
     /* Step past any spaces in beginning of option */
     while (*con_options && my_isspace(charset_info, *con_options))
@@ -6410,19 +6413,19 @@ static void do_connect(struct st_command *command) {
     strmake(cur_con_option, con_options, con_option_len);
 
     if (!std::strcmp(cur_con_option, "SSL"))
-      con_ssl = 1;
+      con_ssl = true;
     else if (!std::strcmp(cur_con_option, "COMPRESS"))
-      con_compress = 1;
+      con_compress = true;
     else if (!std::strcmp(cur_con_option, "PIPE"))
-      con_pipe = 1;
+      con_pipe = true;
     else if (!std::strcmp(cur_con_option, "SHM"))
-      con_shm = 1;
+      con_shm = true;
     else if (!std::strcmp(cur_con_option, "CLEARTEXT"))
-      con_cleartext_enable = 1;
+      con_cleartext_enable = true;
     else if (!std::strcmp(cur_con_option, "SOCKET"))
-      con_socket = 1;
+      con_socket = true;
     else if (!std::strcmp(cur_con_option, "TCP"))
-      con_tcp = 1;
+      con_tcp = true;
     else
       die("Illegal option to connect: %s", cur_con_option);
 
@@ -6857,17 +6860,17 @@ bool match_delimiter(int c, const char *delim, size_t length) {
   uint i;
   char tmp[MAX_DELIMITER_LENGTH];
 
-  if (c != *delim) return 0;
+  if (c != *delim) return false;
 
   for (i = 1; i < length && (c = my_getc(cur_file->file)) == *(delim + i); i++)
     tmp[i] = c;
 
-  if (i == length) return 1; /* Found delimiter */
+  if (i == length) return true; /* Found delimiter */
 
   /* didn't find delimiter, push back things that we read */
   my_ungetc(c);
   while (i > 1) my_ungetc(tmp[--i]);
-  return 0;
+  return false;
 }
 
 static bool end_of_query(int c) {
@@ -6960,10 +6963,10 @@ static int read_line(char *buf, int size) {
         } else if ((c == '{' &&
                     (!charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"while", 5, (uchar *)buf,
-                         std::min<ptrdiff_t>(5, p - buf), 0) ||
+                         std::min<ptrdiff_t>(5, p - buf), false) ||
                      !charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"if", 2, (uchar *)buf,
-                         std::min<ptrdiff_t>(2, p - buf), 0)))) {
+                         std::min<ptrdiff_t>(2, p - buf), false)))) {
           /* Only if and while commands can be terminated by { */
           *p++ = c;
           *p = 0;
@@ -7481,7 +7484,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case '#':
 #ifndef DBUG_OFF
       DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
-      debug_check_flag = 1;
+      debug_check_flag = true;
 #endif
       break;
     case 'r':
@@ -7524,9 +7527,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
         my_free(opt_pass);
         opt_pass = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
         while (*argument) *argument++ = 'x'; /* Destroy argument */
-        tty_password = 0;
+        tty_password = false;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
 #include "sslopt-case.h"
 
@@ -7552,7 +7555,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       usage();
       exit(0);
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -8356,7 +8359,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   // mysql_stmt_store_result(), this is our only way to know how much
   // buffer to allocate for result data
   {
-    bool one = 1;
+    bool one = true;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void *)&one))
       die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
@@ -8522,7 +8525,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
   DYNAMIC_STRING eval_query;
   const char *query;
   size_t query_len;
-  bool view_created = 0, sp_created = 0;
+  bool view_created = false, sp_created = false;
   bool complete_query =
       ((flags & QUERY_SEND_FLAG) && (flags & QUERY_REAP_FLAG));
   DBUG_TRACE;
@@ -8595,7 +8598,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
       /*
         Yes, it was possible to create this query as a view
       */
-      view_created = 1;
+      view_created = true;
       query = "SELECT * FROM mysqltest_tmp_v";
       query_len = std::strlen(query);
 
@@ -8636,7 +8639,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
                   mysql_errno(mysql), mysql_error(mysql));
 
     } else {
-      sp_created = 1;
+      sp_created = true;
 
       query = "CALL mysqltest_tmp_sp()";
       query_len = std::strlen(query);
@@ -9026,7 +9029,7 @@ static void init_signal_handling(void) {
 
 int main(int argc, char **argv) {
   struct st_command *command;
-  bool abort_flag = 0;
+  bool abort_flag = false;
   int q_send_flag = 0;
   uint command_executed = 0, last_command_executed = 0;
   char output_file[FN_REFLEN];
@@ -9122,7 +9125,7 @@ int main(int argc, char **argv) {
               result_file_name ? result_file_name : "");
   if (mysql_server_init(0, nullptr, nullptr))
     die("Can't initialize MySQL server");
-  server_initialized = 1;
+  server_initialized = true;
   if (cur_file == file_stack && cur_file->file == 0) {
     cur_file->file = stdin;
     cur_file->file_name =
@@ -9170,7 +9173,7 @@ int main(int argc, char **argv) {
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);
 
   /* Cursor protcol implies ps protocol */
-  if (cursor_protocol) ps_protocol = 1;
+  if (cursor_protocol) ps_protocol = true;
 
   ps_protocol_enabled = ps_protocol;
   sp_protocol_enabled = sp_protocol;
@@ -9279,7 +9282,7 @@ int main(int argc, char **argv) {
     if (!ok_to_do && command->type == Q_SOURCE) {
       for (struct st_block *stb = cur_block - 1; stb >= block_stack; stb--) {
         if (stb->cmd == cmd_while) {
-          ok_to_do = 1;
+          ok_to_do = true;
           break;
         }
       }
@@ -9292,7 +9295,7 @@ int main(int argc, char **argv) {
     if (!ok_to_do &&
         (command->type == Q_APPEND_FILE || command->type == Q_PERL ||
          command->type == Q_WRITE_FILE)) {
-      ok_to_do = 1;
+      ok_to_do = true;
     }
 
     if (ok_to_do) {
@@ -9312,28 +9315,28 @@ int main(int argc, char **argv) {
           do_close_connection(command);
           break;
         case Q_ENABLE_QUERY_LOG:
-          set_property(command, P_QUERY, 0);
+          set_property(command, P_QUERY, false);
           break;
         case Q_DISABLE_QUERY_LOG:
-          set_property(command, P_QUERY, 1);
+          set_property(command, P_QUERY, true);
           break;
         case Q_ENABLE_ABORT_ON_ERROR:
-          set_property(command, P_ABORT, 1);
+          set_property(command, P_ABORT, true);
           break;
         case Q_DISABLE_ABORT_ON_ERROR:
-          set_property(command, P_ABORT, 0);
+          set_property(command, P_ABORT, false);
           break;
         case Q_ENABLE_RESULT_LOG:
-          set_property(command, P_RESULT, 0);
+          set_property(command, P_RESULT, false);
           break;
         case Q_DISABLE_RESULT_LOG:
-          set_property(command, P_RESULT, 1);
+          set_property(command, P_RESULT, true);
           break;
         case Q_ENABLE_CONNECT_LOG:
-          set_property(command, P_CONNECT, 0);
+          set_property(command, P_CONNECT, false);
           break;
         case Q_DISABLE_CONNECT_LOG:
-          set_property(command, P_CONNECT, 1);
+          set_property(command, P_CONNECT, true);
           break;
         case Q_ENABLE_WARNINGS:
           do_enable_warnings(command);
@@ -9342,31 +9345,31 @@ int main(int argc, char **argv) {
           do_disable_warnings(command);
           break;
         case Q_ENABLE_INFO:
-          set_property(command, P_INFO, 0);
+          set_property(command, P_INFO, false);
           break;
         case Q_DISABLE_INFO:
-          set_property(command, P_INFO, 1);
+          set_property(command, P_INFO, true);
           break;
         case Q_ENABLE_SESSION_TRACK_INFO:
-          set_property(command, P_SESSION_TRACK, 1);
+          set_property(command, P_SESSION_TRACK, true);
           break;
         case Q_DISABLE_SESSION_TRACK_INFO:
-          set_property(command, P_SESSION_TRACK, 0);
+          set_property(command, P_SESSION_TRACK, false);
           break;
         case Q_ENABLE_METADATA:
-          set_property(command, P_META, 1);
+          set_property(command, P_META, true);
           break;
         case Q_DISABLE_METADATA:
-          set_property(command, P_META, 0);
+          set_property(command, P_META, false);
           break;
         case Q_SOURCE:
           do_source(command);
           break;
         case Q_SLEEP:
-          do_sleep(command, 0);
+          do_sleep(command, false);
           break;
         case Q_REAL_SLEEP:
-          do_sleep(command, 1);
+          do_sleep(command, true);
           break;
         case Q_WAIT_FOR_SLAVE_TO_STOP:
           do_wait_for_slave_to_stop(command);
@@ -9394,10 +9397,10 @@ int main(int argc, char **argv) {
           do_mkdir(command);
           break;
         case Q_RMDIR:
-          do_rmdir(command, 0);
+          do_rmdir(command, false);
           break;
         case Q_FORCE_RMDIR:
-          do_rmdir(command, 1);
+          do_rmdir(command, true);
           break;
         case Q_FORCE_CPDIR:
           do_force_cpdir(command);
@@ -9523,9 +9526,10 @@ int main(int argc, char **argv) {
             usually terminate quickly with "no matching rows". To make it more
             interesting, EXPLAIN is now first.
           */
-          if (explain_protocol_enabled) run_explain(cur_con, command, flags, 0);
+          if (explain_protocol_enabled)
+            run_explain(cur_con, command, flags, false);
           if (json_explain_protocol_enabled)
-            run_explain(cur_con, command, flags, 1);
+            run_explain(cur_con, command, flags, true);
 
           if (*output_file) {
             strmake(command->output_file, output_file, sizeof(output_file) - 1);
@@ -9664,7 +9668,7 @@ int main(int argc, char **argv) {
           do_set_charset(command);
           break;
         case Q_DISABLE_PS_PROTOCOL:
-          set_property(command, P_PS, 0);
+          set_property(command, P_PS, false);
           /* Close any open statements */
           close_statements();
           break;
@@ -9681,10 +9685,10 @@ int main(int argc, char **argv) {
           close_statements();
           break;
         case Q_ENABLE_ASYNC_CLIENT:
-          set_property(command, P_ASYNC, 1);
+          set_property(command, P_ASYNC, true);
           break;
         case Q_DISABLE_ASYNC_CLIENT:
-          set_property(command, P_ASYNC, 0);
+          set_property(command, P_ASYNC, false);
           break;
         case Q_DISABLE_TESTCASE:
           if (testcase_disabled == 0)
@@ -9696,7 +9700,7 @@ int main(int argc, char **argv) {
           // Ensure we don't get testcase_disabled < 0 as this would
           // accidentally disable code we don't want to have disabled.
           if (testcase_disabled == 1)
-            testcase_disabled = 0;
+            testcase_disabled = false;
           else
             die("Test case is already enabled.");
           break;
@@ -9706,7 +9710,7 @@ int main(int argc, char **argv) {
           break;
         case Q_EXIT:
           /* Stop processing any more commands */
-          abort_flag = 1;
+          abort_flag = true;
           break;
         case Q_SKIP: {
           DYNAMIC_STRING ds_skip_msg;
@@ -10334,7 +10338,7 @@ void do_get_replace_regex(struct st_command *command) {
   free_replace_regex();
   /* Allow variable for the *entire* list of replacements */
   if (*expr == '$') {
-    VAR *val = var_get(expr, NULL, 0, 1);
+    VAR *val = var_get(expr, NULL, false, true);
     expr = val ? val->str_val : NULL;
   }
   if (expr && *expr && !(glob_replace_regex = init_replace_regex(expr)))

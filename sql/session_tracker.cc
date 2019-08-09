@@ -826,7 +826,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf) {
 void Current_schema_tracker::mark_as_changed(
     THD *thd, LEX_CSTRING *tracked_item_name MY_ATTRIBUTE((unused))) {
   m_changed = true;
-  thd->lex->safe_to_cache_query = 0;
+  thd->lex->safe_to_cache_query = false;
 }
 
 /**
@@ -1392,7 +1392,7 @@ void Session_state_change_tracker::mark_as_changed(
     m_changed = false;
   else {
     m_changed = true;
-    thd->lex->safe_to_cache_query = 0;
+    thd->lex->safe_to_cache_query = false;
   }
 }
 

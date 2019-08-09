@@ -903,7 +903,7 @@ static void fill_dd_index_elements_from_key_parts(
     // Set index order
     //
 
-    if (file->index_flags(idx_obj->ordinal_position() - 1, key_part_no, 0) &
+    if (file->index_flags(idx_obj->ordinal_position() - 1, key_part_no, false) &
         HA_READ_ORDER)
       idx_elem->set_order(key_part->key_part_flag & HA_REVERSE_SORT
                               ? dd::Index_element::ORDER_DESC
@@ -2470,7 +2470,7 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
       // Copy _ibfk_nnnn from the old name.
       new_name.append(fk->name().substr(old_table_name_norm_len));
       if (check_string_char_length(to_lex_cstring(new_name.c_str()), "",
-                                   NAME_CHAR_LEN, system_charset_info, 1)) {
+                                   NAME_CHAR_LEN, system_charset_info, true)) {
         my_error(ER_TOO_LONG_IDENT, MYF(0), new_name.c_str());
         return true;
       }

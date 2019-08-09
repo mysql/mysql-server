@@ -374,10 +374,10 @@ bool Primary_election_handler::pick_primary_member(
     }
   }
 
-  if (the_primary == NULL) return 1;
+  if (the_primary == NULL) return true;
 
   primary_uuid.assign(the_primary->get_uuid());
-  return 0;
+  return false;
 }
 
 std::vector<Group_member_info *>::iterator

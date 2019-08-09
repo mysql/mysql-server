@@ -357,7 +357,7 @@ void Gtid_set::remove_gno_interval(Interval_iterator *ivitp, rpl_gno start,
   cached_string_length = -1;
 
   // Skip intervals of 'this' that are completely before the removed interval.
-  while (1) {
+  while (true) {
     iv = ivit.get();
     if (iv == nullptr) goto ok;
     if (iv->end > start) break;
@@ -464,7 +464,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,
     s = text;
   }
 
-  while (1) {
+  while (true) {
     // Skip commas (we allow empty SID:GNO specifications).
     while (*s == ',') {
       s++;
@@ -955,7 +955,7 @@ bool Gtid_set::equals(const Gtid_set *other) const {
   rpl_sidno other_map_max_sidno = other_sid_map->get_max_sidno();
 
   int sid_i = 0, other_sid_i = 0;
-  while (1) {
+  while (true) {
     rpl_sidno sidno = 0,
               other_sidno = 0;  // set to 0 to avoid compilation warning
     // find next sidno (in order of increasing sid) for this set

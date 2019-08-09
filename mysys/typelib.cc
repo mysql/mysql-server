@@ -297,7 +297,7 @@ uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
                              uint *err_len) {
   const char *end = str + length;
   uint64_t flags_to_set = 0, flags_to_clear = 0, res;
-  bool set_defaults = 0;
+  bool set_defaults = false;
 
   *err_pos = 0; /* No error yet */
   if (str != end) {

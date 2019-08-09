@@ -1346,7 +1346,7 @@ bool TemptableAggregateIterator::Init() {
   }
 
   // Initialize the index used for finding the groups.
-  if (table()->file->ha_index_init(0, 0)) {
+  if (table()->file->ha_index_init(0, false)) {
     return true;
   }
   auto end_unique_index =
@@ -1372,7 +1372,7 @@ bool TemptableAggregateIterator::Init() {
     // (FIXME: Is this comment really still current? It seems to date back
     // to pre-2000, but I can't see that it's really true.)
     if (copy_fields(m_temp_table_param, thd()))
-      return 1; /* purecov: inspected */
+      return true; /* purecov: inspected */
 
     // See if we have seen this row already; if so, we want to update it,
     // not insert a new one.
@@ -1386,7 +1386,7 @@ bool TemptableAggregateIterator::Init() {
         in group are found.
       */
       if (copy_funcs(m_temp_table_param, thd()))
-        return 1; /* purecov: inspected */
+        return true; /* purecov: inspected */
       group_found = !check_unique_constraint(table());
     } else {
       for (ORDER *group = table()->group; group; group = group->next) {
@@ -1409,7 +1409,7 @@ bool TemptableAggregateIterator::Init() {
           table()->file->ha_update_row(table()->record[1], table()->record[0]);
       if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
         PrintError(error);
-        return 1;
+        return true;
       }
       continue;
     }
@@ -1450,7 +1450,7 @@ bool TemptableAggregateIterator::Init() {
           memcpy(table()->record[0] + key_part->offset - 1, group->buff - 1, 1);
       }
       /* See comment on copy_funcs above. */
-      if (copy_funcs(m_temp_table_param, thd())) return 1;
+      if (copy_funcs(m_temp_table_param, thd())) return true;
     }
     init_tmptable_sum_functions(m_join->sum_funcs);
     int error = table()->file->ha_write_row(table()->record[0]);
@@ -1468,20 +1468,20 @@ bool TemptableAggregateIterator::Init() {
         for (ORDER *group = table()->group; group; group = group->next) {
           if (group->field_in_tmp_table->type() == MYSQL_TYPE_TIMESTAMP) {
             my_error(ER_GROUPING_ON_TIMESTAMP_IN_DST, MYF(0));
-            return 1;
+            return true;
           }
         }
       }
       if (create_ondisk_from_heap(thd(), table(), error, false, NULL)) {
         end_unique_index.commit();
-        return 1;  // Not a table_is_full error.
+        return true;  // Not a table_is_full error.
       }
       // Table's engine changed, index is not initialized anymore
       error = table()->file->ha_index_init(0, false);
       if (error != 0) {
         end_unique_index.commit();
         PrintError(error);
-        return 1;
+        return true;
       }
     }
   }

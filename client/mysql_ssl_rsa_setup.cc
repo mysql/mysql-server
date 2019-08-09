@@ -359,7 +359,7 @@ static bool my_arguments_get_one_option(int optid, const struct my_option *,
       free_resources();
       exit(0);
   }
-  return 0;
+  return false;
 }
 }
 

@@ -59,7 +59,7 @@ int mi_panic(enum ha_panic_function flag) {
         if (info->opt_flag & READ_CACHE_USED) {
           if (flush_io_cache(&info->rec_cache)) error = my_errno();
           reinit_io_cache(&info->rec_cache, READ_CACHE, 0,
-                          (bool)(info->lock_type != F_UNLCK), 1);
+                          (bool)(info->lock_type != F_UNLCK), true);
         }
         if (info->lock_type != F_UNLCK && !info->was_locked) {
           info->was_locked = info->lock_type;
@@ -69,7 +69,7 @@ int mi_panic(enum ha_panic_function flag) {
       case HA_PANIC_READ: /* Restore to before WRITE */
         if (info->was_locked) {
           if (mi_lock_database(info, info->was_locked)) error = my_errno();
-          info->was_locked = 0;
+          info->was_locked = false;
         }
         break;
     }

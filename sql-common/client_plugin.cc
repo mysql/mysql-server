@@ -103,7 +103,7 @@ struct st_client_plugin_int {
   struct st_mysql_client_plugin *plugin;
 };
 
-static bool initialized = 0;
+static bool initialized = false;
 static MEM_ROOT mem_root;
 
 static const char *plugin_declarations_sym =
@@ -287,7 +287,7 @@ static void load_env_plugins(MYSQL *mysql) {
   char *enable_cleartext_plugin = getenv("LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN");
 
   if (enable_cleartext_plugin && strchr("1Yy", enable_cleartext_plugin[0]))
-    libmysql_cleartext_plugin_enabled = 1;
+    libmysql_cleartext_plugin_enabled = true;
 
   /* no plugins to load */
   if (!s) return;
@@ -332,7 +332,7 @@ int mysql_client_plugin_init() {
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 
-  initialized = 1;
+  initialized = true;
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
@@ -366,7 +366,7 @@ void mysql_client_plugin_deinit() {
     }
 
   memset(&plugin_list, 0, sizeof(plugin_list));
-  initialized = 0;
+  initialized = false;
   free_root(&mem_root, MYF(0));
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }

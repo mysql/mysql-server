@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,7 +232,7 @@ void test_d2s() {
   a.buf[0] = 12345;
   a.intg = 5;
   a.frac = 0;
-  a.sign = 0;
+  a.sign = false;
   slen = sizeof(s);
   res = decimal2string(&a, s, &slen, 0, 0, 0);
   dump_decimal(&a);
@@ -245,7 +245,7 @@ void test_d2s() {
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 
-  a.sign = 1;
+  a.sign = true;
   slen = sizeof(s);
   res = decimal2string(&a, s, &slen, 0, 0, 0);
   dump_decimal(&a);

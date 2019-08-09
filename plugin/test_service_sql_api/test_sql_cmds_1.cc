@@ -128,7 +128,7 @@ struct Callback_data {
     affected_rows = 0;
     last_insert_id = 0;
     shutdown = 0;
-    shutdown_called = 0;
+    shutdown_called = false;
   }
 };
 

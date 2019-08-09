@@ -767,8 +767,8 @@ class Log_event {
 
   time_t get_time();
 
-  virtual bool write_data_header(Basic_ostream *) { return 0; }
-  virtual bool write_data_body(Basic_ostream *) { return 0; }
+  virtual bool write_data_header(Basic_ostream *) { return false; }
+  virtual bool write_data_body(Basic_ostream *) { return false; }
 #endif
 
   Log_event_type get_type_code() const { return common_header->type_code; }

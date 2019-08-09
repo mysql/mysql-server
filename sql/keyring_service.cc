@@ -109,7 +109,7 @@ static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
 static bool iterate_plugins(std::function<bool(st_mysql_keyring *keyring)> fn,
                             bool check_access = true) {
   Callback callback(fn);
-  if (check_access && keyring_access_test()) return 1;
+  if (check_access && keyring_access_test()) return true;
   plugin_foreach(current_thd, key_plugin_cb_fn, MYSQL_KEYRING_PLUGIN,
                  &callback);
   return callback.result();

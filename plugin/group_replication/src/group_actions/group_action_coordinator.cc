@@ -389,10 +389,10 @@ bool Group_action_coordinator::handle_action_message(
   // If we are not online just ignore it
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
-  if (member_status != Group_member_info::MEMBER_ONLINE) return 0;
+  if (member_status != Group_member_info::MEMBER_ONLINE) return false;
 
   if (coordinator_terminating) {
-    return 0; /* purecov: inspected */
+    return false; /* purecov: inspected */
   }
 
   Group_action_message::enum_action_message_phase message_phase =
@@ -411,7 +411,7 @@ bool Group_action_coordinator::handle_action_message(
       break; /* purecov: inspected */
   }
 
-  return 0;
+  return false;
 }
 
 bool Group_action_coordinator::handle_action_start_message(

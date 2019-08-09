@@ -147,7 +147,7 @@ void MDL_key::init_psi_keys() {
 }
 #endif
 
-static bool mdl_initialized = 0;
+static bool mdl_initialized = false;
 
 /**
   A collection of all MDL locks. A singleton,
@@ -3974,7 +3974,7 @@ bool MDL_context::visit_subgraph(MDL_wait_for_graph_visitor *gvisitor) {
 */
 
 void MDL_context::find_deadlock() {
-  while (1) {
+  while (true) {
     /*
       The fact that we use fresh instance of gvisitor for each
       search performed by find_deadlock() below is important,

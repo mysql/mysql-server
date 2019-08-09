@@ -87,7 +87,7 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
       {
         *err_pos = start;
         *err_len = var_len;
-        *set_warning = 1;
+        *set_warning = true;
       } else if (find)  // avoid 1ULL << 4294967295
         found |= 1ULL << (find - 1);
 
@@ -197,7 +197,8 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
   /* Fiend end of word */
   for (ptr = val; ptr < end && my_isalpha(&my_charset_latin1, *ptr); ptr++)
     ;
-  if ((res = find_type(lib, val, (uint)(ptr - val), 1)) > 0) *end_of_word = ptr;
+  if ((res = find_type(lib, val, (uint)(ptr - val), true)) > 0)
+    *end_of_word = ptr;
   return res;
 }
 
@@ -231,7 +232,7 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
   my_charset_conv_wc_mb wc_mb = to_cs->cset->wc_mb;
   uint error_count = 0;
 
-  while (1) {
+  while (true) {
     /*
       Using 'from + 10' is safe:
       - it is enough to scan a single character in any character set.

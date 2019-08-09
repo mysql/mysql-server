@@ -453,7 +453,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
     overflow in buffer calculation, as well as for performance purposes.
   */
   if (std::abs(dist) <= GIS_ZERO || is_empty_geocollection(geom)) {
-    null_value = 0;
+    null_value = false;
     str_result = obj;
     return str_result;
   }

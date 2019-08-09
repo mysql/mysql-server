@@ -858,7 +858,7 @@ static int yy_flex_debug = 0;
 #line 1 "pars0lex.l"
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1173,7 +1173,7 @@ YY_DECL
 
 #line 1165 "lexyy.cc"
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	while ( true )		/* loops until end-of-file is reached */
 		{
 		yy_cp = (yy_c_buf_p);
 

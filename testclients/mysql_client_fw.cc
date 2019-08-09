@@ -50,7 +50,7 @@ static char *opt_unix_socket = 0;
 static char *shared_memory_base_name = 0;
 #endif
 static unsigned int opt_port;
-static bool tty_password = 0;
+static bool tty_password = false;
 static int opt_silent = 0;
 
 static MYSQL *mysql = 0;
@@ -1028,22 +1028,22 @@ static bool thread_query(const char *query) {
   MYSQL *l_mysql;
   bool error;
 
-  error = 0;
+  error = false;
   if (!opt_silent) fprintf(stdout, "\n in thread_query(%s)", query);
   if (!(l_mysql = mysql_client_init(NULL))) {
     myerror("mysql_client_init() failed");
-    return 1;
+    return true;
   }
   if (!(mysql_real_connect(l_mysql, opt_host, opt_user, opt_password,
                            current_db, opt_port, opt_unix_socket, 0))) {
     myerror("connection failed");
-    error = 1;
+    error = true;
     goto end;
   }
-  l_mysql->reconnect = 1;
+  l_mysql->reconnect = true;
   if (mysql_query(l_mysql, query)) {
     fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
-    error = 1;
+    error = true;
     goto end;
   }
   mysql_commit(l_mysql);
@@ -1139,7 +1139,7 @@ static bool get_one_option(int optid,
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 's':
       if (argument == disabled_my_option)
@@ -1164,7 +1164,7 @@ static bool get_one_option(int optid,
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 
 static void get_options(int *argc, char ***argv) {
@@ -1239,7 +1239,7 @@ int main(int argc, char **argv) {
   if (mysql_server_init(0, NULL, NULL)) DIE("Can't initialize MySQL server");
 
   /* connect to server with no flags, default protocol, auto reconnect true */
-  mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
+  mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT, true);
 
   total_time = 0;
   for (iter_count = 1; iter_count <= opt_count; iter_count++) {

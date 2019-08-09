@@ -80,7 +80,7 @@ bool mi_dynmap_file(MI_INFO *info, my_off_t size) {
       DBUG_PRINT("warning", ("File is too large for mmap"));
     else
       DBUG_PRINT("warning", ("Do not mmap zero-length"));
-    return 1;
+    return true;
   }
   /*
     I wonder if it is good to use MAP_NORESERVE. From the Linux man page:
@@ -96,7 +96,7 @@ bool mi_dynmap_file(MI_INFO *info, my_off_t size) {
       MAP_SHARED | MAP_NORESERVE, info->dfile, 0L);
   if (info->s->file_map == (uchar *)MAP_FAILED) {
     info->s->file_map = NULL;
-    return 1;
+    return true;
   }
 #if defined(HAVE_MADVISE)
   madvise((char *)info->s->file_map, size, MADV_RANDOM);
@@ -104,7 +104,7 @@ bool mi_dynmap_file(MI_INFO *info, my_off_t size) {
   info->s->mmaped_length = size;
   info->s->file_read = mi_mmap_pread;
   info->s->file_write = mi_mmap_pwrite;
-  return 0;
+  return false;
 }
 
 /*
@@ -361,7 +361,7 @@ static int _mi_find_writepos(MI_INFO *info, ulong reclength, /* record length */
     /* Deleted blocks exists;  Get last used block */
     *filepos = info->s->state.dellink;
     block_info.second_read = 0;
-    info->rec_cache.seek_not_done = 1;
+    info->rec_cache.seek_not_done = true;
     if (!(_mi_get_block_info(&block_info, info->dfile, info->s->state.dellink) &
           BLOCK_DELETED)) {
       DBUG_PRINT("error", ("Delete link crashed"));
@@ -411,20 +411,20 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info) {
     /* Unlink block from the previous block */
     if (!(_mi_get_block_info(&tmp, info->dfile, block_info->prev_filepos) &
           BLOCK_DELETED))
-      return 1; /* Something is wrong */
+      return true; /* Something is wrong */
     mi_sizestore(tmp.header + 4, block_info->next_filepos);
     if (info->s->file_write(info, tmp.header + 4, 8,
                             block_info->prev_filepos + 4, MYF(MY_NABP)))
-      return 1;
+      return true;
     /* Unlink block from next block */
     if (block_info->next_filepos != HA_OFFSET_ERROR) {
       if (!(_mi_get_block_info(&tmp, info->dfile, block_info->next_filepos) &
             BLOCK_DELETED))
-        return 1; /* Something is wrong */
+        return true; /* Something is wrong */
       mi_sizestore(tmp.header + 12, block_info->prev_filepos);
       if (info->s->file_write(info, tmp.header + 12, 8,
                               block_info->next_filepos + 12, MYF(MY_NABP)))
-        return 1;
+        return true;
     }
   }
   /* We now have one less deleted block */
@@ -439,7 +439,7 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info) {
   */
   if (info->nextpos == block_info->filepos)
     info->nextpos += block_info->block_len;
-  return 0;
+  return false;
 }
 
 /*
@@ -505,12 +505,12 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
     }
     /* Check if next block is a delete block */
     del_block.second_read = 0;
-    remove_next_block = 0;
+    remove_next_block = false;
     if (_mi_get_block_info(&del_block, info->dfile, filepos + length) &
             BLOCK_DELETED &&
         del_block.block_len + length < MI_DYN_MAX_BLOCK_LENGTH) {
       /* We can't remove this yet as this block may be the head block */
-      remove_next_block = 1;
+      remove_next_block = true;
       length += del_block.block_len;
     }
 
@@ -670,7 +670,7 @@ int _mi_write_part_record(MI_INFO *info,
                           length + extra_length + del_length))
       goto err;
   } else {
-    info->rec_cache.seek_not_done = 1;
+    info->rec_cache.seek_not_done = true;
     if (info->s->file_write(info, (uchar *)*record - head_length,
                             length + extra_length + del_length, filepos,
                             info->s->write_flag))
@@ -839,7 +839,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
       IO cache must be notified as it may still have cached
       data, which has to be flushed later.
     */
-    info->rec_cache.seek_not_done = 1;
+    info->rec_cache.seek_not_done = true;
     if (delete_dynamic_record(info, block_info.next_filepos, 1)) goto err;
   }
   return 0;
@@ -1030,10 +1030,10 @@ bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *rec_buff,
     DBUG_PRINT("error", ("wrong checksum for row"));
     goto err;
   }
-  return 0;
+  return false;
 
 err:
-  return 1;
+  return true;
 }
 
 /* Unpacks a record */
@@ -1246,7 +1246,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf) {
           info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
           flush_io_cache(&info->rec_cache))
         goto err;
-      info->rec_cache.seek_not_done = 1;
+      info->rec_cache.seek_not_done = true;
       if ((b_type = _mi_get_block_info(&block_info, file, filepos)) &
           (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
            BLOCK_FATAL_ERROR)) {
@@ -1359,7 +1359,7 @@ int _mi_cmp_dynamic_record(MI_INFO *info, const uchar *record) {
     info->update &= ~(HA_STATE_WRITE_AT_END | HA_STATE_EXTEND_BLOCK);
     if (flush_io_cache(&info->rec_cache)) return -1;
   }
-  info->rec_cache.seek_not_done = 1;
+  info->rec_cache.seek_not_done = true;
 
   /* If nobody have touched the database we don't have to test rec */
 
@@ -1506,8 +1506,9 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf, my_off_t filepos,
     if (filepos >= info->state->data_file_length) {
       if (!info_read) { /* Check if changed */
         info_read = 1;
-        info->rec_cache.seek_not_done = 1;
-        if (mi_state_info_read_dsk(share->kfile, &share->state, 1)) goto panic;
+        info->rec_cache.seek_not_done = true;
+        if (mi_state_info_read_dsk(share->kfile, &share->state, true))
+          goto panic;
       }
       if (filepos >= info->state->data_file_length) {
         set_my_errno(HA_ERR_END_OF_FILE);
@@ -1527,7 +1528,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf, my_off_t filepos,
           info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
           flush_io_cache(&info->rec_cache))
         return my_errno();
-      info->rec_cache.seek_not_done = 1;
+      info->rec_cache.seek_not_done = true;
       b_type = _mi_get_block_info(&block_info, info->dfile, filepos);
     }
 
@@ -1610,7 +1611,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf, my_off_t filepos,
     */
     if (block_of_record++ == 0) {
       info->nextpos = block_info.filepos + block_info.block_len;
-      skip_deleted_blocks = 0;
+      skip_deleted_blocks = false;
     }
     left_len -= block_info.data_len;
     to += block_info.data_len;

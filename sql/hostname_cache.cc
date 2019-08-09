@@ -200,7 +200,7 @@ bool hostname_cache_init(uint size) {
                    MY_MUTEX_INIT_FAST);
   hostname_cache_mutex_inited = true;
 
-  return 0;
+  return false;
 }
 
 void hostname_cache_free() {

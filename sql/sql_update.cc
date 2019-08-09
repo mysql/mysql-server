@@ -126,10 +126,10 @@ bool Sql_cmd_update::precheck(THD *thd) {
       if (tr->is_derived() || tr->uses_materialization())
         tr->grant.privilege = SELECT_ACL;
       else if ((check_access(thd, UPDATE_ACL, tr->db, &tr->grant.privilege,
-                             &tr->grant.m_internal, 0, 1) ||
+                             &tr->grant.m_internal, false, true) ||
                 check_grant(thd, UPDATE_ACL, tr, false, 1, true)) &&
                (check_access(thd, SELECT_ACL, tr->db, &tr->grant.privilege,
-                             &tr->grant.m_internal, 0, 0) ||
+                             &tr->grant.m_internal, false, false) ||
                 check_grant(thd, SELECT_ACL, tr, false, 1, false)))
         return true;
     }
@@ -729,7 +729,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         iterator.reset();
 
         // Change reader to use tempfile
-        if (reinit_io_cache(tempfile, READ_CACHE, 0L, 0, 0))
+        if (reinit_io_cache(tempfile, READ_CACHE, 0L, false, false))
           error = 1; /* purecov: inspected */
 
         if (error >= 0) {
@@ -1533,7 +1533,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (tr->updating) {
-      TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, 0);
+      TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, false);
       if (duplicate != NULL) {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
         return true;
@@ -1678,7 +1678,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
       update_list.link_in_list(dup, &dup->next_local);
       tr->shared = dup->shared = update_table_count++;
-      table->no_keyread = 1;
+      table->no_keyread = true;
       table->covering_keys.clear_all();
       table->pos_in_table_list = dup;
       if (table->triggers &&
@@ -1813,7 +1813,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
                                TABLE_LIST *all_tables) {
   TABLE *table = join_tab->table();
-  if (unique_table(table_ref, all_tables, 0)) return 0;
+  if (unique_table(table_ref, all_tables, false)) return false;
   switch (join_tab->type()) {
     case JT_SYSTEM:
     case JT_CONST:
@@ -2020,12 +2020,12 @@ bool Query_result_update::optimize() {
 
       Field_string *field = new (thd->mem_root) Field_string(
           tbl->file->ref_length, false, tbl->alias, &my_charset_bin);
-      if (!field) return 1;
+      if (!field) return true;
       field->init(tbl);
       Item_field *ifield = new (thd->mem_root) Item_field(field);
-      if (!ifield) return 1;
-      ifield->maybe_null = 0;
-      if (temp_fields.push_back(ifield)) return 1;
+      if (!ifield) return true;
+      ifield->maybe_null = false;
+      if (temp_fields.push_back(ifield)) return true;
     } while ((tbl = tbl_it++));
 
     temp_fields.concat(fields_for_table[cnt]);
@@ -2040,9 +2040,9 @@ bool Query_result_update::optimize() {
     tmp_param->group_parts = 1;
     tmp_param->group_length = table->file->ref_length;
     tmp_tables[cnt] =
-        create_tmp_table(thd, tmp_param, temp_fields, &group, 0, 0,
+        create_tmp_table(thd, tmp_param, temp_fields, &group, false, false,
                          TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
-    if (!tmp_tables[cnt]) return 1;
+    if (!tmp_tables[cnt]) return true;
 
     /*
       Pass a table triggers pointer (Table_trigger_dispatcher *) from
@@ -2053,13 +2053,13 @@ bool Query_result_update::optimize() {
     */
     tmp_tables[cnt]->triggers = table->triggers;
   }
-  return 0;
+  return false;
 }
 
 void Query_result_update::cleanup(THD *thd) {
   TABLE_LIST *table;
   for (table = update_tables; table; table = table->next_local) {
-    table->table->no_cache = 0;
+    table->table->no_cache = false;
   }
 
   if (tmp_tables) {
@@ -2345,7 +2345,7 @@ bool Query_result_update::do_updates(THD *thd) {
     if (table == table_to_update) continue;  // Already updated
     org_updated = updated_rows;
     tmp_table = tmp_tables[cur_table->shared];
-    if ((local_error = table->file->ha_rnd_init(0))) {
+    if ((local_error = table->file->ha_rnd_init(false))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
 
@@ -2355,7 +2355,7 @@ bool Query_result_update::do_updates(THD *thd) {
 
     check_opt_it.rewind();
     while (TABLE *tbl = check_opt_it++) {
-      if (tbl->file->ha_rnd_init(1))
+      if (tbl->file->ha_rnd_init(true))
         // No known handler error code present, print_error makes no sense
         goto err;
     }
@@ -2369,11 +2369,11 @@ bool Query_result_update::do_updates(THD *thd) {
     Copy_field *copy_field_ptr = copy_field, *copy_field_end;
     for (; *field; field++) {
       Item_field *item = (Item_field *)field_it++;
-      (copy_field_ptr++)->set(item->field, *field, 0);
+      (copy_field_ptr++)->set(item->field, *field, false);
     }
     copy_field_end = copy_field_ptr;
 
-    if ((local_error = tmp_table->file->ha_rnd_init(1))) {
+    if ((local_error = tmp_table->file->ha_rnd_init(true))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
 

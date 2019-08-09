@@ -68,7 +68,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
                             O_RDONLY, MYF(0))) < 0)
     goto err;
   errpos = 1;
-  if (init_io_cache(&file, fd, 4 * IO_SIZE, READ_CACHE, 0, 0,
+  if (init_io_cache(&file, fd, 4 * IO_SIZE, READ_CACHE, 0, false,
                     MYF(MY_WME | MY_NABP)))
     goto err;
   errpos = 2;
@@ -244,7 +244,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     goto err; /* purecov: inspected */
   errpos = 1;
 
-  if (init_io_cache(&file_cache, fd, 4 * IO_SIZE, READ_CACHE, 0, 0,
+  if (init_io_cache(&file_cache, fd, 4 * IO_SIZE, READ_CACHE, 0, false,
                     MYF(MY_WME | MY_NABP)))
     goto err; /* purecov: inspected */
   errpos = 2;

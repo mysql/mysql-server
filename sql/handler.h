@@ -4223,7 +4223,7 @@ class handler {
         ref_length(sizeof(my_off_t)),
         ft_handler(0),
         inited(NONE),
-        implicit_emptied(0),
+        implicit_emptied(false),
         pushed_cond(0),
         pushed_idx_cond(NULL),
         pushed_idx_cond_keyno(MAX_KEY),
@@ -4845,12 +4845,12 @@ class handler {
     @retval  0   Bulk update used by handler
     @retval  1   Bulk update not used, normal operation used
   */
-  virtual bool start_bulk_update() { return 1; }
+  virtual bool start_bulk_update() { return true; }
   /**
     @retval  0   Bulk delete used by handler
     @retval  1   Bulk delete not used, normal operation used
   */
-  virtual bool start_bulk_delete() { return 1; }
+  virtual bool start_bulk_delete() { return true; }
   /**
     After this call all outstanding updates must be performed. The number
     of duplicate key errors are reported in the duplicate key parameter.
@@ -5345,7 +5345,7 @@ class handler {
     return 1;
   }
 
-  virtual bool low_byte_first() const { return 1; }
+  virtual bool low_byte_first() const { return true; }
   virtual ha_checksum checksum() const { return 0; }
 
   /**
@@ -5355,7 +5355,7 @@ class handler {
     @retval false Not crashed
   */
 
-  virtual bool is_crashed() const { return 0; }
+  virtual bool is_crashed() const { return false; }
 
   /**
     Check if the table can be automatically repaired.
@@ -5364,7 +5364,7 @@ class handler {
     @retval false Cannot be auto repaired
   */
 
-  virtual bool auto_repair() const { return 0; }
+  virtual bool auto_repair() const { return false; }
 
   /**
     Get number of lock objects returned in store_lock.

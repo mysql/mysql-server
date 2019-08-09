@@ -132,7 +132,7 @@ class ha_tina : public handler {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }
   /* The next method will never be called */
-  virtual bool fast_key_read() { return 1; }
+  virtual bool fast_key_read() { return true; }
   /*
     TODO: return actual upper bound of number of records in the table.
     (e.g. save number of records seen on full table scan and/or use file size
@@ -146,7 +146,7 @@ class ha_tina : public handler {
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);
-  int rnd_init(bool scan = 1);
+  int rnd_init(bool scan = true);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   bool check_and_repair(THD *thd);
@@ -155,7 +155,7 @@ class ha_tina : public handler {
   int rnd_end();
   int repair(THD *thd, HA_CHECK_OPT *check_opt);
   /* This is required for SQL layer to know that we support autorepair */
-  bool auto_repair() const { return 1; }
+  bool auto_repair() const { return true; }
   void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);

@@ -300,7 +300,7 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if ((error = table->file->ha_index_init(0, 1))) {
+  if ((error = table->file->ha_index_init(0, true))) {
     table->file->print_error(error, MYF(0));
     DBUG_PRINT("info", ("ha_index_init error"));
     goto end;

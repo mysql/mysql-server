@@ -912,7 +912,7 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->ins_sel_stmt = false;
   prebuilt->session = NULL;
 
-  prebuilt->fts_doc_id_in_read_set = 0;
+  prebuilt->fts_doc_id_in_read_set = false;
   prebuilt->blob_heap = NULL;
 
   prebuilt->skip_serializable_dd_view = false;

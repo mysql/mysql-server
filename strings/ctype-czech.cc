@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,7 +337,7 @@ static int my_strnncollsp_czech(const CHARSET_INFO *cs, const uchar *s,
     ;
   for (; tlen && t[tlen - 1] == ' '; tlen--)
     ;
-  return my_strnncoll_czech(cs, s, slen, t, tlen, 0);
+  return my_strnncoll_czech(cs, s, slen, t, tlen, false);
 }
 
 /*
@@ -479,7 +479,7 @@ static bool my_like_range_czech(const CHARSET_INFO *cs, const char *ptr,
     *min_str++ = min_sort_char; /* Because of key compression */
     *max_str++ = max_sort_char;
   }
-  return 0;
+  return false;
 }
 }  // extern "C"
 
@@ -696,7 +696,7 @@ CHARSET_INFO my_charset_latin2_czech_ci = {
     0,                   /* min_sort_char */
     0,                   /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     4,                   /* levels_for_compare */
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler,

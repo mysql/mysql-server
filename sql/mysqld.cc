@@ -947,15 +947,15 @@ PSI_statement_info stmt_info_rpl;
 #endif
 
 /* the default log output is log tables */
-static bool lower_case_table_names_used = 0;
+static bool lower_case_table_names_used = false;
 #if !defined(_WIN32)
 static bool socket_listener_active = false;
 static int pipe_write_fd = -1;
-static bool opt_daemonize = 0;
+static bool opt_daemonize = false;
 #endif
 bool opt_debugging = false;
-static bool opt_external_locking = 0, opt_console = 0;
-static bool opt_short_log_format = 0;
+static bool opt_external_locking = false, opt_console = false;
+static bool opt_short_log_format = false;
 static char *mysqld_user, *mysqld_chroot;
 static const char *default_character_set_name;
 static const char *character_set_filesystem_name;
@@ -983,12 +983,12 @@ bool opt_always_activate_granted_roles = false;
 bool opt_bin_log;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
-bool opt_log_queries_not_using_indexes = 0;
+bool opt_log_queries_not_using_indexes = false;
 ulong opt_log_throttle_queries_not_using_indexes = 0;
 bool opt_log_slow_extra = false;
-bool opt_disable_networking = 0, opt_skip_show_db = 0;
-bool opt_skip_name_resolve = 0;
-bool opt_character_set_client_handshake = 1;
+bool opt_disable_networking = false, opt_skip_show_db = false;
+bool opt_skip_name_resolve = false;
+bool opt_character_set_client_handshake = true;
 bool server_id_supplied = false;
 static bool opt_endinfo;
 bool using_udf_functions;
@@ -1007,7 +1007,7 @@ char *opt_keyring_migration_socket = NULL;
 char *opt_keyring_migration_source = NULL;
 char *opt_keyring_migration_destination = NULL;
 ulong opt_keyring_migration_port = 0;
-bool migrate_connect_options = 0;
+bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
@@ -1024,15 +1024,15 @@ bool opt_no_monitor = false;
 
 bool opt_no_dd_upgrade = false;
 long opt_upgrade_mode = UPGRADE_AUTO;
-bool opt_initialize = 0;
-bool opt_skip_slave_start = 0;  ///< If set, slave is not autostarted
-bool opt_enable_named_pipe = 0;
+bool opt_initialize = false;
+bool opt_skip_slave_start = false;  ///< If set, slave is not autostarted
+bool opt_enable_named_pipe = false;
 bool opt_local_infile, opt_slave_compressed_protocol;
-bool opt_safe_user_create = 0;
+bool opt_safe_user_create = false;
 bool opt_show_slave_auth_info;
-bool opt_log_slave_updates = 0;
+bool opt_log_slave_updates = false;
 char *opt_slave_skip_errors;
-bool opt_slave_allow_batching = 0;
+bool opt_slave_allow_batching = false;
 
 /**
   compatibility option:
@@ -1051,19 +1051,19 @@ handlerton *innodb_hton;
 char *opt_disabled_storage_engines;
 uint opt_server_id_bits = 0;
 ulong opt_server_id_mask = 0;
-bool read_only = 0, opt_readonly = 0;
-bool super_read_only = 0, opt_super_readonly = 0;
-bool opt_require_secure_transport = 0;
+bool read_only = false, opt_readonly = false;
+bool super_read_only = false, opt_super_readonly = false;
+bool opt_require_secure_transport = false;
 bool relay_log_purge;
 bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
 const char *opt_secure_file_priv;
-bool opt_log_slow_admin_statements = 0;
-bool opt_log_slow_slave_statements = 0;
-bool lower_case_file_system = 0;
-bool opt_large_pages = 0;
-bool opt_super_large_pages = 0;
-bool opt_myisam_use_mmap = 0;
+bool opt_log_slow_admin_statements = false;
+bool opt_log_slow_slave_statements = false;
+bool lower_case_file_system = false;
+bool opt_large_pages = false;
+bool opt_super_large_pages = false;
+bool opt_myisam_use_mmap = false;
 std::atomic<bool> offline_mode;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
@@ -1080,17 +1080,17 @@ mysql_mutex_t LOCK_tls_ctx_options;
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-bool opt_old_style_user_limits = 0, trust_function_creators = 0;
-bool check_proxy_users = 0, mysql_native_password_proxy_users = 0,
-     sha256_password_proxy_users = 0;
+bool opt_old_style_user_limits = false, trust_function_creators = false;
+bool check_proxy_users = false, mysql_native_password_proxy_users = false,
+     sha256_password_proxy_users = false;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
   changed). False otherwise.
 */
-volatile bool mqh_used = 0;
-bool opt_noacl = 0;
-bool sp_automatic_privileges = 1;
+volatile bool mqh_used = false;
+bool opt_noacl = false;
+bool sp_automatic_privileges = true;
 
 int32_t opt_regexp_time_limit;
 int32_t opt_regexp_stack_limit;
@@ -1106,8 +1106,8 @@ bool clone_recovery_error = false;
 ulong binlog_row_event_max_size;
 ulong binlog_checksum_options;
 ulong binlog_row_metadata;
-bool opt_master_verify_checksum = 0;
-bool opt_slave_sql_verify_checksum = 1;
+bool opt_master_verify_checksum = false;
+bool opt_slave_sql_verify_checksum = true;
 const char *binlog_format_names[] = {"MIXED", "STATEMENT", "ROW", NullS};
 bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
@@ -1167,7 +1167,7 @@ ulong binlog_cache_use = 0, binlog_cache_disk_use = 0;
 ulong binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0;
 ulong max_connections, max_connect_errors;
 ulong rpl_stop_slave_timeout = LONG_TIMEOUT;
-bool log_bin_use_v1_row_events = 0;
+bool log_bin_use_v1_row_events = false;
 bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
@@ -4418,7 +4418,7 @@ int init_common_variables() {
     DBUG_PRINT("info",
                ("Large page set, large_page_size = %d", opt_large_page_size));
   } else {
-    opt_large_pages = 0;
+    opt_large_pages = false;
     /*
        Either not configured to use large pages or Linux haven't
        been compiled with large page support
@@ -4887,7 +4887,7 @@ static int generate_server_uuid() {
 
   lex_start(thd);
   func_uuid = new (thd->mem_root) Item_func_uuid();
-  func_uuid->fixed = 1;
+  func_uuid->fixed = true;
   func_uuid->val_str(&uuid);
 
   // Restore global variables used for salting
@@ -4921,7 +4921,7 @@ static int flush_auto_options(const char *fname) {
     return 1;
   }
 
-  if (init_io_cache(&io_cache, fd, IO_SIZE * 2, WRITE_CACHE, 0L, 0,
+  if (init_io_cache(&io_cache, fd, IO_SIZE * 2, WRITE_CACHE, 0L, false,
                     MYF(MY_WME))) {
     LogErr(ERROR_LEVEL, ER_AUTO_OPTIONS_FAILED, "a cache on ", fname,
            my_errno());
@@ -5873,14 +5873,14 @@ static int init_server_components() {
     if (mlockall(MCL_CURRENT)) {
       LogErr(WARNING_LEVEL, ER_FAILED_TO_LOCK_MEM,
              errno); /* purecov: inspected */
-      locked_in_memory = 0;
+      locked_in_memory = false;
     }
 #ifndef _WIN32
     if (!user_info.IsVoid()) set_user(mysqld_user, user_info);
 #endif
   } else
 #endif
-    locked_in_memory = 0;
+    locked_in_memory = false;
 
   /* Initialize the optimizer cost module */
   init_optimizer_cost_module(true);
@@ -6471,7 +6471,7 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
-    my_getopt_skip_unknown = 0;
+    my_getopt_skip_unknown = false;
     LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
     log_error_dest = "stderr";
     flush_error_log_messages();
@@ -6690,7 +6690,7 @@ int mysqld_main(int argc, char **argv)
       We need to eat any 'loose' arguments first before we conclude
       that there are unprocessed options.
     */
-    my_getopt_skip_unknown = 0;
+    my_getopt_skip_unknown = false;
 
     if ((ho_error = handle_options(&remaining_argc, &remaining_argv, no_opts,
                                    mysqld_get_one_option)))
@@ -6746,7 +6746,7 @@ int mysqld_main(int argc, char **argv)
     LogErr(WARNING_LEVEL, ER_PERSISTENT_PRIVILEGES_BOOTSTRAP);
   }
 
-  if (!opt_initialize) servers_init(0);
+  if (!opt_initialize) servers_init(false);
 
   if (!opt_noacl) {
     udf_read_functions_table();
@@ -6754,7 +6754,7 @@ int mysqld_main(int argc, char **argv)
 
   init_status_vars();
   /* If running with --initialize, do not start replication. */
-  if (opt_initialize) opt_skip_slave_start = 1;
+  if (opt_initialize) opt_skip_slave_start = true;
 
   check_binlog_cache_size(NULL);
   check_binlog_stmt_cache_size(NULL);
@@ -7073,7 +7073,7 @@ int mysqld_main(int argc, char **argv)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "signal_", ret);
 #endif  // _WIN32
 
-  clean_up(1);
+  clean_up(true);
   sysd::notify("STATUS=Server shutdown complete");
   mysqld_exit(signal_hand_thr_exit_code);
 }
@@ -7560,7 +7560,7 @@ static void adjust_related_options(ulong *requested_open_files) {
   /*
     In bootstrap, disable grant tables (about to be created)
   */
-  if (opt_initialize) opt_noacl = 1;
+  if (opt_initialize) opt_noacl = true;
 
   /* The order is critical here, because of dependencies. */
   adjust_open_files_limit(requested_open_files);
@@ -8862,22 +8862,22 @@ To see what values a running MySQL server is using, type\n\
 
 static int mysql_init_variables() {
   /* Things reset to zero */
-  opt_skip_slave_start = 0;
+  opt_skip_slave_start = false;
   mysql_home[0] = pidfile_name[0] = 0;
   myisam_test_invalid_symlink = test_if_data_home_dir;
   opt_general_log = opt_slow_log = false;
-  opt_disable_networking = opt_skip_show_db = 0;
-  opt_skip_name_resolve = 0;
+  opt_disable_networking = opt_skip_show_db = false;
+  opt_skip_name_resolve = false;
   opt_general_logname = opt_binlog_index_name = opt_slow_logname = NULL;
   opt_tc_log_file = "tc.log";  // no hostname in tc_log file name !
-  opt_myisam_log = 0;
-  mqh_used = 0;
+  opt_myisam_log = false;
+  mqh_used = false;
   cleanup_done = 0;
   server_id_supplied = false;
   test_flags = select_errors = ha_open_options = 0;
   atomic_slave_open_temp_tables = 0;
-  opt_endinfo = using_udf_functions = 0;
-  opt_using_transactions = 0;
+  opt_endinfo = using_udf_functions = false;
+  opt_using_transactions = false;
   set_connection_events_loop_aborted(false);
   set_mysqld_offline_mode(false);
   set_mysqld_partial_revokes(opt_partial_revokes);
@@ -8892,8 +8892,8 @@ static int mysql_init_variables() {
   mysqld_unix_port = opt_mysql_tmpdir = my_bind_addr_str = NullS;
   new (&mysql_tmpdir_list) MY_TMPDIR;
   memset(&global_status_var, 0, sizeof(global_status_var));
-  opt_large_pages = 0;
-  opt_super_large_pages = 0;
+  opt_large_pages = false;
+  opt_super_large_pages = false;
 #if defined(ENABLED_DEBUG_SYNC)
   opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -9116,7 +9116,7 @@ bool mysqld_get_one_option(int optid,
 #ifndef DBUG_OFF
       DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
-      opt_endinfo = 1; /* unireg: memory allocation */
+      opt_endinfo = true; /* unireg: memory allocation */
       break;
     case 'a':
       global_system_variables.sql_mode = MODE_ANSI;
@@ -9194,10 +9194,10 @@ bool mysqld_get_one_option(int optid,
       exit(MYSQLD_SUCCESS_EXIT);
     case 'T':
       test_flags = argument ? (uint)atoi(argument) : 0;
-      opt_endinfo = 1;
+      opt_endinfo = true;
       break;
     case (int)OPT_ISAM_LOG:
-      opt_myisam_log = 1;
+      opt_myisam_log = true;
       break;
     case (int)OPT_BIN_LOG:
       opt_bin_log = (argument != disabled_my_option);
@@ -9241,14 +9241,14 @@ bool mysqld_get_one_option(int optid,
     case (int)OPT_REPLICATE_REWRITE_DB: {
       char *key, *val;
       if (is_rpl_global_filter_setting(argument)) {
-        if (parse_replicate_rewrite_db(&key, &val, argument)) return 1;
+        if (parse_replicate_rewrite_db(&key, &val, argument)) return true;
         rpl_global_filter.add_db_rewrite(key, val);
         rpl_global_filter.rewrite_db_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS);
       } else {
         parse_filter_arg(&channel_name, &filter_val, argument);
         rpl_filter = rpl_channel_filters.get_channel_filter(channel_name);
-        if (parse_replicate_rewrite_db(&key, &val, filter_val)) return 1;
+        if (parse_replicate_rewrite_db(&key, &val, filter_val)) return true;
         rpl_filter->add_db_rewrite(key, val);
         rpl_filter->rewrite_db_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
@@ -9268,7 +9268,7 @@ bool mysqld_get_one_option(int optid,
       if (is_rpl_global_filter_setting(argument)) {
         if (rpl_global_filter.add_do_table_array(argument)) {
           LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
-          return 1;
+          return true;
         }
         rpl_global_filter.do_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS);
@@ -9277,7 +9277,7 @@ bool mysqld_get_one_option(int optid,
         rpl_filter = rpl_channel_filters.get_channel_filter(channel_name);
         if (rpl_filter->add_do_table_array(filter_val)) {
           LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
-          return 1;
+          return true;
         }
         rpl_filter->do_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
@@ -9288,7 +9288,7 @@ bool mysqld_get_one_option(int optid,
       if (is_rpl_global_filter_setting(argument)) {
         if (rpl_global_filter.add_wild_do_table(argument)) {
           LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED, argument);
-          return 1;
+          return true;
         }
         rpl_global_filter.wild_do_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS);
@@ -9297,7 +9297,7 @@ bool mysqld_get_one_option(int optid,
         rpl_filter = rpl_channel_filters.get_channel_filter(channel_name);
         if (rpl_filter->add_wild_do_table(filter_val)) {
           LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED, argument);
-          return 1;
+          return true;
         }
         rpl_filter->wild_do_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
@@ -9309,7 +9309,7 @@ bool mysqld_get_one_option(int optid,
         if (rpl_global_filter.add_wild_ignore_table(argument)) {
           LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED,
                  argument);
-          return 1;
+          return true;
         }
         rpl_global_filter.wild_ignore_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS);
@@ -9319,7 +9319,7 @@ bool mysqld_get_one_option(int optid,
         if (rpl_filter->add_wild_ignore_table(filter_val)) {
           LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED,
                  argument);
-          return 1;
+          return true;
         }
         rpl_filter->wild_ignore_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
@@ -9330,7 +9330,7 @@ bool mysqld_get_one_option(int optid,
       if (is_rpl_global_filter_setting(argument)) {
         if (rpl_global_filter.add_ignore_table_array(argument)) {
           LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
-          return 1;
+          return true;
         }
         rpl_global_filter.ignore_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS);
@@ -9339,7 +9339,7 @@ bool mysqld_get_one_option(int optid,
         rpl_filter = rpl_channel_filters.get_channel_filter(channel_name);
         if (rpl_filter->add_ignore_table_array(filter_val)) {
           LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
-          return 1;
+          return true;
         }
         rpl_filter->ignore_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
@@ -9355,8 +9355,8 @@ bool mysqld_get_one_option(int optid,
       delay_key_write_options = DELAY_KEY_WRITE_NONE;
       myisam_concurrent_insert = 0;
       myisam_recover_options = HA_RECOVER_OFF;
-      sp_automatic_privileges = 0;
-      my_enable_symlinks = 0;
+      sp_automatic_privileges = false;
+      my_enable_symlinks = false;
       ha_open_options &= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
       break;
     case (int)OPT_SKIP_HOST_CACHE:
@@ -9364,9 +9364,9 @@ bool mysqld_get_one_option(int optid,
       break;
     case (int)OPT_SKIP_RESOLVE:
       if (argument && argument[0] == '0')
-        opt_skip_name_resolve = 0;
+        opt_skip_name_resolve = false;
       else {
-        opt_skip_name_resolve = 1;
+        opt_skip_name_resolve = true;
         opt_specialflag |= SPECIAL_NO_RESOLVE;
       }
       break;
@@ -9385,7 +9385,7 @@ bool mysqld_get_one_option(int optid,
       server_id_supplied = (*argument != 0);
       break;
     case OPT_LOWER_CASE_TABLE_NAMES:
-      lower_case_table_names_used = 1;
+      lower_case_table_names_used = true;
       break;
 #if defined(ENABLED_DEBUG_SYNC)
     case OPT_DEBUG_SYNC_TIMEOUT:
@@ -9502,7 +9502,7 @@ bool mysqld_get_one_option(int optid,
     pfs_error:
       if (error) {
         LogErr(WARNING_LEVEL, ER_INVALID_INSTRUMENT, orig_argument);
-        return 0;
+        return false;
       }
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
       break;
@@ -9535,13 +9535,13 @@ bool mysqld_get_one_option(int optid,
         if (*start) start[1] = 0;
       } else
         opt_keyring_migration_password = get_tty_password(NullS);
-      migrate_connect_options = 1;
+      migrate_connect_options = true;
       break;
     case OPT_KEYRING_MIGRATION_USER:
     case OPT_KEYRING_MIGRATION_HOST:
     case OPT_KEYRING_MIGRATION_SOCKET:
     case OPT_KEYRING_MIGRATION_PORT:
-      migrate_connect_options = 1;
+      migrate_connect_options = true;
       break;
     case OPT_LOG_SLAVE_UPDATES:
       log_slave_updates_supplied = true;
@@ -9578,7 +9578,7 @@ bool mysqld_get_one_option(int optid,
                                           "--slave-rows-search-algorithms");
       break;
   }
-  return 0;
+  return false;
 }
 
 /** Handle arguments for multiple key caches. */
@@ -10226,7 +10226,7 @@ static int test_if_case_insensitive(const char *dir_name) {
 */
 static bool create_pid_file() {
   File file;
-  bool check_parent_path = 1, is_path_accessible = 1;
+  bool check_parent_path = true, is_path_accessible = true;
   char pid_filepath[FN_REFLEN], *pos = NULL;
   /* Copy pid file name to get pid file path */
   strcpy(pid_filepath, pidfile_name);
@@ -10239,7 +10239,7 @@ static bool create_pid_file() {
     *pos = '\0'; /* Trim the inner-most dir */
     switch (is_file_or_dir_world_writable(pid_filepath)) {
       case -2:
-        is_path_accessible = 0;
+        is_path_accessible = false;
         break;
       case -1:
         LogErr(ERROR_LEVEL, ER_CANT_CHECK_PID_PATH, strerror(errno));
@@ -10247,7 +10247,7 @@ static bool create_pid_file() {
       case 1:
         LogErr(WARNING_LEVEL, ER_PID_FILE_PRIV_DIRECTORY_INSECURE,
                pid_filepath);
-        check_parent_path = 0;
+        check_parent_path = false;
         break;
       case 0:
         continue; /* Keep checking the parent dir */

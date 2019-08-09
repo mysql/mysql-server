@@ -747,14 +747,14 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   } else if (part_of_key_not_extended) {
     field->part_of_prefixkey.set_bit(key_n);
   }
-  if ((handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) &&
+  if ((handler_file->index_flags(key_n, key_part_n, false) & HA_KEYREAD_ONLY) &&
       field->type() != MYSQL_TYPE_GEOMETRY) {
     // Set the key as 'keys_for_keyread' even if it is prefix key.
     share->keys_for_keyread.set_bit(key_n);
   }
 
   if (full_length_key_part &&
-      (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER))
+      (handler_file->index_flags(key_n, key_part_n, true) & HA_READ_ORDER))
     field->part_of_sortkey.set_bit(key_n);
 
   if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
@@ -1273,7 +1273,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                         ER_THD(thd, ER_TABLE_INCOMPATIBLE_DECIMAL_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str, share->table_name.str);
-    share->crashed = 1;  // Marker for CHECK TABLE
+    share->crashed = true;  // Marker for CHECK TABLE
   }
 
   if (field_type == MYSQL_TYPE_YEAR && field_length != 4) {
@@ -1284,7 +1284,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                         ER_THD(thd, ER_TABLE_INCOMPATIBLE_YEAR_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str, share->table_name.str);
-    share->crashed = 1;
+    share->crashed = true;
   }
 
   FRM_context::utype unireg = (FRM_context::utype)MTYP_TYPENR(unireg_type);
@@ -1432,8 +1432,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     frm_context->frm_version = FRM_VER_TRUE_VARCHAR;
 
   if (*(head + 61) &&
-      !(frm_context->default_part_db_type =
-            ha_checktype(thd, (enum legacy_db_type)(uint) * (head + 61), 1, 0)))
+      !(frm_context->default_part_db_type = ha_checktype(
+            thd, (enum legacy_db_type)(uint) * (head + 61), true, false)))
     goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
   legacy_db_type = (enum legacy_db_type)(uint) * (head + 3);
@@ -1445,18 +1445,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   if (legacy_db_type > DB_TYPE_UNKNOWN &&
       legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
     share->db_plugin =
-        ha_lock_engine(NULL, ha_checktype(thd, legacy_db_type, 0, 0));
+        ha_lock_engine(NULL, ha_checktype(thd, legacy_db_type, false, false));
   share->db_create_options = db_create_options = uint2korr(head + 30);
   share->db_options_in_use = share->db_create_options;
   share->mysql_version = uint4korr(head + 51);
-  frm_context->null_field_first = 0;
+  frm_context->null_field_first = false;
   if (!head[32])  // New frm file in 3.23
   {
     share->avg_row_length = uint4korr(head + 34);
     share->row_type = (row_type)head[40];
     share->table_charset =
         get_charset((((uint)head[41]) << 8) + (uint)head[38], MYF(0));
-    frm_context->null_field_first = 1;
+    frm_context->null_field_first = true;
     share->stats_sample_pages = uint2korr(head + 42);
     share->stats_auto_recalc = static_cast<enum_stats_auto_recalc>(head[44]);
   }
@@ -1599,7 +1599,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
   share->reclength = uint2korr((head + 16));
   share->stored_rec_length = share->reclength;
-  if (*(head + 26) == 1) share->system = 1; /* one-record-database */
+  if (*(head + 26) == 1) share->system = true; /* one-record-database */
 
   record_offset = (ulong)(uint2korr(head + 6) + ((uint2korr(head + 14) == 0xffff
                                                       ? uint4korr(head + 47)
@@ -2116,7 +2116,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str, share->table_name.str);
-            share->crashed = 1;  // Marker for CHECK TABLE
+            share->crashed = true;  // Marker for CHECK TABLE
             continue;
           }
           key_part->key_part_flag |= HA_PART_KEY_SEG;
@@ -2959,7 +2959,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             We are using only a prefix of the column as a key:
             Create a new field for the key part that matches the index
           */
-          field = key_part->field = field->new_field(root, outparam, 0);
+          field = key_part->field = field->new_field(root, outparam, false);
           field->set_field_length(key_part->length);
         }
       }
@@ -3514,11 +3514,11 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res) {
   field->val_str(&str);
   if (!(length = str.length())) {
     res->length(0);
-    return 1;
+    return true;
   }
   if (!(to = strmake_root(mem, str.ptr(), length))) length = 0;  // Safety fix
   res->set(to, length, field->charset());
-  return 0;
+  return false;
 }
 
 /**
@@ -3679,7 +3679,7 @@ bool check_column_name(const char *name) {
         continue;
       }
     }
-    if (*name == NAMES_SEP_CHAR) return 1;
+    if (*name == NAMES_SEP_CHAR) return true;
     name++;
     name_length++;
   }
@@ -4079,14 +4079,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
 
   const_table = false;
   nullable = false;
-  force_index = 0;
-  force_index_order = 0;
-  force_index_group = 0;
+  force_index = false;
+  force_index_order = false;
+  force_index_group = false;
   set_not_started();
   insert_values = 0;
-  fulltext_searched = 0;
+  fulltext_searched = false;
   file->ft_handler = 0;
-  reginfo.impossible_range = 0;
+  reginfo.impossible_range = false;
 
   /* Catch wrong handling of the autoinc_field_has_explicit_non_null_value. */
   DBUG_ASSERT(!autoinc_field_has_explicit_non_null_value);
@@ -4158,7 +4158,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   in_use = thd;
 
   share->blob_field = blob_fld;
-  share->db_low_byte_first = 1;  // True for HEAP and MyISAM
+  share->db_low_byte_first = true;  // True for HEAP and MyISAM
   share->increment_ref_count();
   share->primary_key = MAX_KEY;
   share->visible_indexes.init();
@@ -4171,7 +4171,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   alias = alias_arg;
   reginfo.lock_type = TL_WRITE; /* Will be updated */
   db_stat = HA_OPEN_KEYFILE + HA_OPEN_RNDFILE;
-  copy_blobs = 1;
+  copy_blobs = true;
   quick_keys.init();
   possible_quick_keys.init();
   covering_keys.init();
@@ -4421,7 +4421,7 @@ void TABLE_LIST::reset() {
   table->set_not_started();
 
   table->force_index = force_index;
-  table->force_index_order = table->force_index_group = 0;
+  table->force_index_order = table->force_index_group = false;
   table->covering_keys = table->s->keys_for_keyread;
   table->merge_keys.clear_all();
   table->quick_keys.clear_all();
@@ -6051,10 +6051,10 @@ void TABLE::drop_unused_tmp_keys(bool modify_share) {
 void TABLE::set_keyread(bool flag) {
   DBUG_ASSERT(file);
   if (flag && !key_read) {
-    key_read = 1;
+    key_read = true;
     if (is_created()) file->ha_extra(HA_EXTRA_KEYREAD);
   } else if (!flag && key_read) {
-    key_read = 0;
+    key_read = false;
     if (is_created()) file->ha_extra(HA_EXTRA_NO_KEYREAD);
   }
 }
@@ -6372,10 +6372,10 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
       */
       if (tbl->s->keynames.type_names == 0 ||
           (pos = find_type(&tbl->s->keynames, hint->key_name.str,
-                           hint->key_name.length, 1)) <= 0 ||
+                           hint->key_name.length, true)) <= 0 ||
           !tbl->s->key_info[pos - 1].is_visible) {
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
-        return 1;
+        return true;
       }
 
       pos--;
@@ -6398,7 +6398,7 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
          !index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group)) {
       my_error(ER_WRONG_USAGE, MYF(0), index_hint_type_name[INDEX_HINT_USE],
                index_hint_type_name[INDEX_HINT_FORCE]);
-      return 1;
+      return true;
     }
 
     /* process FORCE INDEX as USE INDEX with a flag */
@@ -6439,7 +6439,7 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
 
   /* make sure covering_keys don't include indexes disabled with a hint */
   tbl->covering_keys.intersect(tbl->keys_in_use_for_query);
-  return 0;
+  return false;
 }
 
 /**
@@ -7078,7 +7078,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
         (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
       }
 
-      error = vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      error = vfield->gcol_info->expr_item->save_in_field(vfield, false);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error()) {
         /*
@@ -7153,7 +7153,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
         }
 
         /* Generate the actual value of the generated fields */
-        error = vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+        error = vfield->gcol_info->expr_item->save_in_field(vfield, false);
 
         DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
         if (error && !table->in_use->is_error()) error = 0;
@@ -7284,7 +7284,8 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   ret->alter_status.password_history_length = 0;
   ret->alter_status.password_reuse_interval = 0;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
-                               USERNAME_CHAR_LENGTH, system_charset_info, 0) ||
+                               USERNAME_CHAR_LENGTH, system_charset_info,
+                               false) ||
       (host_arg && check_host_name(ret->host)))
     return NULL;
   if (host_arg) {
@@ -7757,7 +7758,7 @@ static bool read_frm_file(THD *thd, TABLE_SHARE *share,
   } else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0) {
     if (memcmp(head + 5, "VIEW", 4) == 0) {
       // View found
-      share->is_view = 1;
+      share->is_view = true;
 
       /*
         Create view file parser and hold it in
@@ -7837,7 +7838,7 @@ bool TABLE::empty_result_table() {
       file->ha_delete_all_rows())
     return true;
   free_io_cache(this);
-  filesort_free_buffers(this, 0);
+  filesort_free_buffers(this, false);
   return false;
 }
 

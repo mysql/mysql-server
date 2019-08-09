@@ -1277,7 +1277,7 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
                             : m_key_name.str ? m_key_name : NULL_STR);
 
   if (key_name.str && check_string_char_length(key_name, "", NAME_CHAR_LEN,
-                                               system_charset_info, 1)) {
+                                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), key_name.str);
     return true;
   }
@@ -1756,7 +1756,7 @@ Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd) {
 
     TABLE_LIST *table_list = select_lex->table_list.first;
     table_list->schema_select_lex = schema_select_lex;
-    table_list->schema_table_reformed = 1;
+    table_list->schema_table_reformed = true;
   } else  // Use implementation of I_S as system views.
   {
     SELECT_LEX *sel = nullptr;
@@ -1977,7 +1977,7 @@ static bool init_alter_table_stmt(Table_ddl_parse_context *pc,
   pc->alter_info->new_db_name =
       LEX_CSTRING{lex->select_lex->table_list.first->db,
                   lex->select_lex->table_list.first->db_length};
-  lex->no_write_to_binlog = 0;
+  lex->no_write_to_binlog = false;
   pc->create_info->storage_media = HA_SM_DEFAULT;
 
   pc->alter_info->requested_algorithm = algo;

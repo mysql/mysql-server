@@ -44,9 +44,9 @@ bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
   if (_mi_search(info, info->s->keyinfo + def->key, key_buff,
                  MI_UNIQUE_HASH_LENGTH, SEARCH_FIND,
                  info->s->state.key_root[def->key])) {
-    info->page_changed = 1; /* Can't optimize read next */
+    info->page_changed = true; /* Can't optimize read next */
     info->lastpos = lastpos;
-    return 0; /* No matching rows */
+    return false; /* No matching rows */
   }
 
   for (;;) {
@@ -55,18 +55,18 @@ bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
       set_my_errno(HA_ERR_FOUND_DUPP_UNIQUE);
       info->errkey = (int)def->key;
       info->dupp_key_pos = info->lastpos;
-      info->page_changed = 1; /* Can't optimize read next */
+      info->page_changed = true; /* Can't optimize read next */
       info->lastpos = lastpos;
       DBUG_PRINT("info", ("Found duplicate"));
-      return 1; /* Found identical  */
+      return true; /* Found identical  */
     }
     if (_mi_search_next(info, info->s->keyinfo + def->key, info->lastkey,
                         MI_UNIQUE_HASH_LENGTH, SEARCH_BIGGER,
                         info->s->state.key_root[def->key]) ||
         memcmp(info->lastkey, key_buff, MI_UNIQUE_HASH_LENGTH)) {
-      info->page_changed = 1; /* Can't optimize read next */
+      info->page_changed = true; /* Can't optimize read next */
       info->lastpos = lastpos;
-      return 0; /* end of tree */
+      return false; /* end of tree */
     }
   }
 }
@@ -192,7 +192,8 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
     }
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2) {
-      if (ha_compare_text(keyseg->charset, pos_a, a_length, pos_b, b_length, 0))
+      if (ha_compare_text(keyseg->charset, pos_a, a_length, pos_b, b_length,
+                          false))
         return 1;
     } else {
       if (a_length != b_length) return 1;

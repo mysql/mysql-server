@@ -1267,7 +1267,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     ulong added_options = SELECT_NO_UNLOCK;
 
     // Is inserted table used somewhere in other parts of query
-    if (unique_table(lex->insert_table_leaf, table_list->next_global, 0)) {
+    if (unique_table(lex->insert_table_leaf, table_list->next_global, false)) {
       // Using same table for INSERT and SELECT, buffer the selection
       added_options |= OPTION_BUFFER_RESULT;
     }
@@ -2268,7 +2268,7 @@ void Query_result_insert::cleanup(THD *thd) {
 
 bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
   DBUG_TRACE;
-  bool error = 0;
+  bool error = false;
 
   Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
   thd->check_for_truncated_fields = CHECK_FIELD_WARN;
@@ -2397,7 +2397,7 @@ bool Query_result_insert::send_eof(THD *thd) {
                           thd->query().length, stmt_binlog_is_trans(), false,
                           false, errcode)) {
       table->file->ha_release_auto_increment();
-      return 1;
+      return true;
     }
   }
   table->file->ha_release_auto_increment();
@@ -2407,7 +2407,7 @@ bool Query_result_insert::send_eof(THD *thd) {
     if (table->file->is_fatal_error(my_errno())) error_flags |= ME_FATALERROR;
 
     table->file->print_error(my_errno(), error_flags);
-    return 1;
+    return true;
   }
 
   /*
@@ -3125,7 +3125,7 @@ void Query_result_create::drop_open_table(THD *thd) {
       handler::reset() have not yet been initialized.
     */
     table->file->ha_reset();
-    close_temporary_table(thd, table, 1, 1);
+    close_temporary_table(thd, table, true, true);
   } else {
     DBUG_ASSERT(table == thd->open_tables);
 

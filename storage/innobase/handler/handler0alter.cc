@@ -7850,7 +7850,7 @@ class Altered_partitions {
     m_ins_nodes[new_part_id] = prebuilt->ins_node;
     m_trx_ids[new_part_id] = prebuilt->trx_id;
     if (!prebuilt->sql_stat_start) {
-      m_sql_stat_start.set(new_part_id, 0);
+      m_sql_stat_start.set(new_part_id, false);
     }
   }
 

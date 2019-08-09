@@ -94,7 +94,7 @@ const char *empty_string = ""; /* For empty states */
 
 const char *default_language = "eng";
 int er_offset = 1000;
-bool info_flag = 0;
+bool info_flag = false;
 
 bool isObsolete(const char *error_name) {
   return is_prefix(error_name, OBSOLETE_ER_PREFIX);
@@ -365,7 +365,7 @@ static int create_header_files(struct errors *error_head) {
     }
 
     /*generating er_name file */
-    er_msg = find_message(tmp_error, default_language, 0);
+    er_msg = find_message(tmp_error, default_language, false);
     er_text = (er_msg ? er_msg->text : "");
     fprintf(er_namef, "{ \"%s\", %d, \"", tmp_error->er_name,
             tmp_error->d_code);
@@ -1134,7 +1134,7 @@ static bool get_one_option(int optid,
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
   }
-  return 0;
+  return false;
 }
 
 static void usage(void) {

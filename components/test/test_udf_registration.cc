@@ -102,7 +102,7 @@ const char *test_init = "test_init", *test_udf = "test_udf",
 
 static bool dynamic_udf_init(UDF_INIT *initid, UDF_ARGS *, char *) {
   initid->ptr = const_cast<char *>(test_init);
-  return 0;
+  return false;
 }
 
 static void dynamic_udf_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused))) {

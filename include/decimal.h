@@ -114,7 +114,7 @@ static inline void decimal_make_zero(decimal_t *dec) {
   dec->buf[0] = 0;
   dec->intg = 1;
   dec->frac = 0;
-  dec->sign = 0;
+  dec->sign = false;
 }
 
 /**

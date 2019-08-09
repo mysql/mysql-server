@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6563,7 +6563,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci = {
     0,                   /* min_sort_char */
     0xF7FE,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
@@ -6598,7 +6598,7 @@ CHARSET_INFO my_charset_gb2312_bin = {
     0,                   /* min_sort_char */
     0xF7FE,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_handler,
     &my_collation_mb_bin_handler,

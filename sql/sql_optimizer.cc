@@ -1227,7 +1227,7 @@ bool JOIN::optimize_distinct_group_order() {
       If we are using ORDER BY NULL or ORDER BY const_expression,
       return result in any order (even if we are using a GROUP BY)
     */
-    if (!order && org_order) skip_sort_order = 1;
+    if (!order && org_order) skip_sort_order = true;
   }
   /*
      Check if we can optimize away GROUP BY/DISTINCT.
@@ -1265,7 +1265,7 @@ bool JOIN::optimize_distinct_group_order() {
     if (select_distinct &&
         list_contains_unique_index(tab, find_field_in_item_list,
                                    (void *)&fields_list)) {
-      select_distinct = 0;
+      select_distinct = false;
       trace_opt.add("distinct_is_on_unique", true)
           .add("removed_distinct", true);
     }
@@ -1318,7 +1318,7 @@ bool JOIN::optimize_distinct_group_order() {
       if ((skip_group && all_order_fields_used) ||
           m_select_limit == HA_POS_ERROR || (order && !skip_sort_order)) {
         /*  Change DISTINCT to GROUP BY */
-        select_distinct = 0;
+        select_distinct = false;
         /*
           group_list was created with ORDER BY clause as prefix and
           replaces it. So it must respect ordering. If there is no
@@ -1342,7 +1342,7 @@ bool JOIN::optimize_distinct_group_order() {
     } else if (thd->is_fatal_error())  // End of memory
       return true;
   }
-  simple_group = 0;
+  simple_group = false;
 
   ORDER *old_group_list = group_list;
   group_list = ORDER_with_src(
@@ -1355,13 +1355,13 @@ bool JOIN::optimize_distinct_group_order() {
     DBUG_PRINT("error", ("Error from remove_const"));
     return true;
   }
-  if (old_group_list && !group_list) select_distinct = 0;
+  if (old_group_list && !group_list) select_distinct = false;
 
   if (!group_list && grouped) {
     order = 0;  // The output has only one row
-    simple_order = 1;
-    select_distinct = 0;  // No need in distinct for 1 row
-    group_optimized_away = 1;
+    simple_order = true;
+    select_distinct = false;  // No need in distinct for 1 row
+    group_optimized_away = true;
   }
 
   calc_group_buffer(this, group_list);
@@ -1605,16 +1605,16 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
     key_parts = used_key_parts_pk + used_key_parts_secondary;
 
     if (reverse == -1 &&
-        (!(table->file->index_flags(idx, used_key_parts_secondary - 1, 1) &
+        (!(table->file->index_flags(idx, used_key_parts_secondary - 1, true) &
            HA_READ_PREV) ||
          !(table->file->index_flags(table->s->primary_key,
-                                    used_key_parts_pk - 1, 1) &
+                                    used_key_parts_pk - 1, true) &
            HA_READ_PREV)))
       reverse = 0;  // Index can't be used
   } else {
     key_parts = (uint)(key_part - table->key_info[idx].key_part);
     if (reverse == -1 &&
-        !(table->file->index_flags(idx, key_parts - 1, 1) & HA_READ_PREV))
+        !(table->file->index_flags(idx, key_parts - 1, true) & HA_READ_PREV))
       reverse = 0;  // Index can't be used
   }
 ok:
@@ -1711,8 +1711,8 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys) {
 inline bool is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
                       KEY_PART_INFO *ref_key_part_end) {
   for (; ref_key_part < ref_key_part_end; key_part++, ref_key_part++)
-    if (!key_part->field->eq(ref_key_part->field)) return 0;
-  return 1;
+    if (!key_part->field->eq(ref_key_part->field)) return false;
+  return true;
 }
 
 /**
@@ -1907,7 +1907,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   /* Sorting a single row can always be skipped */
   if (tab->type() == JT_EQ_REF || tab->type() == JT_CONST ||
       tab->type() == JT_SYSTEM) {
-    return 1;
+    return true;
   }
 
   /*
@@ -1978,12 +1978,12 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     Item *item = (*tmp_order->item)->real_item();
     if (item->type() != Item::FIELD_ITEM) {
       usable_keys.clear_all();
-      return 0;
+      return false;
     }
     usable_keys.intersect(((Item_field *)item)->field->part_of_sortkey);
-    if (usable_keys.is_clear_all()) return 0;  // No usable keys
+    if (usable_keys.is_clear_all()) return false;  // No usable keys
   }
-  if (tab->type() == JT_REF_OR_NULL || tab->type() == JT_FT) return 0;
+  if (tab->type() == JT_REF_OR_NULL || tab->type() == JT_FT) return false;
 
   ref_key = -1;
   /* Test if constant range in WHERE */
@@ -2003,7 +2003,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
-      return 0;
+      return false;
     ref_key = tab->quick()->index;
     ref_key_parts = tab->quick()->used_key_parts;
   } else if (tab->type() == JT_INDEX_SCAN) {
@@ -4113,13 +4113,13 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
 static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
                                          JOIN_TAB **table_join_idx) {
   int cmp = 0;
-  bool outer_ref = 0;
+  bool outer_ref = false;
   if (field1->used_tables() & OUTER_REF_TABLE_BIT) {
-    outer_ref = 1;
+    outer_ref = true;
     cmp = -1;
   }
   if (field2->used_tables() & OUTER_REF_TABLE_BIT) {
-    outer_ref = 1;
+    outer_ref = true;
     cmp++;
   }
   if (outer_ref) return cmp;
@@ -4445,7 +4445,7 @@ static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
   Item *right_item = args[1];
   Item_func::Functype functype = func->functype();
 
-  if (right_item->eq(field, 0) && left_item != value &&
+  if (right_item->eq(field, false) && left_item != value &&
       right_item->cmp_context == field->cmp_context &&
       (left_item->result_type() != STRING_RESULT ||
        value->result_type() != STRING_RESULT ||
@@ -4467,7 +4467,7 @@ static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
       save_list->push_back(cond_cmp);
     }
     if (func->set_cmp_func()) return true;
-  } else if (left_item->eq(field, 0) && right_item != value &&
+  } else if (left_item->eq(field, false) && right_item != value &&
              left_item->cmp_context == field->cmp_context &&
              (right_item->result_type() != STRING_RESULT ||
               value->result_type() != STRING_RESULT ||
@@ -4964,7 +4964,7 @@ bool JOIN::make_join_plan() {
       !thd->lex->is_explain()) { /* purecov: inspected */
     my_error(ER_TOO_BIG_SELECT, MYF(0));
     error = -1;
-    return 1;
+    return true;
   }
 
   positions = NULL;  // But keep best_positions for get_best_combination
@@ -5759,7 +5759,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
 
     if (error == 1) return qck->records;
     if (error == -1) {
-      tl->table->reginfo.impossible_range = 1;
+      tl->table->reginfo.impossible_range = true;
       return 0;
     }
     DBUG_PRINT("warning", ("Couldn't use record count on const keypart"));
@@ -6182,7 +6182,7 @@ static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables) {
   Key_use *keyuse = tl->table->reginfo.join_tab->keyuse();
 
   if (keyuse) {
-    while (1) /* For each key */
+    while (true) /* For each key */
     {
       const uint key = keyuse->key;
       KEY *const keyinfo = tl->table->key_info + key;
@@ -6535,7 +6535,7 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
           if (!old->val->used_tables() && old->val->is_null())
             old->val = new_fields->val;
           /* The referred expression can be NULL: */
-          old->null_rejecting = 0;
+          old->null_rejecting = false;
         } else {
           /*
             We are comparing two different const.  In this case we can't
@@ -7172,8 +7172,9 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
                     cond_func->argument_count() != 2);
         if (add_key_equal_fields(
                 thd, key_fields, *and_level, cond_func,
-                (Item_field *)(cond_func->key_item()->real_item()), 0, values,
-                cond_func->argument_count() - 1, usable_tables, sargables))
+                (Item_field *)(cond_func->key_item()->real_item()), false,
+                values, cond_func->argument_count() - 1, usable_tables,
+                sargables))
           return true;
       } else if (cond_func->functype() == Item_func::IN_FUNC &&
                  cond_func->key_item()->type() == Item::ROW_ITEM) {
@@ -8495,7 +8496,7 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
       /* "ref_or_null" implements "x=y or x is null", not "x=y" */
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
-    if (ref_item && ref_item->eq(right_item, 1)) {
+    if (ref_item && ref_item->eq(right_item, true)) {
       right_item = right_item->real_item();
       if (right_item->type() == Item::FIELD_ITEM)
         return (field->eq_def(down_cast<Item_field *>(right_item)->field));
@@ -9385,7 +9386,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
                 we have to check isn't it only "impossible ON" instead
               */
               if (!tab->join_cond())
-                return 1;  // No ON, so it's really "impossible WHERE"
+                return true;  // No ON, so it's really "impossible WHERE"
               Opt_trace_object trace_without_on(trace, "without_ON_clause");
               if (tab->quick()) {
                 delete tab->quick();
@@ -9401,7 +9402,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
                       ORDER_NOT_RELEVANT, tab, tab->condition(),
                       &tab->needed_reg, &qck, tab->table()->force_index) < 0;
               tab->set_quick(qck);
-              if (impossible_where) return 1;  // Impossible WHERE
+              if (impossible_where) return true;  // Impossible WHERE
             }
 
             /*
@@ -9496,7 +9497,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
       }
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -9544,7 +9545,7 @@ static bool eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab,
     if (!(*ref_item)->const_item()) {  // Not a const ref
       ORDER *order;
       for (order = start_order; order; order = order->next) {
-        if ((*ref_item)->eq(order->item[0], 0)) break;
+        if ((*ref_item)->eq(order->item[0], false)) break;
       }
       if (order) {
         if (!(order->used & map)) {
@@ -9618,7 +9619,7 @@ static bool duplicate_order(const ORDER *first_order,
       const Item *it1 = order->item[0]->real_item();
       const Item *it2 = possible_dup->item[0]->real_item();
 
-      if (it1->eq(it2, 0)) return true;
+      if (it1->eq(it2, false)) return true;
     }
   }
   return false;
@@ -9701,7 +9702,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
          */
         (primary_tables > 1 && rollup.state == ROLLUP::STATE_INITED &&
          select_lex->outer_join))
-      *simple_order = 0;  // Must do a temp table to sort
+      *simple_order = false;  // Must do a temp table to sort
     else if ((order_tables & not_const_tables) == 0 &&
              evaluate_during_optimization(order->item[0], select_lex)) {
       if (order->item[0]->has_subquery()) {
@@ -9733,7 +9734,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
       *simple_order = false;
     else {
       if (order_tables & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT))
-        *simple_order = 0;
+        *simple_order = false;
       else {
         if (cond && const_expression_in_where(cond, order->item[0])) {
           trace_one_item.add("equals_constant_in_where", true);
@@ -9746,7 +9747,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
             trace_one_item.add("eq_ref_to_preceding_items", true);
             continue;
           }
-          *simple_order = 0;  // Must do a temp table to sort
+          *simple_order = false;  // Must do a temp table to sort
         }
       }
     }
@@ -9755,7 +9756,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
   }
   if (change_list) *prev_ptr = 0;
   if (prev_ptr == &first_order)  // Nothing to sort/group
-    *simple_order = 1;
+    *simple_order = true;
   DBUG_PRINT("exit", ("simple_order: %d", (int)*simple_order));
 
   trace_each_item.end();
@@ -10006,7 +10007,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     }
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
-    if (left_item->eq(right_item, 1)) {
+    if (left_item->eq(right_item, true)) {
       if (!left_item->maybe_null ||
           down_cast<Item_func *>(cond)->functype() == Item_func::EQUAL_FUNC) {
         *retcond = NULL;
@@ -10059,7 +10060,7 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
                                        void *data) {
   TABLE *table = tab->table();
 
-  if (tab->is_inner_table_of_outer_join()) return 0;
+  if (tab->is_inner_table_of_outer_join()) return false;
   for (uint keynr = 0; keynr < table->s->keys; keynr++) {
     if (keynr == table->s->primary_key ||
         (table->key_info[keynr].flags & HA_NOSAME)) {
@@ -10073,10 +10074,10 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
             !find_func(key_part->field, data))
           break;
       }
-      if (key_part == key_part_end) return 1;
+      if (key_part == key_part_end) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -10095,12 +10096,12 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
 
 static bool find_field_in_order_list(Field *field, void *data) {
   ORDER *group = (ORDER *)data;
-  bool part_found = 0;
+  bool part_found = false;
   for (ORDER *tmp_group = group; tmp_group; tmp_group = tmp_group->next) {
     Item *item = (*tmp_group->item)->real_item();
     if (item->type() == Item::FIELD_ITEM &&
         ((Item_field *)item)->field->eq(field)) {
-      part_found = 1;
+      part_found = true;
       break;
     }
   }
@@ -10123,14 +10124,14 @@ static bool find_field_in_order_list(Field *field, void *data) {
 
 static bool find_field_in_item_list(Field *field, void *data) {
   List<Item> *fields = (List<Item> *)data;
-  bool part_found = 0;
+  bool part_found = false;
   List_iterator<Item> li(*fields);
   Item *item;
 
   while ((item = li++)) {
     if (item->type() == Item::FIELD_ITEM &&
         ((Item_field *)item)->field->eq(field)) {
-      part_found = 1;
+      part_found = true;
       break;
     }
   }
@@ -10146,7 +10147,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
   Item *item;
   ORDER *order, *group, **prev;
 
-  *all_order_by_fields_used = 1;
+  *all_order_by_fields_used = true;
 
   prev = &group;
   group = 0;
@@ -10158,7 +10159,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
       prev = &ord->next;
       (*ord->item)->marker = Item::MARKER_DISTINCT_GROUP;
     } else
-      *all_order_by_fields_used = 0;
+      *all_order_by_fields_used = false;
   }
 
   li.rewind();
@@ -10171,7 +10172,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
       */
       ORDER *ord_iter;
       for (ord_iter = group; ord_iter; ord_iter = ord_iter->next)
-        if ((*ord_iter->item)->eq(item, 1)) goto next_item;
+        if ((*ord_iter->item)->eq(item, true)) goto next_item;
 
       ORDER *ord = (ORDER *)thd->mem_calloc(sizeof(ORDER));
       if (!ord) return 0;
@@ -10221,7 +10222,7 @@ static TABLE *get_sort_by_table(ORDER *a, ORDER *b, TABLE_LIST *tables) {
     b = a;
 
   for (; a && b; a = a->next, b = b->next) {
-    if (!(*a->item)->eq(*b->item, 1)) return 0;
+    if (!(*a->item)->eq(*b->item, true)) return 0;
     map |= a->item[0]->used_tables();
   }
   map &= ~INNER_TABLE_BIT;

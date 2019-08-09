@@ -200,7 +200,7 @@ bool Gcs_xcom_proxy_impl::xcom_exit(bool xcom_input_open) {
   if (!xcom_input_open || !successful) {
     /* The input channel was not yet open, or we failed to push, so use basic
        XCom stop. */
-    this->set_should_exit(1);
+    this->set_should_exit(true);
     successful = true;
   }
   return successful;

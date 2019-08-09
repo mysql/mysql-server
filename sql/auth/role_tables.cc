@@ -260,7 +260,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
         rebuild_vertex_index(thd);
         return true;
       }
-      grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
+      grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? true : false);
     }
     iterator.reset();
 

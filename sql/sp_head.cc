@@ -2033,7 +2033,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     goto done;
   }
 
-  thd->is_slave_error = 0;
+  thd->is_slave_error = false;
   old_arena = thd->stmt_arena;
 
   /* Push a new Diagnostics Area. */
@@ -2663,7 +2663,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       }
       thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
-      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = 0;
+      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
       thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
   }
@@ -3333,8 +3333,8 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
 
       table->is_system_view = dd::get_dictionary()->is_system_view_name(
           table->db, table->table_name);
-      table->cacheable_table = 1;
-      table->prelocking_placeholder = 1;
+      table->cacheable_table = true;
+      table->prelocking_placeholder = true;
       table->belong_to_view = belong_to_view;
       table->trg_event_map = stab->trg_event_map;
 

@@ -1099,7 +1099,7 @@ int Partition_helper::copy_partitions(ulonglong *const deleted) {
     partitions to be copied. So we can use the normal handler rnd interface
     for reading.
   */
-  if ((result = m_handler->ha_rnd_init(1))) {
+  if ((result = m_handler->ha_rnd_init(true))) {
     return result;
   }
   while (true) {

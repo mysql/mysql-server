@@ -1565,7 +1565,7 @@ class Mock_SEL_ARG : public SEL_ARG {
     part = 1;
     min_flag = 0;
     max_flag = 0;
-    maybe_flag = 0;
+    maybe_flag = false;
   }
 };
 
@@ -1736,7 +1736,7 @@ TEST_F(OptRangeTest, CombineAlways2) {
       part = 0;
       left = NULL;
       next = NULL;
-      min_flag = max_flag = maybe_flag = 0;
+      min_flag = max_flag = maybe_flag = false;
       set_endpoints(1, 2);
       next_key_part = NULL;
       make_root();

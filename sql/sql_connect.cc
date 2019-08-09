@@ -294,7 +294,7 @@ void release_user_connection(THD *thd) {
 */
 
 bool check_mqh(THD *thd, uint check_command) {
-  bool error = 0;
+  bool error = false;
   const USER_CONN *uc = thd->get_user_connect();
   DBUG_TRACE;
   DBUG_ASSERT(uc != 0);
@@ -309,7 +309,7 @@ bool check_mqh(THD *thd, uint check_command) {
     if ((uc->questions - 1) >= uc->user_resources.questions) {
       my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_questions",
                (long)uc->user_resources.questions);
-      error = 1;
+      error = true;
       goto end;
     }
   }
@@ -321,7 +321,7 @@ bool check_mqh(THD *thd, uint check_command) {
       if ((uc->updates - 1) >= uc->user_resources.updates) {
         my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates",
                  (long)uc->user_resources.updates);
-        error = 1;
+        error = true;
         goto end;
       }
     }
@@ -342,7 +342,7 @@ void free_max_user_conn(void) {
   hash_user_connections = nullptr;
 }
 
-void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = 0) {
+void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = false) {
   mysql_mutex_lock(&LOCK_user_conn);
   DEBUG_SYNC(thd, "in_reset_mqh_flush_privileges");
   if (lu)  // for GRANT
@@ -709,14 +709,14 @@ static bool login_connection(THD *thd) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
-    return 1;
+    return true;
   }
   /* Connect completed, set read/write timeouts back to default */
   thd->get_protocol_classic()->set_read_timeout(
       thd->variables.net_read_timeout);
   thd->get_protocol_classic()->set_write_timeout(
       thd->variables.net_write_timeout);
-  return 0;
+  return false;
 }
 
 /*
@@ -774,7 +774,7 @@ static void prepare_new_connection_state(THD *thd) {
   if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS) ||
       thd->get_protocol()->has_client_capability(
           CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
-    net->compress = 1;  // Use compression
+    net->compress = true;  // Use compression
     enum enum_compression_algorithm algorithm = get_compression_algorithm(
         thd->get_protocol()->get_compression_algorithm());
     NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);

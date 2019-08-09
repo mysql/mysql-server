@@ -131,7 +131,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
         (info->write_buffer + info->buffer_length - (pos & (IO_SIZE - 1)));
   }
   info->pos_in_file = pos;
-  info->seek_not_done = 1;
+  info->seek_not_done = true;
 }
 
 /*
@@ -157,7 +157,7 @@ size_t my_b_fill(IO_CACHE *info) {
       info->error = 0;
       return 0;
     }
-    info->seek_not_done = 0;
+    info->seek_not_done = false;
   }
   diff_length = (size_t)(pos_in_file & (IO_SIZE - 1));
   max_length = (info->read_length - diff_length);
@@ -220,7 +220,7 @@ size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length) {
 my_off_t my_b_filelength(IO_CACHE *info) {
   if (info->type == WRITE_CACHE) return my_b_tell(info);
 
-  info->seek_not_done = 1;
+  info->seek_not_done = true;
   return mysql_file_seek(info->file, 0L, MY_SEEK_END, MYF(0));
 }
 

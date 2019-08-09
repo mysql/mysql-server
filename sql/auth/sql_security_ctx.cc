@@ -1258,7 +1258,7 @@ bool Security_context::has_column_access(ulong priv, TABLE const *table,
 
     if (table_hash_search(this->host().str, this->ip().str, db.str,
                           this->priv_user().str, table_name.str,
-                          0) == nullptr) {
+                          false) == nullptr) {
       // If there is no specific info about the table specific privileges, it
       // means that there are no column privileges configured for the table
       // columns. So, we let the general table access above to prevail.

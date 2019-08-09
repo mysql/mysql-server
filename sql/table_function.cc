@@ -687,7 +687,7 @@ bool Table_function_json::fill_result_table() {
          get_json_wrapper(args, 0, &buf, func_name(), &m_jds[0].jdata)) ||
         args[0]->null_value)
       // No need to set null_value as it's not used by table functions
-      return 0;
+      return false;
     is_source_parsed = true;
     return fill_json_table();
   } catch (...) {
@@ -696,7 +696,7 @@ bool Table_function_json::fill_result_table() {
     return true;
     /* purecov: end */
   }
-  return 0;
+  return false;
 }
 
 static bool print_on_empty_error(String *str, enum_jtc_on jto,

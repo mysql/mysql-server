@@ -179,7 +179,7 @@ bool Query_result_union::create_result_table(
     return true;
   if (create_table) {
     table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
-    if (table->hash_field) table->file->ha_index_init(0, 0);
+    if (table->hash_field) table->file->ha_index_init(0, false);
   }
   return false;
 }
@@ -1644,7 +1644,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
         DBUG_ASSERT(fake_select_lex != NULL);
         if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
           return true; /* purecov: inspected */
-        table->no_keyread = 1;
+        table->no_keyread = true;
       }
 
       if (status) return true;
@@ -1768,7 +1768,7 @@ void SELECT_LEX_UNIT::reinit_exec_mechanism() {
         but have to drop fixed flag to allow next fix_field of this field
         during re-executing
       */
-      field->fixed = 0;
+      field->fixed = false;
     }
   }
 #endif

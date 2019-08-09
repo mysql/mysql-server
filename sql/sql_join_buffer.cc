@@ -1264,7 +1264,7 @@ uint JOIN_CACHE::write_record_data(uchar *link, bool *is_full) {
     if (copy->type == CACHE_BLOB) {
       Field_blob *blob_field = (Field_blob *)copy->field;
       if (last_record) {
-        last_rec_blob_data_is_in_rec_buff = 1;
+        last_rec_blob_data_is_in_rec_buff = true;
         /* Put down the length of the blob and the pointer to the data */
         blob_field->get_image(cp, copy->length + sizeof(char *),
                               blob_field->charset());
@@ -1363,7 +1363,7 @@ void JOIN_CACHE::reset_cache(bool for_writing) {
     records = 0;
     last_rec_pos = buff;
     end_pos = pos;
-    last_rec_blob_data_is_in_rec_buff = 0;
+    last_rec_blob_data_is_in_rec_buff = false;
   }
 }
 
@@ -2073,7 +2073,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr) {
     if (!qep_tab->check_weed_out_table ||
         !(res = do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table))) {
       set_curr_rec_link(rec_ptr);
-      rc = (qep_tab->next_select)(join, qep_tab + 1, 0);
+      rc = (qep_tab->next_select)(join, qep_tab + 1, false);
       if (rc != NESTED_LOOP_OK) {
         reset_cache(true);
         return rc;
@@ -2479,7 +2479,7 @@ bool JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs,
     matching candidates obtained with MMR handler functions.
   */
   if (!file->inited) {
-    const int error = file->ha_index_init(qep_tab->ref().key, 1);
+    const int error = file->ha_index_init(qep_tab->ref().key, true);
     if (error) {
       file->print_error(error, MYF(0));
       return error;

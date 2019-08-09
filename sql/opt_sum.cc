@@ -497,7 +497,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               aggr_impossible = true;
               break;
             }
-            if ((error = table->file->ha_index_init((uint)ref.key, 1))) {
+            if ((error = table->file->ha_index_init((uint)ref.key, true))) {
               table->file->print_error(error, MYF(0));
               table->set_keyread(false);
               return true;
@@ -628,7 +628,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
 
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
   Item *item;
-  *inv_order = 0;
+  *inv_order = false;
   switch (func_item->argument_count()) {
     case 0:
       /* MULT_EQUAL_FUNC */
@@ -636,14 +636,14 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
         Item_equal *item_equal = (Item_equal *)func_item;
         Item_equal_iterator it(*item_equal);
         args[0] = it++;
-        if (it++) return 0;
-        if (!(args[1] = item_equal->get_const())) return 0;
+        if (it++) return false;
+        if (!(args[1] = item_equal->get_const())) return false;
       }
       break;
     case 1:
       /* field IS NULL */
       item = func_item->arguments()[0];
-      if (item->type() != Item::FIELD_ITEM) return 0;
+      if (item->type() != Item::FIELD_ITEM) return false;
       args[0] = item;
       break;
     case 2:
@@ -652,16 +652,16 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
       if (item->type() == Item::FIELD_ITEM) {
         args[0] = item;
         item = func_item->arguments()[1];
-        if (!item->const_item()) return 0;
+        if (!item->const_item()) return false;
         args[1] = item;
       } else if (item->const_item()) {
         args[1] = item;
         item = func_item->arguments()[1];
-        if (item->type() != Item::FIELD_ITEM) return 0;
+        if (item->type() != Item::FIELD_ITEM) return false;
         args[0] = item;
-        *inv_order = 1;
+        *inv_order = true;
       } else
-        return 0;
+        return false;
       break;
     case 3:
       /* field BETWEEN const AND const */
@@ -670,13 +670,13 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
         args[0] = item;
         for (int i = 1; i <= 2; i++) {
           item = func_item->arguments()[i];
-          if (!item->const_item()) return 0;
+          if (!item->const_item()) return false;
           args[i] = item;
         }
       } else
-        return 0;
+        return false;
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -763,16 +763,16 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   if (cond->type() != Item::FUNC_ITEM)
     return false;  // Not operator, can't optimize
 
-  bool eq_type = 0;              // =, <=> or IS NULL
+  bool eq_type = false;          // =, <=> or IS NULL
   bool is_null_safe_eq = false;  // The operator is NULL safe, e.g. <=>
-  bool noeq_type = 0;            // < or >
-  bool less_fl = 0;              // < or <=
-  bool is_null = 0;              // IS NULL
-  bool between = 0;              // BETWEEN ... AND ...
+  bool noeq_type = false;        // < or >
+  bool less_fl = false;          // < or <=
+  bool is_null = false;          // IS NULL
+  bool between = false;          // BETWEEN ... AND ...
 
   switch (((Item_func *)cond)->functype()) {
     case Item_func::ISNULL_FUNC:
-      is_null = 1; /* fall through */
+      is_null = true; /* fall through */
     case Item_func::EQ_FUNC:
       eq_type = true;
       break;
@@ -780,23 +780,23 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       eq_type = is_null_safe_eq = true;
       break;
     case Item_func::LT_FUNC:
-      noeq_type = 1; /* fall through */
+      noeq_type = true; /* fall through */
     case Item_func::LE_FUNC:
-      less_fl = 1;
+      less_fl = true;
       break;
     case Item_func::GT_FUNC:
-      noeq_type = 1; /* fall through */
+      noeq_type = true; /* fall through */
     case Item_func::GE_FUNC:
       break;
     case Item_func::BETWEEN:
-      between = 1;
+      between = true;
 
       // NOT BETWEEN is equivalent to OR and is therefore not a conjunction
       if (((Item_func_between *)cond)->negated) return false;
 
       break;
     case Item_func::MULT_EQUAL_FUNC:
-      eq_type = 1;
+      eq_type = true;
       break;
     default:
       return false;  // Can't optimize function
@@ -978,7 +978,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     for (part = keyinfo->key_part, part_end = part + actual_key_parts(keyinfo);
          part != part_end;
          part++, jdx++, key_part_to_use = (key_part_to_use << 1) | 1) {
-      if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
+      if (!(table->file->index_flags(idx, jdx, false) & HA_READ_ORDER))
         return false;
       // Due to lack of time, currently only ASC keyparts are supported.
       if (part->key_part_flag & HA_REVERSE_SORT) break;

@@ -2,7 +2,7 @@
 #line 2 "fts0tlex.l"
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -754,7 +754,7 @@ YY_DECL
 
 #line 746 "fts0tlex.cc"
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	while ( true )		/* loops until end-of-file is reached */
 		{
 		yy_cp = yyg->yy_c_buf_p;
 

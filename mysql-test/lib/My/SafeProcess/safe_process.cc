@@ -300,7 +300,7 @@ int main(int argc, char *const argv[]) {
   /* Monitor loop */
   message("Started child: %d", static_cast<int>(child_pid));
 
-  while (1) {
+  while (true) {
     // Check if parent is still alive
     if (kill(parent_pid, 0) != 0) {
       print_message("Parent is not alive anymore, parent pid %d:",

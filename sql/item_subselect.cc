@@ -165,7 +165,7 @@ void Item_subselect::init(SELECT_LEX *select_lex,
   }
   {
     SELECT_LEX *upper = unit->outer_select();
-    if (upper->parsing_place == CTX_HAVING) upper->subquery_in_having = 1;
+    if (upper->parsing_place == CTX_HAVING) upper->subquery_in_having = true;
   }
 }
 
@@ -314,7 +314,7 @@ void Item_subselect::cleanup() {
   }
   if (engine) engine->cleanup(current_thd);
   reset();
-  value_assigned = 0;
+  value_assigned = false;
   traced_before = false;
   in_cond_of_tab = NO_PLAN_IDX;
 }
@@ -556,7 +556,7 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
 
   if (!(res = engine->prepare(thd))) {
     // all transformation is done (used by prepared statements)
-    changed = 1;
+    changed = true;
 
     // Accumulate properties referring to "inner tables"
     accumulate_properties();
@@ -597,7 +597,7 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
   */
   DBUG_ASSERT(!has_wf());
 
-  fixed = 1;
+  fixed = true;
 
 err:
   thd->where = save_where;
@@ -824,7 +824,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
     : Item_subselect(), value(nullptr), no_rows(false) {
   DBUG_TRACE;
   init(select_lex, new (*THR_MALLOC) Query_result_scalar_subquery(this));
-  maybe_null = 1;  // if the subquery is empty, value is NULL
+  maybe_null = true;  // if the subquery is empty, value is NULL
   max_columns = UINT_MAX;
 }
 
@@ -916,7 +916,7 @@ bool Query_result_max_min_subquery::send_data(THD *, List<Item> &items) {
     it->store(0, cache);
   }
   it->assigned(true);
-  return 0;
+  return false;
 }
 
 /**
@@ -1015,7 +1015,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
   init(select_lex, new (*THR_MALLOC) Query_result_max_min_subquery(
                        this, max_arg, ignore_nulls));
   max_columns = 1;
-  maybe_null = 1;
+  maybe_null = true;
   max_columns = 1;
 
   /*
@@ -1082,7 +1082,7 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
         TODO: Fix this when WL#6570 is implemented.
       */
       !thd->stmt_arena->is_stmt_prepare_or_first_sp_execute()) {
-    have_to_be_excluded = 1;
+    have_to_be_excluded = true;
     if (thd->lex->is_explain()) {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
@@ -1147,21 +1147,21 @@ uint Item_singlerow_subselect::cols() const { return engine->cols(); }
 bool Item_singlerow_subselect::check_cols(uint c) {
   if (c != engine->cols()) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), c);
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 bool Item_singlerow_subselect::null_inside() {
   for (uint i = 0; i < max_columns; i++) {
-    if (row[i]->null_value) return 1;
+    if (row[i]->null_value) return true;
   }
-  return 0;
+  return false;
 }
 
 void Item_singlerow_subselect::bring_value() {
   if (!exec(current_thd) && assigned())
-    null_value = 0;
+    null_value = false;
   else
     reset();
 }
@@ -1266,9 +1266,9 @@ bool Query_result_exists_subquery::send_data(THD *, List<Item> &) {
     It's only in (1) that we get here when we find a row. In (2) "value" is
     set elsewhere.
   */
-  it->value = 1;
+  it->value = true;
   it->assigned(true);
-  return 0;
+  return false;
 }
 
 Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
@@ -1281,7 +1281,7 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
   init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
   null_value = false;  // can't be NULL
-  maybe_null = 0;      // can't be NULL
+  maybe_null = false;  // can't be NULL
 }
 
 void Item_exists_subselect::print(const THD *thd, String *str,
@@ -1396,7 +1396,7 @@ Item_in_subselect::Item_in_subselect(Item *left_exp, SELECT_LEX *select)
   DBUG_TRACE;
   init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
-  maybe_null = 1;
+  maybe_null = true;
   reset();
   // if test_limit will fail then error will be reported to client
   test_limit();
@@ -1419,7 +1419,7 @@ Item_in_subselect::Item_in_subselect(const POS &pos, Item *left_exp,
       pt_subselect(pt_subquery_arg) {
   DBUG_TRACE;
   max_columns = UINT_MAX;
-  maybe_null = 1;
+  maybe_null = true;
   reset();
 }
 
@@ -1543,7 +1543,7 @@ String *Item_exists_subselect::val_str(String *str) {
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value) {
   longlong val = val_bool();
   if (null_value) return nullptr;
-  int2my_decimal(E_DEC_FATAL_ERROR, val, 0, decimal_value);
+  int2my_decimal(E_DEC_FATAL_ERROR, val, false, decimal_value);
   return decimal_value;
 }
 
@@ -2092,7 +2092,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
          */
         substitution =
             func->create(left_expr->substitutional_item(), orig_item);
-        have_to_be_excluded = 1;
+        have_to_be_excluded = true;
         if (thd->lex->is_explain()) {
           char warn_buff[MYSQL_ERRMSG_SIZE];
           sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED),
@@ -2505,7 +2505,7 @@ void Item_in_subselect::print(const THD *thd, String *str,
 }
 
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
-  bool result = 0;
+  bool result = false;
 
   abort_on_null =
       value_transform == BOOL_IS_TRUE || value_transform == BOOL_NOT_TRUE;
@@ -2663,7 +2663,7 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
 Item_subselect::trans_res Item_allany_subselect::select_transformer(
     THD *thd, SELECT_LEX *select) {
   DBUG_TRACE;
-  if (upper_item) upper_item->show = 1;
+  if (upper_item) upper_item->show = true;
   trans_res retval = select_in_like_transformer(thd, select, func);
   return retval;
 }
@@ -2721,7 +2721,7 @@ bool subselect_iterator_engine::prepare(THD *thd) {
 bool subselect_indexsubquery_engine::prepare(THD *) {
   /* Should never be called. */
   DBUG_ASSERT(false);
-  return 1;
+  return true;
 }
 
 /**
@@ -2830,7 +2830,7 @@ bool subselect_indexsubquery_engine::scan_table() {
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
   if ((table->file->inited && (error = table->file->ha_index_end())) ||
-      (error = table->file->ha_rnd_init(1))) {
+      (error = table->file->ha_rnd_init(true))) {
     (void)report_handler_error(table, error);
     return true;
   }
@@ -3023,7 +3023,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
 bool subselect_indexsubquery_engine::exec(THD *) {
   DBUG_TRACE;
   int error;
-  bool null_finding = 0;
+  bool null_finding = false;
   TABLE *const table = tab->table();
   uchar *key;
   uint key_length;
@@ -3071,7 +3071,7 @@ bool subselect_indexsubquery_engine::exec(THD *) {
   bool require_scan, convert_error;
   hash = 0;
   copy_ref_key(&require_scan, &convert_error);
-  if (convert_error) return 0;
+  if (convert_error) return false;
 
   if (require_scan) {
     const bool scan_result = scan_table();
@@ -3136,7 +3136,7 @@ bool subselect_indexsubquery_engine::exec(THD *) {
           turn on:
         */
         *tab->ref().null_ref_key = 1;
-        null_finding = 1;
+        null_finding = true;
         if ((error = (safe_index_read(tab) == 1))) break;
       }
     }
@@ -3448,7 +3448,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     else
       cur_ref_buff += key_parts[part_no].store_length;
   }
-  tab->ref().key_err = 1;
+  tab->ref().key_err = true;
   tab->ref().key_parts = tmp_key_parts;
 
   if (cond->fix_fields(thd, &cond)) return true;

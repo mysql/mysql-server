@@ -880,7 +880,7 @@ class Item_func_unhex final : public Item_str_func {
  public:
   Item_func_unhex(const POS &pos, Item *a) : Item_str_func(pos, a) {
     /* there can be bad hex strings */
-    maybe_null = 1;
+    maybe_null = true;
   }
   const char *func_name() const override { return "unhex"; }
   String *val_str(String *) override;
@@ -1028,7 +1028,7 @@ class Item_func_conv_charset final : public Item_str_func {
       String tmp, *str = args[0]->val_str(&tmp);
       if (!str || str_value.copy(str->ptr(), str->length(), str->charset(),
                                  conv_charset, &errors))
-        null_value = 1;
+        null_value = true;
       use_cached_value = true;
       str_value.mark_as_const();
       safe = (errors == 0);
@@ -1346,7 +1346,7 @@ class Item_func_internal_get_comment_or_error final : public Item_str_func {
       i.e., the mysql.tables.comment DD column.
     */
     set_data_type_string(2048, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;
@@ -1413,7 +1413,7 @@ class Item_func_get_partition_nodegroup final : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;
@@ -1437,7 +1437,7 @@ class Item_func_internal_tablespace_type : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;
@@ -1459,7 +1459,7 @@ class Item_func_internal_tablespace_logfile_group_name : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;
@@ -1483,7 +1483,7 @@ class Item_func_internal_tablespace_status : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;
@@ -1506,7 +1506,7 @@ class Item_func_internal_tablespace_row_format : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;
@@ -1530,7 +1530,7 @@ class Item_func_internal_tablespace_extra : public Item_str_func {
     // maximum string length of all options is expected
     // to be less than 256 characters.
     set_data_type_string(256, system_charset_info);
-    maybe_null = 1;
+    maybe_null = true;
     null_on_null = false;
 
     return false;

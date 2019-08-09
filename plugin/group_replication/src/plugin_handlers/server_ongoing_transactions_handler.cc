@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,10 +36,10 @@ bool Server_ongoing_transactions_handler::initialize_server_service(
     Plugin_stage_monitor_handler *stage_handler_arg) {
   SERVICE_TYPE(registry) *registry = NULL;
   if (!registry_module || !(registry = registry_module->get_registry_handle()))
-    return 1; /* purecov: inspected */
+    return true; /* purecov: inspected */
   registry->acquire("mysql_ongoing_transactions_query", &generic_service);
   stage_handler = stage_handler_arg;
-  return 0;
+  return false;
 }
 
 Server_ongoing_transactions_handler::~Server_ongoing_transactions_handler() {

@@ -36,7 +36,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record) {
   if (info->s->state.dellink != HA_OFFSET_ERROR &&
       !info->append_insert_at_end) {
     my_off_t filepos = info->s->state.dellink;
-    info->rec_cache.seek_not_done = 1; /* We have done a seek */
+    info->rec_cache.seek_not_done = true; /* We have done a seek */
     if (info->s->file_read(info, &temp[0], info->s->base.rec_reflength,
                            info->s->state.dellink + 1, MYF(MY_NABP)))
       goto err;
@@ -61,7 +61,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record) {
         if (my_b_write(&info->rec_cache, temp, length)) goto err;
       }
     } else {
-      info->rec_cache.seek_not_done = 1; /* We have done a seek */
+      info->rec_cache.seek_not_done = true; /* We have done a seek */
       if (info->s->file_write(info, record, info->s->base.reclength,
                               info->state->data_file_length,
                               info->s->write_flag))
@@ -85,7 +85,7 @@ err:
 }
 
 int _mi_update_static_record(MI_INFO *info, my_off_t pos, const uchar *record) {
-  info->rec_cache.seek_not_done = 1; /* We have done a seek */
+  info->rec_cache.seek_not_done = true; /* We have done a seek */
   return (info->s->file_write(info, record, info->s->base.reclength, pos,
                               MYF(MY_NABP)) != 0);
 }
@@ -98,7 +98,7 @@ int _mi_delete_static_record(MI_INFO *info) {
   temp[0] = '\0'; /* Mark that record is deleted */
   _mi_dpointer(info, temp + 1, info->s->state.dellink);
   info->s->state.dellink = info->lastpos;
-  info->rec_cache.seek_not_done = 1;
+  info->rec_cache.seek_not_done = true;
   return (info->s->file_write(info, (uchar *)temp, 1 + info->s->rec_reflength,
                               info->lastpos, MYF(MY_NABP)) != 0);
 }
@@ -110,11 +110,11 @@ int _mi_cmp_static_record(MI_INFO *info, const uchar *old) {
     if (flush_io_cache(&info->rec_cache)) {
       return -1;
     }
-    info->rec_cache.seek_not_done = 1; /* We have done a seek */
+    info->rec_cache.seek_not_done = true; /* We have done a seek */
   }
 
   if ((info->opt_flag & READ_CHECK_USED)) { /* If check isn't disabled  */
-    info->rec_cache.seek_not_done = 1;      /* We have done a seek */
+    info->rec_cache.seek_not_done = true;   /* We have done a seek */
     if (info->s->file_read(info, info->rec_buff, info->s->base.reclength,
                            info->lastpos, MYF(MY_NABP)))
       return -1;
@@ -132,7 +132,7 @@ int _mi_cmp_static_unique(MI_INFO *info, MI_UNIQUEDEF *def, const uchar *record,
                           my_off_t pos) {
   DBUG_TRACE;
 
-  info->rec_cache.seek_not_done = 1; /* We have done a seek */
+  info->rec_cache.seek_not_done = true; /* We have done a seek */
   if (info->s->file_read(info, info->rec_buff, info->s->base.reclength, pos,
                          MYF(MY_NABP)))
     return -1;
@@ -151,7 +151,7 @@ int _mi_read_static_record(MI_INFO *info, my_off_t pos, uchar *record) {
     if (info->opt_flag & WRITE_CACHE_USED &&
         info->rec_cache.pos_in_file <= pos && flush_io_cache(&info->rec_cache))
       return (-1);
-    info->rec_cache.seek_not_done = 1; /* We have done a seek */
+    info->rec_cache.seek_not_done = true; /* We have done a seek */
 
     error = info->s->file_read(info, record, info->s->base.reclength, pos,
                                MYF(MY_NABP)) != 0;
@@ -190,7 +190,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf, my_off_t filepos,
       cache_length =
           (uint)(info->rec_cache.read_end - info->rec_cache.read_pos);
     } else
-      info->rec_cache.seek_not_done = 1; /* Filepos is changed */
+      info->rec_cache.seek_not_done = true; /* Filepos is changed */
   }
   locked = 0;
   if (info->lock_type == F_UNLCK) {

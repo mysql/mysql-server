@@ -125,14 +125,14 @@ bool my_net_init(NET *net, Vio *vio) {
             key_memory_NET_buff,
             (size_t)net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE,
             MYF(MY_WME))))
-    return 1;
+    return true;
   net->buff_end = net->buff + net->max_packet;
   net->error = 0;
   net->return_status = 0;
   net->pkt_nr = net->compress_pkt_nr = 0;
   net->write_pos = net->read_pos = net->buff;
   net->last_error[0] = 0;
-  net->compress = 0;
+  net->compress = false;
   net->reading_or_writing = 0;
   net->where_b = net->remain_in_buf = 0;
   net->last_errno = 0;
@@ -156,7 +156,7 @@ bool my_net_init(NET *net, Vio *vio) {
     net->fd = vio_fd(vio);
     vio_fastsend(vio);
   }
-  return 0;
+  return false;
 }
 
 void net_end(NET *net) {
@@ -191,7 +191,7 @@ bool net_realloc(NET *net, size_t length) {
 #ifdef MYSQL_SERVER
     my_error(ER_NET_PACKET_TOO_LARGE, MYF(0));
 #endif
-    return 1;
+    return true;
   }
   pkt_length = (length + IO_SIZE - 1) & ~(IO_SIZE - 1);
   /*
@@ -207,7 +207,7 @@ bool net_realloc(NET *net, size_t length) {
     net->error = 1;
     net->last_errno = ER_OUT_OF_RESOURCES;
     /* In the server the error is reported by MY_WME flag. */
-    return 1;
+    return true;
   }
 #ifdef MYSQL_SERVER
   net->buff = net->write_pos = buff;
@@ -217,7 +217,7 @@ bool net_realloc(NET *net, size_t length) {
   NET_ASYNC_DATA(net)->cur_pos = net->buff + cur_pos_offset;
 #endif
   net->buff_end = buff + (net->max_packet = (ulong)pkt_length);
-  return 0;
+  return false;
 }
 
 /**
@@ -244,7 +244,7 @@ void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
 /** Flush write_buffer if not empty. */
 
 bool net_flush(NET *net) {
-  bool error = 0;
+  bool error = false;
   DBUG_TRACE;
   if (net->buff != net->write_pos) {
     error =
@@ -421,7 +421,7 @@ bool my_net_write(NET *net, const uchar *packet, size_t len) {
     buff[3] = (uchar)net->pkt_nr++;
     if (net_write_buff(net, buff, NET_HEADER_SIZE) ||
         net_write_buff(net, packet, z_size)) {
-      return 1;
+      return true;
     }
     packet += z_size;
     len -= z_size;
@@ -430,7 +430,7 @@ bool my_net_write(NET *net, const uchar *packet, size_t len) {
   int3store(buff, static_cast<uint>(len));
   buff[3] = (uchar)net->pkt_nr++;
   if (net_write_buff(net, buff, NET_HEADER_SIZE)) {
-    return 1;
+    return true;
   }
 #ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
@@ -767,7 +767,7 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
       if (net_write_buff(net, buff, header_size) ||
           net_write_buff(net, header, head_len) ||
           net_write_buff(net, packet, len)) {
-        return 1;
+        return true;
       }
       packet += len;
       length -= MAX_PACKET_LENGTH;
@@ -827,7 +827,7 @@ static bool net_write_buff(NET *net, const uchar *packet, size_t len) {
       memcpy(net->write_pos, packet, left_length);
       if (net_write_packet(net, net->buff,
                            (size_t)(net->write_pos - net->buff) + left_length))
-        return 1;
+        return true;
       net->write_pos = net->buff;
       packet += left_length;
       len -= left_length;
@@ -839,7 +839,7 @@ static bool net_write_buff(NET *net, const uchar *packet, size_t len) {
       */
       left_length = MAX_PACKET_LENGTH;
       while (len > left_length) {
-        if (net_write_packet(net, packet, left_length)) return 1;
+        if (net_write_packet(net, packet, left_length)) return true;
         packet += left_length;
         len -= left_length;
       }
@@ -849,7 +849,7 @@ static bool net_write_buff(NET *net, const uchar *packet, size_t len) {
   }
   if (len > 0) memcpy(net->write_pos, packet, len);
   net->write_pos += len;
-  return 0;
+  return false;
 }
 
 /**

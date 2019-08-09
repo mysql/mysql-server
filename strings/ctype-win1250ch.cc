@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -431,7 +431,7 @@ static int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, const uchar *s,
     ;
   for (; tlen && t[tlen - 1] == ' '; tlen--)
     ;
-  return my_strnncoll_win1250ch(cs, s, slen, t, tlen, 0);
+  return my_strnncoll_win1250ch(cs, s, slen, t, tlen, false);
 }
 
 static size_t my_strnxfrm_win1250ch(
@@ -622,7 +622,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci = {
     0,                   /* min_sort_char */
     0,                   /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     2,                   /* levels_for_compare */
     &my_charset_8bit_handler,
     &my_collation_czech_ci_handler,

@@ -250,7 +250,7 @@ int _mi_ck_real_write_btree(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   /* key_length parameter is used only if comp_flag is SEARCH_FIND */
   if (*root == HA_OFFSET_ERROR ||
       (error = w_search(info, keyinfo, comp_flag, key, key_length, *root,
-                        (uchar *)0, (uchar *)0, (my_off_t)0, 1)) > 0)
+                        (uchar *)0, (uchar *)0, (my_off_t)0, true)) > 0)
     error = _mi_enlarge_root(info, keyinfo, key, root);
   return error;
 } /* _mi_ck_real_write_btree */
@@ -270,7 +270,7 @@ int _mi_enlarge_root(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                                   (uchar *)0, key, &s_temp);
   mi_putint(info->buff, t_length + 2 + nod_flag, nod_flag);
   (*keyinfo->store_key)(keyinfo, info->buff + 2 + nod_flag, &s_temp);
-  info->buff_used = info->page_changed = 1; /* info->buff is used */
+  info->buff_used = info->page_changed = true; /* info->buff is used */
   if ((*root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _mi_write_keypage(info, keyinfo, *root, DFLT_INIT_HITS, info->buff))
     return -1;
@@ -356,7 +356,7 @@ static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
     }
   }
   if (flag == MI_FOUND_WRONG_KEY) return -1;
-  if (!was_last_key) insert_last = 0;
+  if (!was_last_key) insert_last = false;
   next_page = _mi_kpos(nod_flag, keypos);
   if (next_page == HA_OFFSET_ERROR ||
       (error = w_search(info, keyinfo, comp_flag, key, key_length, next_page,
@@ -464,8 +464,8 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
       blen = *b++;
       uint alen = get_key_length(&a);
       DBUG_ASSERT(info->ft1_to_ft2 == 0);
-      if (alen == blen &&
-          ha_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0) == 0) {
+      if (alen == blen && ha_compare_text(keyinfo->seg->charset, a, alen, b,
+                                          blen, false) == 0) {
         /* yup. converting */
         info->ft1_to_ft2 =
             (DYNAMIC_ARRAY *)my_malloc(mi_key_memory_MI_INFO_ft1_to_ft2,
@@ -499,7 +499,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
     return 0; /* There is room on page */
   }
   /* Page is full */
-  if (nod_flag) insert_last = 0;
+  if (nod_flag) insert_last = false;
   if (!(keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)) &&
       father_buff && !insert_last)
     return _mi_balance_page(info, keyinfo, key, anc_buff, father_buff,
@@ -519,8 +519,8 @@ int _mi_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *buff,
   DBUG_DUMP("buff", (uchar *)buff, mi_getint(buff));
 
   if (info->s->keyinfo + info->lastinx == keyinfo)
-    info->page_changed = 1; /* Info->buff is used */
-  info->buff_used = 1;
+    info->page_changed = true; /* Info->buff is used */
+  info->buff_used = true;
   nod_flag = mi_test_if_nod(buff);
   key_ref_length = 2 + nod_flag;
   if (insert_last_key)
@@ -673,18 +673,18 @@ static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   father_keylength = k_length + info->s->base.key_reflength;
   nod_flag = mi_test_if_nod(curr_buff);
   curr_keylength = k_length + nod_flag;
-  info->page_changed = 1;
+  info->page_changed = true;
 
   if ((father_key_pos != father_buff + father_length &&
        (info->state->records & 1)) ||
       father_key_pos == father_buff + 2 + info->s->base.key_reflength) {
-    right = 1;
+    right = true;
     next_page = _mi_kpos(info->s->base.key_reflength,
                          father_key_pos + father_keylength);
     buff = info->buff;
     DBUG_PRINT("test", ("use right page: %lu", (ulong)next_page));
   } else {
-    right = 0;
+    right = false;
     father_key_pos -= father_keylength;
     next_page = _mi_kpos(info->s->base.key_reflength, father_key_pos);
     /* Fix that curr_buff is to left */

@@ -1,7 +1,7 @@
 #ifndef SQL_SERVERS_INCLUDED
 #define SQL_SERVERS_INCLUDED
 
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class FOREIGN_SERVER {
 /* cache handlers */
 bool servers_init(bool dont_read_server_table);
 bool servers_reload(THD *thd);
-void servers_free(bool end = 0);
+void servers_free(bool end = false);
 
 /* lookup functions */
 FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,

@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
 
   ssl_start();
 
-  bool return_code = 0;
+  bool return_code = false;
   try {
     return_code = client_connect_and_process(options, input);
     const bool is_ok = 0 == return_code;
@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
       std::cerr << "not ok\n";
   } catch (std::exception &e) {
     std::cerr << "ERROR: " << e.what() << "\n";
-    return_code = 1;
+    return_code = true;
   }
 
   vio_end();

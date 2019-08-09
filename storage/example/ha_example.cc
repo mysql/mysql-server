@@ -859,7 +859,7 @@ struct example_vars_t {
   ulong var6;
 };
 
-example_vars_t example_vars = {100, 20.01, "three hundred", true, 0, 8250};
+example_vars_t example_vars = {100, 20.01, "three hundred", true, false, 8250};
 
 static SHOW_VAR show_status_example[] = {
     {"var1", (char *)&example_vars.var1, SHOW_LONG, SHOW_SCOPE_GLOBAL},

@@ -536,7 +536,7 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
         */
         if ((item.type() == Item::NULL_RESULT_ITEM) ||
             (has_rollup_result(&item) && item.get_tmp_table_field() != nullptr))
-          item.save_in_result_field(1);
+          item.save_in_result_field(true);
       }
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
       TABLE *table_arg = qep_tab->table();
@@ -625,28 +625,28 @@ void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
   DBUG_TRACE;
   for (; func_ptr != end_ptr; func_ptr++) {
     if ((*func_ptr)->result_field != nullptr) {
-      (*func_ptr)->save_in_result_field(1);
+      (*func_ptr)->save_in_result_field(true);
     }
   }
 }
 
 bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
   for (; func_ptr != end_ptr; func_ptr++) {
-    if ((*func_ptr)->reset_and_add()) return 1;
+    if ((*func_ptr)->reset_and_add()) return true;
   }
   /* If rollup, calculate the upper sum levels */
   for (; *func_ptr; func_ptr++) {
-    if ((*func_ptr)->aggregator_add()) return 1;
+    if ((*func_ptr)->aggregator_add()) return true;
   }
-  return 0;
+  return false;
 }
 
 bool update_sum_func(Item_sum **func_ptr) {
   DBUG_TRACE;
   Item_sum *func;
   for (; (func = *func_ptr); func_ptr++)
-    if (func->aggregator_add()) return 1;
-  return 0;
+    if (func->aggregator_add()) return true;
+  return false;
 }
 
 /**
@@ -3011,8 +3011,8 @@ static int do_select(JOIN *join) {
     */
     if (!join->where_cond || join->where_cond->val_int()) {
       // HAVING will be checked by end_select
-      error = (*end_select)(join, 0, 0);
-      if (error >= NESTED_LOOP_OK) error = (*end_select)(join, 0, 1);
+      error = (*end_select)(join, 0, false);
+      if (error >= NESTED_LOOP_OK) error = (*end_select)(join, 0, true);
 
       // This is a special case because const-only plans don't go through
       // iterators, which would normally be responsible for incrementing
@@ -3055,8 +3055,9 @@ static int do_select(JOIN *join) {
     DBUG_ASSERT(join->primary_tables);
 
     QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
-    error = join->first_select(join, qep_tab, 0);
-    if (error >= NESTED_LOOP_OK) error = join->first_select(join, qep_tab, 1);
+    error = join->first_select(join, qep_tab, false);
+    if (error >= NESTED_LOOP_OK)
+      error = join->first_select(join, qep_tab, true);
   }
 
   thd->current_found_rows = join->send_records;
@@ -3724,7 +3725,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
           }
 
           if (tab == qep_tab)
-            found = 0;
+            found = false;
           else {
             /*
               Set a return point if rejected predicate is attached
@@ -3796,7 +3797,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
       if (unlikely(qep_tab->lateral_derived_tables_depend_on_me))
         qep_tab->refresh_lateral();
 
-      rc = (*qep_tab->next_select)(join, qep_tab + 1, 0);
+      rc = (*qep_tab->next_select)(join, qep_tab + 1, false);
 
       if (rc != NESTED_LOOP_OK) return rc;
 
@@ -4758,7 +4759,7 @@ int join_materialize_semijoin(QEP_TAB *tab) {
   */
   last->next_select = end_sj_materialize;
   last->set_sj_mat_exec(sjm);  // TODO: This violates comment for sj_mat_exec!
-  if (tab->table()->hash_field) tab->table()->file->ha_index_init(0, 0);
+  if (tab->table()->hash_field) tab->table()->file->ha_index_init(0, false);
   int rc;
   if ((rc = sub_select(tab->join(), first, false)) < 0) return rc;
   if ((rc = sub_select(tab->join(), first, true)) < 0) return rc;
@@ -5216,7 +5217,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     if (join->send_records >= join->unit->select_limit_cnt &&
         join->do_send_rows) {
       if (join->calc_found_rows) {
-        join->do_send_rows = 0;
+        join->do_send_rows = false;
         if (join->unit->fake_select_lex)
           join->unit->fake_select_lex->select_limit = 0;
         return NESTED_LOOP_OK;
@@ -5400,7 +5401,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
             join->do_send_rows) {
           if (!join->calc_found_rows)
             return NESTED_LOOP_QUERY_LIMIT;  // Abort nicely
-          join->do_send_rows = 0;
+          join->do_send_rows = false;
           join->unit->select_limit_cnt = HA_POS_ERROR;
         } else if (join->send_records >= join->fetch_limit) {
           /*
@@ -5755,7 +5756,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
 
   if (error) {
     /* If this is a duplicate error, return immediately */
-    if (t->file->is_ignorable_error(error)) return 1;
+    if (t->file->is_ignorable_error(error)) return true;
 
     /* Other error than duplicate error: Attempt to create a temporary table. */
     bool is_duplicate;
@@ -5793,7 +5794,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
         w->m_frame_buffer_positions[Window::REA_FIRST_IN_PARTITION].m_position,
         t->file->ref_length, w->frame_buffer_partition_offset());
 
-    return is_duplicate ? 1 : 0;
+    return is_duplicate ? true : false;
   }
 
   /* Save position in frame buffer file of first row in a partition */
@@ -7118,14 +7119,14 @@ static inline enum_nested_loop_state write_or_send_row(
       rows to write before such function is executed.
     */
     if (create_ondisk_from_heap(join->thd, table, error, true, NULL) ||
-        (table->hash_field && table->file->ha_index_init(0, 0)))
+        (table->hash_field && table->file->ha_index_init(0, false)))
       return NESTED_LOOP_ERROR;  // Not a table_is_full error
   }
 
   if (++qep_tab->send_records >= out_tbl->end_write_records &&
       join->do_send_rows) {
     if (!join->calc_found_rows) return NESTED_LOOP_QUERY_LIMIT;
-    join->do_send_rows = 0;
+    join->do_send_rows = false;
     join->unit->select_limit_cnt = HA_POS_ERROR;
     return NESTED_LOOP_OK;
   }
@@ -7168,7 +7169,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
       if (++qep_tab->send_records >= tmp_tbl->end_write_records &&
           join->do_send_rows) {
         if (!join->calc_found_rows) return NESTED_LOOP_QUERY_LIMIT;
-        join->do_send_rows = 0;
+        join->do_send_rows = false;
         join->unit->select_limit_cnt = HA_POS_ERROR;
         return NESTED_LOOP_OK;
       }
@@ -7517,7 +7518,7 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
     if (create_ondisk_from_heap(join->thd, table, error, false, NULL))
       return NESTED_LOOP_ERROR;  // Not a table_is_full error
     /* Change method to update rows */
-    if ((error = table->file->ha_index_init(0, 0))) {
+    if ((error = table->file->ha_index_init(0, false))) {
       table->file->print_error(error, MYF(0));
       return NESTED_LOOP_ERROR;
     }
@@ -7638,17 +7639,17 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
 
 static bool compare_record(TABLE *table, Field **ptr) {
   for (; *ptr; ptr++) {
-    if ((*ptr)->cmp_offset(table->s->rec_buff_length)) return 1;
+    if ((*ptr)->cmp_offset(table->s->rec_buff_length)) return true;
   }
-  return 0;
+  return false;
 }
 
 static bool copy_blobs(Field **ptr) {
   for (; *ptr; ptr++) {
     if ((*ptr)->flags & BLOB_FLAG)
-      if (((Field_blob *)(*ptr))->copy()) return 1;  // Error
+      if (((Field_blob *)(*ptr))->copy()) return true;  // Error
   }
-  return 0;
+  return false;
 }
 
 static void free_blobs(Field **ptr) {
@@ -7764,7 +7765,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record = (char *)(record = table->record[0]) + offset;
   new_record = (char *)table->record[1] + offset;
 
-  if ((error = file->ha_rnd_init(1))) goto err;
+  if ((error = file->ha_rnd_init(true))) goto err;
   error = file->ha_rnd_next(record);
   for (;;) {
     if (thd->killed) {
@@ -7792,7 +7793,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     memcpy(new_record, org_record, reclength);
 
     /* Read through rest of file and mark duplicated rows deleted */
-    bool found = 0;
+    bool found = false;
     for (;;) {
       if ((error = file->ha_rnd_next(record))) {
         if (error == HA_ERR_RECORD_DELETED) continue;
@@ -7802,7 +7803,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
       if (compare_record(table, first_field) == 0) {
         if ((error = file->ha_delete_row(record))) goto err;
       } else if (!found) {
-        found = 1;
+        found = true;
         file->position(record);  // Remember position
       }
     }
@@ -7839,7 +7840,7 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   hash.reserve(file->stats.records);
 
   std::unique_ptr<uchar[]> key_buffer(new uchar[key_length]);
-  if ((error = file->ha_rnd_init(1))) goto err;
+  if ((error = file->ha_rnd_init(true))) goto err;
   for (;;) {
     uchar *key_pos = key_buffer.get();
     if (thd->killed) {
@@ -7934,10 +7935,10 @@ bool make_group_fields(JOIN *main_join, JOIN *curr_join) {
     curr_join->group_fields = main_join->group_fields_cache;
     curr_join->streaming_aggregation = true;
   } else {
-    if (alloc_group_fields(curr_join, curr_join->group_list)) return 1;
+    if (alloc_group_fields(curr_join, curr_join->group_list)) return true;
     main_join->group_fields_cache = curr_join->group_fields;
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -8074,7 +8075,8 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
            saved value
         */
         Field *field = item->field;
-        item->result_field = field->new_field(thd->mem_root, field->table, 1);
+        item->result_field =
+            field->new_field(thd->mem_root, field->table, true);
         /*
           We need to allocate one extra byte for null handling.
         */
@@ -8454,7 +8456,7 @@ bool QEP_tmp_table::prepare_tmp_table() {
   if (!table->file->inited &&
       ((table->group && tmp_tbl->sum_func_count && table->s->keys) ||
        table->hash_field))
-    rc = table->file->ha_index_init(0, 0);
+    rc = table->file->ha_index_init(0, false);
   else {
     /* Start index scan in scanning mode */
     rc = table->file->ha_rnd_init(true);

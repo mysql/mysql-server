@@ -1527,7 +1527,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   table.s->db_low_byte_first = table.file->low_byte_first();
   table.use_all_columns();
   table.record[0] = table.record[1] = share.default_values;
-  table.null_row = 0;
+  table.null_row = false;
   table.field = share.field;
   table.key_info = share.key_info;
 

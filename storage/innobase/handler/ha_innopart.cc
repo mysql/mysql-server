@@ -1419,7 +1419,7 @@ void ha_innopart::update_partition(uint part_id) {
   m_trx_id_parts[part_id] = m_prebuilt->trx_id;
   m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
   if (m_prebuilt->sql_stat_start == 0) {
-    m_sql_stat_start_parts.set(part_id, 0);
+    m_sql_stat_start_parts.set(part_id, false);
   }
   m_last_part = part_id;
 }
@@ -2125,7 +2125,7 @@ int ha_innopart::rnd_next_in_part(uint part_id, uchar *buf) {
     if (error == HA_ERR_KEY_NOT_FOUND) {
       error = HA_ERR_END_OF_FILE;
     }
-    m_start_of_scan = 0;
+    m_start_of_scan = false;
   } else {
     ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
     error = ha_innobase::general_fetch(buf, ROW_SEL_NEXT, 0);

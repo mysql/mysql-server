@@ -465,9 +465,10 @@ Key_use *Optimize_table_order::find_best_ref(
                             min(table->cost_model()->page_read_cost(tmp_fanout),
                                 tab->worst_seeks);
         }
-      } else if ((found_part & 1) && (!(table->file->index_flags(key, 0, 0) &
-                                        HA_ONLY_WHOLE_INDEX) ||
-                                      all_key_parts_covered)) {
+      } else if ((found_part & 1) &&
+                 (!(table->file->index_flags(key, 0, false) &
+                    HA_ONLY_WHOLE_INDEX) ||
+                  all_key_parts_covered)) {
         /*
           Use as many key-parts as possible and a unique key is better
           than a not unique key.

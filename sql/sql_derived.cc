@@ -203,7 +203,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);
   t->reginfo.lock_type = TL_WRITE;
-  t->copy_blobs = 1;
+  t->copy_blobs = true;
 
   tl->table = t;
   t->pos_in_table_list = tl;
@@ -416,7 +416,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
                        !apply_semijoin ? SELECT_STRAIGHT_JOIN : 0, 0))
     return true;
 
-  if (check_duplicate_names(m_derived_column_names, derived->types, 0))
+  if (check_duplicate_names(m_derived_column_names, derived->types, false))
     return true;
 
   if (is_derived()) {

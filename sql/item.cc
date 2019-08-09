@@ -206,7 +206,7 @@ bool Item::val_bool() {
       my_decimal decimal_value;
       my_decimal *val = val_decimal(&decimal_value);
       if (val) return !my_decimal_is_zero(val);
-      return 0;
+      return false;
     }
     case REAL_RESULT:
     case STRING_RESULT:
@@ -214,7 +214,7 @@ bool Item::val_bool() {
     case ROW_RESULT:
     default:
       DBUG_ASSERT(0);
-      return 0;  // Wrong (but safe)
+      return false;  // Wrong (but safe)
   }
 }
 
@@ -334,7 +334,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value) {
       as the result may be used in subsequent arithmetic operations.
      */
     my_decimal_set_zero(decimal_value);
-    null_value = 1;  // set NULL, stop processing
+    null_value = true;  // set NULL, stop processing
     return decimal_value;
   }
   return date2my_decimal(&ltime, decimal_value);
@@ -345,7 +345,7 @@ my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value) {
   MYSQL_TIME ltime;
   if (get_time(&ltime)) {
     my_decimal_set_zero(decimal_value);
-    null_value = 1;
+    null_value = true;
     return 0;
   }
   return date2my_decimal(&ltime, decimal_value);
@@ -464,7 +464,7 @@ longlong Item::val_int_from_datetime() {
 
 type_conversion_status Item::save_time_in_field(Field *field) {
   MYSQL_TIME ltime;
-  if (get_time(&ltime)) return set_field_to_null_with_conversions(field, 0);
+  if (get_time(&ltime)) return set_field_to_null_with_conversions(field, false);
   field->set_notnull();
   return field->store_time(&ltime, decimals);
 }
@@ -475,7 +475,7 @@ type_conversion_status Item::save_date_in_field(Field *field) {
   const sql_mode_t mode = field->table->in_use->variables.sql_mode;
   if (mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
   if (get_date(&ltime, flags))
-    return set_field_to_null_with_conversions(field, 0);
+    return set_field_to_null_with_conversions(field, false);
   field->set_notnull();
   return field->store_time(&ltime, decimals);
 }
@@ -707,7 +707,7 @@ void Item::print_for_order(const THD *thd, String *str,
 
 void Item::cleanup() {
   DBUG_TRACE;
-  fixed = 0;
+  fixed = false;
   marker = MARKER_NONE;
   if (orig_name.is_set()) item_name = orig_name;
 }
@@ -789,7 +789,7 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
   List_iterator<Item_field> item_list_it(*item_list);
   Item_field *curr_item;
   while ((curr_item = item_list_it++)) {
-    if (curr_item->eq(this, 1)) return false; /* Already in the set. */
+    if (curr_item->eq(this, true)) return false; /* Already in the set. */
   }
   item_list->push_back(this);
   return false;
@@ -946,9 +946,9 @@ bool Item::may_evaluate_const(const THD *thd) const {
 bool Item::check_cols(uint c) {
   if (c != 1) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), c);
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 const Name_string null_name_string(NULL, 0);
@@ -1017,7 +1017,8 @@ bool Item::eq(const Item *item, bool) const {
 }
 
 Item *Item::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  Item_func_conv_charset *conv = new Item_func_conv_charset(thd, this, tocs, 1);
+  Item_func_conv_charset *conv =
+      new Item_func_conv_charset(thd, this, tocs, true);
   return conv && conv->safe ? conv : NULL;
 }
 
@@ -1785,7 +1786,7 @@ bool Item_name_const::fix_fields(THD *thd, Item **) {
   set_data_type(value_item->data_type());
   max_length = value_item->max_length;
   decimals = value_item->decimals;
-  fixed = 1;
+  fixed = true;
   return false;
 }
 
@@ -2112,7 +2113,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags) {
     } else {
       // Cannot apply conversion
       set(&my_charset_bin, DERIVATION_NONE, (dt.repertoire | repertoire));
-      return 1;
+      return true;
     }
   } else if (derivation < dt.derivation) {
     // Do nothing
@@ -2124,12 +2125,12 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags) {
     } else {
       if (derivation == DERIVATION_EXPLICIT) {
         set(0, DERIVATION_NONE, 0);
-        return 1;
+        return true;
       }
-      if (collation->state & MY_CS_BINSORT) return 0;
+      if (collation->state & MY_CS_BINSORT) return false;
       if (dt.collation->state & MY_CS_BINSORT) {
         set(dt);
-        return 0;
+        return false;
       }
       const CHARSET_INFO *bin =
           get_charset_by_csname(collation->csname, MY_CS_BINSORT, MYF(0));
@@ -2137,7 +2138,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags) {
     }
   }
   repertoire |= dt.repertoire;
-  return 0;
+  return false;
 }
 
 /******************************/
@@ -2262,7 +2263,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
     // @todo - check why the constructors may return error
     if (thd->is_error()) return true;
     if (conv == NULL && ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv = new Item_func_conv_charset(thd, *arg, coll.collation, 1);
+      conv = new Item_func_conv_charset(thd, *arg, coll.collation, true);
 
     if (conv == NULL) {
       if (nargs >= 2 && nargs <= 3) {
@@ -2274,7 +2275,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
       return true;
     }
     if ((*arg)->type() == Item::FIELD_ITEM)
-      ((Item_field *)(*arg))->no_const_subst = 1;
+      ((Item_field *)(*arg))->no_const_subst = true;
     /*
       If in statement prepare, then we create a converter for two
       constant items, do it once and then reuse it.
@@ -2696,17 +2697,17 @@ my_decimal *Item_field::val_decimal(my_decimal *decimal_value) {
 bool Item_field::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   if ((null_value = field->is_null()) || field->get_date(ltime, fuzzydate)) {
     memset(ltime, 0, sizeof(*ltime));
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 bool Item_field::get_time(MYSQL_TIME *ltime) {
   if ((null_value = field->is_null()) || field->get_time(ltime)) {
     memset(ltime, 0, sizeof(*ltime));
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 bool Item_field::get_timeval(struct timeval *tm, int *warnings) {
@@ -2863,7 +2864,7 @@ void Item_int::init(const char *str_arg, uint length) {
   value = my_strtoll10(str_arg, &end_ptr, &error);
   max_length = (uint)(end_ptr - str_arg);
   item_name.copy(str_arg, max_length);
-  fixed = 1;
+  fixed = true;
 }
 
 my_decimal *Item_int::val_decimal(my_decimal *decimal_value) {
@@ -2923,7 +2924,7 @@ Item_decimal::Item_decimal(const POS &pos, const char *str_arg, uint length,
   item_name.set(str_arg);
   set_data_type(MYSQL_TYPE_NEWDECIMAL);
   decimals = (uint8)decimal_value.frac;
-  fixed = 1;
+  fixed = true;
   max_length = my_decimal_precision_to_length_no_truncation(
       decimal_value.intg + decimals, decimals, unsigned_flag);
 }
@@ -2932,7 +2933,7 @@ Item_decimal::Item_decimal(longlong val, bool unsig) {
   int2my_decimal(E_DEC_FATAL_ERROR, val, unsig, &decimal_value);
   set_data_type(MYSQL_TYPE_NEWDECIMAL);
   decimals = (uint8)decimal_value.frac;
-  fixed = 1;
+  fixed = true;
   max_length = my_decimal_precision_to_length_no_truncation(
       decimal_value.intg + decimals, decimals, unsigned_flag);
 }
@@ -2941,7 +2942,7 @@ Item_decimal::Item_decimal(double val) {
   double2my_decimal(E_DEC_FATAL_ERROR, val, &decimal_value);
   set_data_type(MYSQL_TYPE_NEWDECIMAL);
   decimals = (uint8)decimal_value.frac;
-  fixed = 1;
+  fixed = true;
   max_length = my_decimal_precision_to_length_no_truncation(
       decimal_value.intg + decimals, decimals, unsigned_flag);
 }
@@ -2954,14 +2955,14 @@ Item_decimal::Item_decimal(const Name_string &name_arg,
   set_data_type(MYSQL_TYPE_NEWDECIMAL);
   decimals = (uint8)decimal_par;
   max_length = length;
-  fixed = 1;
+  fixed = true;
 }
 
 Item_decimal::Item_decimal(my_decimal *value_par) {
   my_decimal2decimal(value_par, &decimal_value);
   set_data_type(MYSQL_TYPE_NEWDECIMAL);
   decimals = (uint8)decimal_value.frac;
-  fixed = 1;
+  fixed = true;
   max_length = my_decimal_precision_to_length_no_truncation(
       decimal_value.intg + decimals, decimals, unsigned_flag);
 }
@@ -2970,7 +2971,7 @@ Item_decimal::Item_decimal(const uchar *bin, int precision, int scale) {
   binary2my_decimal(E_DEC_FATAL_ERROR, bin, &decimal_value, precision, scale);
   set_data_type(MYSQL_TYPE_NEWDECIMAL);
   decimals = (uint8)decimal_value.frac;
-  fixed = 1;
+  fixed = true;
   max_length = my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                             unsigned_flag);
 }
@@ -3175,20 +3176,20 @@ bool Item_null::eq(const Item *item, bool) const {
 double Item_null::val_real() {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  null_value = 1;
+  null_value = true;
   return 0.0;
 }
 longlong Item_null::val_int() {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  null_value = 1;
+  null_value = true;
   return 0;
 }
 
 String *Item_null::val_str(String *) {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  null_value = 1;
+  null_value = true;
   return 0;
 }
 
@@ -3302,7 +3303,7 @@ void Item_param::sync_clones() {
 void Item_param::set_null() {
   DBUG_TRACE;
   /* These are cleared after each execution by reset() method */
-  null_value = 1;
+  null_value = true;
   /*
     Because of NULL and string values we need to set max_length for each new
     placeholder value: user can submit NULL for any placeholder type, and
@@ -3320,7 +3321,7 @@ void Item_param::set_int(longlong i, uint32 max_length_arg) {
   state = INT_VALUE;
   max_length = max_length_arg;
   decimals = 0;
-  maybe_null = 0;
+  maybe_null = false;
 }
 
 void Item_param::set_double(double d) {
@@ -3329,7 +3330,7 @@ void Item_param::set_double(double d) {
   state = REAL_VALUE;
   max_length = DBL_DIG + 8;
   decimals = DECIMAL_NOT_SPECIFIED;
-  maybe_null = 0;
+  maybe_null = false;
 }
 
 /**
@@ -3353,7 +3354,7 @@ void Item_param::set_decimal(const char *str, ulong length) {
   decimals = decimal_value.frac;
   max_length = my_decimal_precision_to_length_no_truncation(
       decimal_value.precision(), decimals, unsigned_flag);
-  maybe_null = 0;
+  maybe_null = false;
 }
 
 void Item_param::set_decimal(const my_decimal *dv) {
@@ -3400,7 +3401,7 @@ void Item_param::set_time(MYSQL_TIME *tm, enum_mysql_timestamp_type time_type,
   }
 
   state = TIME_VALUE;
-  maybe_null = 0;
+  maybe_null = false;
   max_length = max_length_arg;
 }
 
@@ -3416,7 +3417,7 @@ bool Item_param::set_str(const char *str, size_t length) {
     return true;
   state = STRING_VALUE;
   max_length = length;
-  maybe_null = 0;
+  maybe_null = false;
   /* max_length and decimals are set after charset conversion */
   /* sic: str may be not null-terminated, don't add DBUG_PRINT here */
   return false;
@@ -3445,7 +3446,7 @@ bool Item_param::set_longdata(const char *str, ulong length) {
 
   if (str_value.append(str, length, &my_charset_bin)) return true;
   state = LONG_DATA_VALUE;
-  maybe_null = 0;
+  maybe_null = false;
 
   return false;
 }
@@ -3471,7 +3472,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
       bool unused;
       set_int(entry->val_int(&unused), MY_INT64_NUM_DECIMAL_DIGITS);
       item_type = Item::INT_ITEM;
-      return !unsigned_flag && value.integer < 0 ? 1 : 0;
+      return !unsigned_flag && value.integer < 0 ? true : false;
     }
     switch (item_result_type) {
       case REAL_RESULT:
@@ -3505,7 +3506,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
         */
         item_type = Item::STRING_ITEM;
 
-        if (set_str(entry->ptr(), entry->length())) return 1;
+        if (set_str(entry->ptr(), entry->length())) return true;
         break;
       }
       case DECIMAL_RESULT: {
@@ -3525,7 +3526,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
   } else
     set_null();
 
-  return 0;
+  return false;
 }
 
 /**
@@ -3551,8 +3552,8 @@ void Item_param::reset() {
   str_value.set_charset(&my_charset_bin);
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   state = NO_VALUE;
-  maybe_null = 1;
-  null_value = 0;
+  maybe_null = true;
+  null_value = false;
   /*
     Don't reset item_type to PARAM_ITEM: it's only needed to guard
     us from item optimizations at prepare stage, when item doesn't yet
@@ -3594,7 +3595,7 @@ type_conversion_status Item_param::save_in_field_inner(Field *field,
 bool Item_param::get_time(MYSQL_TIME *res) {
   if (state == TIME_VALUE) {
     *res = value.time;
-    return 0;
+    return false;
   }
   /*
     If parameter value isn't supplied assertion will fire in val_str()
@@ -3607,7 +3608,7 @@ bool Item_param::get_time(MYSQL_TIME *res) {
 bool Item_param::get_date(MYSQL_TIME *res, my_time_flags_t fuzzydate) {
   if (state == TIME_VALUE) {
     *res = value.time;
-    return 0;
+    return false;
   }
   return is_temporal() ? get_date_from_string(res, fuzzydate)
                        : get_date_from_non_temporal(res, fuzzydate);
@@ -4379,7 +4380,7 @@ bool Item::fix_fields(THD *, Item **) {
 
   // We do not check fields which are fixed during construction
   DBUG_ASSERT(fixed == 0 || basic_const_item());
-  fixed = 1;
+  fixed = true;
   return false;
 }
 
@@ -4555,7 +4556,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
         found_match_degree = cur_match_degree;
         found_group = cur_group;
       } else if (found_group && (cur_match_degree == found_match_degree) &&
-                 !(*(found_group->item))->eq(cur_field, 0)) {
+                 !(*(found_group->item))->eq(cur_field, false)) {
         /*
           If the current resolve candidate matches equally well as the current
           best match, they must reference the same column, otherwise the field
@@ -4632,7 +4633,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
 
     /* Check if the fields found in SELECT and GROUP BY are the same field. */
     if (group_by_ref && (select_ref != not_found_item) &&
-        !((*group_by_ref)->eq(*select_ref, 0))) {
+        !((*group_by_ref)->eq(*select_ref, false))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
                           thd->where);
@@ -4885,7 +4886,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
             set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
             set_field(*from_field);
-            fixed = 1;
+            fixed = true;
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
                               ((ref_type == REF_ITEM || ref_type == FIELD_ITEM)
@@ -5186,7 +5187,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
         Item **res =
             find_item_in_list(thd, this, thd->lex->current_select()->item_list,
                               &counter, REPORT_EXCEPT_NOT_FOUND, &resolution);
-        if (!res) return 1;
+        if (!res) return true;
         if (resolution == RESOLVED_AGAINST_ALIAS) set_alias_of_expr();
         if (res != not_found_item) {
           if ((*res)->type() == Item::FIELD_ITEM) {
@@ -5230,7 +5231,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
             */
             Item_ref *rf = new Item_ref(context, res, table_name, field_name,
                                         resolution == RESOLVED_AGAINST_ALIAS);
-            if (!rf) return 1;
+            if (!rf) return true;
 
             const bool group_fix_field =
                 thd->lex->current_select()->group_fix_field;
@@ -5338,7 +5339,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       goto error;
     }
   }
-  fixed = 1;
+  fixed = true;
   if (is_null_on_empty_table(thd, this)) {
     maybe_null = true;
 
@@ -5356,7 +5357,7 @@ error:
 }
 
 Item *Item_field::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  no_const_subst = 1;
+  no_const_subst = true;
   return Item::safe_charset_converter(thd, tocs);
 }
 
@@ -5527,7 +5528,7 @@ Item *Item_field::equal_fields_propagator(uchar *arg) {
   See comments in Arg_comparator::set_compare_func() for details.
 */
 bool Item_field::set_no_const_sub(uchar *) {
-  if (field->charset() != &my_charset_bin) no_const_subst = 1;
+  if (field->charset() != &my_charset_bin) no_const_subst = true;
   return false;
 }
 
@@ -5634,7 +5635,7 @@ String *Item::check_well_formed_result(String *str, bool send_error,
     }
     if (truncate && length_error) {
       if (thd->is_strict_mode()) {
-        null_value = 1;
+        null_value = true;
         str = 0;
       } else {
         str->length(valid_length);
@@ -5850,12 +5851,12 @@ void Item_field::make_field(Send_field *tmp_field) {
 
 void Item_field::save_org_in_field(Field *to) {
   if (field->is_null()) {
-    null_value = 1;
+    null_value = true;
     set_field_to_null_with_conversions(to, true);
   } else {
     to->set_notnull();
     field_conv(to, field);
-    null_value = 0;
+    null_value = false;
   }
 }
 
@@ -5864,7 +5865,7 @@ type_conversion_status Item_field::save_in_field_inner(Field *to,
   type_conversion_status res;
   DBUG_TRACE;
   if (field->is_null()) {
-    null_value = 1;
+    null_value = true;
     const type_conversion_status status =
         set_field_to_null_with_conversions(to, no_conversions);
     return status;
@@ -5876,12 +5877,12 @@ type_conversion_status Item_field::save_in_field_inner(Field *to,
     nothing to do. This can happen in 'SET x = x' type of scenarios.
   */
   if (to == field) {
-    null_value = 0;
+    null_value = false;
     return TYPE_OK;
   }
 
   res = field_conv(to, field);
-  null_value = 0;
+  null_value = false;
   return res;
 }
 
@@ -6205,7 +6206,7 @@ void Item_temporal_with_ref::print(const THD *, String *str,
 }
 
 Item_num *Item_uint::neg() {
-  Item_decimal *item = new Item_decimal(value, 1);
+  Item_decimal *item = new Item_decimal(value, true);
   return item->neg();
 }
 
@@ -6267,7 +6268,7 @@ void Item_float::init(const char *str_arg, uint length) {
   set_data_type(MYSQL_TYPE_DOUBLE);
   decimals = (uint8)nr_of_decimals(str_arg, str_arg + length);
   max_length = length;
-  fixed = 1;
+  fixed = true;
 }
 
 type_conversion_status Item_float::save_in_field_inner(Field *field, bool) {
@@ -6351,8 +6352,8 @@ void Item_hex_string::hex_string_init(const char *str, uint str_length) {
   set_data_type(MYSQL_TYPE_VARCHAR);
   max_length = s.length;
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
-  fixed = 1;
-  unsigned_flag = 1;
+  fixed = true;
+  unsigned_flag = true;
 }
 
 longlong Item_hex_string::val_int() {
@@ -6509,7 +6510,7 @@ void Item_bin_string::bin_string_init(const char *str, size_t str_length) {
   max_length = s.length;
   str_value.set(s.str, s.length, &my_charset_bin);
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
-  fixed = 1;
+  fixed = true;
 }
 
 /**
@@ -7460,7 +7461,7 @@ void Item_ref::set_properties() {
   */
   set_accum_properties(*ref);
   unsigned_flag = (*ref)->unsigned_flag;
-  fixed = 1;
+  fixed = true;
   if ((*ref)->type() == FIELD_ITEM &&
       ((Item_ident *)(*ref))->is_alias_of_expr())
     set_alias_of_expr();
@@ -7906,7 +7907,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
   if (!arg) {
-    fixed = 1;
+    fixed = true;
     return false;
   }
   if (!arg->fixed && arg->fix_fields(thd, &arg)) return true;
@@ -8115,7 +8116,7 @@ void Item_trigger_field::setup_field(
     set field_idx properly.
   */
   (void)find_field_in_table(table_triggers->get_subject_table(), field_name,
-                            strlen(field_name), 0, &field_idx);
+                            strlen(field_name), false, &field_idx);
   triggers = table_triggers;
   table_grants = table_grant_info;
 }
@@ -8187,7 +8188,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **) {
     field = triggers->get_trigger_variable_field(trigger_var_type, field_idx);
 
     set_field(field);
-    fixed = 1;
+    fixed = true;
     return false;
   }
 
@@ -9039,15 +9040,15 @@ bool Item_cache_row::allocate(uint num) {
 
 bool Item_cache_row::setup(Item *item) {
   example = item;
-  if (!values && allocate(item->cols())) return 1;
+  if (!values && allocate(item->cols())) return true;
   for (uint i = 0; i < item_count; i++) {
     Item *el = item->element_index(i);
     Item_cache *tmp;
-    if (!(tmp = values[i] = Item_cache::get_cache(el))) return 1;
+    if (!(tmp = values[i] = Item_cache::get_cache(el))) return true;
     tmp->setup(el);
     add_accum_properties(tmp);
   }
-  return 0;
+  return false;
 }
 
 void Item_cache_row::store(Item *item) {
@@ -9095,25 +9096,25 @@ void Item_cache_row::illegal_method_call(
 bool Item_cache_row::check_cols(uint c) {
   if (c != item_count) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), c);
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 bool Item_cache_row::null_inside() {
   for (uint i = 0; i < item_count; i++) {
     if (values[i]->cols() > 1) {
-      if (values[i]->null_inside()) return 1;
+      if (values[i]->null_inside()) return true;
     } else {
       /*
         TODO : Implement error handling for this function as
         update_null_value() can return error.
       */
       values[i]->update_null_value();
-      if (values[i]->null_value) return 1;
+      if (values[i]->null_value) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 void Item_cache_row::bring_value() {
@@ -9379,7 +9380,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
       field = make_string_field(table);
       break;
     default:
-      field = tmp_table_field_from_field_type(table, 0);
+      field = tmp_table_field_from_field_type(table, false);
       break;
   }
   if (strict && field && field->is_temporal_with_date() &&

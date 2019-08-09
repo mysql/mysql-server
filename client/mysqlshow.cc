@@ -50,15 +50,16 @@
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static char *host = 0, *opt_password = 0, *user = 0;
-static bool opt_show_keys = 0, opt_compress = 0, opt_count = 0, opt_status = 0;
-static bool tty_password = 0, opt_table_type = 0;
-static bool debug_info_flag = 0, debug_check_flag = 0;
+static bool opt_show_keys = false, opt_compress = false, opt_count = false,
+            opt_status = false;
+static bool tty_password = false, opt_table_type = false;
+static bool debug_info_flag = false, debug_check_flag = false;
 static uint my_end_arg = 0;
 static uint opt_verbose = 0;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static uint opt_enable_cleartext_plugin = 0;
-static bool using_opt_enable_cleartext_plugin = 0;
+static bool using_opt_enable_cleartext_plugin = false;
 
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
@@ -88,7 +89,7 @@ static char *opt_mysql_unix_port = 0;
 
 int main(int argc, char **argv) {
   int error;
-  bool first_argument_uses_wildcards = 0;
+  bool first_argument_uses_wildcards = false;
   char *wild;
   MYSQL mysql;
   MY_INIT(argv[0]);
@@ -107,15 +108,15 @@ int main(int argc, char **argv) {
       switch (*pos) {
         case '*':
           *pos = '%';
-          first_argument_uses_wildcards = 1;
+          first_argument_uses_wildcards = true;
           break;
         case '?':
           *pos = '_';
-          first_argument_uses_wildcards = 1;
+          first_argument_uses_wildcards = true;
           break;
         case '%':
         case '_':
-          first_argument_uses_wildcards = 1;
+          first_argument_uses_wildcards = true;
           break;
         case '\\':
           pos++;
@@ -179,7 +180,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%s: %s\n", my_progname, mysql_error(&mysql));
     exit(1);
   }
-  mysql.reconnect = 1;
+  mysql.reconnect = true;
 
   switch (argc) {
     case 0:
@@ -343,9 +344,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
         opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = 0;
+        tty_password = false;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 'W':
 #ifdef _WIN32
@@ -361,7 +362,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case '#':
       DBUG_PUSH(argument ? argument : "d:t:o");
-      debug_check_flag = 1;
+      debug_check_flag = true;
       break;
 #include "sslopt-case.h"
 
@@ -373,7 +374,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       usage();
       exit(0);
   }
-  return 0;
+  return false;
 }
 }  // extern "C"
 

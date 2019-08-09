@@ -115,5 +115,5 @@ bool process_key_caches(process_key_cache_t func) {
     KEY_CACHE *key_cache = (KEY_CACHE *)element->data;
     func(element->name, key_cache);
   }
-  return 0;
+  return false;
 }

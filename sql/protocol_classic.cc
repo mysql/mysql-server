@@ -573,7 +573,7 @@ bool Protocol_classic::net_store_data_with_conversion(
   size_t new_length = packet_length + conv_length + 1;
 
   if (new_length > packet->alloced_length() && packet->mem_realloc(new_length))
-    return 1;
+    return true;
 
   char *length_pos = packet->ptr() + packet_length;
   char *to = length_pos + 1;
@@ -583,7 +583,7 @@ bool Protocol_classic::net_store_data_with_conversion(
 
   net_store_length((uchar *)length_pos, to - length_pos - 1);
   packet->length((uint)(to - packet->ptr()));
-  return 0;
+  return false;
 }
 
 /**
@@ -959,7 +959,7 @@ static bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
     net->last_errno = ER_NET_OK_PACKET_TOO_LARGE;
     my_error(ER_NET_OK_PACKET_TOO_LARGE, MYF(0));
     DBUG_PRINT("info", ("OK packet too large"));
-    return 1;
+    return true;
   }
   error = my_net_write(net, start, (size_t)(pos - start));
   if (!error) error = net_flush(net);
@@ -3182,7 +3182,7 @@ bool Protocol_classic::end_row() {
   DBUG_TRACE;
   if (m_thd->get_protocol()->connection_alive())
     return my_net_write(&m_thd->net, (uchar *)packet->ptr(), packet->length());
-  return 0;
+  return false;
 }
 
 /**
@@ -3566,7 +3566,7 @@ bool Protocol_binary::store_null() {
   char *to = packet->ptr() + offset;
   *to = (char)((uchar)*to | (uchar)bit);
   field_pos++;
-  return 0;
+  return false;
 }
 
 bool Protocol_binary::store_tiny(longlong from, uint32 zerofill) {
@@ -3588,9 +3588,9 @@ bool Protocol_binary::store_short(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
   char *to = packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   int2store(to, (int)from);
-  return 0;
+  return false;
 }
 
 bool Protocol_binary::store_long(longlong from, uint32 zerofill) {
@@ -3601,9 +3601,9 @@ bool Protocol_binary::store_long(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   int4store(to, static_cast<uint32>(from));
-  return 0;
+  return false;
 }
 
 bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
@@ -3615,9 +3615,9 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
               field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   int8store(to, from);
-  return 0;
+  return false;
 }
 
 bool Protocol_binary::store_float(float from, uint32 decimals,
@@ -3629,9 +3629,9 @@ bool Protocol_binary::store_float(float from, uint32 decimals,
               field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   float4store(to, from);
-  return 0;
+  return false;
 }
 
 bool Protocol_binary::store_double(double from, uint32 decimals,
@@ -3643,9 +3643,9 @@ bool Protocol_binary::store_double(double from, uint32 decimals,
               field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
-  if (!to) return 1;
+  if (!to) return true;
   float8store(to, from);
-  return 0;
+  return false;
 }
 
 bool Protocol_binary::store_datetime(const MYSQL_TIME &tm, uint precision) {

@@ -62,10 +62,10 @@ char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
 static int interval = 0;
-static bool option_force = 0, interrupted = 0, new_line = 0, opt_compress = 0,
-            opt_relative = 0, opt_verbose = 0, opt_vertical = 0,
-            tty_password = 0, opt_nobeep;
-static bool debug_info_flag = 0, debug_check_flag = 0;
+static bool option_force = false, interrupted = false, new_line = false,
+            opt_compress = false, opt_relative = false, opt_verbose = false,
+            opt_vertical = false, tty_password = false, opt_nobeep;
+static bool debug_info_flag = false, debug_check_flag = false;
 static uint tcp_port = 0, option_wait = 0, option_silent = 0, nr_iterations;
 static uint opt_count_iterations = 0, my_end_arg;
 static char *opt_bind_addr = NULL;
@@ -73,8 +73,8 @@ static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char *unix_port = 0;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static uint opt_enable_cleartext_plugin = 0;
-static bool using_opt_enable_cleartext_plugin = 0;
-static bool opt_show_warnings = 0;
+static bool using_opt_enable_cleartext_plugin = false;
+static bool opt_show_warnings = false;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 #if defined(_WIN32)
@@ -90,7 +90,7 @@ static myf error_flags; /* flags to pass to my_printf_error, like ME_BELL */
 */
 
 static uint ex_val_max_len[MAX_MYSQL_VAR];
-static bool ex_status_printed = 0; /* First output is not relative. */
+static bool ex_status_printed = false; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
 #include "sslopt-vars.h"
@@ -328,9 +328,9 @@ bool get_one_option(int optid,
         opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = 0;
+        tty_password = false;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 's':
       option_silent++;
@@ -374,7 +374,7 @@ bool get_one_option(int optid,
     usage();
     exit(1);
   }
-  return 0;
+  return false;
 }
 
 int main(int argc, char *argv[]) {
@@ -493,7 +493,7 @@ int main(int argc, char *argv[]) {
     */
 
     while (!interrupted && (!opt_count_iterations || nr_iterations)) {
-      new_line = 0;
+      new_line = false;
 
       if ((error = execute_commands(&mysql, argc, commands))) {
         /*
@@ -562,7 +562,7 @@ int main(int argc, char *argv[]) {
   return error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-void endprog(int signal_number MY_ATTRIBUTE((unused))) { interrupted = 1; }
+void endprog(int signal_number MY_ATTRIBUTE((unused))) { interrupted = true; }
 
 /**
    @brief connect to server, optionally waiting for same to come up
@@ -577,17 +577,17 @@ void endprog(int signal_number MY_ATTRIBUTE((unused))) { interrupted = 1; }
 */
 
 static bool sql_connect(MYSQL *mysql, uint wait) {
-  bool info = 0;
+  bool info = false;
 
   for (;;) {
     if (mysql_real_connect(mysql, host, user, opt_password, NullS, tcp_port,
                            unix_port, CLIENT_REMEMBER_OPTIONS)) {
-      mysql->reconnect = 1;
+      mysql->reconnect = true;
       if (info) {
         fputs("\n", stderr);
         (void)fflush(stderr);
       }
-      return 0;
+      return false;
     }
 
     if (!wait)  // was or reached 0, fail
@@ -611,7 +611,7 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
                   tcp_port ? tcp_port : mysql_port);
         }
       }
-      return 1;
+      return true;
     }
 
     if (wait != (uint)~0) wait--; /* count down, one less retry */
@@ -624,10 +624,10 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
         was also given.
       */
       fprintf(stderr, "Got error: %s\n", mysql_error(mysql));
-      if (!option_force) return 1;
+      if (!option_force) return true;
     } else if (!option_silent) {
       if (!info) {
-        info = 1;
+        info = true;
         fputs("Waiting for MySQL server to answer", stderr);
         (void)fflush(stderr);
       } else {
@@ -697,7 +697,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
       }
       case ADMIN_SHUTDOWN: {
         char pidfile[FN_REFLEN];
-        bool got_pidfile = 0;
+        bool got_pidfile = false;
         time_t last_modified = 0;
         struct stat pidfile_status;
 
@@ -755,7 +755,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       case ADMIN_VER:
-        new_line = 1;
+        new_line = true;
         print_version();
         puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
         printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
@@ -796,7 +796,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         while ((row = mysql_fetch_row(result))) print_row(result, row, 0);
         print_top(result);
         mysql_free_result(result);
-        new_line = 1;
+        new_line = true;
         break;
       }
       case ADMIN_STATUS:
@@ -842,7 +842,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         MYSQL_RES *res;
         MYSQL_ROW row;
 
-        new_line = 1;
+        new_line = true;
         if (mysql_query(mysql, "show /*!40003 GLOBAL */ variables") ||
             !(res = mysql_store_result(mysql))) {
           my_printf_error(0, "unable to show variables; error: '%s'",
@@ -861,7 +861,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         uint rownr = 0;
         void (*func)(MYSQL_RES *, MYSQL_ROW, uint);
 
-        new_line = 1;
+        new_line = true;
         if (mysql_query(mysql, "show /*!50002 GLOBAL */ status") ||
             !(res = mysql_store_result(mysql))) {
           my_printf_error(0, "unable to show status; error: '%s'", error_flags,
@@ -901,7 +901,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         } else
           print_top(res);
 
-        ex_status_printed = 1; /* From now on the output will be relative */
+        ex_status_printed = true; /* From now on the output will be relative */
         mysql_free_result(res);
         break;
       }
@@ -1117,12 +1117,12 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         break;
 
       case ADMIN_PING:
-        mysql->reconnect = 0; /* We want to know of reconnects */
+        mysql->reconnect = false; /* We want to know of reconnects */
         if (!mysql_ping(mysql)) {
           if (option_silent < 2) puts("mysqld is alive");
         } else {
           if (mysql_errno(mysql) == CR_SERVER_GONE_ERROR) {
-            mysql->reconnect = 1;
+            mysql->reconnect = true;
             if (!mysql_ping(mysql))
               puts("connection was down, but mysqld is now alive");
           } else {
@@ -1131,7 +1131,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
             return -1;
           }
         }
-        mysql->reconnect = 1; /* Automatic reconnect is default */
+        mysql->reconnect = true; /* Automatic reconnect is default */
         break;
       default:
         my_printf_error(0, "Unknown command: '%-.60s'", error_flags, argv[0]);
@@ -1442,7 +1442,7 @@ static bool get_pidfile(MYSQL *mysql, char *pidfile) {
     mysql_free_result(result);
     return row == 0; /* Error if row = 0 */
   }
-  return 1; /* Error */
+  return true; /* Error */
 }
 
 /*

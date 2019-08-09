@@ -149,14 +149,14 @@ static char *host = NULL, *opt_password = NULL, *user_supplied_query = NULL,
 static const char *user = nullptr;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static uint opt_enable_cleartext_plugin = 0;
-static bool using_opt_enable_cleartext_plugin = 0;
+static bool using_opt_enable_cleartext_plugin = false;
 
 const char *delimiter = "\n";
 
 const char *create_schema_string = "mysqlslap";
 
 static bool opt_preserve = true, opt_no_drop = false;
-static bool debug_info_flag = 0, debug_check_flag = 0;
+static bool debug_info_flag = false, debug_check_flag = false;
 static bool opt_only_print = false;
 static bool opt_compress = false, tty_password = false, opt_silent = false,
             auto_generate_sql_autoincrement = false,
@@ -416,7 +416,7 @@ int main(int argc, char **argv) {
 
     if (!opt_preserve) drop_schema(&mysql, create_schema_string);
 
-  } while (eptr ? (eptr = eptr->next) : 0);
+  } while (eptr ? (eptr = eptr->next) : nullptr);
 
   native_mutex_destroy(&counter_mutex);
   native_cond_destroy(&count_threshold);
@@ -745,9 +745,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
         opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = 0;
+        tty_password = false;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 'W':
 #ifdef _WIN32
@@ -760,7 +760,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
-      debug_check_flag = 1;
+      debug_check_flag = true;
       break;
     case OPT_SLAP_CSV:
       if (!argument) argument = const_cast<char *>("-"); /* use stdout */
@@ -780,7 +780,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       using_opt_enable_cleartext_plugin = true;
       break;
   }
-  return 0;
+  return false;
 }
 }
 

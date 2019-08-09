@@ -1569,7 +1569,7 @@ type_conversion_status Field_num::store_time(
     MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
   longlong nr = propagate_datetime_overflow(
       current_thd, [&](int *w) { return TIME_to_ulonglong_round(*ltime, w); });
-  return store(ltime->neg ? -nr : nr, 0);
+  return store(ltime->neg ? -nr : nr, false);
 }
 
 /**
@@ -2147,7 +2147,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg) {
 }
 
 bool Field::optimize_range(uint idx, uint part) const {
-  return table->file->index_flags(idx, part, 1) & HA_READ_RANGE;
+  return table->file->index_flags(idx, part, true) & HA_READ_RANGE;
 }
 
 Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
@@ -2330,7 +2330,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     */
     if (unsigned_flag) {
       if (sign_char == '-') {
-        Field_decimal::overflow(1);
+        Field_decimal::overflow(true);
         return TYPE_WARN_OUT_OF_RANGE;
       }
     }
@@ -2580,7 +2580,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
 type_conversion_status Field_decimal::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   if (unsigned_flag && nr < 0) {
-    overflow(1);
+    overflow(true);
     return TYPE_WARN_OUT_OF_RANGE;
   }
 
@@ -2617,7 +2617,7 @@ type_conversion_status Field_decimal::store(longlong nr, bool unsigned_val) {
   uchar *to;
 
   if (nr < 0 && unsigned_flag && !unsigned_val) {
-    overflow(1);
+    overflow(true);
     return TYPE_WARN_OUT_OF_RANGE;
   }
   length = (uint)(longlong10_to_str(nr, buff, unsigned_val ? 10 : -10) - buff);
@@ -4499,7 +4499,7 @@ uint Field_temporal::is_equal(const Create_field *new_field) const {
 my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ASSERT(decimals() == 0);
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), 0, decimal_value);
+  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), false, decimal_value);
   return decimal_value;
 }
 
@@ -4575,7 +4575,7 @@ type_conversion_status Field_temporal::store_lldiv_t(const lldiv_t *lld,
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error;
   MYSQL_TIME ltime;
-  error = convert_number_to_TIME(lld->quot, 0, static_cast<int>(lld->rem),
+  error = convert_number_to_TIME(lld->quot, false, static_cast<int>(lld->rem),
                                  &ltime, warnings);
   if (error == TYPE_OK || error == TYPE_NOTE_TRUNCATED)
     error = store_internal_adjust_frac(&ltime, warnings);
@@ -5223,7 +5223,7 @@ bool Field_timestampf::get_date_internal(MYSQL_TIME *ltime) const {
 
 bool Field_timestampf::get_timestamp(struct timeval *tm, int *) const {
   THD *thd = table ? table->in_use : current_thd;
-  thd->time_zone_used = 1;
+  thd->time_zone_used = true;
   DBUG_ASSERT(!is_null());
   my_timestamp_from_binary(tm, ptr, dec);
   return false;
@@ -5256,7 +5256,7 @@ type_conversion_status Field_time_common::convert_number_to_TIME(
     int *warnings) {
   if (unsigned_val && nr < 0) {
     *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    set_max_time(ltime, 0);
+    set_max_time(ltime, false);
     store_internal(ltime, warnings);
     return TYPE_WARN_OUT_OF_RANGE;
   }
@@ -5564,9 +5564,9 @@ type_conversion_status Field_year::store_time(
     THD *thd = table ? table->in_use : current_thd;
     MYSQL_TIME ltime2;
     time_to_datetime(thd, ltime, &ltime2);
-    return store(ltime2.year, 0);
+    return store(ltime2.year, false);
   }
-  return store(ltime->year, 0);
+  return store(ltime->year, false);
 }
 
 type_conversion_status Field_year::store(longlong nr, bool) {
@@ -5665,7 +5665,7 @@ bool Field_newdate::get_date_internal(MYSQL_TIME *ltime) const {
   ltime->year = (tmp >> 9);
   ltime->time_type = MYSQL_TIMESTAMP_DATE;
   ltime->hour = ltime->minute = ltime->second = ltime->second_part =
-      ltime->neg = 0;
+      ltime->neg = false;
   return false;
 }
 
@@ -5822,7 +5822,7 @@ static inline longlong datetime_get_internal(TABLE *table, uchar *ptr) {
 bool Field_datetime::get_date_internal(MYSQL_TIME *ltime) const {
   longlong tmp = datetime_get_internal(table, ptr);
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
-  ltime->neg = 0;
+  ltime->neg = false;
   ltime->second_part = 0;
   TIME_set_yymmdd(ltime, (uint)(tmp / 1000000LL));
   TIME_set_hhmmss(ltime, (uint)(tmp % 1000000LL));
@@ -8147,7 +8147,7 @@ double Field_enum::val_real() const { return (double)Field_enum::val_int(); }
 
 my_decimal *Field_enum::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), 0, decimal_value);
+  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), false, decimal_value);
   return decimal_value;
 }
 
@@ -8239,7 +8239,7 @@ void Field_enum::sql_type(String &res) const {
   res.length(0);
   res.append(STRING_WITH_LEN("enum("));
 
-  bool flag = 0;
+  bool flag = false;
   uint *len = typelib->type_lengths;
   for (const char **pos = typelib->type_names; *pos; pos++, len++) {
     uint dummy_errors;
@@ -8270,7 +8270,7 @@ void Field_enum::sql_type(String &res) const {
     } else {
       append_unescaped(&res, enum_item.ptr(), enum_item.length());
     }
-    flag = 1;
+    flag = true;
   }
   res.append(')');
 }
@@ -8294,7 +8294,7 @@ Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
 type_conversion_status Field_set::store(const char *from, size_t length,
                                         const CHARSET_INFO *cs) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  bool got_warning = 0;
+  bool got_warning = false;
   int err = 0;
   type_conversion_status ret = TYPE_OK;
   const char *not_used;
@@ -8384,7 +8384,7 @@ void Field_set::sql_type(String &res) const {
   res.length(0);
   res.append(STRING_WITH_LEN("set("));
 
-  bool flag = 0;
+  bool flag = false;
   uint *len = typelib->type_lengths;
   for (const char **pos = typelib->type_names; *pos; pos++, len++) {
     uint dummy_errors;
@@ -8392,7 +8392,7 @@ void Field_set::sql_type(String &res) const {
     /* convert to res.charset() == utf8, then quote */
     set_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, set_item.ptr(), set_item.length());
-    flag = 1;
+    flag = true;
   }
   res.append(')');
 }
@@ -8407,8 +8407,8 @@ void Field_set::sql_type(String &res) const {
 bool Field::eq_def(const Field *field) const {
   if (real_type() != field->real_type() || charset() != field->charset() ||
       pack_length() != field->pack_length())
-    return 0;
-  return 1;
+    return false;
+  return true;
 }
 
 /**
@@ -8558,13 +8558,13 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
   returns 1 if the fields are equally defined
 */
 bool Field_num::eq_def(const Field *field) const {
-  if (!Field::eq_def(field)) return 0;
+  if (!Field::eq_def(field)) return false;
   const Field_num *from_num = down_cast<const Field_num *>(field);
 
   if (unsigned_flag != from_num->unsigned_flag ||
       (zerofill && !from_num->zerofill && !zero_pack()) || dec != from_num->dec)
-    return 0;
-  return 1;
+    return false;
+  return true;
 }
 
 /**
@@ -8730,7 +8730,7 @@ type_conversion_status Field_bit::store(longlong nr, bool) {
 
 type_conversion_status Field_bit::store_decimal(const my_decimal *val) {
   bool has_overflow = false;
-  longlong i = convert_decimal2longlong(val, 1, &has_overflow);
+  longlong i = convert_decimal2longlong(val, true, &has_overflow);
   type_conversion_status res = store(i, true);
   return has_overflow ? TYPE_WARN_OUT_OF_RANGE : res;
 }
@@ -8784,7 +8784,7 @@ String *Field_bit::val_str(String *val_buffer,
 
 my_decimal *Field_bit::val_decimal(my_decimal *deciaml_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), 1, deciaml_value);
+  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), true, deciaml_value);
   return deciaml_value;
 }
 
@@ -9673,7 +9673,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
                         field_name,
                         thd->get_stmt_da()->current_row_for_condition());
 
-    return 0;
+    return false;
   }
 
   unsigned int current_warning_mask = 0;
@@ -9703,7 +9703,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
                         thd->get_stmt_da()->current_row_for_condition());
   }
 
-  return 0;
+  return false;
 }
 
 /**

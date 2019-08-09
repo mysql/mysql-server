@@ -94,7 +94,7 @@ bool Mysql_connection_options::Ssl_options::apply_for_connection(
     MYSQL *connection) {
   if (SSL_SET_OPTIONS(connection)) {
     std::cerr << SSL_SET_OPTIONS_ERROR;
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }

@@ -227,7 +227,7 @@ static void test_noop() {
   psi_mdl_service->end_metadata_wait(NULL, 0);
 
   transaction_locker = psi_transaction_service->get_thread_transaction_locker(
-      NULL, NULL, NULL, 1, false, 1);
+      NULL, NULL, NULL, 1, false, true);
   ok(transaction_locker == NULL, "no transaction_locker");
   psi_transaction_service->start_transaction(NULL, NULL, 0);
   psi_transaction_service->end_transaction(NULL, true);

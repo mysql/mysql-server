@@ -1005,7 +1005,7 @@ func_start:
 
   /* Keep recs in first group to the old page, move recs in second
   groups to the new page. */
-  if (0
+  if (false
 #ifdef UNIV_ZIP_COPY
       || page_zip
 #endif

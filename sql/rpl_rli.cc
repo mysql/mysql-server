@@ -140,7 +140,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       m_privilege_checks_user_corrupted{false},
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
-      ignore_log_space_limit(0),
+      ignore_log_space_limit(false),
       sql_force_rotate_relay(false),
       last_master_timestamp(0),
       slave_skip_counter(0),
@@ -168,7 +168,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       recovery_groups_inited(false),
       mts_recovery_group_cnt(0),
       mts_recovery_index(0),
-      mts_recovery_group_seen_begin(0),
+      mts_recovery_group_seen_begin(false),
       mts_group_status(MTS_NOT_IN_GROUP),
       stats_exec_time(0),
       stats_read_time(0),
@@ -472,13 +472,13 @@ int Relay_log_info::count_relay_log_space() {
   DBUG_TRACE;
   MUTEX_LOCK(lock, &log_space_lock);
   log_space_total = 0;
-  if (relay_log.find_log_pos(&flinfo, NullS, 1)) {
+  if (relay_log.find_log_pos(&flinfo, NullS, true)) {
     LogErr(ERROR_LEVEL, ER_RPL_LOG_NOT_FOUND_WHILE_COUNTING_RELAY_LOG_SPACE);
     return 1;
   }
   do {
     if (add_relay_log(this, &flinfo)) return 1;
-  } while (!relay_log.find_next_log(&flinfo, 1));
+  } while (!relay_log.find_next_log(&flinfo, true));
   /*
      As we have counted everything, including what may have written in a
      preceding write, we must reset bytes_written, or we may count some space
@@ -493,7 +493,7 @@ bool Relay_log_info::reset_group_relay_log_pos(const char **errmsg) {
 
   mysql_mutex_assert_owner(&data_lock);
 
-  if (relay_log.find_log_pos(&linfo, NullS, 1)) {
+  if (relay_log.find_log_pos(&linfo, NullS, true)) {
     *errmsg = "Could not find first log during relay log initialization";
     return true;
   }
@@ -509,7 +509,7 @@ bool Relay_log_info::is_group_relay_log_name_invalid(const char **errmsg) {
   LOG_INFO linfo;
 
   *errmsg = 0;
-  if (relay_log.find_log_pos(&linfo, group_relay_log_name, 1)) {
+  if (relay_log.find_log_pos(&linfo, group_relay_log_name, true)) {
     errmsg_fmt =
         "Could not find target log file mentioned in "
         "relay log info in the index file '%s' during "
@@ -1202,9 +1202,9 @@ bool Relay_log_info::cached_charset_compare(char *charset) const {
 
   if (memcmp(cached_charset, charset, sizeof(cached_charset))) {
     memcpy(const_cast<char *>(cached_charset), charset, sizeof(cached_charset));
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 int Relay_log_info::stmt_done(my_off_t event_master_log_pos) {
@@ -1563,7 +1563,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       --relay-log option.
     */
     const char *ln_without_channel_name;
-    static bool name_warning_sent = 0;
+    static bool name_warning_sent = false;
 
     /*
       Buffer to add channel name suffix when relay-log option is provided.
@@ -1596,7 +1596,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       */
       LogErr(WARNING_LEVEL, ER_RPL_PLEASE_USE_OPTION_RELAY_LOG,
              ln_without_channel_name);
-      name_warning_sent = 1;
+      name_warning_sent = true;
     }
 
     /*
@@ -1726,7 +1726,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     }
   }
 
-  inited = 1;
+  inited = true;
   error_on_rli_init_info = false;
   if (flush_info(true)) {
     msg = "Error reading relay log configuration";
@@ -1749,7 +1749,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
 
 err:
   handler->end_info();
-  inited = 0;
+  inited = false;
   error_on_rli_init_info = true;
   if (msg) LogErr(ERROR_LEVEL, ER_RPL_RLI_INIT_INFO_MSG, msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
@@ -1765,7 +1765,7 @@ void Relay_log_info::end_info() {
 
   handler->end_info();
 
-  inited = 0;
+  inited = false;
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true /*need_lock_log=true*/, true /*need_lock_index=true*/);
   relay_log.harvest_bytes_written(this, true /*need_log_space_lock=true*/);

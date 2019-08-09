@@ -99,7 +99,7 @@
   \ref mem and \ref THR_LOCK_udf are always initialized, even in
   --skip-grant-tables mode.
 */
-static bool initialized = 0;
+static bool initialized = false;
 static MEM_ROOT mem;
 static collation_unordered_map<std::string, udf_func *> *udf_hash;
 static mysql_rwlock_t THR_LOCK_udf;
@@ -206,7 +206,7 @@ void udf_read_functions_table() {
     return;
   }
 
-  initialized = 1;
+  initialized = true;
 
   THD *new_thd = new (std::nothrow) THD;
   if (new_thd == nullptr) {
@@ -240,7 +240,7 @@ void udf_read_functions_table() {
     name.str = get_field(&mem, table->field[0]);
     name.length = strlen(name.str);
     char *dl_name = get_field(&mem, table->field[2]);
-    bool new_dl = 0;
+    bool new_dl = false;
     Item_udftype udftype = UDFTYPE_FUNCTION;
     if (table->s->fields >= 4)  // New func table
       udftype = (Item_udftype)table->field[3]->val_int();
@@ -256,7 +256,7 @@ void udf_read_functions_table() {
     LEX_CSTRING name_cstr = {name.str, name.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
         check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
-                                 system_charset_info, 1)) {
+                                 system_charset_info, true)) {
       LogErr(ERROR_LEVEL, ER_UDF_INVALID_ROW_IN_FUNCTION_TABLE, name.str);
       continue;
     }
@@ -283,7 +283,7 @@ void udf_read_functions_table() {
         // Keep the udf in the hash so that we can remove it later
         continue;
       }
-      new_dl = 1;
+      new_dl = true;
     }
     tmp->dlhandle = dl;
     {
@@ -343,7 +343,7 @@ void udf_deinit_globals() {
     udf_hash = nullptr;
   }
   free_root(&mem, MYF(0));
-  initialized = 0;
+  initialized = false;
 
   mysql_rwlock_destroy(&THR_LOCK_udf);
 }
@@ -469,7 +469,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   mysql_rwlock_wrlock(&THR_LOCK_udf);
 
   udf_hash->emplace(to_string(tmp->name), tmp);
-  using_udf_functions = 1;
+  using_udf_functions = true;
 
   mysql_rwlock_unlock(&THR_LOCK_udf);
   return tmp;
@@ -602,7 +602,7 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
   }
   LEX_CSTRING udf_name_cstr = {udf->name.str, udf->name.length};
   if (check_string_char_length(udf_name_cstr, "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
     return error;
   }
@@ -786,7 +786,7 @@ bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc) {
   if (!res.second)
     ufunc = nullptr;
   else
-    using_udf_functions = 1;
+    using_udf_functions = true;
 
   mysql_rwlock_unlock(&THR_LOCK_udf);
   return ufunc == nullptr;

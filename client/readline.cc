@@ -129,10 +129,10 @@ static bool init_line_buffer(LINE_BUFFER *buffer, File file, ulong size,
   buffer->max_size = max_buffer;
   if (!(buffer->buffer = (char *)my_malloc(
             PSI_NOT_INSTRUMENTED, buffer->bufread + 1, MYF(MY_WME | MY_FAE))))
-    return 1;
+    return true;
   buffer->end_of_line = buffer->end = buffer->buffer;
   buffer->buffer[0] = 0; /* For easy start test */
-  return 0;
+  return false;
 }
 
 /*
@@ -147,7 +147,7 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer, char *str) {
             (char *)my_realloc(PSI_NOT_INSTRUMENTED, (uchar *)buffer->buffer,
                                old_length + length + 2,
                                MYF(MY_FAE | MY_ALLOW_ZERO_PTR))))
-    return 1;
+    return true;
   buffer->end = buffer->buffer + old_length;
   if (old_length) buffer->end[-1] = ' ';
   memcpy(buffer->end, str, length);
@@ -156,7 +156,7 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer, char *str) {
   buffer->end += length + 1;
   buffer->eof = 1;
   buffer->max_size = 1;
-  return 0;
+  return false;
 }
 
 /*
@@ -247,9 +247,9 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length) {
       else
         continue;
       pos--; /* break line here */
-      buffer->truncated = 1;
+      buffer->truncated = true;
     } else
-      buffer->truncated = 0;
+      buffer->truncated = false;
     buffer->end_of_line = pos + 1;
     *out_length = (ulong)(pos + 1 - buffer->eof - buffer->start_of_line);
 

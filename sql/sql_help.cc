@@ -131,7 +131,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
                                                     REPORT_ALL_ERRORS,
                                                     false,  // No priv checking
                                                     true)))
-      return 1;
+      return true;
     find_fields->field->table->pos_in_table_list->select_lex =
         thd->lex->select_lex;
     bitmap_set_bit(find_fields->field->table->read_set,
@@ -140,7 +140,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     bitmap_set_bit(find_fields->field->table->write_set,
                    find_fields->field->field_index);
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -321,8 +321,8 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   rtopic_id = find_fields[help_relation_help_topic_id].field;
   rkey_id = find_fields[help_relation_help_keyword_id].field;
 
-  if (topics->file->ha_index_init(iindex_topic, 1) ||
-      relations->file->ha_index_init(iindex_relations, 1)) {
+  if (topics->file->ha_index_init(iindex_topic, true) ||
+      relations->file->ha_index_init(iindex_relations, true)) {
     if (topics->file->inited) topics->file->ha_index_end();
     my_error(ER_CORRUPT_HELP_DB, MYF(0));
     return -1;

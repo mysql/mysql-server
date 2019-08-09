@@ -76,7 +76,7 @@ static THD_timer_info *thd_timer_create(void) {
 
   thd_timer->thread_id = 0;
   mysql_mutex_init(key_thd_timer_mutex, &thd_timer->mutex, MY_MUTEX_INIT_FAST);
-  thd_timer->destroy = 0;
+  thd_timer->destroy = false;
   thd_timer->timer.notify_function = timer_callback;
 
   if (DBUG_EVALUATE_IF("thd_timer_create_failure", 0, 1) &&

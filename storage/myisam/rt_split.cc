@@ -287,7 +287,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
     goto split_err;
   }
 
-  info->buff_used = 1;
+  info->buff_used = true;
   stop = task + (max_keys + 1);
   cur1 = rt_PAGE_FIRST_KEY(page, nod_flag);
   cur2 = rt_PAGE_FIRST_KEY(new_page, nod_flag);

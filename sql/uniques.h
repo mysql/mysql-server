@@ -89,7 +89,7 @@ class Unique {
   inline bool unique_add(void *ptr) {
     DBUG_TRACE;
     DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush()) return 1;
+    if (tree.elements_in_tree > max_elements && flush()) return true;
     return !tree_insert(&tree, ptr, 0, tree.custom_arg);
   }
 

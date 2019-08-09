@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
 
   if ((error = handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(error);
-  if (count || dump) verbose = 0;
+  if (count || dump) verbose = false;
   if (!count && !dump && !lstats && !query) stats = 1;
 
   if (verbose) setbuf(stdout, NULL);
@@ -240,7 +240,7 @@ static bool get_one_option(int optid,
     case 'h':
       usage();
   }
-  return 0;
+  return false;
 }
 
 static void usage() {

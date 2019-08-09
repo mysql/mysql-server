@@ -204,7 +204,7 @@ class PTI_function_call_nonkeyword_now final : public Item_func_now_local {
   bool itemize(Parse_context *pc, Item **res) override {
     if (super::itemize(pc, res)) return true;
 
-    pc->thd->lex->safe_to_cache_query = 0;
+    pc->thd->lex->safe_to_cache_query = false;
     return false;
   }
 };

@@ -346,7 +346,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
         disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
                         end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
-          share->have_rtree = 1;
+          share->have_rtree = true;
         set_if_smaller(share->blocksize, share->keyinfo[i].block_length);
         share->keyinfo[i].seg = pos;
         for (j = 0; j < share->keyinfo[i].keysegs; j++, pos++) {
@@ -515,8 +515,8 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
             (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
              HA_OPTION_COMPRESS_RECORD | HA_OPTION_TEMP_COMPRESS_RECORD)) ||
            (open_flags & HA_OPEN_TMP_TABLE) || share->have_rtree)
-              ? 0
-              : 1;
+              ? false
+              : true;
       if (share->concurrent_insert) {
         share->lock.get_status = mi_get_status;
         share->lock.copy_status = mi_copy_status;
@@ -570,11 +570,11 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   info.last_loop = share->state.update_count;
   if (mode == O_RDONLY) share->options |= HA_OPTION_READ_ONLY_DATA;
   info.lock_type = F_UNLCK;
-  info.quick_mode = 0;
+  info.quick_mode = false;
   info.bulk_insert = 0;
   info.ft1_to_ft2 = 0;
   info.errkey = -1;
-  info.page_changed = 1;
+  info.page_changed = true;
   mysql_mutex_lock(&share->intern_lock);
   info.read_record = share->read_record;
   share->reopen++;
@@ -586,7 +586,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   }
   if ((open_flags & HA_OPEN_TMP_TABLE) ||
       (share->options & HA_OPTION_TMP_TABLE)) {
-    share->temporary = share->delay_key_write = 1;
+    share->temporary = share->delay_key_write = true;
     share->write_flag = MYF(MY_NABP);
     share->w_locks++; /* We don't have to update status */
     share->tot_locks++;
@@ -595,7 +595,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   if (((open_flags & HA_OPEN_DELAY_KEY_WRITE) ||
        (share->options & HA_OPTION_DELAY_KEY_WRITE)) &&
       myisam_delay_key_write)
-    share->delay_key_write = 1;
+    share->delay_key_write = true;
   info.state = &share->state.state; /* Change global values by default */
   mysql_mutex_unlock(&share->intern_lock);
 

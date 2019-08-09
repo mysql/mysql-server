@@ -403,11 +403,11 @@ THD::THD(bool enable_plugins)
       binlog_need_explicit_defaults_ts(false),
       kill_immunizer(NULL),
       m_is_fatal_error(false),
-      transaction_rollback_request(0),
+      transaction_rollback_request(false),
       is_fatal_sub_stmt_error(false),
-      rand_used(0),
-      time_zone_used(0),
-      in_lock_tables(0),
+      rand_used(false),
+      time_zone_used(false),
+      in_lock_tables(false),
       derived_tables_processing(false),
       parsing_system_view(false),
       sp_runtime_ctx(NULL),
@@ -464,7 +464,7 @@ THD::THD(bool enable_plugins)
   lex->set_current_select(0);
   utime_after_lock = 0L;
   current_linfo = 0;
-  slave_thread = 0;
+  slave_thread = false;
   memset(&variables, 0, sizeof(variables));
   m_thread_id = Global_THD_manager::reserved_thread_id;
   file_id = 0;
@@ -473,7 +473,7 @@ THD::THD(bool enable_plugins)
   db_charset = global_system_variables.collation_database;
   is_killable = false;
   binlog_evt_union.do_union = false;
-  enable_slow_log = 0;
+  enable_slow_log = false;
   commit_error = CE_NONE;
   tx_commit_pending = false;
   durability_property = HA_REGULAR_DURABILITY;
@@ -483,7 +483,7 @@ THD::THD(bool enable_plugins)
   mysql_audit_init_thd(this);
   net.vio = 0;
   system_thread = NON_SYSTEM_THREAD;
-  cleanup_done = 0;
+  cleanup_done = false;
   m_release_resources_done = false;
   peer_port = 0;  // For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled = true;
@@ -862,7 +862,7 @@ void THD::cleanup_connection(void) {
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
-  cleanup_done = 0;
+  cleanup_done = false;
   init();
   stmt_map.reset();
   user_vars.clear();
@@ -993,7 +993,7 @@ void THD::cleanup(void) {
     If we have a Security_context, make sure it is "logged out"
   */
 
-  cleanup_done = 1;
+  cleanup_done = true;
 }
 
 /**
@@ -1398,9 +1398,9 @@ void THD::cleanup_after_query() {
   if (!in_sub_stmt) /* stored functions and triggers are a special case */
   {
     /* Forget those values, for next binlogger: */
-    stmt_depends_on_first_successful_insert_id_in_prev_stmt = 0;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
-    rand_used = 0;
+    rand_used = false;
     binlog_accessed_db_names = NULL;
 
     /*
@@ -1436,7 +1436,7 @@ void THD::cleanup_after_query() {
         first_successful_insert_id_in_cur_stmt;
     first_successful_insert_id_in_cur_stmt = 0;
   }
-  arg_of_last_insert_id_function = 0;
+  arg_of_last_insert_id_function = false;
   /* Hack for cleaning up view security contexts */
   List_iterator<Security_context> it(m_view_ctx_list);
   while (Security_context *ctx = it++) {
@@ -1484,7 +1484,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
   size_t new_length = to_cs->mbmaxlen * from_length;
   if (!(to->str = (char *)alloc(new_length + 1))) {
     to->length = 0;  // Safety fix
-    return 1;        // EOM
+    return true;     // EOM
   }
   uint errors = 0;
   to->length = copy_and_convert(to->str, new_length, to_cs, from, from_length,
@@ -1497,7 +1497,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     if (report_error) {
       my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff,
                from_cs->csname, to_cs->csname);
-      return 1;
+      return true;
     } else {
       push_warning_printf(this, Sql_condition::SL_WARNING,
                           ER_INVALID_CHARACTER_STRING,
@@ -1506,7 +1506,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     }
   }
 
-  return 0;
+  return false;
 }
 
 /*
@@ -1533,32 +1533,32 @@ int THD::send_explain_fields(Query_result *result) {
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
   field_list.push_back(item =
                            new Item_empty_string("table", NAME_CHAR_LEN, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   /* Maximum length of string that make_used_partitions_str() can produce */
   item = new Item_empty_string("partitions", MAX_PARTITIONS * (1 + FN_LEN), cs);
   field_list.push_back(item);
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string("type", 10, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string(
                            "possible_keys", NAME_CHAR_LEN * MAX_KEY, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string("key", NAME_CHAR_LEN, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_empty_string("key_len", NAME_CHAR_LEN * MAX_KEY));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_empty_string("ref", NAME_CHAR_LEN * MAX_REF_PARTS, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_return_int("rows", 10, MYSQL_TYPE_LONGLONG));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_float(NAME_STRING("filtered"), 0.1234, 2, 4));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   return (result->send_result_set_metadata(
       this, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
@@ -2495,14 +2495,14 @@ bool THD::send_result_metadata(List<Item> *list, uint flags) {
 
     default:
       /* Unknown @@resultset_metadata value. */
-      return 1;
+      return true;
   }
 
   return m_protocol->end_result_metadata();
 
 err:
   my_error(ER_OUT_OF_RESOURCES, MYF(0)); /* purecov: inspected */
-  return 1;                              /* purecov: inspected */
+  return true;                           /* purecov: inspected */
 }
 
 bool THD::send_result_set_row(List<Item> *row_items) {

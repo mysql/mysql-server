@@ -125,7 +125,7 @@ static long my_strntol_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       return 0;
     }
     s += cnv;
-  } while (1);
+  } while (true);
 
 bs:
 
@@ -161,7 +161,7 @@ bs:
       /* No more characters */
       break;
     }
-  } while (1);
+  } while (true);
 
   if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
@@ -220,7 +220,7 @@ static ulong my_strntoul_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       return 0;
     }
     s += cnv;
-  } while (1);
+  } while (true);
 
 bs:
 
@@ -256,7 +256,7 @@ bs:
       /* No more characters */
       break;
     }
-  } while (1);
+  } while (true);
 
   if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
@@ -310,7 +310,7 @@ static longlong my_strntoll_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       return 0;
     }
     s += cnv;
-  } while (1);
+  } while (true);
 
 bs:
 
@@ -346,7 +346,7 @@ bs:
       /* No more characters */
       break;
     }
-  } while (1);
+  } while (true);
 
   if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
@@ -405,7 +405,7 @@ static ulonglong my_strntoull_mb2_or_mb4(const CHARSET_INFO *cs,
       return 0;
     }
     s += cnv;
-  } while (1);
+  } while (true);
 
 bs:
 
@@ -441,7 +441,7 @@ bs:
       /* No more characters */
       break;
     }
-  } while (1);
+  } while (true);
 
   if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
@@ -1435,47 +1435,47 @@ CHARSET_INFO my_charset_utf16_general_ci = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_general_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_utf16_bin = {55,
-                                     0,
-                                     0, /* number       */
-                                     MY_CS_COMPILED | MY_CS_BINSORT |
-                                         MY_CS_STRNXFRM | MY_CS_UNICODE |
-                                         MY_CS_NONASCII,
-                                     "utf16",             /* cs name      */
-                                     "utf16_bin",         /* name         */
-                                     "UTF-16 Unicode",    /* comment      */
-                                     NULL,                /* tailoring    */
-                                     NULL,                /* coll_param   */
-                                     NULL,                /* ctype        */
-                                     NULL,                /* to_lower     */
-                                     NULL,                /* to_upper     */
-                                     NULL,                /* sort_order   */
-                                     NULL,                /* uca          */
-                                     NULL,                /* tab_to_uni   */
-                                     NULL,                /* tab_from_uni */
-                                     &my_unicase_default, /* caseinfo     */
-                                     NULL,                /* state_map    */
-                                     NULL,                /* ident_map    */
-                                     1,                   /* strxfrm_multiply */
-                                     1,                   /* caseup_multiply  */
-                                     1,                   /* casedn_multiply  */
-                                     2,                   /* mbminlen     */
-                                     4,                   /* mbmaxlen     */
-                                     1,                   /* mbmaxlenlen  */
-                                     0,                   /* min_sort_char */
-                                     0xFFFF,              /* max_sort_char */
-                                     ' ',                 /* pad char      */
-                                     0, /* escape_with_backslash_is_dangerous */
-                                     1, /* levels_for_compare */
-                                     &my_charset_utf16_handler,
-                                     &my_collation_utf16_bin_handler,
-                                     PAD_SPACE};
+CHARSET_INFO my_charset_utf16_bin = {
+    55,
+    0,
+    0, /* number       */
+    MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE |
+        MY_CS_NONASCII,
+    "utf16",             /* cs name      */
+    "utf16_bin",         /* name         */
+    "UTF-16 Unicode",    /* comment      */
+    NULL,                /* tailoring    */
+    NULL,                /* coll_param   */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_default, /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    1,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
+    0,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    false,               /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    &my_charset_utf16_handler,
+    &my_collation_utf16_bin_handler,
+    PAD_SPACE};
 
 extern "C" {
 static int my_utf16le_uni(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
@@ -1591,7 +1591,7 @@ CHARSET_INFO my_charset_utf16le_general_ci = {
     0,                    /* min_sort_char */
     0xFFFF,               /* max_sort_char */
     ' ',                  /* pad char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_utf16le_handler,
     &my_collation_utf16_general_ci_handler,
@@ -1627,7 +1627,7 @@ CHARSET_INFO my_charset_utf16le_bin = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16le_handler,
     &my_collation_utf16_bin_handler,
@@ -2364,47 +2364,47 @@ CHARSET_INFO my_charset_utf32_general_ci = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_general_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_utf32_bin = {61,
-                                     0,
-                                     0, /* number       */
-                                     MY_CS_COMPILED | MY_CS_BINSORT |
-                                         MY_CS_STRNXFRM | MY_CS_UNICODE |
-                                         MY_CS_NONASCII,
-                                     "utf32",             /* cs name    */
-                                     "utf32_bin",         /* name         */
-                                     "UTF-32 Unicode",    /* comment      */
-                                     NULL,                /* tailoring    */
-                                     NULL,                /* coll_param   */
-                                     NULL,                /* ctype        */
-                                     NULL,                /* to_lower     */
-                                     NULL,                /* to_upper     */
-                                     NULL,                /* sort_order   */
-                                     NULL,                /* uca          */
-                                     NULL,                /* tab_to_uni   */
-                                     NULL,                /* tab_from_uni */
-                                     &my_unicase_default, /* caseinfo     */
-                                     NULL,                /* state_map    */
-                                     NULL,                /* ident_map    */
-                                     1,                   /* strxfrm_multiply */
-                                     1,                   /* caseup_multiply  */
-                                     1,                   /* casedn_multiply  */
-                                     4,                   /* mbminlen     */
-                                     4,                   /* mbmaxlen     */
-                                     1,                   /* mbmaxlenlen  */
-                                     0,                   /* min_sort_char */
-                                     0xFFFF,              /* max_sort_char */
-                                     ' ',                 /* pad char      */
-                                     0, /* escape_with_backslash_is_dangerous */
-                                     1, /* levels_for_compare */
-                                     &my_charset_utf32_handler,
-                                     &my_collation_utf32_bin_handler,
-                                     PAD_SPACE};
+CHARSET_INFO my_charset_utf32_bin = {
+    61,
+    0,
+    0, /* number       */
+    MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE |
+        MY_CS_NONASCII,
+    "utf32",             /* cs name    */
+    "utf32_bin",         /* name         */
+    "UTF-32 Unicode",    /* comment      */
+    NULL,                /* tailoring    */
+    NULL,                /* coll_param   */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_default, /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    1,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    4,                   /* mbminlen     */
+    4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
+    0,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    false,               /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    &my_charset_utf32_handler,
+    &my_collation_utf32_bin_handler,
+    PAD_SPACE};
 
 static const uchar ctype_ucs2[] = {
     0,  32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32,
@@ -2899,7 +2899,7 @@ CHARSET_INFO my_charset_ucs2_general_ci = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler,
@@ -2935,7 +2935,7 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci = {
     0,                          /* min_sort_char    */
     0xFFFF,                     /* max_sort_char    */
     ' ',                        /* pad char         */
-    0,                          /* escape_with_backslash_is_dangerous    */
+    false,                      /* escape_with_backslash_is_dangerous    */
     1,                          /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler,
@@ -2970,7 +2970,7 @@ CHARSET_INFO my_charset_ucs2_bin = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler,

@@ -1881,7 +1881,7 @@ class THD : public MDL_context_owner,
       /* It's the first time we read it */
       first_successful_insert_id_in_prev_stmt_for_binlog =
           first_successful_insert_id_in_prev_stmt;
-      stmt_depends_on_first_successful_insert_id_in_prev_stmt = 1;
+      stmt_depends_on_first_successful_insert_id_in_prev_stmt = true;
     }
     return first_successful_insert_id_in_prev_stmt;
   }
@@ -2647,7 +2647,7 @@ class THD : public MDL_context_owner,
                                       : default_charset_info;
   }
   inline Time_zone *time_zone() {
-    time_zone_used = 1;
+    time_zone_used = true;
     return variables.time_zone;
   }
   time_t query_start_in_secs() const { return start_time.tv_sec; }

@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,8 +72,8 @@ class udf_handler {
         buffers(0),
         error(0),
         is_null(0),
-        initialized(0),
-        not_original(0) {}
+        initialized(false),
+        not_original(false) {}
   ~udf_handler();
   udf_handler(const udf_handler &) = default;
   udf_handler(udf_handler &&) = default;
@@ -91,31 +91,31 @@ class udf_handler {
   double val(bool *null_value) {
     is_null = 0;
     if (get_arguments()) {
-      *null_value = 1;
+      *null_value = true;
       return 0.0;
     }
     Udf_func_double func = (Udf_func_double)u_d->func;
     double tmp = func(&initid, &f_args, &is_null, &error);
     if (is_null || error) {
-      *null_value = 1;
+      *null_value = true;
       return 0.0;
     }
-    *null_value = 0;
+    *null_value = false;
     return tmp;
   }
   longlong val_int(bool *null_value) {
     is_null = 0;
     if (get_arguments()) {
-      *null_value = 1;
+      *null_value = true;
       return 0LL;
     }
     Udf_func_longlong func = (Udf_func_longlong)u_d->func;
     longlong tmp = func(&initid, &f_args, &is_null, &error);
     if (is_null || error) {
-      *null_value = 1;
+      *null_value = true;
       return 0LL;
     }
-    *null_value = 0;
+    *null_value = false;
     return tmp;
   }
   my_decimal *val_decimal(bool *null_value, my_decimal *dec_buf);
@@ -126,7 +126,7 @@ class udf_handler {
   }
   void add(bool *null_value) {
     if (get_arguments()) {
-      *null_value = 1;
+      *null_value = true;
       return;
     }
     Udf_func_add func = u_d->func_add;
@@ -140,7 +140,7 @@ void udf_init_globals();
 void udf_read_functions_table();
 void udf_unload_udfs();
 void udf_deinit_globals();
-udf_func *find_udf(const char *name, size_t len = 0, bool mark_used = 0);
+udf_func *find_udf(const char *name, size_t len = 0, bool mark_used = false);
 void free_udf(udf_func *udf);
 bool mysql_create_function(THD *thd, udf_func *udf);
 bool mysql_drop_function(THD *thd, const LEX_STRING *name);

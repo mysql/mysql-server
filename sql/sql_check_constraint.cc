@@ -36,7 +36,7 @@ bool Sql_check_constraint_spec::pre_validate() {
     check constraint then name is generated before calling this method.
   */
   if (check_string_char_length(to_lex_cstring(name), "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
     return true;
   }

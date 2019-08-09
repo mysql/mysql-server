@@ -355,7 +355,7 @@ class Item_func : public Item_result_field {
   void set_used_tables(table_map map) { used_tables_cache = map; }
   bool eq(const Item *item, bool binary_cmp) const override;
   virtual optimize_type select_optimize(const THD *) { return OPTIMIZE_NONE; }
-  virtual bool have_rev_func() const { return 0; }
+  virtual bool have_rev_func() const { return false; }
   virtual Item *key_item() const { return args[0]; }
   inline Item **arguments() const {
     DBUG_ASSERT(argument_count() > 0);
@@ -808,11 +808,11 @@ class Item_func_num1 : public Item_func_numhybrid {
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
   bool time_op(MYSQL_TIME *) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
 };
 
@@ -837,11 +837,11 @@ class Item_num_op : public Item_func_numhybrid {
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
   bool time_op(MYSQL_TIME *) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
 };
 

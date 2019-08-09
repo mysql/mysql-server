@@ -4115,7 +4115,7 @@ String *Item_func_spatial_decomp::val_str(String *str) {
   return str;
 
 err:
-  null_value = 1;
+  null_value = true;
   return 0;
 }
 
@@ -4161,7 +4161,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str) {
   return str;
 
 err:
-  null_value = 1;
+  null_value = true;
   return 0;
 }
 
@@ -4476,11 +4476,11 @@ String *Item_func_spatial_collection::val_str(String *str) {
     }
   }
 
-  null_value = 0;
+  null_value = false;
   return str;
 
 err:
-  null_value = 1;
+  null_value = true;
   return 0;
 }
 

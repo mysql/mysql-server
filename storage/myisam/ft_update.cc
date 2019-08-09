@@ -172,7 +172,8 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const uchar *rec1,
   while (_mi_ft_segiterator(&ftsi1) && _mi_ft_segiterator(&ftsi2)) {
     if ((ftsi1.pos != ftsi2.pos) &&
         (!ftsi1.pos || !ftsi2.pos ||
-         ha_compare_text(cs, ftsi1.pos, ftsi1.len, ftsi2.pos, ftsi2.len, 0)))
+         ha_compare_text(cs, ftsi1.pos, ftsi1.len, ftsi2.pos, ftsi2.len,
+                         false)))
       return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
   }
   return GEE_THEY_ARE_ABSOLUTELY_IDENTICAL;
@@ -198,7 +199,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf, const uchar *oldrec,
   error = 0;
   while (old_word->pos && new_word->pos) {
     cmp = ha_compare_text(cs, (uchar *)old_word->pos, old_word->len,
-                          (uchar *)new_word->pos, new_word->len, 0);
+                          (uchar *)new_word->pos, new_word->len, false);
     cmp2 = cmp ? 0 : (fabs(old_word->weight - new_word->weight) > 1.e-5);
 
     if (cmp < 0 || cmp2) {
@@ -302,7 +303,7 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key) {
   /* creating pageful of keys */
   mi_putint(info->buff, length + 2, 0);
   memcpy(info->buff + 2, key_ptr, length);
-  info->buff_used = info->page_changed = 1; /* info->buff is used */
+  info->buff_used = info->page_changed = true; /* info->buff is used */
   if ((root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _mi_write_keypage(info, keyinfo, root, DFLT_INIT_HITS, info->buff))
     return -1;

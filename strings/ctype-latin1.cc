@@ -355,39 +355,40 @@ static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
                                                 my_scan_8bit};
 
 extern "C" {
-CHARSET_INFO my_charset_latin1 = {8,
-                                  0,
-                                  0, /* number    */
-                                  MY_CS_COMPILED | MY_CS_PRIMARY, /* state */
-                                  "latin1",            /* cs name    */
-                                  "latin1_swedish_ci", /* name      */
-                                  "",                  /* comment   */
-                                  NULL,                /* tailoring */
-                                  NULL,                /* coll_param */
-                                  ctype_latin1,
-                                  to_lower_latin1,
-                                  to_upper_latin1,
-                                  sort_order_latin1,
-                                  NULL,                /* uca          */
-                                  cs_to_uni,           /* tab_to_uni   */
-                                  NULL,                /* tab_from_uni */
-                                  &my_unicase_default, /* caseinfo     */
-                                  NULL,                /* state_map    */
-                                  NULL,                /* ident_map    */
-                                  1,                   /* strxfrm_multiply */
-                                  1,                   /* caseup_multiply  */
-                                  1,                   /* casedn_multiply  */
-                                  1,                   /* mbminlen   */
-                                  1,                   /* mbmaxlen   */
-                                  1,                   /* mbmaxlenlen */
-                                  0,                   /* min_sort_char */
-                                  255,                 /* max_sort_char */
-                                  ' ',                 /* pad char      */
-                                  0, /* escape_with_backslash_is_dangerous */
-                                  1, /* levels_for_compare */
-                                  &my_charset_handler,
-                                  &my_collation_8bit_simple_ci_handler,
-                                  PAD_SPACE};
+CHARSET_INFO my_charset_latin1 = {
+    8,
+    0,
+    0,                              /* number    */
+    MY_CS_COMPILED | MY_CS_PRIMARY, /* state */
+    "latin1",                       /* cs name    */
+    "latin1_swedish_ci",            /* name      */
+    "",                             /* comment   */
+    NULL,                           /* tailoring */
+    NULL,                           /* coll_param */
+    ctype_latin1,
+    to_lower_latin1,
+    to_upper_latin1,
+    sort_order_latin1,
+    NULL,                /* uca          */
+    cs_to_uni,           /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_default, /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    1,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    1,                   /* mbminlen   */
+    1,                   /* mbmaxlen   */
+    1,                   /* mbmaxlenlen */
+    0,                   /* min_sort_char */
+    255,                 /* max_sort_char */
+    ' ',                 /* pad char      */
+    false,               /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    &my_charset_handler,
+    &my_collation_8bit_simple_ci_handler,
+    PAD_SPACE};
 }
 
 /*
@@ -652,7 +653,7 @@ CHARSET_INFO my_charset_latin1_german2_ci = {
     0,                   /* min_sort_char */
     247,                 /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_handler,
     &my_collation_german2_ci_handler,
@@ -687,7 +688,7 @@ CHARSET_INFO my_charset_latin1_bin = {
     0,                   /* min_sort_char */
     255,                 /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_handler,
     &my_collation_8bit_bin_handler,

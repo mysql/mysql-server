@@ -70,7 +70,7 @@ static void *mysql_heartbeat(void *p) {
   time_t result;
   struct tm tm_tmp;
 
-  while (1) {
+  while (true) {
     sleep(5);
 
     result = time(NULL);

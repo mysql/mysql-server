@@ -1263,7 +1263,7 @@ Gis_point::Gis_point(const self &pt) : Geometry(pt) {
   m_ptr = gis_wkb_fixed_alloc(nbytes);
   if (m_ptr == NULL) {
     set_nbytes(0);
-    set_ownmem(0);
+    set_ownmem(false);
     return;
   }
 
@@ -1308,7 +1308,7 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs) {
     m_ptr = gis_wkb_fixed_alloc(get_nbytes());
     if (m_ptr == NULL) {
       set_nbytes(0);
-      set_ownmem(0);
+      set_ownmem(false);
       return *this;
     }
   }
@@ -2415,7 +2415,7 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb) {
       (trs->get_next_toc_type() == Gis_read_stream::l_bra);
 
   for (;;) {
-    if (wkb->reserve(1 + 4, 512)) return 1;
+    if (wkb->reserve(1 + 4, 512)) return true;
     q_append((char)wkb_ndr, wkb);
     q_append((uint32)wkb_point, wkb);
 

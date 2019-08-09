@@ -561,7 +561,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
         open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX, READ_RECORD_BUFFER,
                          MYF(MY_WME)))
       goto err;
-    if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0)) goto err;
+    if (reinit_io_cache(outfile, WRITE_CACHE, 0L, false, false)) goto err;
 
     param->max_rows_per_buffer = static_cast<uint>(
         fs_info->max_size_in_bytes() / param->max_record_length());
@@ -576,7 +576,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
                         &num_chunks, &tempfile))
       goto err;
     if (flush_io_cache(&tempfile) ||
-        reinit_io_cache(&tempfile, READ_CACHE, 0L, 0, 0))
+        reinit_io_cache(&tempfile, READ_CACHE, 0L, false, false))
       goto err;
     if (merge_index(
             thd, param, merge_buf,
@@ -641,7 +641,7 @@ err:
     {
       my_off_t save_pos = outfile->pos_in_file;
       /* For following reads */
-      if (reinit_io_cache(outfile, READ_CACHE, 0L, 0, 0)) error = 1;
+      if (reinit_io_cache(outfile, READ_CACHE, 0L, false, false)) error = 1;
       outfile->end_of_file = save_pos;
     }
   }
@@ -796,7 +796,7 @@ void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count) {
     if (rawmem == NULL) return; /* purecov: inspected */
   }
 
-  if (reinit_io_cache(chunk_file, READ_CACHE, 0L, 0, 0) ||
+  if (reinit_io_cache(chunk_file, READ_CACHE, 0L, false, false) ||
       my_b_read(chunk_file, static_cast<uchar *>(rawmem), length)) {
     my_free(rawmem); /* purecov: inspected */
     rawmem = NULL;   /* purecov: inspected */
@@ -836,7 +836,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid) {
     }
 
     if (field->type() == MYSQL_TYPE_BIT)
-      (void)field->val_int_as_str(&tmp, 1);
+      (void)field->val_int_as_str(&tmp, true);
     else
       field->val_str(&tmp);
 
@@ -1750,7 +1750,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
 
   if (param->using_addon_fields()) {
     sort_result->sorted_result_in_fsbuf = true;
-    return 0;
+    return false;
   }
 
   sort_result->sorted_result_in_fsbuf = false;
@@ -1760,7 +1760,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   sort_result->sorted_result.reset(static_cast<uchar *>(my_malloc(
       key_memory_Filesort_info_record_pointers, buf_size, MYF(MY_WME))));
   if (!(to = sort_result->sorted_result.get()))
-    return 1; /* purecov: inspected */
+    return true; /* purecov: inspected */
   sort_result->sorted_result_end = sort_result->sorted_result.get() + buf_size;
 
   uint res_length = param->fixed_res_length;
@@ -1770,7 +1770,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
     memcpy(to, start_of_payload, res_length);
     to += res_length;
   }
-  return 0;
+  return false;
 }
 
 /**

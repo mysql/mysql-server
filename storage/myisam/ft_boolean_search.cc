@@ -410,7 +410,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search) {
     ftbw->key_root = info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo = info->s->keyinfo + ftb->keynr;
     ftbw->off = 0;
-    return _ft2_search_no_lock(ftb, ftbw, 0);
+    return _ft2_search_no_lock(ftb, ftbw, false);
   }
 
   /* matching key found */
@@ -504,7 +504,7 @@ static void _ftb_init_index_search(FT_INFO *ftb_base) {
     }
 
     ftbw->off = 0; /* in case of reinit */
-    if (_ft2_search(ftb, ftbw, 1)) return;
+    if (_ft2_search(ftb, ftbw, true)) return;
   }
   queue_fix(&ftb->queue);
 }
@@ -553,7 +553,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   if (!(ftb->queue.root = (uchar **)ftb->mem_root.Alloc(
             (ftb->queue.max_elements + 1) * sizeof(void *))))
     goto err;
-  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
+  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, false,
                FTB_WORD_cmp, 0);
   for (ftbw = ftb->last_word; ftbw; ftbw = ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
@@ -566,7 +566,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
               /* ORDER BY word, ndepth */
               int i = ha_compare_text(ftb->charset, (uchar *)a->word + 1,
                                       a->len - 1, (uchar *)b->word + 1,
-                                      b->len - 1, 0);
+                                      b->len - 1, false);
               if (i != 0) return i < 0;
               return a->ndepth < b->ndepth;
             });
@@ -769,7 +769,7 @@ extern "C" int ft_boolean_read_next(FT_INFO *ftb_base, char *record) {
       }
 
       /* update queue */
-      _ft2_search(ftb, ftbw, 0);
+      _ft2_search(ftb, ftbw, false);
       queue_replaced(&ftb->queue);
     }
 

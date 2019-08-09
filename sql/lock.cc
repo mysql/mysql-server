@@ -1019,7 +1019,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout)) {
       Global_read_lock::m_atomic_active_requests--;
-      return 1;
+      return true;
     }
 
     m_mdl_global_shared_lock = mdl_request.ticket;
@@ -1033,7 +1033,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     forbid it before, or we can have a 3-thread deadlock if 2 do SELECT FOR
     UPDATE and one does FLUSH TABLES WITH READ LOCK).
   */
-  return 0;
+  return false;
 }
 
 /**
@@ -1083,7 +1083,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd) {
     If we didn't succeed lock_global_read_lock(), or if we already suceeded
     make_global_read_lock_block_commit(), do nothing.
   */
-  if (m_state != GRL_ACQUIRED) return 0;
+  if (m_state != GRL_ACQUIRED) return false;
 
   MDL_REQUEST_INIT(&mdl_request, MDL_key::COMMIT, "", "", MDL_SHARED,
                    MDL_EXPLICIT);

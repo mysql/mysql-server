@@ -382,7 +382,7 @@ void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
   // Gather table information
   std::vector<Trans_table_info> table_info_holder;
   for (; open_tables != nullptr; open_tables = open_tables->next) {
-    Trans_table_info table_info = {0, 0, 0, 0};
+    Trans_table_info table_info = {0, 0, 0, false};
 
     if (open_tables->no_replicate) {
       continue;

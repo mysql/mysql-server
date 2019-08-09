@@ -35,7 +35,7 @@ Rpl_info_handler::Rpl_info_handler(const int nparam,
     : field_values(0),
       ninfo(nparam),
       cursor((my_off_t)0),
-      prv_error(0),
+      prv_error(false),
       prv_get_error(
           Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL),
       sync_counter(0),

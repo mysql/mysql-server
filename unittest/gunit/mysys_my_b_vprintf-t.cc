@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ void test1(const char *res, const char *fmt, ...) {
   IO_CACHE info;
   va_list args;
   size_t len;
-  init_io_cache(&info, -1, 0, WRITE_CACHE, 0, 1, MYF(0));
+  init_io_cache(&info, -1, 0, WRITE_CACHE, 0, true, MYF(0));
   memset(info.write_buffer, 0, 64); /* RECORD_CACHE_SIZE is 64K */
   va_start(args, fmt);
   len = my_b_vprintf(&info, fmt, args);

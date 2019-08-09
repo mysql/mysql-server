@@ -357,7 +357,7 @@ class Transaction_ctx {
   void reset_scope(enum_trx_scope scope) {
     DBUG_TRACE;
     m_scope_info[scope].m_ha_list = 0;
-    m_scope_info[scope].m_no_2pc = 0;
+    m_scope_info[scope].m_no_2pc = false;
     m_scope_info[scope].m_rw_ha_count = 0;
     return;
   }

@@ -105,7 +105,7 @@ int Rpl_info_file::do_init_info() {
              my_errno());
       error = 1;
     } else if (init_io_cache(&info_file, info_fd, IO_SIZE * 2, READ_CACHE, 0L,
-                             0, MYF(MY_WME))) {
+                             false, MYF(MY_WME))) {
       LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_CREATE_CACHE_FOR_INFO_FILE,
              info_fname);
       error = 1;
@@ -118,14 +118,14 @@ int Rpl_info_file::do_init_info() {
   /* file exists */
   else if (ret_check == REPOSITORY_EXISTS) {
     if (info_fd >= 0)
-      reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0);
+      reinit_io_cache(&info_file, READ_CACHE, 0L, false, false);
     else {
       if ((info_fd = my_open(info_fname, O_RDWR, MYF(MY_WME))) < 0) {
         LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_INFO_FILE, info_fname,
                my_errno());
         error = 1;
       } else if (init_io_cache(&info_file, info_fd, IO_SIZE * 2, READ_CACHE, 0L,
-                               0, MYF(MY_WME))) {
+                               false, MYF(MY_WME))) {
         LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_CREATE_CACHE_FOR_INFO_FILE,
                info_fname);
         error = 1;
@@ -144,14 +144,14 @@ int Rpl_info_file::do_prepare_info_for_read() {
   cursor = 0;
   prv_error = false;
   prv_get_error = Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
-  return (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0));
+  return (reinit_io_cache(&info_file, READ_CACHE, 0L, false, false));
 }
 
 int Rpl_info_file::do_prepare_info_for_write() {
   cursor = 0;
   prv_error = false;
   prv_get_error = Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
-  return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
+  return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, false, true));
 }
 
 inline enum_return_check do_check_repository_file(const char *fname) {

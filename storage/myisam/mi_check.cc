@@ -107,7 +107,7 @@ static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a);
 
 void myisamchk_init(MI_CHECK *param) {
   memset(param, 0, sizeof(*param));
-  param->opt_follow_links = 1;
+  param->opt_follow_links = true;
   param->keys_in_use = ~(ulonglong)0;
   param->search_after_block = HA_OFFSET_ERROR;
   param->auto_increment_value = 0;
@@ -122,7 +122,7 @@ void myisamchk_init(MI_CHECK *param) {
   param->max_record_length = LLONG_MAX;
   param->key_cache_block_size = KEY_CACHE_BLOCK_SIZE;
   param->stats_method = MI_STATS_METHOD_NULLS_NOT_EQUAL;
-  param->need_print_msg_lock = 0;
+  param->need_print_msg_lock = false;
 }
 
 /* Check the status flags for the table */
@@ -916,12 +916,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info, int extend) {
   empty = info->s->pack.header_length;
 
   /* Check how to calculate checksum of rows */
-  static_row_size = 1;
+  static_row_size = true;
   if (info->s->data_file_type == COMPRESSED_RECORD) {
     for (field = 0; field < info->s->base.fields; field++) {
       if (info->s->rec[field].base_type == FIELD_BLOB ||
           info->s->rec[field].base_type == FIELD_VARCHAR) {
-        static_row_size = 0;
+        static_row_size = false;
         break;
       }
     }
@@ -1439,13 +1439,13 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
 
   if (init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME))) {
+                    share->pack.header_length, true, MYF(MY_WME))) {
     memset(&info->rec_cache, 0, sizeof(info->rec_cache));
     goto err;
   }
   if (!rep_quick)
     if (init_io_cache(&info->rec_cache, -1, (uint)param->write_buffer_length,
-                      WRITE_CACHE, new_header_length, 1,
+                      WRITE_CACHE, new_header_length, true,
                       MYF(MY_WME | MY_WAIT_IF_FULL)))
       goto err;
   info->opt_flag |= WRITE_CACHE_USED;
@@ -1485,7 +1485,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
       mysql_file_seek(info->dfile, 0L, MY_SEEK_END, MYF(0));
   sort_info.dupp = 0;
   sort_param.fix_datafile = (bool)(!rep_quick);
-  sort_param.master = 1;
+  sort_param.master = true;
   sort_info.max_records = ~(ha_rows)0;
 
   set_data_file_type(&sort_info, share);
@@ -1493,7 +1493,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
   info->state->records = info->state->del = share->state.split = 0;
   info->state->empty = 0;
   param->glob_crc = 0;
-  if (param->testflag & T_CALC_CHECKSUM) sort_param.calc_checksum = 1;
+  if (param->testflag & T_CALC_CHECKSUM) sort_param.calc_checksum = true;
 
   info->update = (short)(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
@@ -1550,7 +1550,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
                          "number of deleted records");
     mi_check_print_error(param, "Run recovery again without -q");
     got_error = 1;
-    param->retry_repair = 1;
+    param->retry_repair = true;
     param->testflag |= T_RETRY_WITHOUT_QUICK;
     goto err;
   }
@@ -1615,7 +1615,7 @@ err:
           mi_open_datafile(info, share, name, -1))
         got_error = 1;
 
-      param->retry_repair = 0;
+      param->retry_repair = false;
     }
   }
   if (got_error) {
@@ -1738,7 +1738,7 @@ int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file) {
     mi_check_print_error(param, "%d when trying to write bufferts", my_errno());
     return (1);
   }
-  if (!param->using_global_keycache) end_key_cache(key_cache, 1);
+  if (!param->using_global_keycache) end_key_cache(key_cache, true);
   return 0;
 } /* flush_blocks */
 
@@ -2048,11 +2048,11 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
                              share->base.max_key_block_length)) ||
       init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME)) ||
+                    share->pack.header_length, true, MYF(MY_WME)) ||
       (!rep_quick &&
        init_io_cache(&info->rec_cache, info->dfile,
                      (uint)param->write_buffer_length, WRITE_CACHE,
-                     new_header_length, 1,
+                     new_header_length, true,
                      MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw)))
     goto err;
   sort_info.key_block_end = sort_info.key_block + param->sort_key_blocks;
@@ -2124,11 +2124,11 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
   sort_param.tmpdir = param->tmpdir;
   sort_param.sort_info = &sort_info;
   sort_param.fix_datafile = (bool)(!rep_quick);
-  sort_param.master = 1;
+  sort_param.master = true;
 
   del = info->state->del;
   param->glob_crc = 0;
-  if (param->testflag & T_CALC_CHECKSUM) sort_param.calc_checksum = 1;
+  if (param->testflag & T_CALC_CHECKSUM) sort_param.calc_checksum = true;
 
   rec_per_key_part = param->rec_per_key_part;
   for (sort_param.key = 0; sort_param.key < share->base.keys;
@@ -2205,11 +2205,11 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
     if (_create_index_by_sort(&sort_param,
                               (bool)(!(param->testflag & T_VERBOSE)),
                               param->sort_buffer_length)) {
-      param->retry_repair = 1;
+      param->retry_repair = true;
       goto err;
     }
     /* No need to calculate checksum again. */
-    sort_param.calc_checksum = 0;
+    sort_param.calc_checksum = false;
     free_root(&sort_param.wordroot, MYF(0));
 
     /* Set for next loop */
@@ -2227,7 +2227,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
 
     if (sort_param.fix_datafile) {
       param->read_cache.end_of_file = sort_param.filepos;
-      if (write_data_suffix(&sort_info, 1) || end_io_cache(&info->rec_cache))
+      if (write_data_suffix(&sort_info, true) || end_io_cache(&info->rec_cache))
         goto err;
       if (param->testflag & T_SAFE_REPAIR) {
         /* Don't repair if we loosed more than one row */
@@ -2244,13 +2244,13 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       info->dfile = new_file;
       share->data_file_type = sort_info.new_data_file_type;
       share->pack.header_length = (ulong)new_header_length;
-      sort_param.fix_datafile = 0;
+      sort_param.fix_datafile = false;
     } else
       info->state->data_file_length = sort_param.max_pos;
 
     param->read_cache.file = info->dfile; /* re-init read cache */
     reinit_io_cache(&param->read_cache, READ_CACHE, share->pack.header_length,
-                    1, 1);
+                    true, true);
   }
 
   if (param->testflag & T_WRITE_LOOP) {
@@ -2264,7 +2264,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
                          "number of deleted records");
     mi_check_print_error(param, "Run recovery again without -q");
     got_error = 1;
-    param->retry_repair = 1;
+    param->retry_repair = true;
     param->testflag |= T_RETRY_WITHOUT_QUICK;
     goto err;
   }
@@ -2323,7 +2323,7 @@ err:
                               MYF(MY_WME));
       if (info->dfile == new_file) /* Retry with key cache */
         if (unlikely(mi_open_datafile(info, share, name, -1)))
-          param->retry_repair = 0; /* Safety */
+          param->retry_repair = false; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   } else if (key_map == share->state.key_map)
@@ -2461,21 +2461,21 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
   mysql_cond_init(mi_key_cond_MI_SORT_INFO_cond, &sort_info.cond);
   mysql_mutex_init(mi_key_mutex_MI_CHECK_print_msg, &param->print_msg_mutex,
                    MY_MUTEX_INIT_FAST);
-  param->need_print_msg_lock = 1;
+  param->need_print_msg_lock = true;
 
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
                              share->base.max_key_block_length)) ||
       init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME)) ||
+                    share->pack.header_length, true, MYF(MY_WME)) ||
       (!rep_quick &&
        (init_io_cache(&info->rec_cache, info->dfile,
                       (uint)param->write_buffer_length, WRITE_CACHE,
-                      new_header_length, 1,
+                      new_header_length, true,
                       MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw) ||
         init_io_cache(&new_data_cache, -1, (uint)param->write_buffer_length,
-                      READ_CACHE, new_header_length, 1,
+                      READ_CACHE, new_header_length, true,
                       MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))))
     goto err;
   sort_info.key_block_end = sort_info.key_block + param->sort_key_blocks;
@@ -2596,9 +2596,9 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
     sort_param[i].key_cmp = sort_key_cmp;
     sort_param[i].tmpdir = param->tmpdir;
     sort_param[i].sort_info = &sort_info;
-    sort_param[i].master = 0;
-    sort_param[i].fix_datafile = 0;
-    sort_param[i].calc_checksum = 0;
+    sort_param[i].master = false;
+    sort_param[i].fix_datafile = false;
+    sort_param[i].calc_checksum = false;
 
     sort_param[i].filepos = new_header_length;
     sort_param[i].max_pos = sort_param[i].pos = share->pack.header_length;
@@ -2631,7 +2631,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
     }
   }
   sort_info.total_keys = i;
-  sort_param[0].master = 1;
+  sort_param[0].master = true;
   sort_param[0].fix_datafile = (bool)(!rep_quick);
   sort_param[0].calc_checksum = (param->testflag & T_CALC_CHECKSUM);
 
@@ -2693,7 +2693,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
   mysql_mutex_unlock(&sort_info.mutex);
 
   if ((got_error = thr_write_keys(sort_param))) {
-    param->retry_repair = 1;
+    param->retry_repair = true;
     goto err;
   }
   got_error = 1; /* Assume the following may go wrong */
@@ -2704,7 +2704,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
       write cache. The master thread did already detach from the share
       by remove_io_thread() in sort.c:thr_find_all_keys().
     */
-    if (write_data_suffix(&sort_info, 1) || end_io_cache(&info->rec_cache))
+    if (write_data_suffix(&sort_info, true) || end_io_cache(&info->rec_cache))
       goto err;
     if (param->testflag & T_SAFE_REPAIR) {
       /* Don't repair if we loosed more than one row */
@@ -2735,7 +2735,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
                          "Couldn't fix table with quick recovery: Found wrong "
                          "number of deleted records");
     mi_check_print_error(param, "Run recovery again without -q");
-    param->retry_repair = 1;
+    param->retry_repair = true;
     param->testflag |= T_RETRY_WITHOUT_QUICK;
     goto err;
   }
@@ -2806,7 +2806,7 @@ err:
                               MYF(MY_WME));
       if (info->dfile == new_file) /* Retry with key cache */
         if (unlikely(mi_open_datafile(info, share, name, -1)))
-          param->retry_repair = 0; /* Safety */
+          param->retry_repair = false; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   } else if (key_map == share->state.key_map)
@@ -2816,7 +2816,7 @@ err:
   mysql_cond_destroy(&sort_info.cond);
   mysql_mutex_destroy(&sort_info.mutex);
   mysql_mutex_destroy(&param->print_msg_mutex);
-  param->need_print_msg_lock = 0;
+  param->need_print_msg_lock = false;
 
   my_free(sort_info.ft_buf);
   my_free(sort_info.key_block);
@@ -2943,7 +2943,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
         if (my_b_read(&sort_param->read_cache, sort_param->record,
                       share->base.pack_reclength)) {
           if (sort_param->read_cache.error) param->out_flag |= O_DATA_LOST;
-          param->retry_repair = 1;
+          param->retry_repair = true;
           param->testflag |= T_RETRY_WITHOUT_QUICK;
           return -1;
         }
@@ -3004,7 +3004,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
           }
           if (searching && !sort_param->fix_datafile) {
             param->error_printed = 1;
-            param->retry_repair = 1;
+            param->retry_repair = true;
             param->testflag |= T_RETRY_WITHOUT_QUICK;
             return 1; /* Something wrong with data */
           }
@@ -3033,14 +3033,14 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
             continue;
           }
           if (b_type & BLOCK_DELETED) {
-            bool error = 0;
+            bool error = false;
             if (block_info.block_len + (uint)(block_info.filepos - pos) <
                 share->base.min_block_length) {
               if (!searching)
                 mi_check_print_info(
                     param, "Deleted block with impossible length %lu at %s",
                     block_info.block_len, llstr(pos, llbuff));
-              error = 1;
+              error = true;
             } else {
               if ((block_info.next_filepos != HA_OFFSET_ERROR &&
                    block_info.next_filepos >= info->state->data_file_length) ||
@@ -3050,7 +3050,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
                   mi_check_print_info(
                       param, "Delete link points outside datafile at %s",
                       llstr(pos, llbuff));
-                error = 1;
+                error = true;
               }
             }
             if (error) {
@@ -3224,7 +3224,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
           return -1;
         if (searching && !sort_param->fix_datafile) {
           param->error_printed = 1;
-          param->retry_repair = 1;
+          param->retry_repair = true;
           param->testflag |= T_RETRY_WITHOUT_QUICK;
           return 1; /* Something wrong with data */
         }
@@ -3536,7 +3536,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a) {
 
   if (ha_compare_text(sort_param->seg->charset,
                       static_cast<const uchar *>(a) + 1, a_len - 1,
-                      ft_buf->lastkey + 1, val_off - 1, 0) == 0) {
+                      ft_buf->lastkey + 1, val_off - 1, false) == 0) {
     if (!ft_buf->buf) /* store in second-level tree */
     {
       ft_buf->count++;
@@ -3698,7 +3698,7 @@ static int sort_delete_record(MI_SORT_PARAM *sort_param) {
   if (sort_info->current_key) {
     key = info->lastkey + info->s->base.max_key_length;
     if ((error = (*info->s->read_rnd)(info, sort_param->record, info->lastpos,
-                                      0)) &&
+                                      false)) &&
         error != HA_ERR_RECORD_DELETED) {
       mi_check_print_error(param, "Can't read record to be removed");
       info->dfile = old_file;
@@ -3972,7 +3972,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info, uint update) {
 
   if (update & UPDATE_OPEN_COUNT) {
     share->state.open_count = 0;
-    share->global_changed = 0;
+    share->global_changed = false;
   }
   if (update & UPDATE_STAT) {
     uint i, key_parts = mi_uint2korr(share->state.header.key_parts);
@@ -3999,7 +3999,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info, uint update) {
     */
     if (info->lock_type == F_WRLCK) share->state.state = *info->state;
     if (mi_state_info_write(share->kfile, &share->state, 1 + 2)) goto err;
-    share->changed = 0;
+    share->changed = false;
   }
   { /* Force update of status */
     int error;

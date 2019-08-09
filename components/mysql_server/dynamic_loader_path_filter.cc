@@ -112,7 +112,7 @@ bool mysql_dynamic_loader_scheme_file_path_filter_imp::
   LEX_CSTRING dl_cstr = {file, input_path_len};
   if (check_valid_path(file, input_path_len) ||
       check_string_char_length(dl_cstr, "", NAME_CHAR_LEN, system_charset_info,
-                               1) ||
+                               true) ||
       plugin_dir_len + input_path_len + 1 >= FN_REFLEN) {
     return true;
   }

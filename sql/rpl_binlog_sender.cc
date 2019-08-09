@@ -319,7 +319,7 @@ void Binlog_sender::run() {
       }
       is_index_file_reopened_on_binlog_disable = true;
     }
-    int error = mysql_bin_log.find_next_log(&m_linfo, 0);
+    int error = mysql_bin_log.find_next_log(&m_linfo, false);
     mysql_bin_log.unlock_index();
     if (unlikely(error)) {
       DBUG_EXECUTE_IF("waiting_for_disable_binlog", {

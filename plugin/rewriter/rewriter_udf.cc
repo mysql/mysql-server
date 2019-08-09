@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,9 @@
 extern "C" {
 
 bool load_rewrite_rules_init(UDF_INIT *, UDF_ARGS *, char *message) {
-  if (get_rewriter_plugin_info() != NULL) return 0;
+  if (get_rewriter_plugin_info() != NULL) return false;
   strncpy(message, "Rewriter plugin needs to be installed.", MYSQL_ERRMSG_SIZE);
-  return 1;
+  return true;
 }
 
 char *load_rewrite_rules(UDF_INIT *, UDF_ARGS *, char *, unsigned long *length,

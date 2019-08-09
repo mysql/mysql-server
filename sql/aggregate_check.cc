@@ -686,7 +686,7 @@ bool Group_check::is_in_fd(Item *item) {
   }
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, 0)) return true;
+    if (item2->eq(item, false)) return true;
     /*
       Say that we have view:
       create view v1 as select i, 2*i as z from t1; and we do:
@@ -700,7 +700,7 @@ bool Group_check::is_in_fd(Item *item) {
       reach to real_item() of v1.i.
     */
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, 0)) return true;
+    if (real_it2 != item2 && real_it2->eq(item, false)) return true;
   }
   if (!search_in_underlying) return false;
   return is_in_fd_of_underlying(down_cast<Item_ident *>(item));
@@ -850,9 +850,9 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 Item *Group_check::get_fd_equal(Item *item) {
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, 0)) return item2;
+    if (item2->eq(item, false)) return item2;
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, 0)) return item2;
+    if (real_it2 != item2 && real_it2->eq(item, false)) return item2;
   }
   return nullptr;
 }

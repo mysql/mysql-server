@@ -283,8 +283,8 @@ static const char *default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[] = {"mysqlbinlog", "client", 0};
 
-static bool one_database = 0, disable_log_bin = 0;
-static bool opt_hexdump = 0;
+static bool one_database = false, disable_log_bin = false;
+static bool opt_hexdump = false;
 const char *base64_output_mode_names[] = {"NEVER", "AUTO", "UNSPEC",
                                           "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib = {
@@ -292,7 +292,7 @@ TYPELIB base64_output_mode_typelib = {
     nullptr};
 static enum_base64_output_mode opt_base64_output_mode = BASE64_OUTPUT_UNSPEC;
 static char *opt_base64_output_mode_str = nullptr;
-static bool opt_remote_alias = 0;
+static bool opt_remote_alias = false;
 const char *remote_proto_names[] = {"BINLOG-DUMP-NON-GTIDS",
                                     "BINLOG-DUMP-GTIDS", NullS};
 TYPELIB remote_proto_typelib = {array_elements(remote_proto_names) - 1, "",
@@ -306,11 +306,11 @@ static char *opt_remote_proto_str = nullptr;
 static char *database = nullptr;
 static char *output_file = nullptr;
 static char *rewrite = nullptr;
-bool force_opt = 0, short_form = 0, idempotent_mode = 0;
+bool force_opt = false, short_form = false, idempotent_mode = false;
 static bool debug_info_flag, debug_check_flag;
-static bool force_if_open_opt = 1, raw_mode = 0;
-static bool to_last_remote_log = 0, stop_never = 0;
-static bool opt_verify_binlog_checksum = 1;
+static bool force_if_open_opt = true, raw_mode = false;
+static bool to_last_remote_log = false, stop_never = false;
+static bool opt_verify_binlog_checksum = true;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id = -1;
 static int64 connection_server_id = -1;
@@ -373,7 +373,7 @@ enum Exit_status {
   Options that will be used to filter out events.
 */
 static char *opt_include_gtids_str = nullptr, *opt_exclude_gtids_str = nullptr;
-static bool opt_skip_gtids = 0;
+static bool opt_skip_gtids = false;
 static bool filter_based_on_gtids = false;
 
 /* It is set to true when BEGIN is found, and false when the transaction ends.
@@ -1712,7 +1712,7 @@ static my_time_t convert_str_to_timestamp(const char *str) {
 
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
                                char *argument) {
-  bool tty_password = 0;
+  bool tty_password = false;
   switch (optid) {
 #ifndef DBUG_OFF
     case '#':
@@ -1722,14 +1722,14 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
 #include "sslopt-case.h"
 
     case 'd':
-      one_database = 1;
+      one_database = true;
       break;
     case OPT_REWRITE_DB: {
       char *from_db = argument, *p, *to_db;
       if (!(p = strstr(argument, "->"))) {
         sql_print_error(
             "Bad syntax in mysqlbinlog-rewrite-db - missing '->'!\n");
-        return 1;
+        return true;
       }
       to_db = p + 2;
       while (p > argument && my_isspace(mysqld_charset, p[-1])) p--;
@@ -1737,13 +1737,13 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       if (!*from_db) {
         sql_print_error(
             "Bad syntax in mysqlbinlog-rewrite-db - empty FROM db!\n");
-        return 1;
+        return true;
       }
       while (*to_db && my_isspace(mysqld_charset, *to_db)) to_db++;
       if (!*to_db) {
         sql_print_error(
             "Bad syntax in mysqlbinlog-rewrite-db - empty TO db!\n");
-        return 1;
+        return true;
       }
       /* Add the database to the mapping */
       map_mysqlbinlog_rewrite_db[from_db] = to_db;
@@ -1764,10 +1764,10 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 'R':
-      opt_remote_alias = 1;
+      opt_remote_alias = true;
       opt_remote_proto = BINLOG_DUMP_NON_GTID;
       break;
     case OPT_REMOTE_PROTO:
@@ -1800,7 +1800,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       exit(0);
     case OPT_STOP_NEVER:
       /* wait-for-data implicitly sets to-last-log */
-      to_last_remote_log = 1;
+      to_last_remote_log = true;
       break;
     case '?':
       usage();
@@ -1816,7 +1816,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
   }
   if (tty_password) pass = get_tty_password(NullS);
 
-  return 0;
+  return false;
 }
 
 static int parse_args(int *argc, char ***argv) {
@@ -1891,7 +1891,7 @@ static Exit_status safe_connect() {
     error("Failed on connect: %s", mysql_error(mysql));
     return ERROR_STOP;
   }
-  mysql->reconnect = 1;
+  mysql->reconnect = true;
   return OK_CONTINUE;
 }
 

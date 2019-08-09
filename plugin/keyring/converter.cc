@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -193,8 +193,8 @@ size_t Converter::convert(char const *src, char *dst, Arch src_t, Arch dst_t) {
   // find out source and destination characteristics
   const size_t src_width = get_width(src_t);
   const size_t dst_width = get_width(dst_t);
-  const bool src_is_le = get_endian(src_t) == Endian::LITTLE ? 1 : 0;
-  const bool dst_is_le = get_endian(dst_t) == Endian::LITTLE ? 1 : 0;
+  const bool src_is_le = get_endian(src_t) == Endian::LITTLE ? true : false;
+  const bool dst_is_le = get_endian(dst_t) == Endian::LITTLE ? true : false;
 
   // determine required operations
   const bool swap = (src_is_le != dst_is_le);

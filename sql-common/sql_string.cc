@@ -421,7 +421,7 @@ bool String::copy(const char *str, size_t arg_length,
 bool String::set_ascii(const char *str, size_t arg_length) {
   if (m_charset->mbminlen == 1) {
     set(str, arg_length, m_charset);
-    return 0;
+    return false;
   }
   uint dummy_errors;
   return copy(str, arg_length, &my_charset_latin1, m_charset, &dummy_errors);

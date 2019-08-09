@@ -120,7 +120,7 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 
   parser->end = end;
   parser->start = sign + 1;
-  parser->content_ok = 1;
+  parser->content_ok = true;
 
   return parser;
 
@@ -255,7 +255,7 @@ static const char *parse_quoted_escaped_string(const char *ptr, const char *end,
                                                LEX_STRING *str) {
   const char *eol;
   uint result_len = 0;
-  bool escaped = 0;
+  bool escaped = false;
 
   // starting '
   if (*(ptr++) != '\'') return 0;

@@ -483,7 +483,7 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   mi->channel_wrlock();
   lock_slave_threads(mi);
 
-  init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&server_thd_mask, mi, false /* not inverse*/);
 
   if ((threads_to_stop & CHANNEL_APPLIER_THREAD) &&
       (server_thd_mask & SLAVE_SQL)) {
@@ -616,7 +616,7 @@ bool channel_is_active(const char *channel,
     return false;
   }
 
-  init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&thread_mask, mi, false /* not inverse*/);
 
   channel_map.unlock();
 

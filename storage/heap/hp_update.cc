@@ -31,7 +31,7 @@
 int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new) {
   HP_KEYDEF *keydef, *end, *p_lastinx;
   uchar *pos;
-  bool auto_key_changed = 0;
+  bool auto_key_changed = false;
   HP_SHARE *share = info->s;
   DBUG_TRACE;
 
@@ -51,7 +51,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new) {
           (*keydef->write_key)(info, keydef, heap_new, pos))
         goto err;
       if (share->auto_key == (uint)(keydef - share->keydef + 1))
-        auto_key_changed = 1;
+        auto_key_changed = true;
     }
   }
 

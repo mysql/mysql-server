@@ -66,7 +66,7 @@ int myrg_rrnd(MYRG_INFO *info, uchar *buf, ulonglong filepos) {
     for (;;) {
       isam_info->update &= HA_STATE_CHANGED;
       if ((error = (*isam_info->s->read_rnd)(isam_info, (uchar *)buf,
-                                             (my_off_t)filepos, 1)) !=
+                                             (my_off_t)filepos, true)) !=
           HA_ERR_END_OF_FILE)
         return error;
       if (info->current_table + 1 == info->end_table) return HA_ERR_END_OF_FILE;
@@ -87,7 +87,7 @@ int myrg_rrnd(MYRG_INFO *info, uchar *buf, ulonglong filepos) {
   isam_info->update &= HA_STATE_CHANGED;
   return (*isam_info->s->read_rnd)(
       isam_info, (uchar *)buf,
-      (my_off_t)(filepos - info->current_table->file_offset), 0);
+      (my_off_t)(filepos - info->current_table->file_offset), false);
 }
 
 /* Find which table to use according to file-pos */

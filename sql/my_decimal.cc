@@ -325,7 +325,7 @@ my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec) {
   lldiv_t lld;
   lld.quot = tm->tv_sec;
   lld.rem = (longlong)tm->tv_usec * 1000;
-  return lldiv_t2my_decimal(&lld, 0, dec);
+  return lldiv_t2my_decimal(&lld, false, dec);
 }
 
 void my_decimal_trim(ulong *precision, uint *scale) {

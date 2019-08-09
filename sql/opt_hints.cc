@@ -78,7 +78,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"RESOURCE_GROUP", false, false, false},
     {"SKIP_SCAN", false, false, false},
     {"HASH_JOIN", true, true, false},
-    {0, 0, 0, 0}};
+    {0, false, false, false}};
 
 /**
   Prefix for system generated query block name.

@@ -57,7 +57,7 @@ int _mi_check_index(MI_INFO *info, int inx) {
   if (info->lastinx != inx) /* Index changed */
   {
     info->lastinx = inx;
-    info->page_changed = 1;
+    info->page_changed = true;
     info->update = ((info->update & (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED)) |
                     HA_STATE_NEXT_FOUND | HA_STATE_PREV_FOUND);
   }
@@ -159,7 +159,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uint key_len,
   info->int_nod_flag = nod_flag;
   info->int_keytree_version = keyinfo->version;
   info->last_search_keypage = info->last_keypage;
-  info->page_changed = 0;
+  info->page_changed = false;
   info->buff_used = (info->buff != buff); /* If we have to reread buff */
 
   DBUG_PRINT("exit", ("found key at %lu", (ulong)info->lastpos));
@@ -168,7 +168,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uint key_len,
 err:
   DBUG_PRINT("exit", ("Error: %d", my_errno()));
   info->lastpos = HA_OFFSET_ERROR;
-  info->page_changed = 1;
+  info->page_changed = true;
   return -1;
 } /* _mi_search */
 
@@ -1047,7 +1047,7 @@ static bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     *return_key_length = keyinfo->keylength;
     memmove((uchar *)key, (uchar *)keypos - *return_key_length - nod_flag,
             *return_key_length);
-    return 0;
+    return false;
   } else {
     page += 2 + nod_flag;
     key[0] = 0; /* safety */
@@ -1056,11 +1056,11 @@ static bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
       if (*return_key_length == 0) {
         mi_print_error(info->s, HA_ERR_CRASHED);
         set_my_errno(HA_ERR_CRASHED);
-        return 1;
+        return true;
       }
     }
   }
-  return 0;
+  return false;
 } /* _mi_get_key */
 
 /* Get last key from key-page */
@@ -1185,7 +1185,7 @@ int _mi_search_next(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     if (!_mi_fetch_keypage(info, keyinfo, info->last_search_keypage,
                            DFLT_INIT_HITS, info->buff, 0))
       return -1;
-    info->buff_used = 0;
+    info->buff_used = false;
   }
 
   /* Last used buffer is in info->buff */
@@ -1261,7 +1261,7 @@ int _mi_search_first(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos) {
   info->int_nod_flag = nod_flag;
   info->int_keytree_version = keyinfo->version;
   info->last_search_keypage = info->last_keypage;
-  info->page_changed = info->buff_used = 0;
+  info->page_changed = info->buff_used = false;
   info->lastpos = _mi_dpos(info, 0, info->lastkey + info->lastkey_length);
 
   DBUG_PRINT("exit", ("found key at %lu", (ulong)info->lastpos));
@@ -1300,7 +1300,7 @@ int _mi_search_last(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos) {
   info->int_nod_flag = nod_flag;
   info->int_keytree_version = keyinfo->version;
   info->last_search_keypage = info->last_keypage;
-  info->page_changed = info->buff_used = 0;
+  info->page_changed = info->buff_used = false;
 
   DBUG_PRINT("exit", ("found key at %lu", (ulong)info->lastpos));
   return 0;
@@ -1374,7 +1374,7 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
 
   length_pack = s_temp->ref_length = s_temp->n_ref_length = s_temp->n_length =
       0;
-  same_length = 0;
+  same_length = false;
   keyseg = keyinfo->seg;
   key_length = _mi_keylength(keyinfo, key) + nod_flag;
 
@@ -1405,14 +1405,14 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
       s_temp->next_key_pos = 0; /* No next key */
       return (s_temp->totlength);
     }
-    s_temp->store_not_null = 1;
+    s_temp->store_not_null = true;
     key_length--; /* We don't store NULL */
     if (prev_key && !*prev_key++)
       org_key = prev_key = 0; /* Can't pack against prev */
     else if (org_key)
       org_key++; /* Skip NULL */
   } else
-    s_temp->store_not_null = 0;
+    s_temp->store_not_null = false;
   s_temp->prev_key = org_key;
 
   /* The key part will start with a packed length */
@@ -1427,7 +1427,7 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
     s_temp->prev_key = prev_key; /* Pointer at data */
     /* Don't use key-pack if length == 0 */
     if (new_key_length && new_key_length == org_key_length)
-      same_length = 1;
+      same_length = true;
     else if (new_key_length > org_key_length)
       end = key + org_key_length;
 

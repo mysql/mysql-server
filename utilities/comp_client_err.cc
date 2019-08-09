@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ static void usage(void) {
       " -O, --out_file=name Output file name\n");
 }
 
-static bool get_one_option(int, const struct my_option *, char *) { return 0; }
+static bool get_one_option(int, const struct my_option *, char *) {
+  return false;
+}
 
 static int get_options(int *argc, char ***argv) {
   if (*argc == 1 || *argc == 2 || *argc > 3) {

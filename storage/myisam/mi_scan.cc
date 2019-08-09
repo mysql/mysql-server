@@ -49,6 +49,6 @@ int mi_scan(MI_INFO *info, uchar *buf) {
   DBUG_TRACE;
   /* Init all but update-flag */
   info->update &= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  result = (*info->s->read_rnd)(info, buf, info->nextpos, 1);
+  result = (*info->s->read_rnd)(info, buf, info->nextpos, true);
   return result;
 }

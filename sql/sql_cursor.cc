@@ -228,7 +228,7 @@ Materialized_cursor::Materialized_cursor(Query_result *result_arg,
       table(table_arg),
       fetch_limit(0),
       fetch_count(0),
-      is_rnd_inited(0) {}
+      is_rnd_inited(false) {}
 
 /**
   Preserve the original metadata to be sent to the client.

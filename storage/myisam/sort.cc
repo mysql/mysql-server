@@ -203,7 +203,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info, bool no_messages,
         goto err; /* purecov: inspected */
     }
     if (flush_io_cache(&tempfile) ||
-        reinit_io_cache(&tempfile, READ_CACHE, 0L, 0, 0))
+        reinit_io_cache(&tempfile, READ_CACHE, 0L, false, false))
       goto err; /* purecov: inspected */
     if (!no_messages)
       printf("  - Last merge and dumping keys\n"); /* purecov: tested */
@@ -222,7 +222,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info, bool no_messages,
 
     if (!no_messages) printf("  - Adding exceptions\n"); /* purecov: tested */
     if (flush_io_cache(&tempfile_for_exceptions) ||
-        reinit_io_cache(&tempfile_for_exceptions, READ_CACHE, 0L, 0, 0))
+        reinit_io_cache(&tempfile_for_exceptions, READ_CACHE, 0L, false, false))
       goto err;
 
     while (!my_b_read(&tempfile_for_exceptions, (uchar *)&key_length,
@@ -534,7 +534,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param) {
         }
       }
       if (flush_io_cache(&sinfo->tempfile) ||
-          reinit_io_cache(&sinfo->tempfile, READ_CACHE, 0L, 0, 0)) {
+          reinit_io_cache(&sinfo->tempfile, READ_CACHE, 0L, false, false)) {
         got_error = 1;
         continue;
       }
@@ -555,8 +555,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param) {
         printf("Key %d  - Dumping 'long' keys\n", sinfo->key + 1);
 
       if (flush_io_cache(&sinfo->tempfile_for_exceptions) ||
-          reinit_io_cache(&sinfo->tempfile_for_exceptions, READ_CACHE, 0L, 0,
-                          0)) {
+          reinit_io_cache(&sinfo->tempfile_for_exceptions, READ_CACHE, 0L,
+                          false, false)) {
         got_error = 1;
         continue;
       }
@@ -694,8 +694,8 @@ static int merge_many_buff(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
   from_file = t_file;
   to_file = &t_file2;
   while (*maxbuffer >= MERGEBUFF2) {
-    reinit_io_cache(from_file, READ_CACHE, 0L, 0, 0);
-    reinit_io_cache(to_file, WRITE_CACHE, 0L, 0, 0);
+    reinit_io_cache(from_file, READ_CACHE, 0L, false, false);
+    reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false);
     lastbuff = buffpek;
     for (i = 0; i <= *maxbuffer - MERGEBUFF * 3 / 2; i += MERGEBUFF) {
       if (merge_buffers(info, keys, from_file, to_file, sort_keys, lastbuff++,
@@ -826,9 +826,10 @@ static int merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   strpos = (uchar *)sort_keys;
   sort_length = info->key_length;
 
-  if (init_queue(
-          &queue, key_memory_QUEUE, (uint)(Tb - Fb) + 1, offsetof(BUFFPEK, key),
-          0, (int (*)(void *, uchar *, uchar *))info->key_cmp, (void *)info))
+  if (init_queue(&queue, key_memory_QUEUE, (uint)(Tb - Fb) + 1,
+                 offsetof(BUFFPEK, key), false,
+                 (int (*)(void *, uchar *, uchar *))info->key_cmp,
+                 (void *)info))
     return 1; /* purecov: inspected */
 
   for (buffpek = Fb; buffpek <= Tb; buffpek++) {

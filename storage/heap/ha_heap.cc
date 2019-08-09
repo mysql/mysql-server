@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
       file(0),
       records_changed(0),
       key_stat_version(0),
-      single_instance(0) {}
+      single_instance(false) {}
 
 /*
   Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to
@@ -517,7 +517,7 @@ int ha_heap::delete_table(const char *name, const dd::Table *) {
 }
 
 void ha_heap::drop_table(const char *) {
-  file->s->delete_on_close = 1;
+  file->s->delete_on_close = true;
   close();
 }
 
@@ -555,7 +555,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
   TABLE_SHARE *share = table_arg->s;
-  bool found_real_auto_increment = 0;
+  bool found_real_auto_increment = false;
 
   memset(hp_create_info, 0, sizeof(*hp_create_info));
 

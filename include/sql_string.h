@@ -524,10 +524,10 @@ class String {
     if (m_length < m_alloced_length) {
       m_ptr[m_length++] = chr;
     } else {
-      if (mem_realloc_exp(m_length + 1)) return 1;
+      if (mem_realloc_exp(m_length + 1)) return true;
       m_ptr[m_length++] = chr;
     }
-    return 0;
+    return false;
   }
   bool fill(size_t max_length, char fill);
   friend int sortcmp(const String *a, const String *b, const CHARSET_INFO *cs);

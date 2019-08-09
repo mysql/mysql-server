@@ -165,7 +165,7 @@ using std::min;
   a parameter of sql_slave_killed() to defer the killed status
 */
 #define SLAVE_WAIT_GROUP_DONE 60
-bool use_slave_mask = 0;
+bool use_slave_mask = false;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
@@ -630,7 +630,7 @@ int stop_slave(THD *thd) {
 
     DBUG_ASSERT(!strcmp(mi->get_channel(), channel_map.get_default_channel()));
 
-    error = stop_slave(thd, mi, 1, false /*for_one_channel*/,
+    error = stop_slave(thd, mi, true, false /*for_one_channel*/,
                        &push_temp_table_warning);
   } else {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
@@ -638,7 +638,7 @@ int stop_slave(THD *thd) {
       mi = it->second;
 
       if (Master_info::is_configured(mi)) {
-        if (stop_slave(thd, mi, 1, false /*for_one_channel*/,
+        if (stop_slave(thd, mi, true, false /*for_one_channel*/,
                        &push_temp_table_warning)) {
           LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_STOP_SLAVE_FOR_CHANNEL,
                  mi->get_channel());
@@ -815,7 +815,7 @@ bool stop_slave_cmd(THD *thd) {
     }
 
     if (mi)
-      res = stop_slave(thd, mi, 1 /*net report */, true /*for_one_channel*/,
+      res = stop_slave(thd, mi, true /*net report */, true /*for_one_channel*/,
                        &push_temp_table_warning);
     else if (strcmp(channel_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
@@ -1162,7 +1162,7 @@ static inline int fill_mts_gaps_and_recover(Master_info *mi) {
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
   }
-  rli->inited = 1;
+  rli->inited = true;
   rli->error_on_rli_init_info = false;
   mysql_mutex_unlock(&mi->data_lock);
   mysql_mutex_unlock(&rli->data_lock);
@@ -1175,7 +1175,7 @@ err:
     the case of STS. i.e if init_recovery call fails then we set inited=0.
   */
   rli->end_info();
-  rli->inited = 0;
+  rli->inited = false;
   rli->error_on_rli_init_info = true;
   rli->clear_until_option();
   return recovery_error;
@@ -1445,7 +1445,7 @@ static void init_slave_skip_errors() {
     fprintf(stderr, "Badly out of memory, please check your system status\n");
     exit(MYSQLD_ABORT_EXIT);
   }
-  use_slave_mask = 1;
+  use_slave_mask = true;
 }
 
 static void add_slave_skip_errors(const uint *errors, uint n_errors) {
@@ -1567,7 +1567,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
 
   if (thread_mask & (SLAVE_SQL | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating SQL thread"));
-    mi->rli->abort_slave = 1;
+    mi->rli->abort_slave = true;
     if ((error = terminate_slave_thread(
              mi->rli->info_thd, sql_lock, &mi->rli->stop_cond,
              &mi->rli->slave_running, &total_stop_wait_timeout,
@@ -1592,7 +1592,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   }
   if (thread_mask & (SLAVE_IO | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating IO thread"));
-    mi->abort_slave = 1;
+    mi->abort_slave = true;
     DBUG_EXECUTE_IF("pause_after_queue_event", {
       const char act[] = "now SIGNAL reached_stopping_io_thread";
       DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
@@ -2877,7 +2877,7 @@ slave_killed_err:
 }
 
 static bool wait_for_relay_log_space(Relay_log_info *rli) {
-  bool slave_killed = 0;
+  bool slave_killed = false;
   Master_info *mi = rli->mi;
   PSI_stage_info old_stage;
   THD *thd = mi->info_thd;
@@ -3847,7 +3847,7 @@ static int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
                                  ? SYSTEM_THREAD_SLAVE_SQL
                                  : SYSTEM_THREAD_SLAVE_IO;
   thd->get_protocol_classic()->init_net(0);
-  thd->slave_thread = 1;
+  thd->slave_thread = true;
   thd->enable_slow_log = opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
 
@@ -4748,7 +4748,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
         Setting abort_slave flag because we do not want additional message about
         error in query execution to be printed.
       */
-      rli->abort_slave = 1;
+      rli->abort_slave = true;
       mysql_mutex_unlock(&rli->data_lock);
       delete ev;
       return 1;
@@ -4890,7 +4890,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
             load_mi_and_rli_from_repositories will starts a new
             transaction if master_info_repository is TABLE.
           */
-          rli->cleanup_context(thd, 1);
+          rli->cleanup_context(thd, true);
           /*
             Temporary error status is both unneeded and harmful for following
             open-and-lock slave system tables but store its number first for
@@ -4973,7 +4973,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       rli->current_event = nullptr;
     } else if (rli->is_until_satisfied_after_dispatching_event()) {
       mysql_mutex_lock(&rli->data_lock);
-      rli->abort_slave = 1;
+      rli->abort_slave = true;
       mysql_mutex_unlock(&rli->data_lock);
       return 1;
     }
@@ -5075,7 +5075,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
              mi->get_for_channel_str());
     }
   }
-  if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi)) {
+  if (safe_reconnect(thd, mysql, mi, true) || io_slave_killed(thd, mi)) {
     LogErr(INFORMATION_LEVEL, ER_SLAVE_KILLED_AFTER_RECONNECT);
     return 1;
   }
@@ -5147,7 +5147,7 @@ extern "C" void *handle_slave_io(void *arg) {
     thd_manager->add_thd(thd);
     thd_added = true;
 
-    mi->abort_slave = 0;
+    mi->abort_slave = false;
     mysql_mutex_unlock(&mi->run_lock);
     mysql_cond_broadcast(&mi->start_cond);
 
@@ -5398,7 +5398,7 @@ reading event"))
 
         /* XXX: 'synced' should be updated by queue_event to indicate
            whether event has been synced to disk */
-        bool synced = 0;
+        bool synced = false;
 #ifndef DBUG_OFF
         bool was_in_trx = false;
         if (mi->is_queueing_trx()) {
@@ -5597,7 +5597,7 @@ ignore_log_space_limit=%d",
     THD_CHECK_SENTRY(thd);
     if (thd_added) thd_manager->remove_thd(thd);
 
-    mi->abort_slave = 0;
+    mi->abort_slave = false;
     mi->slave_running = 0;
     mi->atomic_is_stopping = false;
     mysql_mutex_lock(&mi->info_thd_lock);
@@ -5913,7 +5913,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
      early if the previous invocation raised any bit in
      recovery_groups bitmap.
   */
-  if (rli->is_mts_recovery()) return 0;
+  if (rli->is_mts_recovery()) return false;
 
   /*
     Parallel applier recovery is based on master log name and
@@ -5929,7 +5929,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
     rli->recovery_parallel_workers = 0;
     rli->mts_recovery_group_cnt = 0;
     rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
-    return 0;
+    return false;
   }
 
   /*
@@ -6032,7 +6032,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
     recovery_group_cnt = 0;
     not_reached_commit = true;
     if (rli->relay_log.find_log_pos(&linfo, rli->get_group_relay_log_name(),
-                                    1)) {
+                                    true)) {
       LogErr(ERROR_LEVEL, ER_RPL_ERROR_LOOKING_FOR_LOG,
              rli->get_group_relay_log_name());
       goto err;
@@ -6112,7 +6112,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
 
       relaylog_file_reader.close();
       offset = BIN_LOG_HEADER_SIZE;
-      if (not_reached_commit && rli->relay_log.find_next_log(&linfo, 1)) {
+      if (not_reached_commit && rli->relay_log.find_next_log(&linfo, true)) {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_FIND_FOLLOWUP_FILE,
                linfo.log_file_name);
         goto err;
@@ -6808,7 +6808,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       start receiving data so we realize we are not caught up and
       Seconds_Behind_Master grows. No big deal.
     */
-    rli->abort_slave = 0;
+    rli->abort_slave = false;
 
     /*
       Reset errors for a clean start (otherwise, if the master is idle, the SQL
@@ -6851,7 +6851,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     // tell the I/O thread to take relay_log_space_limit into account from now
     // on
     mysql_mutex_lock(&rli->log_space_lock);
-    rli->ignore_log_space_limit = 0;
+    rli->ignore_log_space_limit = false;
     mysql_mutex_unlock(&rli->log_space_lock);
     rli->trans_retries = 0;  // start from "no error"
     DBUG_PRINT("info", ("rli->trans_retries: %lu", rli->trans_retries));
@@ -6997,7 +6997,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       must "proactively" clear playgrounds:
     */
     thd->clear_error();
-    rli->cleanup_context(thd, 1);
+    rli->cleanup_context(thd, true);
     /*
       Some extra safety, which should not been needed (normally, event deletion
       should already have done these assignments (each event which sets these
@@ -7039,7 +7039,7 @@ extern "C" void *handle_slave_sql(void *arg) {
                ("Signaling possibly waiting master_pos_wait() functions"));
     mysql_cond_broadcast(&rli->data_cond);
     mysql_mutex_unlock(&rli->data_lock);
-    rli->ignore_log_space_limit = 0; /* don't need any lock */
+    rli->ignore_log_space_limit = false; /* don't need any lock */
     /* we die so won't remember charset - re-update them on next thread start */
     rli->cached_charset_invalidate();
     rli->save_temporary_tables = thd->temporary_tables;
@@ -7887,7 +7887,7 @@ void slave_io_thread_detach_vio() {
 static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi) {
   DBUG_TRACE;
 
-  return connect_to_master(thd, mysql, mi, 0, 0);
+  return connect_to_master(thd, mysql, mi, false, false);
 }
 
 /*
@@ -8030,7 +8030,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
        each connection attempt by 'Last_IO_Error' entry.
     */
     last_errno = mysql_errno(mysql);
-    suppress_warnings = 0;
+    suppress_warnings = false;
     mi->report(ERROR_LEVEL, last_errno,
                "error %s to master '%s@%s:%d'"
                " - retry-time: %d retries: %lu message: %s",
@@ -8065,7 +8065,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
 
     thd->set_active_vio(mysql->net.vio);
   }
-  mysql->reconnect = 1;
+  mysql->reconnect = true;
   DBUG_PRINT("exit", ("slave_was_killed: %d", slave_was_killed));
   return slave_was_killed;
 }
@@ -8081,7 +8081,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
 static int safe_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
                           bool suppress_warnings) {
   DBUG_TRACE;
-  return connect_to_master(thd, mysql, mi, 1, suppress_warnings);
+  return connect_to_master(thd, mysql, mi, true, suppress_warnings);
 }
 
 /*
@@ -8348,7 +8348,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
       enum loglevel report_level = INFORMATION_LEVEL;
       if (!ignored_error_code(ER_UNKNOWN_ERROR)) {
         report_level = ERROR_LEVEL;
-        current_thd->is_slave_error = 1;
+        current_thd->is_slave_error = true;
       } else if (log_error_verbosity >= 2)
         report_level = WARNING_LEVEL;
 
@@ -8450,7 +8450,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
            .first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER or REPLICATION_SLAVE_ADMIN");
-    return 1;
+    return true;
   }
 
   mi->channel_wrlock();
@@ -8464,7 +8464,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
 
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
-  init_thread_mask(&thread_mask, mi, 1 /* inverse */);
+  init_thread_mask(&thread_mask, mi, true /* inverse */);
   /*
     Below we will start all stopped threads.  But if the user wants to
     start only one thread, do as if the other thread was running (as we
@@ -8629,7 +8629,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
   DBUG_EXECUTE_IF("simulate_hold_run_locks_on_stop_slave", my_sleep(10000000););
 
   // Get a mask of _running_ threads
-  init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&thread_mask, mi, false /* not inverse*/);
 
   /*
     Below we will stop all running threads.
@@ -8811,7 +8811,7 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   mi->channel_wrlock();
 
   lock_slave_threads(mi);
-  init_thread_mask(&thread_mask, mi, 0 /* not inverse */);
+  init_thread_mask(&thread_mask, mi, false /* not inverse */);
   if (thread_mask)  // We refuse if any slave thread is running
   {
     my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
@@ -9384,7 +9384,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     stopped before executing CHANGE MASTER and relay_log_file/relay_log_pos
     options are not used.
   */
-  bool need_relay_log_purge = 1;
+  bool need_relay_log_purge = true;
 
   /*
     We want to save the old receive configurations so that we can use them to
@@ -9421,7 +9421,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     Since the third argument is 0, thread_mask after the function
     returns stands for running threads.
   */
-  init_thread_mask(&thread_mask, mi, 0);
+  init_thread_mask(&thread_mask, mi, false);
 
   /*
     change master with master_auto_position=1 requires stopping both
@@ -9449,7 +9449,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       a CHANGE MASTER without stopping any one thread, the relay log purge
       should be controlled via the 'relay_log_purge' option.
     */
-    need_relay_log_purge = 0;
+    need_relay_log_purge = false;
   }
 
   /*
@@ -9536,7 +9536,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     is 1, thread_mask when the function returns stands for stopped threads.
   */
 
-  init_thread_mask(&thread_mask_stopped_threads, mi, 1);
+  init_thread_mask(&thread_mask_stopped_threads, mi, true);
 
   if (load_mi_and_rli_from_repositories(mi, false, thread_mask_stopped_threads,
                                         need_relay_log_purge)) {

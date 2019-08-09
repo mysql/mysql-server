@@ -535,7 +535,7 @@ bool File_query_log::open() {
       goto err;
   }
 
-  if (init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE, pos, 0,
+  if (init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE, pos, false,
                     MYF(MY_WME | MY_NABP)))
     goto err;
 
@@ -896,7 +896,7 @@ bool Log_to_csv_event_handler::log_general(
     goto err;
 
   if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init(false))
     goto err;
 
   need_rnd_end = true;
@@ -1017,7 +1017,7 @@ bool Log_to_csv_event_handler::log_slow(
   }
 
   if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0)) {
+      table->file->ha_rnd_init(false)) {
     reason = "mark log or init failed";
     goto err;
   }
@@ -1047,7 +1047,7 @@ bool Log_to_csv_event_handler::log_slow(
       839 hours (~35 days)
     */
     MYSQL_TIME t;
-    t.neg = 0;
+    t.neg = false;
 
     /* fill in query_time field */
     calc_time_from_sec(&t,

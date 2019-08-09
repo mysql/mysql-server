@@ -160,7 +160,7 @@ static bool my_arguments_get_one_option(
 #endif
       break;
   }
-  return 0;
+  return false;
 }
 }
 

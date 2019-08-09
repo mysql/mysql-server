@@ -42,7 +42,7 @@ int hp_close(HP_INFO *info) {
   int error = 0;
   DBUG_TRACE;
 #ifndef DBUG_OFF
-  if (info->s->changed && heap_check_heap(info, 0)) {
+  if (info->s->changed && heap_check_heap(info, false)) {
     error = HA_ERR_CRASHED;
     set_my_errno(error);
   }

@@ -999,7 +999,7 @@ static bool rea_create_base_table(
         later before calling closefrm if the change list is not empty.
       */
       DBUG_ASSERT(thd->change_list.is_empty());
-      if (!result) (void)closefrm(&table, 0);
+      if (!result) (void)closefrm(&table, false);
 
       free_table_share(&share);
 
@@ -3640,7 +3640,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   /* We try to remove non-existing tables in some scenarios. */
   if (!table_def) return false;
 
-  if (ha_delete_table(thd, base, path, db, table_name, table_def, 0))
+  if (ha_delete_table(thd, base, path, db, table_name, table_def, false))
     return true;
 
   // Remove the table object from the data dictionary. If this fails, the
@@ -3753,7 +3753,7 @@ static bool check_duplicates_in_interval(THD *thd, const char *set_or_name,
       if (thd->is_strict_mode()) {
         my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0), name, err.ptr(),
                  set_or_name);
-        return 1;
+        return true;
       }
       push_warning_printf(thd, Sql_condition::SL_NOTE,
                           ER_DUPLICATED_VALUE_IN_TYPE,
@@ -3762,7 +3762,7 @@ static bool check_duplicates_in_interval(THD *thd, const char *set_or_name,
       (*dup_val_count)++;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -6250,7 +6250,7 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
 
     // Length of generated name should be checked as well.
     if (check_string_char_length(to_lex_cstring(fk_info->name), "",
-                                 NAME_CHAR_LEN, system_charset_info, 1)) {
+                                 NAME_CHAR_LEN, system_charset_info, true)) {
       my_error(ER_TOO_LONG_IDENT, MYF(0), fk_info->name);
       return true;
     }
@@ -6804,7 +6804,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
   }
 
   if (check_string_char_length(key->name, "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), key->name.str);
     return true;
   }
@@ -7976,7 +7976,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field,
   DBUG_TRACE;
 
   // Skip typed array fields
-  if (sql_field->is_array) return 0;
+  if (sql_field->is_array) return false;
 
   if (sql_field->max_display_width_in_bytes() > MAX_FIELD_VARCHARLENGTH &&
       !(sql_field->flags & BLOB_FLAG)) {
@@ -7987,7 +7987,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field,
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
                                   sql_field->charset->mbmaxlen));
-      return 1;
+      return true;
     }
     sql_field->sql_type =
         get_blob_type_from_length(sql_field->max_display_width_in_bytes());
@@ -8043,7 +8043,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field,
     }
   }
 
-  return 0;
+  return false;
 }
 
 /**
@@ -8375,7 +8375,7 @@ static bool create_table_impl(
     } else {
       if (part_info->default_engine_type == NULL) {
         part_info->default_engine_type =
-            ha_checktype(thd, DB_TYPE_DEFAULT, 0, 0);
+            ha_checktype(thd, DB_TYPE_DEFAULT, false, false);
       }
     }
     DBUG_PRINT("info",
@@ -17297,7 +17297,7 @@ static int copy_data_between_tables(
   ulong found_count, delete_count;
   List<Item> fields;
   List<Item> all_fields;
-  bool auto_increment_field_copied = 0;
+  bool auto_increment_field_copied = false;
   sql_mode_t save_sql_mode;
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
@@ -17362,7 +17362,7 @@ static int copy_data_between_tables(
         if (def->field == from->found_next_number_field)
           thd->variables.sql_mode |= MODE_NO_AUTO_VALUE_ON_ZERO;
       }
-      (copy_end++)->set(*ptr, def->field, 0);
+      (copy_end++)->set(*ptr, def->field, false);
     }
   }
 
@@ -17613,10 +17613,10 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   DBUG_ASSERT(!thd->in_sub_stmt);
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN * 2));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_int(NAME_STRING("Checksum"), (longlong)1,
                                            MY_INT64_NUM_DECIMAL_DIGITS));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
@@ -17671,7 +17671,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
         t->use_all_columns();
 
-        if (t->file->ha_rnd_init(1))
+        if (t->file->ha_rnd_init(true))
           protocol->store_null();
         else {
           for (;;) {
@@ -17779,8 +17779,8 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
   handlerton **new_engine = &create_info->db_type;
   handlerton *req_engine = *new_engine;
   bool no_substitution = (!is_engine_substitution_allowed(thd));
-  if (!(*new_engine =
-            ha_checktype(thd, ha_legacy_type(req_engine), no_substitution, 1)))
+  if (!(*new_engine = ha_checktype(thd, ha_legacy_type(req_engine),
+                                   no_substitution, true)))
     return true;
 
   if (req_engine && req_engine != *new_engine) {
@@ -17864,7 +17864,7 @@ static bool generate_check_constraint_name(THD *thd, const char *table_name,
   // Validate check constraint name.
   if (!skip_validation &&
       check_string_char_length(to_lex_cstring(name), "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
     return true;
   }

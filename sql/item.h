@@ -931,7 +931,7 @@ class Item : public Parse_tree_node {
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
   */
-  inline void quick_fix_field() { fixed = 1; }
+  inline void quick_fix_field() { fixed = true; }
   virtual void set_can_use_prefix_key() {}
 
  protected:
@@ -2372,7 +2372,7 @@ class Item : public Parse_tree_node {
   virtual Item **addr(uint) { return 0; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
-  virtual bool null_inside() { return 0; }
+  virtual bool null_inside() { return false; }
   // used in row subselects to get value of elements
   virtual void bring_value() {}
 
@@ -4018,11 +4018,11 @@ class Item_uint : public Item_int {
 
  public:
   Item_uint(const char *str_arg, uint length) : Item_int(str_arg, length) {
-    unsigned_flag = 1;
+    unsigned_flag = true;
   }
   Item_uint(const POS &pos, const char *str_arg, uint length)
       : Item_int(pos, str_arg, length) {
-    unsigned_flag = 1;
+    unsigned_flag = true;
   }
 
   Item_uint(ulonglong i) : Item_int(i, 10) {}
@@ -4113,7 +4113,7 @@ class Item_float : public Item_num {
     set_data_type(MYSQL_TYPE_DOUBLE);
     decimals = (uint8)decimal_par;
     max_length = length;
-    fixed = 1;
+    fixed = true;
   }
   Item_float(const POS &pos, const Name_string name_arg, double val_arg,
              uint decimal_par, uint length)
@@ -4123,14 +4123,14 @@ class Item_float : public Item_num {
     set_data_type(MYSQL_TYPE_DOUBLE);
     decimals = (uint8)decimal_par;
     max_length = length;
-    fixed = 1;
+    fixed = true;
   }
 
   Item_float(double value_par, uint decimal_par) : value(value_par) {
     set_data_type(MYSQL_TYPE_DOUBLE);
     decimals = (uint8)decimal_par;
     max_length = float_length(decimal_par);
-    fixed = 1;
+    fixed = true;
   }
 
  private:
@@ -4214,7 +4214,7 @@ class Item_string : public Item_basic_constant {
     item_name.copy(str, length, cs);
     decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
-    fixed = 1;
+    fixed = true;
     /*
       Check if the string has any character that can't be
       interpreted using the relevant charset.
@@ -4246,7 +4246,7 @@ class Item_string : public Item_basic_constant {
     set_data_type(MYSQL_TYPE_VARCHAR);
     max_length = 0;
     decimals = DECIMAL_NOT_SPECIFIED;
-    fixed = 1;
+    fixed = true;
   }
 
   /* Create from the given name and string. */
@@ -4261,7 +4261,7 @@ class Item_string : public Item_basic_constant {
     item_name = name_par;
     decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
-    fixed = 1;
+    fixed = true;
   }
   Item_string(const POS &pos, const Name_string name_par, const char *str,
               size_t length, const CHARSET_INFO *cs,
@@ -4275,7 +4275,7 @@ class Item_string : public Item_basic_constant {
     item_name = name_par;
     decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
-    fixed = 1;
+    fixed = true;
   }
 
   /* Create from the given name and string. */
@@ -4292,7 +4292,7 @@ class Item_string : public Item_basic_constant {
     item_name = name_par;
     decimals = DECIMAL_NOT_SPECIFIED;
     // it is constant => can be used without fix_fields (and frequently used)
-    fixed = 1;
+    fixed = true;
   }
 
   /*
@@ -4802,7 +4802,7 @@ class Item_ref : public Item_ident {
                                               : Item::check_cols(c);
   }
   bool null_inside() override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : 0;
+    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : false;
   }
   void bring_value() override {
     if (ref && result_type() == ROW_RESULT) (*ref)->bring_value();
@@ -4992,10 +4992,10 @@ class Item_outer_ref final : public Item_ref {
         qualifying(qualifying),
         outer_ref(ident_arg),
         in_sum_func(0),
-        found_in_select_list(0) {
+        found_in_select_list(false) {
     ref = &outer_ref;
     set_properties();
-    fixed = 0;
+    fixed = false;
   }
   Item_outer_ref(Name_resolution_context *context_arg, Item **item,
                  const char *table_name_arg, const char *field_name_arg,
@@ -5005,7 +5005,7 @@ class Item_outer_ref final : public Item_ref {
         qualifying(qualifying),
         outer_ref(0),
         in_sum_func(0),
-        found_in_select_list(1) {}
+        found_in_select_list(true) {}
   void save_in_result_field(bool) override {
     outer_ref->save_org_in_field(result_field);
   }
@@ -5153,7 +5153,8 @@ class Item_time_with_ref final : public Item_temporal_with_ref {
     @param    ref_arg        Pointer to the original numeric Item.
   */
   Item_time_with_ref(uint8 decimals_arg, longlong i, Item *ref_arg)
-      : Item_temporal_with_ref(MYSQL_TYPE_TIME, decimals_arg, i, ref_arg, 0) {}
+      : Item_temporal_with_ref(MYSQL_TYPE_TIME, decimals_arg, i, ref_arg,
+                               false) {}
   Item *clone_item() const override;
   longlong val_time_temporal() override { return val_int(); }
   longlong val_date_temporal() override {
@@ -5412,7 +5413,7 @@ class Cached_item {
   Item *item;  ///< The item whose value to cache.
  public:
   bool null_value;
-  Cached_item(Item *i) : item(i), null_value(0) {}
+  Cached_item(Item *i) : item(i), null_value(false) {}
   /**
     If cached value is different from item's, returns true and updates
     cached value with item's.
@@ -5726,7 +5727,7 @@ class Item_cache : public Item_basic_constant {
     used_table_map = example->used_tables();
   }
 
-  virtual bool allocate(uint) { return 0; }
+  virtual bool allocate(uint) { return false; }
   virtual bool setup(Item *item) {
     example = item;
     max_length = item->max_length;
@@ -5747,7 +5748,7 @@ class Item_cache : public Item_basic_constant {
     } else {
       used_table_map = item->used_tables();
     }
-    return 0;
+    return false;
   }
   enum Type type() const override { return CACHE_ITEM; }
   static Item_cache *get_cache(const Item *item);
@@ -6003,7 +6004,7 @@ class Item_cache_datetime : public Item_cache {
 
  public:
   Item_cache_datetime(enum_field_types field_type_arg)
-      : Item_cache(field_type_arg), int_value(0), str_value_cached(0) {
+      : Item_cache(field_type_arg), int_value(0), str_value_cached(false) {
     cmp_context = STRING_RESULT;
   }
 

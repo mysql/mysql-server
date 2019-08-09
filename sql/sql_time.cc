@@ -423,7 +423,7 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t,
                             bool *in_dst_time_gap) {
   my_time_t timestamp;
 
-  *in_dst_time_gap = 0;
+  *in_dst_time_gap = false;
 
   timestamp = thd->time_zone()->TIME_to_gmt_sec(t, in_dst_time_gap);
   if (timestamp) {

@@ -279,7 +279,7 @@ static inline void heap_try_free(HP_SHARE *share) {
   if (share->open_count == 0)
     hp_free(share);
   else
-    share->delete_on_close = 1;
+    share->delete_on_close = true;
 }
 
 int heap_delete_table(const char *name) {

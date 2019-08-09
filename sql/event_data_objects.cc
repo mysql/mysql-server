@@ -522,7 +522,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
        We should return an error here so SHOW EVENTS/ SELECT FROM I_S.EVENTS
        would give an error then.
       */
-      return 1;
+      return true;
       break;
     case INTERVAL_LAST:
       DBUG_ASSERT(0);
@@ -1055,7 +1055,8 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   */
   if (save_sctx) set_system_user_flag(thd);
 
-  if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, 0, 0)) {
+  if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, false,
+                   false)) {
     /*
       This aspect of behavior is defined in the worklog,
       and this is how triggers work too: if TRIGGER
@@ -1140,7 +1141,7 @@ end:
       on the slave
     */
     if (construct_drop_event_sql(thd, &sp_sql, m_schema_name, m_event_name))
-      ret = 1;
+      ret = true;
     else {
       ulong saved_master_access;
 

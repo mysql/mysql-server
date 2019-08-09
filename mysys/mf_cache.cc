@@ -60,13 +60,13 @@ bool open_cached_file(IO_CACHE *cache, const char *dir, const char *prefix,
                           : (char *)0);
   cache->file_name = 0;
   cache->buffer = 0; /* Mark that not open */
-  if (!init_io_cache(cache, -1, cache_size, WRITE_CACHE, 0L, 0,
+  if (!init_io_cache(cache, -1, cache_size, WRITE_CACHE, 0L, false,
                      MYF(cache_myflags | MY_NABP))) {
-    return 0;
+    return false;
   }
   my_free(cache->dir);
   my_free(cache->prefix);
-  return 1;
+  return true;
 }
 
 /* Create the temporary file */

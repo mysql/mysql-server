@@ -480,7 +480,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
       chain_alloced(0),
       chain_size(DEFAULT_CHAIN_LENGTH),
       local_data_file_version(0),
-      records_is_known(0),
+      records_is_known(false),
       blobroot(csv_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE) {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, &my_charset_bin);
@@ -785,7 +785,7 @@ void tina_update_status(void *param) {
 }
 
 /* this should exist and return 0 for concurrent insert to work */
-bool tina_check_status(void *) { return 0; }
+bool tina_check_status(void *) { return false; }
 
 /*
   Save the state of the table
@@ -1074,7 +1074,7 @@ int ha_tina::rnd_init(bool) {
 
   current_position = next_position = 0;
   stats.records = 0;
-  records_is_known = 0;
+  records_is_known = false;
   chain_ptr = chain;
 
   return 0;
@@ -1201,7 +1201,7 @@ int ha_tina::rnd_end() {
   DBUG_TRACE;
 
   blobroot.Clear();
-  records_is_known = 1;
+  records_is_known = true;
 
   if ((chain_ptr - chain) > 0) {
     tina_set *ptr = chain;
@@ -1406,7 +1406,7 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
   share->rows_recorded = rows_repaired;
 
   /* write repaired file */
-  while (1) {
+  while (true) {
     write_end = min(file_buff->end(), current_position);
     if ((write_end - write_begin) &&
         (mysql_file_write(repair_file, (uchar *)file_buff->ptr(),

@@ -648,7 +648,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
   LEX_CSTRING dl_cstr = {dl->str, dl->length};
   if (check_valid_path(dl->str, dl->length) ||
       check_string_char_length(dl_cstr, "", NAME_CHAR_LEN, system_charset_info,
-                               1) ||
+                               true) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN) {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     mysql_mutex_unlock(&LOCK_plugin);
@@ -1678,7 +1678,7 @@ static bool register_builtin(st_mysql_plugin *plugin, st_plugin_int *tmp,
 
   plugin_hash[plugin->type]->emplace(to_string((*ptr)->name), *ptr);
 
-  return 0;
+  return false;
 }
 
 /**
@@ -3057,7 +3057,9 @@ static void plugin_var_memalloc_free(struct System_variables *vars) {
 
 extern "C" bool get_one_plugin_option(int, const struct my_option *, char *);
 
-bool get_one_plugin_option(int, const struct my_option *, char *) { return 0; }
+bool get_one_plugin_option(int, const struct my_option *, char *) {
+  return false;
+}
 
 /**
   Creates a set of my_option objects associated with a specified plugin-
@@ -3365,7 +3367,7 @@ static bool check_if_option_is_deprecated(
   if (optid == -1) {
     push_deprecated_warn(NULL, opt->name, (opt->name + strlen("plugin-")));
   }
-  return 0;
+  return false;
 }
 
 /**

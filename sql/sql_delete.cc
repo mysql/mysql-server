@@ -895,7 +895,7 @@ bool Query_result_delete::optimize() {
 
     // We are going to delete from this table
     // Don't use record cache
-    table->no_cache = 1;
+    table->no_cache = true;
     table->covering_keys.clear_all();
     if (table->file->has_transactions())
       transactional_table_map |= map;

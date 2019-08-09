@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,12 +44,13 @@ using std::vector;
 #define KEY_PARTITIONING_CHANGED_STR "KEY () partitioning changed"
 
 static MYSQL *sock = 0;
-static bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
-            opt_databases = 0, opt_fast = 0, opt_medium_check = 0,
-            opt_quick = 0, opt_all_in_1 = 0, opt_silent = 0,
-            opt_auto_repair = 0, ignore_errors = 0, opt_frm = 0,
-            opt_fix_table_names = 0, opt_fix_db_names = 0, opt_upgrade = 0,
-            opt_write_binlog = 1;
+static bool opt_alldbs = false, opt_check_only_changed = false,
+            opt_extended = false, opt_databases = false, opt_fast = false,
+            opt_medium_check = false, opt_quick = false, opt_all_in_1 = false,
+            opt_silent = false, opt_auto_repair = false, ignore_errors = false,
+            opt_frm = false, opt_fix_table_names = false,
+            opt_fix_db_names = false, opt_upgrade = false,
+            opt_write_binlog = true;
 static uint verbose = 0;
 static string opt_skip_database;
 int what_to_do = 0;
@@ -271,7 +272,7 @@ static void print_result() {
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
   size_t dot_pos;
-  bool found_error = 0, table_rebuild = 0;
+  bool found_error = false, table_rebuild = false;
 
   res = mysql_use_result(sock);
   dot_pos = strlen(sock->db) + 1;
@@ -300,8 +301,8 @@ static void print_result() {
           tables4repair.push_back(escape_db_table_name(prev, dot_pos));
         }
       }
-      found_error = 0;
-      table_rebuild = 0;
+      found_error = false;
+      table_rebuild = false;
       prev_alter[0] = 0;
       if (opt_silent) continue;
     }
@@ -316,9 +317,9 @@ static void print_result() {
       }
       if (opt_auto_repair && strcmp(row[2], "note")) {
         const char *alter_txt = strstr(row[3], "ALTER TABLE");
-        found_error = 1;
+        found_error = true;
         if (alter_txt) {
-          table_rebuild = 1;
+          table_rebuild = true;
           if (!strncmp(row[3], KEY_PARTITIONING_CHANGED_STR,
                        strlen(KEY_PARTITIONING_CHANGED_STR)) &&
               strstr(alter_txt, "PARTITION BY")) {
@@ -327,7 +328,7 @@ static void print_result() {
                   "Error: Alter command too long (>= %d),"
                   " please do \"%s\" or dump/reload to fix it!\n",
                   MAX_ALTER_STR_SIZE, alter_txt);
-              table_rebuild = 0;
+              table_rebuild = false;
               prev_alter[0] = 0;
             } else {
               strncpy(prev_alter, alter_txt, MAX_ALTER_STR_SIZE - 1);

@@ -162,7 +162,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     return true;
   }
 
-  init_id->maybe_null = 0;
+  init_id->maybe_null = false;
   udf_counter.succeeded();
   return false;
 }
@@ -313,7 +313,7 @@ static bool group_replication_switch_to_single_primary_mode_init(
     }
   }
 
-  initid->maybe_null = 0;
+  initid->maybe_null = false;
   udf_counter.succeeded();
   return false;
 }

@@ -5804,7 +5804,7 @@ static int get_part_iter_for_interval_via_mapping(
       */
       store_key_image_to_rec(field, min_value, field_len);
       bool include_endp = !(flags & NEAR_MIN);
-      part_iter->part_nums.start = get_endpoint(part_info, 1, include_endp);
+      part_iter->part_nums.start = get_endpoint(part_info, true, include_endp);
       if (!can_match_multiple_values && part_info->part_expr->null_value) {
         /* col = x and F(x) = NULL -> only search NULL partition */
         part_iter->part_nums.cur = part_iter->part_nums.start = 0;
@@ -5834,7 +5834,7 @@ static int get_part_iter_for_interval_via_mapping(
   else {
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp = !(flags & NEAR_MAX);
-    part_iter->part_nums.end = get_endpoint(part_info, 0, include_endp);
+    part_iter->part_nums.end = get_endpoint(part_info, false, include_endp);
     if (check_zero_dates && !zero_in_start_date &&
         !part_info->part_expr->null_value) {
       MYSQL_TIME end_date;

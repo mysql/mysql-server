@@ -135,7 +135,7 @@ class TestLoader : public Loader {
  public:
   TestLoader(const std::string &program, mysql_harness::LoaderConfig &config)
       : Loader(program, config) {
-    unittest_backdoor::set_shutdown_pending(0);
+    unittest_backdoor::set_shutdown_pending(false);
   }
 
   // lifecycle plugin exposes all four lifecycle functions. But we can

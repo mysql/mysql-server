@@ -421,8 +421,8 @@ bool Grant_validator::validate_dynamic_privileges() {
         for future improvements where all privileges objects have their own
         grant option.
       */
-      if (check_access(m_thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
-                       1) &&
+      if (check_access(m_thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL,
+                       true, true) &&
           !sctx->has_global_grant(priv->str, priv->length).second) {
         my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "GRANT OPTION");
         return true;
@@ -976,14 +976,14 @@ void make_global_privilege_statement(THD *thd, ulong want_access,
   if (!(want_access & ~GRANT_ACL))
     global->append(STRING_WITH_LEN("USAGE"));
   else {
-    bool found = 0;
+    bool found = false;
     ulong test_access = want_access & ~GRANT_ACL;
     int counter = 0;
     ulong j = SELECT_ACL;
     for (; j <= GLOBAL_ACLS; counter++, j <<= 1) {
       if (test_access & j) {
         if (found) global->append(STRING_WITH_LEN(", "));
-        found = 1;
+        found = true;
         global->append(global_acls_vector[counter].c_str(),
                        global_acls_vector[counter].length());
       }
@@ -1793,7 +1793,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
-                   &create_table->grant.m_internal, 0, 0))
+                   &create_table->grant.m_internal, false, false))
     goto err;
 
   /* If it is a merge table, check privileges for merge children. */
@@ -1993,7 +1993,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
     db_name = all_tables->db;
 
   if (check_access(thd, privilege, db_name, &all_tables->grant.privilege,
-                   &all_tables->grant.m_internal, 0, no_errors))
+                   &all_tables->grant.m_internal, false, no_errors))
     goto deny;
 
   /* Show only 1 table for check_grant */
@@ -2003,11 +2003,11 @@ bool check_single_table_access(THD *thd, ulong privilege,
     goto deny;
 
   thd->set_security_context(backup_ctx);
-  return 0;
+  return false;
 
 deny:
   thd->set_security_context(backup_ctx);
-  return 1;
+  return true;
 }
 
 bool check_routine_access(THD *thd, ulong want_access, const char *db,
@@ -2040,7 +2040,7 @@ bool check_routine_access(THD *thd, ulong want_access, const char *db,
     DBUG_PRINT("info", ("Checking routine %s.%s for schema level access.", db,
                         tables->table_name));
     if (check_access(thd, want_access, db, &tables->grant.privilege,
-                     &tables->grant.m_internal, 0, no_errors))
+                     &tables->grant.m_internal, false, no_errors))
 
       return true;
   }
@@ -2070,13 +2070,13 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table) {
   for (access = 1; access < want_access; access <<= 1) {
     if (access & want_access) {
       if (!check_access(thd, access, table->db, &table->grant.privilege,
-                        &table->grant.m_internal, 0, 1) &&
+                        &table->grant.m_internal, false, true) &&
           !check_grant(thd, access, table, false, 1, true))
-        return 0;
+        return false;
     }
   }
   DBUG_PRINT("exit", ("no matching access rights"));
-  return 1;
+  return true;
 }
 
 /**
@@ -2107,7 +2107,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
   */
   if (thd->security_context()->check_access(SHOW_PROC_ACLS, db ? db : "", true))
     return false;
-  if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, NULL, 0, 1) ||
+  if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, NULL, false, true) ||
       (save_priv & SHOW_PROC_ACLS))
     return false;
   return check_routine_level_acl(thd, db, name, is_proc);
@@ -2404,7 +2404,7 @@ bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
 
     if (check_access(thd, want_access, table_ref->get_db_name(),
                      &table_ref->grant.privilege, &table_ref->grant.m_internal,
-                     0, no_errors))
+                     false, no_errors))
       goto deny;
   }
   thd->set_security_context(backup_ctx);
@@ -2742,7 +2742,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
       /* Find/create cached table grant */
       grant_table = table_hash_search(Str->host.str, NullS, db_name,
-                                      Str->user.str, table_name, 1);
+                                      Str->user.str, table_name, true);
       if (!grant_table) {
         if (revoke_grant) {
           my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), Str->user.str,
@@ -2945,8 +2945,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       db_name = table_list->db;
       if (write_to_binlog) thd->add_to_binlog_accessed_dbs(db_name);
       table_name = table_list->table_name;
-      grant_name = routine_hash_search(Str->host.str, NullS, db_name,
-                                       Str->user.str, table_name, is_proc, 1);
+      grant_name =
+          routine_hash_search(Str->host.str, NullS, db_name, Str->user.str,
+                              table_name, is_proc, true);
       if (!grant_name) {
         if (revoke_grant) {
           my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), Str->user.str,
@@ -3830,7 +3831,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant, const char *db_name,
     if (grant->version != grant_version) {
       grant->grant_table = table_hash_search(
           sctx->host().str, sctx->ip().str, db_name, sctx->priv_user().str,
-          table_name, 0);             /* purecov: inspected */
+          table_name, false);         /* purecov: inspected */
       grant->version = grant_version; /* purecov: inspected */
     }
     if (!(grant_table = grant->grant_table)) goto err; /* purecov: deadcode */
@@ -4005,7 +4006,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
         if (grant->version != grant_version) {
           grant->grant_table = table_hash_search(
               sctx->host().str, sctx->ip().str, db_name, sctx->priv_user().str,
-              table_name, 0);             /* purecov: inspected */
+              table_name, false);         /* purecov: inspected */
           grant->version = grant_version; /* purecov: inspected */
         }
         grant_table = grant->grant_table;
@@ -4102,7 +4103,7 @@ bool check_grant_db(THD *thd, const char *db) {
   if (sctx->get_active_roles()->size() > 0) {
     size_t db_len = strlen(db);
     ulong db_access = sctx->db_acl({db, db_len});
-    if ((db_access & DB_OP_ACLS) != 0) return 0;
+    if ((db_access & DB_OP_ACLS) != 0) return false;
     return !has_any_table_acl(sctx, {db, db_len}) &&
            !has_any_routine_acl(sctx, {db, db_len});
   }
@@ -4189,7 +4190,7 @@ bool check_grant_routine(THD *thd, ulong want_access, TABLE_LIST *procs,
       GRANT_NAME *grant_proc;
       if ((grant_proc =
                routine_hash_search(host, sctx->ip().str, table->db, user,
-                                   table->table_name, is_proc, 0))) {
+                                   table->table_name, is_proc, false))) {
         table->grant.privilege |= grant_proc->privs;
         DBUG_PRINT("info", ("Checking for routine acls in %s; "
                             "found %lu",
@@ -4238,7 +4239,7 @@ err:
 static bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                                     bool is_proc) {
   DBUG_TRACE;
-  bool no_routine_acl = 1;
+  bool no_routine_acl = true;
   GRANT_NAME *grant_proc;
   Security_context *sctx = thd->security_context();
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
@@ -4246,7 +4247,7 @@ static bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 
   if ((grant_proc =
            routine_hash_search(sctx->priv_host().str, sctx->ip().str, db,
-                               sctx->priv_user().str, name, is_proc, 0)))
+                               sctx->priv_user().str, name, is_proc, false)))
     no_routine_acl = !(grant_proc->privs & SHOW_PROC_ACLS);
   return no_routine_acl;
 }
@@ -4264,8 +4265,9 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table) {
 
   if (!acl_cache_lock.lock(false)) return (NO_ACCESS);
 
-  grant_table = table_hash_search(sctx->host().str, sctx->ip().str, db,
-                                  sctx->priv_user().str, table->table_name, 0);
+  grant_table =
+      table_hash_search(sctx->host().str, sctx->ip().str, db,
+                        sctx->priv_user().str, table->table_name, false);
   table->grant.grant_table = grant_table;  // Remember for column test
   table->grant.version = grant_version;
   if (grant_table) table->grant.privilege |= grant_table->privs;
@@ -4326,7 +4328,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant, const char *db_name,
     if (grant->version != grant_version) {
       grant->grant_table = table_hash_search(
           sctx->host().str, sctx->ip().str, db_name, sctx->priv_user().str,
-          table_name, 0);             /* purecov: inspected */
+          table_name, false);         /* purecov: inspected */
       grant->version = grant_version; /* purecov: inspected */
     }
 
@@ -4910,7 +4912,7 @@ static int remove_procedure_access_privileges(THD *thd, TABLE *procs_priv_table,
               grant_proc->tname, is_proc, ~(ulong)0, true);
 
           if (!ret) {
-            revoked = 1;
+            revoked = true;
             continue;
           } else if (ret < 0)
             return ret;
@@ -5327,8 +5329,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
     grant->privilege = sctx->master_access(db_name);
 
     /* db privileges */
-    grant->privilege |=
-        acl_get(thd, sctx->host().str, sctx->ip().str, priv_user.str, db, 0);
+    grant->privilege |= acl_get(thd, sctx->host().str, sctx->ip().str,
+                                priv_user.str, db, false);
 
     DEBUG_SYNC(thd, "fill_effective_table_privileges");
     /* table privileges */
@@ -5338,8 +5340,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
     if (grant->version != grant_version) {
       grant->grant_table =
           table_hash_search(sctx->host().str, sctx->ip().str, db, priv_user.str,
-                            table, 0); /* purecov: inspected */
-      grant->version = grant_version;  /* purecov: inspected */
+                            table, false); /* purecov: inspected */
+      grant->version = grant_version;      /* purecov: inspected */
     }
     if (grant->grant_table != 0) {
       grant->privilege |= grant->grant_table->privs;
@@ -5422,8 +5424,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   ulong want_access;
   char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
-  bool no_global_access =
-      check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
+  bool no_global_access = check_access(thd, SELECT_ACL, consts::mysql.c_str(),
+                                       NULL, NULL, true, true);
   const char *curr_host = thd->security_context()->priv_host_name();
   DBUG_TRACE;
 
@@ -5497,8 +5499,8 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   ulong want_access;
   char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
-  bool no_global_access =
-      check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
+  bool no_global_access = check_access(thd, SELECT_ACL, consts::mysql.c_str(),
+                                       NULL, NULL, true, true);
   const char *curr_host = thd->security_context()->priv_host_name();
   DBUG_TRACE;
 
@@ -5555,8 +5557,8 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   int error = 0;
   char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
-  bool no_global_access =
-      check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
+  bool no_global_access = check_access(thd, SELECT_ACL, consts::mysql.c_str(),
+                                       NULL, NULL, true, true);
   const char *curr_host = thd->security_context()->priv_host_name();
   DBUG_TRACE;
 
@@ -5620,8 +5622,8 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   int error = 0;
   char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
-  bool no_global_access =
-      check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
+  bool no_global_access = check_access(thd, SELECT_ACL, consts::mysql.c_str(),
+                                       NULL, NULL, true, true);
   const char *curr_host = thd->security_context()->priv_host_name();
   DBUG_TRACE;
 
@@ -5680,10 +5682,10 @@ err:
 
 bool is_privileged_user_for_credential_change(THD *thd) {
   if (thd->slave_thread) return true;
-  return (
-      !check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1) ||
-      thd->security_context()->check_access(CREATE_USER_ACL,
-                                            consts::mysql.c_str(), false));
+  return (!check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL,
+                        true, true) ||
+          thd->security_context()->check_access(CREATE_USER_ACL,
+                                                consts::mysql.c_str(), false));
 }
 
 /**
@@ -5725,7 +5727,7 @@ bool check_show_access(THD *thd, TABLE_LIST *table) {
         - viewing existing events
       */
       if (!is_infoschema_db(db) && !is_perfschema_db(db) &&
-          check_access(thd, EVENT_ACL, db, NULL, NULL, 0, 0))
+          check_access(thd, EVENT_ACL, db, NULL, NULL, false, false))
         return true;
     }
     // Fall through
@@ -5809,10 +5811,10 @@ bool check_global_access(THD *thd, ulong want_access) {
   char command[128];
   if (thd->security_context()->check_access(
           want_access, thd->db().str ? thd->db().str : "", true))
-    return 0;
+    return false;
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
-  return 1;
+  return true;
 }
 
 /**
@@ -6250,8 +6252,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
               0 ||
           strcmp(thd->security_context()->priv_host().str, user->host.str) !=
               0) {
-        if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
-                         1) &&
+        if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL,
+                         true, true) &&
             check_global_access(thd, CREATE_USER_ACL)) {
           my_error(ER_ACCESS_DENIED_ERROR, MYF(0), user->user.str,
                    user->host.str,
@@ -6517,7 +6519,7 @@ bool mysql_set_active_role_none(THD *thd) {
 */
 bool mysql_set_role_default(THD *thd) {
   DBUG_TRACE;
-  bool ret = 0;
+  bool ret = false;
   Roles::Role_activation role_activation(thd, thd->security_context(),
                                          role_enum::ROLE_DEFAULT, nullptr);
   ret = role_activation.activate();
@@ -6540,7 +6542,7 @@ bool mysql_set_role_default(THD *thd) {
 */
 bool mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users) {
   DBUG_TRACE;
-  bool ret = 0;
+  bool ret = false;
   Roles::Role_activation role_activation(thd, thd->security_context(),
                                          role_enum::ROLE_ALL, except_users);
   ret = role_activation.activate();

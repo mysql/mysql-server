@@ -111,7 +111,7 @@ static bool group_replication_switch_to_multi_primary_mode_init(
     return true;
   }
 
-  initid->maybe_null = 0;
+  initid->maybe_null = false;
   udf_counter.succeeded();
   return false;
 }

@@ -906,7 +906,7 @@ class store_key {
   bool null_key; /* true <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
-      : null_key(0), null_ptr(null), err(0) {
+      : null_key(false), null_ptr(null), err(0) {
     if (field_arg->type() == MYSQL_TYPE_BLOB ||
         field_arg->type() == MYSQL_TYPE_GEOMETRY) {
       /*
@@ -970,7 +970,7 @@ class store_key_field : public store_key {
                   length),
         field_name(name_arg) {
     if (to_field) {
-      copy_field.set(to_field, from_field, 0);
+      copy_field.set(to_field, from_field, false);
     }
   }
   const char *name() const { return field_name; }
@@ -1057,14 +1057,14 @@ class store_key_const_item : public store_key_item {
   store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
                        uchar *null_ptr_arg, uint length, Item *item_arg)
       : store_key_item(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg),
-        inited(0) {}
+        inited(false) {}
   static const char static_name[];  ///< used out of this class
   const char *name() const { return static_name; }
 
  protected:
   enum store_key_result copy_inner() {
     if (!inited) {
-      inited = 1;
+      inited = true;
       store_key_result res = store_key_item::copy_inner();
       if (res && !err) err = res;
     }

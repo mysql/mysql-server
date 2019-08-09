@@ -357,7 +357,7 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli) {
 
   DBUG_TRACE;
 
-  if (rli->recovery_parallel_workers == 0) return 0;
+  if (rli->recovery_parallel_workers == 0) return false;
 
   if (Rpl_info_file::do_reset_info(
           Slave_worker::get_number_worker_fields(), worker_file_data.pattern,
@@ -1151,9 +1151,10 @@ bool Rpl_info_factory::create_slave_info_objects(
     const char *cname = (*it).c_str();
     bool is_default_channel =
         !strcmp(cname, pchannel_map->get_default_channel());
-    channel_error = !(mi = create_mi_and_rli_objects(
-                          mi_option, rli_option, cname,
-                          (channel_list.size() == 1) ? 1 : 0, pchannel_map));
+    channel_error =
+        !(mi = create_mi_and_rli_objects(
+              mi_option, rli_option, cname,
+              (channel_list.size() == 1) ? true : false, pchannel_map));
     /*
       Read the channel configuration from the repository if the channel name
       was read from the repository.

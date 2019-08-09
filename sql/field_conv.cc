@@ -923,7 +923,7 @@ type_conversion_status field_conv(Field *to, Field *from) {
         });
       }
     }
-    return to->store(ltime.neg ? -nr : nr, 0);
+    return to->store(ltime.neg ? -nr : nr, false);
   } else if (from->is_temporal() && (to->result_type() == REAL_RESULT ||
                                      to->result_type() == DECIMAL_RESULT ||
                                      to->result_type() == INT_RESULT)) {

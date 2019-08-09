@@ -548,7 +548,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len) {
   if (len >= 4) {
     uchar *to = *pos;
 
-    tm.neg = 0;
+    tm.neg = false;
     tm.year = (uint)sint2korr(to);
     tm.month = (uint)to[2];
     tm.day = (uint)to[3];
@@ -578,7 +578,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len) {
 
     tm.hour = tm.minute = tm.second = 0;
     tm.second_part = 0;
-    tm.neg = 0;
+    tm.neg = false;
   } else
     set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
@@ -945,11 +945,11 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING> &varnames,
     query->append(m_query_string.str + length, m_query_string.length - length);
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  return 0;
+  return false;
 
 error:
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  return 1;
+  return true;
 }
 
 /**
@@ -3175,7 +3175,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
   if (!error) {
     // Execute
     if (open_cursor) {
-      lex->safe_to_cache_query = 0;
+      lex->safe_to_cache_query = false;
       // Initialize Query_result_send before opening the cursor
       if (thd->is_classic_protocol())
         result = new (m_arena.mem_root) Query_fetch_protocol_binary(thd);
@@ -3691,7 +3691,7 @@ bool Protocol_local::start_result_metadata(uint elements, uint,
   start_row();
   m_send_metadata = true;
   m_rset = new (&m_rset_root) List<Ed_row>;
-  return 0;
+  return false;
 }
 
 bool Protocol_local::end_result_metadata() {

@@ -430,7 +430,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str, share->table_name.str);
-            share->crashed = 1;  // Marker for CHECK TABLE
+            share->crashed = true;  // Marker for CHECK TABLE
             continue;
           }
 #endif

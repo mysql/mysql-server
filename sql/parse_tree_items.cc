@@ -163,7 +163,7 @@ bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
       right->itemize(pc, &right))
     return true;
 
-  *res = (*boolfunc2creator)(0)->create(left, right);
+  *res = (*boolfunc2creator)(false)->create(left, right);
   return *res == NULL;
 }
 
@@ -196,7 +196,7 @@ bool PTI_function_call_nonkeyword_sysdate::itemize(Parse_context *pc,
   else
     *res = new (pc->mem_root) Item_func_now_local(dec);
   if (*res == NULL) return true;
-  lex->safe_to_cache_query = 0;
+  lex->safe_to_cache_query = false;
 
   return false;
 }

@@ -93,7 +93,7 @@ uintmax_t cur_page_num;
 /* Skip the checksum verification. */
 static bool no_check;
 /* Enabled for strict checksum verification. */
-bool strict_verify = 0;
+bool strict_verify = false;
 /* Enabled for rewrite checksum. */
 static bool do_write;
 /* Mismatches count allowed (0 by default). */
@@ -103,7 +103,7 @@ static bool page_type_dump;
 /* Store filename for page-type-dump option. */
 char *page_dump_filename = 0;
 /* skip the checksum verification & rewrite if page is doublewrite buffer. */
-static bool skip_page = 0;
+static bool skip_page = false;
 const char *dbug_setting = "FALSE";
 char *log_filename = NULL;
 /* User defined filename for logging. */

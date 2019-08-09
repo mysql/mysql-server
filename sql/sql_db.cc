@@ -925,7 +925,7 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error) {
   pos = strend(path);
   if (pos > path && pos[-1] == FN_LIBCHAR) *--pos = 0;
 
-  if ((error = my_readlink(tmp2_path, path, MYF(MY_WME))) < 0) return 1;
+  if ((error = my_readlink(tmp2_path, path, MYF(MY_WME))) < 0) return true;
   if (!error) {
     if (mysql_file_delete(key_file_misc, path, MYF(send_error ? MY_WME : 0))) {
       return send_error;
@@ -942,9 +942,9 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno,
              my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -1007,7 +1007,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path) {
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
   */
-  if (!found_other_files && rm_dir_w_symlink(org_path, 0)) return -1;
+  if (!found_other_files && rm_dir_w_symlink(org_path, false)) return -1;
   return deleted;
 
 err:

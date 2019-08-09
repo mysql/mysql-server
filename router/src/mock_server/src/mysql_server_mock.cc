@@ -329,7 +329,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
 
   // std::cerr << "sending death-signal to threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
-    work_queue.push(Work{mysql_harness::kInvalidSocket, "", "", 0});
+    work_queue.push(Work{mysql_harness::kInvalidSocket, "", "", false});
   }
   // std::cerr << "joining threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {

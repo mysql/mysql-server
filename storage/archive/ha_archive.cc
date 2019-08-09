@@ -258,7 +258,7 @@ Archive_share::Archive_share() {
 }
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), share(NULL), bulk_insert(0) {
+    : handler(hton, table_arg), share(NULL), bulk_insert(false) {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
@@ -862,7 +862,7 @@ int ha_archive::index_read(uchar *buf, const uchar *key, uint key_len,
 int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
                                uint key_len, enum ha_rkey_function) {
   int rc;
-  bool found = 0;
+  bool found = false;
   KEY *mkey = &table->s->key_info[index];
   current_k_offset = mkey->key_part->offset;
   current_key = key;
@@ -876,7 +876,7 @@ int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
 
   while (!(get_row(&archive, buf))) {
     if (!memcmp(current_key, buf + current_k_offset, current_key_len)) {
-      found = 1;
+      found = true;
       break;
     }
   }
@@ -891,14 +891,14 @@ error:
 }
 
 int ha_archive::index_next(uchar *buf) {
-  bool found = 0;
+  bool found = false;
   int rc;
 
   DBUG_TRACE;
 
   while (!(get_row(&archive, buf))) {
     if (!memcmp(current_key, buf + current_k_offset, current_key_len)) {
-      found = 1;
+      found = true;
       break;
     }
   }
@@ -962,14 +962,14 @@ bool ha_archive::fix_rec_buff(unsigned int length) {
     if (!(newptr = (uchar *)my_realloc(az_key_memory_record_buffer,
                                        (uchar *)record_buffer->buffer, length,
                                        MYF(MY_ALLOW_ZERO_PTR))))
-      return 1;
+      return true;
     record_buffer->buffer = newptr;
     record_buffer->length = length;
   }
 
   DBUG_ASSERT(length <= record_buffer->length);
 
-  return 0;
+  return false;
 }
 
 int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record) {

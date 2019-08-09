@@ -475,7 +475,7 @@ class Item_in_optimizer final : public Item_bool_func {
   Item_in_optimizer(Item *a, Item_in_subselect *b)
       : Item_bool_func(a, reinterpret_cast<Item *>(b)),
         cache(0),
-        save_cache(0),
+        save_cache(false),
         result_for_null_param(UNKNOWN) {
     set_subquery();
   }
@@ -561,8 +561,8 @@ class Gt_creator : public Comp_creator {
   virtual ~Gt_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? "<=" : ">"; }
-  virtual bool eqne_op() const { return 0; }
-  virtual bool l_op() const { return 0; }
+  virtual bool eqne_op() const { return false; }
+  virtual bool l_op() const { return false; }
 };
 
 class Lt_creator : public Comp_creator {
@@ -571,8 +571,8 @@ class Lt_creator : public Comp_creator {
   virtual ~Lt_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? ">=" : "<"; }
-  virtual bool eqne_op() const { return 0; }
-  virtual bool l_op() const { return 1; }
+  virtual bool eqne_op() const { return false; }
+  virtual bool l_op() const { return true; }
 };
 
 class Ge_creator : public Comp_creator {
@@ -581,8 +581,8 @@ class Ge_creator : public Comp_creator {
   virtual ~Ge_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? "<" : ">="; }
-  virtual bool eqne_op() const { return 0; }
-  virtual bool l_op() const { return 0; }
+  virtual bool eqne_op() const { return false; }
+  virtual bool l_op() const { return false; }
 };
 
 class Le_creator : public Comp_creator {
@@ -591,8 +591,8 @@ class Le_creator : public Comp_creator {
   virtual ~Le_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? ">" : "<="; }
-  virtual bool eqne_op() const { return 0; }
-  virtual bool l_op() const { return 1; }
+  virtual bool eqne_op() const { return false; }
+  virtual bool l_op() const { return true; }
 };
 
 class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
@@ -886,8 +886,8 @@ class Item_func_not_all : public Item_func_not {
         test_sum_item(0),
         test_sub_item(0),
         subselect(0),
-        abort_on_null(0),
-        show(0) {}
+        abort_on_null(false),
+        show(false) {}
   void apply_is_true() override { abort_on_null = true; }
   /// Treat UNKNOWN result like FALSE because callers see no difference
   bool ignore_unknown() const { return abort_on_null; }
@@ -1144,17 +1144,17 @@ class Item_func_opt_neg : public Item_int_func {
   bool pred_level; /* <=> [NOT] <func> is used on a predicate level */
  public:
   Item_func_opt_neg(const POS &pos, Item *a, Item *b, Item *c, bool is_negation)
-      : Item_int_func(pos, a, b, c), negated(0), pred_level(0) {
+      : Item_int_func(pos, a, b, c), negated(false), pred_level(false) {
     if (is_negation) negate();
   }
   Item_func_opt_neg(const POS &pos, PT_item_list *list, bool is_negation)
-      : Item_int_func(pos, list), negated(0), pred_level(0) {
+      : Item_int_func(pos, list), negated(false), pred_level(false) {
     if (is_negation) negate();
   }
 
  public:
   inline void negate() { negated = !negated; }
-  inline void apply_is_true() override { pred_level = 1; }
+  inline void apply_is_true() override { pred_level = true; }
   bool ignore_unknown() const { return pred_level; }
   Item *truth_transformer(THD *, Bool_test test) override {
     if (test != BOOL_NEGATED) return nullptr;
@@ -2217,20 +2217,20 @@ class Item_cond : public Item_bool_func {
 
  public:
   /* Item_cond() is only used to create top level items */
-  Item_cond() : Item_bool_func(), abort_on_null(1) {}
-  Item_cond(Item *i1, Item *i2) : Item_bool_func(), abort_on_null(0) {
+  Item_cond() : Item_bool_func(), abort_on_null(true) {}
+  Item_cond(Item *i1, Item *i2) : Item_bool_func(), abort_on_null(false) {
     list.push_back(i1);
     list.push_back(i2);
   }
   Item_cond(const POS &pos, Item *i1, Item *i2)
-      : Item_bool_func(pos), abort_on_null(0) {
+      : Item_bool_func(pos), abort_on_null(false) {
     list.push_back(i1);
     list.push_back(i2);
   }
 
   Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
-      : Item_bool_func(), list(nlist), abort_on_null(0) {}
+      : Item_bool_func(), list(nlist), abort_on_null(false) {}
   bool add(Item *item) {
     DBUG_ASSERT(item);
     return list.push_back(item);
@@ -2358,7 +2358,7 @@ class Item_equal final : public Item_bool_func {
 
  public:
   inline Item_equal()
-      : Item_bool_func(), const_item(0), eval_item(0), cond_false(0) {}
+      : Item_bool_func(), const_item(0), eval_item(0), cond_false(false) {}
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);

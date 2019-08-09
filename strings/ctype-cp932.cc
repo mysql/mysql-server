@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18818,42 +18818,43 @@ CHARSET_INFO my_charset_cp932_japanese_ci = {
     0,                  /* min_sort_char */
     0xFCFC,             /* max_sort_char */
     ' ',                /* pad char      */
-    1,                  /* escape_with_backslash_is_dangerous */
+    true,               /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_cp932_bin = {96,
-                                     0,
-                                     0, /* number */
-                                     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
-                                     "cp932",     /* cs name    */
-                                     "cp932_bin", /* name */
-                                     "",          /* comment    */
-                                     NULL,        /* tailoring */
-                                     NULL,        /* coll_param */
-                                     ctype_cp932,
-                                     to_lower_cp932,
-                                     to_upper_cp932,
-                                     NULL,               /* sort_order   */
-                                     NULL,               /* uca          */
-                                     NULL,               /* tab_to_uni   */
-                                     NULL,               /* tab_from_uni */
-                                     &my_caseinfo_cp932, /* caseinfo     */
-                                     NULL,               /* state_map    */
-                                     NULL,               /* ident_map    */
-                                     1,                  /* strxfrm_multiply */
-                                     1,                  /* caseup_multiply  */
-                                     1,                  /* casedn_multiply  */
-                                     1,                  /* mbminlen   */
-                                     2,                  /* mbmaxlen   */
-                                     1,                  /* mbmaxlenlen */
-                                     0,                  /* min_sort_char */
-                                     0xFCFC,             /* max_sort_char */
-                                     ' ',                /* pad char      */
-                                     1, /* escape_with_backslash_is_dangerous */
-                                     1, /* levels_for_compare */
-                                     &my_charset_handler,
-                                     &my_collation_mb_bin_handler,
-                                     PAD_SPACE};
+CHARSET_INFO my_charset_cp932_bin = {
+    96,
+    0,
+    0,                              /* number */
+    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
+    "cp932",                        /* cs name    */
+    "cp932_bin",                    /* name */
+    "",                             /* comment    */
+    NULL,                           /* tailoring */
+    NULL,                           /* coll_param */
+    ctype_cp932,
+    to_lower_cp932,
+    to_upper_cp932,
+    NULL,               /* sort_order   */
+    NULL,               /* uca          */
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    &my_caseinfo_cp932, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    1,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen   */
+    2,                  /* mbmaxlen   */
+    1,                  /* mbmaxlenlen */
+    0,                  /* min_sort_char */
+    0xFCFC,             /* max_sort_char */
+    ' ',                /* pad char      */
+    true,               /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    &my_charset_handler,
+    &my_collation_mb_bin_handler,
+    PAD_SPACE};

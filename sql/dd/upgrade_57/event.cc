@@ -568,9 +568,9 @@ bool migrate_events_to_dd(THD *thd) {
 
   // Initialize time zone support infrastructure since the information
   // is not available during upgrade.
-  my_tz_init(thd, default_tz_name, 0);
+  my_tz_init(thd, default_tz_name, false);
 
-  if (event_table->file->ha_index_init(0, 1)) {
+  if (event_table->file->ha_index_init(0, true)) {
     LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     goto err;
   }

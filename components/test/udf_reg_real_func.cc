@@ -57,17 +57,17 @@ bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 
   if (!args->arg_count) {
     strcpy(message, "myfunc_double must have at least one argument");
-    return 1;
+    return true;
   }
   /*
   ** As this function wants to have everything as strings, force all arguments
   ** to strings.
   */
   for (i = 0; i < args->arg_count; i++) args->arg_type[i] = STRING_RESULT;
-  initid->maybe_null = 1; /* The result may be null */
-  initid->decimals = 2;   /* We want 2 decimals in the result */
-  initid->max_length = 6; /* 3 digits + . + 2 decimals */
-  return 0;
+  initid->maybe_null = true; /* The result may be null */
+  initid->decimals = 2;      /* We want 2 decimals in the result */
+  initid->max_length = 6;    /* 3 digits + . + 2 decimals */
+  return false;
 }
 
 double myfunc_double(UDF_INIT *, UDF_ARGS *args, unsigned char *is_null,

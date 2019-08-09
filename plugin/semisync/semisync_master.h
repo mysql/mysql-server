@@ -622,7 +622,7 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
       false;                       /* semi-sync is enabled on the master */
   unsigned long wait_timeout_ = 0; /* timeout period(ms) during tranx wait */
 
-  bool state_ = 0; /* whether semi-sync is switched */
+  bool state_ = false; /* whether semi-sync is switched */
 
   AckContainer ack_container_;
 

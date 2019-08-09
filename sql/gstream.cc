@@ -56,7 +56,8 @@ bool Gis_read_stream::get_next_word(LEX_CSTRING *res) {
   skip_space();
   res->str = m_cur;
   /* The following will also test for \0 */
-  if ((m_cur >= m_limit) || !my_isvar_start(&my_charset_bin, *m_cur)) return 1;
+  if ((m_cur >= m_limit) || !my_isvar_start(&my_charset_bin, *m_cur))
+    return true;
 
   /*
     We can't combine the following increment with my_isvar() because
@@ -66,7 +67,7 @@ bool Gis_read_stream::get_next_word(LEX_CSTRING *res) {
   while ((m_cur < m_limit) && my_isvar(&my_charset_bin, *m_cur)) m_cur++;
 
   res->length = (uint32)(m_cur - res->str);
-  return 0;
+  return false;
 }
 
 /* Read a floating point number. */
@@ -78,13 +79,13 @@ bool Gis_read_stream::get_next_number(double *d) {
 
   if ((m_cur >= m_limit) || !is_numeric_beginning(m_cur, m_limit - m_cur)) {
     set_error_msg("Numeric constant expected");
-    return 1;
+    return true;
   }
 
   *d = my_strntod(m_charset, m_cur, (uint)(m_limit - m_cur), &endptr, &err);
-  if (err) return 1;
+  if (err) return true;
   if (endptr) m_cur = endptr;
-  return 0;
+  return false;
 }
 
 bool Gis_read_stream::check_next_symbol(char symbol) {
@@ -94,10 +95,10 @@ bool Gis_read_stream::check_next_symbol(char symbol) {
     my_stpcpy(buff, "'?' expected");
     buff[2] = symbol;
     set_error_msg(buff);
-    return 1;
+    return true;
   }
   m_cur++;
-  return 0;
+  return false;
 }
 
 /*

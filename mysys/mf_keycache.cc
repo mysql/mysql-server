@@ -286,16 +286,16 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
   keycache->global_cache_read = keycache->global_cache_write = 0;
   keycache->disk_blocks = -1;
   if (!keycache->key_cache_inited) {
-    keycache->key_cache_inited = 1;
+    keycache->key_cache_inited = true;
     /*
       Initialize these variables once only.
       Their value must survive re-initialization during resizing.
     */
-    keycache->in_resize = 0;
-    keycache->resize_in_flush = 0;
+    keycache->in_resize = false;
+    keycache->resize_in_flush = false;
     keycache->cnt_for_resize_op = 0;
     keycache->waiting_for_resize_cnt.last_thread = NULL;
-    keycache->in_init = 0;
+    keycache->in_init = false;
     mysql_mutex_init(key_KEY_CACHE_cache_lock, &keycache->cache_lock,
                      MY_MUTEX_INIT_FAST);
     keycache->resize_queue.last_thread = NULL;
@@ -377,7 +377,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
     keycache->age_threshold =
         (age_threshold ? blocks * age_threshold / 100 : blocks);
 
-    keycache->can_be_used = 1;
+    keycache->can_be_used = true;
 
     keycache->waiting_for_hash_link.last_thread = NULL;
     keycache->waiting_for_block.last_thread = NULL;
@@ -392,7 +392,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
            sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
   } else {
     /* key_buffer_size is specified too small. Disable the cache. */
-    keycache->can_be_used = 0;
+    keycache->can_be_used = false;
   }
 
   keycache->blocks = keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
@@ -411,7 +411,7 @@ err:
     keycache->block_root = NULL;
   }
   set_my_errno(error);
-  keycache->can_be_used = 0;
+  keycache->can_be_used = false;
   return 0;
 }
 
@@ -478,24 +478,24 @@ int resize_key_cache(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     a resize in parallel. It prohibits new blocks to enter the cache.
     Read/write requests can bypass the cache during the flush phase.
   */
-  keycache->in_resize = 1;
+  keycache->in_resize = true;
 
   /* Need to flush only if keycache is enabled. */
   if (keycache->can_be_used) {
     /* Start the flush phase. */
-    keycache->resize_in_flush = 1;
+    keycache->resize_in_flush = true;
 
     if (flush_all_key_blocks(keycache, thread_var)) {
       /* TODO: if this happens, we should write a warning in the log file ! */
-      keycache->resize_in_flush = 0;
+      keycache->resize_in_flush = false;
       blocks = 0;
-      keycache->can_be_used = 0;
+      keycache->can_be_used = false;
       goto finish;
     }
     DBUG_ASSERT(cache_empty(keycache));
 
     /* End the flush phase. */
-    keycache->resize_in_flush = 0;
+    keycache->resize_in_flush = false;
   }
 
   /*
@@ -519,7 +519,7 @@ int resize_key_cache(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     untouched. We do not lose the cache_lock and will release it only at
     the end of this function.
   */
-  end_key_cache(keycache, 0); /* Don't free mutex */
+  end_key_cache(keycache, false); /* Don't free mutex */
   /* The following will work even if use_mem is 0 */
   blocks = init_key_cache(keycache, key_cache_block_size, use_mem,
                           division_limit, age_threshold);
@@ -529,7 +529,7 @@ finish:
     Mark the resize finished. This allows other threads to start a
     resize or to request new cache blocks.
   */
-  keycache->in_resize = 0;
+  keycache->in_resize = false;
 
   /* Signal waiting threads. */
   release_whole_queue(&keycache->resize_queue);
@@ -633,7 +633,7 @@ void end_key_cache(KEY_CACHE *keycache, bool cleanup) {
 
   if (cleanup) {
     mysql_mutex_destroy(&keycache->cache_lock);
-    keycache->key_cache_inited = keycache->can_be_used = 0;
+    keycache->key_cache_inited = keycache->can_be_used = false;
   }
 } /* end_key_cache */
 
@@ -1149,7 +1149,7 @@ static void unreg_request(KEY_CACHE *keycache, BLOCK_LINK *block, int at_end) {
     if (block && keycache->keycache_time - block->last_hit_time >
                      keycache->age_threshold) {
       unlink_block(keycache, block);
-      link_block(keycache, block, 0, 0);
+      link_block(keycache, block, false, false);
       if (block->temperature != BLOCK_WARM) {
         keycache->warm_blocks++;
         block->temperature = BLOCK_WARM;
@@ -1727,7 +1727,7 @@ restart:
         block->last_hit_time = 0;
         block->hash_link = hash_link;
         hash_link->block = block;
-        link_to_file_list(keycache, block, file, 0);
+        link_to_file_list(keycache, block, file, false);
         page_status = PAGE_TO_BE_READ;
       } else {
         /*
@@ -1874,7 +1874,7 @@ restart:
               correct.
             */
             block->status &= ~(BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE);
-            link_to_file_list(keycache, block, block->hash_link->file, 1);
+            link_to_file_list(keycache, block, block->hash_link->file, true);
             release_whole_queue(&block->wqueue[COND_FOR_SAVED]);
             /*
               The block is still assigned to its old hash_link.
@@ -1908,7 +1908,7 @@ restart:
           block->length = 0;
           block->offset = keycache->key_cache_block_size;
           block->hash_link = hash_link;
-          link_to_file_list(keycache, block, file, 0);
+          link_to_file_list(keycache, block, file, false);
           page_status = PAGE_TO_BE_READ;
 
           DBUG_ASSERT(block->hash_link->block == block);
@@ -2712,7 +2712,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
         /* Not used in the server. buff has been written to disk at start. */
         if ((block->status & BLOCK_CHANGED) &&
             (!offset && read_length >= keycache->key_cache_block_size))
-          link_to_file_list(keycache, block, block->hash_link->file, 1);
+          link_to_file_list(keycache, block, block->hash_link->file, true);
       } else if (!(block->status & BLOCK_CHANGED))
         link_to_changed_list(keycache, block);
       block->status |= BLOCK_READ;
@@ -3001,7 +3001,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
         wrong hash. If not freeing the block, we need to have it in the
         right queue anyway.
       */
-      link_to_file_list(keycache, block, file, 1);
+      link_to_file_list(keycache, block, file, true);
     }
     block->status &= ~BLOCK_IN_FLUSH;
     /*
@@ -3182,7 +3182,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
                 link_to_file_list() so that it is always in the correct
                 queue and the *blocks_changed counters are correct.
               */
-              link_to_file_list(keycache, block, file, 1);
+              link_to_file_list(keycache, block, file, true);
               if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) {
                 /* A request has been registered against the block above. */
                 free_block(keycache, thread_var, block);

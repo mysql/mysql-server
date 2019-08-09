@@ -357,7 +357,7 @@ static bool get_one_option(int optid,
       usage();
       exit(0);
   }
-  return 0;
+  return false;
 }
 
 /* reads options */
@@ -377,7 +377,7 @@ static void get_options(int *argc, char ***argv) {
     exit(1);
   }
   if (join_table) {
-    backup = 0; /* Not needed */
+    backup = false; /* Not needed */
     tmp_dir[0] = 0;
   }
   return;
@@ -422,7 +422,7 @@ static bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count) {
   mrg->file = (MI_INFO **)my_malloc(PSI_NOT_INSTRUMENTED,
                                     sizeof(MI_INFO *) * count, MYF(MY_FAE));
   mrg->free_file = 1;
-  mrg->src_file_has_indexes_disabled = 0;
+  mrg->src_file_has_indexes_disabled = false;
   for (i = 0; i < count; i++) {
     if (!(mrg->file[i] = open_isam_file(names[i], O_RDONLY))) goto error;
 
@@ -444,7 +444,7 @@ static bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count) {
     }
   }
   mrg->count = count;
-  return 0;
+  return false;
 
 diff_file:
   (void)fprintf(stderr, "%s: Tables '%s' and '%s' are not identical\n",
@@ -452,7 +452,7 @@ diff_file:
 error:
   while (i--) mi_close(mrg->file[i]);
   my_free(mrg->file);
-  return 1;
+  return true;
 }
 
 static int compress(PACK_MRG_INFO *mrg, char *result_table) {
@@ -540,7 +540,8 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
     Create a global priority queue in preparation for making
     temporary Huffman trees.
   */
-  if (init_queue(&queue, key_memory_QUEUE, 256, 0, 0, compare_huff_elements, 0))
+  if (init_queue(&queue, key_memory_QUEUE, 256, 0, false, compare_huff_elements,
+                 0))
     goto err;
 
   /*
@@ -568,7 +569,7 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
   if (make_huff_decode_table(huff_trees, fields)) goto err;
 
   /* Prepare a file buffer. */
-  init_file_buffer(new_file, 0);
+  init_file_buffer(new_file, false);
 
   /*
     Reserve space in the target file for the fixed compressed file header.
@@ -814,10 +815,10 @@ static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
   max_blob_length = 0;
 
   /* Check how to calculate checksum */
-  static_row_size = 1;
+  static_row_size = true;
   for (count = huff_counts; count < end_count; count++) {
     if (count->field_type == FIELD_BLOB || count->field_type == FIELD_VARCHAR) {
-      static_row_size = 0;
+      static_row_size = false;
       break;
     }
   }
@@ -1383,8 +1384,8 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts) {
   /* When using 'tree_buff' we can have more that 256 values. */
   if (queue.max_elements < found) {
     delete_queue(&queue);
-    if (init_queue(&queue, key_memory_QUEUE, found, 0, 0, compare_huff_elements,
-                   0))
+    if (init_queue(&queue, key_memory_QUEUE, found, 0, false,
+                   compare_huff_elements, 0))
       return -1;
   }
 
@@ -2706,9 +2707,9 @@ static int save_state(MI_INFO *isam_file, PACK_MRG_INFO *mrg,
   for (key = 0; key < share->state.header.max_block_size_index; key++)
     share->state.key_del[key] = HA_OFFSET_ERROR;
   isam_file->state->checksum = crc; /* Save crc here */
-  share->changed = 1;               /* Force write of header */
+  share->changed = true;            /* Force write of header */
   share->state.open_count = 0;
-  share->global_changed = 0;
+  share->global_changed = false;
   (void)my_chsize(share->kfile, share->base.keystart, 0, MYF(0));
   if (share->base.keys) isamchk_neaded = 1;
   return mi_state_info_write(share->kfile, &share->state, 1 + 2);
@@ -2768,8 +2769,8 @@ static int mrg_rrnd(PACK_MRG_INFO *info, uchar *buf) {
 
   for (;;) {
     isam_info->update &= HA_STATE_CHANGED;
-    if (!(error =
-              (*isam_info->s->read_rnd)(isam_info, (uchar *)buf, filepos, 1)) ||
+    if (!(error = (*isam_info->s->read_rnd)(isam_info, (uchar *)buf, filepos,
+                                            true)) ||
         error != HA_ERR_END_OF_FILE)
       return (error);
     if (info->current + 1 == info->end) return (HA_ERR_END_OF_FILE);

@@ -1654,7 +1654,7 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
     DBUG_ASSERT(mpvio->cached_client_reply.pkt);
     /* get the status back so the read can process the cached result */
     mpvio->status = MPVIO_EXT::RESTART;
-    return 0;
+    return false;
   }
 
   DBUG_PRINT("info",
@@ -1670,17 +1670,17 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
 
 bool acl_check_host(THD *thd, const char *host, const char *ip) {
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) return 1;
+  if (!acl_cache_lock.lock(false)) return true;
 
-  if (allow_all_hosts) return 0;
+  if (allow_all_hosts) return false;
 
   if ((host && acl_check_hosts->count(host) != 0) ||
       (ip && acl_check_hosts->count(ip) != 0))
-    return 0;  // Found host
+    return false;  // Found host
 
   for (ACL_HOST_AND_IP *acl = acl_wild_hosts->begin();
        acl != acl_wild_hosts->end(); ++acl) {
-    if (acl->compare_hostname(host, ip)) return 0;  // Host ok
+    if (acl->compare_hostname(host, ip)) return false;  // Host ok
   }
 
   if (ip != NULL) {
@@ -1689,7 +1689,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
     errors.m_host_acl = 1;
     inc_host_errors(ip, &errors);
   }
-  return 1;  // Host is not allowed
+  return true;  // Host is not allowed
 }
 
 /**
@@ -1842,7 +1842,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT, "%s",
                                    ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
-    return 1;
+    return true;
   }
 
   mpvio->auth_info.auth_string =
@@ -1867,7 +1867,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
               ", plugin=%s",
               mpvio->auth_info.user_name, mpvio->auth_info.auth_string,
               mpvio->auth_info.authenticated_as, mpvio->acl_user->plugin.str));
-  return 0;
+  return false;
 }
 
 static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
@@ -1924,7 +1924,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
   switch (acl_user->ssl_type) {
     case SSL_TYPE_NOT_SPECIFIED:  // Impossible
     case SSL_TYPE_NONE:           // SSL is not required
-      return 0;
+      return false;
 #if defined(HAVE_OPENSSL)
     case SSL_TYPE_ANY:  // Any kind of SSL is ok
       return vio_type(vio) != VIO_TYPE_SSL;
@@ -1940,26 +1940,26 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
           SSL_get_verify_result(ssl) == X509_V_OK &&
           (cert = SSL_get_peer_certificate(ssl))) {
         X509_free(cert);
-        return 0;
+        return false;
       }
-      return 1;
+      return true;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /* If a cipher name is specified, we compare it to actual cipher in use.
        */
       if (vio_type(vio) != VIO_TYPE_SSL ||
           SSL_get_verify_result(ssl) != X509_V_OK)
-        return 1;
+        return true;
       if (acl_user->ssl_cipher) {
         DBUG_PRINT("info", ("comparing ciphers: '%s' and '%s'",
                             acl_user->ssl_cipher, SSL_get_cipher(ssl)));
         if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl))) {
           LogErr(INFORMATION_LEVEL, ER_X509_CIPHERS_MISMATCH,
                  acl_user->ssl_cipher, SSL_get_cipher(ssl));
-          return 1;
+          return true;
         }
       }
       /* Prepare certificate (if exists) */
-      if (!(cert = SSL_get_peer_certificate(ssl))) return 1;
+      if (!(cert = SSL_get_peer_certificate(ssl))) return true;
       /* If X509 issuer is specified, we check it... */
       if (acl_user->x509_issuer) {
         char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
@@ -1970,7 +1970,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
                  acl_user->x509_issuer, ptr);
           OPENSSL_free(ptr);
           X509_free(cert);
-          return 1;
+          return true;
         }
         OPENSSL_free(ptr);
       }
@@ -1984,12 +1984,12 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
                  acl_user->x509_subject, ptr);
           OPENSSL_free(ptr);
           X509_free(cert);
-          return 1;
+          return true;
         }
         OPENSSL_free(ptr);
       }
       X509_free(cert);
-      return 0;
+      return false;
 #else  /* HAVE_OPENSSL */
     default:
       /*
@@ -1999,7 +1999,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
       return 1;
 #endif /* HAVE_OPENSSL */
   }
-  return 1;
+  return true;
 }
 
 /**

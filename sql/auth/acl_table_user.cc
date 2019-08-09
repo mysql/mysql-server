@@ -1422,7 +1422,7 @@ void Acl_table_user_reader::read_user_resources(ACL_USER &user) {
     user.user_resource.conn_per_hour = ptr ? atoi(ptr) : 0;
     if (user.user_resource.questions || user.user_resource.updates ||
         user.user_resource.conn_per_hour)
-      mqh_used = 1;
+      mqh_used = true;
 
     if (m_table->s->fields > m_table_schema->max_user_connections_idx()) {
       /* Starting from 5.0.3 we have max_user_connections field */
@@ -1859,7 +1859,7 @@ bool Acl_table_user_reader::driver() {
   bool is_old_db_layout;
   bool super_users_with_empty_plugin = false;
   if (setup_table(is_old_db_layout)) return true;
-  allow_all_hosts = 0;
+  allow_all_hosts = false;
   int read_rec_errcode;
   while (!(read_rec_errcode = m_iterator->Read())) {
     if (read_row(is_old_db_layout, super_users_with_empty_plugin)) return true;

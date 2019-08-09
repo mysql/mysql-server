@@ -394,7 +394,7 @@ bool Rpl_channel_filters::build_do_and_ignore_table_hashes() {
   }
   m_channel_to_filter_lock->unlock();
 
-  return 0;
+  return false;
 }
 
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */

@@ -75,10 +75,10 @@ static const char *opt_user = NULL, *opt_password = NULL, *opt_host = NULL,
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
 
-static bool opt_verbose, opt_all, tty_password = 0, opt_warn, opt_remove_host,
-                                  opt_remove_pass, opt_remove_user,
-                                  opt_remove_socket, opt_remove_port,
-                                  login_path_specified = false;
+static bool opt_verbose, opt_all,
+    tty_password = false, opt_warn, opt_remove_host, opt_remove_pass,
+    opt_remove_user, opt_remove_socket, opt_remove_port,
+    login_path_specified = false;
 
 static int execute_commands(int command);
 static int set_command(void);
@@ -243,14 +243,14 @@ static bool my_program_get_one_option(
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 
 static bool my_set_command_get_one_option(int optid, const struct my_option *,
                                           char *) {
   switch (optid) {
     case 'p':
-      tty_password = 1;
+      tty_password = true;
       break;
     case 'G':
       if (login_path_specified) {
@@ -258,7 +258,7 @@ static bool my_set_command_get_one_option(int optid, const struct my_option *,
         my_perror(
             "Error: Use of multiple login paths is not supported. "
             "Exiting..");
-        return 1;
+        return true;
       }
       login_path_specified = true;
       break;
@@ -267,7 +267,7 @@ static bool my_set_command_get_one_option(int optid, const struct my_option *,
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 
 static bool my_remove_command_get_one_option(int optid,
@@ -279,7 +279,7 @@ static bool my_remove_command_get_one_option(int optid,
         my_perror(
             "Error: Use of multiple login paths is not supported. "
             "Exiting..");
-        return 1;
+        return true;
       }
       login_path_specified = true;
       break;
@@ -288,7 +288,7 @@ static bool my_remove_command_get_one_option(int optid,
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 
 static bool my_print_command_get_one_option(int optid, const struct my_option *,
@@ -300,7 +300,7 @@ static bool my_print_command_get_one_option(int optid, const struct my_option *,
         my_perror(
             "Error: Use of multiple login paths is not supported. "
             "Exiting..");
-        return 1;
+        return true;
       }
       login_path_specified = true;
       break;
@@ -309,7 +309,7 @@ static bool my_print_command_get_one_option(int optid, const struct my_option *,
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 
 static bool my_reset_command_get_one_option(int optid, const struct my_option *,
@@ -320,7 +320,7 @@ static bool my_reset_command_get_one_option(int optid, const struct my_option *,
       exit(0);
       break;
   }
-  return 0;
+  return false;
 }
 }
 
@@ -455,7 +455,7 @@ static int execute_commands(int command) {
 
     case MY_CONFIG_RESET:
       verbose_msg("Resetting login file.\n");
-      rc = reset_login_file(1);
+      rc = reset_login_file(true);
       break;
 
     case MY_CONFIG_HELP:
@@ -1035,7 +1035,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf) {
   uint bytes_read = 0, len = 0;
   int enc_len = 0;  // Can be negative.
 
-  if (reset_login_file(0) == -1) goto error;
+  if (reset_login_file(false) == -1) goto error;
 
   /* Move past key first. */
   if (my_seek(g_fd, MY_LOGIN_HEADER_LEN, SEEK_SET, MYF(MY_WME)) !=

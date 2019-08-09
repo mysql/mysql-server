@@ -585,7 +585,7 @@ class Item_sum : public Item_result_field {
     Updated value is then saved in the field.
   */
   virtual void update_field() = 0;
-  virtual bool keep_field_type() const { return 0; }
+  virtual bool keep_field_type() const { return false; }
   bool resolve_type(THD *) override;
   virtual Item *result_item(Field *field) { return new Item_field(field); }
   table_map used_tables() const override { return used_tables_cache; }
@@ -1619,7 +1619,7 @@ class Item_sum_hybrid : public Item_sum {
   void reset_field() override;
   String *val_str(String *) override;
   bool val_json(Json_wrapper *wr) override;
-  bool keep_field_type() const override { return 1; }
+  bool keep_field_type() const override { return true; }
   enum Item_result result_type() const override { return hybrid_type; }
   void update_field() override;
   void cleanup() override;
@@ -1897,7 +1897,7 @@ class Item_udf_sum : public Item_sum {
 
     if (init_sum_func_check(thd)) return true;
 
-    fixed = 1;
+    fixed = true;
     if (udf.fix_fields(thd, this, this->arg_count, this->args)) return true;
 
     return check_sum_func(thd, ref);

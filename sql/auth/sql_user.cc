@@ -144,7 +144,8 @@ bool check_change_password(THD *thd, const char *host, const char *user,
       my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
       return true;
     }
-    if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1, 0))
+    if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, true,
+                     false))
       return (true);
 
     if (sctx->can_operate_with({user, host}, consts::system_user))
@@ -152,8 +153,8 @@ bool check_change_password(THD *thd, const char *host, const char *user,
   }
 
   if (retain_current_password) {
-    if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
-                     1) &&
+    if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, true,
+                     true) &&
         !(sctx->check_access(CREATE_USER_ACL, consts::mysql)) &&
         !(sctx->has_global_grant(STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"))
               .first)) {
@@ -743,7 +744,7 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
           my_strcasecmp(system_charset_info, sctx->priv_host().str,
                         Str->host.str)) {
         my_error(ER_CURRENT_PASSWORD_NOT_REQUIRED, MYF(0));
-        return (1);
+        return (true);
       }
 
       /*
@@ -753,9 +754,9 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
       if (acl_user->credentials[PRIMARY_CRED].m_auth_string.length == 0) {
         if (Str->current_auth.length > 0) {
           my_error(ER_INCORRECT_CURRENT_PASSWORD, MYF(0));
-          return (1);
+          return (true);
         } else {
-          return (0);
+          return (false);
         }
       }
       /*
@@ -772,7 +773,7 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
                    (unsigned long)Str->current_auth.length, &is_error) &&
                !is_error) {
         my_error(ER_INCORRECT_CURRENT_PASSWORD, MYF(0));
-        return (1);
+        return (true);
       }
 
       /*
@@ -790,11 +791,11 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
           (acl_user->password_require_current == Lex_acl_attrib_udyn::DEFAULT &&
            password_require_current)) {
         my_error(ER_MISSING_CURRENT_PASSWORD, MYF(0));
-        return (1);
+        return (true);
       }
     }
   }
-  return (0);
+  return (false);
 }
 
 char translate_byte_to_password_char(unsigned char c) {
@@ -1136,7 +1137,7 @@ bool set_and_validate_user_attributes(
       !auth_plugin_supports_expiration(Str->plugin.str)) {
     my_error(ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD, MYF(0),
              Str->plugin.length, Str->plugin.str);
-    return 1;
+    return true;
   }
 
   plugin = my_plugin_lock_by_name(0, Str->plugin, MYSQL_AUTHENTICATION_PLUGIN);
@@ -1145,7 +1146,7 @@ bool set_and_validate_user_attributes(
   if (!plugin) {
     what_to_set.m_what = NONE_ATTR;
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
-    return (1);
+    return (true);
   }
 
   st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
@@ -1166,7 +1167,7 @@ bool set_and_validate_user_attributes(
                  thd->security_context()->priv_host().str,
                  thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO));
         plugin_unlock(0, plugin);
-        return (1);
+        return (true);
       }
     }
 
@@ -1186,7 +1187,7 @@ bool set_and_validate_user_attributes(
                      warning_buffer);
         plugin_unlock(0, plugin);
         what_to_set.m_what = NONE_ATTR;
-        return (0);
+        return (false);
       }
     }
   }
@@ -1252,7 +1253,7 @@ bool set_and_validate_user_attributes(
         log_user(thd, &error_user, Str, false);
         my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
       }
-      return (1);
+      return (true);
     }
     /* Allow for password validation in case it was disabled before */
     thd->m_disable_password_validation = false;
@@ -1279,7 +1280,7 @@ bool set_and_validate_user_attributes(
                                         is_privileged_user, user_exists)) {
     plugin_unlock(0, plugin);
     what_to_set.m_what = NONE_ATTR;
-    return (1);
+    return (true);
   }
 
   /* Validate hash string */
@@ -1298,7 +1299,7 @@ bool set_and_validate_user_attributes(
       my_error(ER_PASSWORD_FORMAT, MYF(0));
       plugin_unlock(0, plugin);
       what_to_set.m_what = NONE_ATTR;
-      return (1);
+      return (true);
     }
     /*
       Call the password history validation so that it can store the incoming
@@ -1317,7 +1318,7 @@ bool set_and_validate_user_attributes(
       /* we should have an error generated here already */
       plugin_unlock(0, plugin);
       what_to_set.m_what = NONE_ATTR;
-      return (1);
+      return (true);
     }
     if (history_check_done) *history_check_done = true;
   }
@@ -1375,7 +1376,7 @@ bool set_and_validate_user_attributes(
     }
   }
   plugin_unlock(0, plugin);
-  return (0);
+  return (false);
 }
 
 /**
@@ -1510,7 +1511,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
             &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], nullptr,
             "SET PASSWORD", dummy)) {
       authentication_plugin.assign(combo->plugin.str);
-      result = 1;
+      result = true;
       goto end;
     }
 
@@ -1525,18 +1526,18 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     thd->variables.sql_mode = old_sql_mode;
 
     if (ret) {
-      result = 1;
+      result = true;
       goto end;
     }
     if (!update_sctx_cache(thd->security_context(), acl_user, false) &&
         thd->security_context()->password_expired()) {
       /* the current user is not the same as the user we operate on */
       my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-      result = 1;
+      result = true;
       goto end;
     }
 
-    result = 0;
+    result = false;
     users.insert(combo);
 
   end:
@@ -2093,7 +2094,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       TABLE *history_tbl = tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table;
       if (history_check_done)
         tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table = NULL;
-      ret = handle_grant_data(thd, tables, 0, user_name, NULL, false);
+      ret = handle_grant_data(thd, tables, false, user_name, NULL, false);
       if (history_check_done)
         tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table = history_tbl;
       if (ret) {
@@ -2123,7 +2124,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       }
 
       ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                               user_name, 0, 0, 1, what_to_update);
+                               user_name, 0, false, true, what_to_update);
 
       if (ret) {
         result = 1;
@@ -2208,7 +2209,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     DEBUG_SYNC(thd, "before_reset_mqh_in_create_user");
     for (LEX_USER *one_user : reset_users) {
       if ((reset_user = get_current_user(thd, one_user))) {
-        reset_mqh(thd, reset_user, 0);
+        reset_mqh(thd, reset_user, false);
       }
     }
     /* Notify storage engines */
@@ -2313,8 +2314,8 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
 
       audit_users.insert(tmp_user_name);
 
-      int ret =
-          handle_grant_data(thd, tables, 1, user_name, NULL, on_drop_role_priv);
+      int ret = handle_grant_data(thd, tables, true, user_name, NULL,
+                                  on_drop_role_priv);
       if (ret <= 0) {
         if (ret < 0) {
           result = 1;
@@ -2461,7 +2462,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         Search all in-memory structures and grant tables
         for a mention of the new user name.
       */
-      int ret = handle_grant_data(thd, tables, 0, user_to, NULL, false);
+      int ret = handle_grant_data(thd, tables, false, user_to, NULL, false);
 
       if (ret != 0) {
         if (ret < 0) {
@@ -2474,7 +2475,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         continue;
       }
 
-      ret = handle_grant_data(thd, tables, 0, user_from, user_to, false);
+      ret = handle_grant_data(thd, tables, false, user_from, user_to, false);
 
       if (ret <= 0) {
         if (ret < 0) {
@@ -2789,7 +2790,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
     DEBUG_SYNC(thd, "before_reset_mqh_in_alter_user");
     for (LEX_USER *one_user : reset_users) {
       if ((extra_user = get_current_user(thd, one_user))) {
-        reset_mqh(thd, extra_user, 0);
+        reset_mqh(thd, extra_user, false);
       }
     }
     /* Notify storage engines */

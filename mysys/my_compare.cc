@@ -210,7 +210,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
           if (piks && (flag = compare_bin(a, a_length, b, b_length,
                                           (bool)((nextflag & SEARCH_PREFIX) &&
                                                  next_key_length <= 0),
-                                          1)))
+                                          true)))
             return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
           a += a_length;
           b += b_length;
@@ -220,7 +220,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
           if (piks && (flag = compare_bin(a, length, b, length,
                                           (bool)((nextflag & SEARCH_PREFIX) &&
                                                  next_key_length <= 0),
-                                          0)))
+                                          false)))
             return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
           a += length;
           b += length;
@@ -252,7 +252,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
         if (piks && (flag = compare_bin(a, a_length, b, b_length,
                                         (bool)((nextflag & SEARCH_PREFIX) &&
                                                next_key_length <= 0),
-                                        0)))
+                                        false)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a += a_length;
         b += b_length;

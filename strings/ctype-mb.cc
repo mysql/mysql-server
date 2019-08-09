@@ -378,7 +378,8 @@ uint my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
       int mb_len;
 
       if (!cs->coll->strnncoll(cs, pointer_cast<const uchar *>(b), s_length,
-                               pointer_cast<const uchar *>(s), s_length, 0)) {
+                               pointer_cast<const uchar *>(s), s_length,
+                               false)) {
         if (nmatch) {
           match[0].beg = 0;
           match[0].end = (uint)(b - b0);
@@ -697,7 +698,7 @@ bool my_like_range_mb(const CHARSET_INFO *cs, const char *ptr,
 
       *max_length = res_length;
       pad_max_char(cs, max_str, max_end);
-      return 0;
+      return false;
     }
     if ((mb_len = my_ismbchar(cs, ptr, end)) > 1) {
       if (ptr + mb_len > end || min_str + mb_len > min_end) break;
@@ -774,7 +775,7 @@ bool my_like_range_mb(const CHARSET_INFO *cs, const char *ptr,
   *min_length = *max_length = (size_t)(min_str - min_org);
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' '; /* Because if key compression */
-  return 0;
+  return false;
 }
 
 /**

@@ -2224,7 +2224,7 @@ static int my_wildcmp_uca_impl(const CHARSET_INFO *cs, const char *str,
       scan for the next 'c', and try to match 'cd' against 'cd', which works.
     */
     my_wc_t w_wc;
-    while (1) {
+    while (true) {
       int mb_len;
       if ((mb_len = mb_wc(cs, &w_wc, (const uchar *)wildstr,
                           (const uchar *)wildend)) <= 0)
@@ -2250,7 +2250,7 @@ static int my_wildcmp_uca_impl(const CHARSET_INFO *cs, const char *str,
                             (const uchar *)wildend)) <= 0)
           return 1;
         wildstr += mb_len;
-        escaped = 1;
+        escaped = true;
       }
 
       my_wc_t s_wc;
@@ -2316,7 +2316,7 @@ static int my_wildcmp_uca_impl(const CHARSET_INFO *cs, const char *str,
         w_wc is now the character following w_many (e.g., if the pattern is
         "a%c", w_wc is 'c').
       */
-      while (1) {
+      while (true) {
         /*
           Skip until we find a character in the expression string that is
           equal to w_wc.
@@ -4739,7 +4739,8 @@ static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules) {
 */
 
 static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
-  if (!cs->tailoring) return 0; /* Ok to add a collation without tailoring */
+  if (!cs->tailoring)
+    return false; /* Ok to add a collation without tailoring */
 
   MY_COLL_RULES rules;
   MY_UCA_INFO new_uca, *src_uca = NULL;
@@ -5234,7 +5235,7 @@ CHARSET_INFO my_charset_ucs2_unicode_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5269,7 +5270,7 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5304,7 +5305,7 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5339,7 +5340,7 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5374,7 +5375,7 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5409,7 +5410,7 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5444,7 +5445,7 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5479,7 +5480,7 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5514,7 +5515,7 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5549,7 +5550,7 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5584,7 +5585,7 @@ CHARSET_INFO my_charset_ucs2_czech_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5619,7 +5620,7 @@ CHARSET_INFO my_charset_ucs2_danish_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5654,7 +5655,7 @@ CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci = {
     9,                    /* min_sort_char */
     0xFFFF,               /* max_sort_char */
     ' ',                  /* pad char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5689,7 +5690,7 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5724,7 +5725,7 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5759,7 +5760,7 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5794,7 +5795,7 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5829,7 +5830,7 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5864,7 +5865,7 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5899,7 +5900,7 @@ CHARSET_INFO my_charset_ucs2_sinhala_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5934,7 +5935,7 @@ CHARSET_INFO my_charset_ucs2_german2_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -5969,7 +5970,7 @@ CHARSET_INFO my_charset_ucs2_croatian_uca_ci = {
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -6004,7 +6005,7 @@ CHARSET_INFO my_charset_ucs2_unicode_520_ci = {
     9,                      /* min_sort_char */
     0xFFFF,                 /* max_sort_char */
     ' ',                    /* pad char      */
-    0,                      /* escape_with_backslash_is_dangerous */
+    false,                  /* escape_with_backslash_is_dangerous */
     1,                      /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -6039,7 +6040,7 @@ CHARSET_INFO my_charset_ucs2_vietnamese_ci = {
     9,                    /* min_sort_char */
     0xFFFF,               /* max_sort_char */
     ' ',                  /* pad char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler,
@@ -6118,7 +6119,7 @@ CHARSET_INFO my_charset_utf8_unicode_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6153,7 +6154,7 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6188,7 +6189,7 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6223,7 +6224,7 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6258,7 +6259,7 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6293,7 +6294,7 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6328,7 +6329,7 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6363,7 +6364,7 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6398,7 +6399,7 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6433,7 +6434,7 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6468,7 +6469,7 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6503,7 +6504,7 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6538,7 +6539,7 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6573,7 +6574,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6608,7 +6609,7 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6643,7 +6644,7 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6678,7 +6679,7 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6713,7 +6714,7 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6748,7 +6749,7 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6783,7 +6784,7 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6818,7 +6819,7 @@ CHARSET_INFO my_charset_utf8_german2_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6853,7 +6854,7 @@ CHARSET_INFO my_charset_utf8_croatian_uca_ci = {
     9,                         /* min_sort_char */
     0xFFFF,                    /* max_sort_char */
     ' ',                       /* pad char      */
-    0,                         /* escape_with_backslash_is_dangerous */
+    false,                     /* escape_with_backslash_is_dangerous */
     1,                         /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6888,7 +6889,7 @@ CHARSET_INFO my_charset_utf8_unicode_520_ci = {
     9,                            /* min_sort_char */
     0xFFFF,                       /* max_sort_char */
     ' ',                          /* pad char      */
-    0,                            /* escape_with_backslash_is_dangerous */
+    false,                        /* escape_with_backslash_is_dangerous */
     1,                            /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6923,7 +6924,7 @@ CHARSET_INFO my_charset_utf8_vietnamese_ci = {
     9,                           /* min_sort_char */
     0xFFFF,                      /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler,
@@ -6963,7 +6964,7 @@ CHARSET_INFO my_charset_utf8mb4_unicode_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -6998,7 +6999,7 @@ CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci = {
     9,                          /* min_sort_char */
     0xFFFF,                     /* max_sort_char */
     ' ',                        /* pad char      */
-    0,                          /* escape_with_backslash_is_dangerous */
+    false,                      /* escape_with_backslash_is_dangerous */
     1,                          /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7033,7 +7034,7 @@ CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7068,7 +7069,7 @@ CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci = {
     9,                         /* min_sort_char */
     0xFFFF,                    /* max_sort_char */
     ' ',                       /* pad char      */
-    0,                         /* escape_with_backslash_is_dangerous */
+    false,                     /* escape_with_backslash_is_dangerous */
     1,                         /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7103,7 +7104,7 @@ CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci = {
     9,                          /* min_sort_char */
     0xFFFF,                     /* max_sort_char */
     ' ',                        /* pad char      */
-    0,                          /* escape_with_backslash_is_dangerous */
+    false,                      /* escape_with_backslash_is_dangerous */
     1,                          /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7138,7 +7139,7 @@ CHARSET_INFO my_charset_utf8mb4_polish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7173,7 +7174,7 @@ CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci = {
     9,                         /* min_sort_char */
     0xFFFF,                    /* max_sort_char */
     ' ',                       /* pad char      */
-    0,                         /* escape_with_backslash_is_dangerous */
+    false,                     /* escape_with_backslash_is_dangerous */
     1,                         /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7208,7 +7209,7 @@ CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7243,7 +7244,7 @@ CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7278,7 +7279,7 @@ CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7313,7 +7314,7 @@ CHARSET_INFO my_charset_utf8mb4_czech_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7348,7 +7349,7 @@ CHARSET_INFO my_charset_utf8mb4_danish_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7383,7 +7384,7 @@ CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci = {
     9,                           /* min_sort_char */
     0xFFFF,                      /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7418,7 +7419,7 @@ CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7453,7 +7454,7 @@ CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci = {
     9,                         /* min_sort_char */
     0xFFFF,                    /* max_sort_char */
     ' ',                       /* pad char      */
-    0,                         /* escape_with_backslash_is_dangerous */
+    false,                     /* escape_with_backslash_is_dangerous */
     1,                         /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7488,7 +7489,7 @@ CHARSET_INFO my_charset_utf8mb4_roman_uca_ci = {
     9,                       /* min_sort_char */
     0xFFFF,                  /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7523,7 +7524,7 @@ CHARSET_INFO my_charset_utf8mb4_persian_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7558,7 +7559,7 @@ CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci = {
     9,                          /* min_sort_char */
     0xFFFF,                     /* max_sort_char */
     ' ',                        /* pad char      */
-    0,                          /* escape_with_backslash_is_dangerous */
+    false,                      /* escape_with_backslash_is_dangerous */
     1,                          /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7593,7 +7594,7 @@ CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci = {
     9,                          /* min_sort_char */
     0xFFFF,                     /* max_sort_char */
     ' ',                        /* pad char      */
-    0,                          /* escape_with_backslash_is_dangerous */
+    false,                      /* escape_with_backslash_is_dangerous */
     1,                          /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7628,7 +7629,7 @@ CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7663,7 +7664,7 @@ CHARSET_INFO my_charset_utf8mb4_german2_uca_ci = {
     9,                        /* min_sort_char */
     0xFFFF,                   /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7698,7 +7699,7 @@ CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci = {
     9,                         /* min_sort_char */
     0xFFFF,                    /* max_sort_char */
     ' ',                       /* pad char      */
-    0,                         /* escape_with_backslash_is_dangerous */
+    false,                     /* escape_with_backslash_is_dangerous */
     1,                         /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7733,7 +7734,7 @@ CHARSET_INFO my_charset_utf8mb4_unicode_520_ci = {
     9,                            /* min_sort_char */
     0x10FFFF,                     /* max_sort_char */
     ' ',                          /* pad char      */
-    0,                            /* escape_with_backslash_is_dangerous */
+    false,                        /* escape_with_backslash_is_dangerous */
     1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7768,7 +7769,7 @@ CHARSET_INFO my_charset_utf8mb4_vietnamese_ci = {
     9,                           /* min_sort_char */
     0xFFFF,                      /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
@@ -7823,7 +7824,7 @@ CHARSET_INFO my_charset_utf32_unicode_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -7858,7 +7859,7 @@ CHARSET_INFO my_charset_utf32_icelandic_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -7893,7 +7894,7 @@ CHARSET_INFO my_charset_utf32_latvian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -7928,7 +7929,7 @@ CHARSET_INFO my_charset_utf32_romanian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -7963,7 +7964,7 @@ CHARSET_INFO my_charset_utf32_slovenian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -7998,7 +7999,7 @@ CHARSET_INFO my_charset_utf32_polish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8033,7 +8034,7 @@ CHARSET_INFO my_charset_utf32_estonian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8068,7 +8069,7 @@ CHARSET_INFO my_charset_utf32_spanish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8103,7 +8104,7 @@ CHARSET_INFO my_charset_utf32_swedish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8138,7 +8139,7 @@ CHARSET_INFO my_charset_utf32_turkish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8173,7 +8174,7 @@ CHARSET_INFO my_charset_utf32_czech_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8208,7 +8209,7 @@ CHARSET_INFO my_charset_utf32_danish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8243,7 +8244,7 @@ CHARSET_INFO my_charset_utf32_lithuanian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8278,7 +8279,7 @@ CHARSET_INFO my_charset_utf32_slovak_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8313,7 +8314,7 @@ CHARSET_INFO my_charset_utf32_spanish2_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8348,7 +8349,7 @@ CHARSET_INFO my_charset_utf32_roman_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8383,7 +8384,7 @@ CHARSET_INFO my_charset_utf32_persian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8418,7 +8419,7 @@ CHARSET_INFO my_charset_utf32_esperanto_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8453,7 +8454,7 @@ CHARSET_INFO my_charset_utf32_hungarian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8488,7 +8489,7 @@ CHARSET_INFO my_charset_utf32_sinhala_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8523,7 +8524,7 @@ CHARSET_INFO my_charset_utf32_german2_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8558,7 +8559,7 @@ CHARSET_INFO my_charset_utf32_croatian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8593,7 +8594,7 @@ CHARSET_INFO my_charset_utf32_unicode_520_ci = {
     9,                      /* min_sort_char */
     0x10FFFF,               /* max_sort_char */
     ' ',                    /* pad char      */
-    0,                      /* escape_with_backslash_is_dangerous */
+    false,                  /* escape_with_backslash_is_dangerous */
     1,                      /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8628,7 +8629,7 @@ CHARSET_INFO my_charset_utf32_vietnamese_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf32_handler,
     &my_collation_utf32_uca_handler,
@@ -8682,7 +8683,7 @@ CHARSET_INFO my_charset_utf16_unicode_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8717,7 +8718,7 @@ CHARSET_INFO my_charset_utf16_icelandic_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8752,7 +8753,7 @@ CHARSET_INFO my_charset_utf16_latvian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8787,7 +8788,7 @@ CHARSET_INFO my_charset_utf16_romanian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8822,7 +8823,7 @@ CHARSET_INFO my_charset_utf16_slovenian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8857,7 +8858,7 @@ CHARSET_INFO my_charset_utf16_polish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8892,7 +8893,7 @@ CHARSET_INFO my_charset_utf16_estonian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8927,7 +8928,7 @@ CHARSET_INFO my_charset_utf16_spanish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8962,7 +8963,7 @@ CHARSET_INFO my_charset_utf16_swedish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -8997,7 +8998,7 @@ CHARSET_INFO my_charset_utf16_turkish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9032,7 +9033,7 @@ CHARSET_INFO my_charset_utf16_czech_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9067,7 +9068,7 @@ CHARSET_INFO my_charset_utf16_danish_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9102,7 +9103,7 @@ CHARSET_INFO my_charset_utf16_lithuanian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9137,7 +9138,7 @@ CHARSET_INFO my_charset_utf16_slovak_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9172,7 +9173,7 @@ CHARSET_INFO my_charset_utf16_spanish2_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9207,7 +9208,7 @@ CHARSET_INFO my_charset_utf16_roman_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9242,7 +9243,7 @@ CHARSET_INFO my_charset_utf16_persian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9277,7 +9278,7 @@ CHARSET_INFO my_charset_utf16_esperanto_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9312,7 +9313,7 @@ CHARSET_INFO my_charset_utf16_hungarian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9347,7 +9348,7 @@ CHARSET_INFO my_charset_utf16_sinhala_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9382,7 +9383,7 @@ CHARSET_INFO my_charset_utf16_german2_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9417,7 +9418,7 @@ CHARSET_INFO my_charset_utf16_croatian_uca_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9452,7 +9453,7 @@ CHARSET_INFO my_charset_utf16_unicode_520_ci = {
     9,                      /* min_sort_char */
     0x10FFFF,               /* max_sort_char */
     0x20,                   /* pad char      */
-    0,                      /* escape_with_backslash_is_dangerous */
+    false,                  /* escape_with_backslash_is_dangerous */
     1,                      /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9487,7 +9488,7 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci = {
     9,                     /* min_sort_char */
     0xFFFF,                /* max_sort_char */
     ' ',                   /* pad char      */
-    0,                     /* escape_with_backslash_is_dangerous */
+    false,                 /* escape_with_backslash_is_dangerous */
     1,                     /* levels_for_compare */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler,
@@ -9562,8 +9563,8 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci = {
     0,                                                /* min_sort_char */
     0xE3329A35,                                       /* max_sort_char */
     ' ',                                              /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    1,     /* levels_for_compare */
     &my_charset_gb18030_uca_handler,
     &my_collation_gb18030_uca_handler,
     PAD_SPACE};
@@ -9597,8 +9598,8 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci = {
     9,                                       /* min_sort_char */
     0x10FFFF,                                /* max_sort_char */
     ' ',                                     /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    1,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9632,7 +9633,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci = {
     9,                              /* min_sort_char */
     0x10FFFF,                       /* max_sort_char */
     ' ',                            /* pad char      */
-    0,                              /* escape_with_backslash_is_dangerous */
+    false,                          /* escape_with_backslash_is_dangerous */
     1,                              /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9667,7 +9668,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9702,7 +9703,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9737,7 +9738,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9772,7 +9773,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9807,7 +9808,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9842,7 +9843,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9877,7 +9878,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9912,7 +9913,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9947,7 +9948,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -9982,7 +9983,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10017,7 +10018,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10052,7 +10053,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10087,7 +10088,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10122,7 +10123,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci = {
     9,                                /* min_sort_char */
     0x10FFFF,                         /* max_sort_char */
     ' ',                              /* pad char      */
-    0,                                /* escape_with_backslash_is_dangerous */
+    false,                            /* escape_with_backslash_is_dangerous */
     1,                                /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10157,7 +10158,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10229,7 +10230,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10264,7 +10265,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10299,7 +10300,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10371,7 +10372,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci = {
     9,                           /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -10406,8 +10407,8 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10441,8 +10442,8 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10476,8 +10477,8 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10511,8 +10512,8 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10546,8 +10547,8 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10581,8 +10582,8 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10616,8 +10617,8 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10651,8 +10652,8 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10686,8 +10687,8 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10721,8 +10722,8 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10756,8 +10757,8 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10791,8 +10792,8 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10826,8 +10827,8 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10861,8 +10862,8 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10896,8 +10897,8 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10931,8 +10932,8 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10966,8 +10967,8 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11038,8 +11039,8 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11073,8 +11074,8 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11108,8 +11109,8 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11180,8 +11181,8 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs = {
     9,                                      /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11215,8 +11216,8 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs = {
     32,                                     /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11250,8 +11251,8 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks = {
     32,                                     /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    4, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    4,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11285,7 +11286,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_ci = {
     32,                       /* min_sort_char */
     0x10FFFF,                 /* max_sort_char */
     ' ',                      /* pad char      */
-    0,                        /* escape_with_backslash_is_dangerous */
+    false,                    /* escape_with_backslash_is_dangerous */
     2,                        /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -11320,7 +11321,7 @@ CHARSET_INFO my_charset_utf8mb4_ru_0900_ai_ci = {
     32,                          /* min_sort_char */
     0x10FFFF,                    /* max_sort_char */
     ' ',                         /* pad char      */
-    0,                           /* escape_with_backslash_is_dangerous */
+    false,                       /* escape_with_backslash_is_dangerous */
     1,                           /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
@@ -11355,8 +11356,8 @@ CHARSET_INFO my_charset_utf8mb4_ru_0900_as_cs = {
     32,                                     /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11390,8 +11391,8 @@ CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs = {
     32,                                     /* min_sort_char */
     0x10FFFF,                               /* max_sort_char */
     ' ',                                    /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    3, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11467,7 +11468,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_bin = {
     0,                       /* min_sort_char */
     0x10FFFF,                /* max_sort_char */
     ' ',                     /* pad char      */
-    0,                       /* escape_with_backslash_is_dangerous */
+    false,                   /* escape_with_backslash_is_dangerous */
     1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_utf8mb4_0900_bin_handler,

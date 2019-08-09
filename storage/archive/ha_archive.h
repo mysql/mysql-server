@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ class ha_archive : public handler {
   int write_row(uchar *buf);
   int real_write_row(uchar *buf, azio_stream *writer);
   int truncate(dd::Table *table_def);
-  int rnd_init(bool scan = 1);
+  int rnd_init(bool scan = true);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   int get_row(azio_stream *file_to_read, uchar *buf);
@@ -149,7 +149,7 @@ class ha_archive : public handler {
   int get_row_version3(azio_stream *file_to_read, uchar *buf);
   Archive_share *get_share(const char *table_name, int *rc);
   int init_archive_reader();
-  bool auto_repair() const { return 1; }  // For the moment we just do this
+  bool auto_repair() const { return true; }  // For the moment we just do this
   int read_data_header(azio_stream *file_to_read);
   void position(const uchar *record);
   int info(uint);

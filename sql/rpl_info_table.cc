@@ -366,7 +366,7 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
     goto end;
   }
 
-  if (!(handler_error = table->file->ha_index_init(0, 1))) {
+  if (!(handler_error = table->file->ha_index_init(0, true))) {
     KEY *key_info = table->key_info;
 
     /*
@@ -777,7 +777,7 @@ bool Rpl_info_table::do_update_is_transactional() {
   error = false;
 
 end:
-  error = access->close_table(thd, table, &backup, 0) || error;
+  error = access->close_table(thd, table, &backup, false) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);

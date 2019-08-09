@@ -303,7 +303,7 @@ bool _mi_read_pack_info(MI_INFO *info, bool fix_keys) {
 
   if (bit_buff.error || bit_buff.pos < bit_buff.end) goto err3;
 
-  return 0;
+  return false;
 
 err3:
   set_my_errno(HA_ERR_WRONG_IN_RECORD);
@@ -312,7 +312,7 @@ err2:
 err1:
   my_free(share->decode_trees);
 err0:
-  return 1;
+  return true;
 }
 
 /*
@@ -1353,7 +1353,7 @@ bool _mi_memmap_file(MI_INFO *info) {
 
     if (eom) {
       DBUG_PRINT("warning", ("File is too large for mmap"));
-      return 0;
+      return false;
     }
     if (mysql_file_seek(info->dfile, 0L, MY_SEEK_END, MYF(0)) <
         share->state.state.data_file_length + MEMMAP_EXTRA_MARGIN) {
@@ -1363,7 +1363,7 @@ bool _mi_memmap_file(MI_INFO *info) {
         myisam_mmap_used -= data_file_length + MEMMAP_EXTRA_MARGIN;
         mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
       }
-      return 0;
+      return false;
     }
     if (mi_dynmap_file(
             info, share->state.state.data_file_length + MEMMAP_EXTRA_MARGIN)) {
@@ -1372,13 +1372,13 @@ bool _mi_memmap_file(MI_INFO *info) {
         myisam_mmap_used -= data_file_length + MEMMAP_EXTRA_MARGIN;
         mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
       }
-      return 0;
+      return false;
     }
   }
   info->opt_flag |= MEMMAP_USED;
   info->read_record = share->read_record = _mi_read_mempack_record;
   share->read_rnd = _mi_read_rnd_mempack_record;
-  return 1;
+  return true;
 }
 
 void _mi_unmap_file(MI_INFO *info) {

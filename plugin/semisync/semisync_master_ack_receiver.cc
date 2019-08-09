@@ -260,7 +260,7 @@ void Ack_receiver::run() {
   m_slaves_changed = true;
   mysql_mutex_unlock(&m_mutex);
 
-  while (1) {
+  while (true) {
     int ret;
 
     mysql_mutex_lock(&m_mutex);
@@ -309,7 +309,7 @@ void Ack_receiver::run() {
             (server_extension->compress_ctx.algorithm == MYSQL_ZSTD);
 
         do {
-          net_clear(&net, 0);
+          net_clear(&net, false);
 
           len = my_net_read(&net);
           if (likely(len != packet_error))

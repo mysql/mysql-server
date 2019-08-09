@@ -172,17 +172,17 @@ class base_list {
     if (((*last) = new (*THR_MALLOC) list_node(info, &end_of_list))) {
       last = &(*last)->next;
       elements++;
-      return 0;
+      return false;
     }
-    return 1;
+    return true;
   }
   inline bool push_back(void *info, MEM_ROOT *mem_root) {
     if (((*last) = new (mem_root) list_node(info, &end_of_list))) {
       last = &(*last)->next;
       elements++;
-      return 0;
+      return false;
     }
-    return 1;
+    return true;
   }
   inline bool push_front(void *info) {
     list_node *node = new (*THR_MALLOC) list_node(info, first);
@@ -190,9 +190,9 @@ class base_list {
       if (last == &first) last = &node->next;
       first = node;
       elements++;
-      return 0;
+      return false;
     }
-    return 1;
+    return true;
   }
   inline bool push_front(void *info, MEM_ROOT *mem_root) {
     list_node *node = new (mem_root) list_node(info, first);

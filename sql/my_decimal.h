@@ -363,7 +363,7 @@ inline int int2my_decimal(uint mask, longlong i, bool unsigned_flag,
 inline void my_decimal_neg(decimal_t *arg) {
   // Avoid returning negative zero, cfr. decimal_cmp()
   if (decimal_is_zero(arg)) {
-    arg->sign = 0;
+    arg->sign = false;
     return;
   }
   arg->sign ^= 1;

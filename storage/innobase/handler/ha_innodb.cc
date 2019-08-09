@@ -221,7 +221,7 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 mysql_cond_t resume_encryption_cond;
 mysql_mutex_t resume_encryption_cond_m;
-static bool innodb_inited = 0;
+static bool innodb_inited = false;
 
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 
@@ -1319,7 +1319,7 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
   DBUG_TRACE;
 
   if (innodb_inited) {
-    innodb_inited = 0;
+    innodb_inited = false;
     hash_table_free(innobase_open_tables);
     innobase_open_tables = NULL;
 
@@ -2601,13 +2601,13 @@ static void innodb_replace_trx_in_thd(THD *thd, void *new_trx_arg,
 /** Note that a transaction has been registered with MySQL 2PC coordinator. */
 static inline void trx_register_for_2pc(trx_t *trx) /* in: transaction */
 {
-  trx->is_registered = 1;
+  trx->is_registered = true;
 }
 
 /** Note that a transaction has been deregistered. */
 static inline void trx_deregister_from_2pc(trx_t *trx) /* in: transaction */
 {
-  trx->is_registered = 0;
+  trx->is_registered = false;
 }
 
 /** Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
@@ -2895,7 +2895,7 @@ void ha_innobase::reset_template(void) {
 
   m_prebuilt->keep_other_fields_on_keyread = 0;
   m_prebuilt->read_just_key = 0;
-  m_prebuilt->in_fts_query = 0;
+  m_prebuilt->in_fts_query = false;
   m_prebuilt->m_end_range = false;
 
   /* Reset index condition pushdown state. */
@@ -5065,7 +5065,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   mysql_mutex_init(resume_encryption_cond_mutex_key.m_value,
                    &resume_encryption_cond_m, MY_MUTEX_INIT_FAST);
   mysql_cond_init(resume_encryption_cond_key.m_value, &resume_encryption_cond);
-  innodb_inited = 1;
+  innodb_inited = true;
 #ifdef MYSQL_DYNAMIC_PLUGIN
   if (innobase_hton != p) {
     innobase_hton = reinterpret_cast<handlerton *>(p);
@@ -7256,7 +7256,7 @@ int innobase_fts_text_cmp(const void *cs, /*!< in: Character set */
   const fts_string_t *s2 = (const fts_string_t *)p2;
 
   return (ha_compare_text(charset, s1->f_str, static_cast<uint>(s1->f_len),
-                          s2->f_str, static_cast<uint>(s2->f_len), 0));
+                          s2->f_str, static_cast<uint>(s2->f_len), false));
 }
 
 /** compare two character string case insensitively according to their charset.
@@ -7275,7 +7275,7 @@ int innobase_fts_text_case_cmp(const void *cs, /*!< in: Character set */
   newlen = strlen((const char *)s2->f_str);
 
   return (ha_compare_text(charset, s1->f_str, static_cast<uint>(s1->f_len),
-                          s2->f_str, static_cast<uint>(newlen), 0));
+                          s2->f_str, static_cast<uint>(newlen), false));
 }
 
 /** Get the first character's code position for FTS index partition. */
@@ -7312,7 +7312,7 @@ int innobase_fts_text_cmp_prefix(const void *cs, /*!< in: Character set */
   int result;
 
   result = ha_compare_text(charset, s2->f_str, static_cast<uint>(s2->f_len),
-                           s1->f_str, static_cast<uint>(s1->f_len), 1);
+                           s1->f_str, static_cast<uint>(s1->f_len), true);
 
   /* We switched s1, s2 position in ha_compare_text. So we need
   to negate the result */
@@ -9947,7 +9947,7 @@ int ha_innobase::change_active_index(
     if (table->fts_doc_id_field &&
         bitmap_is_set(table->read_set, table->fts_doc_id_field->field_index &&
                                            m_prebuilt->read_just_key)) {
-      m_prebuilt->fts_doc_id_in_read_set = 1;
+      m_prebuilt->fts_doc_id_in_read_set = true;
     }
   } else {
     m_prebuilt->init_search_tuples_types();

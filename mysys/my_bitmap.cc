@@ -144,14 +144,14 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits) {
 
     if (!(buf = (my_bitmap_map *)my_malloc(key_memory_MY_BITMAP_bitmap,
                                            size_in_bytes + extra, MYF(MY_WME))))
-      return 1;
+      return true;
   }
 
   map->bitmap = buf;
   map->n_bits = n_bits;
   create_last_word_mask(map);
   bitmap_clear_all(map);
-  return 0;
+  return false;
 }
 
 void bitmap_free(MY_BITMAP *map) {

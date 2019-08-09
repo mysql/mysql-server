@@ -171,7 +171,7 @@ class Item_subselect : public Item_result_field {
 
   ~Item_subselect() override;
   void cleanup() override;
-  virtual void reset() { null_value = 1; }
+  virtual void reset() { null_value = true; }
   virtual trans_res select_transformer(THD *thd, SELECT_LEX *select) = 0;
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned = a; }
@@ -405,7 +405,7 @@ class Item_exists_subselect : public Item_subselect {
   }
   subs_type substype() const override { return EXISTS_SUBS; }
   bool is_bool_func() const override { return true; }
-  void reset() override { value = 0; }
+  void reset() override { value = false; }
 
   enum Item_result result_type() const override { return INT_RESULT; }
   /*
@@ -600,9 +600,9 @@ class Item_in_subselect : public Item_exists_subselect {
   subs_type substype() const override { return IN_SUBS; }
 
   void reset() override {
-    value = 0;
-    null_value = 0;
-    was_null = 0;
+    value = false;
+    null_value = false;
+    was_null = false;
   }
   trans_res select_transformer(THD *thd, SELECT_LEX *select) override;
   trans_res select_in_like_transformer(THD *thd, SELECT_LEX *select,

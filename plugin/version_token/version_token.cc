@@ -453,10 +453,10 @@ static int version_token_check(
       /* Ignore all commands but COM_QUERY and COM_STMT_PREPARE */
       if (0 != my_charset_latin1.coll->strnncoll(
                    &my_charset_latin1, command, length,
-                   (const uchar *)STRING_WITH_LEN("Query"), 0) &&
+                   (const uchar *)STRING_WITH_LEN("Query"), false) &&
           0 != my_charset_latin1.coll->strnncoll(
                    &my_charset_latin1, command, length,
-                   (const uchar *)STRING_WITH_LEN("Prepare"), 0))
+                   (const uchar *)STRING_WITH_LEN("Prepare"), false))
         return 0;
 
       if (THDVAR(thd, session))
@@ -970,7 +970,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
   initid->decimals = 0;
   initid->max_length = 1;
   initid->ptr = NULL;
-  initid->const_item = 0;
+  initid->const_item = false;
   initid->extension = NULL;
 
   THD *thd = current_thd;

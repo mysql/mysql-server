@@ -1034,7 +1034,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild) {
     if (share->m_open_in_progress) continue;
     if (db && my_strcasecmp(system_charset_info, db, share->db.str)) continue;
     if (wild && wild_compare(share->table_name.str, share->table_name.length,
-                             wild, strlen(wild), 0))
+                             wild, strlen(wild), false))
       continue;
 
     if (!(*start_list = (OPEN_TABLE_LIST *)(*THR_MALLOC)
@@ -1093,8 +1093,8 @@ void intern_close_table(TABLE *table) {  // Free all structures
 
   free_io_cache(table);
   destroy(table->triggers);
-  if (table->file)             // Not true if placeholder
-    (void)closefrm(table, 1);  // close file
+  if (table->file)                // Not true if placeholder
+    (void)closefrm(table, true);  // close file
   destroy(table);
   my_free(table);
 }
@@ -1607,7 +1607,7 @@ void close_thread_tables(THD *thd) {
             if (!table->s->tmp_table) {
               table->file->ha_index_or_rnd_end();
               table->set_keyread(false);
-              table->open_by_handler = 0;
+              table->open_by_handler = false;
               /*
                 In case we have opened the DD table but the statement
                 fails before calling ha_external_lock() requesting
@@ -1767,7 +1767,7 @@ bool close_temporary_tables(THD *thd) {
   TABLE *prev_table;
   /* Assume thd->variables.option_bits has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show = true;
-  bool error = 0;
+  bool error = false;
   int slave_closed_temp_tables = 0;
 
   if (!thd->temporary_tables) return false;
@@ -1792,7 +1792,7 @@ bool close_temporary_tables(THD *thd) {
         it might be necessary to remove them from DD as well.
       */
       DBUG_ASSERT(t->s->tmp_table_def);
-      close_temporary(thd, t, 1, 1);
+      close_temporary(thd, t, true, true);
       slave_closed_temp_tables++;
     }
 
@@ -1934,7 +1934,7 @@ bool close_temporary_tables(THD *thd) {
 
         next = table->next;
         mysql_lock_remove(thd, thd->lock, table);
-        close_temporary(thd, table, 1, 1);
+        close_temporary(thd, table, true, true);
         slave_closed_temp_tables++;
       }
       thd->clear_error();
@@ -2007,7 +2007,7 @@ bool close_temporary_tables(THD *thd) {
         table will not be logged.
       */
       mysql_lock_remove(thd, thd->lock, table);
-      close_temporary(thd, table, 1, 1);
+      close_temporary(thd, table, true, true);
       slave_closed_temp_tables++;
     }
   }
@@ -2320,7 +2320,7 @@ void drop_temporary_table(THD *thd, TABLE_LIST *table_list) {
     unlock the table and remove the table from this list.
   */
   mysql_lock_remove(thd, thd->lock, table);
-  close_temporary_table(thd, table, 1, 1);
+  close_temporary_table(thd, table, true, true);
   table_list->table = NULL;
 }
 
@@ -2375,7 +2375,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share,
                           table->s->table_name.str));
 
   free_io_cache(table);
-  closefrm(table, 0);
+  closefrm(table, false);
   if (delete_table) {
     DBUG_ASSERT(thd);
     rm_temporary_table(thd, table_type, table->s->path.str,
@@ -2405,13 +2405,13 @@ bool rename_temporary_table(THD *thd, TABLE *table, const char *db,
   DBUG_TRACE;
 
   if (!(key = (char *)share->mem_root.Alloc(MAX_DBKEY_LENGTH)))
-    return 1; /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   key_length = create_table_def_key_tmp(thd, db, table_name, key);
   share->set_table_cache_key(key, key_length);
   /* Also update table name in DD object. Database name is kept reset. */
   share->tmp_table_def->set_name(table_name);
-  return 0;
+  return false;
 }
 
 /**
@@ -3358,7 +3358,7 @@ share_found:
         case SQLCOM_SHOW_CREATE:
           break;
         default:
-          closefrm(table, 0);
+          closefrm(table, false);
           destroy(table);
           my_free(table);
           my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
@@ -3367,7 +3367,7 @@ share_found:
     }
 
     if (open_table_entry_fini(thd, share, table_def, table)) {
-      closefrm(table, 0);
+      closefrm(table, false);
       destroy(table);
       my_free(table);
       goto err_lock;
@@ -3763,7 +3763,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
   */
   if (unlikely(entry->file->implicit_emptied) &&
       (!thd->lex || !thd->lex->m_IS_table_stats.is_reading_stats_by_open())) {
-    entry->file->implicit_emptied = 0;
+    entry->file->implicit_emptied = false;
     if (mysql_bin_log.is_open()) {
       bool error = false;
       String temp_buf;
@@ -3839,10 +3839,10 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list) {
     my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str);
     LogErr(ERROR_LEVEL, ER_FAILED_TO_REPAIR_TABLE, share->db.str,
            share->table_name.str);
-    if (entry->file) closefrm(entry, 0);
+    if (entry->file) closefrm(entry, false);
   } else {
     thd->clear_error();  // Clear error message
-    closefrm(entry, 0);
+    closefrm(entry, false);
     result = false;
   }
   my_free(entry);
@@ -3972,7 +3972,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list) {
       }
     }
   } else if (error == 0)
-    closefrm(&tmp_table, 0);
+    closefrm(&tmp_table, false);
 
   table_cache_manager.lock_all_and_tdc();
   release_table_share(share);
@@ -6126,11 +6126,11 @@ static bool check_lock_and_start_stmt(THD *thd,
   if ((int)lock_type > (int)TL_WRITE_ALLOW_WRITE &&
       (int)table_list->table->reginfo.lock_type <= (int)TL_WRITE_ALLOW_WRITE) {
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_list->alias);
-    return 1;
+    return true;
   }
   if ((error = table_list->table->file->start_stmt(thd, lock_type))) {
     table_list->table->file->print_error(error, MYF(0));
-    return 1;
+    return true;
   }
 
   /*
@@ -6147,7 +6147,7 @@ static bool check_lock_and_start_stmt(THD *thd,
     tst->add_trx_state(thd, s);
   }
 
-  return 0;
+  return false;
 }
 
 /**
@@ -6488,7 +6488,7 @@ bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags) {
 
   if (open_secondary_engine_tables(thd, flags)) goto end;
 
-  return 0;
+  return false;
 end:
   /*
     No need to commit/rollback the statement transaction: it's
@@ -6931,7 +6931,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 
 bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
                         const dd::Table *table_def) {
-  bool error = 0;
+  bool error = false;
   handler *file;
   DBUG_TRACE;
 
@@ -6939,7 +6939,7 @@ bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
                          table_def->partition_type() != dd::Table::PT_NONE,
                          thd->mem_root, base);
   if (file && file->ha_delete_table(path, table_def)) {
-    error = 1;
+    error = true;
     LogErr(WARNING_LEVEL, ER_FAILED_TO_REMOVE_TEMP_TABLE, path, my_errno());
   }
   destroy(file);
@@ -7807,12 +7807,12 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
   const char *db_name = 0;
   const char *field_name = 0;
   const char *table_name = 0;
-  bool found_unaliased_non_uniq = 0;
+  bool found_unaliased_non_uniq = false;
   /*
     true if the item that we search for is a valid name reference
     (and not an item that happens to have a name).
   */
-  bool is_ref_by_name = 0;
+  bool is_ref_by_name = false;
   uint unaliased_counter = 0;
 
   *resolution = NOT_RESOLVED;
@@ -7862,7 +7862,7 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
             (!db_name ||
              (item_field->db_name && !strcmp(item_field->db_name, db_name)))) {
           if (found_unaliased) {
-            if ((*found_unaliased)->eq(item, 0)) continue;
+            if ((*found_unaliased)->eq(item, false)) continue;
             /*
               Two matching fields in select list.
               We already can bail out because we are searching through
@@ -7890,7 +7890,7 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
             non-aliased field was found.
           */
           if (found) {
-            if ((*found)->eq(item, 0)) continue;  // Same field twice
+            if ((*found)->eq(item, false)) continue;  // Same field twice
             if (report_error != IGNORE_ERRORS)
               my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(),
                        thd->where);
@@ -7908,8 +7908,9 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
             we should prefer fields from select list.
           */
           if (found_unaliased) {
-            if ((*found_unaliased)->eq(item, 0)) continue;  // Same field twice
-            found_unaliased_non_uniq = 1;
+            if ((*found_unaliased)->eq(item, false))
+              continue;  // Same field twice
+            found_unaliased_non_uniq = true;
           }
           found_unaliased = li.ref();
           unaliased_counter = i;
@@ -7921,7 +7922,7 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;
         break;
-      } else if (find->eq(item, 0)) {
+      } else if (find->eq(item, false)) {
         found = li.ref();
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
@@ -9805,7 +9806,7 @@ int setup_ftfuncs(const THD *thd, SELECT_LEX *select_lex) {
       is used as master for a "late" one, and not the other way around.
     */
     while ((ftf2 = lj++) != ftf) {
-      if (ftf->eq(ftf2, 1) && !ftf->master) ftf2->set_master(ftf);
+      if (ftf->eq(ftf2, true) && !ftf->master) ftf2->set_master(ftf);
     }
   }
 

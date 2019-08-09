@@ -606,7 +606,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
       db_access = sctx->db_acl({dbname, strlen(dbname)});
     } else {
       db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
-                           sctx->priv_user().str, dbname, 0) |
+                           sctx->priv_user().str, dbname, false) |
                    sctx->master_access(dbname ? dbname : ""));
     }
   }
@@ -1004,7 +1004,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
         tmp[1] = '\'';
         tmp[length] = '\'';
         type.length(length + 1);
-        quoted = 0;
+        quoted = false;
       } else
         field->val_str(&type);
       if (type.length()) {
@@ -1315,11 +1315,11 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   for (uint i = 0; i < share->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
-    bool found_primary = 0;
+    bool found_primary = false;
     packet->append(STRING_WITH_LEN(",\n  "));
 
     if (i == primary_key && !strcmp(key_info->name, primary_key_name)) {
-      found_primary = 1;
+      found_primary = true;
       /*
         No space at end, because a space will be added after where the
         identifier would go, but that is not added for primary key.
@@ -1971,14 +1971,14 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   field_list.push_back(field = new Item_empty_string("db", NAME_CHAR_LEN));
-  field->maybe_null = 1;
+  field->maybe_null = true;
   field_list.push_back(new Item_empty_string("Command", 16));
   field_list.push_back(field = new Item_return_int("Time", 7, MYSQL_TYPE_LONG));
-  field->unsigned_flag = 0;
+  field->unsigned_flag = false;
   field_list.push_back(field = new Item_empty_string("State", 30));
-  field->maybe_null = 1;
+  field->maybe_null = true;
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
-  field->maybe_null = 1;
+  field->maybe_null = true;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;
@@ -2172,7 +2172,7 @@ static int fill_schema_processlist(THD *thd, TABLE_LIST *tables, Item *) {
 typedef std::vector<SHOW_VAR> Status_var_array;
 
 Status_var_array all_status_vars(0);
-bool status_vars_inited = 0;
+bool status_vars_inited = false;
 /* Version counter, protected by LOCK_STATUS. */
 ulonglong status_var_array_version = 0;
 
@@ -2248,7 +2248,7 @@ bool add_status_vars(const SHOW_VAR *list) {
     should be called as late as possible but before enabling multi-threading.
 */
 void init_status_vars() {
-  status_vars_inited = 1;
+  status_vars_inited = true;
   std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
   status_var_array_version++;
 }
@@ -2680,7 +2680,7 @@ bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
 bool make_table_list(THD *thd, SELECT_LEX *sel, const LEX_CSTRING &db_name,
                      const LEX_CSTRING &table_name) {
   Table_ident *table_ident = new (thd->mem_root)
-      Table_ident(thd->get_protocol(), db_name, table_name, 1);
+      Table_ident(thd->get_protocol(), db_name, table_name, true);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return true;
   return false;
@@ -2990,9 +2990,9 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[0]->store(plug->name, strlen(plug->name), scs);
       table->field[1]->store(STRING_WITH_LEN("NO"), scs);
       table->field[2]->store(plug->descr, strlen(plug->descr), scs);
-      if (schema_table_store_record(thd, table)) return 1;
+      if (schema_table_store_record(thd, table)) return true;
     }
-    return 0;
+    return false;
   }
 
   if (!(hton->flags & HTON_HIDDEN)) {
@@ -3020,10 +3020,10 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[5]->store(tmp->str, tmp->length, scs);
       table->field[5]->set_notnull();
 
-      if (schema_table_store_record(thd, table)) return 1;
+      if (schema_table_store_record(thd, table)) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *) {
@@ -3102,7 +3102,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
       if (show_table->file) {
         // COLLATION
-        if (show_table->file->index_flags(i, j, 0) & HA_READ_ORDER) {
+        if (show_table->file->index_flags(i, j, false) & HA_READ_ORDER) {
           table->field[TMP_TABLE_KEYS_COLLATION]->store(
               ((key_part->key_part_flag & HA_REVERSE_SORT) ? "D" : "A"), 1, cs);
           table->field[TMP_TABLE_KEYS_COLLATION]->set_notnull();
@@ -3444,10 +3444,10 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
 
   tmp_table_param->table_charset = cs;
   tmp_table_param->field_count = field_count;
-  tmp_table_param->schema_table = 1;
+  tmp_table_param->schema_table = true;
   SELECT_LEX *select_lex = thd->lex->current_select();
   if (!(table = create_tmp_table(
-            thd, tmp_table_param, field_list, (ORDER *)0, 0, 0,
+            thd, tmp_table_param, field_list, (ORDER *)0, false, false,
             select_lex->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return 0;
@@ -3533,7 +3533,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   TABLE *table;
   DBUG_TRACE;
   if (!(table = table_list->schema_table->create_table(thd, table_list)))
-    return 1;
+    return true;
   table->s->tmp_table = SYSTEM_TMP_TABLE;
   table_list->grant.privilege = SELECT_ACL;
   /*
@@ -3552,7 +3552,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   table->pos_in_table_list = table_list;
   if (table_list->select_lex->first_execution)
     table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
-  lex->safe_to_cache_query = 0;
+  lex->safe_to_cache_query = false;
 
   if (table_list->schema_table_reformed)  // show command
   {

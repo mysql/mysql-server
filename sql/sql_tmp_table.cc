@@ -197,7 +197,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
       */
       if (item->is_temporal() || item->data_type() == MYSQL_TYPE_GEOMETRY ||
           item->data_type() == MYSQL_TYPE_JSON) {
-        new_field = item->tmp_table_field_from_field_type(table, 1);
+        new_field = item->tmp_table_field_from_field_type(table, true);
       } else {
         new_field = item->make_string_field(table);
       }
@@ -260,7 +260,7 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table) {
     if (field) field->init(table);
     return field;
   }
-  return item->tmp_table_field_from_field_type(table, 0);
+  return item->tmp_table_field_from_field_type(table, false);
 }
 
 /**
@@ -324,7 +324,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
     case Item::TRIGGER_FIELD_ITEM: {
       Item_field *field = (Item_field *)item;
       bool orig_modify = modify_item;
-      if (orig_type == Item::REF_ITEM) modify_item = 0;
+      if (orig_type == Item::REF_ITEM) modify_item = false;
       /*
         If item have to be able to store NULLs but underlaid field can't do it,
         create_tmp_field_from_field() can't be used for tmp field creation.
@@ -885,7 +885,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     if (group) {
       if (param->group_length >= MAX_BLOB_WIDTH)
         unique_constraint_via_hash_field = true;
-      distinct = 0;  // Can't use distinct
+      distinct = false;  // Can't use distinct
     }
   }
 
@@ -959,7 +959,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   reclength = string_total_length = 0;
   blob_count = string_count = null_count = hidden_null_count =
       group_null_items = 0;
-  param->using_outer_summary_function = 0;
+  param->using_outer_summary_function = false;
 
   List_iterator_fast<Item> li(fields);
   Item *item;
@@ -985,7 +985,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
             function. We need to know this if someone is going to use
             DISTINCT on the result.
           */
-          param->using_outer_summary_function = 1;
+          param->using_outer_summary_function = true;
           goto update_hidden;
         }
       }
@@ -1053,7 +1053,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               new_field->maybe_null() is still false, it will be
               changed below. But we have to setup Item_field correctly
             */
-            arg->maybe_null = 1;
+            arg->maybe_null = true;
           }
           new_field->field_index = fieldnr++;
           /* InnoDB temp table doesn't allow field with empty_name */
@@ -2105,7 +2105,7 @@ bool open_tmp_table(TABLE *table) {
                                     nullptr))) {
     table->file->print_error(error, MYF(0)); /* purecov: inspected */
     table->db_stat = 0;
-    return (1);
+    return (true);
   }
   (void)table->file->ha_extra(HA_EXTRA_QUICK); /* Faster */
 
@@ -2404,7 +2404,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       INSERT IGNORE ... SELECT.
     */
     wtable->file->print_error(error, MYF(ME_FATALERROR));
-    return 1;
+    return true;
   }
 
   if (wtable->s->db_type() != heap_hton) {
@@ -2415,7 +2415,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       temptable_use_mmap to true to use mmap'ed files for temporary
       tables. */
       wtable->file->print_error(error, MYF(ME_FATALERROR));
-      return 1;
+      return true;
     }
 
     /* If we are here, then the in-memory temporary tables need
@@ -2531,7 +2531,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
         table->file->ha_index_or_rnd_end();
 
-        if ((write_err = table->file->ha_rnd_init(1))) {
+        if ((write_err = table->file->ha_rnd_init(true))) {
           /* purecov: begin inspected */
           table->file->print_error(write_err, MYF(ME_FATALERROR));
           write_err = 0;
@@ -2541,7 +2541,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
         if (table->no_rows) {
           new_table.file->ha_extra(HA_EXTRA_NO_ROWS);
-          new_table.no_rows = 1;
+          new_table.no_rows = true;
         }
 
         /*
@@ -2694,7 +2694,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     thd_proc_info(thd, (!strcmp(save_proc_info, "Copying to tmp table")
                             ? "Copying to tmp table on disk"
                             : save_proc_info));
-  return 0;
+  return false;
 
 err_after_open:
   if (write_err) {
@@ -2711,7 +2711,7 @@ err_after_proc_info:
   thd_proc_info(thd, save_proc_info);
   // New share took control of old share mem_root; regain control:
   old_share->mem_root = std::move(share.mem_root);
-  return 1;
+  return true;
 }
 
 /**

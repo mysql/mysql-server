@@ -159,7 +159,7 @@ Name_to_userlist *name_to_userlist = nullptr;
 bool initialized = false;
 bool skip_grant_tables(void) { return !initialized; }
 bool acl_cache_initialized = false;
-bool allow_all_hosts = 1;
+bool allow_all_hosts = true;
 uint grant_version = 0; /* Version of priv tables */
 bool validate_user_plugins = true;
 
@@ -272,7 +272,7 @@ bool ACL_HOST_AND_IP::compare_hostname(const char *host_arg,
           (host_arg &&
            !wild_case_compare(system_charset_info, host_arg, hostname)) ||
           (ip_arg && !wild_compare(ip_arg, strlen(ip_arg), hostname,
-                                   strlen(hostname), 0)));
+                                   strlen(hostname), false)));
 }
 
 ACL_USER::ACL_USER() {
@@ -806,7 +806,7 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("", 0, &my_charset_latin1);
 
-    error = col_privs->file->ha_index_init(0, 1);
+    error = col_privs->file->ha_index_init(0, true);
     DBUG_EXECUTE_IF("wl7158_grant_table_1", col_privs->file->ha_index_end();
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1355,7 +1355,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
                 (db && (mysqld_partial_revokes()
                             ? (!strcmp(db, acl_db->db))
                             : (!wild_compare(db, strlen(db), acl_db->db,
-                                             strlen(acl_db->db), 0))))) {
+                                             strlen(acl_db->db), false))))) {
               sctx->cache_current_db_access(acl_db->access);
               break;
             }
@@ -1539,16 +1539,16 @@ bool acl_init(bool dont_read_acl_tables) {
   */
   g_cached_authentication_plugins = new Cached_authentication_plugins();
   unknown_accounts = new Map_with_rw_lock<Auth_id, uint>(0);
-  if (!g_cached_authentication_plugins->is_valid()) return 1;
+  if (!g_cached_authentication_plugins->is_valid()) return true;
 
   if (dont_read_acl_tables) {
-    return 0; /* purecov: tested */
+    return false; /* purecov: tested */
   }
 
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
-  if (!(thd = new THD)) return 1; /* purecov: inspected */
+  if (!(thd = new THD)) return true; /* purecov: inspected */
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
@@ -1727,7 +1727,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     LogErr(WARNING_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
-  initialized = 1;
+  initialized = true;
   return_val = false;
 
 end:
@@ -2101,7 +2101,7 @@ bool grant_init(bool skip_grant_tables) {
 
   if (skip_grant_tables) return false;
 
-  if (!(thd = new THD)) return 1; /* purecov: deadcode */
+  if (!(thd = new THD)) return true; /* purecov: deadcode */
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
@@ -2138,7 +2138,7 @@ bool grant_init(bool skip_grant_tables) {
 
 static bool grant_load_procs_priv(TABLE *p_table) {
   MEM_ROOT *memex_ptr;
-  bool return_val = 1;
+  bool return_val = true;
   int error;
   bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr = THR_MALLOC;
@@ -2151,7 +2151,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
       new malloc_unordered_multimap<string,
                                     unique_ptr_destroy_only<GRANT_NAME>>(
           key_memory_acl_memex));
-  error = p_table->file->ha_index_init(0, 1);
+  error = p_table->file->ha_index_init(0, true);
   DBUG_EXECUTE_IF("wl7158_grant_load_proc_1", p_table->file->ha_index_end();
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -2169,7 +2169,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
 
   if (error) {
     if (error == HA_ERR_END_OF_FILE)
-      return_val = 0;  // Return Ok.
+      return_val = false;  // Return Ok.
     else
       acl_print_ha_error(error);
   } else {
@@ -2219,7 +2219,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
         if (error == HA_ERR_END_OF_FILE)
-          return_val = 0;
+          return_val = false;
         else
           acl_print_ha_error(error);
         goto end_unlock;
@@ -2249,7 +2249,7 @@ end_unlock:
 */
 
 static bool grant_load(THD *thd, TABLE_LIST *tables) {
-  bool return_val = 1;
+  bool return_val = true;
   int error;
   TABLE *t_table = 0, *c_table = 0;
   bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
@@ -2265,7 +2265,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables) {
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  error = t_table->file->ha_index_init(0, 1);
+  error = t_table->file->ha_index_init(0, true);
   DBUG_EXECUTE_IF("wl7158_grant_load_1", t_table->file->ha_index_end();
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -2283,7 +2283,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables) {
   DBUG_EXECUTE_IF("wl7158_grant_load_2", error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     if (error == HA_ERR_END_OF_FILE)
-      return_val = 0;  // Return Ok.
+      return_val = false;  // Return Ok.
     else
       acl_print_ha_error(error);
   } else {
@@ -2327,7 +2327,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables) {
         if (error != HA_ERR_END_OF_FILE)
           acl_print_ha_error(error);
         else
-          return_val = 0;
+          return_val = false;
         goto end_unlock;
       }
 
@@ -2393,13 +2393,13 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
 
 bool grant_reload(THD *thd) {
   MEM_ROOT old_mem;
-  bool return_val = 1;
+  bool return_val = true;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
   DBUG_TRACE;
 
   /* Don't do anything if running with --skip-grant-tables */
-  if (!initialized) return 0;
+  if (!initialized) return false;
 
   TABLE_LIST tables[3] = {
 
@@ -2698,7 +2698,7 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
   acl_user.is_role = false;
   acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())
-    allow_all_hosts = 1;  // Anyone can connect /* purecov: tested */
+    allow_all_hosts = true;  // Anyone can connect /* purecov: tested */
 
   if (add_role_vertex) {
     /*

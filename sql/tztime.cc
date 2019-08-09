@@ -226,7 +226,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
   if (!(file =
             mysql_file_fopen(0, name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
-    return 1;
+    return true;
   {
     union {
       struct tzhead tzhead;
@@ -243,9 +243,9 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
     read_from_file = mysql_file_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
 
-    if (mysql_file_fclose(file, MYF(MY_WME)) != 0) return 1;
+    if (mysql_file_fclose(file, MYF(MY_WME)) != 0) return true;
 
-    if (read_from_file < sizeof(struct tzhead)) return 1;
+    if (read_from_file < sizeof(struct tzhead)) return true;
 
     ttisstdcnt = int4net(u.tzhead.tzh_ttisgmtcnt);
     ttisgmtcnt = int4net(u.tzhead.tzh_ttisstdcnt);
@@ -259,7 +259,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
         sp->charcnt > TZ_MAX_CHARS ||
         (ttisstdcnt != sp->typecnt && ttisstdcnt != 0) ||
         (ttisgmtcnt != sp->typecnt && ttisgmtcnt != 0))
-      return 1;
+      return true;
     if ((uint)(read_from_file - (p - u.buf)) <
         sp->timecnt * 4 +           /* ats */
             sp->timecnt +           /* types */
@@ -268,7 +268,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
             sp->leapcnt * (4 + 4) + /* lsinfos */
             ttisstdcnt +            /* ttisstds */
             ttisgmtcnt)             /* ttisgmts */
-      return 1;
+      return true;
 
 #ifdef ABBR_ARE_USED
     size_t start_of_zone_abbrev = sizeof(struct tzhead) +
@@ -296,7 +296,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
               ALIGN_SIZE(abbrs_buf_len) +
 #endif
               sp->leapcnt * sizeof(LS_INFO))))
-      return 1;
+      return true;
 
     sp->ats = (my_time_t *)tzinfo_buf;
     tzinfo_buf += ALIGN_SIZE(sp->timecnt * sizeof(my_time_t));
@@ -314,7 +314,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
     for (i = 0; i < sp->timecnt; i++) {
       sp->types[i] = *p++;
-      if (sp->types[i] >= sp->typecnt) return 1;
+      if (sp->types[i] >= sp->typecnt) return true;
     }
     for (i = 0; i < sp->typecnt; i++) {
       TRAN_TYPE_INFO *ttisp;
@@ -323,9 +323,9 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       ttisp->tt_gmtoff = int4net(p);
       p += 4;
       ttisp->tt_isdst = *p++;
-      if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1) return 1;
+      if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1) return true;
       ttisp->tt_abbrind = *p++;
-      if (ttisp->tt_abbrind > sp->charcnt) return 1;
+      if (ttisp->tt_abbrind > sp->charcnt) return true;
     }
     for (i = 0; i < sp->charcnt; i++) sp->chars[i] = *p++;
     sp->chars[i] = '\0'; /* ensure '\0' at end */
@@ -526,7 +526,7 @@ static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
   }
 
   /* check if we have had enough space */
-  if (sp->revcnt == TZ_MAX_REV_RANGES - 1) return 1;
+  if (sp->revcnt == TZ_MAX_REV_RANGES - 1) return true;
 
   /* set maximum end_l as finisher */
   revts[sp->revcnt] = end_l;
@@ -536,12 +536,12 @@ static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
                                                 (sp->revcnt + 1))) ||
       !(sp->revtis =
             (REVT_INFO *)storage->Alloc(sizeof(REVT_INFO) * sp->revcnt)))
-    return 1;
+    return true;
 
   memcpy(sp->revts, revts, sizeof(my_time_t) * (sp->revcnt + 1));
   memcpy(sp->revtis, revtis, sizeof(REVT_INFO) * sp->revcnt);
 
-  return 0;
+  return false;
 }
 
 #if !defined(TZINFO2SQL)
@@ -626,7 +626,7 @@ static void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, long offset) {
   tmp->day = (uint)(days + 1);
 
   /* filling MySQL specific MYSQL_TIME members */
-  tmp->neg = 0;
+  tmp->neg = false;
   tmp->second_part = 0;
   tmp->time_type = MYSQL_TIMESTAMP_DATETIME;
 }
@@ -959,7 +959,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       Now we are returning my_time_t value corresponding to the
       beginning of the gap.
     */
-    *in_dst_time_gap = 1;
+    *in_dst_time_gap = true;
     local_t = sp->revts[i] + saved_seconds - sp->revtis[i].rt_offset;
   } else
     local_t = local_t + saved_seconds - sp->revtis[i].rt_offset;
@@ -1367,7 +1367,7 @@ static MEM_ROOT tz_storage;
   tz_storage. So contention is low.
 */
 static mysql_mutex_t tz_LOCK;
-static bool tz_inited = 0;
+static bool tz_inited = false;
 
 /*
   This two static variables are inteded for holding info about leap seconds
@@ -1381,7 +1381,7 @@ static LS_INFO *tz_lsis = 0;
   Used for avoiding of putting those tables to global table list
   for queries that use time zone info.
 */
-static bool time_zone_tables_exist = 1;
+static bool time_zone_tables_exist = true;
 
 /*
   Names of tables (with their lengths) that are needed
@@ -1493,7 +1493,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   TABLE_LIST tz_tables[1 + MY_TZ_TABLES_COUNT];
   TABLE *table;
   Tz_names_entry *tmp_tzname;
-  bool return_val = 1;
+  bool return_val = true;
   LEX_CSTRING db = {STRING_WITH_LEN("mysql")};
   int res;
   DBUG_TRACE;
@@ -1505,14 +1505,14 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
-  if (!(thd = new THD)) return 1;
+  if (!(thd = new THD)) return true;
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
   /* Init all memory structures that require explicit destruction */
   init_sql_alloc(key_memory_tz_storage, &tz_storage, 32 * 1024, 0);
   mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
-  tz_inited = 1;
+  tz_inited = true;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
   if (!(tmp_tzname = new (&tz_storage) Tz_names_entry())) {
@@ -1525,7 +1525,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
 
   if (bootstrap) {
     /* If we are in bootstrap mode we should not load time zone tables */
-    return_val = time_zone_tables_exist = 0;
+    return_val = time_zone_tables_exist = false;
     goto end_with_setting_default_tz;
   }
 
@@ -1554,7 +1554,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     LogErr(WARNING_LEVEL, ER_TZ_CANT_OPEN_AND_LOCK_TIME_ZONE_TABLE,
            thd->get_stmt_da()->message_text());
     /* We will try emulate that everything is ok */
-    return_val = time_zone_tables_exist = 0;
+    return_val = time_zone_tables_exist = false;
     goto end_with_setting_default_tz;
   }
 
@@ -1577,7 +1577,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
 
   table = tz_tables[0].table;
 
-  if (table->file->ha_index_init(0, 1)) goto end_with_close;
+  if (table->file->ha_index_init(0, true)) goto end_with_close;
   table->use_all_columns();
 
   tz_leapcnt = 0;
@@ -1615,7 +1615,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     Loading of info about leap seconds succeeded
   */
 
-  return_val = 0;
+  return_val = false;
 
 end_with_close:
   close_trans_system_tables(thd);
@@ -1632,7 +1632,7 @@ end_with_setting_default_tz:
     if (!(global_system_variables.time_zone = my_tz_find(thd, &tmp_tzname2))) {
       LogErr(ERROR_LEVEL, ER_TZ_UNKNOWN_OR_ILLEGAL_DEFAULT_TIME_ZONE,
              default_tzname);
-      return_val = 1;
+      return_val = true;
     }
   }
 
@@ -1660,7 +1660,7 @@ void my_tz_free() {
   if (tz_inited) {
     default_tz = nullptr;
     global_system_variables.time_zone = my_tz_SYSTEM;
-    tz_inited = 0;
+    tz_inited = false;
     mysql_mutex_destroy(&tz_LOCK);
     offset_tzs.clear();
     tz_names.clear();
@@ -1729,7 +1729,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   tz_tables = tz_tables->next_local;
   table->field[0]->store(tz_name->ptr(), tz_name->length(), &my_charset_latin1);
 
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
   res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
@@ -1764,7 +1764,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table = tz_tables->table;
   tz_tables = tz_tables->next_local;
   table->field[0]->store((longlong)tzid, true);
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
   res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
@@ -1792,7 +1792,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table = tz_tables->table;
   tz_tables = tz_tables->next_local;
   table->field[0]->store((longlong)tzid, true);
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
   res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
                                        (key_part_map)1, HA_READ_KEY_EXACT);
@@ -1859,7 +1859,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   */
   table = tz_tables->table;
   table->field[0]->store((longlong)tzid, true);
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
   res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
                                        (key_part_map)1, HA_READ_KEY_EXACT);
@@ -2008,14 +2008,14 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
   ulong number_tmp;
   long offset_tmp;
 
-  if (length < 4) return 1;
+  if (length < 4) return true;
 
   if (*str == '+')
-    negative = 0;
+    negative = false;
   else if (*str == '-')
-    negative = 1;
+    negative = true;
   else
-    return 1;
+    return true;
   str++;
 
   number_tmp = 0;
@@ -2025,7 +2025,7 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
     str++;
   }
 
-  if (str + 1 >= end || *str != ':') return 1;
+  if (str + 1 >= end || *str != ':') return true;
   str++;
 
   offset_tmp = number_tmp * MINS_PER_HOUR;
@@ -2036,7 +2036,7 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
     str++;
   }
 
-  if (str != end) return 1;
+  if (str != end) return true;
 
   offset_tmp = (offset_tmp + number_tmp) * SECS_PER_MIN;
 
@@ -2049,11 +2049,11 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
 
   if (number_tmp > 59 || offset_tmp < -13 * SECS_PER_HOUR + 1 ||
       offset_tmp > 13 * SECS_PER_HOUR)
-    return 1;
+    return true;
 
   *offset = offset_tmp;
 
-  return 0;
+  return false;
 }
 
 /*
@@ -2276,7 +2276,7 @@ static bool scan_tz_dir(char *name_end) {
   char *name_end_tmp;
   uint i;
 
-  if (!(cur_dir = my_dir(fullname, MYF(MY_WANT_STAT)))) return 1;
+  if (!(cur_dir = my_dir(fullname, MYF(MY_WANT_STAT)))) return true;
 
   name_end = strmake(name_end, "/", FN_REFLEN - (name_end - fullname));
 
@@ -2288,7 +2288,7 @@ static bool scan_tz_dir(char *name_end) {
       if (MY_S_ISDIR(cur_dir->dir_entry[i].mystat->st_mode)) {
         if (scan_tz_dir(name_end_tmp)) {
           my_dirend(cur_dir);
-          return 1;
+          return true;
         }
       } else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode)) {
         init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
@@ -2307,7 +2307,7 @@ static bool scan_tz_dir(char *name_end) {
 
   my_dirend(cur_dir);
 
-  return 0;
+  return false;
 }
 
 int main(int argc, char **argv) {

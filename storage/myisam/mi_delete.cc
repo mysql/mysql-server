@@ -337,12 +337,13 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
         goto err;
       }
       ret_value = _mi_insert(info, keyinfo, key, anc_buff, keypos, lastkey,
-                             (uchar *)0, (uchar *)0, (my_off_t)0, (bool)0);
+                             (uchar *)0, (uchar *)0, (my_off_t)0, false);
     }
   }
   if (ret_value == 0 && mi_getint(anc_buff) > keyinfo->block_length) {
     save_flag = 1;
-    ret_value = _mi_split_page(info, keyinfo, key, anc_buff, lastkey, 0) | 2;
+    ret_value =
+        _mi_split_page(info, keyinfo, key, anc_buff, lastkey, false) | 2;
   }
   if (save_flag && ret_value != 1)
     ret_value |=
@@ -399,7 +400,8 @@ static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
               underflow(info, keyinfo, leaf_buff, next_page, next_buff, endpos);
           if (ret_value == 0 && mi_getint(leaf_buff) > keyinfo->block_length) {
             ret_value =
-                _mi_split_page(info, keyinfo, key, leaf_buff, ret_key, 0) | 2;
+                _mi_split_page(info, keyinfo, key, leaf_buff, ret_key, false) |
+                2;
           }
         } else {
           DBUG_PRINT("test", ("Inserting of key when deleting"));
@@ -407,7 +409,7 @@ static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
                                 &tmp))
             goto err;
           ret_value = _mi_insert(info, keyinfo, key, leaf_buff, endpos, keybuff,
-                                 (uchar *)0, (uchar *)0, (my_off_t)0, 0);
+                                 (uchar *)0, (uchar *)0, (my_off_t)0, false);
         }
       }
       if (_mi_write_keypage(info, keyinfo, leaf_page, DFLT_INIT_HITS,
@@ -474,14 +476,14 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
   DBUG_DUMP("leaf_buff", (uchar *)leaf_buff, mi_getint(leaf_buff));
 
   buff = info->buff;
-  info->buff_used = 1;
+  info->buff_used = true;
   next_keypos = keypos;
   nod_flag = mi_test_if_nod(leaf_buff);
   p_length = nod_flag + 2;
   anc_length = mi_getint(anc_buff);
   leaf_length = mi_getint(leaf_buff);
   key_reflength = share->base.key_reflength;
-  if (info->s->keyinfo + info->lastinx == keyinfo) info->page_changed = 1;
+  if (info->s->keyinfo + info->lastinx == keyinfo) info->page_changed = true;
 
   if ((keypos < anc_buff + anc_length && (info->state->records & 1)) ||
       keypos == anc_buff + 2 + key_reflength) { /* Use page right of anc-page */

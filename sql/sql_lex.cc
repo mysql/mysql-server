@@ -1054,7 +1054,7 @@ static const uint unsigned_longlong_len = 20;
 static inline uint int_token(const char *str, uint length) {
   if (length < long_len)  // quick normal case
     return NUM;
-  bool neg = 0;
+  bool neg = false;
 
   if (*str == '+')  // Remove sign and pre-zeros
   {
@@ -1063,7 +1063,7 @@ static inline uint int_token(const char *str, uint length) {
   } else if (*str == '-') {
     str++;
     length--;
-    neg = 1;
+    neg = true;
   }
   while (*str == '0' && length) {
     str++;
@@ -1621,7 +1621,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
             state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
           lip->yySkip();
-        if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0))) {
+        if ((tokval = find_keyword(lip, lip->yyLength() + 1, false))) {
           lip->next_state = MY_LEX_START;  // Allow signed numbers
           return (tokval);
         }
@@ -1634,7 +1634,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           lip->yySkip();
           if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP) lip->yySkip();
         }
-        if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0))) {
+        if ((tokval = find_keyword(lip, lip->yyLength() + 1, false))) {
           lip->next_state = MY_LEX_START;  // Found long op
           return (tokval);
         }
@@ -1647,8 +1647,8 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           break;
         }
         lip->yySkip();
-        tokval = find_keyword(lip, 2, 0);  // Is a bool operator
-        lip->next_state = MY_LEX_START;    // Allow signed numbers
+        tokval = find_keyword(lip, 2, false);  // Is a bool operator
+        lip->next_state = MY_LEX_START;        // Allow signed numbers
         return (tokval);
 
       case MY_LEX_STRING_OR_DELIMITER:
@@ -1891,7 +1891,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         if (c == '.') lip->next_state = MY_LEX_IDENT_SEP;
         length = lip->yyLength();
         if (length == 0) return (ABORT_SYM);  // Names must be nonempty.
-        if ((tokval = find_keyword(lip, length, 0))) {
+        if ((tokval = find_keyword(lip, length, false))) {
           lip->yyUnget();   // Put back 'c'
           return (tokval);  // Was keyword
         }
@@ -2342,9 +2342,9 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate) {
 bool SELECT_LEX::test_limit() {
   if (select_limit != 0) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "LIMIT & IN/ALL/ANY/SOME subquery");
-    return (1);
+    return (true);
   }
-  return (0);
+  return (false);
 }
 
 enum_parsing_context SELECT_LEX_UNIT::get_explain_marker(const THD *thd) const {
@@ -3398,7 +3398,7 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
 void LEX::clear_privileges() {
   users_list.empty();
   columns.empty();
-  grant = grant_tot_col = grant_privilege = 0;
+  grant = grant_tot_col = grant_privilege = false;
   all_privileges = false;
   ssl_type = SSL_TYPE_NOT_SPECIFIED;
   ssl_cipher = x509_subject = x509_issuer = nullptr;
@@ -3498,7 +3498,7 @@ LEX::LEX()
       // Initialize here to avoid uninitialized variable warnings.
       contains_plaintext_password(false),
       keep_diagnostics(DA_KEEP_UNSPECIFIED),
-      is_lex_started(0),
+      is_lex_started(false),
       in_update_value_clause(false),
       will_contextualize(true) {
   reset_query_tables_list(true);

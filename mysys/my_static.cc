@@ -160,5 +160,5 @@ void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
 /* How to disable options */
-bool my_disable_locking = 0;
+bool my_disable_locking = false;
 bool my_enable_symlinks = false;

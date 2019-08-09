@@ -689,7 +689,7 @@ class Weekday_instantiator {
   static const uint Max_argcount = 1;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], 0);
+    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], false);
   }
 };
 
@@ -745,7 +745,7 @@ class Dayofweek_instantiator {
   static const uint Max_argcount = 1;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], 1);
+    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], true);
   }
 };
 
@@ -762,7 +762,7 @@ class From_unixtime_instantiator {
         Item *ut =
             new (thd->mem_root) Item_func_from_unixtime(POS(), (*args)[0]);
         return new (thd->mem_root)
-            Item_func_date_format(POS(), ut, (*args)[1], 0);
+            Item_func_date_format(POS(), ut, (*args)[1], false);
       }
       default:
         DBUG_ASSERT(false);
@@ -780,11 +780,12 @@ class Round_instantiator {
     switch (args->elements()) {
       case 1: {
         Item *i0 = new (thd->mem_root) Item_int_0(POS());
-        return new (thd->mem_root) Item_func_round(POS(), (*args)[0], i0, 0);
+        return new (thd->mem_root)
+            Item_func_round(POS(), (*args)[0], i0, false);
       }
       case 2:
         return new (thd->mem_root)
-            Item_func_round(POS(), (*args)[0], (*args)[1], 0);
+            Item_func_round(POS(), (*args)[0], (*args)[1], false);
       default:
         DBUG_ASSERT(false);
         return nullptr;

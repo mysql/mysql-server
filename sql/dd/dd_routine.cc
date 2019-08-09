@@ -90,7 +90,7 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
   TABLE_SHARE share;
   table.s = &share;
   table.in_use = thd;
-  table.s->db_low_byte_first = 1;
+  table.s->db_low_byte_first = true;
 
   // Reset result data type in utf8
   sf->set_result_data_type_utf8(
@@ -157,7 +157,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   TABLE_SHARE share;
   table.s = &share;
   table.in_use = thd;
-  table.s->db_low_byte_first = 1;
+  table.s->db_low_byte_first = true;
 
   // Reset data type in utf8
   param->set_data_type_utf8(get_sql_type_by_create_field(&table, *field));

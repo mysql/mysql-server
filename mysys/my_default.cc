@@ -669,7 +669,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
                      const char ***default_directories) {
   My_args my_args(key_memory_defaults);
   TYPELIB group;
-  bool found_print_defaults = 0;
+  bool found_print_defaults = false;
   uint args_used = 0;
   int error = 0;
   const char **ptr;
@@ -737,7 +737,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
     This options must always be the last of the default options
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--print-defaults")) {
-    found_print_defaults = 1;
+    found_print_defaults = true;
     --*argc;
     ++*argv; /* skip argument */
   }
@@ -883,7 +883,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   const int max_recursion_level = 10;
   MYSQL_FILE *fp;
   uint line = 0;
-  bool found_group = 0;
+  bool found_group = false;
   uint i, rc;
   MY_DIR *search_dir;
   FILEINFO *search_file;
@@ -1007,7 +1007,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
     if (*ptr == '[') /* Group name */
     {
-      found_group = 1;
+      found_group = true;
       if (!(end = strchr(++ptr, ']'))) {
         my_message_local(ERROR_LEVEL,
                          EE_INCORRECT_GRP_DEFINITION_IN_CONFIG_FILE, name,
@@ -1164,30 +1164,30 @@ static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
       mysql_file_fseek(file, 4, SEEK_SET);
       if (mysql_file_fread(file, my_key, LOGIN_KEY_LEN, MYF(MY_WME)) !=
           LOGIN_KEY_LEN)
-        return 0;
+        return false;
     }
 
     if (mysql_file_fread(file, len_buf, MAX_CIPHER_STORE_LEN, MYF(MY_WME)) ==
         MAX_CIPHER_STORE_LEN) {
       cipher_len = sint4korr(len_buf);
-      if (cipher_len > size) return 0;
+      if (cipher_len > size) return false;
     } else
-      return 0;
+      return false;
 
     mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
     if ((length = my_aes_decrypt(cipher, cipher_len, (unsigned char *)str,
                                  my_key, LOGIN_KEY_LEN, my_aes_128_ecb, NULL)) <
         0) {
       /* Attempt to decrypt failed. */
-      return 0;
+      return false;
     }
     str[length] = 0;
-    return 1;
+    return true;
   } else {
     if (mysql_file_fgets(str, size, file))
-      return 1;
+      return true;
     else
-      return 0;
+      return false;
   }
 }
 

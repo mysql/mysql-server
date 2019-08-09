@@ -316,9 +316,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 void SysTablespace::shutdown() {
   Tablespace::shutdown();
 
-  m_auto_extend_last_file = 0;
+  m_auto_extend_last_file = false;
   m_last_file_size_max = 0;
-  m_created_new_raw = 0;
+  m_created_new_raw = false;
   m_is_tablespace_full = false;
   m_sanity_checks_done = false;
 }

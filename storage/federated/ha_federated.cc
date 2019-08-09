@@ -968,8 +968,8 @@ static bool emit_key_part_name(String *to, KEY_PART_INFO *part) {
   DBUG_TRACE;
   if (append_ident(to, part->field->field_name, strlen(part->field->field_name),
                    ident_quote_char))
-    return 1;  // Out of memory
-  return 0;
+    return true;  // Out of memory
+  return false;
 }
 
 static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
@@ -978,7 +978,7 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
   Field *field = part->field;
   DBUG_TRACE;
 
-  if (needs_quotes && to->append(STRING_WITH_LEN("'"))) return 1;
+  if (needs_quotes && to->append(STRING_WITH_LEN("'"))) return true;
 
   if (part->type == HA_KEYTYPE_BIT) {
     char buff[STRING_BUFFER_USUAL_SIZE], *buf = buff;
@@ -986,19 +986,19 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
     *buf++ = '0';
     *buf++ = 'x';
     buf = octet2hex(buf, (char *)ptr, len);
-    if (to->append((char *)buff, (uint)(buf - buff))) return 1;
+    if (to->append((char *)buff, (uint)(buf - buff))) return true;
   } else if (part->key_part_flag & HA_BLOB_PART) {
     String blob;
     uint blob_length = uint2korr(ptr);
     blob.set_quick((char *)ptr + HA_KEY_BLOB_LENGTH, blob_length,
                    &my_charset_bin);
-    if (append_escaped(to, &blob)) return 1;
+    if (append_escaped(to, &blob)) return true;
   } else if (part->key_part_flag & HA_VAR_LENGTH_PART) {
     String varchar;
     uint var_length = uint2korr(ptr);
     varchar.set_quick((char *)ptr + HA_KEY_BLOB_LENGTH, var_length,
                       &my_charset_bin);
-    if (append_escaped(to, &varchar)) return 1;
+    if (append_escaped(to, &varchar)) return true;
   } else {
     char strbuff[MAX_FIELD_WIDTH];
     String str(strbuff, sizeof(strbuff), part->field->charset()), *res;
@@ -1006,16 +1006,16 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
     res = field->val_str(&str, ptr);
 
     if (field->result_type() == STRING_RESULT) {
-      if (append_escaped(to, res)) return 1;
+      if (append_escaped(to, res)) return true;
     } else if (to->append(res->ptr(), res->length()))
-      return 1;
+      return true;
   }
 
-  if (is_like && to->append(STRING_WITH_LEN("%"))) return 1;
+  if (is_like && to->append(STRING_WITH_LEN("%"))) return true;
 
-  if (needs_quotes && to->append(STRING_WITH_LEN("'"))) return 1;
+  if (needs_quotes && to->append(STRING_WITH_LEN("'"))) return true;
 
-  return 0;
+  return false;
 }
 
 /*
@@ -1271,7 +1271,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
   DBUG_TRACE;
 
   tmp.length(0);
-  if (start_key == NULL && end_key == NULL) return 1;
+  if (start_key == NULL && end_key == NULL) return true;
 
   old_map = dbug_tmp_use_all_columns(table, table->write_set);
   for (uint i = 0; i <= 1; i++) {
@@ -1332,14 +1332,14 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
               if (tmp.append(STRING_WITH_LEN(" = "))) goto err;
             }
 
-            if (emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+            if (emit_key_part_element(&tmp, key_part, needs_quotes, false, ptr,
                                       part_length))
               goto err;
           } else {
             /* LIKE */
             if (emit_key_part_name(&tmp, key_part) ||
                 tmp.append(STRING_WITH_LEN(" LIKE ")) ||
-                emit_key_part_element(&tmp, key_part, needs_quotes, 1, ptr,
+                emit_key_part_element(&tmp, key_part, needs_quotes, true, ptr,
                                       part_length))
               goto err;
           }
@@ -1363,7 +1363,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
               if (tmp.append(STRING_WITH_LEN(" > "))) goto err;
             }
 
-            if (emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+            if (emit_key_part_element(&tmp, key_part, needs_quotes, false, ptr,
                                       part_length)) {
               goto err;
             }
@@ -1374,7 +1374,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
               tmp.append(STRING_WITH_LEN(" >= ")) ||
-              emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+              emit_key_part_element(&tmp, key_part, needs_quotes, false, ptr,
                                     part_length))
             goto err;
           break;
@@ -1383,7 +1383,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
           if (store_length >= length) {
             if (emit_key_part_name(&tmp, key_part) ||
                 tmp.append(STRING_WITH_LEN(" < ")) ||
-                emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+                emit_key_part_element(&tmp, key_part, needs_quotes, false, ptr,
                                       part_length))
               goto err;
             break;
@@ -1393,7 +1393,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
               tmp.append(STRING_WITH_LEN(" <= ")) ||
-              emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+              emit_key_part_element(&tmp, key_part, needs_quotes, false, ptr,
                                     part_length))
             goto err;
           break;
@@ -1423,17 +1423,17 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
   dbug_tmp_restore_column_map(table->write_set, old_map);
 
   if (both_not_null)
-    if (tmp.append(STRING_WITH_LEN(") "))) return 1;
+    if (tmp.append(STRING_WITH_LEN(") "))) return true;
 
-  if (to->append(STRING_WITH_LEN(" WHERE "))) return 1;
+  if (to->append(STRING_WITH_LEN(" WHERE "))) return true;
 
-  if (to->append(tmp)) return 1;
+  if (to->append(tmp)) return true;
 
-  return 0;
+  return false;
 
 err:
   dbug_tmp_restore_column_map(table->write_set, old_map);
-  return 1;
+  return true;
 }
 
 /*
@@ -1827,7 +1827,7 @@ int ha_federated::write_row(uchar *) {
     update_auto_increment();
 
     /* mysql_insert() uses this for protocol return value */
-    table->next_number_field->store(stats.auto_increment_value, 1);
+    table->next_number_field->store(stats.auto_increment_value, true);
   }
 
   return 0;
@@ -2189,7 +2189,7 @@ int ha_federated::delete_row(const uchar *) {
 int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                      key_part_map keypart_map,
                                      enum ha_rkey_function find_flag) {
-  int error = index_init(index, 0);
+  int error = index_init(index, false);
   if (error) return error;
   error = index_read_map(buf, key, keypart_map, find_flag);
   if (!error && stored_result) {
@@ -2277,8 +2277,8 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   range.key = key;
   range.length = key_len;
   range.flag = find_flag;
-  create_where_from_key(&index_string, &table->key_info[index], &range, NULL, 0,
-                        0);
+  create_where_from_key(&index_string, &table->key_info[index], &range, NULL,
+                        false, false);
   sql_query.append(index_string);
 
   if (real_query(sql_query.ptr(), sql_query.length())) {
@@ -2344,7 +2344,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   sql_query.length(0);
   sql_query.append(share->select_query);
   create_where_from_key(&sql_query, &table->key_info[active_index], start_key,
-                        end_key, 0, eq_range_arg);
+                        end_key, false, eq_range_arg);
   if (real_query(sql_query.ptr(), sql_query.length())) {
     retval = ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     goto error;
@@ -2984,7 +2984,7 @@ int ha_federated::real_connect() {
     deal with transactions
   */
 
-  mysql->reconnect = 1;
+  mysql->reconnect = true;
   return 0;
 }
 

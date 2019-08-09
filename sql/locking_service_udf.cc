@@ -46,7 +46,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
   initid->decimals = 0;
   initid->max_length = 1;
   initid->ptr = NULL;
-  initid->const_item = 0;
+  initid->const_item = false;
   initid->extension = NULL;
 
   // At least three arguments - namespace, lock, timeout
@@ -112,7 +112,7 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->decimals = 0;
   initid->max_length = 1;
   initid->ptr = NULL;
-  initid->const_item = 0;
+  initid->const_item = false;
   initid->extension = NULL;
 
   // Only one argument - lock_namespace (string)

@@ -395,7 +395,7 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
   if (!my_charset_latin1.coll->strnncoll(
           &my_charset_latin1, (const uchar *)event_command.str,
           event_command.length, (const uchar *)abort_ret_command.str,
-          abort_ret_command.length, 0)) {
+          abort_ret_command.length, false)) {
     int ret_code = (int)THDVAR(thd, abort_value);
     const char *err_message = (const char *)THDVAR(thd, abort_message);
     LEX_CSTRING status = {STRING_WITH_LEN("EVENT-ORDER-ABORT")};
@@ -705,7 +705,7 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 
   if (my_charset_latin1.coll->strnncoll(
           &my_charset_latin1, (const uchar *)event_name.str, event_name.length,
-          (const uchar *)event_token.str, event_token.length, 0)) {
+          (const uchar *)event_token.str, event_token.length, false)) {
     /* Clear event command. */
     event_command.str = NULL;
     event_command.length = 0;
@@ -730,10 +730,12 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
        data corresponds to the actual event data. */
     if (my_charset_latin1.coll->strnncoll(
             &my_charset_latin1, (const uchar *)event_data.str,
-            event_data.length, (const uchar *)ignore.str, ignore.length, 0) &&
+            event_data.length, (const uchar *)ignore.str, ignore.length,
+            false) &&
         my_charset_latin1.coll->strnncoll(
             &my_charset_latin1, (const uchar *)event_data.str,
-            event_data.length, (const uchar *)buffer, (size_t)buffer_data, 0)) {
+            event_data.length, (const uchar *)buffer, (size_t)buffer_data,
+            false)) {
       if (exact_check == 1 && event_order_started == 1) {
         char invalid_data_buffer[sizeof(buffer)] = {
             0,

@@ -132,19 +132,19 @@ static bool get_one_option(int optid,
       break;
     case 'I':
     case '?':
-      usage(0);
+      usage(false);
       exit(0);
     case 'v':
       verbose++;
       break;
     case 'V':
-      usage(1);
+      usage(true);
       exit(0);
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
   }
-  return 0;
+  return false;
 }
 
 static int get_options(int *argc, char ***argv) {
@@ -154,7 +154,7 @@ static int get_options(int *argc, char ***argv) {
     exit(ho_error);
 
   if (*argc < 1) {
-    usage(0);
+    usage(false);
     return 1;
   }
   return 0;

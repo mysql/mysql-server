@@ -213,7 +213,7 @@ bool Migrate_keyring::execute() {
   if (m_argc > 1) {
     struct my_option no_opts[] = {
         {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-    my_getopt_skip_unknown = 0;
+    my_getopt_skip_unknown = false;
     my_getopt_use_args_separator = true;
     if (handle_options(&m_argc, &tmp_m_argv, no_opts, NULL)) return true;
 
@@ -251,9 +251,9 @@ bool Migrate_keyring::load_plugin(enum_plugin_type plugin_type) {
 
   char *keyring_plugin = NULL;
   char *plugin_name = NULL;
-  bool is_source_plugin = 0;
+  bool is_source_plugin = false;
 
-  if (plugin_type == enum_plugin_type::SOURCE_PLUGIN) is_source_plugin = 1;
+  if (plugin_type == enum_plugin_type::SOURCE_PLUGIN) is_source_plugin = true;
 
   if (is_source_plugin) {
     keyring_plugin = const_cast<char *>(m_source_plugin_option.c_str());

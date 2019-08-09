@@ -343,7 +343,7 @@ bool IndexRangeScanIterator::Init() {
   }
 
   if (first_init && table()->file->inited && set_record_buffer(m_qep_tab))
-    return 1; /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   return false;
 }
@@ -397,7 +397,7 @@ bool TableScanIterator::Init() {
   */
   const bool first_init = !table()->file->inited;
 
-  int error = table()->file->ha_rnd_init(1);
+  int error = table()->file->ha_rnd_init(true);
   if (error) {
     PrintError(error);
     return true;

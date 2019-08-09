@@ -71,7 +71,7 @@ bool Sql_cmd_restart_server::execute(THD *thd) {
   if (check_restart_server_admin_privilege(thd)) return true;
 
   // RESTART shall not be binlogged.
-  thd->lex->no_write_to_binlog = 1;
+  thd->lex->no_write_to_binlog = true;
 
   query_logger.general_log_print(thd, COM_QUERY, NullS);
 

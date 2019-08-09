@@ -234,7 +234,7 @@ class Compression_algorithm_lz4 : public Compression_algorithm_interface {
       *output_size += written;
 
       if (0 == written) {
-        m_frame_opened = 0;
+        m_frame_opened = false;
         data_ptr += written;
         data_size -= written;
 

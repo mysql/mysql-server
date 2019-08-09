@@ -66,7 +66,7 @@ long long myfunc_int(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   return val;
 }
 
-bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *) { return 0; }
+bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *) { return false; }
 
 /**************************************************************************************/
 

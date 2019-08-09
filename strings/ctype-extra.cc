@@ -6,7 +6,7 @@
     ./conf_to_src {CMAKE_SOURCE_DIR}/share/charsets/ > ctype-extra.cc
 */
 
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7261,7 +7261,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                          /* min_sort_char */
      255,                        /* max_sort_char */
      ' ',                        /* pad_char      */
-     0,                          /* escape_with_backslash_is_dangerous */
+     false,                      /* escape_with_backslash_is_dangerous */
      1,                          /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7294,7 +7294,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7327,7 +7327,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7360,7 +7360,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                         /* min_sort_char */
      255,                       /* max_sort_char */
      ' ',                       /* pad_char      */
-     0,                         /* escape_with_backslash_is_dangerous */
+     false,                     /* escape_with_backslash_is_dangerous */
      1,                         /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7393,7 +7393,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7426,7 +7426,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7459,7 +7459,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                          /* min_sort_char */
      255,                        /* max_sort_char */
      ' ',                        /* pad_char      */
-     0,                          /* escape_with_backslash_is_dangerous */
+     false,                      /* escape_with_backslash_is_dangerous */
      1,                          /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7492,7 +7492,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_ascii_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7525,7 +7525,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                              /* min_sort_char */
      255,                            /* max_sort_char */
      ' ',                            /* pad_char      */
-     0,                              /* escape_with_backslash_is_dangerous */
+     false,                          /* escape_with_backslash_is_dangerous */
      1,                              /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7558,7 +7558,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7591,7 +7591,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7624,7 +7624,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                             /* min_sort_char */
      255,                           /* max_sort_char */
      ' ',                           /* pad_char      */
-     0,                             /* escape_with_backslash_is_dangerous */
+     false,                         /* escape_with_backslash_is_dangerous */
      1,                             /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7657,7 +7657,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                              /* min_sort_char */
      255,                            /* max_sort_char */
      ' ',                            /* pad_char      */
-     0,                              /* escape_with_backslash_is_dangerous */
+     false,                          /* escape_with_backslash_is_dangerous */
      1,                              /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7690,7 +7690,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7723,7 +7723,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                              /* min_sort_char */
      255,                            /* max_sort_char */
      ' ',                            /* pad_char      */
-     0,                              /* escape_with_backslash_is_dangerous */
+     false,                          /* escape_with_backslash_is_dangerous */
      1,                              /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7756,7 +7756,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7789,7 +7789,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7822,7 +7822,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                             /* min_sort_char */
      255,                           /* max_sort_char */
      ' ',                           /* pad_char      */
-     0,                             /* escape_with_backslash_is_dangerous */
+     false,                         /* escape_with_backslash_is_dangerous */
      1,                             /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7855,7 +7855,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                               /* min_sort_char */
      255,                             /* max_sort_char */
      ' ',                             /* pad_char      */
-     0,                               /* escape_with_backslash_is_dangerous */
+     false,                           /* escape_with_backslash_is_dangerous */
      1,                               /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7888,7 +7888,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7921,7 +7921,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                              /* min_sort_char */
      255,                            /* max_sort_char */
      ' ',                            /* pad_char      */
-     0,                              /* escape_with_backslash_is_dangerous */
+     false,                          /* escape_with_backslash_is_dangerous */
      1,                              /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7954,7 +7954,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -7987,7 +7987,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                             /* min_sort_char */
      255,                           /* max_sort_char */
      ' ',                           /* pad_char      */
-     0,                             /* escape_with_backslash_is_dangerous */
+     false,                         /* escape_with_backslash_is_dangerous */
      1,                             /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8020,7 +8020,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8053,7 +8053,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                              /* min_sort_char */
      255,                            /* max_sort_char */
      ' ',                            /* pad_char      */
-     0,                              /* escape_with_backslash_is_dangerous */
+     false,                          /* escape_with_backslash_is_dangerous */
      1,                              /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8086,7 +8086,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8119,7 +8119,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8152,7 +8152,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8185,7 +8185,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8218,7 +8218,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                             /* min_sort_char */
      255,                           /* max_sort_char */
      ' ',                           /* pad_char      */
-     0,                             /* escape_with_backslash_is_dangerous */
+     false,                         /* escape_with_backslash_is_dangerous */
      1,                             /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8251,7 +8251,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8284,7 +8284,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8317,7 +8317,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8350,7 +8350,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8383,7 +8383,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8416,7 +8416,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                     /* min_sort_char */
      255,                   /* max_sort_char */
      ' ',                   /* pad_char      */
-     0,                     /* escape_with_backslash_is_dangerous */
+     false,                 /* escape_with_backslash_is_dangerous */
      1,                     /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8449,7 +8449,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8482,7 +8482,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8515,7 +8515,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -8548,7 +8548,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                     /* min_sort_char */
      255,                   /* max_sort_char */
      ' ',                   /* pad_char      */
-     0,                     /* escape_with_backslash_is_dangerous */
+     false,                 /* escape_with_backslash_is_dangerous */
      1,                     /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8581,7 +8581,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_ascii_handler,
      &my_collation_8bit_bin_handler,
@@ -8614,7 +8614,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8647,7 +8647,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8680,7 +8680,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8713,7 +8713,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8746,7 +8746,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8779,7 +8779,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8812,7 +8812,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8845,7 +8845,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                    /* min_sort_char */
      255,                  /* max_sort_char */
      ' ',                  /* pad_char      */
-     0,                    /* escape_with_backslash_is_dangerous */
+     false,                /* escape_with_backslash_is_dangerous */
      1,                    /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8878,7 +8878,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8911,7 +8911,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8944,7 +8944,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -8977,7 +8977,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -9010,7 +9010,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -9043,7 +9043,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -9076,7 +9076,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -9109,7 +9109,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -9142,7 +9142,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                             /* min_sort_char */
      255,                           /* max_sort_char */
      ' ',                           /* pad_char      */
-     0,                             /* escape_with_backslash_is_dangerous */
+     false,                         /* escape_with_backslash_is_dangerous */
      1,                             /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -9175,7 +9175,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                    /* min_sort_char */
      255,                  /* max_sort_char */
      ' ',                  /* pad_char      */
-     0,                    /* escape_with_backslash_is_dangerous */
+     false,                /* escape_with_backslash_is_dangerous */
      1,                    /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_bin_handler,
@@ -9208,7 +9208,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                            /* min_sort_char */
      255,                          /* max_sort_char */
      ' ',                          /* pad_char      */
-     0,                            /* escape_with_backslash_is_dangerous */
+     false,                        /* escape_with_backslash_is_dangerous */
      1,                            /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -9241,7 +9241,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                           /* min_sort_char */
      255,                         /* max_sort_char */
      ' ',                         /* pad_char      */
-     0,                           /* escape_with_backslash_is_dangerous */
+     false,                       /* escape_with_backslash_is_dangerous */
      1,                           /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,
@@ -9274,7 +9274,7 @@ CHARSET_INFO compiled_charsets[] = {
      0,                   /* min_sort_char */
      255,                 /* max_sort_char */
      ' ',                 /* pad_char      */
-     0,                   /* escape_with_backslash_is_dangerous */
+     false,               /* escape_with_backslash_is_dangerous */
      1,                   /* levels_for_compare */
      &my_charset_8bit_handler,
      &my_collation_8bit_simple_ci_handler,

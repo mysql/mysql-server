@@ -5035,8 +5035,8 @@ static int my_wildcmp_unicode_impl(const CHARSET_INFO *cs, const char *str,
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
   while (wildstr != wildend) {
-    while (1) {
-      bool escaped = 0;
+    while (true) {
+      bool escaped = false;
       if ((scan = mb_wc(cs, &w_wc, (const uchar *)wildstr,
                         (const uchar *)wildend)) <= 0)
         return 1;
@@ -5052,7 +5052,7 @@ static int my_wildcmp_unicode_impl(const CHARSET_INFO *cs, const char *str,
                           (const uchar *)wildend)) <= 0)
           return 1;
         wildstr += scan;
-        escaped = 1;
+        escaped = true;
       }
 
       if ((scan = mb_wc(cs, &s_wc, (const uchar *)str,
@@ -5115,7 +5115,7 @@ static int my_wildcmp_unicode_impl(const CHARSET_INFO *cs, const char *str,
         }
       }
 
-      while (1) {
+      while (true) {
         /* Skip until the first character from wildstr is found */
         while (str != str_end) {
           if ((scan = mb_wc(cs, &s_wc, (const uchar *)str,
@@ -6017,7 +6017,7 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_utf8_general_ci_handler,
@@ -6052,7 +6052,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_utf8_general_ci_handler,
@@ -6087,8 +6087,8 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     0,                                               /* min_sort_char    */
     0xFFFF,                                          /* max_sort_char    */
     ' ',                                             /* pad char         */
-    0, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    1,     /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_utf8_general_ci_handler,
     PAD_SPACE};
@@ -6122,7 +6122,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     0,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_utf8_bin_handler,
@@ -7250,41 +7250,41 @@ static MY_CHARSET_HANDLER my_charset_filename_handler = {
     my_strntoull10rnd_8bit,
     my_scan_8bit};
 
-CHARSET_INFO my_charset_filename = {17,
-                                    0,
-                                    0, /* number       */
-                                    MY_CS_COMPILED | MY_CS_PRIMARY |
-                                        MY_CS_STRNXFRM | MY_CS_UNICODE |
-                                        MY_CS_HIDDEN | MY_CS_NONASCII,
-                                    "filename",          /* cs name      */
-                                    "filename",          /* name         */
-                                    "",                  /* comment      */
-                                    NULL,                /* tailoring    */
-                                    NULL,                /* coll_param   */
-                                    ctype_utf8,          /* ctype        */
-                                    to_lower_utf8,       /* to_lower     */
-                                    to_upper_utf8,       /* to_upper     */
-                                    to_upper_utf8,       /* sort_order   */
-                                    NULL,                /* uca          */
-                                    NULL,                /* tab_to_uni   */
-                                    NULL,                /* tab_from_uni */
-                                    &my_unicase_default, /* caseinfo     */
-                                    NULL,                /* state_map    */
-                                    NULL,                /* ident_map    */
-                                    1,                   /* strxfrm_multiply */
-                                    1,                   /* caseup_multiply  */
-                                    1,                   /* casedn_multiply  */
-                                    1,                   /* mbminlen     */
-                                    5,                   /* mbmaxlen     */
-                                    1,                   /* mbmaxlenlen  */
-                                    0,                   /* min_sort_char */
-                                    0xFFFF,              /* max_sort_char */
-                                    ' ',                 /* pad char      */
-                                    0, /* escape_with_backslash_is_dangerous */
-                                    1, /* levels_for_compare */
-                                    &my_charset_filename_handler,
-                                    &my_collation_filename_handler,
-                                    PAD_SPACE};
+CHARSET_INFO my_charset_filename = {
+    17,
+    0,
+    0, /* number       */
+    MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE |
+        MY_CS_HIDDEN | MY_CS_NONASCII,
+    "filename",          /* cs name      */
+    "filename",          /* name         */
+    "",                  /* comment      */
+    NULL,                /* tailoring    */
+    NULL,                /* coll_param   */
+    ctype_utf8,          /* ctype        */
+    to_lower_utf8,       /* to_lower     */
+    to_upper_utf8,       /* to_upper     */
+    to_upper_utf8,       /* sort_order   */
+    NULL,                /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_default, /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    1,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    1,                   /* mbminlen     */
+    5,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
+    0,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    false,               /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    &my_charset_filename_handler,
+    &my_collation_filename_handler,
+    PAD_SPACE};
 
 #ifdef MY_TEST_UTF8
 #include <stdio.h>
@@ -8036,7 +8036,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci = {
     0,                            /* min_sort_char */
     0xFFFF,                       /* max_sort_char */
     ' ',                          /* pad char      */
-    0,                            /* escape_with_backslash_is_dangerous */
+    false,                        /* escape_with_backslash_is_dangerous */
     1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_utf8mb4_general_ci_handler,
@@ -8072,7 +8072,7 @@ CHARSET_INFO my_charset_utf8mb4_bin = {
     0,                            /* min_sort_char */
     0xFFFF,                       /* max_sort_char */
     ' ',                          /* pad char      */
-    0,                            /* escape_with_backslash_is_dangerous */
+    false,                        /* escape_with_backslash_is_dangerous */
     1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_utf8mb4_bin_handler,

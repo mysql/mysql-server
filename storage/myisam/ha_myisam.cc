@@ -642,7 +642,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
           HA_CAN_RTREEKEYS | HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT |
           HA_CAN_REPAIR | HA_GENERATED_COLUMNS | HA_ATTACHABLE_TRX_COMPATIBLE |
           HA_SUPPORTS_DEFAULT_EXPRESSION),
-      can_enable_indexes(1),
+      can_enable_indexes(true),
       ds_mrr(this) {}
 
 handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root) {
@@ -870,7 +870,7 @@ int ha_myisam::check(THD *thd, HA_CHECK_OPT *check_opt) {
   param.stats_method = (enum_mi_stats_method)THDVAR(thd, stats_method);
 
   if (!(table->db_stat & HA_READ_ONLY)) param.testflag |= T_STATISTICS;
-  param.using_global_keycache = 1;
+  param.using_global_keycache = true;
 
   if (!mi_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
@@ -893,9 +893,9 @@ int ha_myisam::check(THD *thd, HA_CHECK_OPT *check_opt) {
         mi_is_crashed(file)) {
       uint old_testflag = param.testflag;
       param.testflag |= T_MEDIUM;
-      if (!(error = init_io_cache(&param.read_cache, file->dfile,
-                                  my_default_record_cache_size, READ_CACHE,
-                                  share->pack.header_length, 1, MYF(MY_WME)))) {
+      if (!(error = init_io_cache(
+                &param.read_cache, file->dfile, my_default_record_cache_size,
+                READ_CACHE, share->pack.header_length, true, MYF(MY_WME)))) {
         error = chk_data_link(&param, file, param.testflag & T_EXTEND);
         end_io_cache(&(param.read_cache));
       }
@@ -944,7 +944,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT *) {
   param.table_name = table->alias;
   param.testflag =
       (T_FAST | T_CHECK | T_SILENT | T_STATISTICS | T_DONT_CHECK_CHECKSUM);
-  param.using_global_keycache = 1;
+  param.using_global_keycache = true;
   param.stats_method = (enum_mi_stats_method)THDVAR(thd, stats_method);
 
   if (!(share->state.changed & STATE_NOT_ANALYZED))
@@ -975,8 +975,8 @@ int ha_myisam::repair(THD *thd, HA_CHECK_OPT *check_opt) {
        T_CALC_CHECKSUM | (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   param.sort_buffer_length = THDVAR(thd, sort_buffer_size);
   start_records = file->state->records;
-  while ((error = repair(thd, param, 0)) && param.retry_repair) {
-    param.retry_repair = 0;
+  while ((error = repair(thd, param, false)) && param.retry_repair) {
+    param.retry_repair = false;
     if (test_all_bits(param.testflag,
                       (uint)(T_RETRY_WITHOUT_QUICK | T_QUICK))) {
       param.testflag &= ~T_RETRY_WITHOUT_QUICK;
@@ -1014,11 +1014,11 @@ int ha_myisam::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
   param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
                     T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length = THDVAR(thd, sort_buffer_size);
-  if ((error = repair(thd, param, 1)) && param.retry_repair) {
+  if ((error = repair(thd, param, true)) && param.retry_repair) {
     LogErr(WARNING_LEVEL, ER_ERROR_DURING_OPTIMIZE_TABLE, my_errno(),
            param.db_name, param.table_name);
     param.testflag &= ~T_REP_BY_SORT;
-    error = repair(thd, param, 1);
+    error = repair(thd, param, true);
   }
   return error;
 }
@@ -1026,7 +1026,7 @@ int ha_myisam::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
 int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
   int error = 0;
   uint local_testflag = param.testflag;
-  bool optimize_done = !do_optimize, statistics_done = 0;
+  bool optimize_done = !do_optimize, statistics_done = false;
   bool has_old_locks = thd->locked_tables_mode || file->lock_type != F_UNLCK;
   const char *old_proc_info = thd->proc_info;
   char fixed_name[FN_REFLEN];
@@ -1036,7 +1036,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
 
   param.db_name = table->s->db.str;
   param.table_name = table->alias;
-  param.using_global_keycache = 1;
+  param.using_global_keycache = true;
   param.thd = thd;
   param.tmpdir = &mysql_tmpdir_list;
   param.out_flag = 0;
@@ -1068,11 +1068,11 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
       memory mapping must be disabled.
     */
     if (remap) mi_munmap_file(file);
-    if (mi_test_if_sort_rep(file, file->state->records, key_map, 0) &&
+    if (mi_test_if_sort_rep(file, file->state->records, key_map, false) &&
         (local_testflag & T_REP_BY_SORT)) {
       local_testflag |= T_STATISTICS;
       param.testflag |= T_STATISTICS;  // We get this for free
-      statistics_done = 1;
+      statistics_done = true;
       if (THDVAR(thd, repair_threads) > 1) {
         char buf[40];
         /* TODO: respect myisam_repair_threads variable */
@@ -1107,12 +1107,12 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     }
     if (remap) mi_dynmap_file(file, file->state->data_file_length);
     param.testflag = testflag;
-    optimize_done = 1;
+    optimize_done = true;
   }
   if (!error) {
     if ((local_testflag & T_SORT_INDEX) &&
         (share->state.changed & STATE_NOT_SORTED_PAGES)) {
-      optimize_done = 1;
+      optimize_done = true;
       thd_proc_info(thd, "Sorting index");
       /*
         The new file is created with the right stats, so we can skip
@@ -1122,7 +1122,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     }
     if (!statistics_done && (local_testflag & T_STATISTICS)) {
       if (share->state.changed & STATE_NOT_ANALYZED) {
-        optimize_done = 1;
+        optimize_done = true;
         thd_proc_info(thd, "Analyzing");
         error = chk_key(&param, file);
       } else
@@ -1142,7 +1142,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     */
     if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
-    if (file->s->base.auto_key) update_auto_increment_key(&param, file, 1);
+    if (file->s->base.auto_key) update_auto_increment_key(&param, file, true);
     if (optimize_done) {
       mysql_mutex_lock(&share->intern_lock);
       error = update_state_info(
@@ -1367,7 +1367,7 @@ int ha_myisam::enable_indexes(uint mode) {
     param.sort_buffer_length = THDVAR(thd, sort_buffer_size);
     param.stats_method = (enum_mi_stats_method)THDVAR(thd, stats_method);
     param.tmpdir = &mysql_tmpdir_list;
-    if ((error = (repair(thd, param, 0) != HA_ADMIN_OK)) &&
+    if ((error = (repair(thd, param, false) != HA_ADMIN_OK)) &&
         param.retry_repair) {
       LogErr(WARNING_LEVEL, ER_ERROR_ENABLING_KEYS, my_errno(), param.db_name,
              param.table_name);
@@ -1379,7 +1379,7 @@ int ha_myisam::enable_indexes(uint mode) {
       */
       if (!(param.testflag & T_RETRY_WITHOUT_QUICK)) {
         param.testflag &= ~T_REP_BY_SORT;
-        error = (repair(thd, param, 0) != HA_ADMIN_OK);
+        error = (repair(thd, param, false) != HA_ADMIN_OK);
       }
       /*
         If the standard repair succeeded, clear all error messages which

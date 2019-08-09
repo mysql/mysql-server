@@ -276,7 +276,7 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
     if (key_part->null_bit) {
       if (*key !=
           MY_TEST(table->record[0][key_part->null_offset] & key_part->null_bit))
-        return 1;
+        return true;
       if (*key) continue;
       key++;
       store_length--;
@@ -286,13 +286,13 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
           (HA_BLOB_PART | HA_VAR_LENGTH_PART | HA_BIT_PART))) {
       // We can use memcpy.
       uint length = min((uint)(key_end - key), store_length);
-      if (memcmp(key, table->record[0] + key_part->offset, length)) return 1;
+      if (memcmp(key, table->record[0] + key_part->offset, length)) return true;
     } else {
       // Use the regular comparison function.
-      if (key_part->field->key_cmp(key, key_part->length)) return 1;
+      if (key_part->field->key_cmp(key, key_part->length)) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -407,7 +407,7 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
 
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&table->tmp_set);
-  if (overlapping) return 1;
+  if (overlapping) return true;
 
   /*
     If table handler has primary key as part of the index, check that primary
@@ -416,7 +416,7 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
   if (idx != table->s->primary_key && table->s->primary_key < MAX_KEY &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     return is_key_used(table, table->s->primary_key, fields);
-  return 0;
+  return false;
 }
 
 /**

@@ -398,7 +398,7 @@ void max_decimal(int precision, int frac, decimal_t *to) {
   dec1 *buf = to->buf;
   DBUG_ASSERT(precision && precision >= frac);
 
-  to->sign = 0;
+  to->sign = false;
   if ((intpart = to->intg = (precision - frac))) {
     int firstdigits = intpart % DIG_PER_DEC1;
     if (firstdigits) *buf++ = powers10[firstdigits] - 1; /* get 9 99 999 ... */
@@ -1085,7 +1085,7 @@ static int ull2dec(ulonglong from, decimal_t *to) {
 }
 
 int ulonglong2decimal(ulonglong from, decimal_t *to) {
-  to->sign = 0;
+  to->sign = false;
   return ull2dec(from, to);
 }
 
@@ -1780,7 +1780,7 @@ int decimal_round(const decimal_t *from, decimal_t *to, int scale,
         dec1 *p0 = to->buf + frac0 + 1;
         to->intg = 1;
         to->frac = MY_MAX(scale, 0);
-        to->sign = 0;
+        to->sign = false;
         for (buf1 = to->buf; buf1 < p0; buf1++) *buf1 = 0;
         return E_DEC_OK;
       }

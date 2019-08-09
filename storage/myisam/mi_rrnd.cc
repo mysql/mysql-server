@@ -41,10 +41,10 @@ int mi_rrnd(MI_INFO *info, uchar *buf, my_off_t filepos) {
   bool skip_deleted_blocks;
   DBUG_TRACE;
 
-  skip_deleted_blocks = 0;
+  skip_deleted_blocks = false;
 
   if (filepos == HA_OFFSET_ERROR) {
-    skip_deleted_blocks = 1;
+    skip_deleted_blocks = true;
     if (info->lastpos == HA_OFFSET_ERROR)    /* First read ? */
       filepos = info->s->pack.header_length; /* Read first record */
     else

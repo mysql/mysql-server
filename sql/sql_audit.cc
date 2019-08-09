@@ -1256,7 +1256,7 @@ static bool calc_class_mask(THD *, plugin_ref plugin, void *arg) {
   st_mysql_audit *data = plugin_data<st_mysql_audit *>(plugin);
   if (data)
     add_audit_mask(reinterpret_cast<unsigned long *>(arg), data->class_mask);
-  return 0;
+  return false;
 }
 
 /**

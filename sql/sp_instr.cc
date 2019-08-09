@@ -363,7 +363,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   if (thd->get_protocol()->has_client_capability(CLIENT_SESSION_TRACK) &&
       thd->session_tracker.enabled_any() && thd->session_tracker.changed_any())
-    thd->lex->safe_to_cache_query = 0;
+    thd->lex->safe_to_cache_query = false;
 
   SP_instr_error_handler sp_instr_error_handler;
   thd->push_internal_handler(&sp_instr_error_handler);

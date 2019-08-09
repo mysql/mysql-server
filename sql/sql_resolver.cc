@@ -3475,8 +3475,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
       oto1.add("chosen", false);
     }
     Item_subselect::trans_res res;
-    subq_item->changed = 0;
-    subq_item->fixed = 0;
+    subq_item->changed = false;
+    subq_item->fixed = false;
 
     SELECT_LEX *save_select_lex = thd->lex->current_select();
     thd->lex->set_current_select(subq_item->unit->first_select());
@@ -3488,8 +3488,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
 
     if (res == Item_subselect::RES_ERROR) return true;
 
-    subq_item->changed = 1;
-    subq_item->fixed = 1;
+    subq_item->changed = true;
+    subq_item->fixed = true;
 
     /*
       If the Item has been substituted with another Item (e.g an
@@ -3805,7 +3805,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       return true;
     }
     order->item = &ref_item_array[count - 1];
-    order->in_field_list = 1;
+    order->in_field_list = true;
     order->is_position = true;
     return false;
   }
@@ -3878,7 +3878,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                    NULL);
       order->item = &ref_item_array[counter];
-      order->in_field_list = 1;
+      order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
         order->used_alias = true;
       return false;
@@ -3900,7 +3900,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     }
   }
 
-  order->in_field_list = 0;
+  order->in_field_list = false;
   /*
     The call to order_item->fix_fields() means that here we resolve
     'order_item' to a column from a table in the list 'tables', or to
@@ -4166,7 +4166,7 @@ static bool find_and_change_grouped_expr(
   bool found_match = false;
   for (ORDER *group = select->group_list.first; group; group = group->next) {
     Item *real_item = item->real_item();
-    if (real_item->eq((*group->item)->real_item(), 0)) {
+    if (real_item->eq((*group->item)->real_item(), false)) {
       // If to-be-replaced Item is alias, make replacing Item an alias.
       bool alias_of_expr = (item->type() == Item::FIELD_ITEM ||
                             item->type() == Item::REF_ITEM) &&
@@ -4409,7 +4409,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
   for (ORDER *order = order_list.first; order; order = order->next) {
     Item *order_item = *order->item;
 
-    order->in_field_list = 0;
+    order->in_field_list = false;
     bool ret =
         (!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
                                 (order_item = *order->item)->check_cols(1)));

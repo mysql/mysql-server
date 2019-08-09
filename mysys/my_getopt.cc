@@ -98,14 +98,14 @@ static char space_char[] = " ";
    it by itself
 */
 
-bool my_getopt_print_errors = 1;
+bool my_getopt_print_errors = true;
 
 /*
    This is a flag that can be set in client programs. 1 means that
    my_getopt will skip over options it does not know how to handle.
 */
 
-bool my_getopt_skip_unknown = 0;
+bool my_getopt_skip_unknown = false;
 
 static my_getopt_value getopt_get_addr;
 
@@ -241,12 +241,12 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
                       my_get_one_option get_one_option,
                       const char **command_list, bool ignore_unknown_option) {
   uint argvpos = 0, length;
-  bool end_of_options = 0, must_be_var, set_maximum_value, option_is_loose;
+  bool end_of_options = false, must_be_var, set_maximum_value, option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
   char **arg_sep = NULL, **persist_arg_sep = NULL;
   const struct my_option *optp;
   void *value;
-  bool is_cmdline_arg = 1, is_persist_arg = 1;
+  bool is_cmdline_arg = true, is_persist_arg = true;
   int opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
@@ -263,7 +263,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
   for (pos = *argv, pos_end = pos + *argc; pos != pos_end; pos++) {
     if (my_getopt_is_args_separator(*pos)) {
       arg_sep = pos;
-      is_cmdline_arg = 0;
+      is_cmdline_arg = false;
       break;
     }
   }
@@ -272,7 +272,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     for (pos = arg_sep, pos_end = (*argv + *argc); pos != pos_end; pos++) {
       if (my_getopt_is_ro_persist_args_separator(*pos)) {
         persist_arg_sep = pos;
-        is_persist_arg = 0;
+        is_persist_arg = false;
         break;
       }
     }
@@ -310,7 +310,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     char *cur_arg = *pos;
     opt_found = false;
     if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg))) {
-      is_cmdline_arg = 1;
+      is_cmdline_arg = true;
 
       /* save the separator too if skip unkown options  */
       if (my_getopt_skip_unknown)
@@ -321,7 +321,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     }
     /* skip persist args separator */
     if (!is_persist_arg && my_getopt_is_ro_persist_args_separator(cur_arg)) {
-      is_persist_arg = 1;
+      is_persist_arg = true;
       if (my_getopt_skip_unknown)
         (*argv)[argvpos++] = cur_arg;
       else
@@ -331,9 +331,9 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
     {
       char *argument = 0;
-      must_be_var = 0;
-      set_maximum_value = 0;
-      option_is_loose = 0;
+      must_be_var = false;
+      set_maximum_value = false;
+      option_is_loose = false;
 
       cur_arg++;           /* skip '-' */
       if (*cur_arg == '-') /* check for long option, */
@@ -341,7 +341,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
         if (!*++cur_arg) /* skip the double dash */
         {
           /* '--' means end of options, look no further */
-          end_of_options = 1;
+          end_of_options = true;
           (*argc)--;
           continue;
         }
@@ -378,7 +378,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
             option with a special option prefix
           */
           if (!must_be_var) {
-            if (optend) must_be_var = 1; /* option is followed by an argument */
+            if (optend) must_be_var = true; /* option is followed by an argument */
             for (int i = 0; special_opt_prefix[i]; i++) {
               if (!getopt_compare_strings(special_opt_prefix[i], opt_str,
                                           special_opt_prefix_lengths[i]) &&
@@ -389,7 +389,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
                 */
                 opt_str += special_opt_prefix_lengths[i] + 1;
                 length -= special_opt_prefix_lengths[i] + 1;
-                if (i == OPT_LOOSE) option_is_loose = 1;
+                if (i == OPT_LOOSE) option_is_loose = true;
                 if ((opt_found = findopt(opt_str, length, &optp))) {
                   switch (i) {
                     case OPT_SKIP:
@@ -408,8 +408,8 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
                                    : enabled_my_option;
                       break;
                     case OPT_MAXIMUM:
-                      set_maximum_value = 1;
-                      must_be_var = 1;
+                      set_maximum_value = true;
+                      must_be_var = true;
                       break;
                   }
                   break; /* break from the inner loop, main loop continues */
@@ -486,8 +486,8 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
             if (!optend)
               *((bool *)value) = true;
             else {
-              bool ret = 0;
-              bool error = 0;
+              bool ret = false;
+              bool error = false;
               ret = get_bool_argument(optend, &error);
               if (error) {
                 my_getopt_error_reporter(WARNING_LEVEL,
@@ -725,15 +725,15 @@ static bool get_bool_argument(const char *argument, bool *error) {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
       !my_strcasecmp(&my_charset_latin1, argument, "on") ||
       !my_strcasecmp(&my_charset_latin1, argument, "1"))
-    return 1;
+    return true;
 
   if (!my_strcasecmp(&my_charset_latin1, argument, "false") ||
       !my_strcasecmp(&my_charset_latin1, argument, "off") ||
       !my_strcasecmp(&my_charset_latin1, argument, "0"))
-    return 0;
+    return false;
 
   *error = true;
-  return 0;
+  return false;
 }
 
 /**
@@ -932,9 +932,9 @@ int findopt(const char *optpat, uint length, const struct my_option **opt_res) {
 bool getopt_compare_strings(const char *s, const char *t, uint length) {
   char const *end = s + length;
   for (; s != end; s++, t++) {
-    if ((*s != '-' ? *s : '_') != (*t != '-' ? *t : '_')) return 1;
+    if ((*s != '-' ? *s : '_') != (*t != '-' ? *t : '_')) return true;
   }
-  return 0;
+  return false;
 }
 
 /*

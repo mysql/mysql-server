@@ -307,7 +307,7 @@ struct LOG_INFO {
       : index_file_offset(0),
         index_file_start_offset(0),
         pos(0),
-        fatal(0),
+        fatal(false),
         entry_index(0),
         encrypted_header_size(0) {
     memset(log_file_name, 0, FN_REFLEN);

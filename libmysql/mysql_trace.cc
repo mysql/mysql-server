@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
     bool saved_reconnect_flag = m->reconnect;
 
     TRACE_DATA(m) = NULL;
-    m->reconnect = 0;
+    m->reconnect = false;
     quit_tracing = plugin->trace_event(plugin, GET_DATA(trace_info), m,
                                        GET_STAGE(trace_info), ev, args);
     m->reconnect = saved_reconnect_flag;

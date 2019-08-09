@@ -1049,7 +1049,7 @@ static Item *create_func_string_length(MY_XPATH *xpath, Item **args,
 }
 
 static Item *create_func_round(MY_XPATH *, Item **args, uint) {
-  return new Item_func_round(args[0], new Item_int_0(), 0);
+  return new Item_func_round(args[0], new Item_int_0(), false);
 }
 
 static Item *create_func_last(MY_XPATH *xpath, Item **, uint) {
@@ -2489,7 +2489,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
   tmp_value.set("", 0, collation.collation);
   if (!nodeset_func || !(res = args[0]->val_str(str)) ||
       !parse_xml(res, &pxml) || !(res = nodeset_func->val_str(&tmp_value))) {
-    null_value = 1;
+    null_value = true;
     return 0;
   }
   return res;

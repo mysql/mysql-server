@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -830,11 +830,11 @@ bool my_charset_is_ascii_based(const CHARSET_INFO *cs) {
 */
 bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
   size_t code;
-  if (!cs->tab_to_uni) return 0;
+  if (!cs->tab_to_uni) return false;
   for (code = 0; code < 256; code++) {
-    if (cs->tab_to_uni[code] > 0x7F) return 0;
+    if (cs->tab_to_uni[code] > 0x7F) return false;
   }
-  return 1;
+  return true;
 }
 
 /*
@@ -844,11 +844,11 @@ bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
 */
 bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs) {
   uint i;
-  if (!cs->tab_to_uni) return 1;
+  if (!cs->tab_to_uni) return true;
   for (i = 0; i < 128; i++) {
-    if (cs->tab_to_uni[i] != i) return 0;
+    if (cs->tab_to_uni[i] != i) return false;
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -879,7 +879,7 @@ static size_t my_convert_internal(char *to, size_t to_length,
   my_charset_conv_wc_mb wc_mb = to_cs->cset->wc_mb;
   uint error_count = 0;
 
-  while (1) {
+  while (true) {
     if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
                            from_end)) > 0)
       from += cnvres;

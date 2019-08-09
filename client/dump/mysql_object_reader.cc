@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ bool Mysql_object_reader::Rows_fetching_context::is_all_rows_processed() {
 void Mysql_object_reader::read_table_rows_task(
     Table_rows_dump_task *table_rows_dump_task,
     Item_processing_data *item_to_process) {
-  bool has_generated_columns = 0;
+  bool has_generated_columns = false;
   Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
 
   if (!runner) return;
@@ -105,7 +105,7 @@ void Mysql_object_reader::read_table_rows_task(
     const Mysql::Tools::Base::Mysql_query_runner::Row &column_data = **it;
     if (column_data[1] == "STORED GENERATED" ||
         column_data[1] == "VIRTUAL GENERATED")
-      has_generated_columns = 1;
+      has_generated_columns = true;
     else
       column_names += this->quote_name(column_data[0]) + ",";
   }

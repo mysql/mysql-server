@@ -136,7 +136,7 @@ bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
   if (*table == nullptr) return true;
 
   (*table)->select_lex = lex->current_select();
-  (*table)->cacheable_table = 1;
+  (*table)->cacheable_table = true;
 
   return false;
 }

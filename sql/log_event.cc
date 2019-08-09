@@ -510,7 +510,7 @@ static inline void pretty_print_identifier(IO_CACHE *cache, const char *str,
 #if defined(MYSQL_SERVER)
 
 static void clear_all_errors(THD *thd, Relay_log_info *rli) {
-  thd->is_slave_error = 0;
+  thd->is_slave_error = false;
   thd->clear_error();
   rli->clear_error();
   if (rli->workers_array_initialized) {
@@ -821,7 +821,7 @@ static void print_set_option(IO_CACHE *file, uint32 bits_changed, uint32 option,
   if (bits_changed & option) {
     if (*need_comma) my_b_printf(file, ", ");
     my_b_printf(file, "%s=%d", name, static_cast<bool>(flags & option));
-    *need_comma = 1;
+    *need_comma = true;
   }
 }
 #endif
@@ -1221,7 +1221,7 @@ bool Log_event::write_footer(Basic_ostream *ostream) {
     int4store(buf, crc);
     return ostream->write((uchar *)buf, sizeof(buf));
   }
-  return 0;
+  return false;
 }
 
 uint32 Log_event::write_header_to_memory(uchar *buf) {
@@ -2653,7 +2653,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         }
 
         if (schedule_next_event(this, rli)) {
-          rli->abort_slave = 1;
+          rli->abort_slave = true;
           if (is_gtid_event(this)) {
             rli->clear_processing_trx();
           }
@@ -2675,7 +2675,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       rli->curr_group_seen_begin = true;
       rli->mts_end_group_sets_max_dbs = true;
       if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli)) {
-        rli->abort_slave = 1;
+        rli->abort_slave = true;
         return nullptr;
       }
 
@@ -2684,7 +2684,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       return ret_worker;
     }
     if (schedule_next_event(this, rli)) {
-      rli->abort_slave = 1;
+      rli->abort_slave = true;
       return nullptr;
     }
   }
@@ -3320,7 +3320,7 @@ bool Query_log_event::write(Basic_ostream *ostream) {
   uchar *start, *start_of_status;
   size_t event_length;
 
-  if (!query) return 1;  // Something wrong with event
+  if (!query) return true;  // Something wrong with event
 
   /*
     We want to store the thread id:
@@ -3598,8 +3598,8 @@ bool Query_log_event::write(Basic_ostream *ostream) {
           wrapper_my_b_safe_write(ostream, pointer_cast<const uchar *>(query),
                                   q_len) ||
           write_footer(ostream))
-             ? 1
-             : 0;
+             ? true
+             : false;
 }
 
 /**
@@ -4140,7 +4140,7 @@ void Query_log_event::print_query_header(
                 short_form ? 999999999 : (ulong)thread_id,
                 print_event_info->delimiter);
     print_event_info->thread_id = thread_id;
-    print_event_info->thread_id_printed = 1;
+    print_event_info->thread_id_printed = true;
   }
 
   /*
@@ -4156,13 +4156,13 @@ void Query_log_event::print_query_header(
       tmp = (print_event_info->flags2) ^ flags2;
     else /* that's the first Query event we read */
     {
-      print_event_info->flags2_inited = 1;
+      print_event_info->flags2_inited = true;
       tmp = ~((uint32)0); /* all bits have changed */
     }
 
     if (unlikely(tmp)) /* some bits have changed */
     {
-      bool need_comma = 0;
+      bool need_comma = false;
       my_b_printf(file, "SET ");
       print_set_option(file, tmp, OPTION_NO_FOREIGN_KEY_CHECKS, ~flags2,
                        "@@session.foreign_key_checks", &need_comma);
@@ -4204,7 +4204,7 @@ void Query_log_event::print_query_header(
     my_b_printf(file, "SET @@session.sql_mode=%lu%s%s\n", (ulong)sql_mode, mask,
                 print_event_info->delimiter);
     print_event_info->sql_mode = sql_mode;
-    print_event_info->sql_mode_inited = 1;
+    print_event_info->sql_mode_inited = true;
   }
   if (print_event_info->auto_increment_increment != auto_increment_increment ||
       print_event_info->auto_increment_offset != auto_increment_offset) {
@@ -4238,7 +4238,7 @@ void Query_log_event::print_query_header(
                 uint2korr(charset_p), uint2korr(charset + 2),
                 uint2korr(charset + 4), print_event_info->delimiter);
     memcpy(print_event_info->charset, charset, 6);
-    print_event_info->charset_inited = 1;
+    print_event_info->charset_inited = true;
   }
   if (time_zone_len) {
     if (memcmp(print_event_info->time_zone_str, time_zone_str,
@@ -4437,7 +4437,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   thd->variables.auto_increment_offset = auto_increment_offset;
   if (explicit_defaults_ts != TERNARY_UNSET)
     thd->variables.explicit_defaults_for_timestamp =
-        explicit_defaults_ts == TERNARY_OFF ? 0 : 1;
+        explicit_defaults_ts == TERNARY_OFF ? false : true;
 
   /*
     todo: such cleanup should not be specific to Query event and therefore
@@ -4778,7 +4778,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER,
                     ER_THD(thd, ER_ERROR_ON_MASTER), expected_error,
                     thd->query().str);
-        thd->is_slave_error = 1;
+        thd->is_slave_error = true;
       }
       goto end;
     }
@@ -4863,7 +4863,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             ER_THD_NONCONST(thd, expected_error), expected_error,
             (actual_error ? thd->get_stmt_da()->message_text() : "no error"),
             actual_error, print_slave_db_safe(db), query_arg);
-        thd->is_slave_error = 1;
+        thd->is_slave_error = true;
       } else {
         rli->report(INFORMATION_LEVEL, actual_error,
                     "The actual error and expected error on slave are"
@@ -4914,7 +4914,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                   : "unexpected success or fatal error"),
                     print_slave_db_safe(thd->db().str), query_arg);
       }
-      thd->is_slave_error = 1;
+      thd->is_slave_error = true;
     }
 
     /*
@@ -4992,7 +4992,7 @@ end:
   */
   thd->first_successful_insert_id_in_prev_stmt_for_binlog = 0;
   thd->first_successful_insert_id_in_prev_stmt = 0;
-  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = 0;
+  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
   free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
   return thd->is_slave_error;
 }
@@ -5334,7 +5334,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli) {
                 "or ROLLBACK in relay log). A probable cause is that "
                 "the master died while writing the transaction to "
                 "its binary log, thus rolled back too.");
-    const_cast<Relay_log_info *>(rli)->cleanup_context(thd, 1);
+    const_cast<Relay_log_info *>(rli)->cleanup_context(thd, true);
   }
 
   /* If this event comes from ourself, there is no cleaning task to perform. */
@@ -6298,7 +6298,7 @@ bool XA_prepare_log_event::do_commit(THD *thd_arg) {
     thd_arg->rli_slave->report(ERROR_LEVEL, error,
                                "Error executing XA PREPARE event: '%s'",
                                thd_arg->get_stmt_da()->message_text());
-    thd_arg->is_slave_error = 1;
+    thd_arg->is_slave_error = true;
     return true;
   } else if (state == GTID_STATEMENT_SKIP)
     return false;
@@ -6469,7 +6469,7 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
       case ROW_RESULT:
       default:
         DBUG_ASSERT(false);
-        return 0;
+        return false;
     }
     int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
     buf1_length = 10;
@@ -8639,7 +8639,7 @@ int Rows_log_event::open_record_scan() {
 
     DBUG_DUMP("key data", m_key, m_key_info->key_length);
   } else {
-    if ((error = table->file->ha_rnd_init(1))) {
+    if ((error = table->file->ha_rnd_init(true))) {
       DBUG_PRINT("info", ("error initializing table scan"
                           " (ha_rnd_init returns %d)",
                           error));
@@ -9194,7 +9194,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli) {
 
     int restart_count = 0;  // Number of times scanning has restarted from top
 
-    if ((error = m_table->file->ha_rnd_init(1))) {
+    if ((error = m_table->file->ha_rnd_init(true))) {
       DBUG_PRINT("info", ("error initializing table scan"
                           " (ha_rnd_init returns %d)",
                           error));
@@ -9210,7 +9210,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli) {
         case HA_ERR_END_OF_FILE:
           // restart scan from top
           if (++restart_count < 2) {
-            if ((error = m_table->file->ha_rnd_init(1))) goto end;
+            if ((error = m_table->file->ha_rnd_init(true))) goto end;
             goto restart_ha_rnd_next;
           }
           break;
@@ -9300,7 +9300,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       DBUG_ASSERT(mysql_error != 0);
       rli->report(ERROR_LEVEL, mysql_error, "Error executing row event: '%s'",
                   thd->get_stmt_da()->message_text());
-      thd->is_slave_error = 1;
+      thd->is_slave_error = true;
       return -1;
     } else if (state == GTID_STATEMENT_SKIP)
       goto end;
@@ -9360,7 +9360,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
           rli->report(ERROR_LEVEL, actual_error,
                       "Error executing row event: '%s'",
                       thd->get_stmt_da()->message_text());
-          thd->is_slave_error = 1;
+          thd->is_slave_error = true;
         }
       }
       return 1;
@@ -9483,7 +9483,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       if (thd->slave_thread) {
         rli->report(ERROR_LEVEL, applier_error,
                     ER_THD_NONCONST(thd, applier_error), buf);
-        thd->is_slave_error = 1;
+        thd->is_slave_error = true;
         const_cast<Relay_log_info *>(rli)->slave_close_thread_tables(thd);
       } else {
         /*
@@ -9840,7 +9840,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       /Sven
     */
     thd->reset_current_stmt_binlog_format_row();
-    thd->is_slave_error = 1;
+    thd->is_slave_error = true;
     return error;
   }
 
@@ -9964,7 +9964,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD *thd) {
     */
     thd->reset_current_stmt_binlog_format_row();
 
-    const_cast<Relay_log_info *>(rli)->cleanup_context(thd, 0);
+    const_cast<Relay_log_info *>(rli)->cleanup_context(thd, false);
 
     /*
       Clean sql_command value
@@ -10505,7 +10505,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
 
   table_list->table_id = DBUG_EVALUATE_IF(
       "inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());
-  table_list->updating = 1;
+  table_list->updating = true;
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %llu", table_list->table_name,
                        table_list->table_id.id()));
@@ -12248,7 +12248,7 @@ int Incident_log_event::do_apply_event(Relay_log_info const *rli) {
     DBUG_ASSERT(error != 0);
     rli->report(ERROR_LEVEL, error, "Error executing incident event: '%s'",
                 thd->get_stmt_da()->message_text());
-    thd->is_slave_error = 1;
+    thd->is_slave_error = true;
     return -1;
   } else if (state == GTID_STATEMENT_SKIP) {
     /*
@@ -12784,7 +12784,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
                   "or ROLLBACK in relay log). A probable cause is partial "
                   "transaction left on relay log because of restarting IO "
                   "thread with auto-positioning protocol.");
-      const_cast<Relay_log_info *>(rli)->cleanup_context(thd, 1);
+      const_cast<Relay_log_info *>(rli)->cleanup_context(thd, true);
     }
     gtid_state->update_on_rollback(thd);
   }
@@ -13372,7 +13372,7 @@ int View_change_log_event::do_apply_event(Relay_log_info const *rli) {
     DBUG_ASSERT(error != 0);
     rli->report(ERROR_LEVEL, error, "Error executing View Change event: '%s'",
                 thd->get_stmt_da()->message_text());
-    thd->is_slave_error = 1;
+    thd->is_slave_error = true;
     return -1;
   }
 
@@ -13475,12 +13475,12 @@ void View_change_log_event::set_certification_info(
   they will always be printed for the first event.
 */
 PRINT_EVENT_INFO::PRINT_EVENT_INFO()
-    : flags2_inited(0),
-      sql_mode_inited(0),
+    : flags2_inited(false),
+      sql_mode_inited(false),
       sql_mode(0),
       auto_increment_increment(0),
       auto_increment_offset(0),
-      charset_inited(0),
+      charset_inited(false),
       lc_time_names_number(~0),
       charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
       default_collation_for_utf8mb4_number(ILLEGAL_CHARSET_INFO_NUMBER),

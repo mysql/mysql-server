@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ bool Abstract_program::callback_option_parsed(int, const struct my_option *opt,
   if (option != NULL) {
     option->call_callbacks(argument);
   }
-  return 0;
+  return false;
 }
 
 const string Abstract_program::get_name() { return this->m_name; }

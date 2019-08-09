@@ -68,9 +68,9 @@ Query_event::Query_event(
       error_code(errcode),
       status_vars_len(0),
       q_len(query_length),
-      flags2_inited(1),
-      sql_mode_inited(1),
-      charset_inited(1),
+      flags2_inited(true),
+      sql_mode_inited(true),
+      charset_inited(true),
       sql_mode(sql_mode_arg),
       auto_increment_increment(
           static_cast<uint16_t>(auto_increment_increment_arg)),
@@ -120,9 +120,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       db_len(0),
       status_vars_len(0),
       q_len(0),
-      flags2_inited(0),
-      sql_mode_inited(0),
-      charset_inited(0),
+      flags2_inited(false),
+      sql_mode_inited(false),
+      charset_inited(false),
       auto_increment_increment(1),
       auto_increment_offset(1),
       time_zone_len(0),
@@ -185,11 +185,11 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
     READER_TRY_SET(variable_type, read<uint8_t>);
     switch (variable_type) {
       case Q_FLAGS2_CODE:
-        flags2_inited = 1;
+        flags2_inited = true;
         READER_TRY_SET(flags2, read_and_letoh<uint32_t>);
         break;
       case Q_SQL_MODE_CODE:
-        sql_mode_inited = 1;
+        sql_mode_inited = true;
         READER_TRY_SET(sql_mode, read_and_letoh<uint64_t>);
         break;
       case Q_CATALOG_NZ_CODE:
@@ -204,7 +204,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         READER_TRY_SET(auto_increment_offset, read_and_letoh<uint16_t>);
         break;
       case Q_CHARSET_CODE:
-        charset_inited = 1;
+        charset_inited = true;
         READER_TRY_CALL(memcpy<char *>, charset, 6);
         break;
       case Q_TIME_ZONE_CODE:

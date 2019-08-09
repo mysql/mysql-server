@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql, const char *binlog_filename,
     LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_REPLY_WITH_BINLOG_INFO, kWho,
            binlog_filename, (ulong)binlog_filepos);
 
-  net_clear(net, 0);
+  net_clear(net, false);
   /* Send the reply. */
   reply_res =
       my_net_write(net, reply_buffer, name_len + REPLY_BINLOG_NAME_OFFSET);

@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -36525,7 +36525,7 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci = {
     0,                    /* min_sort_char */
     0xFEFE,               /* max_sort_char */
     ' ',                  /* pad_char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
@@ -36560,7 +36560,7 @@ CHARSET_INFO my_charset_eucjpms_bin = {
     0,                    /* min_sort_char */
     0xFEFE,               /* max_sort_char */
     ' ',                  /* pad_char      */
-    0,                    /* escape_with_backslash_is_dangerous */
+    false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_handler,
     &my_collation_mb_bin_handler,

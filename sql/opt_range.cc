@@ -828,20 +828,20 @@ class SEL_ARG {
       min_value = arg->min_value;
       min_flag = arg->min_flag;
       if ((max_flag & NO_MAX_RANGE) && (min_flag & NO_MIN_RANGE))
-        return 1;  // Full range
+        return true;  // Full range
     }
     maybe_flag |= arg->maybe_flag;
-    return 0;
+    return false;
   }
   bool copy_max(SEL_ARG *arg) {  // this->min <= x <= min(this->max, arg->max)
     if (cmp_max_to_max(arg) <= 0) {
       max_value = arg->max_value;
       max_flag = arg->max_flag;
       if ((max_flag & NO_MAX_RANGE) && (min_flag & NO_MIN_RANGE))
-        return 1;  // Full range
+        return true;  // Full range
     }
     maybe_flag |= arg->maybe_flag;
-    return 0;
+    return false;
   }
 
   void copy_min_to_min(SEL_ARG *arg) {
@@ -1782,17 +1782,17 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
     : ranges(key_memory_Quick_ranges),
-      free_file(0),
+      free_file(false),
       cur_range(NULL),
       last_range(0),
       mrr_flags(0),
       mrr_buf_size(0),
       mrr_buf_desc(NULL),
-      dont_free(0) {
+      dont_free(false) {
   my_bitmap_map *bitmap;
   DBUG_TRACE;
 
-  in_ror_merged_scan = 0;
+  in_ror_merged_scan = false;
   index = key_nr;
   head = table;
   key_part_info = head->key_info[index].key_part;
@@ -1816,7 +1816,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                             head->s->column_bitmap_size,
                                             MYF(MY_WME)))) {
     column_bitmap.bitmap = 0;
-    *create_error = 1;
+    *create_error = true;
   } else
     bitmap_init(&column_bitmap, bitmap, head->s->fields);
 }
@@ -1888,7 +1888,7 @@ bool QUICK_INDEX_MERGE_SELECT::push_quick_back(
     pk_quick_select = quick_sel_range;
   else
     return quick_selects.push_back(quick_sel_range);
-  return 0;
+  return false;
 }
 
 QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
@@ -1980,7 +1980,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
   MY_BITMAP *const save_write_set = head->write_set;
   DBUG_TRACE;
 
-  in_ror_merged_scan = 1;
+  in_ror_merged_scan = true;
   mrr_flags |= HA_MRR_SORTED;
   if (reuse_handler) {
     DBUG_PRINT("info", ("Reusing handler %p", file));
@@ -8309,13 +8309,13 @@ static SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1,
 static bool get_range(SEL_ARG **e1, SEL_ARG **e2, const SEL_ROOT *root1) {
   (*e1) = root1->find_range(*e2);  // first e1->min < e2->min
   if ((*e1)->cmp_max_to_min(*e2) < 0) {
-    if (!((*e1) = (*e1)->next)) return 1;
+    if (!((*e1) = (*e1)->next)) return true;
     if ((*e1)->cmp_min_to_max(*e2) > 0) {
       (*e2) = (*e2)->next;
-      return 1;
+      return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -9002,22 +9002,22 @@ static bool eq_tree(const SEL_ROOT *a, const SEL_ROOT *b) {
 }
 
 static bool eq_tree(const SEL_ARG *a, const SEL_ARG *b) {
-  if (a == b) return 1;
-  if (!a || !b || !a->is_same(b)) return 0;
+  if (a == b) return true;
+  if (!a || !b || !a->is_same(b)) return false;
   if (a->left != null_element && b->left != null_element) {
-    if (!eq_tree(a->left, b->left)) return 0;
+    if (!eq_tree(a->left, b->left)) return false;
   } else if (a->left != null_element || b->left != null_element)
-    return 0;
+    return false;
   if (a->right != null_element && b->right != null_element) {
-    if (!eq_tree(a->right, b->right)) return 0;
+    if (!eq_tree(a->right, b->right)) return false;
   } else if (a->right != null_element || b->right != null_element)
-    return 0;
+    return false;
   if (a->next_key_part != b->next_key_part) {  // Sub range
     if (!a->next_key_part != !b->next_key_part ||
         !eq_tree(a->next_key_part, b->next_key_part))
-      return 0;
+      return false;
   }
-  return 1;
+  return true;
 }
 
 void SEL_ROOT::insert(SEL_ARG *key) {
@@ -10003,7 +10003,7 @@ static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
 
   bool pk_is_clustered = file->primary_key_is_clustered();
   if (index_only &&
-      (file->index_flags(keynr, param->max_key_part, 1) & HA_KEYREAD_ONLY) &&
+      (file->index_flags(keynr, param->max_key_part, true) & HA_KEYREAD_ONLY) &&
       !(pk_is_clustered && keynr == param->table->s->primary_key))
     *mrr_flags |= HA_MRR_INDEX_ONLY;
 
@@ -10250,7 +10250,7 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
   if (key_tree->left != null_element) {
     if (get_quick_keys(param, quick, key, key_tree->left, min_key, min_key_flag,
                        max_key, max_key_flag, desc_flag))
-      return 1;
+      return true;
   }
   uchar *tmp_min_key = min_key, *tmp_max_key = max_key;
   const bool asc = key_tree->is_ascending;
@@ -10270,7 +10270,7 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
                          tmp_min_key, min_key_flag | key_tree->get_min_flag(),
                          tmp_max_key, max_key_flag | key_tree->get_max_flag(),
                          (desc_flag ? desc_flag : &flag)))
-        return 1;
+        return true;
       goto end;  // Ugly, but efficient
     }
     {
@@ -10342,18 +10342,18 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
                         param->max_key, (uint)(tmp_max_key - param->max_key),
                         max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
                         key_tree->rkey_func_flag)))
-    return 1;  // out of memory
+    return true;  // out of memory
 
   set_if_bigger(quick->max_used_key_length, range->min_length);
   set_if_bigger(quick->max_used_key_length, range->max_length);
   set_if_bigger(quick->used_key_parts, (uint)key_tree->part + 1);
-  if (quick->ranges.push_back(range)) return 1;
+  if (quick->ranges.push_back(range)) return true;
 
 end:
   if (key_tree->right != null_element)
     return get_quick_keys(param, quick, key, key_tree->right, min_key,
                           min_key_flag, max_key, max_key_flag, desc_flag);
-  return 0;
+  return false;
 }
 
 /*
@@ -10368,7 +10368,7 @@ bool QUICK_RANGE_SELECT::unique_key_range() {
       return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
     }
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -10389,9 +10389,9 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
                              uint length) {
   for (const uchar *end = key + length; key < end;
        key += key_part++->store_length) {
-    if (key_part->null_bit && *key) return 1;
+    if (key_part->null_bit && *key) return true;
   }
-  return 0;
+  return false;
 }
 
 bool QUICK_SELECT_I::is_keys_used(const MY_BITMAP *fields) {
@@ -10402,27 +10402,27 @@ bool QUICK_INDEX_MERGE_SELECT::is_keys_used(const MY_BITMAP *fields) {
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   while ((quick = it++)) {
-    if (is_key_used(head, quick->index, fields)) return 1;
+    if (is_key_used(head, quick->index, fields)) return true;
   }
-  return 0;
+  return false;
 }
 
 bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(const MY_BITMAP *fields) {
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   while ((quick = it++)) {
-    if (is_key_used(head, quick->index, fields)) return 1;
+    if (is_key_used(head, quick->index, fields)) return true;
   }
-  return 0;
+  return false;
 }
 
 bool QUICK_ROR_UNION_SELECT::is_keys_used(const MY_BITMAP *fields) {
   QUICK_SELECT_I *quick;
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick = it++)) {
-    if (quick->is_keys_used(fields)) return 1;
+    if (quick->is_keys_used(fields)) return true;
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -11142,7 +11142,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
       r->flag &= ~EQ_RANGE;
   }
   rev_it.rewind();
-  q->dont_free = 1;  // Don't free shared mem
+  q->dont_free = true;  // Don't free shared mem
 }
 
 int QUICK_SELECT_DESC::get_next() {
@@ -11311,8 +11311,8 @@ bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg) {
   return ((range_arg->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
           !(range_arg->flag & EQ_RANGE) ||
           head->key_info[index].key_length != range_arg->max_length)
-             ? 1
-             : 0;
+             ? true
+             : false;
 }
 
 void QUICK_RANGE_SELECT::add_info_string(String *str) {
@@ -11736,7 +11736,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
       {
         if (!min_max_arg_item)
           min_max_arg_item = (Item_field *)expr;
-        else if (!min_max_arg_item->eq(expr, 1))
+        else if (!min_max_arg_item->eq(expr, true))
           return NULL;
       } else
         return NULL;
@@ -12286,7 +12286,7 @@ static bool check_group_min_max_predicates(Item *cond,
     cur_arg = arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM) {
-      if (min_max_arg_item->eq(cur_arg, 1)) {
+      if (min_max_arg_item->eq(cur_arg, true)) {
         /*
           If pred references the MIN/MAX argument, check whether pred is a range
           condition that compares the MIN/MAX argument with a constant.
@@ -12363,7 +12363,7 @@ static inline void util_min_max_inspect_item(Item *item_field,
                                              bool *min_max_arg_present,
                                              bool *non_min_max_arg_present) {
   if (item_field->type() == Item::FIELD_ITEM) {
-    if (min_max_arg_item->eq(item_field, 1))
+    if (min_max_arg_item->eq(item_field, true))
       *min_max_arg_present = true;
     else
       *non_min_max_arg_present = true;
@@ -15087,7 +15087,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
 
   field->set_key_image(key, key_part->length);
   if (field->type() == MYSQL_TYPE_BIT)
-    (void)field->val_int_as_str(&tmp, 1);  // may change tmp's charset
+    (void)field->val_int_as_str(&tmp, true);  // may change tmp's charset
   else
     field->val_str(&tmp);  // may change tmp's charset
   out->append(tmp.ptr(), tmp.length(), tmp.charset());
@@ -15424,7 +15424,7 @@ static void print_multiple_key_values(KEY_PART *key_part, const uchar *key,
     }
     field->set_key_image(key, key_part->length);
     if (field->type() == MYSQL_TYPE_BIT)
-      (void)field->val_int_as_str(&tmp, 1);
+      (void)field->val_int_as_str(&tmp, true);
     else
       field->val_str(&tmp);
     if (fwrite(tmp.ptr(), sizeof(char), tmp.length(), DBUG_FILE) !=

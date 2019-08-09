@@ -92,7 +92,7 @@ bool SortFileIndirectIterator::Init() {
   // to reset it here.
   table()->file->ha_index_or_rnd_end();
 
-  int error = table()->file->ha_rnd_init(0);
+  int error = table()->file->ha_rnd_init(false);
   if (error) {
     PrintError(error);
     return true;
@@ -414,7 +414,7 @@ bool SortBufferIndirectIterator::Init() {
   // to reset it here.
   table()->file->ha_index_or_rnd_end();
 
-  int error = table()->file->ha_rnd_init(0);
+  int error = table()->file->ha_rnd_init(false);
   if (error) {
     PrintError(error);
     return true;

@@ -981,7 +981,7 @@ bool Sql_cmd_select::precheck(THD *thd) {
   if (tables)
     res = check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false);
   else
-    res = check_access(thd, SELECT_ACL, any_db, nullptr, nullptr, 0, 0);
+    res = check_access(thd, SELECT_ACL, any_db, nullptr, nullptr, false, false);
 
   return res || check_locking_clause_access(thd, Global_tables_list(tables));
 }
@@ -1137,7 +1137,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
         thd, sjtbl->rowid_len + sjtbl->null_bytes, sjtbl);
     if (sjtbl->tmp_table == nullptr) return nullptr;
     if (sjtbl->tmp_table->hash_field)
-      sjtbl->tmp_table->file->ha_index_init(0, 0);
+      sjtbl->tmp_table->file->ha_index_init(0, false);
     join->sj_tmp_tables.push_back(sjtbl->tmp_table);
   } else {
     /*
@@ -2004,7 +2004,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
     length = 0;
     keyparts = 1;
-    ifm->get_master()->join_key = 1;
+    ifm->get_master()->join_key = true;
   } else /* not ftkey */
     calc_length_and_keyparts(keyuse, j, key, used_tables, chosen_keyuses,
                              &length, &keyparts, NULL, NULL);
@@ -2021,7 +2021,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     return true;
   }
   j->ref().key_buff2 = j->ref().key_buff + ALIGN_SIZE(length);
-  j->ref().key_err = 1;
+  j->ref().key_err = true;
   j->ref().null_rejecting = 0;
   j->ref().use_count = 0;
   j->ref().disable_cache = false;
@@ -2122,7 +2122,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   } /* not ftkey */
   if (j->type() == JT_FT) return false;
   if (j->type() == JT_CONST)
-    j->table()->const_table = 1;
+    j->table()->const_table = true;
   else if (((actual_key_flags(keyinfo) & HA_NOSAME) == 0) ||
            ((actual_key_flags(keyinfo) & HA_NULL_PART_KEY) &&
             !null_rejecting_key) ||
@@ -2515,7 +2515,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
     7. The index on virtual generated columns is not supported for ICP.
   */
   if (condition() &&
-      tbl->file->index_flags(keyno, 0, 1) & HA_DO_INDEX_COND_PUSHDOWN &&
+      tbl->file->index_flags(keyno, 0, true) & HA_DO_INDEX_COND_PUSHDOWN &&
       hint_key_state(join_->thd, table_ref, keyno, ICP_HINT_ENUM,
                      OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       join_->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
@@ -3412,7 +3412,7 @@ static bool equal(Item *i1, Item *i2, Field *f2) {
   DBUG_ASSERT((i2 == NULL) ^ (f2 == NULL));
 
   if (i2 != NULL)
-    return i1->eq(i2, 1);
+    return i1->eq(i2, true);
   else if (i1->type() == Item::FIELD_ITEM)
     return f2->eq(((Item_field *)i1)->field);
   else
@@ -3451,34 +3451,34 @@ bool const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
           const_expression_in_where(item, comp_item, comp_field, const_item);
       if (res)  // Is a const value
       {
-        if (and_level) return 1;
+        if (and_level) return true;
       } else if (!and_level)
-        return 0;
+        return false;
     }
-    return and_level ? 0 : 1;
+    return and_level ? false : true;
   } else if (cond->eq_cmp_result() !=
              Item::COND_OK) {  // boolean compare function
     Item_func *func = (Item_func *)cond;
     if (func->functype() != Item_func::EQUAL_FUNC &&
         func->functype() != Item_func::EQ_FUNC)
-      return 0;
+      return false;
     Item *left_item = ((Item_func *)cond)->arguments()[0];
     Item *right_item = ((Item_func *)cond)->arguments()[1];
     if (equal(left_item, comp_item, comp_field)) {
       if (test_if_equality_guarantees_uniqueness(left_item, right_item)) {
-        if (*const_item) return right_item->eq(*const_item, 1);
+        if (*const_item) return right_item->eq(*const_item, true);
         *const_item = right_item;
-        return 1;
+        return true;
       }
     } else if (equal(right_item, comp_item, comp_field)) {
       if (test_if_equality_guarantees_uniqueness(right_item, left_item)) {
-        if (*const_item) return left_item->eq(*const_item, 1);
+        if (*const_item) return left_item->eq(*const_item, true);
         *const_item = left_item;
-        return 1;
+        return true;
       }
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -3589,17 +3589,17 @@ bool test_if_subpart(ORDER *a, ORDER *b) {
   ORDER *first = a;
   ORDER *second = b;
   for (; first && second; first = first->next, second = second->next) {
-    if ((*first->item)->eq(*second->item, 1))
+    if ((*first->item)->eq(*second->item, true))
       continue;
     else
-      return 0;
+      return false;
   }
   // If the second argument is not subpart of the first return false
-  if (second) return 0;
+  if (second) return false;
   // Else assign the direction of the second argument to the first
   else {
     for (; a && b; a = a->next, b = b->next) a->direction = b->direction;
-    return 1;
+    return true;
   }
 }
 
@@ -3815,7 +3815,7 @@ bool JOIN::rollup_process_const_fields() {
     while ((item = it++)) {
       if (*group_tmp->item == item) {
         Item *new_item = new Item_func_rollup_const(item);
-        if (!new_item) return 1;
+        if (!new_item) return true;
         if (new_item->fix_fields(thd, (Item **)0)) return true;
         thd->change_item_tree(it.ref(), new_item);
         for (ORDER *tmp = group_tmp; tmp; tmp = tmp->next) {
@@ -3826,7 +3826,7 @@ bool JOIN::rollup_process_const_fields() {
     }
     it.rewind();
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -3875,7 +3875,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   for (level = 0; level < send_group_parts; level++) {
     uint i;
     uint pos = send_group_parts - level - 1;
-    bool real_fields = 0;
+    bool real_fields = false;
     Item *item;
     List_iterator<Item> new_it_fields_list(rollup.fields_list[pos]);
     List_iterator<Item> new_it_all_fields(rollup.all_fields[pos]);
@@ -3896,7 +3896,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     it.rewind();
     while ((item = it++)) {
       if (item == first_field) {
-        real_fields = 1;  // End of hidden fields
+        real_fields = true;  // End of hidden fields
         ref_array_ix = 0;
       }
 
@@ -3935,8 +3935,8 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
             */
             Item_null_result *null_item = new (thd->mem_root)
                 Item_null_result(item->data_type(), item->result_type());
-            if (!null_item) return 1;
-            item->maybe_null = 1;  // Value will be null sometimes
+            if (!null_item) return true;
+            item->maybe_null = true;  // Value will be null sometimes
             null_item->result_field = item->get_tmp_table_field();
             item = null_item;
             break;
@@ -3957,7 +3957,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     }
   }
   sum_funcs_end[0] = *func;  // Point to last function
-  return 0;
+  return false;
 }
 
 /**
@@ -4048,7 +4048,7 @@ bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
       }
     }
   }
-  return 0;
+  return false;
 }
 
 /**

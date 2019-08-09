@@ -67,8 +67,8 @@ bool merge_many_buff(THD *thd, Merge_param *param, Sort_buffer sort_buffer,
   IO_CACHE *to_file = &t_file2;
 
   while (num_chunks > MERGEBUFF2) {
-    if (reinit_io_cache(from_file, READ_CACHE, 0L, 0, 0)) goto cleanup;
-    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, 0, 0)) goto cleanup;
+    if (reinit_io_cache(from_file, READ_CACHE, 0L, false, false)) goto cleanup;
+    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false)) goto cleanup;
     Merge_chunk *last_chunk = chunk_array.begin();
     uint i;
     for (i = 0; i < num_chunks - MERGEBUFF * 3U / 2U; i += MERGEBUFF) {

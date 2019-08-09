@@ -138,7 +138,7 @@ static size_t my_lengthsp_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 extern "C" {
 static int my_strnncollsp_binary(const CHARSET_INFO *cs, const uchar *s,
                                  size_t slen, const uchar *t, size_t tlen) {
-  return my_strnncoll_binary(cs, s, slen, t, tlen, 0);
+  return my_strnncoll_binary(cs, s, slen, t, tlen, false);
 }
 
 static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
@@ -536,8 +536,8 @@ CHARSET_INFO my_charset_bin = {
     0,                                              /* min_sort_char */
     255,                                            /* max_sort_char */
     0,                                              /* pad char      */
-    0, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    false, /* escape_with_backslash_is_dangerous */
+    1,     /* levels_for_compare */
     &my_charset_handler,
     &my_collation_binary_handler,
     NO_PAD};

@@ -168,7 +168,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   }
 
   BOOL_CHECK_ARG(bool) bool_arg;
-  bool_arg.def_val = 1;
+  bool_arg.def_val = true;
 
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "bool_sys_var", PLUGIN_VAR_BOOL,
