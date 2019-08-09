@@ -921,7 +921,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     /*
      Chose what is the strategy for recovery.
      Note that even if clone is chosen, if an error occurs on its launch,
-     distributed recovery is again selected as the default choice.
+     incremental recovery is again selected as the default choice.
     */
     Remote_clone_handler::enum_clone_check_result recovery_strategy =
         Remote_clone_handler::DO_RECOVERY;
@@ -938,14 +938,14 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
        of allowed donors.
        When terminated, the clone process will restart the server.
        The whole start join process is still done as an error on cloning can
-       mean we fall back to distributed recovery.
+       mean we fall back to incremental recovery.
       */
       if (remote_clone_handler->clone_server(
               new_view.get_group_id().get_group_id(),
               new_view.get_view_id().get_representation())) {
         /* purecov: begin inspected */
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_FALLBACK,
-                     "Distributed Recovery.");
+                     "Incremental Recovery.");
         recovery_strategy = Remote_clone_handler::DO_RECOVERY;
         /* purecov: end */
       }
@@ -953,7 +953,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
 
     if (Remote_clone_handler::DO_RECOVERY == recovery_strategy) {
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
-                   "Distributed recovery from a group donor");
+                   "Incremental recovery from a group donor");
       /*
        Launch the recovery thread so we can receive missing data and the
        certification information needed to apply the transactions queued after
