@@ -441,9 +441,87 @@ CREATE TABLE t2 (fk1 INT, fk2 INT, fk3 INT, fk4 INT,
                  FOREIGN KEY d (fk3) REFERENCES t1 (id),
                  CONSTRAINT e FOREIGN KEY f (fk4) REFERENCES t1 (id)
                 ) ENGINE=NDB;
-# Mask fk names with NDB internal ids, those vary depending on creation order
---replace_regex /FK_[0-9]+_[0-9]+/FK_<table_id>_<index_id>/
 SHOW CREATE TABLE t2;
 SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
   WHERE TABLE_NAME = 't2' ORDER BY CONSTRAINT_NAME;
 DROP TABLES t2, t1;
+
+
+--echo #
+--echo # Bug#30171959 "INCONSISTENT NAMING OF FOREIGN KEYS OVER NDB TABLES".
+--echo #
+
+--echo # Basic check of oreign key name generation by CREATE TABLE.
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=NDB;
+CREATE TABLE child (fk1 INT, fk2 INT, fk3 INT, fk4 INT, fk5 INT, fk6 INT,
+                    fk7 INT, fk8 INT, fk9 INT, fk10 INT,
+                    CONSTRAINT c1 FOREIGN KEY (fk1) REFERENCES parent (pk),
+                    FOREIGN KEY (fk2) REFERENCES parent (pk),
+                    FOREIGN KEY (fk3) REFERENCES parent (pk)) ENGINE=NDB;
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+
+--echo # Similar check for ALTER TABLE.
+ALTER TABLE child ADD FOREIGN KEY (fk4) REFERENCES parent (pk),
+                  ADD CONSTRAINT c2 FOREIGN KEY (fk5) REFERENCES parent (pk),
+                  ADD FOREIGN KEY (fk6) REFERENCES parent (pk);
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+
+--echo # Adding foreign key with explicit name matching pattern of generated
+--echo # names should be correctly handled by increasing generated name counter.
+ALTER TABLE child ADD CONSTRAINT child_fk_10 FOREIGN KEY (fk7) REFERENCES parent (pk);
+ALTER TABLE child ADD FOREIGN KEY (fk8) REFERENCES parent (pk);
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+
+--echo # Dropping foreign key with generated name doesn't cause name changes for
+--echo # other foreign keys with generated names.
+ALTER TABLE child DROP FOREIGN KEY child_fk_4;
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+
+--echo # Generation of new names is not affected by presence of holes
+--echo # in the sequence of generated names.
+ALTER TABLE child ADD FOREIGN KEY (fk9) REFERENCES parent (pk);
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+
+--echo # However, if foreign key with last generated name is dropped,
+--echo # name can be reused later.
+ALTER TABLE child DROP FOREIGN KEY child_fk_12;
+ALTER TABLE child ADD FOREIGN KEY (fk10) REFERENCES parent (pk);
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+
+--disable_testcase BUG#30210839 # NDB GENERATED FOREIGN KEY NAMES ARE NOT UPDATED BY RENAME TABLE
+--echo # Renaming of table updates generated names to preserve the pattern.
+RENAME TABLE child TO child1;
+SHOW CREATE TABLE child1;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child1' ORDER BY constraint_name ASC;
+
+--echo # Similar test for ALTER TABLE RENAME.
+ALTER TABLE child1 RENAME TO child2;
+SHOW CREATE TABLE child2;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child2' ORDER BY constraint_name ASC;
+
+DROP TABLES child2, parent;
+--enable_testcase
+
+--echo # Currently changing SE of table with foreign key is not supported.
+--echo # If it is ever supported we need to handle somehow difference in
+--echo # suffixes for generated foreign key names.
+--error ER_FK_CANNOT_CHANGE_ENGINE
+ALTER TABLE child ENGINE=InnoDB;
+SHOW CREATE TABLE child;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+DROP TABLES child, parent;

@@ -4695,6 +4695,8 @@ static int innodb_init(void *p) {
       HTON_FKS_WITH_EXTENDED_PARENT_KEYS;
 
   innobase_hton->check_fk_column_compat = innodb_check_fk_column_compat;
+  innobase_hton->fk_name_suffix = {STRING_WITH_LEN("_ibfk_")};
+
   innobase_hton->is_reserved_db_name = innobase_check_reserved_file_name;
 
   innobase_hton->page_track.start = innobase_page_track_start;

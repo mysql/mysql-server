@@ -49,6 +49,7 @@
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
+#include "storage/ndb/plugin/ndb_thd.h"
 
 Ndb_dd_client::Ndb_dd_client(THD *thd)
     : m_thd(thd), m_client(thd->dd_client()) {
@@ -416,7 +417,7 @@ bool Ndb_dd_client::rename_table(
 
   // Rename foreign keys
   if (dd::rename_foreign_keys(m_thd, old_schema_name, old_table_name,
-                              new_schema_name, to_table_def)) {
+                              ndbcluster_hton, new_schema_name, to_table_def)) {
     // Failed to rename foreign keys or commit/rollback, unexpected
     DBUG_ASSERT(false);
     return false;

@@ -90,7 +90,7 @@ count(*)
 # Verify that fk is working now when parent has been resolved
 set foreign_key_checks=1;
 insert into t1 values(1, 2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `FK_XX_XX` FOREIGN KEY (`b`) REFERENCES `t2` (`pk1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 set foreign_key_checks=0;
 drop table t1, t2;
 #
@@ -195,7 +195,7 @@ create table t2 (
 pk2 int not null primary key,
 c int
 ) engine=ndb;
-ERROR HY000: Failed to add the foreign key constraint. Missing column 'pk1' for constraint 't1_ibfk_1' in the referenced table 't2'
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'pk1' for constraint 't1_fk_1' in the referenced table 't2'
 
 ndb_show_tables completed.....
 
@@ -217,7 +217,7 @@ create table t2 (
 pk1 int not null primary key,
 c int
 ) engine=ndb;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_fk_1' in the referenced table 't2'
 
 ndb_show_tables completed.....
 
@@ -738,7 +738,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `b` (`b`),
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3;
 create table t2 (
@@ -786,7 +786,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
@@ -803,7 +803,7 @@ foreign key (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_ibfk_1`)
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_fk_1`)
 set foreign_key_checks=0;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
@@ -828,7 +828,7 @@ foreign key (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_ibfk_1`)
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_fk_1`)
 set foreign_key_checks=0;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
@@ -858,7 +858,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
@@ -898,10 +898,10 @@ t1	CREATE TABLE `t1` (
   KEY `fk2` (`c`),
   KEY `fk3` (`d`),
   KEY `fk4` (`e`),
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `FK_XX_XX` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `t1_fk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `t1_fk_3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `t1_fk_4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
