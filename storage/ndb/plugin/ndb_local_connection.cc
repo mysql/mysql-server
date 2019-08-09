@@ -261,3 +261,21 @@ bool Ndb_local_connection::raw_run_query(const char *query, size_t query_length,
 Ed_result_set *Ndb_local_connection::get_results() {
   return impl->connection.get_result_sets();
 }
+
+Ndb_privilege_upgrade_connection::Ndb_privilege_upgrade_connection(THD *thd)
+    : Ndb_local_connection(thd) {
+  m_push_warnings = false;
+  m_saved_sql_mode = m_thd->variables.sql_mode;
+  m_thd->variables.sql_mode = MODE_NO_ENGINE_SUBSTITUTION;
+}
+
+Ndb_privilege_upgrade_connection::~Ndb_privilege_upgrade_connection() {
+  m_thd->variables.sql_mode = m_saved_sql_mode;
+}
+
+bool Ndb_privilege_upgrade_connection::migrate_privilege_table(
+    const std::string &table) {
+  std::string query = "ALTER TABLE mysql." + table + " ENGINE=innodb;";
+  LEX_STRING sql_text = {const_cast<char *>(query.c_str()), query.length()};
+  return execute_query(sql_text, nullptr, nullptr);
+}

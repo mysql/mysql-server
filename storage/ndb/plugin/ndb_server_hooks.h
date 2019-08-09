@@ -34,7 +34,7 @@ class Ndb_server_hooks {
  public:
   ~Ndb_server_hooks();
 
-  bool register_server_started(hook_t *);
+  bool register_server_hooks(hook_t *, hook_t *);
   bool register_applier_start(hook_t *);
   void unregister_all(void);
 };

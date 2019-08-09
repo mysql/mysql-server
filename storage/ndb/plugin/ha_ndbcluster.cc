@@ -10562,8 +10562,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       */
 
       if (new_is_temp) {
-        if (Ndb_dist_priv_util::is_distributed_priv_table(old_dbname,
-                                                          m_tabname)) {
+        if (Ndb_dist_priv_util::is_privilege_table(old_dbname, m_tabname)) {
           // Special case allowing the legacy distributed privilege tables
           // to be migrated to local shadow tables.  Do not drop the table from
           // NdbDictionary or publish this change via schema distribution.
@@ -10900,8 +10899,7 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
     const char *orig_table_name =
         thd->lex->select_lex->table_list.first->table_name;
     if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE &&
-        Ndb_dist_priv_util::is_distributed_priv_table(m_dbname,
-                                                      orig_table_name)) {
+        Ndb_dist_priv_util::is_privilege_table(m_dbname, orig_table_name)) {
       ndb_log_info("Migrating legacy privilege table: Drop %s (%s)",
                    orig_table_name, m_tabname);
       // Special case allowing the legacy distributed privilege tables
@@ -11193,10 +11191,14 @@ int ha_ndbcluster::open(const char *name, int, uint,
     return res;
   }
 
-  // Don't allow opening table unless schema distribution is ready and
-  // schema synchronization have completed. The user who wants to use
-  // this table has to wait.
-  if (ndb_binlog_is_read_only()) {
+  /* Don't allow opening table unless schema distribution is ready and
+     schema synchronization has completed. The user who wants to use
+     this table has to wait. The exception: when upgrading from legacy
+     distributed privilege tables, proceed even though the server is
+     not fully bootstrapped.
+  */
+  if (ndb_binlog_is_read_only() &&
+      !Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
     const Thd_ndb *thd_ndb = get_thd_ndb(thd);
     thd_ndb->push_warning(
         "Can't open table '%s' from NDB, schema distribution is not ready",
@@ -11208,14 +11210,20 @@ int ha_ndbcluster::open(const char *name, int, uint,
   // Acquire NDB_SHARE reference for handler
   m_share = NDB_SHARE::acquire_for_handler(name, this);
   if (m_share == nullptr) {
-    // Failed to acquire the NDB_SHARE. This is a rare case, it should already
-    // have been created when table was created, during schema synchronization
-    // or by auto discovery. Push warning explaining the problem and return a
-    // sensible error
-    const Thd_ndb *thd_ndb = get_thd_ndb(thd);
-    thd_ndb->push_warning("Could not open NDB_SHARE for '%s'", name);
-    local_close(thd, false);
-    return HA_ERR_NO_CONNECTION;
+    if (Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
+      // Create the NDB_SHARE. It will be opened, renamed, and then dropped,
+      // as the privilege table is migrated from NDB to InnoDB.
+      m_share = NDB_SHARE::create_and_acquire_reference(name, this);
+    } else {
+      // Failed to acquire the NDB_SHARE. This is a rare case, it should already
+      // have been created when table was created, during schema synchronization
+      // or by auto discovery. Push warning explaining the problem and return a
+      // sensible error.
+      const Thd_ndb *thd_ndb = get_thd_ndb(thd);
+      thd_ndb->push_warning("Could not open NDB_SHARE for '%s'", name);
+      local_close(thd, false);
+      return HA_ERR_NO_CONNECTION;
+    }
   }
 
   // Init table lock structure
@@ -11896,6 +11904,46 @@ static int ndb_wait_setup_server_startup(void *) {
 }
 
 /*
+  Run "ALTER TABLE x ENGINE=INNODB" on all privilege tables stored in NDB.
+  The callback context does not provide a THD, so we must create one.
+  Returns false on success.
+*/
+static bool upgrade_migrate_privilege_tables() {
+  int stack_base = 0;
+  std::unique_ptr<THD> temp_thd(
+      ndb_create_thd(reinterpret_cast<char *>(&stack_base)));
+  Ndb *ndb = check_ndb_in_thd(temp_thd.get());
+
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  std::unordered_set<std::string> ndb_tables;
+  if (!ndb_get_table_names_in_schema(dict, "mysql", &ndb_tables)) return true;
+
+  Ndb_privilege_upgrade_connection conn(temp_thd.get());
+  for (const auto table_name : ndb_tables)
+    if (Ndb_dist_priv_util::is_privilege_table("mysql", table_name.c_str()))
+      if (conn.migrate_privilege_table(table_name.c_str())) return true;
+
+  return false;
+}
+
+/*
+  Function installed as server hook that runs after DD upgrades.
+*/
+static int ndb_dd_upgrade_hook(void *) {
+  if (!ndbcluster_is_connected(opt_ndb_wait_connected)) {
+    ndb_log_error("Timeout waiting to connect to cluster.");
+    return 1;
+  }
+
+  if (upgrade_migrate_privilege_tables()) {
+    ndb_log_error("Failed to migrate privilege tables.");
+    return 1;
+  }
+
+  return 0;
+}
+
+/*
   Function installed as server hook to be called before the applier thread
   starts. Wait --ndb-wait-setup= seconds for ndbcluster connect to NDB
   and complete setup.
@@ -12191,10 +12239,9 @@ static int ndbcluster_init(void *handlerton_ptr) {
   // Initialize NdbApi
   ndb_init_internal(1);
 
-  if (!ndb_server_hooks.register_server_started(
-          ndb_wait_setup_server_startup)) {
-    ndbcluster_init_abort(
-        "Failed to register ndb_wait_setup at server startup");
+  if (!ndb_server_hooks.register_server_hooks(ndb_wait_setup_server_startup,
+                                              ndb_dd_upgrade_hook)) {
+    ndbcluster_init_abort("Failed to register ndb hooks at server startup");
   }
 
   if (!ndb_server_hooks.register_applier_start(
@@ -16796,20 +16843,25 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts) {
     static int get_num_parts(const char *name, uint *num_parts) {
       DBUG_TRACE;
 
-      // Since this function is always called early in the code
-      // path, it's safe to allow the Ndb object to be recycled
-      const bool allow_recycle_ndb = true;
-      Ndb *const ndb = check_ndb_in_thd(current_thd, allow_recycle_ndb);
-      if (!ndb) {
-        // No connection to NDB
-        return HA_ERR_NO_CONNECTION;
-      }
-
       // Split name into db and table name
       char db_name[FN_HEADLEN];
       char table_name[FN_HEADLEN];
       set_dbname(name, db_name);
       set_tabname(name, table_name);
+
+      // Since this function is always called early in the code
+      // path, it's safe to allow the Ndb object to be recycled
+      const bool allow_recycle_ndb = true;
+      Ndb *const ndb = check_ndb_in_thd(current_thd, allow_recycle_ndb);
+      if (!ndb) {
+        if (Ndb_dist_priv_util::is_privilege_table(db_name, table_name)) {
+          // Bootstrap privilege table migration
+          *num_parts = 0;
+          return 0;
+        }
+        // No connection to NDB
+        return HA_ERR_NO_CONNECTION;
+      }
 
       // Open the table from NDB
       ndb->setDatabaseName(db_name);

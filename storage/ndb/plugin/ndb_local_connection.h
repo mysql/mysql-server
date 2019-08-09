@@ -78,17 +78,26 @@ class Ndb_local_connection {
 
   class Ed_result_set *get_results();
 
- private:
   bool execute_query(MYSQL_LEX_STRING sql_text, const uint *ignore_mysql_errors,
                      const class Suppressor *suppressor = NULL);
 
- protected:
+  bool m_push_warnings;
   THD *m_thd;
 
  private:
   class Impl;
   std::unique_ptr<class Impl> impl;
-  bool m_push_warnings;
+};
+
+class Ndb_privilege_upgrade_connection : public Ndb_local_connection {
+ public:
+  Ndb_privilege_upgrade_connection(THD *thd);
+  ~Ndb_privilege_upgrade_connection();
+
+  bool migrate_privilege_table(const std::string &table_name);
+
+ private:
+  ulonglong m_saved_sql_mode;
 };
 
 #endif

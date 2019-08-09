@@ -31,7 +31,8 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_plugin_reference.h"
 
-bool Ndb_server_hooks::register_server_started(hook_t *hook_func) {
+bool Ndb_server_hooks::register_server_hooks(hook_t *before_connections_hook,
+                                             hook_t *dd_upgrade_hook) {
   // Only allow one server_started hook to be installed
   DBUG_ASSERT(!m_server_state_observer);
 
@@ -45,12 +46,13 @@ bool Ndb_server_hooks::register_server_started(hook_t *hook_func) {
       sizeof(Server_state_observer),
 
       // before clients are allowed to connect
-      (before_handle_connection_t)hook_func,
-      NULL,  // before recovery
-      NULL,  // after engine recovery
-      NULL,  // after recovery
-      NULL,  // before shutdown
-      NULL,  // after shutdown
+      (before_handle_connection_t)before_connections_hook,
+      NULL,                                 // before recovery
+      NULL,                                 // after engine recovery
+      NULL,                                 // after recovery
+      NULL,                                 // before shutdown
+      NULL,                                 // after shutdown
+      (after_dd_upgrade_t)dd_upgrade_hook,  // after DD upgrade
   };
 
   // Install server state observer to be called

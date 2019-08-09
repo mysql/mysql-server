@@ -33,6 +33,7 @@
 #include "sql/query_options.h"  // OPTION_BIN_LOG
 #include "sql/sql_thd_internal_api.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
+#include "storage/ndb/plugin/ndb_dist_priv_util.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
@@ -155,6 +156,12 @@ bool Ndb_schema_dist_client::prepare_rename(const char *db, const char *tabname,
 
   // Normal prepare first
   if (!prepare(db, tabname)) {
+    /* During upgrade to 8.0, distributed privilege tables must get renamed
+       as part of a statement "ALTER TABLE ... ENGINE=innodb" before schema
+       distribution has started running.
+    */
+    if (Ndb_dist_priv_util::is_privilege_table(db, tabname)) return true;
+
     return false;
   }
 

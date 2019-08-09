@@ -58,9 +58,8 @@ class Ndb_dist_priv_util {
   // Reset iterator to start at first table name
   void iter_reset() { m_iter_curr_table = 0; }
 
-  // Determine if a given table name is in the list
-  // of distributed priv tables
-  static bool is_distributed_priv_table(const char *db, const char *table) {
+  // Determine if a given table is a MySQL 5.7 privilege table
+  static bool is_privilege_table(const char *db, const char *table) {
     Ndb_dist_priv_util dist_priv;
     if (strcmp(db, dist_priv.database())) {
       return false;  // Ignore tables not in dist_priv database
@@ -73,8 +72,6 @@ class Ndb_dist_priv_util {
     }
     return false;
   }
-
-  static bool priv_tables_are_in_ndb(THD *);
 };
 
 #endif

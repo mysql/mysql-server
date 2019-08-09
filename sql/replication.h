@@ -369,6 +369,17 @@ typedef int (*before_server_shutdown_t)(Server_state_param *param);
 typedef int (*after_server_shutdown_t)(Server_state_param *param);
 
 /**
+  This is called just after an upgrade from MySQL 5.7 populates the data
+  dictionary for the first time.
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*after_dd_upgrade_t)(Server_state_param *param);
+
+/**
   Observer server state
  */
 typedef struct Server_state_observer {
@@ -380,6 +391,7 @@ typedef struct Server_state_observer {
   after_recovery_t after_recovery;
   before_server_shutdown_t before_server_shutdown;
   after_server_shutdown_t after_server_shutdown;
+  after_dd_upgrade_t after_dd_upgrade_from_57;
 } Server_state_observer;
 
 /**

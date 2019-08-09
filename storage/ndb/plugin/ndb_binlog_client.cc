@@ -48,7 +48,7 @@ bool Ndb_binlog_client::table_should_have_event(
   // Never create event(or event operation) for legacy distributed
   // privilege tables, which will be seen only when upgrading from
   // an earlier version.
-  if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname)) {
+  if (Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
     DBUG_PRINT("info", ("dist priv table"));
     return false;
   }
