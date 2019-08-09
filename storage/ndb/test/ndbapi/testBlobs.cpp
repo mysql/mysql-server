@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -558,17 +558,25 @@ createTable(int storageType)
     /* Need to set the FragmentCount and fragment to NG mapping
      * for this partitioning type 
      */
-    const Uint32 numNodes= g_ncc->no_db_nodes();
-    const Uint32 numReplicas= 2; // Assumption
-    const Uint32 guessNumNgs= numNodes/2;
-    const Uint32 numNgs= guessNumNgs?guessNumNgs : 1;
-    const Uint32 numFragsPerNode= 2 + (rand() % 3);
-    const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
-    
-    tab.setFragmentCount(numPartitions);
-    for (Uint32 i=0; i<numPartitions; i++)
+    NdbRestarter restarter;
+    Vector<int> node_groups;
+    int max_alive_replicas;
+    if (restarter.getNodeGroups(node_groups, &max_alive_replicas) == -1)
     {
-      frag_ng_mappings[i]= i % numNgs;
+      return -1;
+    }
+
+    const Uint32 numNgs = node_groups.size();
+
+    // Assume at least one node group had all replicas alive.
+    const Uint32 numReplicas = max_alive_replicas;
+    const Uint32 numFragsPerNode = 2 + (rand() % 3);
+    const Uint32 numPartitions = numReplicas * numNgs * numFragsPerNode;
+
+    tab.setFragmentCount(numPartitions);
+    for (Uint32 i = 0; i < numPartitions; i++)
+    {
+      frag_ng_mappings[i] = node_groups[i % numNgs];
     }
     tab.setFragmentData(frag_ng_mappings, numPartitions);
   }
