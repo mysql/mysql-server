@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -549,6 +549,9 @@ UNIV_INLINE
 char *mem_strdupl(const char *str, /*!< in: string to be copied */
                   ulint len)       /*!< in: length of str, in bytes */
 {
+  if (static_cast<long>(len) < 0) {
+    return nullptr;  // GCC bug #91397.
+  }
   char *s = static_cast<char *>(ut_malloc_nokey(len + 1));
   s[len] = 0;
   if (len > 0) {
