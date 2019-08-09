@@ -9,4 +9,4 @@ SELECT sys.ps_thread_account(234623462376);
 SELECT sys.ps_thread_account(-1);
 
 # Check result
-SELECT sys.ps_thread_account(sys.ps_thread_id(NULL));
+SELECT sys.ps_thread_account(ps_current_thread_id());

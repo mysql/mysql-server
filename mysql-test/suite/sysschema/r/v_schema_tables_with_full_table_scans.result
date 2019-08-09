@@ -3,7 +3,7 @@ Field	Type	Null	Key	Default	Extra
 object_schema	varchar(64)	YES		NULL	
 object_name	varchar(64)	YES		NULL	
 rows_full_scanned	bigint(20) unsigned	NO		NULL	
-latency	text	YES		NULL	
+latency	varchar(11)	YES		NULL	
 SELECT * FROM sys.schema_tables_with_full_table_scans;
 DESC sys.x$schema_tables_with_full_table_scans;
 Field	Type	Null	Key	Default	Extra

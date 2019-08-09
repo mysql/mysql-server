@@ -50,10 +50,10 @@ SELECT thread_id,
           CONCAT(t.processlist_user, '@', t.processlist_host), 
           REPLACE(t.name, 'thread/', '')) user,
        SUM(mt.current_count_used) AS current_count_used,
-       sys.format_bytes(SUM(mt.current_number_of_bytes_used)) AS current_allocated,
-       sys.format_bytes(IFNULL(SUM(mt.current_number_of_bytes_used) / NULLIF(SUM(current_count_used), 0), 0)) AS current_avg_alloc,
-       sys.format_bytes(MAX(mt.current_number_of_bytes_used)) AS current_max_alloc,
-       sys.format_bytes(SUM(mt.sum_number_of_bytes_alloc)) AS total_allocated
+       format_bytes(SUM(mt.current_number_of_bytes_used)) AS current_allocated,
+       format_bytes(IFNULL(SUM(mt.current_number_of_bytes_used) / NULLIF(SUM(current_count_used), 0), 0)) AS current_avg_alloc,
+       format_bytes(MAX(mt.current_number_of_bytes_used)) AS current_max_alloc,
+       format_bytes(SUM(mt.sum_number_of_bytes_alloc)) AS total_allocated
   FROM performance_schema.memory_summary_by_thread_by_event_name AS mt
   JOIN performance_schema.threads AS t USING (thread_id)
  GROUP BY thread_id, IF(t.name = 'thread/sql/one_connection', 

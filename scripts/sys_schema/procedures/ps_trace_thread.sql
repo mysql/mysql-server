@@ -116,7 +116,7 @@ BEGIN
         SELECT CONCAT(IF(nesting_event_id IS NOT NULL, CONCAT(nesting_event_id, ' -> '), ''), 
                     event_id, '; ', event_id, ' [label="',
                     -- Convert from picoseconds to microseconds
-                    '(', sys.format_time(timer_wait), ') ',
+                    '(', format_pico_time(timer_wait), ') ',
                     IF (event_name NOT LIKE 'wait/io%', 
                         SUBSTRING_INDEX(event_name, '/', -2), 
                         IF (event_name NOT LIKE 'wait/io/file%' OR event_name NOT LIKE 'wait/io/socket%',
@@ -188,7 +188,7 @@ BEGIN
                      CONCAT('statement: ', sql_text, '\\n',
                             'errors: ', errors, '\\n',
                             'warnings: ', warnings, '\\n',
-                            'lock time: ', sys.format_time(lock_time),'\\n',
+                            'lock time: ', format_pico_time(lock_time),'\\n',
                             'rows affected: ', rows_affected, '\\n',
                             'rows sent: ', rows_sent, '\\n',
                             'rows examined: ', rows_examined, '\\n',

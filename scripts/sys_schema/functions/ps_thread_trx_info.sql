@@ -172,7 +172,7 @@ BEGIN
                        GROUP_CONCAT(
                          IFNULL(
                            CONCAT('\n  {\n',
-                                  '    "time": "', IFNULL(sys.format_time(trxi.timer_wait), ''), '",\n',
+                                  '    "time": "', IFNULL(format_pico_time(trxi.timer_wait), ''), '",\n',
                                   '    "state": "', IFNULL(trxi.state, ''), '",\n',
                                   '    "mode": "', IFNULL(trxi.access_mode, ''), '",\n',
                                   '    "autocommitted": "', IFNULL(trxi.autocommit, ''), '",\n',
@@ -200,7 +200,7 @@ BEGIN
                                       IFNULL(
                                         CONCAT('\n      {\n',
                                                '        "sql_text": "', IFNULL(sys.format_statement(REPLACE(sql_text, '\\', '\\\\')), ''), '",\n',
-                                               '        "time": "', IFNULL(sys.format_time(timer_wait), ''), '",\n',
+                                               '        "time": "', IFNULL(format_pico_time(timer_wait), ''), '",\n',
                                                '        "schema": "', IFNULL(current_schema, ''), '",\n',
                                                '        "rows_examined": ', IFNULL(rows_examined, ''), ',\n',
                                                '        "rows_affected": ', IFNULL(rows_affected, ''), ',\n',

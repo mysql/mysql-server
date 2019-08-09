@@ -106,10 +106,8 @@ SELECT ROUTINE_NAME, ROUTINE_TYPE FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE
 ROUTINE_NAME	ROUTINE_TYPE
 extract_schema_from_file_name	FUNCTION
 extract_table_from_file_name	FUNCTION
-format_bytes	FUNCTION
 format_path	FUNCTION
 format_statement	FUNCTION
-format_time	FUNCTION
 list_add	FUNCTION
 list_drop	FUNCTION
 ps_is_account_enabled	FUNCTION
@@ -118,7 +116,6 @@ ps_is_instrument_default_enabled	FUNCTION
 ps_is_instrument_default_timed	FUNCTION
 ps_is_thread_instrumented	FUNCTION
 ps_thread_account	FUNCTION
-ps_thread_id	FUNCTION
 ps_thread_stack	FUNCTION
 ps_thread_trx_info	FUNCTION
 quote_identifier	FUNCTION

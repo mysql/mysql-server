@@ -33,5 +33,5 @@ CREATE OR REPLACE
 VIEW memory_global_total (
   total_allocated
 ) AS
-SELECT sys.format_bytes(SUM(CURRENT_NUMBER_OF_BYTES_USED)) total_allocated
+SELECT format_bytes(SUM(CURRENT_NUMBER_OF_BYTES_USED)) total_allocated
   FROM performance_schema.memory_summary_global_by_event_name;

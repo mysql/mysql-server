@@ -135,12 +135,10 @@ stage/innodb/clone (redo copy)	1	1	1	1
 SELECT EVENT_NAME, TIMER_START > 0, TIMER_END > 0, TIMER_WAIT > 0,
 SQL_TEXT, CURRENT_SCHEMA
 FROM performance_schema.events_statements_history_long
-WHERE thread_id = sys.ps_thread_id(CONNECTION_ID())
+WHERE thread_id = ps_thread_id(CONNECTION_ID())
 AND event_name LIKE "statement/clone/%";
 EVENT_NAME	TIMER_START > 0	TIMER_END > 0	TIMER_WAIT > 0	SQL_TEXT	CURRENT_SCHEMA
 statement/clone/local	1	1	1	CLONE LOCAL DATA DIRECTORY = '$CLONE_DATADIR'	test
-Warnings:
-Note	1585	This function 'ps_thread_id' has the same name as a native function
 SET DEBUG_SYNC='RESET';
 TRUNCATE TABLE performance_schema.events_stages_history;
 TRUNCATE TABLE performance_schema.events_stages_history_long;

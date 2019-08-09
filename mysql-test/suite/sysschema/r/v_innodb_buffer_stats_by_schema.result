@@ -1,8 +1,8 @@
 DESC sys.innodb_buffer_stats_by_schema;
 Field	Type	Null	Key	Default	Extra
 object_schema	text	YES		NULL	
-allocated	text	YES		NULL	
-data	text	YES		NULL	
+allocated	varchar(11)	YES		NULL	
+data	varchar(11)	YES		NULL	
 pages	bigint(21)	NO		0	
 pages_hashed	bigint(21)	NO		0	
 pages_old	bigint(21)	NO		0	

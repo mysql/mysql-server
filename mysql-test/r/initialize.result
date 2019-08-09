@@ -32,7 +32,7 @@ COUNT(*)
 # If this value differs, also update SYS_FUNCTION_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
 COUNT(*)
-22
+19
 # If this value differs, also update SYS_TABLE_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 COUNT(*)

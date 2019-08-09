@@ -3,7 +3,7 @@ Field	Type	Null	Key	Default	Extra
 query	longtext	YES		NULL	
 db	varchar(64)	YES		NULL	
 exec_count	bigint(20) unsigned	NO		NULL	
-total_latency	text	YES		NULL	
+total_latency	varchar(11)	YES		NULL	
 memory_tmp_tables	bigint(20) unsigned	NO		NULL	
 disk_tmp_tables	bigint(20) unsigned	NO		NULL	
 avg_tmp_tables_per_query	decimal(21,0)	NO		0	

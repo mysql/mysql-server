@@ -45,9 +45,9 @@ VIEW host_summary_by_statement_latency (
 ) AS
 SELECT IF(host IS NULL, 'background', host) AS host,
        SUM(count_star) AS total,
-       sys.format_time(SUM(sum_timer_wait)) AS total_latency,
-       sys.format_time(MAX(max_timer_wait)) AS max_latency,
-       sys.format_time(SUM(sum_lock_time)) AS lock_latency,
+       format_pico_time(SUM(sum_timer_wait)) AS total_latency,
+       format_pico_time(MAX(max_timer_wait)) AS max_latency,
+       format_pico_time(SUM(sum_lock_time)) AS lock_latency,
        SUM(sum_rows_sent) AS rows_sent,
        SUM(sum_rows_examined) AS rows_examined,
        SUM(sum_rows_affected) AS rows_affected,

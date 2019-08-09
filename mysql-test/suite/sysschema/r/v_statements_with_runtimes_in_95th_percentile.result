@@ -6,9 +6,9 @@ full_scan	varchar(1)	NO
 exec_count	bigint(20) unsigned	NO		NULL	
 err_count	bigint(20) unsigned	NO		NULL	
 warn_count	bigint(20) unsigned	NO		NULL	
-total_latency	text	YES		NULL	
-max_latency	text	YES		NULL	
-avg_latency	text	YES		NULL	
+total_latency	varchar(11)	YES		NULL	
+max_latency	varchar(11)	YES		NULL	
+avg_latency	varchar(11)	YES		NULL	
 rows_sent	bigint(20) unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0)	NO		0	
 rows_examined	bigint(20) unsigned	NO		NULL	

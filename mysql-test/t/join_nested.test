@@ -1671,7 +1671,7 @@ TRUNCATE TABLE performance_schema.memory_summary_by_thread_by_event_name;
 let $res=
 SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
 WHERE event_name = 'memory/sql/thd::main_mem_root'
-AND thread_id = sys.ps_thread_id(connection_id())
+AND thread_id = ps_thread_id(connection_id())
 AND sum_number_of_bytes_alloc > 1000000;
 --echo $res
 

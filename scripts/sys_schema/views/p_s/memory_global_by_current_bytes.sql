@@ -46,11 +46,11 @@ VIEW memory_global_by_current_bytes (
 ) AS
 SELECT event_name,
        current_count_used AS current_count,
-       sys.format_bytes(current_number_of_bytes_used) AS current_alloc,
-       sys.format_bytes(IFNULL(current_number_of_bytes_used / NULLIF(current_count_used, 0), 0)) AS current_avg_alloc,
+       format_bytes(current_number_of_bytes_used) AS current_alloc,
+       format_bytes(IFNULL(current_number_of_bytes_used / NULLIF(current_count_used, 0), 0)) AS current_avg_alloc,
        high_count_used AS high_count,
-       sys.format_bytes(high_number_of_bytes_used) AS high_alloc,
-       sys.format_bytes(IFNULL(high_number_of_bytes_used / NULLIF(high_count_used, 0), 0)) AS high_avg_alloc
+       format_bytes(high_number_of_bytes_used) AS high_alloc,
+       format_bytes(IFNULL(high_number_of_bytes_used / NULLIF(high_count_used, 0), 0)) AS high_avg_alloc
   FROM performance_schema.memory_summary_global_by_event_name
  WHERE current_number_of_bytes_used > 0
  ORDER BY current_number_of_bytes_used DESC;

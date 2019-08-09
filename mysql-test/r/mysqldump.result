@@ -5162,7 +5162,7 @@ DROP DATABASE dump_generated;
 #
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
-48
+45
 DROP DATABASE sys;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
@@ -5172,7 +5172,7 @@ COUNT(*)
 0
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
-48
+45
 #
 # WL#8697: Invisible Indexes
 # Test of mysqldump.

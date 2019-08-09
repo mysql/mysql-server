@@ -58,8 +58,8 @@ VIEW host_summary_by_file_io_type (
 SELECT IF(host IS NULL, 'background', host) AS host,
        event_name,
        count_star AS total,
-       sys.format_time(sum_timer_wait) AS total_latency,
-       sys.format_time(max_timer_wait) AS max_latency
+       format_pico_time(sum_timer_wait) AS total_latency,
+       format_pico_time(max_timer_wait) AS max_latency
   FROM performance_schema.events_waits_summary_by_host_by_event_name
  WHERE event_name LIKE 'wait/io/file%'
    AND count_star > 0

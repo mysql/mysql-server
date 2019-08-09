@@ -3,10 +3,10 @@ Field	Type	Null	Key	Default	Extra
 thread_id	bigint(20) unsigned	NO		NULL	
 user	varchar(288)	YES		NULL	
 current_count_used	decimal(41,0)	YES		NULL	
-current_allocated	text	YES		NULL	
-current_avg_alloc	text	YES		NULL	
-current_max_alloc	text	YES		NULL	
-total_allocated	text	YES		NULL	
+current_allocated	varchar(11)	YES		NULL	
+current_avg_alloc	varchar(11)	YES		NULL	
+current_max_alloc	varchar(11)	YES		NULL	
+total_allocated	varchar(11)	YES		NULL	
 SELECT * FROM sys.memory_by_thread_by_current_bytes;
 DESC sys.x$memory_by_thread_by_current_bytes;
 Field	Type	Null	Key	Default	Extra

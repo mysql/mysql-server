@@ -2,10 +2,10 @@ DESC sys.io_by_thread_by_latency;
 Field	Type	Null	Key	Default	Extra
 user	varchar(288)	YES		NULL	
 total	decimal(42,0)	YES		NULL	
-total_latency	text	YES		NULL	
-min_latency	text	YES		NULL	
-avg_latency	text	YES		NULL	
-max_latency	text	YES		NULL	
+total_latency	varchar(11)	YES		NULL	
+min_latency	varchar(11)	YES		NULL	
+avg_latency	varchar(11)	YES		NULL	
+max_latency	varchar(11)	YES		NULL	
 thread_id	bigint(20) unsigned	NO		NULL	
 processlist_id	bigint(20) unsigned	YES		NULL	
 SELECT * FROM sys.io_by_thread_by_latency;

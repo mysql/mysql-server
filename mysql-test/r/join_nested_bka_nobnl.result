@@ -2494,7 +2494,7 @@ INNER JOIN t AS b ON a.c >= b.d;
 c
 SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
 WHERE event_name = 'memory/sql/thd::main_mem_root'
-AND thread_id = sys.ps_thread_id(connection_id())
+AND thread_id = ps_thread_id(connection_id())
 AND sum_number_of_bytes_alloc > 1000000
 DROP TABLE t;
 CREATE TABLE t5 (a int, b int, c int, PRIMARY KEY(a), KEY b_i (b));

@@ -55,7 +55,7 @@ VIEW statements_with_temp_tables (
 SELECT sys.format_statement(DIGEST_TEXT) AS query,
        SCHEMA_NAME as db,
        COUNT_STAR AS exec_count,
-       sys.format_time(SUM_TIMER_WAIT) as total_latency,
+       format_pico_time(SUM_TIMER_WAIT) as total_latency,
        SUM_CREATED_TMP_TABLES AS memory_tmp_tables,
        SUM_CREATED_TMP_DISK_TABLES AS disk_tmp_tables,
        ROUND(IFNULL(SUM_CREATED_TMP_TABLES / NULLIF(COUNT_STAR, 0), 0)) AS avg_tmp_tables_per_query,

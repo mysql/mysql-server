@@ -3,24 +3,24 @@ Field	Type	Null	Key	Default	Extra
 table_schema	varchar(64)	YES		NULL	
 table_name	varchar(64)	YES		NULL	
 rows_fetched	bigint(20) unsigned	NO		NULL	
-fetch_latency	text	YES		NULL	
+fetch_latency	varchar(11)	YES		NULL	
 rows_inserted	bigint(20) unsigned	NO		NULL	
-insert_latency	text	YES		NULL	
+insert_latency	varchar(11)	YES		NULL	
 rows_updated	bigint(20) unsigned	NO		NULL	
-update_latency	text	YES		NULL	
+update_latency	varchar(11)	YES		NULL	
 rows_deleted	bigint(20) unsigned	NO		NULL	
-delete_latency	text	YES		NULL	
+delete_latency	varchar(11)	YES		NULL	
 io_read_requests	decimal(42,0)	YES		NULL	
-io_read	text	YES		NULL	
-io_read_latency	text	YES		NULL	
+io_read	varchar(11)	YES		NULL	
+io_read_latency	varchar(11)	YES		NULL	
 io_write_requests	decimal(42,0)	YES		NULL	
-io_write	text	YES		NULL	
-io_write_latency	text	YES		NULL	
+io_write	varchar(11)	YES		NULL	
+io_write_latency	varchar(11)	YES		NULL	
 io_misc_requests	decimal(42,0)	YES		NULL	
-io_misc_latency	text	YES		NULL	
-innodb_buffer_allocated	text	YES		NULL	
-innodb_buffer_data	text	YES		NULL	
-innodb_buffer_free	text	YES		NULL	
+io_misc_latency	varchar(11)	YES		NULL	
+innodb_buffer_allocated	varchar(11)	YES		NULL	
+innodb_buffer_data	varchar(11)	YES		NULL	
+innodb_buffer_free	varchar(11)	YES		NULL	
 innodb_buffer_pages	bigint(21)	YES		0	
 innodb_buffer_pages_hashed	bigint(21)	YES		0	
 innodb_buffer_pages_old	bigint(21)	YES		0	

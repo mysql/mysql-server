@@ -3,8 +3,8 @@ Field	Type	Null	Key	Default	Extra
 host	varchar(255)	YES		NULL	
 event_name	varchar(128)	NO		NULL	
 total	bigint(20) unsigned	NO		NULL	
-total_latency	text	YES		NULL	
-max_latency	text	YES		NULL	
+total_latency	varchar(11)	YES		NULL	
+max_latency	varchar(11)	YES		NULL	
 SELECT * FROM sys.host_summary_by_file_io_type;
 DESC sys.x$host_summary_by_file_io_type;
 Field	Type	Null	Key	Default	Extra

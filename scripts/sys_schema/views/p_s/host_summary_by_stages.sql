@@ -57,8 +57,8 @@ VIEW host_summary_by_stages (
 SELECT IF(host IS NULL, 'background', host) AS host,
        event_name,
        count_star AS total,
-       sys.format_time(sum_timer_wait) AS total_latency, 
-       sys.format_time(avg_timer_wait) AS avg_latency 
+       format_pico_time(sum_timer_wait) AS total_latency, 
+       format_pico_time(avg_timer_wait) AS avg_latency 
   FROM performance_schema.events_stages_summary_by_host_by_event_name
  WHERE sum_timer_wait != 0
  ORDER BY IF(host IS NULL, 'background', host), sum_timer_wait DESC;

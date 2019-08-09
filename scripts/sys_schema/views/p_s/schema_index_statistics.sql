@@ -53,13 +53,13 @@ SELECT OBJECT_SCHEMA AS table_schema,
        OBJECT_NAME AS table_name,
        INDEX_NAME as index_name,
        COUNT_FETCH AS rows_selected,
-       sys.format_time(SUM_TIMER_FETCH) AS select_latency,
+       format_pico_time(SUM_TIMER_FETCH) AS select_latency,
        COUNT_INSERT AS rows_inserted,
-       sys.format_time(SUM_TIMER_INSERT) AS insert_latency,
+       format_pico_time(SUM_TIMER_INSERT) AS insert_latency,
        COUNT_UPDATE AS rows_updated,
-       sys.format_time(SUM_TIMER_UPDATE) AS update_latency,
+       format_pico_time(SUM_TIMER_UPDATE) AS update_latency,
        COUNT_DELETE AS rows_deleted,
-       sys.format_time(SUM_TIMER_DELETE) AS delete_latency
+       format_pico_time(SUM_TIMER_DELETE) AS delete_latency
   FROM performance_schema.table_io_waits_summary_by_index_usage
  WHERE index_name IS NOT NULL
  ORDER BY sum_timer_wait DESC;

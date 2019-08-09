@@ -58,7 +58,7 @@ VIEW statements_with_sorting (
 SELECT sys.format_statement(DIGEST_TEXT) AS query,
        SCHEMA_NAME db,
        COUNT_STAR AS exec_count,
-       sys.format_time(SUM_TIMER_WAIT) AS total_latency,
+       format_pico_time(SUM_TIMER_WAIT) AS total_latency,
        SUM_SORT_MERGE_PASSES AS sort_merge_passes,
        ROUND(IFNULL(SUM_SORT_MERGE_PASSES / NULLIF(COUNT_STAR, 0), 0)) AS avg_sort_merges,
        SUM_SORT_SCAN AS sorts_using_scans,

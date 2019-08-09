@@ -13,7 +13,7 @@ SELECT sys.ps_thread_trx_info(234623462376);
 --enable_warnings
 
 # Make sure current thread returns a valid JSON object
-SELECT JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)));
+SELECT JSON_VALID(sys.ps_thread_trx_info(ps_current_thread_id()));
 
 # Dummy up some transactions and inspect
 CREATE DATABASE trx;

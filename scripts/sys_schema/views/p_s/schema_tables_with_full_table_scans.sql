@@ -44,7 +44,7 @@ VIEW schema_tables_with_full_table_scans (
 SELECT object_schema, 
        object_name,
        count_read AS rows_full_scanned,
-       sys.format_time(sum_timer_wait) AS latency
+       format_pico_time(sum_timer_wait) AS latency
   FROM performance_schema.table_io_waits_summary_by_index_usage 
  WHERE index_name IS NULL
    AND count_read > 0

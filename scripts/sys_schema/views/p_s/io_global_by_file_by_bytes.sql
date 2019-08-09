@@ -47,12 +47,12 @@ VIEW io_global_by_file_by_bytes (
 ) AS
 SELECT sys.format_path(file_name) AS file, 
        count_read, 
-       sys.format_bytes(sum_number_of_bytes_read) AS total_read,
-       sys.format_bytes(IFNULL(sum_number_of_bytes_read / NULLIF(count_read, 0), 0)) AS avg_read,
+       format_bytes(sum_number_of_bytes_read) AS total_read,
+       format_bytes(IFNULL(sum_number_of_bytes_read / NULLIF(count_read, 0), 0)) AS avg_read,
        count_write, 
-       sys.format_bytes(sum_number_of_bytes_write) AS total_written,
-       sys.format_bytes(IFNULL(sum_number_of_bytes_write / NULLIF(count_write, 0), 0.00)) AS avg_write,
-       sys.format_bytes(sum_number_of_bytes_read + sum_number_of_bytes_write) AS total, 
+       format_bytes(sum_number_of_bytes_write) AS total_written,
+       format_bytes(IFNULL(sum_number_of_bytes_write / NULLIF(count_write, 0), 0.00)) AS avg_write,
+       format_bytes(sum_number_of_bytes_read + sum_number_of_bytes_write) AS total, 
        IFNULL(ROUND(100-((sum_number_of_bytes_read/ NULLIF((sum_number_of_bytes_read+sum_number_of_bytes_write), 0))*100), 2), 0.00) AS write_pct 
   FROM performance_schema.file_summary_by_instance
  ORDER BY sum_number_of_bytes_read + sum_number_of_bytes_write DESC;

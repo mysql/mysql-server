@@ -43,10 +43,10 @@ VIEW memory_by_user_by_current_bytes (
 ) AS
 SELECT IF(user IS NULL, 'background', user) AS user,
        SUM(current_count_used) AS current_count_used,
-       sys.format_bytes(SUM(current_number_of_bytes_used)) AS current_allocated,
-       sys.format_bytes(IFNULL(SUM(current_number_of_bytes_used) / NULLIF(SUM(current_count_used), 0), 0)) AS current_avg_alloc,
-       sys.format_bytes(MAX(current_number_of_bytes_used)) AS current_max_alloc,
-       sys.format_bytes(SUM(sum_number_of_bytes_alloc)) AS total_allocated
+       format_bytes(SUM(current_number_of_bytes_used)) AS current_allocated,
+       format_bytes(IFNULL(SUM(current_number_of_bytes_used) / NULLIF(SUM(current_count_used), 0), 0)) AS current_avg_alloc,
+       format_bytes(MAX(current_number_of_bytes_used)) AS current_max_alloc,
+       format_bytes(SUM(sum_number_of_bytes_alloc)) AS total_allocated
   FROM performance_schema.memory_summary_by_user_by_event_name
  GROUP BY IF(user IS NULL, 'background', user)
  ORDER BY SUM(current_number_of_bytes_used) DESC;

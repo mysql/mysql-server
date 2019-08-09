@@ -4,13 +4,13 @@ table_schema	varchar(64)	YES		NULL
 table_name	varchar(64)	YES		NULL	
 index_name	varchar(64)	YES		NULL	
 rows_selected	bigint(20) unsigned	NO		NULL	
-select_latency	text	YES		NULL	
+select_latency	varchar(11)	YES		NULL	
 rows_inserted	bigint(20) unsigned	NO		NULL	
-insert_latency	text	YES		NULL	
+insert_latency	varchar(11)	YES		NULL	
 rows_updated	bigint(20) unsigned	NO		NULL	
-update_latency	text	YES		NULL	
+update_latency	varchar(11)	YES		NULL	
 rows_deleted	bigint(20) unsigned	NO		NULL	
-delete_latency	text	YES		NULL	
+delete_latency	varchar(11)	YES		NULL	
 SELECT * FROM sys.schema_index_statistics;
 DESC sys.x$schema_index_statistics;
 Field	Type	Null	Key	Default	Extra

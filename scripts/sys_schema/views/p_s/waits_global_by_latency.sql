@@ -43,9 +43,9 @@ VIEW waits_global_by_latency (
 ) AS
 SELECT event_name AS event,
        count_star AS total,
-       sys.format_time(sum_timer_wait) AS total_latency,
-       sys.format_time(avg_timer_wait) AS avg_latency,
-       sys.format_time(max_timer_wait) AS max_latency
+       format_pico_time(sum_timer_wait) AS total_latency,
+       format_pico_time(avg_timer_wait) AS avg_latency,
+       format_pico_time(max_timer_wait) AS max_latency
   FROM performance_schema.events_waits_summary_global_by_event_name
  WHERE event_name != 'idle'
    AND sum_timer_wait > 0

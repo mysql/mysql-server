@@ -49,16 +49,16 @@ VIEW host_summary (
 ) AS
 SELECT IF(accounts.host IS NULL, 'background', accounts.host) AS host,
        SUM(stmt.total) AS statements,
-       sys.format_time(SUM(stmt.total_latency)) AS statement_latency,
-       sys.format_time(IFNULL(SUM(stmt.total_latency) / NULLIF(SUM(stmt.total), 0), 0)) AS statement_avg_latency,
+       format_pico_time(SUM(stmt.total_latency)) AS statement_latency,
+       format_pico_time(IFNULL(SUM(stmt.total_latency) / NULLIF(SUM(stmt.total), 0), 0)) AS statement_avg_latency,
        SUM(stmt.full_scans) AS table_scans,
        SUM(io.ios) AS file_ios,
-       sys.format_time(SUM(io.io_latency)) AS file_io_latency,
+       format_pico_time(SUM(io.io_latency)) AS file_io_latency,
        SUM(accounts.current_connections) AS current_connections,
        SUM(accounts.total_connections) AS total_connections,
        COUNT(DISTINCT user) AS unique_users,
-       sys.format_bytes(SUM(mem.current_allocated)) AS current_memory,
-       sys.format_bytes(SUM(mem.total_allocated)) AS total_memory_allocated
+       format_bytes(SUM(mem.current_allocated)) AS current_memory,
+       format_bytes(SUM(mem.total_allocated)) AS total_memory_allocated
   FROM performance_schema.accounts
   JOIN sys.x$host_summary_by_statement_latency AS stmt ON accounts.host = stmt.host
   JOIN sys.x$host_summary_by_file_io AS io ON accounts.host = io.host

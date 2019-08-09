@@ -122,12 +122,12 @@ connection default;
 --let $o_upd_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_sel_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_ins_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
---let $d_upd_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_sel_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_ins_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_upd_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_sel_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
---let $d_ins_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_upd_total_latency= `SELECT format_pico_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_sel_total_latency= `SELECT format_pico_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_ins_total_latency= `SELECT format_pico_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_upd_tock_latency= `SELECT format_pico_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_sel_tock_latency= `SELECT format_pico_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
+--let $d_ins_tock_latency= `SELECT format_pico_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
 
 CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
 
@@ -179,8 +179,8 @@ CREATE VIEW test.view_digests AS
 SELECT sys.format_statement(DIGEST_TEXT) AS query,
        SCHEMA_NAME AS db,
        COUNT_STAR AS exec_count,
-       sys.format_time(SUM_TIMER_WAIT) AS total_latency,
-       sys.format_time(AVG_TIMER_WAIT) AS avg_latency,
+       format_pico_time(SUM_TIMER_WAIT) AS total_latency,
+       format_pico_time(AVG_TIMER_WAIT) AS avg_latency,
        ROUND(IFNULL(SUM_ROWS_SENT / NULLIF(COUNT_STAR, 0), 0)) AS rows_sent_avg,
        ROUND(IFNULL(SUM_ROWS_EXAMINED / NULLIF(COUNT_STAR, 0), 0)) AS rows_examined_avg,
        ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,

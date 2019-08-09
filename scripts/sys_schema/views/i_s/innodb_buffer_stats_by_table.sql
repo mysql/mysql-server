@@ -50,8 +50,8 @@ VIEW innodb_buffer_stats_by_table (
 ) AS
 SELECT IF(LOCATE('.', ibp.table_name) = 0, 'InnoDB System', REPLACE(SUBSTRING_INDEX(ibp.table_name, '.', 1), '`', '')) AS object_schema,
        REPLACE(SUBSTRING_INDEX(ibp.table_name, '.', -1), '`', '') AS object_name,
-       sys.format_bytes(SUM(IF(ibp.compressed_size = 0, 16384, compressed_size))) AS allocated,
-       sys.format_bytes(SUM(ibp.data_size)) AS data,
+       format_bytes(SUM(IF(ibp.compressed_size = 0, 16384, compressed_size))) AS allocated,
+       format_bytes(SUM(ibp.data_size)) AS data,
        COUNT(ibp.page_number) AS pages,
        COUNT(IF(ibp.is_hashed = 'YES', 1, NULL)) AS pages_hashed,
        COUNT(IF(ibp.is_old = 'YES', 1, NULL)) AS pages_old,
