@@ -69,7 +69,7 @@ struct TestResult {
   int result;
 };
 
-enum FailureMode : ulong {
+enum FailureMode : long {
   Restart,
   Abort,
   Skip,
