@@ -126,7 +126,18 @@ FUNCTION(add_harness_plugin NAME)
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
   )
 
-  SET_PATH_TO_SSL(${NAME} ${CMAKE_BINARY_DIR}/plugin_output_directory)
+  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+    ADD_CUSTOM_COMMAND(TARGET ${NAME} POST_BUILD
+      COMMAND install_name_tool -change
+              "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+               $<TARGET_FILE_NAME:${NAME}>
+      COMMAND install_name_tool -change
+              "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+               $<TARGET_FILE_NAME:${NAME}>
+      WORKING_DIRECTORY
+      ${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}
+      )
+  ENDIF()
 
   # Add install rules to install the interface header files and the
   # plugin correctly.
