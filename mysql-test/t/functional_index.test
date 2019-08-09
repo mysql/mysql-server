@@ -466,3 +466,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1), INDEX (col2));
 ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29934661 FUNCTIONAL INDEX SEEMS TO MALFUNCTION WITH UNSIGNED COLUMN
+--echo #
+--echo # The hidden column that is added should have a data type that can store
+--echo # the absolute value of an unsigned data type.
+CREATE TABLE t0(c0 INT UNSIGNED, INDEX idx ((ABS(c0))));
+INSERT INTO t0 (c0) VALUES (4294967294);
+DROP TABLE t0;
