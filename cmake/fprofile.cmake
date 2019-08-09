@@ -115,3 +115,8 @@ IF(FPROFILE_GENERATE OR FPROFILE_USE)
   # Build fails with lld, so switch it off.
   SET(USE_LD_LLD OFF CACHE INTERNAL "")
 ENDIF()
+
+IF(FPROFILE_USE)
+  # LTO combined with PGO boosts performance even more.
+  SET(WITH_LTO_DEFAULT ON CACHE INTERNAL "")
+ENDIF()
