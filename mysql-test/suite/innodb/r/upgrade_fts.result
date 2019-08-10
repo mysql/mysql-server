@@ -1,0 +1,157 @@
+#
+# This test upgrades a 5.7 database with tables having "FTS"
+# in their names to 8.0
+#
+# Stop the running server
+##############################################################
+# Copy and unzip the datadir created with lctn=0
+##############################################################
+# Restart the server with the unzipped datadir
+# restart: --datadir=DATADIR --innodb_page_size=16k
+# Check the contents of INFORMATION_SCHEMA
+SHOW TABLES;
+Tables_in_test
+FTS_0000000000000001
+FTS_table
+tFTS1
+t_FTS_1
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE name LIKE '%test%'
+  ORDER BY name;
+lower(name)
+test/fts_0000000000000001
+test/fts_0000000000000427_000000000000002d_index_1
+test/fts_0000000000000427_000000000000002d_index_2
+test/fts_0000000000000427_000000000000002d_index_3
+test/fts_0000000000000427_000000000000002d_index_4
+test/fts_0000000000000427_000000000000002d_index_5
+test/fts_0000000000000427_000000000000002d_index_6
+test/fts_0000000000000427_being_deleted
+test/fts_0000000000000427_being_deleted_cache
+test/fts_0000000000000427_config
+test/fts_0000000000000427_deleted
+test/fts_0000000000000427_deleted_cache
+test/fts_0000000000000434_000000000000003c_index_1
+test/fts_0000000000000434_000000000000003c_index_2
+test/fts_0000000000000434_000000000000003c_index_3
+test/fts_0000000000000434_000000000000003c_index_4
+test/fts_0000000000000434_000000000000003c_index_5
+test/fts_0000000000000434_000000000000003c_index_6
+test/fts_0000000000000434_being_deleted
+test/fts_0000000000000434_being_deleted_cache
+test/fts_0000000000000434_config
+test/fts_0000000000000434_deleted
+test/fts_0000000000000434_deleted_cache
+test/fts_table
+test/tfts1
+test/t_fts_1
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%test%'
+  ORDER BY name;
+lower(name)
+test/fts_0000000000000001
+test/fts_0000000000000427_000000000000002d_index_1
+test/fts_0000000000000427_000000000000002d_index_2
+test/fts_0000000000000427_000000000000002d_index_3
+test/fts_0000000000000427_000000000000002d_index_4
+test/fts_0000000000000427_000000000000002d_index_5
+test/fts_0000000000000427_000000000000002d_index_6
+test/fts_0000000000000427_being_deleted
+test/fts_0000000000000427_being_deleted_cache
+test/fts_0000000000000427_config
+test/fts_0000000000000427_deleted
+test/fts_0000000000000427_deleted_cache
+test/fts_0000000000000434_000000000000003c_index_1
+test/fts_0000000000000434_000000000000003c_index_2
+test/fts_0000000000000434_000000000000003c_index_3
+test/fts_0000000000000434_000000000000003c_index_4
+test/fts_0000000000000434_000000000000003c_index_5
+test/fts_0000000000000434_000000000000003c_index_6
+test/fts_0000000000000434_being_deleted
+test/fts_0000000000000434_being_deleted_cache
+test/fts_0000000000000434_config
+test/fts_0000000000000434_deleted
+test/fts_0000000000000434_deleted_cache
+test/fts_table
+test/tfts1
+test/t_fts_1
+# Cleanup
+# Shutdown server
+# Remove copied files
+##############################################################
+# Copy and unzip the datadir created with lctn=1
+##############################################################
+# Restart the server with the unzipped datadir
+# restart: --datadir=DATADIR --innodb_page_size=16k
+# Check the contents of INFORMATION_SCHEMA
+SHOW TABLES;
+Tables_in_test
+fts_0000000000000001
+fts_table
+t_fts_1
+tfts1
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE name LIKE '%test%'
+  ORDER BY name;
+lower(name)
+test/fts_0000000000000001
+test/fts_0000000000000427_000000000000002d_index_1
+test/fts_0000000000000427_000000000000002d_index_2
+test/fts_0000000000000427_000000000000002d_index_3
+test/fts_0000000000000427_000000000000002d_index_4
+test/fts_0000000000000427_000000000000002d_index_5
+test/fts_0000000000000427_000000000000002d_index_6
+test/fts_0000000000000427_being_deleted
+test/fts_0000000000000427_being_deleted_cache
+test/fts_0000000000000427_config
+test/fts_0000000000000427_deleted
+test/fts_0000000000000427_deleted_cache
+test/fts_0000000000000434_000000000000003c_index_1
+test/fts_0000000000000434_000000000000003c_index_2
+test/fts_0000000000000434_000000000000003c_index_3
+test/fts_0000000000000434_000000000000003c_index_4
+test/fts_0000000000000434_000000000000003c_index_5
+test/fts_0000000000000434_000000000000003c_index_6
+test/fts_0000000000000434_being_deleted
+test/fts_0000000000000434_being_deleted_cache
+test/fts_0000000000000434_config
+test/fts_0000000000000434_deleted
+test/fts_0000000000000434_deleted_cache
+test/fts_table
+test/tfts1
+test/t_fts_1
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%test%'
+  ORDER BY name;
+lower(name)
+test/fts_0000000000000001
+test/fts_0000000000000427_000000000000002d_index_1
+test/fts_0000000000000427_000000000000002d_index_2
+test/fts_0000000000000427_000000000000002d_index_3
+test/fts_0000000000000427_000000000000002d_index_4
+test/fts_0000000000000427_000000000000002d_index_5
+test/fts_0000000000000427_000000000000002d_index_6
+test/fts_0000000000000427_being_deleted
+test/fts_0000000000000427_being_deleted_cache
+test/fts_0000000000000427_config
+test/fts_0000000000000427_deleted
+test/fts_0000000000000427_deleted_cache
+test/fts_0000000000000434_000000000000003c_index_1
+test/fts_0000000000000434_000000000000003c_index_2
+test/fts_0000000000000434_000000000000003c_index_3
+test/fts_0000000000000434_000000000000003c_index_4
+test/fts_0000000000000434_000000000000003c_index_5
+test/fts_0000000000000434_000000000000003c_index_6
+test/fts_0000000000000434_being_deleted
+test/fts_0000000000000434_being_deleted_cache
+test/fts_0000000000000434_config
+test/fts_0000000000000434_deleted
+test/fts_0000000000000434_deleted_cache
+test/fts_table
+test/tfts1
+test/t_fts_1
+# Cleanup
+# Shutdown server
+# Remove copied files
+# Restart the server
+# restart
