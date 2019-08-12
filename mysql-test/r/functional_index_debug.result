@@ -55,7 +55,7 @@ t1	CREATE TABLE `t1` (
   `88ad1ce75f21f5ed3c66937d772979b5` int(5) GENERATED ALWAYS AS (year(`date_col`)) VIRTUAL,
   `97815b7254f7ac7c263d6d590116c8de` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_with_fractions_col`)) VIRTUAL,
   `9d4481df7b182f78b99e08a25930c91f` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_col`)) VIRTUAL,
-  `a5848dfab7c8461e1d6bb033aa7afb7e` int(10) GENERATED ALWAYS AS (abs(`unsigned_int`)) VIRTUAL,
+  `a5848dfab7c8461e1d6bb033aa7afb7e` int(10) unsigned GENERATED ALWAYS AS (abs(`unsigned_int`)) VIRTUAL,
   `b6c099c314e9ecbf27e3385f0ea88fa3` datetime(6) GENERATED ALWAYS AS ((`datetime_with_fractions_col` - interval 30 day)) VIRTUAL,
   `bf3e30b3724d85afb72714cc5e9d35a7` double(22,2) GENERATED ALWAYS AS (round(`dbl_col`,2)) VIRTUAL,
   `c1c817beeba8f7f70efb7dd56df758b0` datetime GENERATED ALWAYS AS ((`datetime_col` - interval 30 day)) VIRTUAL,

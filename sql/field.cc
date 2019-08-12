@@ -10305,7 +10305,11 @@ void Field_blob::restore_blob_backup() {
 Create_field_wrapper::Create_field_wrapper(const Create_field *fld)
     : Field(nullptr, fld->max_display_width_in_codepoints(), nullptr, 0,
             fld->auto_flags, fld->field_name),
-      m_field(fld) {}
+      m_field(fld) {
+  if (fld->is_unsigned) {
+    flags |= UNSIGNED_FLAG;
+  }
+}
 
 Item_result Create_field_wrapper::result_type() const {
   return field_types_result_type[field_type2index(m_field->sql_type)];
