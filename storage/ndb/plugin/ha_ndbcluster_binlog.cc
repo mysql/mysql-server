@@ -767,7 +767,7 @@ static bool migrate_table_with_old_extra_metadata(
 
   // First acquire exclusive MDL lock on schema and table
   if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
-    ndb_log_error("Failed to acquire MDL lock on table '%s.%s'", schema_name,
+    ndb_log_error("Failed to acquire MDL on table '%s.%s'", schema_name,
                   table_name);
     return false;
   }
@@ -785,14 +785,6 @@ static bool migrate_table_with_old_extra_metadata(
   // Check if table need to be setup for binlogging or
   // schema distribution
   const dd::Table *table_def;
-
-  // Acquire MDL lock on table
-  if (!dd_client.mdl_lock_table(schema_name, table_name)) {
-    ndb_log_error("Failed to acquire MDL lock for table '%s.%s'", schema_name,
-                  table_name);
-    return false;
-  }
-
   if (!dd_client.get_table(schema_name, table_name, &table_def)) {
     ndb_log_error("Failed to open table '%s.%s' from DD", schema_name,
                   table_name);
@@ -1287,6 +1279,62 @@ class Ndb_binlog_setup {
 
     Thd_ndb *thd_ndb = get_thd_ndb(thd);
     Ndb *ndb = thd_ndb->ndb;
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
+    const std::string tablespace_name = ndb_table_tablespace_name(dict, ndbtab);
+    if (!tablespace_name.empty()) {
+      // This is a disk data table. Before the table is installed, we check if
+      // the tablespace exists in DD since it's possible that the tablespace
+      // wasn't successfully installed during the tablespace synchronization
+      // step. We try and deal with such scenarios by attempting to install the
+      // missing tablespace or erroring out should the installation fail once
+      // again
+      Ndb_dd_client dd_client(thd);
+      if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
+        ndb_log_error("Failed to acquire MDL on tablespace '%s'",
+                      tablespace_name.c_str());
+        return false;
+      }
+      bool exists_in_DD;
+      if (!dd_client.tablespace_exists(tablespace_name.c_str(), exists_in_DD)) {
+        ndb_log_info("Failed to determine if tablespace '%s' was present in DD",
+                     tablespace_name.c_str());
+        return false;
+      }
+      if (!exists_in_DD) {
+        ndb_log_info("Tablespace '%s' does not exist in DD, installing..",
+                     tablespace_name.c_str());
+        if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name.c_str())) {
+          ndb_log_error("Failed to acquire MDL on tablespace '%s'",
+                        tablespace_name.c_str());
+          return false;
+        }
+        std::vector<std::string> datafile_names;
+        if (!ndb_get_datafile_names(dict, tablespace_name, &datafile_names)) {
+          ndb_log_error(
+              "Failed to get datafiles assigned to tablespace '%s' from NDB",
+              tablespace_name.c_str());
+          return false;
+        }
+        int ndb_id, ndb_version;
+        if (!ndb_get_tablespace_id_and_version(dict, tablespace_name, ndb_id,
+                                               ndb_version)) {
+          ndb_log_error(
+              "Failed to get id and version of tablespace '%s' from NDB",
+              tablespace_name.c_str());
+          return false;
+        }
+        if (!dd_client.install_tablespace(tablespace_name.c_str(),
+                                          datafile_names, ndb_id, ndb_version,
+                                          false /* force_overwrite */)) {
+          ndb_log_error("Failed to install tablespace '%s' in DD",
+                        tablespace_name.c_str());
+          return false;
+        }
+        dd_client.commit();
+        ndb_log_info("Tablespace '%s' installed in DD",
+                     tablespace_name.c_str());
+      }
+    }
 
     dd::sdi_t sdi;
     {
@@ -1340,8 +1388,6 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    const std::string tablespace_name =
-        ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
     if (!tablespace_name.empty()) {
       // Acquire IX MDL on tablespace
       if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
@@ -1779,6 +1825,12 @@ class Ndb_binlog_setup {
       const char *tablespace_name,
       const std::unordered_set<std::string> &tablespaces_in_DD) {
     ndb_log_verbose(1, "Synchronizing tablespace '%s'", tablespace_name);
+
+    if (DBUG_EVALUATE_IF("ndb_install_tablespace_fail", true, false)) {
+      ndb_log_verbose(20, "Skipping synchronization of tablespace '%s'",
+                      tablespace_name);
+      return false;
+    }
 
     Ndb *ndb = get_thd_ndb(m_thd)->ndb;
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
