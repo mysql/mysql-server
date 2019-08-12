@@ -2423,12 +2423,17 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
       }
       if (node_id != 0)
       {
-        BaseString tmp;
-        Config config_copy(m_config);
-        if (config_copy.pack64_v2(tmp, node_id))
+        NodeBitmask all_mgm;
+        m_config->get_nodemask(all_mgm, NDB_MGM_NODE_TYPE_MGM);
+        if (all_mgm.get(node_id) == false)
         {
-          buf64->assign(tmp, tmp.length());
-          return true;
+          BaseString tmp;
+          Config config_copy(m_config);
+          if (config_copy.pack64_v2(tmp, node_id))
+          {
+            buf64->assign(tmp, tmp.length());
+            return true;
+          }
         }
       }
       buf64->assign(m_packed_config_v2, m_packed_config_v2.length());
