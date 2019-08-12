@@ -4,6 +4,7 @@
 
 --source include/have_debug.inc
 --source include/not_valgrind.inc
+--source include/have_case_sensitive_file_system.inc
 
 --echo #
 --echo # This test upgrades a 5.7 database with tables having "FTS"
