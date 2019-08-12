@@ -62,6 +62,9 @@ IF(MY_COMPILER_IS_GNU)
   # The default =3 given by -Wextra is a bit too strict for our code.
   MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
   MY_ADD_C_WARNING_FLAG("Wjump-misses-init")
+  # This is included in -Wall on some platforms, enable it explicitly.
+  MY_ADD_C_WARNING_FLAG("Wstringop-truncation")
+  MY_ADD_CXX_WARNING_FLAG("Wstringop-truncation")
 ENDIF()
 
 #
