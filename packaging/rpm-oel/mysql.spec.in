@@ -1038,6 +1038,7 @@ fi
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
 
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/ibd2sdi
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -1196,7 +1197,8 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %{_datadir}/mysql-*/charsets/
-%{_datadir}/mysql-*/errmsg-utf8.txt
+%{_datadir}/mysql-*/messages_to_error_log.txt
+%{_datadir}/mysql-*/messages_to_clients.txt
 %{_datadir}/mysql-*/bulgarian/
 %{_datadir}/mysql-*/czech/
 %{_datadir}/mysql-*/danish/

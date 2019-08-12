@@ -66,7 +66,7 @@ IF (NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     ${CMAKE_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/dictionary.txt)
 ENDIF()
 
-INSTALL(FILES errmsg-utf8.txt dictionary.txt
+INSTALL(FILES messages_to_error_log.txt messages_to_clients.txt dictionary.txt
   DESTINATION ${INSTALL_MYSQLSHAREDIR}
   COMPONENT Server
 )

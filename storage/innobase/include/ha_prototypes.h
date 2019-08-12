@@ -268,8 +268,8 @@ enum ib_log_level_t {
 };
 
 /** Use this when the args are first converted to a formatted string and then
- passed to the format string from errmsg-utf8.txt. The error message format
- must be: "Some string ... %s".
+ passed to the format string from messages_to_clients.txt. The error message
+ format must be: "Some string ... %s".
 
  Push a warning message to the client, it is a wrapper around:
 
@@ -285,7 +285,7 @@ void ib_errf(THD *thd,             /*!< in/out: session */
     MY_ATTRIBUTE((format(printf, 4, 5)));
 
 /** Use this when the args are passed to the format string from
- errmsg-utf8.txt directly as is.
+ messages_to_clients.txt directly as is.
 
  Push a warning message to the client, it is a wrapper around:
 

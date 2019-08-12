@@ -1,0 +1,36 @@
+# WL#13423: Split errmgs-utf8.txt into one file for messages to clients and another for messages to the error log
+SHOULD PASS:
+srv2client: msg_srv2client 	 [errlog: msg_errlog]
+
+srv2client: msg_srv2client 	  errlog: msg_errlog_no_start
+
+
+SHOULD FAIL:
+srv2client: msg_start_too_low 	 [errlog: msg_errlog]
+Failed to parse the error offset string!
+Failed to parse input file msg_start_too_low.txt
+
+srv2client: msg_start_set_twice 	 [errlog: msg_errlog]
+start-error-number 4000 set more than once.
+Failed to parse input file msg_start_set_twice.txt
+
+srv2client: msg_start_decreasing 	 [errlog: msg_errlog]
+start-error-number may only increase the index.
+Failed to parse input file msg_start_decreasing.txt
+
+srv2client: msg_srv2client_multilang 	 [errlog: msg_errlog]
+More than one languages directive found.
+Failed to parse input file msg_srv2client_multilang.txt
+
+srv2client: msg_srv2client_phantom_lang 	 [errlog: msg_errlog]
+Message string for error 'ER_NO' in unregistered language 'xxx'
+Failed to parse input file msg_srv2client_phantom_lang.txt
+
+srv2client: msg_srv2client_no_msgs 	 [errlog: msg_errlog]
+Failed to parse input file msg_srv2client_no_msgs.txt
+
+srv2client: msg_srv2client 	  errlog: msg_errlog_with_lang
+More than one languages directive found.
+Failed to parse input file msg_errlog_with_lang.txt
+
+self-test result code: 7

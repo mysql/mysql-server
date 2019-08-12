@@ -367,6 +367,7 @@ rm -r $(readlink var) var
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqldump
@@ -438,7 +439,8 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/spanish/
 %{_datadir}/mysql-*/swedish/
 %{_datadir}/mysql-*/ukrainian/
-%attr(644, root, root) %{_datadir}/mysql-*/errmsg-utf8.txt
+%attr(644, root, root) %{_datadir}/mysql-*/messages_to_error_log.txt
+%attr(644, root, root) %{_datadir}/mysql-*/messages_to_clients.txt
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql

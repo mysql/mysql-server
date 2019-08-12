@@ -66,8 +66,9 @@
 
   The tool is specific to the tree and version it was built for,
   that is to say, it knows exactly those error-symbols and messages
-  that are defined in that tree's errmsg-utf8.txt.  Using one build's
-  tool on a different checkout is likely to render nonsensical results.
+  which are defined in that tree's share/messages_to_*.txt.  Using
+  one build's tool on a different checkout is likely to render
+  nonsensical results.
 
   The tool is in its proof-of-concept stage. Lookups can be sped up.
   The tool will disregard preprocessor directives, and thereby find

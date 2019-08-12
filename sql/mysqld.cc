@@ -3365,11 +3365,16 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
     error = ER_UNKNOWN_ERROR;
   }
 
+  /* Caller wishes to inform client, and one is attached. */
   if (thd) {
     (void)thd->raise_condition(error, NULL, Sql_condition::SL_ERROR, str,
                                MyFlags & ME_FATALERROR);
 
     /*
+      Now for an argument check.
+      We're asserting after rather than before raising the
+      condition to make the culprit easier to track down.
+
       Messages intended for the error-log are in the range
       starting at ER_SERVER_RANGE_START (error_code 10,000);
       messages intended for sending to a client are in the
@@ -3380,35 +3385,34 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       the code.
 
       Only error-codes from the client range should be seen
-      here. If your patch asserts here, one of two things
-      probably happened:
+      in this if(). If your patch asserts here, one of two
+      things probably happened:
 
-      - You added a new message to errmsg-utf8.txt:
-        The message was added to the server range
-        (appended at the end of the list), but code
-        was added that tries to send the message to
-        a client (my_error(), push_warning_printf(),
-        etc.).
-        => Move the new message to the correct range
-           in the message file. The error-log range
-           starts at the line "start-error-number 10000";
-           move your message right before that.
+      - You added a new message to messages_to_error_log.txt:
+        The message was added to the server range, but code
+        was added that tries to send the message to a client
+        (my_error(), push_warning_printf(), etc.).
+
+        => Move the new message to messages_to_clients.txt.
+           The copied message should be added at the end of
+           the range for the lowest server version you're adding
+           the message to.
            Rebuild the server; rerun your test.
 
       - You used an existing message:
         The existing message is intended for use with
-        the error-log (it appears in the messages file
-        below "start-error-number 10000"), but the new
-        code tries to send it to a client (my_error(),
+        the error-log (it appears in messages_to_error_log.txt),
+        but the new code tries to send it to a client (my_error(),
         push_warning_printf(), etc.).
-        => Copy the existing message to the client
-           range, that is to say, right before the
-           line "start-error-number 10000" in the
-           messages file. The copied message will
-           need its own symbol; if in doubt, call
-           this copy of ER_EXAMPLE_MESSAGE
-           ER_DA_EXAMPLE_MESSAGE (as this version
-           is for use with the diagnostics area).
+
+        => Copy the existing message to messages_to_clients.txt.
+           - The copied message should be added at the end of
+             the range for the lowest server version you're adding
+             the message to.
+           - The copied message will need its own symbol;
+             if in doubt, call the copy of ER_EXAMPLE_MESSAGE
+             ER_DA_EXAMPLE_MESSAGE (as this version is for use
+             with the diagnostics area).
            Then make sure that your new code references
            this new symbol when it sends the message
            to a client.
@@ -3419,8 +3423,6 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       is currently allowed to set any error-code (regardless of
       range). SIGNALing an error-code from the error-log range
       will not result in writing to that log to prevent abuse.
-      We're asserting after rather than before printing to make
-      the culprit easier to track down.
     */
     DBUG_ASSERT(error < ER_SERVER_RANGE_START);
   }

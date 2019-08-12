@@ -1,0 +1,4 @@
+languages english=eng latin1;
+
+start-error-number 4000
+start-error-number 3000

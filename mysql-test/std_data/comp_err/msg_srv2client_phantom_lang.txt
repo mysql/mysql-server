@@ -1,0 +1,10 @@
+languages english=eng latin1;
+
+start-error-number 5000
+
+ER_NO
+	eng "NO"
+	xxx "Hi I'm a language not listed in the languages directive and should throw an error!"
+
+ER_YES
+	eng "YES"

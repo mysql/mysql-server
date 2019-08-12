@@ -138,8 +138,8 @@ class Slave_reporting_capability {
 
   /*
     For MSR, there is a need to introduce error messages per channel.
-    Instead of changing the error messages in share/errmsg-utf8.txt to
-    introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+    Instead of changing the error messages in share/messages_to_error_log.txt
+    to introduce the clause, FOR CHANNEL "%s", we construct a string like this.
     There might be problem with a client applications which could print
     error messages and see no %s.
     @TODO: fix this.

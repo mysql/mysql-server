@@ -25,8 +25,8 @@ ADD_WSHADOW_WARNING()
 IF(NOT CMAKE_CROSSCOMPILING)
   MYSQL_ADD_EXECUTABLE(comp_err
     comp_err.cc
+    COMPONENT Server
     LINK_LIBRARIES mysys
-    SKIP_INSTALL
     )
 ENDIF()
 
@@ -58,6 +58,18 @@ ENDIF()
 
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 
+# Create localized error message files, <language>/errmsg.sys
+#
+# errmsg-utf8.txt was split into messages_to_clients.txt and
+# messages_to_error_log.txt, respectively.
+#
+# As the names suggest, this covers messages sent by the server to
+# the error-log, and those sent by the server to clients.
+# For messages built into the clients (or rather, libmysql / C-API)
+# itself, see the MYSQL_ADD_EXECUTABLE(comp_client_err ...) section.
+#
+# Please see errmsg_readme.txt in the same directory for more information.
+#
 ADD_CUSTOM_COMMAND(OUTPUT
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
@@ -67,15 +79,20 @@ ADD_CUSTOM_COMMAND(OUTPUT
   --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
   --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   --errmsg_file=${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
-  --in_file=${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
-  DEPENDS ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
+  --in_file_errlog=${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
+  --in_file_toclient=${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt
+  DEPENDS
+  ${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
+  ${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt
   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)
+
 
 ADD_CUSTOM_TARGET(GenError ALL
   DEPENDS 
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
-  ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
+  ${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
+  ${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt)
 
 MYSQL_ADD_EXECUTABLE(range_check_err
   range_check_err.cc

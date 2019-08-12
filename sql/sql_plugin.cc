@@ -492,7 +492,8 @@ malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash(void) {
 
 /**
  @warning Make sure all errors reported to the log here are
- defined at least twice in share/errmsg-utf8.txt
+ defined in share/messages_to_error_log.txt as well as in
+ share/messages_to_clients.txt.
 
  @arg where_to  a combination of @ref REPORT_TO_USER and @ref REPORT_TO_LOG
  @arg error  the code for the mysql_error()

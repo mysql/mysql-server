@@ -1,0 +1,2 @@
+ER_ERRLOG_HI
+	eng "Starting error log. Hooray!"

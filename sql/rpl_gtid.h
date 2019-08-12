@@ -44,7 +44,8 @@ class THD;
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
   have to duplicate the error message (write it out in the source file
-  for mysqlbinlog, write it in share/errmsg-utf8.txt for the server).
+  for mysqlbinlog, write it in share/messages_to_clients.txt for the
+  server).
 
   @param MYSQLBINLOG_ERROR arguments to mysqlbinlog's 'error'
   function, including the function call parentheses

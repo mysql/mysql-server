@@ -20,6 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/*
+  This operates on the error messages that will be included into the
+  client library (libmysql), NOT the messages that the server sends
+  to clients!
+*/
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/types.h>

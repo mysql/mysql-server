@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # binaries
+usr/bin/comp_err
 usr/bin/ibd2sdi
 usr/bin/innochecksum
 usr/bin/lz4_decompress
@@ -93,7 +94,8 @@ usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate
 # localized error msgs
 usr/share/mysql-@MYSQL_BASE_VERSION@/*/errmsg.sys
-usr/share/mysql-@MYSQL_BASE_VERSION@/errmsg-utf8.txt
+usr/share/mysql-@MYSQL_BASE_VERSION@/messages_to_error_log.txt
+usr/share/mysql-@MYSQL_BASE_VERSION@/messages_to_clients.txt
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
 usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
