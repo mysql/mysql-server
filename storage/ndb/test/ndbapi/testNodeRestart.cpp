@@ -1340,6 +1340,8 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
 
   if (num_replicas == 4)
   {
+    ndbout_c("Crash three nodes per node group");
+    prepare_all_nodes_for_death(restarter);
     crash_two_nodes_per_node_group(restarter,
                                    dead_nodes,
                                    num_dead_nodes,
