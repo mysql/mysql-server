@@ -2119,13 +2119,19 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
   MYSQL_FIELD *fields, *result;
   MYSQL_ROWS data;
   NET *net = &mysql->net;
+  size_t size;
 
   DBUG_ENTER("cli_read_metadata");
 
   len = (ulong *)alloc_root(alloc, sizeof(ulong) * field);
+  size = sizeof(MYSQL_FIELD) * field_count;
 
-  fields = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(MYSQL_FIELD) * field_count);
+  if (field_count != (size / sizeof(MYSQL_FIELD))) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+
+  fields = result = (MYSQL_FIELD *)alloc_root(alloc, size);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
