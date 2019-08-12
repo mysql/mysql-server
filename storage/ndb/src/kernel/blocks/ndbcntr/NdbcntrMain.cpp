@@ -5164,8 +5164,10 @@ void Ndbcntr::execWAIT_GCP_CONF(Signal* signal)
       tmp.clear(recNode);
       const Uint32 ref = calcQmgrBlockRef(recNode);
       Uint32 packed_length = NdbNodeBitmask::getPackedLengthInWords(stopReq->nodes);
-      if (ndbd_send_node_bitmask_in_section(recNode))
+      const Uint32 receiverVersion = getNodeInfo(recNode).m_version;
+      if (ndbd_send_node_bitmask_in_section(receiverVersion))
       {
+        jam();
         LinearSectionPtr lsptr[3];
         lsptr[0].p = stopReq->nodes;
         lsptr[0].sz = packed_length;
@@ -5174,11 +5176,12 @@ void Ndbcntr::execWAIT_GCP_CONF(Signal* signal)
       }
       else if (packed_length <= NdbNodeBitmask48::Size)
       {
+        jam();
         sendSignal(ref, GSN_STOP_REQ, signal, StopReq::SignalLength_v1, JBA);
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
 
