@@ -591,7 +591,14 @@ private:
 
   struct OpAllocNodeIdReq opAllocNodeIdReq;
   
-  StopReq c_stopReq;
+  struct StopReqRec {
+    Uint32 senderRef;
+    Uint32 senderData;
+    Uint32 requestInfo;
+    NdbNodeBitmask nodes;
+  };
+
+  StopReqRec c_stopReq;
   bool check_multi_node_shutdown(Signal* signal);
 
   void recompute_version_info(Uint32 type);
