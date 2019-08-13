@@ -28,6 +28,7 @@
 #include "my_config.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -90,7 +91,8 @@ static void print_query(FILE *out, const char *query) {
 
   fprintf(out, "\"");
   while (*ptr) {
-    if (column >= 120) {
+    /* utf-8 encoded characters are always >= 0x80 unsigned */
+    if (column >= 120 && static_cast<uint8_t>(*ptr) < 0x80) {
       /* Wrap to the next line, tabulated. */
       fprintf(out, "\"\n  \"");
       column = 3;
