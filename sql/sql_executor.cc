@@ -1766,26 +1766,6 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
     ConvertItemsToCopy(unit->get_field_list(),
                        qep_tab->table()->visible_field_ptr(), tmp_table_param,
                        subjoin);
-
-    bool rematerialize = qep_tab->rematerialize;
-    if (qep_tab->join()->select_lex->uncacheable &&
-        qep_tab->table_ref->common_table_expr() == nullptr) {
-      // If the query is uncacheable, we need to rematerialize it each and
-      // every time it's read. In particular, this can happen for
-      // outer-correlated derived tables.
-      //
-      // For (outer-correlated) CTEs, we don't need this check, as we already
-      // explicitly clear CTEs when we start executing the query block where
-      // it is defined (clear_corr_ctes(), called whenever we start a query
-      // block or materialize a table, takes care of this). In fact,
-      // rematerializing every time is actively harmful, as it would risk
-      // clearing out a temporary table that an outer query block is still
-      // scanning. We don't want to set it for a LATERAL derived table either,
-      // as we only want to rematerialize it when the previous tables' rows
-      // change.
-      rematerialize = true;
-    }
-
     bool copy_fields_and_items_in_materialize = true;
     if (unit->is_simple()) {
       // See if AggregateIterator already does this for us.
@@ -1805,14 +1785,21 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
           thd, unit->release_query_blocks_to_materialize(), qep_tab->table(),
           move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
           unit, /*subjoin=*/nullptr,
-          /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records);
+          /*ref_slice=*/-1, qep_tab->rematerialize,
+          tmp_table_param->end_write_records);
     } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
-               rematerialize && qep_tab->using_table_scan()) {
+               qep_tab->rematerialize && qep_tab->using_table_scan()) {
       // We don't actually need the materialization for anything (we would
       // just reading the rows straight out from the table, never to be used
       // again), so we can just stream records directly over to the next
       // iterator. This saves both CPU time and memory (for the temporary
       // table).
+      //
+      // NOTE: Currently, qep_tab->rematerialize is true only for JSON_TABLE.
+      // We could extend this to other situations, such as the leftmost
+      // table of the join (assuming nested loop only). The test for CTEs is
+      // also conservative; if the CTEs is defined within this join and used
+      // only once, we could still stream without losing performance.
       table_iterator = NewIterator<StreamingIterator>(
           thd, unit->release_root_iterator(), &subjoin->tmp_table_param,
           qep_tab->table(), copy_fields_and_items_in_materialize);
@@ -1821,11 +1808,11 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
           thd, unit->release_root_iterator(), tmp_table_param, qep_tab->table(),
           move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
           select_number, unit, /*subjoin=*/nullptr,
-          /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
-          tmp_table_param->end_write_records);
+          /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
+          qep_tab->rematerialize, tmp_table_param->end_write_records);
     }
 
-    if (!rematerialize) {
+    if (!qep_tab->rematerialize) {
       MaterializeIterator *materialize =
           down_cast<MaterializeIterator *>(table_iterator->real_iterator());
       if (qep_tab->invalidators != nullptr) {

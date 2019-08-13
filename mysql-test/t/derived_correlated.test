@@ -930,3 +930,24 @@ SELECT * FROM t1 JOIN LATERAL (
 ) d0 ON (1);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #30110851: SUBQUERY INVOLVES COUNT() AGGREGATE FUNCTION PERFORMANCE REGRESSION
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE TABLE t2 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t2.f1 ) AS f3 FROM t2;
+
+#
+# Both materializations here should be marked as non-rematerialize
+# (ie., not “Temporary table”). In particular, the materialization
+# in the SELECT clause should be reused for each iteration, even though
+# the index lookup against it is outer-correlated, and it is part of
+# a query block which is also itself outer-correlated.
+#
+EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
+
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;
