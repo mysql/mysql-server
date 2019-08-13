@@ -20,26 +20,23 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(MYSQL_SERVER_COMPONENT_SOURCES
-  registry.cc
+MYSQL_ADD_COMPONENT(mysql_server
   dynamic_loader.cc
   dynamic_loader_path_filter.cc
-  server_component.cc
+  dynamic_loader_scheme_file.cc
+  log_builtins.cc
+  log_builtins_filter.cc
   my_metadata.cc
   my_ref_counted.cc
   mysql_component.cc
-  mysql_service_implementation.cc
-  dynamic_loader_scheme_file.cc
-  plugin_registry_service.cc
-  log_builtins.cc
-  log_builtins_filter.cc
-  mysql_mutex_service.cc
-  mysql_rwlock_service.cc
   mysql_cond_service.cc
+  mysql_mutex_service.cc
   mysql_runtime_error.cc
-)
-
-MYSQL_ADD_COMPONENT(mysql_server
-  ${MYSQL_SERVER_COMPONENT_SOURCES} STATIC
+  mysql_rwlock_service.cc
+  mysql_service_implementation.cc
+  plugin_registry_service.cc
+  registry.cc
+  server_component.cc
+  STATIC
   LINK_LIBRARIES ${LIBDL} mysys
   )

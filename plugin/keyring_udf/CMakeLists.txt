@@ -1,4 +1,4 @@
-## Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+## Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,9 @@
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MYSQL_ADD_PLUGIN(keyring_udf
-                 keyring_udf.cc
-                 MODULE_ONLY
-                 MODULE_OUTPUT_NAME "keyring_udf")
+  keyring_udf.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "keyring_udf"
+  )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)

@@ -22,16 +22,18 @@
 
 MYSQL_ADD_COMPONENT(log_sink_syseventlog
   log_sink_syseventlog.cc
-  MODULE)
-
+  MODULE_ONLY
+  )
 MYSQL_ADD_COMPONENT(log_sink_json
   log_sink_json.cc
-  MODULE)
-
+  MODULE_ONLY
+  )
 MYSQL_ADD_COMPONENT(log_filter_dragnet
   log_filter_dragnet.cc
-  MODULE)
-
+  MODULE_ONLY
+  )
 MYSQL_ADD_COMPONENT(log_sink_test
   log_sink_test.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )

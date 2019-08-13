@@ -150,5 +150,7 @@ ENDIF()
 IF(WITH_MYSQLX)
   MYSQL_ADD_COMPONENT("${MYSQLX_PLUGIN_NAME}_global_reset"
     ${xplugin_global_reset_SRC}
-    TEST MODULE)
+    MODULE_ONLY
+    TEST_ONLY
+    )
 ENDIF()

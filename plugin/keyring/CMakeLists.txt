@@ -22,25 +22,22 @@
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file")
 
-SET (KEYRING_FILE_SOURCES
-     common/keyring_key.cc
-     common/keys_container.cc
-     common/keys_iterator.cc
-     common/keyring_impl.cc
-     checker/checker.cc
-     checker/checker_factory.cc
-     keyring.cc
-     hash_to_buffer_serializer.cc
-     buffered_file_io.cc
-     converter.cc
-     buffer.cc
-     digest.cc
-     checker/checker_ver_1_0.cc
-     checker/checker_ver_2_0.cc
-     file_io.cc)
-
 MYSQL_ADD_PLUGIN(keyring_file
-  ${KEYRING_FILE_SOURCES}
+  buffer.cc
+  buffered_file_io.cc
+  checker/checker.cc
+  checker/checker_factory.cc
+  checker/checker_ver_1_0.cc
+  checker/checker_ver_2_0.cc
+  common/keyring_impl.cc
+  common/keyring_key.cc
+  common/keys_container.cc
+  common/keys_iterator.cc
+  converter.cc
+  digest.cc
+  file_io.cc
+  hash_to_buffer_serializer.cc
+  keyring.cc
   LINK_LIBRARIES ${SSL_LIBRARIES}
   MODULE_ONLY
   MODULE_OUTPUT_NAME "keyring_file"

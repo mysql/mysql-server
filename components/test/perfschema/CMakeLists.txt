@@ -22,8 +22,12 @@
 
 MYSQL_ADD_COMPONENT(test_pfs_resource_group
   test_pfs_resource_group.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )
 
 MYSQL_ADD_COMPONENT(test_pfs_notification
   test_pfs_notification.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )

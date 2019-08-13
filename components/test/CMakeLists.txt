@@ -22,97 +22,122 @@
 
 MYSQL_ADD_COMPONENT(test_udf_registration
   test_udf_registration.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_reg_3_func
   udf_reg_3_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_reg_only_3_func
   udf_reg_only_3_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_unreg_3_func
   udf_unreg_3_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_reg_int_func
   udf_reg_int_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_unreg_int_func
   udf_unreg_int_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_reg_int_same_func
   udf_reg_int_same_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_reg_real_func
   udf_reg_real_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_unreg_real_func
   udf_unreg_real_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(udf_reg_avg_func
   udf_reg_avg_func.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_sys_var_service
   test_sys_var_service.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_sys_var_service_same
   test_sys_var_service_same.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_sys_var_service_int
   test_sys_var_service_int.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_sys_var_service_str
   test_sys_var_service_str.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_status_var_service
   test_status_var_service.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_status_var_service_int
   test_status_var_service_int.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_status_var_service_str
   test_status_var_service_str.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_status_var_service_reg_only
   test_status_var_service_reg_only.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_status_var_service_unreg_only
   test_status_var_service_unreg_only.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_system_variable_source
   test_system_variable_source.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_host_application_signal
   test_host_application_signal.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_audit_api_message
   test_audit_api_message.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_mysql_runtime_error
   test_mysql_runtime_error.cc
-  TEST MODULE)
-
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_mysql_current_thread_reader
   test_mysql_current_thread_reader.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )
 

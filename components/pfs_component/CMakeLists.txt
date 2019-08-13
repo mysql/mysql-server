@@ -25,5 +25,6 @@ MYSQL_ADD_COMPONENT(pfs_example_component_population
   pfs_example_component_population.cc
   pfs_example_continent.cc
   pfs_example_country.cc
-  TEST MODULE
+  MODULE_ONLY
+  TEST_ONLY
   )
