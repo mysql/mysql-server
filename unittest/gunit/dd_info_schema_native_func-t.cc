@@ -55,8 +55,7 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   Item *item = nullptr;
   Item_null *null = new (thd()->mem_root) Item_null();
   PT_item_list *null_list = new (thd()->mem_root) PT_item_list;
-  auto prepare_null_list = [](PT_item_list *null_list, Item_null *null,
-                              int cnt) {
+  auto prepare_null_list = [null_list, null](int cnt) {
     for (int i = 0; i < cnt; i++) null_list->push_front(null);
     return null_list;
   };
@@ -69,64 +68,54 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
 #define CREATE_ITEM(X, ARGS) item = new (thd()->mem_root) X(POS(), ARGS)
 
   // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-  CREATE_ITEM(Item_func_internal_table_rows,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_table_rows, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_avg_row_length,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_avg_row_length, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_data_length,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_data_length, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_max_data_length,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_max_data_length, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_index_length,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_index_length, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_data_free,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_data_free, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   // NULL)
-  CREATE_ITEM(Item_func_internal_auto_increment,
-              prepare_null_list(null_list, null, 9));
+  CREATE_ITEM(Item_func_internal_auto_increment, prepare_null_list(9));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_update_time,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_update_time, prepare_null_list(8));
   MYSQL_TIME ldate;
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_check_time,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_check_time, prepare_null_list(8));
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_checksum,
-              prepare_null_list(null_list, null, 8));
+  CREATE_ITEM(Item_func_internal_checksum, prepare_null_list(8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -137,28 +126,26 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
 
   // INTERNAL_GET_VIEW_WARNING_OR_ERROR(NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_get_view_warning_or_error,
-              prepare_null_list(null_list, null, 4));
+              prepare_null_list(4));
   // null_value is not set in this function. So verifying only val_int() return
   // value.
   EXPECT_EQ(0, item->val_int());
 
   // INTERNAL_GET_COMMENT_OR_ERROR(NULL, NULL, NULL, NULL, NULL)
   String str;
-  CREATE_ITEM(Item_func_internal_get_comment_or_error,
-              prepare_null_list(null_list, null, 5));
+  CREATE_ITEM(Item_func_internal_get_comment_or_error, prepare_null_list(5));
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL,
   //                                   NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_column_cardinality,
-              prepare_null_list(null_list, null, 11));
+              prepare_null_list(11));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // GET_DD_INDEX_SUB_PART_LENGTH(NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_get_dd_index_sub_part_length,
-              prepare_null_list(null_list, null, 5));
+  CREATE_ITEM(Item_func_get_dd_index_sub_part_length, prepare_null_list(5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -197,8 +184,7 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   EXPECT_EQ(1, item->null_value);
 
   // CAN_ACCESS_ROUTINE(NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_routine,
-              prepare_null_list(null_list, null, 5));
+  CREATE_ITEM(Item_func_can_access_routine, prepare_null_list(5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -273,8 +259,7 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   EXPECT_EQ(nullptr, item->val_str(&str));
 
   // INTERNAL_GET_DD_COLUMN_EXTRA()
-  CREATE_ITEM(Item_func_internal_get_dd_column_extra,
-              prepare_null_list(null_list, null, 6));
+  CREATE_ITEM(Item_func_internal_get_dd_column_extra, prepare_null_list(6));
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
 }

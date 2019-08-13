@@ -601,7 +601,7 @@ TEST_F(dynamic_loader, metadata) {
 
   ASSERT_FALSE(query_service->create(&iterator));
 
-  auto guard = create_scope_guard(
+  auto query_service_guard = create_scope_guard(
       [&query_service, &iterator]() { query_service->release(iterator); });
 
   for (; !query_service->is_valid(iterator); query_service->next(iterator)) {

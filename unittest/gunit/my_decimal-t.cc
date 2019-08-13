@@ -156,7 +156,7 @@ TEST_F(DecimalTest, Multiply) {
 
     thus, there's no requirement for M or N to be integers
  */
-static int decimal_modulo(my_decimal *res, const my_decimal *m,
+static int decimal_modulo(my_decimal *res_arg, const my_decimal *m,
                           const my_decimal *n) {
   my_decimal abs_m(*m);
   my_decimal abs_n(*n);
@@ -185,7 +185,7 @@ static int decimal_modulo(my_decimal *res, const my_decimal *m,
     }
   } while (my_decimal_cmp(&next_r, &decimal_zero) >= 0);
   r.sign(m->sign());
-  *res = r;
+  *res_arg = r;
   return 0;
 }
 

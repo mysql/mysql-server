@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,8 +122,8 @@ static void validate(int const &nr_producers,
   for (app_data_ptr const value : consumed) {
     auto cursor = std::find_if(
         cursors.begin(), cursors.end(),
-        [&sequence, &value](std::vector<app_data_ptr>::iterator cursor) {
-          return (cursor != sequence.end() && *cursor == value);
+        [&sequence, &value](std::vector<app_data_ptr>::iterator cursor_arg) {
+          return (cursor_arg != sequence.end() && *cursor_arg == value);
         });
     ASSERT_NE(cursor, cursors.end());
     (*cursor)++;

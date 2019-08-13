@@ -337,7 +337,6 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                            bool is_login_file, bool found_no_defaults) {
   const char **dirs;
   char *forced_default_file, *forced_extra_defaults;
-  int error = 0;
   DBUG_TRACE;
 
   /* Skip for login file. */
@@ -447,12 +446,14 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
   // If conf_file is an absolute path, we only read it
   if (dirname_length(conf_file)) {
+    int error;
     if ((error = search_default_file(func, func_ctx, NullS, conf_file,
                                      is_login_file)) < 0)
       goto err;
   }
   // If my defaults file is set (from a previous run), we read it
   else if (my_defaults_file) {
+    int error;
     if ((error = search_default_file_with_ext(
              func, func_ctx, "", "", my_defaults_file, 0, is_login_file)) < 0)
       goto err;
@@ -468,6 +469,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                                 is_login_file) < 0)
           goto err;
       } else if (my_defaults_extra_file) {
+        int error;
         if ((error = search_default_file_with_ext(func, func_ctx, "", "",
                                                   my_defaults_extra_file, 0,
                                                   is_login_file)) < 0)

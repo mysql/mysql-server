@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -435,17 +435,17 @@ ulint insert_middle(trx_id_t trxid, ref_t ref, ulint offset, byte *&data,
   flst_node_t *prev_node = nullptr;
   ut_ad(new_block != nullptr);
 
-  data_page_t new_page(new_block);
+  data_page_t new_data_page(new_block);
 
   /* Allocate a new index entry */
   flst_node_t *new_node = first_page.alloc_index_entry();
 
   /* Fill the new index entry. */
-  index_entry_t new_entry(new_node);
-  new_entry.set_versions_null();
-  new_entry.set_page_no(new_page.get_page_no());
-  new_entry.set_data_len(new_page.get_data_len());
-  new_entry.set_trx_id(trxid);
+  index_entry_t new_index_entry(new_node);
+  new_index_entry.set_versions_null();
+  new_index_entry.set_page_no(new_data_page.get_page_no());
+  new_index_entry.set_data_len(new_data_page.get_data_len());
+  new_index_entry.set_trx_id(trxid);
 
   /* Insert the new node, just after the old node. */
   flst_insert_after(base_node, node, new_node);
@@ -454,7 +454,7 @@ ulint insert_middle(trx_id_t trxid, ref_t ref, ulint offset, byte *&data,
   flst_remove(base_node, node);
 
   /* Make the existing entry an old version of new entry. */
-  new_entry.set_old_version(entry);
+  new_index_entry.set_old_version(entry);
 
   prev_node = new_node;
 

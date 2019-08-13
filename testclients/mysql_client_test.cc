@@ -495,10 +495,10 @@ static void mct_log(const char *format, ...) {
   va_end(args);
 
   if (mct_log_file) {
-    va_list args;
-    va_start(args, format);
-    vfprintf(mct_log_file, format, args);
-    va_end(args);
+    va_list mct_args;
+    va_start(mct_args, format);
+    vfprintf(mct_log_file, format, mct_args);
+    va_end(mct_args);
   }
 }
 
@@ -514,7 +514,7 @@ static void mct_close_log() {
 
 static void test_wl4435() {
   MYSQL_STMT *stmt;
-  int rc;
+  int query_rc;
   char query[MAX_TEST_QUERY_LENGTH];
 
   char str_data[20][WL4435_STRING_SIZE];
@@ -535,80 +535,80 @@ static void test_wl4435() {
   myheader("test_wl4435");
   mct_start_logging("test_wl4435");
 
-  rc = mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1");
-  myquery(rc);
+  query_rc = mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql, "DROP PROCEDURE IF EXISTS p2");
-  myquery(rc);
+  query_rc = mysql_query(mysql, "DROP PROCEDURE IF EXISTS p2");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
-  myquery(rc);
+  query_rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t2");
-  myquery(rc);
+  query_rc = mysql_query(mysql, "DROP TABLE IF EXISTS t2");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql,
-                   "CREATE TABLE t1(a1 INT, a2 CHAR(32), "
-                   "  a3 DOUBLE(4, 2), a4 DECIMAL(3, 1))");
-  myquery(rc);
+  query_rc = mysql_query(mysql,
+                         "CREATE TABLE t1(a1 INT, a2 CHAR(32), "
+                         "  a3 DOUBLE(4, 2), a4 DECIMAL(3, 1))");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql,
-                   "CREATE TABLE t2(b0 INT, b1 INT, b2 CHAR(32), "
-                   "  b3 DOUBLE(4, 2), b4 DECIMAL(3, 1))");
-  myquery(rc);
+  query_rc = mysql_query(mysql,
+                         "CREATE TABLE t2(b0 INT, b1 INT, b2 CHAR(32), "
+                         "  b3 DOUBLE(4, 2), b4 DECIMAL(3, 1))");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql,
-                   "INSERT INTO t1 VALUES"
-                   "(1, '11', 12.34, 56.7), "
-                   "(2, '12', 56.78, 90.1), "
-                   "(3, '13', 23.45, 67.8)");
-  myquery(rc);
+  query_rc = mysql_query(mysql,
+                         "INSERT INTO t1 VALUES"
+                         "(1, '11', 12.34, 56.7), "
+                         "(2, '12', 56.78, 90.1), "
+                         "(3, '13', 23.45, 67.8)");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql,
-                   "INSERT INTO t2 VALUES"
-                   "(100, 10, '110', 70.70, 10.1), "
-                   "(200, 20, '120', 80.80, 20.2), "
-                   "(300, 30, '130', 90.90, 30.3)");
-  myquery(rc);
+  query_rc = mysql_query(mysql,
+                         "INSERT INTO t2 VALUES"
+                         "(100, 10, '110', 70.70, 10.1), "
+                         "(200, 20, '120', 80.80, 20.2), "
+                         "(300, 30, '130', 90.90, 30.3)");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql,
-                   "CREATE PROCEDURE p1("
-                   "   IN v0 INT, "
-                   "   OUT v_str_1 CHAR(32), "
-                   "   OUT v_dbl_1 DOUBLE(4, 2), "
-                   "   OUT v_dec_1 DECIMAL(6, 3), "
-                   "   OUT v_int_1 INT, "
-                   "   IN v1 INT, "
-                   "   INOUT v_str_2 CHAR(64), "
-                   "   INOUT v_dbl_2 DOUBLE(5, 3), "
-                   "   INOUT v_dec_2 DECIMAL(7, 4), "
-                   "   INOUT v_int_2 INT)"
-                   "BEGIN "
-                   "   SET v0 = -1; "
-                   "   SET v1 = -1; "
-                   "   SET v_str_1 = 'test_1'; "
-                   "   SET v_dbl_1 = 12.34; "
-                   "   SET v_dec_1 = 567.891; "
-                   "   SET v_int_1 = 2345; "
-                   "   SET v_str_2 = 'test_2'; "
-                   "   SET v_dbl_2 = 67.891; "
-                   "   SET v_dec_2 = 234.6789; "
-                   "   SET v_int_2 = 6789; "
-                   "   SELECT * FROM t1; "
-                   "   SELECT * FROM t2; "
-                   "END");
-  myquery(rc);
+  query_rc = mysql_query(mysql,
+                         "CREATE PROCEDURE p1("
+                         "   IN v0 INT, "
+                         "   OUT v_str_1 CHAR(32), "
+                         "   OUT v_dbl_1 DOUBLE(4, 2), "
+                         "   OUT v_dec_1 DECIMAL(6, 3), "
+                         "   OUT v_int_1 INT, "
+                         "   IN v1 INT, "
+                         "   INOUT v_str_2 CHAR(64), "
+                         "   INOUT v_dbl_2 DOUBLE(5, 3), "
+                         "   INOUT v_dec_2 DECIMAL(7, 4), "
+                         "   INOUT v_int_2 INT)"
+                         "BEGIN "
+                         "   SET v0 = -1; "
+                         "   SET v1 = -1; "
+                         "   SET v_str_1 = 'test_1'; "
+                         "   SET v_dbl_1 = 12.34; "
+                         "   SET v_dec_1 = 567.891; "
+                         "   SET v_int_1 = 2345; "
+                         "   SET v_str_2 = 'test_2'; "
+                         "   SET v_dbl_2 = 67.891; "
+                         "   SET v_dec_2 = 234.6789; "
+                         "   SET v_int_2 = 6789; "
+                         "   SELECT * FROM t1; "
+                         "   SELECT * FROM t2; "
+                         "END");
+  myquery(query_rc);
 
-  rc = mysql_query(mysql,
-                   "CREATE PROCEDURE p2("
-                   "   IN i1 VARCHAR(255) CHARACTER SET koi8r, "
-                   "   OUT o1 VARCHAR(255) CHARACTER SET cp1251, "
-                   "   OUT o2 VARBINARY(255)) "
-                   "BEGIN "
-                   "   SET o1 = i1; "
-                   "   SET o2 = i1; "
-                   "END");
-  myquery(rc);
+  query_rc = mysql_query(mysql,
+                         "CREATE PROCEDURE p2("
+                         "   IN i1 VARCHAR(255) CHARACTER SET koi8r, "
+                         "   OUT o1 VARCHAR(255) CHARACTER SET cp1251, "
+                         "   OUT o2 VARBINARY(255)) "
+                         "BEGIN "
+                         "   SET o1 = i1; "
+                         "   SET o2 = i1; "
+                         "END");
+  myquery(query_rc);
 
   my_stpcpy(query, "CALL p1(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
   stmt = mysql_simple_prepare(mysql, query);
@@ -694,7 +694,8 @@ static void test_wl4435() {
 
   /* Bind parameters. */
 
-  rc = mysql_stmt_bind_param(stmt, ps_params);
+  query_rc = mysql_stmt_bind_param(stmt, ps_params);
+  check_execute(stmt, query_rc);
 
   /* Execute! */
 
@@ -705,8 +706,8 @@ static void test_wl4435() {
 
     mct_log("\nexec_counter: %d\n", (int)exec_counter);
 
-    rc = mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
+    query_rc = mysql_stmt_execute(stmt);
+    check_execute(stmt, query_rc);
 
     while (1) {
       MYSQL_FIELD *fields;
@@ -765,8 +766,8 @@ static void test_wl4435() {
         }
       }
 
-      rc = mysql_stmt_bind_result(stmt, rs_bind);
-      check_execute(stmt, rc);
+      query_rc = mysql_stmt_bind_result(stmt, rs_bind);
+      check_execute(stmt, query_rc);
 
       mct_log("Data:\n");
 
@@ -804,20 +805,20 @@ static void test_wl4435() {
 
       mct_log("EOF\n");
 
-      rc = mysql_stmt_next_result(stmt);
-      mct_log("mysql_stmt_next_result(): %d; field_count: %d\n", (int)rc,
+      query_rc = mysql_stmt_next_result(stmt);
+      mct_log("mysql_stmt_next_result(): %d; field_count: %d\n", query_rc,
               (int)mysql->field_count);
 
       free(rs_bind);
       mysql_free_result(rs_metadata);
 
-      if (rc > 0) {
+      if (query_rc > 0) {
         printf("Error: %s (errno: %d)\n", mysql_stmt_error(stmt),
                mysql_stmt_errno(stmt));
-        DIE(rc > 0);
+        DIE(query_rc > 0);
       }
 
-      if (rc) break;
+      if (query_rc) break;
 
       if (!mysql->field_count) {
         /* This is the last OK-packet. No more resultsets. */
@@ -830,8 +831,8 @@ static void test_wl4435() {
 
   mct_close_log();
 
-  rc = mysql_commit(mysql);
-  myquery(rc);
+  query_rc = mysql_commit(mysql);
+  myquery(query_rc);
 
   /* i18n part of test case. */
 
@@ -869,18 +870,18 @@ static void test_wl4435() {
 
     /* Bind parameters. */
 
-    rc = mysql_stmt_bind_param(stmt, ps_params);
-    check_execute(stmt, rc);
+    query_rc = mysql_stmt_bind_param(stmt, ps_params);
+    check_execute(stmt, query_rc);
 
     /* Prevent converting to character_set_results. */
 
-    rc = mysql_query(mysql, "SET NAMES binary");
-    myquery(rc);
+    query_rc = mysql_query(mysql, "SET NAMES binary");
+    myquery(query_rc);
 
     /* Execute statement. */
 
-    rc = mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
+    query_rc = mysql_stmt_execute(stmt);
+    check_execute(stmt, query_rc);
 
     /* Bind result. */
 
@@ -896,13 +897,13 @@ static void test_wl4435() {
     rs_bind[1].buffer_length = (ulong)sizeof(o2_buffer);
     rs_bind[1].length = &o2_length;
 
-    rc = mysql_stmt_bind_result(stmt, rs_bind);
-    check_execute(stmt, rc);
+    query_rc = mysql_stmt_bind_result(stmt, rs_bind);
+    check_execute(stmt, query_rc);
 
     /* Fetch result. */
 
-    rc = mysql_stmt_fetch(stmt);
-    check_execute(stmt, rc);
+    query_rc = mysql_stmt_fetch(stmt);
+    check_execute(stmt, query_rc);
 
     /* Check result. */
 
@@ -911,16 +912,16 @@ static void test_wl4435() {
     DIE_UNLESS(!memcmp(o1_buffer, str_cp1251, o1_length));
     DIE_UNLESS(!memcmp(o2_buffer, str_koi8r, o2_length));
 
-    rc = mysql_stmt_fetch(stmt);
-    DIE_UNLESS(rc == MYSQL_NO_DATA);
+    query_rc = mysql_stmt_fetch(stmt);
+    DIE_UNLESS(query_rc == MYSQL_NO_DATA);
 
-    rc = mysql_stmt_next_result(stmt);
-    DIE_UNLESS(rc == 0 && mysql->field_count == 0);
+    query_rc = mysql_stmt_next_result(stmt);
+    DIE_UNLESS(query_rc == 0 && mysql->field_count == 0);
 
     mysql_stmt_close(stmt);
 
-    rc = mysql_commit(mysql);
-    myquery(rc);
+    query_rc = mysql_commit(mysql);
+    myquery(query_rc);
   }
 }
 
@@ -20389,9 +20390,8 @@ static void test_wl11772() {
   } Userhostpass;
 
   Userhostpass userhostpass[3];
-  int i = 0;
   MYSQL_ROW row;
-  while ((row = mysql_fetch_row(result)) != NULL) {
+  for (int i = 0; (row = mysql_fetch_row(result)) != nullptr;) {
     strcpy(userhostpass[i].user, row[0]);
     strcpy(userhostpass[i].host, row[1]);
     strcpy(userhostpass[i].password, row[2]);
@@ -20418,8 +20418,7 @@ static void test_wl11772() {
   }
   result = mysql_store_result(mysql);
   DIE_IF(result == NULL);
-  i = 0;
-  while ((row = mysql_fetch_row(result)) != NULL) {
+  for (int i = 0; (row = mysql_fetch_row(result)) != nullptr;) {
     strcpy(userhostpass[i].user, row[0]);
     strcpy(userhostpass[i].host, row[1]);
     strcpy(userhostpass[i].password, row[2]);

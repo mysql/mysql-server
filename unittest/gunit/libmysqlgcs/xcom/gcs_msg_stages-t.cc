@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -749,7 +749,7 @@ TEST_F(XcomMultipleStagesTest, MultipleStagesCheckData) {
   pipeline.register_stage<Gcs_message_stage_split_v2>(true, 10);
 
   // clang-format off
-  bool error = pipeline.register_pipeline({
+  bool pipeline_error = pipeline.register_pipeline({
     {Gcs_protocol_version::V1,
      {Gcs_new_stage_1::my_stage_code(),
       Gcs_new_stage_2::my_stage_code()}
@@ -766,7 +766,7 @@ TEST_F(XcomMultipleStagesTest, MultipleStagesCheckData) {
     }
   });
   // clang-format on
-  ASSERT_EQ(error, false);
+  ASSERT_EQ(pipeline_error, false);
 
   /*
    Define/update the membership for all the stages that need it.
@@ -950,7 +950,7 @@ TEST_F(XcomMultipleStagesTest, SplitMessages) {
   pipeline.register_stage<Gcs_new_stage_lz4_5>(true, 1);
 
   // clang-format off
-    bool error = pipeline.register_pipeline({
+    bool pipeline_error = pipeline.register_pipeline({
       {Gcs_protocol_version::V1,
         {Stage_code::ST_SPLIT_V2,
          Stage_code::ST_LZ4_V2
@@ -963,7 +963,7 @@ TEST_F(XcomMultipleStagesTest, SplitMessages) {
       }
     });
   // clang-format on
-  ASSERT_EQ(error, false);
+  ASSERT_EQ(pipeline_error, false);
 
   /*
    Define/update the membership for all the stages that need it.

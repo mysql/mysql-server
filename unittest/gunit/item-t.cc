@@ -387,12 +387,12 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Bug#11765562 58545:
     EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
    */
-  const ulong max_size = 1024;
-  const ulonglong repeat = max_size / 2;
+  const ulong max_packet_size = 1024;
+  const ulonglong repeat = max_packet_size / 2;
   Item *item_int_repeat = new Item_int(repeat);
   Item *string_x = new Item_string(STRING_WITH_LEN("x"), &my_charset_bin);
   String *const null_string = NULL;
-  thd()->variables.max_allowed_packet = max_size;
+  thd()->variables.max_allowed_packet = max_packet_size;
   {
     // Testing overflow caused by 'on-string'.
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);

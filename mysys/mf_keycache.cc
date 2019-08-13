@@ -3074,7 +3074,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     BLOCK_LINK **pos, **end;
     BLOCK_LINK *first_in_switch = NULL;
     BLOCK_LINK *last_in_flush;
-    BLOCK_LINK *last_for_update;
+    BLOCK_LINK *last_link_for_update;
     BLOCK_LINK *block, *next;
 #ifndef DBUG_OFF
     uint cnt = 0;
@@ -3113,7 +3113,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     /* Retrieve the blocks and write them to a buffer to be flushed */
   restart:
     last_in_flush = NULL;
-    last_for_update = NULL;
+    last_link_for_update = nullptr;
     end = (pos = cache) + count;
     for (block = keycache->changed_blocks[FILE_HASH(file)]; block;
          block = next) {
@@ -3223,7 +3223,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
             last_in_flush = block;
           } else {
             /* Remember the last block found to be selected for update. */
-            last_for_update = block;
+            last_link_for_update = block;
           }
         }
       }
@@ -3258,16 +3258,16 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
       /* Be sure not to lose a block. They may be flushed in random order. */
       goto restart;
     }
-    if (last_for_update) {
+    if (last_link_for_update) {
       /*
         There are no blocks to be flushed by this thread, but blocks for
         update by other threads. Wait until one of the blocks is updated.
-        Re-check the condition for last_for_update. We may have unlocked
+        Re-check the condition for last_link_for_update. We may have unlocked
         the cache_lock in flush_cached_blocks(). The state of the block
         could have changed.
       */
-      if (last_for_update->status & BLOCK_FOR_UPDATE)
-        wait_on_queue(&last_for_update->wqueue[COND_FOR_REQUESTED],
+      if (last_link_for_update->status & BLOCK_FOR_UPDATE)
+        wait_on_queue(&last_link_for_update->wqueue[COND_FOR_REQUESTED],
                       &keycache->cache_lock, thread_var);
       /* The block is now changed. Flush it. */
       goto restart;

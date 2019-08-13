@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -388,7 +388,7 @@ static void benchmark_insertion_string(size_t num_iterations,
   str.set_charset(&my_charset_utf8mb4_0900_ai_ci);
   str.reserve(max_string_length);
 
-  for (size_t i = 0; i < num_iterations; ++i) {
+  for (size_t it = 0; it < num_iterations; ++it) {
     histograms::Value_map<String> value_map(&my_charset_utf8mb4_0900_ai_ci,
                                             histograms::Value_map_type::STRING,
                                             1.0);

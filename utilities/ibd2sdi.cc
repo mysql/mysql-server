@@ -1952,19 +1952,19 @@ byte ibd2sdi::get_rec_type(byte *rec) {
 
 /** Return the location of the next record
 @param[in]	ts		tablespace structure
-@param[in]	current_rec	current sdi record in a page
+@param[in]	current_rec_arg	current sdi record in a page
 @param[in]	buf_len		buffer length
 @param[in]	buf		page containing the current rec
 @param[out]	corrupt		true if corruption detected, else false
 @return location of the next record, else NULL if there are no
 user records */
-byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec,
+byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec_arg,
                             uint32_t buf_len, byte *buf, bool *corrupt) {
   DBUG_TRACE;
 
   page_no_t page_num = mach_read_from_4(buf + FIL_PAGE_OFFSET);
   bool is_comp = page_is_comp(buf);
-  ulint next_rec_offset = rec_get_next_offs(current_rec, is_comp);
+  ulint next_rec_offset = rec_get_next_offs(current_rec_arg, is_comp);
 
   if (next_rec_offset == 0) {
     ib::error() << "Record Corruption detected. Aborting";

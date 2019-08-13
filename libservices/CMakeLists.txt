@@ -25,6 +25,8 @@ IF(WITHOUT_SERVER)
   RETURN()
 ENDIF()
 
+ADD_WSHADOW_WARNING()
+
 SET(MYSQLSERVICES_SOURCES
   service_command.c
   locking_service.c

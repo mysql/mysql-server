@@ -2280,10 +2280,10 @@ static int my_wildcmp_uca_impl(const CHARSET_INFO *cs, const char *str,
           */
           return 0;
         }
-        int mb_len =
+        int mb_len_wild =
             mb_wc(cs, &w_wc, (const uchar *)wildstr, (const uchar *)wildend);
-        if (mb_len <= 0) return 1;
-        wildstr += mb_len;
+        if (mb_len_wild <= 0) return 1;
+        wildstr += mb_len_wild;
         if (w_wc == (my_wc_t)w_many) continue;
 
         if (w_wc == (my_wc_t)w_one) {

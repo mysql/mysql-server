@@ -531,7 +531,7 @@ const char *get_charset_name(uint charset_number) {
   return "?"; /* this mimics find_type() */
 }
 
-static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader,
+static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader_arg,
                                           uint cs_number, myf flags) {
   char buf[FN_REFLEN];
   CHARSET_INFO *cs;
@@ -559,8 +559,8 @@ static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader,
 
     if (cs->state & MY_CS_AVAILABLE) {
       if (!(cs->state & MY_CS_READY)) {
-        if ((cs->cset->init && cs->cset->init(cs, loader)) ||
-            (cs->coll->init && cs->coll->init(cs, loader))) {
+        if ((cs->cset->init && cs->cset->init(cs, loader_arg)) ||
+            (cs->coll->init && cs->coll->init(cs, loader_arg))) {
           cs = NULL;
         } else
           cs->state |= MY_CS_READY;

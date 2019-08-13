@@ -101,7 +101,7 @@ BENCHMARK(BM_LookupAllCharsets)
 
 void TestRandomCollation() {
   char coll_name[65];
-  for (int i = 0; i < 100000; i++) {
+  for (int ix = 0; ix < 100000; ix++) {
     memset(coll_name, 0, 65);
     // Generate a random collation name whose length is in range [1, 64].
     size_t random_coll_name_len = 1 + rand() % 64;

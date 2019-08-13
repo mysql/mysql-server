@@ -616,16 +616,16 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
       // There is same page in DUCET.
       if (uca900_weight[page]) {
         for (int off = 0; off < MY_UCA_CHARS_PER_PAGE; off++) {
-          int ch = (page << 8) + off;
+          int ch_off = (page << 8) + off;
           // Copy other characters' weight from DUCET.
-          if (uca->item[ch].num_of_ce == 0) {
-            uca->item[ch].num_of_ce =
+          if (uca->item[ch_off].num_of_ce == 0) {
+            uca->item[ch_off].num_of_ce =
                 UCA900_NUM_OF_CE(uca900_weight[page], off);
             for (int level = 0; level < 3; level++) {
               uint16 *weight =
                   UCA900_WEIGHT_ADDR(uca900_weight[page], level, off);
-              uint16 *dst = uca->item[ch].weight + level;
-              for (int ce = 0; ce < uca->item[ch].num_of_ce; ce++) {
+              uint16 *dst = uca->item[ch_off].weight + level;
+              for (int ce = 0; ce < uca->item[ch_off].num_of_ce; ce++) {
                 if (*weight >= 0x1C47 && *weight <= 0x54A3) {
                   *dst = *weight + 0xBDC4 - 0x1C47;
                 } else if (*weight >= 0xFB00) {  // implicit weight

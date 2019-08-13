@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1039,20 +1039,20 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId) {
 
 TEST_F(CacheStorageTest, TestRename) {
   dd::cache::Dictionary_client &dc = *thd()->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+  dd::cache::Dictionary_client::Auto_releaser releaser_1(&dc);
 
-  std::unique_ptr<dd::Table> temp_table(dd::create_object<dd::Table>());
-  dd_unittest::set_attributes(temp_table.get(), "temp_table", *mysql);
+  std::unique_ptr<dd::Table> temp_table_object(dd::create_object<dd::Table>());
+  dd_unittest::set_attributes(temp_table_object.get(), "temp_table", *mysql);
 
-  lock_object(temp_table->name());
-  EXPECT_FALSE(dc.store(temp_table.get()));
+  lock_object(temp_table_object->name());
+  EXPECT_FALSE(dc.store(temp_table_object.get()));
 
   {
     // Disable foreign key checks, we need to set this before
     // call to open_tables().
     thd()->variables.option_bits |= OPTION_NO_FOREIGN_KEY_CHECKS;
 
-    dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+    dd::cache::Dictionary_client::Auto_releaser releaser_2(&dc);
 
     // Get 'test.temp_table' dd object. Schema id for 'mysql' is 1.
     const dd::Schema *sch = NULL;
@@ -1095,7 +1095,7 @@ TEST_F(CacheStorageTest, TestRename) {
     }
     if (t) {
       // The old name is not available anymnore.
-      const dd::Table *t = NULL;
+      t = nullptr;
       EXPECT_FALSE(dc.acquire<dd::Table>(sch->name(), "temp_table", &t));
       EXPECT_EQ(nullp<const dd::Table>(), t);
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -457,11 +457,11 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
 
   String buf;
   EXPECT_FALSE(serialize(thd(), &array, &buf));
-  Value val = parse_binary(buf.ptr(), buf.length());
-  EXPECT_TRUE(val.large_format());
+  Value val1 = parse_binary(buf.ptr(), buf.length());
+  EXPECT_TRUE(val1.large_format());
   {
     SCOPED_TRACE("");
-    validate_array_contents(val, array.size());
+    validate_array_contents(val1, array.size());
   }
 
   /*
@@ -469,7 +469,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
     that it is valid.
   */
   String raw;
-  EXPECT_FALSE(val.raw_binary(thd(), &raw));
+  EXPECT_FALSE(val1.raw_binary(thd(), &raw));
   {
     SCOPED_TRACE("");
     validate_array_contents(parse_binary(raw.ptr(), raw.length()),
