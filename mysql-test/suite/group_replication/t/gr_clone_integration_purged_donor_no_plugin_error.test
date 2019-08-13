@@ -90,7 +90,7 @@ UNINSTALL PLUGIN clone;
 
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
-call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \"root\"@\"127.0.0.1\":[0-9]+ IDENTIFIED BY \"\\*\\*\\*\\*\\*\" REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
 call mtr.add_suppression("Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");

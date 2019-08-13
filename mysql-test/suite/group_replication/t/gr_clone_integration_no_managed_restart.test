@@ -131,7 +131,7 @@ DROP TABLE t1;
 
 set session sql_log_bin=0;
 call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
-call mtr.add_suppression("Plugin group_replication reported: 'Internal query: CLONE INSTANCE FROM \"root\"@\"127.0.0.1\":[0-9]+ IDENTIFIED BY \"\\*\\*\\*\\*\\*\" REQUIRE NO SSL; result in error. Error number: 3707");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3707 Error message: Restart server failed \\(mysqld is not managed by supervisor process\\).");
 call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations. Server error: 3169. Server error message: Session was killed");
 call mtr.add_suppression("Error running internal SQL query: SET GLOBAL super_read_only= 1;. Internal failure.");

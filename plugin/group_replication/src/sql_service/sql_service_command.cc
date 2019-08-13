@@ -569,19 +569,19 @@ long Sql_service_commands::internal_clone_server(
   std::string q_password(std::get<3>(*variable_args));
   plugin_escape_string(q_password);
 
-  std::string query = "CLONE INSTANCE FROM \"";
+  std::string query = "CLONE INSTANCE FROM \'";
   query.append(q_user);
-  query.append("\"@\"");
+  query.append("\'@\'");
   query.append(q_hostname);
-  query.append("\":");
+  query.append("\':");
   query.append(std::get<1>(*variable_args));
-  query.append(" IDENTIFIED BY \"");
+  query.append(" IDENTIFIED BY \'");
   query.append(q_password);
   bool use_ssl = std::get<4>(*variable_args);
   if (use_ssl)
-    query.append("\" REQUIRE SSL;");
+    query.append("\' REQUIRE SSL;");
   else
-    query.append("\" REQUIRE NO SSL;");
+    query.append("\' REQUIRE NO SSL;");
 
   Sql_resultset rset;
   long srv_err = sql_interface->execute_query(query, &rset);
@@ -593,19 +593,19 @@ long Sql_service_commands::internal_clone_server(
     error_msg->append(" Error message: ");
     error_msg->append(rset.err_msg());
 
-    std::string sanitized_query = "CLONE INSTANCE FROM \"";
+    std::string sanitized_query = "CLONE INSTANCE FROM \'";
     sanitized_query.append(q_user);
-    sanitized_query.append("\"@\"");
+    sanitized_query.append("\'@\'");
     sanitized_query.append(q_hostname);
-    sanitized_query.append("\":");
+    sanitized_query.append("\':");
     sanitized_query.append(std::get<1>(*variable_args));
-    sanitized_query.append(" IDENTIFIED BY \"");
+    sanitized_query.append(" IDENTIFIED BY \'");
     sanitized_query.append("*****");
     bool use_ssl = std::get<4>(*variable_args);
     if (use_ssl)
-      sanitized_query.append("\" REQUIRE SSL;");
+      sanitized_query.append("\' REQUIRE SSL;");
     else
-      sanitized_query.append("\" REQUIRE NO SSL;");
+      sanitized_query.append("\' REQUIRE NO SSL;");
 
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INTERNAL_QUERY,
                  sanitized_query.c_str(), srv_err);

@@ -125,7 +125,7 @@ Remote_clone_handler::check_clone_plugin_presence() {
 
   std::string conditional_query =
       "SELECT COUNT(*)=1 FROM information_schema.plugins WHERE plugin_name = "
-      "\"clone\" AND plugin_status = \"ACTIVE\";";
+      "\'clone\' AND plugin_status = \'ACTIVE\';";
   bool is_present = false;
   std::string error_msg;
   long error = sql_command_interface->execute_conditional_query(
@@ -376,21 +376,21 @@ int Remote_clone_handler::set_clone_ssl_options(
   int error = 0;
 
   if (!ssl_ca.empty()) {
-    std::string ssl_ca_query = " SET GLOBAL clone_ssl_ca = \"";
+    std::string ssl_ca_query = " SET GLOBAL clone_ssl_ca = \'";
     ssl_ca_query.append(ssl_ca);
-    ssl_ca_query.append("\"");
+    ssl_ca_query.append("\'");
     error = sql_command_interface->execute_query(ssl_ca_query);
   }
   if (!error && !ssl_cert.empty()) {
-    std::string ssl_cert_query = " SET GLOBAL clone_ssl_cert = \"";
+    std::string ssl_cert_query = " SET GLOBAL clone_ssl_cert = \'";
     ssl_cert_query.append(ssl_cert);
-    ssl_cert_query.append("\"");
+    ssl_cert_query.append("\'");
     error = sql_command_interface->execute_query(ssl_cert_query);
   }
   if (!error && !ssl_key.empty()) {
-    std::string ssl_key_query = " SET GLOBAL clone_ssl_key = \"";
+    std::string ssl_key_query = " SET GLOBAL clone_ssl_key = \'";
     ssl_key_query.append(ssl_key);
-    ssl_key_query.append("\"");
+    ssl_key_query.append("\'");
     error = sql_command_interface->execute_query(ssl_key_query);
   }
   return error;
@@ -446,7 +446,7 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
 int Remote_clone_handler::update_donor_list(
     Sql_service_command_interface *sql_command_interface, std::string &hostname,
     std::string &port) {
-  std::string donor_list_query = " SET GLOBAL clone_valid_donor_list = \"";
+  std::string donor_list_query = " SET GLOBAL clone_valid_donor_list = \'";
 
   // Escape possible weird hostnames
   plugin_escape_string(hostname);
@@ -454,7 +454,7 @@ int Remote_clone_handler::update_donor_list(
   donor_list_query.append(hostname);
   donor_list_query.append(":");
   donor_list_query.append(port);
-  donor_list_query.append("\"");
+  donor_list_query.append("\'");
 
   std::string error_msg;
   if (sql_command_interface->execute_query(donor_list_query, error_msg)) {
