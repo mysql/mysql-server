@@ -252,7 +252,7 @@ uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
 void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs) {
   DBUG_TRACE;
   if (!is_tree_inited(wtree))
-    init_tree(wtree, 0, 0, sizeof(FT_WORD), &FT_WORD_cmp, 0, NULL, cs);
+    init_tree(wtree, 0, sizeof(FT_WORD), &FT_WORD_cmp, false, nullptr, cs);
 }
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,

@@ -66,8 +66,8 @@ int ft_init_stopwords() {
     if (!(stopwords3 = (TREE *)my_malloc(mi_key_memory_ft_stopwords,
                                          sizeof(TREE), MYF(0))))
       return -1;
-    init_tree(stopwords3, 0, 0, sizeof(FT_STOPWORD), &FT_STOPWORD_cmp, 0,
-              (ft_stopword_file ? &FT_STOPWORD_free : 0), nullptr);
+    init_tree(stopwords3, 0, sizeof(FT_STOPWORD), &FT_STOPWORD_cmp, false,
+              (ft_stopword_file ? &FT_STOPWORD_free : nullptr), nullptr);
     /*
       Stopword engine currently does not support tricky
       character sets UCS2, UTF16, UTF32.

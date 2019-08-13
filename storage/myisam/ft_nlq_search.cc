@@ -239,8 +239,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
 
   memset(&wtree, 0, sizeof(wtree));
 
-  init_tree(&aio.dtree, 0, 0, sizeof(FT_SUPERDOC), &FT_SUPERDOC_cmp, 0, NULL,
-            NULL);
+  init_tree(&aio.dtree, 0, sizeof(FT_SUPERDOC), &FT_SUPERDOC_cmp, false,
+            nullptr, nullptr);
 
   ft_parse_init(&wtree, aio.charset);
   ftparser_param->flags = 0;

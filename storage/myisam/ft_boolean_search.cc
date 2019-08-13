@@ -497,8 +497,8 @@ static void _ftb_init_index_search(FT_INFO *ftb_base) {
       if (!ftbe) continue;
       /* 4 */
       if (!is_tree_inited(&ftb->no_dupes))
-        init_tree(&ftb->no_dupes, 0, 0, sizeof(my_off_t), _ftb_no_dupes_cmp, 0,
-                  0, 0);
+        init_tree(&ftb->no_dupes, 0, sizeof(my_off_t), _ftb_no_dupes_cmp, false,
+                  nullptr, nullptr);
       else
         reset_tree(&ftb->no_dupes);
     }

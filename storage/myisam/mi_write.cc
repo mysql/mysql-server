@@ -900,9 +900,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
       params->info = info;
       params->keynr = i;
       /* Only allocate a 16'th of the buffer at a time */
-      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength,
-                cache_size * key[i].maxlength, 0, keys_compare, 0, keys_free,
-                params++);
+      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength, 0,
+                keys_compare, false, keys_free, params++);
     } else
       info->bulk_insert[i].root = 0;
   }

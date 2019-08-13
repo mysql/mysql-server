@@ -180,8 +180,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
         keyseg->null_bit = 0;
         keyseg++;
 
-        init_tree(&keyinfo->rb_tree, 0, 0, sizeof(uchar *), keys_compare, 1,
-                  NULL, NULL);
+        init_tree(&keyinfo->rb_tree, 0, sizeof(uchar *), keys_compare, true,
+                  nullptr, nullptr);
         keyinfo->delete_key = hp_rb_delete_key;
         keyinfo->write_key = hp_rb_write_key;
       } else {

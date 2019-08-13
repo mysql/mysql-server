@@ -83,7 +83,6 @@
 #define BLACK 1
 #define RED 0
 #define DEFAULT_ALLOC_SIZE 8192
-#define DEFAULT_ALIGN_SIZE 8192
 
 static void delete_tree_element(TREE *, TREE_ELEMENT *);
 static int tree_walk_left_root_right(TREE *, TREE_ELEMENT *, tree_walk_action,
@@ -101,19 +100,17 @@ static void rb_delete_fixup(TREE *tree, TREE_ELEMENT ***parent);
 static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
-void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
-               int size, qsort2_cmp compare, bool with_delete,
+void init_tree(TREE *tree, ulong memory_limit, int element_size,
+               qsort2_cmp compare, bool with_delete,
                tree_element_free free_element, const void *custom_arg) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("tree: %p  size: %d", tree, size));
+  DBUG_PRINT("enter", ("tree: %p  element_size: %d", tree, element_size));
 
-  if (default_alloc_size < DEFAULT_ALLOC_SIZE)
-    default_alloc_size = DEFAULT_ALLOC_SIZE;
-  default_alloc_size = MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
   new (&tree->null_element) TREE_ELEMENT();
   tree->root = &tree->null_element;
   tree->compare = compare;
-  tree->size_of_element = size > 0 ? (uint)size : 0;
+  tree->size_of_element =
+      element_size > 0 ? static_cast<uint>(element_size) : 0;
   tree->memory_limit = memory_limit;
   tree->free = free_element;
   tree->allocated = 0;
@@ -122,24 +119,21 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
   tree->null_element.colour = BLACK;
   tree->null_element.left = tree->null_element.right = 0;
   tree->flag = 0;
-  if (!free_element && size >= 0 &&
-      ((uint)size <= sizeof(void *) || ((uint)size & (sizeof(void *) - 1)))) {
+  if (!free_element && element_size >= 0 &&
+      (static_cast<uint>(element_size) <= sizeof(void *) ||
+       (static_cast<uint>(element_size) & (sizeof(void *) - 1)))) {
     /*
       We know that the data doesn't have to be aligned (like if the key
       contains a double), so we can store the data combined with the
       TREE_ELEMENT.
     */
     tree->offset_to_key = sizeof(TREE_ELEMENT); /* Put key after element */
-    /* Fix allocation size so that we don't lose any memory */
-    default_alloc_size /= (sizeof(TREE_ELEMENT) + size);
-    if (!default_alloc_size) default_alloc_size = 1;
-    default_alloc_size *= (sizeof(TREE_ELEMENT) + size);
   } else {
     tree->offset_to_key = 0; /* use key through pointer */
     tree->size_of_element += sizeof(void *);
   }
   if (!(tree->with_delete = with_delete)) {
-    init_alloc_root(key_memory_TREE, &tree->mem_root, default_alloc_size, 0);
+    init_alloc_root(key_memory_TREE, &tree->mem_root, DEFAULT_ALLOC_SIZE, 0);
   }
 }
 

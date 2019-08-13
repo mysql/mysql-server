@@ -361,7 +361,7 @@ Unique::Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg, uint size_arg,
       size(size_arg),
       elements(0) {
   my_b_clear(&file);
-  init_tree(&tree, /* default_alloc_size */ 0,
+  init_tree(&tree,
             /* memory_limit */ 0, size, comp_func,
             /* with_delete */ false,
             /* free_element */ nullptr, comp_func_fixed_arg);
