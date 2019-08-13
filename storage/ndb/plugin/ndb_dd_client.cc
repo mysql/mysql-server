@@ -682,10 +682,6 @@ bool Ndb_dd_client::migrate_table(const char *schema_name,
   if (force_overwrite) {
     // Remove the old table before migrating
     DBUG_PRINT("info", ("dropping existing table"));
-    if (!mdl_locks_acquire_exclusive(schema_name, table_name)) {
-      return false;
-    }
-
     if (!remove_table(schema_name, table_name)) {
       return false;
     }
