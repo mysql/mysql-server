@@ -71,7 +71,7 @@ ELSE()
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
-  ${CMAKE_DL_LIBS} harness-library ${MySQL_CLIENT_LIB} ${SSL_LIBRARIES})
+  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES})
 IF(WIN32)
   TARGET_LINK_LIBRARIES(router_lib crypt32)
 ENDIF()

@@ -88,7 +88,8 @@ IF(WIN32)
 ENDIF()
 
 IF(WIN32)
-  # 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'
+  # 'identifier' : class 'type' needs to have dll-interface to be used
+  # by clients of class 'type2'
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
 ENDIF()
 
@@ -108,19 +109,12 @@ ENDIF()
 INCLUDE(cmake/settings.cmake)
 INCLUDE(cmake/set_rpath.cmake)
 
-# SSL
-MESSAGE(STATUS "MySQL Router SSL_LIBRARIES:    ${SSL_LIBRARIES}")
-
 # Required tools, libraries, etc..
 INCLUDE(cmake/testing.cmake)  # does not enable testing
 INCLUDE(cmake/configure.cmake)
 INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)
 INCLUDE(cmake/fuzzer.cmake)
-
-# Set the proper paths for the mysqlclient library
-SET(MySQL_CLIENT_LIB mysqlclient)
-SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
