@@ -140,11 +140,7 @@ class Sys_var_integer;
 #define session_var(THD, TYPE) (*(TYPE *)session_var_ptr(THD))
 #define global_var(TYPE) (*(TYPE *)global_var_ptr())
 
-#if SIZEOF_OFF_T > 4
 #define GET_HA_ROWS GET_ULL
-#else
-#define GET_HA_ROWS GET_ULONG
-#endif
 
 extern sys_var_chain all_sys_vars;
 

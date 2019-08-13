@@ -514,21 +514,12 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 my_off_t _mi_kpos(uint nod_flag, uchar *after_key) {
   after_key -= nod_flag;
   switch (nod_flag) {
-#if SIZEOF_OFF_T > 4
     case 7:
       return mi_uint7korr(after_key) * MI_MIN_KEY_BLOCK_LENGTH;
     case 6:
       return mi_uint6korr(after_key) * MI_MIN_KEY_BLOCK_LENGTH;
     case 5:
       return mi_uint5korr(after_key) * MI_MIN_KEY_BLOCK_LENGTH;
-#else
-    case 7:
-      after_key++;
-    case 6:
-      after_key++;
-    case 5:
-      after_key++;
-#endif
     case 4:
       return ((my_off_t)mi_uint4korr(after_key)) * MI_MIN_KEY_BLOCK_LENGTH;
     case 3:
@@ -548,7 +539,6 @@ my_off_t _mi_kpos(uint nod_flag, uchar *after_key) {
 void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
   pos /= MI_MIN_KEY_BLOCK_LENGTH;
   switch (info->s->base.key_reflength) {
-#if SIZEOF_OFF_T > 4
     case 7:
       mi_int7store(buff, pos);
       break;
@@ -558,17 +548,6 @@ void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
     case 5:
       mi_int5store(buff, pos);
       break;
-#else
-    case 7:
-      *buff++ = 0;
-      /* fall trough */
-    case 6:
-      *buff++ = 0;
-      /* fall trough */
-    case 5:
-      *buff++ = 0;
-      /* fall trough */
-#endif
     case 4:
       mi_int4store(buff, pos);
       break;
@@ -592,7 +571,6 @@ my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, const uchar *after_key) {
   my_off_t pos;
   after_key -= (nod_flag + info->s->rec_reflength);
   switch (info->s->rec_reflength) {
-#if SIZEOF_OFF_T > 4
     case 8:
       pos = (my_off_t)mi_uint8korr(after_key);
       break;
@@ -605,20 +583,6 @@ my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, const uchar *after_key) {
     case 5:
       pos = (my_off_t)mi_uint5korr(after_key);
       break;
-#else
-    case 8:
-      pos = (my_off_t)mi_uint4korr(after_key + 4);
-      break;
-    case 7:
-      pos = (my_off_t)mi_uint4korr(after_key + 3);
-      break;
-    case 6:
-      pos = (my_off_t)mi_uint4korr(after_key + 2);
-      break;
-    case 5:
-      pos = (my_off_t)mi_uint4korr(after_key + 1);
-      break;
-#endif
     case 4:
       pos = (my_off_t)mi_uint4korr(after_key);
       break;
@@ -642,7 +606,6 @@ my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, const uchar *after_key) {
 my_off_t _mi_rec_pos(MYISAM_SHARE *s, uchar *ptr) {
   my_off_t pos;
   switch (s->rec_reflength) {
-#if SIZEOF_OFF_T > 4
     case 8:
       pos = (my_off_t)mi_uint8korr(ptr);
       if (pos == HA_OFFSET_ERROR) return HA_OFFSET_ERROR; /* end of list */
@@ -662,14 +625,6 @@ my_off_t _mi_rec_pos(MYISAM_SHARE *s, uchar *ptr) {
       if (pos == (((my_off_t)1) << 40) - 1)
         return HA_OFFSET_ERROR; /* end of list */
       break;
-#else
-    case 8:
-    case 7:
-    case 6:
-    case 5:
-      ptr += (s->rec_reflength - 4);
-      /* fall through */
-#endif
     case 4:
       pos = (my_off_t)mi_uint4korr(ptr);
       if (pos == (my_off_t)(uint32)~0L) return HA_OFFSET_ERROR;
@@ -699,7 +654,6 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
     pos /= info->s->base.pack_reclength;
 
   switch (info->s->rec_reflength) {
-#if SIZEOF_OFF_T > 4
     case 8:
       mi_int8store(buff, pos);
       break;
@@ -712,20 +666,6 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
     case 5:
       mi_int5store(buff, pos);
       break;
-#else
-    case 8:
-      *buff++ = 0;
-      /* fall trough */
-    case 7:
-      *buff++ = 0;
-      /* fall trough */
-    case 6:
-      *buff++ = 0;
-      /* fall trough */
-    case 5:
-      *buff++ = 0;
-      /* fall trough */
-#endif
     case 4:
       mi_int4store(buff, pos);
       break;

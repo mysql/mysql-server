@@ -293,10 +293,6 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     max_key_file_length =
         mi_safe_mul(MI_MIN_KEY_BLOCK_LENGTH,
                     ((ulonglong)1 << (share->base.key_reflength * 8)) - 1);
-#if SIZEOF_OFF_T == 4
-    set_if_smaller(max_data_file_length, INT_MAX32);
-    set_if_smaller(max_key_file_length, INT_MAX32);
-#endif
     share->base.max_data_file_length = (my_off_t)max_data_file_length;
     share->base.max_key_file_length = (my_off_t)max_key_file_length;
 

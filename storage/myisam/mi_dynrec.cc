@@ -1670,15 +1670,6 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos) {
       info->filepos = filepos;
       info->next_filepos = mi_sizekorr(header + 4);
       info->prev_filepos = mi_sizekorr(header + 12);
-#if SIZEOF_OFF_T == 4
-      if ((mi_uint4korr(header + 4) != 0 &&
-           (mi_uint4korr(header + 4) != (ulong)~0 ||
-            info->next_filepos != (ulong)~0)) ||
-          (mi_uint4korr(header + 12) != 0 &&
-           (mi_uint4korr(header + 12) != (ulong)~0 ||
-            info->prev_filepos != (ulong)~0)))
-        goto err;
-#endif
       return return_val | BLOCK_DELETED; /* Deleted block */
 
     case 1:

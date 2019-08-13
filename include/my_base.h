@@ -1132,11 +1132,7 @@ typedef my_off_t ha_rows;
 #define HA_POS_ERROR (~(ha_rows)0)
 #define HA_OFFSET_ERROR (~(my_off_t)0)
 
-#if SIZEOF_OFF_T == 4
-#define MAX_FILE_SIZE INT_MAX32
-#else
 #define MAX_FILE_SIZE LLONG_MAX
-#endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 : 2)
 

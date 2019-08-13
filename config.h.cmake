@@ -175,7 +175,6 @@
 #cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
 #cmakedefine SIZEOF_INT       @SIZEOF_INT@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
-#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
