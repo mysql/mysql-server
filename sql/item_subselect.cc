@@ -2628,11 +2628,10 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
   SELECT_LEX *root = nullptr;
 
-  if (ctx != nullptr && ctx->m_removing_const_preds) {
+  if (ctx != nullptr) {
     if ((ctx->m_root->resolve_place != SELECT_LEX::RESOLVE_SELECT_LIST) &&
         ctx->m_root->is_in_select_list(this))
       return false;
-  } else if (ctx != nullptr) {
     root = ctx->m_root;
   }
   SELECT_LEX *sl = unit->outer_select();

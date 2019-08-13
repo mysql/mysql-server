@@ -2202,17 +2202,8 @@ class Item : public Parse_tree_node {
       that was removed.
     */
     SELECT_LEX *m_root;
-    /**
-      True if we are eliminating constant predicates (i.e. always TRUE or FALSE
-      predicates) in Item_cond::fix_fields. Referenced subqueries via an alias
-      from the SELECT list will not be removed in such a case, cf.
-      Item_subselect::clean_up_after_removal.
-    */
-    bool m_removing_const_preds;
 
-    Cleanup_after_removal_context(SELECT_LEX *root,
-                                  bool removing_const_preds = false)
-        : m_root(root), m_removing_const_preds(removing_const_preds) {}
+    Cleanup_after_removal_context(SELECT_LEX *root) : m_root(root) {}
   };
   /**
      Clean up after removing the item from the item tree.

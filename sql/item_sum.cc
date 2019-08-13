@@ -545,12 +545,9 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
     return false;
 
   if (m_window) {
-    /*
-      Cleanup the reference for this window function from m_functions when
-      constant predicates are being removed.
-    */
+    // Cleanup the reference for this window function from m_functions
     auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
-    if (ctx != nullptr && ctx->m_removing_const_preds) {
+    if (ctx != nullptr) {
       List_iterator<Item_sum> li(m_window->functions());
       Item *item = nullptr;
       while ((item = li++)) {
