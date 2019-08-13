@@ -7500,20 +7500,39 @@ NdbTransaction *ha_ndbcluster::start_transaction_part_id(Uint32 part_id,
   Static error print function called from static handler method
   ndbcluster_commit and ndbcluster_rollback.
 */
-static void ndbcluster_print_error(int error, const NdbOperation *error_op) {
+static int ndbcluster_print_error(NdbTransaction *trans,
+                                  ha_ndbcluster *ndb_handler) {
   DBUG_TRACE;
-  TABLE_SHARE share;
-  const char *tab_name = (error_op) ? error_op->getTableName() : "";
-  if (tab_name == NULL) {
-    DBUG_ASSERT(tab_name != NULL);
-    tab_name = "";
+  DBUG_ASSERT(trans);
+  int error;
+
+  if (ndb_handler != nullptr) {
+    error = ndb_handler->ndb_err(trans);
+    ndb_handler->print_error(error, MYF(0));
+  } else {
+    /*
+      ndb_handler will be null if the transaction involves multiple
+      tables or if autocommit is off. During such cases, create a
+      new handler and, report error through it..
+    */
+    TABLE_SHARE share;
+    error = ndb_to_mysql_error(&trans->getNdbError());
+    if (error != -1) {
+      const NdbOperation *error_op = trans->getNdbErrorOperation();
+      const char *tab_name = (error_op) ? error_op->getTableName() : "";
+      if (tab_name == nullptr) {
+        DBUG_ASSERT(tab_name != nullptr);
+        tab_name = "";
+      }
+      share.db.str = "";
+      share.db.length = 0;
+      share.table_name.str = tab_name;
+      share.table_name.length = strlen(tab_name);
+      ha_ndbcluster error_handler(ndbcluster_hton, &share);
+      error_handler.print_error(error, MYF(0));
+    }
   }
-  share.db.str = "";
-  share.db.length = 0;
-  share.table_name.str = tab_name;
-  share.table_name.length = strlen(tab_name);
-  ha_ndbcluster error_handler(ndbcluster_hton, &share);
-  error_handler.print_error(error, MYF(0));
+  return error;
 }
 
 /**
@@ -7659,10 +7678,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
       }
       res = ER_GET_TEMPORARY_ERRMSG;
     } else {
-      const NdbError err = trans->getNdbError();
-      const NdbOperation *error_op = trans->getNdbErrorOperation();
-      res = ndb_to_mysql_error(&err);
-      if (res != -1) ndbcluster_print_error(res, error_op);
+      res = ndbcluster_print_error(trans, thd_ndb->m_handler);
     }
   } else {
     /* Update shared statistics for tables inserted into / deleted from*/
@@ -7737,10 +7753,7 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
   thd_ndb->m_execute_count++;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Rollback) != 0) {
-    const NdbError err = trans->getNdbError();
-    const NdbOperation *error_op = trans->getNdbErrorOperation();
-    res = ndb_to_mysql_error(&err);
-    if (res != -1) ndbcluster_print_error(res, error_op);
+    res = ndbcluster_print_error(trans, thd_ndb->m_handler);
   }
   ndb->closeTransaction(trans);
   thd_ndb->trans = NULL;
@@ -12371,23 +12384,6 @@ void ha_ndbcluster::print_error(int error, myf errflag) {
 
   if (error == HA_ERR_NO_CONNECTION) {
     handler::print_error(4009, errflag);
-    return;
-  }
-
-  if (error == HA_ERR_FOUND_DUPP_KEY &&
-      (table == NULL || table->file == NULL)) {
-    /*
-      This is a sideffect of 'ndbcluster_print_error' (called from
-      'ndbcluster_commit' and 'ndbcluster_rollback') which realises
-      that it "knows nothing" and creates a brand new ha_ndbcluster
-      in order to be able to call the print_error() function.
-      Unfortunately the new ha_ndbcluster hasn't been open()ed
-      and thus table pointer etc. is not set. Since handler::print_error()
-      will use that pointer without checking for NULL(it naturally
-      assumes an error can only be returned when the handler is open)
-      this would crash the mysqld unless it's handled here.
-    */
-    my_error(ER_DUP_KEY, errflag, table_share->table_name.str, error);
     return;
   }
 
