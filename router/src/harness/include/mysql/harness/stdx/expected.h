@@ -547,12 +547,12 @@ class ExpectedImpl : public ExpectedImplBase {
 
   // value accessors
 
-  constexpr const value_type &value() const & { return T::storage_.value(); }
+  constexpr const value_type &value() const & { return storage_.value(); }
   constexpr const value_type &&value() const && {
-    return std::move(T::storage_.value());
+    return std::move(storage_.value());
   }
   value_type &value() & { return storage_.value(); }
-  value_type &&value() && { return std::move(T::storage_.value()); }
+  value_type &&value() && { return std::move(storage_.value()); }
 
   // unchecked value access
   value_type &operator*() & {
@@ -832,12 +832,12 @@ class ExpectedImpl<T, void> : public ExpectedImplBase {
 
   // value accessors
 
-  constexpr const value_type &value() const & { return T::storage_.value(); }
+  constexpr const value_type &value() const & { return storage_.value(); }
   constexpr const value_type &&value() const && {
-    return std::move(T::storage_.value());
+    return std::move(storage_.value());
   }
   value_type &value() & { return storage_.value(); }
-  value_type &&value() && { return std::move(T::storage_.value()); }
+  value_type &&value() && { return std::move(storage_.value()); }
 
   // uncheck value access
   value_type &operator*() & {
