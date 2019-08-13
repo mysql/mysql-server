@@ -10721,6 +10721,11 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+// Return true if ENCRYPTION clause requests for table encryption.
+static inline bool is_encrypted(const std::string type) {
+  return (type.empty() == false && type != "" && type != "N" && type != "n");
+}
+
 /**
   @brief Check if the table can be created in the specified storage engine.
 
@@ -10783,7 +10788,8 @@ static bool check_engine(THD *thd, const char *db_name,
   }
 
   // Check if the storage engine supports encryption.
-  if ((create_info->encrypt_type.length > 0) &&
+  if (create_info->encrypt_type.str &&
+      is_encrypted(create_info->encrypt_type.str) &&
       !((*new_engine)->flags & HTON_SUPPORTS_TABLE_ENCRYPTION))
   {
      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
