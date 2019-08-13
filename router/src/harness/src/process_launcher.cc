@@ -26,23 +26,21 @@
 #include <array>
 #include <cerrno>
 #include <chrono>
+#include <cstdio>    // fprintf()
+#include <iterator>  // std::distance
 #include <stdexcept>
 #include <string>
 #include <system_error>
-#include <thread>
+#include <thread>  // this_thread::sleep_for
 
 #ifdef _WIN32
-#include <stdio.h>
-#include <tchar.h>
 #include <windows.h>
 #else
-#include <errno.h>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+
 #include <fcntl.h>
-#include <poll.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -101,6 +99,71 @@ std::error_code ProcessLauncher::send_shutdown_event(
 
 #ifdef _WIN32
 
+namespace win32 {
+// reverse of CommandLineToArgv()
+std::string cmdline_quote_arg(const std::string &arg) {
+  if (!arg.empty() && (arg.find_first_of(" \t\n\v\"") == arg.npos)) {
+    // no need to quote it
+    return arg;
+  }
+
+  std::string out("\"");
+
+  for (auto it = arg.begin(); it != arg.end(); ++it) {
+    // backslashes are special at the end of the line
+    //
+    // foo\bar  -> "foo\\bar"
+    // foobar\  -> "foobar\\"
+    // foobar\\ -> "foobar\\\\"
+    // foobar\" -> "foobar\""
+
+    auto no_backslash_it = std::find_if(
+        it, arg.end(), [](const auto &value) { return value != '\\'; });
+
+    const size_t num_backslash = std::distance(it, no_backslash_it);
+    // move past the backslashes
+    it = no_backslash_it;
+
+    if (it == arg.end()) {
+      // one-or-more backslash to the end
+      //
+      // escape all backslash
+      out.append(num_backslash * 2, '\\');
+
+      // we are at the end, get out
+      break;
+    }
+
+    if (*it == '"') {
+      // one-or-more backslash before "
+      // escape all backslash and "
+      out.append(num_backslash * 2 + 1, '\\');
+    } else {
+      // zero-or-more backslash before non-special char|end
+      // don't escape
+      out.append(num_backslash, '\\');
+    }
+    out.push_back(*it);
+  }
+
+  out.push_back('"');
+
+  return out;
+}
+
+std::string cmdline_from_args(const char *const *args) {
+  std::string s;
+
+  for (auto arg = args; *arg != nullptr; ++arg) {
+    if (!s.empty()) s.push_back(' ');
+    s.append(win32::cmdline_quote_arg(*arg));
+  }
+
+  return s;
+}
+
+}  // namespace win32
+
 void ProcessLauncher::start() {
   SECURITY_ATTRIBUTES saAttr;
 
@@ -115,7 +178,7 @@ void ProcessLauncher::start() {
     report_error("Failed to create child_out_rd");
 
   // force non blocking IO in Windows
-  DWORD mode = PIPE_NOWAIT;
+  // DWORD mode = PIPE_NOWAIT;
   // BOOL res = SetNamedPipeHandleState(child_out_rd, &mode, NULL, NULL);
 
   if (!CreatePipe(&child_in_rd, &child_in_wr, &saAttr, 0))
@@ -124,52 +187,40 @@ void ProcessLauncher::start() {
   if (!SetHandleInformation(child_in_wr, HANDLE_FLAG_INHERIT, 0))
     report_error("Failed to created child_in_wr");
 
-  // Create Process
-  std::string s = this->cmd_line;
-  const char **pc = args;
-  while (*++pc != NULL) {
-    s += " ";
-    s += *pc;
-  }
-  char *sz_cmd_line = (char *)malloc(s.length() + 1);
-  if (!sz_cmd_line)
-    report_error(
-        "Cannot assign memory for command line in ProcessLauncher::start");
-  _tcscpy(sz_cmd_line, s.c_str());
+  std::string arguments = win32::cmdline_from_args(args);
 
-  BOOL bSuccess = FALSE;
-
-  ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
-
-  ZeroMemory(&si, sizeof(STARTUPINFO));
   si.cb = sizeof(STARTUPINFO);
   if (redirect_stderr) si.hStdError = child_out_wr;
   si.hStdOutput = child_out_wr;
   si.hStdInput = child_in_rd;
   si.dwFlags |= STARTF_USESTDHANDLES;
 
-  bSuccess = CreateProcess(NULL,                      // lpApplicationName
-                           sz_cmd_line,               // lpCommandLine
-                           NULL,                      // lpProcessAttributes
-                           NULL,                      // lpThreadAttributes
-                           TRUE,                      // bInheritHandles
-                           CREATE_NEW_PROCESS_GROUP,  // dwCreationFlags
-                           NULL,                      // lpEnvironment
-                           NULL,                      // lpCurrentDirectory
-                           &si,                       // lpStartupInfo
-                           &pi);                      // lpProcessInformation
+  // as CreateProcess may/will modify the arguments (split filename and args
+  // with a \0) keep a copy of it for error-reporting.
+  std::string create_process_arguments = arguments;
+  BOOL bSuccess =
+      CreateProcess(NULL,                               // lpApplicationName
+                    &create_process_arguments.front(),  // lpCommandLine
+                    NULL,                               // lpProcessAttributes
+                    NULL,                               // lpThreadAttributes
+                    TRUE,                               // bInheritHandles
+                    CREATE_NEW_PROCESS_GROUP,           // dwCreationFlags
+                    NULL,                               // lpEnvironment
+                    NULL,                               // lpCurrentDirectory
+                    &si,                                // lpStartupInfo
+                    &pi);                               // lpProcessInformation
 
-  if (!bSuccess)
-    report_error(("Failed to start process " + s).c_str());
-  else
+  if (!bSuccess) {
+    report_error(("Failed to start process " + arguments).c_str());
+  } else {
     is_alive = true;
+  }
 
   CloseHandle(child_out_wr);
   CloseHandle(child_in_rd);
 
   // DWORD res1 = WaitForInputIdle(pi.hProcess, 100);
   // res1 = WaitForSingleObject(pi.hThread, 100);
-  free(sz_cmd_line);
 }
 
 uint64_t ProcessLauncher::get_pid() const { return (uint64_t)pi.hProcess; }
