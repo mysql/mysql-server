@@ -287,10 +287,13 @@ enum_gcs_error Gcs_output_sink::initialize() {
   if (ret_out == 0) {
     m_initialized = true;
   } else {
+    int errno_gcs = 0;
 #if defined(_WIN32)
-    int errno = WSAGetLastError();
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno)
+    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno_gcs)
               << std::endl;
   }
   return ret_out ? GCS_NOK : GCS_OK;
@@ -401,11 +404,14 @@ enum_gcs_error Gcs_file_sink::initialize() {
 
   if ((m_fd = my_create(file_name_buffer, 0640, O_CREAT | O_WRONLY | O_APPEND,
                         MYF(0))) < 0) {
+    int errno_gcs = 0;
 #if defined(_WIN32)
-    int errno = WSAGetLastError();
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    MYSQL_GCS_LOG_ERROR("Error openning file '"
-                        << file_name_buffer << "':" << strerror(errno) << ".");
+    MYSQL_GCS_LOG_ERROR("Error openning file '" << file_name_buffer << "':"
+                                                << strerror(errno_gcs) << ".");
     return GCS_NOK;
   }
 
@@ -435,10 +441,13 @@ void Gcs_file_sink::log_event(const char *message, size_t message_size) {
   written = my_write(m_fd, (const uchar *)message, message_size, MYF(0));
 
   if (written == MY_FILE_ERROR) {
+    int errno_gcs = 0;
 #if defined(_WIN32)
-    int errno = WSAGetLastError();
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno)
+    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno_gcs)
                                                          << ".");
   }
 }
