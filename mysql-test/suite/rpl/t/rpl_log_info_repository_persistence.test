@@ -39,23 +39,22 @@
 #
 # ==== Implementation ====
 #
-# Prerquisites:
-#   1. record repository file relay_info.log.
-#   2. add mtr suppression statement for errors on various error test cases for
+# Prerequisites:
+#   1. add mtr suppression statement for errors on various error test cases for
 #      FILE and TABLE type repository.
-#   3. create user replication_applier to use in change master as
+#   2. create user replication_applier to use in change master as
 #      privilege_checks_user with REPLICATION_APPLIER privilege.
 #
 # TC.P.F1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
 #   1. issue change master for channel "" to have PRIVILEGE_CHECKS_USER as
 #      'replication_applier'@'localhost'.
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
-#   3. also record repo file relay_info.log.
+#   3. also verify privlege_checks_user info in repo file relay_info.log.
 #
 # TC.P.F2: PRIVILEGE_CHECKS_USER persists after restarting the server.
-#   1. start the slave server.
+#   1. restart the slave server.
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
-#   3. also record repo file relay_info.log.
+#   3. also verify privlege_checks_user info in repo file relay_info.log.
 #
 # TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
 #   1. create two channels ch1 and ch2 when slave is configured with TABLE type
@@ -246,11 +245,10 @@
 # Step #7 of WL#12966
 #
 
-# Temporarily disabling it on windows (Bug#30033297)
---source include/not_windows.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_group_replication_plugin.inc
+--source include/not_master_info_file.inc
 --source include/have_binlog_format_row.inc
 --source include/not_mts_slave_parallel_workers.inc
 --source include/master-slave.inc
@@ -270,42 +268,20 @@
   --source include/assert.inc
 END_OF_PROCEDURE
 
-# create repo file with set privilege_checks_username and
-# privilege_checks_hostname.
---write_file $MYSQL_TMP_DIR/create_file_repo.inc END_OF_PROCEDURE
-  --write_file $MYSQLD_DATADIR/$filename
-10
-./slave-relay-bin.000001
-4
+--write_file $MYSQL_TMP_DIR/verify_priv_check_user_config_in_repo_file.inc END_OF_PROCEDURE
+  --let $grep_file = $MYSQLD_DATADIR/$filename
+  --let $grep_pattern = $priv_checks_username
+  --source include/grep_pattern.inc
 
-0
-0
-0
-1
-
-EOF
-  --exec echo $priv_checks_username >> $MYSQLD_DATADIR/$filename
-  --exec echo $priv_checks_hostname >> $MYSQLD_DATADIR/$filename
-
+  --let $grep_pattern = $priv_checks_hostname
+  --source include/grep_pattern.inc
 END_OF_PROCEDURE
 
-# If debug_point is not set the create file for relay_log_info_repository with
-# the set `priv_checks_username` and `priv_checks_hostname`.
-# It first stops the slave server, deletes the existing file, create the file
-# with required config, and restarts the slave.
---write_file $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc END_OF_PROCEDURE
+--write_file $MYSQL_TMP_DIR/restart_slave_with_debug_point.inc END_OF_PROCEDURE
   --let $rpl_server_number = 2
   --let $rpl_force_stop=1
   --source include/rpl_stop_server.inc
-  if ($debug_point == '') {
-    --remove_file $MYSQLD_DATADIR/$filename
-    --source $MYSQL_TMP_DIR/create_file_repo.inc
-    --let $rpl_server_parameters=--skip_slave_start
-  }
-
-  if ($debug_point != '') {
-    --let $rpl_server_parameters=--skip_slave_start --debug=d,$debug_point,simulate_priv_check_user_nullptr_t
-  }
+  --let $rpl_server_parameters=--skip_slave_start --debug=d,$debug_point
   --let $explicit_default_counter = 15000
   --source include/rpl_start_server.inc
 END_OF_PROCEDURE
@@ -314,8 +290,6 @@ END_OF_PROCEDURE
 # performance_schema.replication_applier_configuration
 # This is used after starting slave with invalid config for channel ''.
 --write_file $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc END_OF_PROCEDURE
-  --cat_file $MYSQLD_DATADIR/$filename
-
   SELECT * FROM performance_schema.replication_applier_configuration;
   --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME="" AND PRIVILEGE_CHECKS_USER="<INVALID>"`
   --let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
@@ -392,6 +366,10 @@ END_OF_PROCEDURE
 END_OF_PROCEDURE
 
 --source include/rpl_connection_slave.inc
+
+# Prerequisites:
+#   1. add mtr suppression statement for errors on various error test cases for
+#      FILE and TABLE type repository.
 CALL mtr.add_suppression("Error reading relay log configuration");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories");
 
@@ -410,13 +388,8 @@ CALL mtr.add_suppression("Slave SQL for channel 'ch1': Slave failed to initializ
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $filename = `SELECT @@relay_log_info_file`
 
-# 1.a. record relay-log.info. There should be 10 lines for default channel
-#      "". last two lines should be empty as PRIVILEGE_CHECKS_USER is NULL for
-#      it.
---cat_file $MYSQLD_DATADIR/$filename
-
-#  1.b. create user replication_applier to use in change master as
-#       privilege_checks_user.
+#   2. create user replication_applier to use in change master as
+#      privilege_checks_user with REPLICATION_APPLIER privilege.
 CREATE USER 'replication_applier'@'localhost' IDENTIFIED BY 'password';
 GRANT REPLICATION_APPLIER ON * . * TO 'replication_applier'@'localhost';
 FLUSH PRIVILEGES;
@@ -424,7 +397,7 @@ FLUSH PRIVILEGES;
 --echo #
 --echo # TC.P.F1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
 --echo #
-#  1.c. issue change master for default channel "" to set privilege_checks_user.
+#  1. issue change master for default channel "" to set privilege_checks_user.
 STOP SLAVE;
 # NULL value is accepted
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
@@ -432,23 +405,26 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 FLUSH RELAY LOGS;
 START SLAVE;
-#  1.d. verify privilege_checks_user for default channel in
-#       performance_schema.replication_applier_configuration.  and record
-#       relay-log.info file.
+#   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
 --source $MYSQL_TMP_DIR/assert_default_channel_config_with_file_repo.inc
---cat_file $MYSQLD_DATADIR/$filename
+#   3. also verify privlege_checks_user info in repo file relay_info.log.
+--let $priv_checks_username = replication_applier
+--let $priv_checks_hostname = localhost
+--source $MYSQL_TMP_DIR/verify_priv_check_user_config_in_repo_file.inc
 
 --echo #
 --echo # TC.P.F2: PRIVILEGE_CHECKS_USER persists after restarting the server.
 --echo #
-#  1.e. restart the slave server. Verify the privilege_checks_user for default
-#       channel in performance_schema.replication_applier_configuration and
-#       record relay-log.info file.
+#   1. restart the slave server.
 --let $rpl_server_number = 2
 --let $explicit_default_counter = 15000
 --source include/rpl_restart_server.inc
+#   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
 --source $MYSQL_TMP_DIR/assert_default_channel_config_with_file_repo.inc
---cat_file $MYSQLD_DATADIR/$filename
+--let $priv_checks_username = replication_applier
+--let $priv_checks_hostname = localhost
+#   3. also verify privlege_checks_user info in repo file relay_info.log.
+--source $MYSQL_TMP_DIR/verify_priv_check_user_config_in_repo_file.inc
 
 STOP SLAVE FOR CHANNEL "";
 
@@ -460,7 +436,8 @@ STOP SLAVE FOR CHANNEL "";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $debug_point = simulate_priv_check_username_above_limit
---source $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
+--let $slave_server_num = 2
+--source $MYSQL_TMP_DIR/restart_slave_with_debug_point.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 --source include/remove_debug_point.inc
 #      c. SLAVE START will result in failure due to invalid config.
@@ -468,6 +445,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
@@ -478,7 +456,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $debug_point = simulate_priv_check_hostname_above_limit
---source $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
+--source $MYSQL_TMP_DIR/restart_slave_with_debug_point.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 --source include/remove_debug_point.inc
 #      c. SLAVE START will result in failure due to invalid config.
@@ -487,6 +465,7 @@ START SLAVE FOR CHANNEL "";
 
 --let $debug_point =
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
@@ -496,15 +475,19 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 --error ER_UNKNOWN_ERROR
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
---let $priv_checks_username = 'replication_applier'
---let $priv_checks_hostname = 'l@calhost'
---source $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
+--let $sub_testcase = host_name_has_@
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+--let $priv_checks_username = replication_applier
+--let $priv_checks_hostname = l@calhost
+--source $MYSQL_TMP_DIR/verify_priv_check_user_config_in_repo_file.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 #      c. SLAVE START will result in failure due to invalid config.
 --error ER_SLAVE_RLI_INIT_REPOSITORY
 START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
@@ -514,15 +497,16 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
---let $priv_checks_username =
---let $priv_checks_hostname = 'localhost'
---source $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
+--let $sub_testcase = anonymous_user
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 #      c. SLAVE START will result in failure due to invalid config.
 --error ER_SLAVE_RLI_INIT_REPOSITORY
 START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
@@ -534,15 +518,19 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
 #      b. server start will result in
 #         ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
---let $priv_checks_username = 'replication_applier_nonexist'
---let $priv_checks_hostname = 'localhost'
---source $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
+--let $sub_testcase = nonexist_user
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
+--let $priv_checks_username = replication_applier_nonexist
+--let $priv_checks_hostname = localhost
+--source $MYSQL_TMP_DIR/verify_priv_check_user_config_in_repo_file.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 #      c. SLAVE START will result in failure due to invalid config.
 --error ER_SLAVE_RLI_INIT_REPOSITORY
 START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --let $assert_text = Found 4 warning in the error log
@@ -559,21 +547,21 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 --let $assert_count = 1
 --source include/assert_grep.inc
 
-# restore the channel config.
---let $priv_checks_username = 'replication_applier'
---let $priv_checks_hostname = 'localhost'
---source $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
-
-# 2. Restart the slave with relay-log-info-repository=TABLE
+# Restart the slave with relay-log-info-repository=TABLE
+# The debug point tests the execution flow where isn't nullptr
+# that is being passed to set_info but a variable with nullptr value.
+--echo #
+--echo # Restart slave with TABLE repository to test with privilege_checks_user config.
+--echo #
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE --debug=d,simulate_priv_check_user_nullptr_t
 --let $explicit_default_counter = 15000
 --source include/rpl_restart_server.inc
 
-#  2.a. verify (privilege_checks_username, privilege_checks_hostname), and
-#      privilege_checks_user for default channel in mysql.slave_relay_log_info,
-#      and performance_schema.replication_applier_configuration.  There will be
-#      one entry for default channel.
+# verify (privilege_checks_username, privilege_checks_hostname), and
+# privilege_checks_user for default channel in mysql.slave_relay_log_info,
+# and performance_schema.replication_applier_configuration.  There will be
+# one entry for default channel.
 --let $num_channels = 1
 --source $MYSQL_TMP_DIR/assert_config_entry_count_with_table_repo.inc
 --let $channel = ""
@@ -585,18 +573,19 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 --echo #
 --echo # TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
 --echo #
-#  2.b. create two channels; "ch1" without PRIVILEGE_CHECKS_USER, and "ch2" with
-#      PRIVILEGE_CHECKS_USER.
+#   1. create two channels ch1 and ch2 when slave is configured with TABLE type
+#      repo. "ch1" has not PRIVILEGE_CHECKS_USER, "ch2" has
+#      'replication_applier'@'localhost' as PRIVILEGE_CHECK_USER.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
 FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
-
-#  2.c. verify (privilege_checks_username, privilege_checks_hostname), and
-#      privilege_checks_user for the channels in mysql.slave_relay_log_info, and
-#      performance_schema.replication_applier_configuration.
+#   2. verify that there are three channel entries in both pfs and
+#      slave_relay_log_info tables.
 --let $num_channels = 3
 --source $MYSQL_TMP_DIR/assert_config_entry_count_with_table_repo.inc
+#   3. verify that "ch1" and "ch2" have expected values in
+#      pfs and slave_relay_log_info tables.
 --let $channel = "ch1"
 --let $priv_chks_user_expected_value = NULL
 --let $priv_chks_username_expected_value = NULL
@@ -612,17 +601,17 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 --echo #
 --echo # TC.P.T2: PRIVILEGE_CHECKS_USER persists after restarting the server.
 --echo #
-#  2.d. restart and verify (privilege_checks_username,
-#       privilege_checks_hostname), and privilege_checks_user for the channels
-#       in mysql.slave_relay_log_info, and
-#       performance_schema.replication_applier_configuration.
+#   1. restart the slave server.
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE
 --let $explicit_default_counter = 15000
 --source include/rpl_restart_server.inc
-
+#   2. verify that there are three channel entries in both pfs and
+#      slave_relay_log_info tables.
 --let $num_channels = 3
 --source $MYSQL_TMP_DIR/assert_config_entry_count_with_table_repo.inc
+#   3. verify that "ch1" and "ch2" retained the values in
+#      pfs and slave_relay_log_info tables after restart.
 --let $channel = "ch1"
 --let $priv_chks_user_expected_value = NULL
 --let $priv_chks_username_expected_value = NULL
@@ -639,10 +628,10 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 --echo # TC.P.T3: RESET SLAVE should keep value of PRIVILEGE_CHECKS_USER.
 --echo #
 
-# 2.e. reset slave and verify that mysql.slave_relay_log_info has no entry, and
-#      performance_schema.replication_applier_configuration has NULL for
-#      PRIVILEGE_CHECKS_USER for the channel "".
+#   1. reset slave for channel "".
 RESET SLAVE FOR CHANNEL "";
+#   2. verify that there are 3 and 2 channel entries in pfs and
+#      slave_relay_log_info tables respectively.
 --let $assert_text = Check that mysql.slave_relay_log_info has 2 entries for 2 channels
 --let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info] = 2
 --source include/assert.inc
@@ -651,15 +640,19 @@ RESET SLAVE FOR CHANNEL "";
 --let $assert_cond = [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 3
 --source include/assert.inc
 
+#   3. verify that default channel has entry in pfs table.
+#      Also verify that "ch1" and "ch2" kept values in
+#      pfs and slave_relay_log_info tables after reset slave for default channel.
 --let $priv_chks_user = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME="" AND PRIVILEGE_CHECKS_USER="'replication_applier'@'localhost'"`
 --let $assert_text = Check that priv_chks_user for channel "" is correct
 --let $assert_cond = $priv_chks_user = 1
 --source include/assert.inc
 
---let $priv_chks_user = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME="ch1" AND PRIVILEGE_CHECKS_USER is NULL`
---let $assert_text = Check that priv_chks_user for channel "ch1" is correct
---let $assert_cond = $priv_chks_user = 1
---source include/assert.inc
+--let $channel = "ch1"
+--let $priv_chks_user_expected_value = NULL
+--let $priv_chks_username_expected_value = NULL
+--let $priv_chks_hostname_expected_value = NULL
+--source $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 
 --let $channel = "ch2"
 --let $priv_chks_user_expected_value = 'replication_applier'@'localhost'
@@ -667,7 +660,7 @@ RESET SLAVE FOR CHANNEL "";
 --let $priv_chks_hostname_expected_value = localhost
 --source $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 
-# removing all th other channel except "ch1", otherwise all the other channel
+# removing all the other channel except "ch1", otherwise all the other channel
 # config processing will be erred due to debug points.
 RESET SLAVE ALL FOR CHANNEL "";
 RESET SLAVE ALL FOR CHANNEL "ch2";
@@ -692,6 +685,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
@@ -712,6 +706,7 @@ START SLAVE FOR CHANNEL "ch1";
 
 --let $debug_point =
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
@@ -729,6 +724,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
@@ -744,6 +740,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
@@ -762,6 +759,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
@@ -779,6 +777,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
+RESET SLAVE FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --let $assert_text = Found 5 warning in the error log
@@ -798,12 +797,12 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 DROP USER 'replication_applier'@'localhost';
 
 --remove_file $MYSQL_TMP_DIR/assert_default_channel_config_with_file_repo.inc
---remove_file $MYSQL_TMP_DIR/create_file_repo_with_default_channel_config.inc
+--remove_file $MYSQL_TMP_DIR/restart_slave_with_debug_point.inc
+--remove_file $MYSQL_TMP_DIR/verify_priv_check_user_config_in_repo_file.inc
 --remove_file $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 --remove_file $MYSQL_TMP_DIR/assert_config_entry_count_with_table_repo.inc
 --remove_file $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 --remove_file $MYSQL_TMP_DIR/assert_channel_invalid_config_update_of_table_repo_entry.inc
---remove_file $MYSQL_TMP_DIR/create_file_repo.inc
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
