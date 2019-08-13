@@ -76,7 +76,7 @@ install_validate_password_sql_file () {
 start(){
     [ -x $exec ] || exit 5
     # check to see if it's already running
-    RESPONSE=$(/usr/bin/mysqladmin --no-defaults --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping 2>&1)
+    RESPONSE=$(/usr/bin/mysqladmin --no-defaults --enable-cleartext-plugin --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping 2>&1)
     if [ $? = 0 ]; then
 	# already running, do nothing
 	action $"Starting $prog: " /bin/true
@@ -143,7 +143,7 @@ start(){
 	ret=0
 	TIMEOUT="$STARTTIMEOUT"
 	while [ $TIMEOUT -gt 0 ]; do
-	    RESPONSE=$(/usr/bin/mysqladmin --no-defaults --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping 2>&1) && break
+	    RESPONSE=$(/usr/bin/mysqladmin --no-defaults --enable-cleartext-plugin --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping 2>&1) && break
 	    echo "$RESPONSE" | grep -q "Access denied for user" && break
 	    if ! /bin/kill -0 $safe_pid 2>/dev/null; then
 		echo "MySQL Daemon failed to start."
