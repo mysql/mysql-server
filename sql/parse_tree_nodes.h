@@ -343,7 +343,7 @@ class PT_common_table_expr : public Parse_tree_node {
   */
   Common_table_expr m_postparse;
 
-  friend bool SELECT_LEX_UNIT::clear_corr_ctes();
+  friend bool SELECT_LEX_UNIT::clear_correlated_query_blocks();
 };
 
 /**
@@ -419,7 +419,7 @@ class PT_with_clause : public Parse_tree_node {
   */
   const TABLE_LIST *m_most_inner_in_parsing;
 
-  friend bool SELECT_LEX_UNIT::clear_corr_ctes();
+  friend bool SELECT_LEX_UNIT::clear_correlated_query_blocks();
 };
 
 class PT_select_item_list : public PT_item_list {

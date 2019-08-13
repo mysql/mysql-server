@@ -907,7 +907,7 @@ class SELECT_LEX_UNIT {
 
   bool check_materialized_derived_query_blocks(THD *thd);
 
-  bool clear_corr_ctes();
+  bool clear_correlated_query_blocks();
 
   void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
 

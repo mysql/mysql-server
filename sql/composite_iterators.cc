@@ -813,7 +813,7 @@ bool MaterializeIterator::Init() {
   }
 
   if (m_unit != nullptr) {
-    m_unit->clear_corr_ctes();
+    m_unit->clear_correlated_query_blocks();
   }
 
   // If we are removing duplicates by way of a hash field

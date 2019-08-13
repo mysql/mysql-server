@@ -2057,10 +2057,12 @@ EXPLAIN
         -> Table scan on t1  (cost=0.45 rows=2)
     -> Table scan on dt3
         -> Materialize (invalidate on row from t1)
-            -> Stream results
-                -> Limit: 1 row(s)
-                    -> Stream results
-                        -> Table scan on t2  (cost=0.45 rows=2)
+            -> Table scan on dt2
+                -> Materialize
+                    -> Limit: 1 row(s)
+                        -> Table scan on dt
+                            -> Materialize
+                                -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
@@ -3365,3 +3367,24 @@ id	c
 20	20,20
 30	NULL
 DROP TABLE t1, t2;
+#
+# Bug #30110851: SUBQUERY INVOLVES COUNT() AGGREGATE FUNCTION PERFORMANCE REGRESSION
+#
+CREATE TABLE t1 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE TABLE t2 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t2.f1 ) AS f3 FROM t2;
+EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
+EXPLAIN
+-> Index lookup on v2 using <auto_key0> (f3=3)
+    -> Materialize
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Select #3 (subquery in projection; dependent)
+            -> Index lookup on v1 using <auto_key0> (f1=t2.f1)
+                -> Materialize
+                    -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.f1' of SELECT #3 was resolved in SELECT #2
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;
