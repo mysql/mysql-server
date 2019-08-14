@@ -150,8 +150,8 @@ class KEY {
 
   /**
     Array of AVG(number of records with the same field value) for 1st ... Nth
-    key part. 0 means 'not known'. For internally created temporary tables this
-    member is NULL.
+    key part. 0 means 'not known'. For internally created temporary tables,
+    this member can be nullptr.
   */
   ulong *rec_per_key;
 
@@ -174,8 +174,8 @@ class KEY {
 
   /**
     Array of AVG(number of records with the same field value) for 1st ... Nth
-    key part. For internally created temporary tables this member is
-    NULL. This is the same information as stored in the above
+    key part. For internally created temporary tables, this member can be
+    nullptr. This is the same information as stored in the above
     rec_per_key array but using float values instead of integer
     values. If the storage engine has supplied values in this array,
     these will be used. Otherwise the value in rec_per_key will be
