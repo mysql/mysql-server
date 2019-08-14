@@ -1587,6 +1587,15 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
                                const ulint *offsets);
 #endif /* UNIV_DEBUG */
 
+/** Mark an LOB that it is not partially updatable anymore.
+@param[in]  trx  the current transaction.
+@param[in]  index  the clustered index to which the LOB belongs.
+@param[in]  update  the update vector.
+@param[in]  mtr     the mini transaction context.
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
+                                     const upd_t *update, mtr_t *mtr);
+
 }  // namespace lob
 
 #endif /* lob0lob_h */

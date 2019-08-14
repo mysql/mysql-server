@@ -1397,4 +1397,29 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 }
 #endif /* UNIV_DEBUG */
 
+dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
+                                     const upd_t *update, mtr_t *mtr) {
+  const ulint n_fields = upd_get_n_fields(update);
+
+  for (ulint i = 0; i < n_fields; i++) {
+    const upd_field_t *ufield = upd_get_nth_field(update, i);
+
+    if (update->is_partially_updated(ufield->field_no)) {
+      continue;
+    }
+
+    const dfield_t *field = &ufield->new_val;
+
+    if (ufield->ext_in_old && !dfield_is_ext(field)) {
+      const dfield_t *old_field = &ufield->old_val;
+      byte *field_ref = old_field->blobref();
+      ref_t ref(field_ref);
+      ref.mark_not_partially_updatable(trx, mtr, index,
+                                       dict_table_page_size(index->table));
+    }
+  }
+
+  return (DB_SUCCESS);
+}
+
 }  // namespace lob
