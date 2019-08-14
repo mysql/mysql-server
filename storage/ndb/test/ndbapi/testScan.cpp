@@ -1977,8 +1977,6 @@ namespace TupErr
   struct Row
   {
     int pk1;
-    int pk2;
-    int a1;
   };
 
   static int
@@ -1999,7 +1997,7 @@ namespace TupErr
 
     for (int i = 0; i<totalRowCount; i++)
     {
-      const Row row = {i, 0, i};
+      const Row row = {i};
 
       const NdbOperation* const operation=
         trans->insertTuple(record, reinterpret_cast<const char*>(&row));
@@ -2109,19 +2107,19 @@ namespace TupErr
     NdbInterpretedCode code(tab);
 
     /**
-     * Build an interpreter code sequence that causes rows with pk1==50 to 
-     * abort the scan, and that skips all other rows.
+     * Build an interpreter code sequence that causes rows with kol1==50 to
+     * abort the scan, and that skips all other rows(kol1 is a primary key).
      */ 
-    const NdbDictionary::Column* const col = tab->getColumn("PK1");
+    const NdbDictionary::Column* const col = tab->getColumn("KOL1");
     require(col != NULL);
     require(code.read_attr(1, col) == 0);
     require(code.load_const_u32(2, 50) == 0);
     require(code.branch_eq(1, 2, 0) == 0);
 
-    // Exit here if pk1!=50. Skip this row.
+    // Exit here if kol1!=50. Skip this row.
     require(code.interpret_exit_nok(626) == 0);
 
-    // Go here if pk1==50. Abort scan.
+    // Go here if kol1==50. Abort scan.
     require(code.def_label(0) == 0);
     require(code.interpret_exit_nok(6000) == 0);
     require(code.finalise() == 0);
@@ -3378,13 +3376,13 @@ TESTCASE("Bug13394788", "")
   FINALIZER(runClearTable);
 }
 TESTCASE("TupCheckSumError", ""){
-  // TABLE("T18");
+  // TABLE("T1");
   INITIALIZER(TupErr::populateTable);
   STEP(TupErr::doCheckSumQuery);
   FINALIZER(runClearTable);
 }
 TESTCASE("InterpretNok6000", ""){
-  // TABLE("T18");
+  // TABLE("T8");
   INITIALIZER(TupErr::populateTable);
   STEP(TupErr::doInterpretNok6000Query);
   FINALIZER(runClearTable);
