@@ -120,6 +120,29 @@ struct ChunkPair {
 /// When we start spilling to disk, we allocate a maximum of "kMaxChunks"
 /// chunk files on disk for each of the two inputs. The reason for having an
 /// upper limit is to avoid running out of file descriptors.
+///
+/// There is also a flag we can set to avoid hash join spilling to disk
+/// regardless of the input size. If the flag is set, the join algorithm works
+/// like this:
+///
+/// 1) Read as many rows as possible from the build input into an in-memory hash
+/// table.
+/// 2) When the hash table is full (we have reached the limit set by the system
+/// variable join_buffer_size), start reading from the beginning of the probe
+/// input, probing for matches in the hash table. Output a row for each match
+/// found.
+/// 3) When the probe input is empty, see if there are any remaining rows in the
+/// build input. If so, clear the in-memory hash table and go to step 1,
+/// continuing from the build input where we stopped the last time. If not, the
+/// join is done.
+///
+/// Doing everything in memory can be beneficial in a few cases. Currently, it
+/// is used when we have a LIMIT without sorting or grouping in the query. The
+/// gain is that we start producing output rows a lot earlier than if we were to
+/// spill both inputs out to disk. It could also be beneficial if the build
+/// input _almost_ fits in memory; it would likely be better to read the probe
+/// input twice instead of writing both inputs out to disk. However, we do not
+/// currently do any such cost based optimization.
 class HashJoinIterator final : public RowIterator {
  public:
   /// Construct a HashJoinIterator.
@@ -148,11 +171,15 @@ class HashJoinIterator final : public RowIterator {
   ///   join_buffer_size.
   /// @param join_conditions
   ///   a list of all the join conditions between the two inputs
+  /// @param allow_spill_to_disk
+  ///   whether the hash join can spill to disk. This is set to false in some
+  ///   cases where we have a LIMIT in the query
   HashJoinIterator(THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
                    const std::vector<QEP_TAB *> &build_input_tables,
                    unique_ptr_destroy_only<RowIterator> probe_input,
                    QEP_TAB *probe_input_table, size_t max_memory_available,
-                   const std::vector<Item_func_eq *> &join_conditions);
+                   const std::vector<Item_func_eq *> &join_conditions,
+                   bool allow_spill_to_disk);
 
   bool Init() override;
 
@@ -336,6 +363,9 @@ class HashJoinIterator final : public RowIterator {
   // from the probe input. If set to true, we enable batch mode just before we
   // read the first row from the probe input.
   bool m_enable_batch_mode_for_probe_input{false};
+
+  // Wether we are allowed to spill to disk.
+  bool m_allow_spill_to_disk{true};
 };
 
 #endif  // SQL_HASH_JOIN_ITERATOR_H_

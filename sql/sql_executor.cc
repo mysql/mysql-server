@@ -2451,11 +2451,30 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
 
       if (replace_with_hash_join) {
+        const bool has_grouping =
+            qep_tab->join()->implicit_grouping || qep_tab->join()->grouped;
+
+        const bool has_limit = qep_tab->join()->m_select_limit != HA_POS_ERROR;
+
+        const bool has_order_by = qep_tab->join()->order.order != nullptr;
+
+        // If we have a limit in the query, do not allow hash join to spill to
+        // disk. The effect of this is that hash join will start producing
+        // result rows a lot earlier, and thus hit the LIMIT a lot sooner.
+        // Ideally, this should be decided during optimization.
+        // There are however two situations where we always allow spill to disk,
+        // and that is if we either have grouping or sorting in the query. In
+        // those cases, the iterator above us will most likely consume the
+        // entire result set anyways.
+        const bool allow_spill_to_disk =
+            !has_limit || has_grouping || has_order_by;
+
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
         iterator = NewIterator<HashJoinIterator>(
             thd, move(iterator), left_tables, move(table_iterator), qep_tab,
-            thd->variables.join_buff_size, hash_join_conditions);
+            thd->variables.join_buff_size, hash_join_conditions,
+            allow_spill_to_disk);
         SetCostOnHashJoinIterator(*thd->cost_model(), qep_tab->position(),
                                   iterator.get());
 

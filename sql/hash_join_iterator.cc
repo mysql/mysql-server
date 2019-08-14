@@ -67,7 +67,8 @@ HashJoinIterator::HashJoinIterator(
     const std::vector<QEP_TAB *> &build_input_tables,
     unique_ptr_destroy_only<RowIterator> probe_input,
     QEP_TAB *probe_input_table, size_t max_memory_available,
-    const std::vector<Item_func_eq *> &join_conditions)
+    const std::vector<Item_func_eq *> &join_conditions,
+    bool allow_spill_to_disk)
     : RowIterator(thd),
       m_state(State::READING_ROW_FROM_PROBE_ITERATOR),
       m_build_input(move(build_input)),
@@ -80,7 +81,8 @@ HashJoinIterator::HashJoinIterator(
       m_join_conditions(PSI_NOT_INSTRUMENTED),
       m_chunk_files_on_disk(thd->mem_root, kMaxChunks),
       m_enable_batch_mode_for_probe_input(
-          probe_input_table->pfs_batch_update(probe_input_table->join())) {
+          probe_input_table->pfs_batch_update(probe_input_table->join())),
+      m_allow_spill_to_disk(allow_spill_to_disk) {
   DBUG_ASSERT(m_build_input != nullptr);
   DBUG_ASSERT(m_probe_input != nullptr);
 
@@ -155,10 +157,6 @@ bool HashJoinIterator::InitRowBuffer() {
 }
 
 bool HashJoinIterator::Init() {
-  if (InitRowBuffer()) {
-    return true;
-  }
-
   // Prepare to read the build input into the hash map.
   if (m_build_input->Init()) {
     DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
@@ -204,15 +202,9 @@ bool HashJoinIterator::Init() {
     return true;
   }
 
-  // End the hash join if the build input is empty.
-  if (m_row_buffer.empty()) {
-    m_state = State::END_OF_ROWS;
-    return false;
-  }
-
-  // Prepare to read from the beginning of the probe input.
-  m_state = State::READING_ROW_FROM_PROBE_ITERATOR;
-  return m_probe_input->Init();
+  DBUG_ASSERT(m_state == State::END_OF_ROWS ||
+              m_state == State::READING_ROW_FROM_PROBE_ITERATOR);
+  return m_state == State::END_OF_ROWS ? false : m_probe_input->Init();
 }
 
 // Construct a join key from a list of join conditions, where the join key from
@@ -358,6 +350,10 @@ static bool InitializeChunkFiles(
 }
 
 bool HashJoinIterator::BuildHashTable() {
+  if (InitRowBuffer()) {
+    return true;
+  }
+
   for (;;) {  // Termination condition within loop.
     int res = m_build_input->Read();
     if (res == 1) {
@@ -366,77 +362,87 @@ bool HashJoinIterator::BuildHashTable() {
     }
 
     if (res == -1) {
-      break;
-    }
+      if (m_row_buffer.empty()) {
+        m_state = State::END_OF_ROWS;
+        return false;
+      }
 
+      m_state = State::READING_ROW_FROM_PROBE_ITERATOR;
+      return false;
+    }
     DBUG_ASSERT(res == 0);
     RequestRowId(m_build_input_tables.tables());
-    if (m_row_buffer.StoreRow(thd())) {
-      // The row buffer is full, so start spilling to disk. If the row buffer is
-      // empty, we didn't manage to put in a single row into the buffer. We do
-      // not know at this point how much memory we did try to allocate, so
-      // just report 'join_buffer_size' as the amount we tried to allocate.
-      if (m_row_buffer.empty()) {
-        my_error(ER_OUTOFMEMORY, MYF(0), thd()->variables.join_buff_size);
-        return true;
-      }
 
-      // Ideally, we would use the estimated row count from the iterator. But
-      // not all iterators has the row count available (i.e.
-      // RemoveDuplicatesIterator), so get the row count directly from the
-      // QEP_TAB.
-      const QEP_TAB *last_table_in_join =
-          m_build_input_tables.tables().back().qep_tab;
-      if (InitializeChunkFiles(last_table_in_join->position()->prefix_rowcount,
-                               m_row_buffer.size(), kMaxChunks,
-                               m_probe_input_table, m_build_input_tables,
-                               &m_chunk_files_on_disk)) {
-        DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
-        return true;
-      }
+    switch (m_row_buffer.StoreRow(thd())) {
+      case hash_join_buffer::StoreRowResult::ROW_STORED:
+        break;
+      case hash_join_buffer::StoreRowResult::BUFFER_FULL: {
+        // The row buffer is full, so start spilling to disk (if allowed). Note
+        // that the row buffer checks for OOM _after_ the row was inserted, so
+        // we should always manage to insert at least one row.
+        DBUG_ASSERT(!m_row_buffer.empty());
 
-      // The last row returned from the build input iterator was not stored
-      // in the hash table, so we must put that in a chunk file before
-      // reading the remaining rows from the iterator in WriteRowsToChunks.
-      if (WriteRowToChunk(thd(), &m_chunk_files_on_disk,
-                          /* write_to_build_chunk=*/true, m_build_input_tables,
-                          m_join_conditions, kChunkPartitioningHashSeed,
-                          &m_temporary_row_and_join_key_buffer)) {
-        DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
-        return true;
-      }
+        // If we are not allowed to spill to disk, just go on to reading from
+        // the probe iterator.
+        if (!m_allow_spill_to_disk) {
+          m_state = State::READING_ROW_FROM_PROBE_ITERATOR;
+          return false;
+        }
 
-      // Write out the remaining rows from the build input out to chunk files.
-      // The probe input will be written out to chunk files later; we will do it
-      // _after_ we have checked the probe input for matches against the rows
-      // that are already written to the hash table. An alternative approach
-      // would be to write out the remaining rows from the build _and_ the rows
-      // that already are in the hash table. In that case, we could also write
-      // out the entire probe input to disk here as well. But we don't want to
-      // waste the rows that we already have stored in memory.
-      if (WriteRowsToChunks(thd(), m_build_input.get(), m_build_input_tables,
-                            m_join_conditions, kChunkPartitioningHashSeed,
-                            &m_chunk_files_on_disk,
-                            true /* write_to_build_chunks */,
-                            &m_temporary_row_and_join_key_buffer)) {
-        DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
-        return true;
-      }
-
-      // Flush and position all chunk files from the build input at the
-      // beginning.
-      for (ChunkPair &chunk_pair : m_chunk_files_on_disk) {
-        if (chunk_pair.build_chunk.Rewind()) {
+        // Ideally, we would use the estimated row count from the iterator. But
+        // not all iterators has the row count available (i.e.
+        // RemoveDuplicatesIterator), so get the row count directly from the
+        // QEP_TAB.
+        const QEP_TAB *last_table_in_join =
+            m_build_input_tables.tables().back().qep_tab;
+        if (InitializeChunkFiles(
+                last_table_in_join->position()->prefix_rowcount,
+                m_row_buffer.size(), kMaxChunks, m_probe_input_table,
+                m_build_input_tables, &m_chunk_files_on_disk)) {
           DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
           return true;
         }
+
+        // Write out the remaining rows from the build input out to chunk files.
+        // The probe input will be written out to chunk files later; we will do
+        // it _after_ we have checked the probe input for matches against the
+        // rows that are already written to the hash table. An alternative
+        // approach would be to write out the remaining rows from the build
+        // _and_ the rows that already are in the hash table. In that case, we
+        // could also write out the entire probe input to disk here as well. But
+        // we don't want to waste the rows that we already have stored in
+        // memory.
+        if (WriteRowsToChunks(thd(), m_build_input.get(), m_build_input_tables,
+                              m_join_conditions, kChunkPartitioningHashSeed,
+                              &m_chunk_files_on_disk,
+                              true /* write_to_build_chunks */,
+                              &m_temporary_row_and_join_key_buffer)) {
+          DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+          return true;
+        }
+
+        // Flush and position all chunk files from the build input at the
+        // beginning.
+        for (ChunkPair &chunk_pair : m_chunk_files_on_disk) {
+          if (chunk_pair.build_chunk.Rewind()) {
+            DBUG_ASSERT(
+                thd()->is_error());  // my_error should have been called.
+            return true;
+          }
+        }
+        m_state = State::READING_ROW_FROM_PROBE_ITERATOR;
+        return false;
       }
-      break;
+      case hash_join_buffer::StoreRowResult::FATAL_ERROR:
+        // An unrecoverable error. Most likely, malloc failed, so report OOM.
+        // Note that we cannot say for sure how much memory we tried to allocate
+        // when failing, so just report 'join_buffer_size' as the amount of
+        // memory we tried to allocate.
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 thd()->variables.join_buff_size);
+        return true;
     }
   }
-
-  m_state = State::READING_ROW_FROM_PROBE_ITERATOR;
-  return false;
 }
 
 bool HashJoinIterator::ReadNextHashJoinChunk() {
@@ -487,25 +493,35 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
       return true;
     }
 
-    if (m_row_buffer.StoreRow(thd())) {
-      if (m_row_buffer.empty()) {
-        // We couldn't put a single row into the buffer, so report OOM. Note
-        // that we cannot say for sure how much memory we tried to allocate when
-        // failing, so just report 'join_buffer_size' as the amount of memory we
-        // tried to allocate.
-        my_error(ER_OUTOFMEMORY, MYF(0), thd()->variables.join_buff_size);
-        return true;
-      }
+    hash_join_buffer::StoreRowResult store_row_result =
+        m_row_buffer.StoreRow(thd());
 
-      // Since the last row didn't fit in the hash table, rewind the chunk file
-      // back to the beginning of the row so that we can put it in the hash
-      // table in the next iteration.
-      build_chunk.IgnoreLastRead();
+    if (store_row_result == hash_join_buffer::StoreRowResult::BUFFER_FULL) {
+      // The row buffer checks for OOM _after_ the row was inserted, so we
+      // should always manage to insert at least one row.
+      DBUG_ASSERT(!m_row_buffer.empty());
+
+      // Since the last row read was actually stored in the buffer, increment
+      // the row counter manually before breaking out of the loop.
+      ++m_build_chunk_current_row;
       break;
+    } else if (store_row_result ==
+               hash_join_buffer::StoreRowResult::FATAL_ERROR) {
+      // An unrecoverable error. Most likely, malloc failed, so report OOM.
+      // Note that we cannot say for sure how much memory we tried to allocate
+      // when failing, so just report 'join_buffer_size' as the amount of
+      // memory we tried to allocate.
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+               thd()->variables.join_buff_size);
+      return true;
     }
+
+    DBUG_ASSERT(store_row_result ==
+                hash_join_buffer::StoreRowResult::ROW_STORED);
   }
 
-  // Prepare to do a lookup in the hash table for all rows from the probe chunk.
+  // Prepare to do a lookup in the hash table for all rows from the probe
+  // chunk.
   if (m_chunk_files_on_disk[m_current_chunk].probe_chunk.Rewind()) {
     DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
     return true;
@@ -523,17 +539,32 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
     DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
     return true;
   } else if (result == -1) {
-    // No more rows in the current chunk.
-    m_state = State::LOADING_NEXT_CHUNK_PAIR;
-    return false;
+    // The probe iterator is out of rows. If we haven't degraded into an
+    // on-disk hash join (i.e. we were not allowed due to a LIMIT in the
+    // query), re-populate the hash table with the remaining rows from the
+    // build input.
+    if (!m_allow_spill_to_disk) {
+      if (BuildHashTable()) {
+        DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+        return true;
+      }
+
+      // Start reading from the beginning of the probe iterator.
+      DBUG_ASSERT(m_state == State::END_OF_ROWS ||
+                  m_state == State::READING_ROW_FROM_PROBE_ITERATOR);
+      return m_state == State::END_OF_ROWS ? false : m_probe_input->Init();
+    } else {
+      m_state = State::LOADING_NEXT_CHUNK_PAIR;
+      return false;
+    }
   }
 
   DBUG_ASSERT(result == 0);
   RequestRowId(m_probe_input_table.tables());
 
-  // If we are spilling to disk, we need to match the row against rows from the
-  // build input that are written out to chunk files. So we need to write the
-  // probe row to chunk files as well.
+  // If we are spilling to disk, we need to match the row against rows from
+  // the build input that are written out to chunk files. So we need to write
+  // the probe row to chunk files as well.
   if (on_disk_hash_join()) {
     if (WriteRowToChunk(thd(), &m_chunk_files_on_disk,
                         false /* write_to_build_chunk */, m_probe_input_table,
@@ -558,8 +589,8 @@ bool HashJoinIterator::ReadRowFromProbeChunkFile() {
   HashJoinChunk &current_probe_chunk =
       m_chunk_files_on_disk[m_current_chunk].probe_chunk;
   if (m_probe_chunk_current_row >= current_probe_chunk.num_rows()) {
-    // No more rows in the current probe chunk, so load the next chunk of build
-    // rows into the hash table.
+    // No more rows in the current probe chunk, so load the next chunk of
+    // build rows into the hash table.
     m_state = State::LOADING_NEXT_CHUNK_PAIR;
     return false;
   } else if (current_probe_chunk.LoadRowFromChunk(

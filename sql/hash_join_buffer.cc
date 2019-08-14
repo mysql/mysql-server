@@ -364,20 +364,14 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
   return false;
 }
 
-bool HashJoinRowBuffer::StoreRow(THD *thd) {
-  // Note that we do not call my_error in case of errors; it is up to the caller
-  // to determine what to do in case of errors.
-  if (m_mem_root.allocated_size() > m_max_mem_available) {
-    return true;
-  }
-
+StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd) {
   // Make the key from the join conditions.
   m_buffer.length(0);
   for (const HashJoinCondition &hash_join_condition : m_join_conditions) {
     if (hash_join_condition.join_condition()->append_join_key_for_hash_join(
             thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer)) {
       // SQL NULL values will never match in an inner join, so skip the row.
-      return false;
+      return StoreRowResult::ROW_STORED;
     }
   }
 
@@ -389,14 +383,14 @@ bool HashJoinRowBuffer::StoreRow(THD *thd) {
   if (join_key_size > 0) {
     join_key_data = m_mem_root.ArrayAlloc<uchar>(join_key_size);
     if (join_key_data == nullptr) {
-      return true;
+      return StoreRowResult::FATAL_ERROR;
     }
     memcpy(join_key_data, m_buffer.ptr(), join_key_size);
   }
 
   // Save the contents of all columns marked for reading.
   if (StoreFromTableBuffers(m_tables, &m_buffer)) {
-    return true;
+    return StoreRowResult::FATAL_ERROR;
   }
 
   // Give the row the same lifetime as the hash map, by allocating it on the
@@ -406,14 +400,18 @@ bool HashJoinRowBuffer::StoreRow(THD *thd) {
   if (row_size > 0) {
     row = m_mem_root.ArrayAlloc<uchar>(row_size);
     if (row == nullptr) {
-      return true;
+      return StoreRowResult::FATAL_ERROR;
     }
     memcpy(row, m_buffer.ptr(), row_size);
   }
 
   m_hash_map->emplace(Key(join_key_data, join_key_size),
                       BufferRow(row, row_size));
-  return false;
+
+  if (m_mem_root.allocated_size() > m_max_mem_available) {
+    return StoreRowResult::BUFFER_FULL;
+  }
+  return StoreRowResult::ROW_STORED;
 }
 
 }  // namespace hash_join_buffer
