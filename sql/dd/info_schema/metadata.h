@@ -139,6 +139,10 @@ namespace info_schema {
     CREATE TABLE SELECT from these system views will *not* be similar to one
     created with previous version of system views.
 
+  - Bug#29870919: INFORMATION SCHEMA STATS EXPIRY RESULTS IN BAD
+                  STATS FOR PARTITIONED TABLES
+    This bug changes definition of I_S.STATISTICS.
+
   80019: Next IS version number after the previous is public.
   ------------------------------------
 */

@@ -237,10 +237,10 @@ INSERT INTO I_S_published_schema
     '23dbc025dda0dfba52a9e9f09061290347c868735a01258396a55525e894b69b');
 INSERT INTO I_S_published_schema
   VALUES ('80018', 0,
-    'bdd8665832fb3c524f742e22003722906706ac5302d46a9611fb7cb83b30a70c');
+    'b0077c83e03d640dcf26fc717accd5081269ea7ff3e6c3282914380a1246c1af');
 INSERT INTO I_S_published_schema
   VALUES ('80018', 1,
-    '51104a07a4fc8c4f3fa23856c0496b85eb7e91d0ce4ee9776113de85b83e2df5');
+    'ca7b69e91a233bab7856f491e7dab6caff7f0fd4f56218ece438e95375ff2392');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
                      version, '.'),

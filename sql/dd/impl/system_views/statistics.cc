@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ Statistics::Statistics() {
       "INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,"
       "col.name, idx.ordinal_position,"
       "icu.ordinal_position,"
-      "tbl.engine,"
+      "IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
       "tbl.se_private_id,"
       "tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden,"
       "COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),"
