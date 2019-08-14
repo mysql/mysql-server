@@ -45,7 +45,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ENCRYPTION='n'
 DROP TABLE t1;
 # ALTER TABLE requesting ENCRYPTION with COPY algo.
-# Without patch, no error was reported.
+# Without patch, error was reported by SE. With
+# this patch the error is reported by SQL server.
 CREATE TABLE t1 (fld1 INT NOT NULL) ENGINE=MyISAM;
 ALTER TABLE t1 ENCRYPTION= 'y', ALGORITHM=COPY;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'

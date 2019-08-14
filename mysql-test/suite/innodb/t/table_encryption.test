@@ -52,7 +52,8 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo # ALTER TABLE requesting ENCRYPTION with COPY algo.
---echo # Without patch, no error was reported.
+--echo # Without patch, error was reported by SE. With
+--echo # this patch the error is reported by SQL server.
 CREATE TABLE t1 (fld1 INT NOT NULL) ENGINE=MyISAM;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ENCRYPTION= 'y', ALGORITHM=COPY;
