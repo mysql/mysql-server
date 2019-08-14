@@ -33,7 +33,6 @@
   MAINTAINER: Please keep this list in order, to limit merge collisions.
 */
 
-PSI_memory_key key_memory_DATE_TIME_FORMAT;
 PSI_memory_key key_memory_DD_column_statistics;
 PSI_memory_key key_memory_DD_default_values;
 PSI_memory_key key_memory_DD_import;
@@ -43,7 +42,6 @@ PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Filesort_info_merge;
 PSI_memory_key key_memory_Filesort_info_record_pointers;
-PSI_memory_key key_memory_Gcalc_dyn_list_block;
 PSI_memory_key key_memory_Geometry_objects_data;
 PSI_memory_key key_memory_Gis_read_stream_err_msg;
 PSI_memory_key key_memory_Gtid_state_to_string;
@@ -71,16 +69,13 @@ PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_READ_INFO;
 PSI_memory_key key_memory_READ_RECORD_cache;
 PSI_memory_key key_memory_Recovered_xa_transactions;
-PSI_memory_key key_memory_Relay_log_info_group_relay_log_name;
 PSI_memory_key key_memory_Row_data_memory_memory;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
 PSI_memory_key key_memory_Rpl_info_table;
 PSI_memory_key key_memory_SLAVE_INFO;
 PSI_memory_key key_memory_ST_SCHEMA_TABLE;
-PSI_memory_key key_memory_Security_context;
 PSI_memory_key key_memory_Slave_applier_json_diff_vector;
 PSI_memory_key key_memory_Slave_job_group_group_relay_log_name;
-PSI_memory_key key_memory_Sort_param_tmp_buffer;
 PSI_memory_key key_memory_Sys_var_charptr_value;
 PSI_memory_key key_memory_TABLE;
 PSI_memory_key key_memory_TABLE_RULE_ENT;
@@ -91,12 +86,10 @@ PSI_memory_key key_memory_THD_Session_tracker;
 PSI_memory_key key_memory_THD_db;
 PSI_memory_key key_memory_THD_handler_tables_hash;
 PSI_memory_key key_memory_THD_variables;
-PSI_memory_key key_memory_Table_trigger_dispatcher;
 PSI_memory_key key_memory_Unique_merge_buffer;
 PSI_memory_key key_memory_Unique_sort_buffer;
 PSI_memory_key key_memory_User_level_lock;
 PSI_memory_key key_memory_XID;
-PSI_memory_key key_memory_XID_STATE;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
 PSI_memory_key key_memory_acl_cache;
@@ -105,15 +98,11 @@ PSI_memory_key key_memory_binlog_cache_mngr;
 PSI_memory_key key_memory_binlog_pos;
 PSI_memory_key key_memory_binlog_recover_exec;
 PSI_memory_key key_memory_binlog_statement_buffer;
-PSI_memory_key key_memory_binlog_ver_1_event;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_blob_mem_storage;
 PSI_memory_key key_memory_db_worker_hash_entry;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_errmsgs;
-PSI_memory_key key_memory_fill_schema_schemata;
-PSI_memory_key key_memory_native_functions;
-PSI_memory_key key_memory_gdl;
 PSI_memory_key key_memory_global_system_variables;
 PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
@@ -122,7 +111,6 @@ PSI_memory_key key_memory_hash_join;
 PSI_memory_key key_memory_help;
 PSI_memory_key key_memory_histograms;
 PSI_memory_key key_memory_host_cache_hostname;
-PSI_memory_key key_memory_ignored_db;
 PSI_memory_key key_memory_locked_table_list;
 PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_my_bitmap_map;
@@ -131,7 +119,6 @@ PSI_memory_key key_memory_opt_bin_logname;
 PSI_memory_key key_memory_partition_syntax_buffer;
 PSI_memory_key key_memory_prepared_statement_map;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
-PSI_memory_key key_memory_protocol_rset_root;
 PSI_memory_key key_memory_prune_partitions_exec;
 PSI_memory_key key_memory_queue_item;
 PSI_memory_key key_memory_quick_group_min_max_select_root;
@@ -141,7 +128,6 @@ PSI_memory_key key_memory_quick_ror_intersect_select_root;
 PSI_memory_key key_memory_quick_ror_union_select_root;
 PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_rpl_slave_check_temp_dir;
-PSI_memory_key key_memory_rpl_slave_command_buffer;
 PSI_memory_key key_memory_servers;
 PSI_memory_key key_memory_shared_memory_name;
 PSI_memory_key key_memory_show_slave_status_io_gtid_set;
@@ -150,7 +136,6 @@ PSI_memory_key key_memory_sp_head_execute_root;
 PSI_memory_key key_memory_sp_head_main_root;
 PSI_memory_key key_memory_table_mapping_root;
 PSI_memory_key key_memory_table_share;
-PSI_memory_key key_memory_table_triggers_list;
 PSI_memory_key key_memory_test_quick_select_exec;
 PSI_memory_key key_memory_thd_main_mem_root;
 PSI_memory_key key_memory_thd_timer;
@@ -158,7 +143,6 @@ PSI_memory_key key_memory_thd_transactions;
 PSI_memory_key key_memory_user_conn;
 PSI_memory_key key_memory_user_var_entry;
 PSI_memory_key key_memory_user_var_entry_value;
-PSI_memory_key key_memory_warning_info_warn_root;
 PSI_memory_key key_memory_sp_cache;
 PSI_memory_key key_memory_write_set_extraction;
 
@@ -185,18 +169,11 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_help, "help", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_table_share, "TABLE_SHARE::mem_root",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
-    {&key_memory_gdl, "gdl", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_table_triggers_list, "Table_triggers_list", 0, 0,
-     PSI_DOCUMENT_ME},
     {&key_memory_servers, "servers", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_prepared_statement_map, "Prepared_statement_map",
      PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
     {&key_memory_prepared_statement_main_mem_root,
      "Prepared_statement::main_mem_root", PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_protocol_rset_root, "Protocol_local::m_rset_root",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_warning_info_warn_root, "Warning_info::m_warn_root",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
     {&key_memory_sp_cache, "THD::sp_cache", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_sp_head_main_root, "sp_head::main_mem_root", 0, 0,
      PSI_DOCUMENT_ME},
@@ -234,8 +211,6 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_user_var_entry, "user_var_entry", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Slave_job_group_group_relay_log_name,
      "Slave_job_group::group_relay_log_name", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_Relay_log_info_group_relay_log_name,
-     "Relay_log_info::group_relay_log_name", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_cache_mngr, "binlog_cache_mngr", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Row_data_memory_memory, "Row_data_memory::memory", 0, 0,
      PSI_DOCUMENT_ME},
@@ -248,13 +223,7 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_log_event, "Log_event", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_Incident_log_event_message, "Incident_log_event::message", 0,
-     0, PSI_DOCUMENT_ME},
-    {&key_memory_Rows_query_log_event_rows_query,
-     "Rows_query_log_event::rows_query", 0, 0, PSI_DOCUMENT_ME},
 
-    {&key_memory_Sort_param_tmp_buffer, "Sort_param::tmp_buffer", 0, 0,
-     PSI_DOCUMENT_ME},
     {&key_memory_Filesort_info_merge, "Filesort_info::merge", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_Filesort_info_record_pointers,
@@ -292,8 +261,6 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_rpl_filter, "rpl_filter memory", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_errmsgs, "errmsgs", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0, 0,
-     PSI_DOCUMENT_ME},
     {&key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0, 0,
@@ -324,10 +291,6 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_rpl_slave_check_temp_dir, "rpl_slave::check_temp_dir", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_rpl_slave_command_buffer, "rpl_slave::command_buffer", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_binlog_ver_1_event, "binlog_ver_1_event", 0, 0,
-     PSI_DOCUMENT_ME},
     {&key_memory_SLAVE_INFO, "SLAVE_INFO", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_pos, "binlog_pos", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_HASH_ROW_ENTRY, "HASH_ROW_ENTRY", 0, 0, PSI_DOCUMENT_ME},
@@ -350,16 +313,13 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_TABLE, "TABLE", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
     {&key_memory_LOG_name, "LOG_name", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_DATE_TIME_FORMAT, "DATE_TIME_FORMAT", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_DD_String_type, "dd::String_type", PSI_FLAG_ONLY_GLOBAL_STAT,
      0, PSI_DOCUMENT_ME},
     {&key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_ignored_db, "ignored_db", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_PROFILE, "PROFILE", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_global_system_variables, "global_system_variables",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
     {&key_memory_THD_variables, "THD::variables", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_Security_context, "Security_context", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_shared_memory_name, "Shared_memory_name", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_bison_stack, "bison_stack", 0, 0, PSI_DOCUMENT_ME},
@@ -369,7 +329,6 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_user_conn, "user_conn", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_LOG_POS_COORD, "LOG_POS_COORD", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_XID_STATE, "XID_STATE", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_MPVIO_EXT_auth_info, "MPVIO_EXT::auth_info", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_opt_bin_logname, "opt_bin_logname", PSI_FLAG_ONLY_GLOBAL_STAT,
@@ -380,8 +339,6 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_Quick_ranges, "Quick_ranges", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_File_query_log_name, "File_query_log::name",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
-    {&key_memory_Table_trigger_dispatcher,
-     "Table_trigger_dispatcher::m_mem_root", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_thd_timer, "thd_timer", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_THD_Session_tracker, "THD::Session_tracker", 0, 0,
      PSI_DOCUMENT_ME},
@@ -391,10 +348,6 @@ static PSI_memory_info all_server_memory[] = {
      0, 0, PSI_DOCUMENT_ME},
     {&key_memory_write_set_extraction, "write_set_extraction", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_fill_schema_schemata, "fill_schema_schemata", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_native_functions, "native_functions",
-     PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
     {&key_memory_JSON, "JSON", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_log_error_loaded_services, "log_error_loaded_services", 0, 0,
      PSI_DOCUMENT_ME},
