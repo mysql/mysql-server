@@ -1868,10 +1868,8 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
 
 /** Start InnoDB.
 @param[in]	create_new_db		Whether to create a new database
-@param[in]	scan_directories	Scan directories for .ibd files for
-                                        recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
-dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
+dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
   /* just for assertions */
@@ -1998,6 +1996,26 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   fil_init(srv_max_n_open_files);
 
+  /* This is the default directory for IBD and IBU files. Put it first
+  in the list of known directories. */
+  fil_set_scan_dir(MySQL_datadir_path.path());
+
+  /* Add --innodb-data-home-dir as a known location for IBD and IBU files
+  if it is not already there. */
+  ut_ad(srv_data_home != nullptr && *srv_data_home != '\0');
+  fil_set_scan_dir(Fil_path::remove_quotes(srv_data_home));
+
+  /* Add --innodb-directories as known locations for IBD and IBU files. */
+  if (srv_innodb_directories != nullptr && *srv_innodb_directories != 0) {
+    fil_set_scan_dirs(Fil_path::remove_quotes(srv_innodb_directories));
+  }
+
+  /* For the purpose of file discovery at startup, we need to scan
+  --innodb-undo-directory also. */
+  fil_set_scan_dir(Fil_path::remove_quotes(MySQL_undo_path), true);
+
+  ib::info(ER_IB_MSG_378) << "Directories to scan '" << fil_get_dirs() << "'";
+
   /* Must replace clone files before scanning directories. When
   clone replaces current database, cloned files are moved to data files
   at this stage. */
@@ -2007,7 +2025,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     return (srv_init_abort(err));
   }
 
-  err = fil_scan_for_tablespaces(scan_directories);
+  err = fil_scan_for_tablespaces();
 
   if (err != DB_SUCCESS) {
     return (srv_init_abort(err));

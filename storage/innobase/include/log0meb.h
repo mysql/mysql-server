@@ -25,9 +25,6 @@ struct SYS_VAR;
 struct st_mysql_value;
 class innodb_session_t;
 
-/* The innodb_directories plugin variable value. */
-extern char *innobase_directories;
-
 namespace meb {
 
 /** Performance schema key for the log consumer thread. */

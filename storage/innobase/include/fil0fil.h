@@ -419,25 +419,37 @@ class Fil_path {
   /** Check if m_path is the same as path.
   @param[in]	path	directory path to compare to
   @return true if m_path is the same as path */
-  bool is_same_as(const std::string &path) const
+  bool is_same_as(const std::string &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty() || path.empty()) {
+    if (m_path.empty() || other.empty()) {
       return (false);
     }
 
-    return (m_abs_path == get_real_path(path));
+    return (m_abs_path == get_real_path(other));
+  }
+
+  /** Check if m_path is the same as this other path.
+  @param[in]	path	directory path to compare to
+  @return true if m_path is the same as path */
+  bool is_same_as(const Fil_path &other) const
+      MY_ATTRIBUTE((warn_unused_result)) {
+    if (m_path.empty() || other.m_path.empty()) {
+      return (false);
+    }
+
+    return (m_abs_path == get_real_path(other.m_path));
   }
 
   /** Check if m_path is the parent of name.
   @param[in]	name		Path to compare to
   @return true if m_path is an ancestor of name */
-  bool is_ancestor(const std::string &name) const
+  bool is_ancestor(const std::string &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty() || name.empty()) {
+    if (m_path.empty() || other.empty()) {
       return (false);
     }
 
-    return (is_ancestor(m_abs_path, get_real_path(name)));
+    return (is_ancestor(m_abs_path, get_real_path(other)));
   }
 
   /** Check if m_path is the parent of other.m_path.
@@ -493,19 +505,19 @@ class Fil_path {
 #endif /* WIN32 */
 
   /** Remove quotes e.g., 'a;b' or "a;b" -> a;b.
-  Assumes matching quotes.
+  This will only remove the quotes if they are matching on the whole string.
+  This will not work if each delimited string is quoted since this is called
+  before the string is parsed.
   @return pathspec with the quotes stripped */
-  static std::string parse(const char *pathspec) {
+  static std::string remove_quotes(const char *pathspec) {
     std::string path(pathspec);
 
     ut_ad(!path.empty());
 
-    if (path.size() >= 2 && (path.front() == '\'' || path.back() == '"')) {
+    if (path.size() >= 2 && ((path.front() == '\'' && path.back() == '\'') ||
+                             (path.front() == '"' && path.back() == '"'))) {
       path.erase(0, 1);
-
-      if (path.back() == '\'' || path.back() == '"') {
-        path.erase(path.size() - 1);
-      }
+      path.erase(path.size() - 1);
     }
 
     return (path);
@@ -627,6 +639,12 @@ class Fil_path {
   @return true if lhs is an ancestor of rhs */
   static bool is_ancestor(const std::string &lhs, const std::string &rhs)
       MY_ATTRIBUTE((warn_unused_result)) {
+    /* We assume that both lhs and rhs have been previously converted by
+    get_real_path() which not only converts both paths to absolute paths,
+    but also converts to lower case on case insensitive file systems. */
+    ut_ad(lhs == get_real_path(lhs));
+    ut_ad(rhs == get_real_path(rhs));
+
     if (lhs.empty() || rhs.empty() || rhs.length() <= lhs.length()) {
       return (false);
     }
@@ -771,6 +789,9 @@ class Fil_path {
 
 /** The MySQL server --datadir value */
 extern Fil_path MySQL_datadir_path;
+
+/** The MySQL server --innodb-undo-directory value */
+extern Fil_path MySQL_undo_path;
 
 /** Initial size of a single-table tablespace in pages */
 constexpr size_t FIL_IBD_FILE_INITIAL_SIZE = 7;
@@ -1792,10 +1813,19 @@ or MLOG_FILE_RENAME record. These could not be recovered
 ignore redo log records during the apply phase */
 bool fil_check_missing_tablespaces() MY_ATTRIBUTE((warn_unused_result));
 
+/** Normalize and save a directory to scan for datafiles.
+@param[in]  directory    directory to scan for ibd and ibu files
+@param[in]  is_undo_dir  true for an undo directory */
+void fil_set_scan_dir(const std::string &directory, bool is_undo_dir = false);
+
+/** Normalize and save a list of directories to scan for datafiles.
+@param[in]  directories  Directories to scan for ibd and ibu files
+                         in the form:  "dir1;dir2; ... dirN" */
+void fil_set_scan_dirs(const std::string &directories);
+
 /** Discover tablespaces by reading the header from .ibd files.
-@param[in]	directories	Directories to scan
 @return DB_SUCCESS if all goes well */
-dberr_t fil_scan_for_tablespaces(const std::string &directories);
+dberr_t fil_scan_for_tablespaces();
 
 /** Open the tabelspace and also get the tablespace filenames, space_id must
 already be known.

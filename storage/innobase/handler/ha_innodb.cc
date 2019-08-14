@@ -53,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <limits.h>
 #include <log.h>
 #include <math.h>
+#include <my_compare.h>
+#include <mysqld.h>
 #include <stdlib.h>
 #include <strfunc.h>
 #include <time.h>
@@ -69,7 +71,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 #include <mysql_com.h>
-#include <mysqld.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
@@ -254,7 +255,6 @@ static char *innobase_enable_monitor_counter = NULL;
 static char *innobase_disable_monitor_counter = NULL;
 static char *innobase_reset_monitor_counter = NULL;
 static char *innobase_reset_all_monitor_counter = NULL;
-char *innobase_directories = NULL;
 
 static ulong innodb_flush_method;
 
@@ -2145,6 +2145,15 @@ const char *innobase_basename(const char *path_name) {
   return ((name) ? name : "null");
 }
 
+/** Get the current setting of the lower_case_file_system global parameter from
+mysqld.cc. We do a dirty read because this global is set at startup using a
+test that writes upper and lower case file names. After that it never changes.
+@return true if the file system is case insensitive, else false. */
+bool is_file_system_case_insensitive(void) {
+  /* lower_case_file_names is true if the file system is case insensitive. */
+  return (lower_case_file_system);
+}
+
 #ifndef UNIV_HOTBACKUP
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -2319,6 +2328,7 @@ ulint innobase_raw_format(const char *data,   /*!< in: raw data */
 }
 
 #endif /* !UNIV_HOTBACKUP */
+
 /** Check if the string is "empty" or "none".
 @param[in]      algorithm       Compression algorithm to check
 @return true if no algorithm requested */
@@ -4228,19 +4238,26 @@ static int innodb_init_params() {
   /* The default dir for data files is the datadir of MySQL */
 
   srv_data_home =
-      innobase_data_home_dir != nullptr ? innobase_data_home_dir : default_path;
+      (innobase_data_home_dir == nullptr || *innobase_data_home_dir == '\0')
+          ? default_path
+          : innobase_data_home_dir;
   Fil_path::normalize(srv_data_home);
 
+  /* Validate the undo directory. */
   if (srv_undo_dir == nullptr) {
     srv_undo_dir = default_path;
+  } else {
+    Fil_path::normalize(srv_undo_dir);
   }
-  Fil_path::normalize(srv_undo_dir);
-  Fil_path undo_dir(srv_undo_dir);
-  if (undo_dir.is_ancestor(default_path)) {
+
+  MySQL_undo_path = Fil_path{srv_undo_dir};
+
+  if (MySQL_undo_path.is_ancestor(default_path)) {
     log_errlog(ERROR_LEVEL, ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY_LOCATION);
     return HA_ERR_INITIALIZATION;
   }
 
+  /* Validate the temp directory */
   if (ibt::srv_temp_dir == nullptr) {
     ibt::srv_temp_dir = default_path;
   } else {
@@ -4926,27 +4943,8 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
   srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
 
-  /* InnoDB files should be found in the following locations only. */
-  std::string directories;
-
-  /* This is the default directory for .ibd files. */
-  directories.append(MySQL_datadir_path.path());
-
-  directories.push_back(FIL_PATH_SEPARATOR);
-  directories.append(srv_data_home);
-
-  if (innobase_directories != nullptr && *innobase_directories != 0) {
-    Fil_path::normalize(innobase_directories);
-    directories.push_back(FIL_PATH_SEPARATOR);
-    directories.append(Fil_path::parse(innobase_directories));
-  }
-
-  if (srv_undo_dir != nullptr && *srv_undo_dir != 0) {
-    directories.push_back(FIL_PATH_SEPARATOR);
-    directories.append(srv_undo_dir);
-  }
-
-  err = srv_start(create, directories);
+  /* Start the InnoDB server. */
+  err = srv_start(create);
 
   if (err != DB_SUCCESS) {
     return innodb_init_abort();
@@ -7250,18 +7248,18 @@ int innobase_fts_text_cmp(const void *cs, /*!< in: Character set */
   const fts_string_t *s2 = (const fts_string_t *)p2;
 
   return (ha_compare_text(charset, s1->f_str, static_cast<uint>(s1->f_len),
-                          s2->f_str, static_cast<uint>(s2->f_len), 0));
+                          s2->f_str, static_cast<uint>(s2->f_len), false));
 }
 
-/** compare two character string case insensitively according to their charset.
- */
-int innobase_fts_text_case_cmp(const void *cs, /*!< in: Character set */
-                               const void *p1, /*!< in: key */
-                               const void *p2) /*!< in: node */
-{
-  const CHARSET_INFO *charset = (const CHARSET_INFO *)cs;
-  const fts_string_t *s1 = (const fts_string_t *)p1;
-  const fts_string_t *s2 = (const fts_string_t *)p2;
+/** Compare two FTS character strings case insensitively according to their
+charset. This assumes that s1 is already in lower case.
+@parameter[in]  cs  character set
+@parameter[in]  s1  key
+@parameter[in]  s2  node
+@return 0 if the two strings are equal */
+int innobase_fts_nocase_compare(const CHARSET_INFO *charset,
+                                const fts_string_t *s1,
+                                const fts_string_t *s2) {
   ulint newlen;
 
   my_casedn_str(charset, (char *)s2->f_str);
@@ -7269,8 +7267,29 @@ int innobase_fts_text_case_cmp(const void *cs, /*!< in: Character set */
   newlen = strlen((const char *)s2->f_str);
 
   return (ha_compare_text(charset, s1->f_str, static_cast<uint>(s1->f_len),
-                          s2->f_str, static_cast<uint>(newlen), 0));
+                          s2->f_str, static_cast<uint>(newlen), false));
 }
+
+#endif /* UNIV_HOTBACKUP */
+
+/** Compare two character strings case insensitively according to their
+charset.
+@parameter[in]  cs  character set
+@parameter[in]  s1  string 1
+@parameter[in]  s2  string 2
+@return 0 if the two strings are equal */
+int innobase_nocase_compare(const void *cs, const char *s1, const char *s2) {
+  const CHARSET_INFO *charset = static_cast<const CHARSET_INFO *>(cs);
+  const uchar *str1 = reinterpret_cast<const uchar *>(s1);
+  const uchar *str2 = reinterpret_cast<const uchar *>(s2);
+  uint len1 = static_cast<uint>(strlen(s1));
+  uint len2 = static_cast<uint>(strlen(s2));
+
+  /* This function returns zero if the two strings are equal. */
+  return (ha_compare_text(charset, str1, len1, str2, len2, false));
+}
+
+#ifndef UNIV_HOTBACKUP
 
 /** Get the first character's code position for FTS index partition. */
 ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
@@ -7306,7 +7325,7 @@ int innobase_fts_text_cmp_prefix(const void *cs, /*!< in: Character set */
   int result;
 
   result = ha_compare_text(charset, s2->f_str, static_cast<uint>(s2->f_len),
-                           s1->f_str, static_cast<uint>(s1->f_len), 1);
+                           s1->f_str, static_cast<uint>(s1->f_len), true);
 
   /* We switched s1, s2 position in ha_compare_text. So we need
   to negate the result */
@@ -22217,7 +22236,7 @@ static MYSQL_SYSVAR_BOOL(ddl_log_crash_reset_debug,
                          ddl_log_crash_reset, FALSE);
 #endif /* UNIV_DEBUG */
 
-static MYSQL_SYSVAR_STR(directories, innobase_directories,
+static MYSQL_SYSVAR_STR(directories, srv_innodb_directories,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOPERSIST,
                         "List of directories 'dir1;dir2;..;dirN' to scan for "
