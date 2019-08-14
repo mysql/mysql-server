@@ -1274,8 +1274,21 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       keyinfo->actual_flags = keyinfo->flags = HA_NOSAME | HA_NULL_ARE_EQUAL;
       keyinfo->name = "<auto_distinct_key>";
       // keyinfo->algorithm is set later, when storage engine is known
-      keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+
+      // Set up records-per-key estimates.
+      ulong *rec_per_key =
+          share->mem_root.ArrayAlloc<ulong>(keyinfo->user_defined_key_parts);
+      rec_per_key_t *rec_per_key_float =
+          share->mem_root.ArrayAlloc<rec_per_key_t>(
+              keyinfo->user_defined_key_parts);
+      keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+      for (unsigned key_part_idx = 0;
+           key_part_idx < keyinfo->user_defined_key_parts; ++key_part_idx) {
+        keyinfo->rec_per_key[key_part_idx] = 0;
+        keyinfo->set_records_per_key(key_part_idx, REC_PER_KEY_UNKNOWN);
+      }
+
       /* Create a distinct key over the columns we are going to return */
       for (i = param->hidden_field_count, reg_field_1 = table->field + i;
            i < field_count; i++, reg_field_1++, key_part_info++) {
