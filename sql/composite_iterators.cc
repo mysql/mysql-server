@@ -1256,21 +1256,32 @@ StreamingIterator::StreamingIterator(
   // fake ID; since the real handler on this temporary table is never called,
   // it is safe to replace it with something of the same length.
   //
-  // table->ref_is_set_without_position_call is set so that weedout won't
+  // We notify other iterators that we provide the row ID so that they won't
   // try to call position(), but will just blindly trust the pointer we give it.
-  table->ref_is_set_without_position_call = true;
-  if (table->file->ref_length < sizeof(m_row_number)) {
-    table->file->ref_length = sizeof(m_row_number);
-    table->file->ref = nullptr;
-  }
-  if (table->file->ref == nullptr) {
-    table->file->ref =
-        pointer_cast<uchar *>(thd->mem_calloc(table->file->ref_length));
+  // But only do so if a row ID is actually needed for this table. Otherwise,
+  // iterators above us might start copying the row ID when it is not needed.
+  QEP_TAB *qep_tab = table->reginfo.qep_tab;
+  m_provide_rowid =
+      qep_tab != nullptr && qep_tab->rowid_status != NO_ROWID_NEEDED;
+  if (m_provide_rowid) {
+    qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
+
+    if (table->file->ref_length < sizeof(m_row_number)) {
+      table->file->ref_length = sizeof(m_row_number);
+      table->file->ref = nullptr;
+    }
+    if (table->file->ref == nullptr) {
+      table->file->ref =
+          pointer_cast<uchar *>(thd->mem_calloc(table->file->ref_length));
+    }
   }
 }
 
 bool StreamingIterator::Init() {
-  memset(table()->file->ref, 0, table()->file->ref_length);
+  if (m_provide_rowid) {
+    memset(table()->file->ref, 0, table()->file->ref_length);
+  }
+
   m_row_number = 0;
   return m_subquery_iterator->Init();
 }
@@ -1284,8 +1295,10 @@ int StreamingIterator::Read() {
     if (copy_fields_and_funcs(m_temp_table_param, thd())) return 1;
   }
 
-  memcpy(table()->file->ref, &m_row_number, sizeof(m_row_number));
-  ++m_row_number;
+  if (m_provide_rowid) {
+    memcpy(table()->file->ref, &m_row_number, sizeof(m_row_number));
+    ++m_row_number;
+  }
 
   return 0;
 }
@@ -1532,10 +1545,21 @@ bool MaterializedTableFunctionIterator::Init() {
 WeedoutIterator::WeedoutIterator(THD *thd,
                                  unique_ptr_destroy_only<RowIterator> source,
                                  SJ_TMP_TABLE *sj)
-    : RowIterator(thd), m_source(move(source)), m_sj(sj) {
+    : RowIterator(thd),
+      m_source(move(source)),
+      m_sj(sj),
+      m_rowid_status(PSI_NOT_INSTRUMENTED) {
   // Confluent weedouts should have been rewritten to LIMIT 1 earlier.
   DBUG_ASSERT(!m_sj->is_confluent);
   DBUG_ASSERT(m_sj->tmp_table != nullptr);
+
+  // Cache the value of rowid_status, as iterators above this one may change the
+  // value later (see QEP_TAB::rowid_status for details around this). The value
+  // indicates whether it is safe to call position().
+  for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    DBUG_ASSERT(tab->qep_tab->rowid_status != NO_ROWID_NEEDED);
+    m_rowid_status.push_back(tab->qep_tab->rowid_status);
+  }
 }
 
 bool WeedoutIterator::Init() {
@@ -1553,10 +1577,11 @@ int WeedoutIterator::Read() {
       return ret;
     }
 
+    size_t tmp_table_idx = 0;
     for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       TABLE *table = tab->qep_tab->table();
-      if (!(table->is_nullable() && table->has_null_row()) &&
-          !table->const_table && !table->ref_is_set_without_position_call) {
+      if (m_rowid_status[tmp_table_idx++] == NEED_TO_CALL_POSITION_FOR_ROWID &&
+          can_call_position(table)) {
         table->file->position(table->record[0]);
       }
     }

@@ -423,7 +423,6 @@ class QEP_TAB : public QEP_shared_owner {
         next_select(NULL),
         used_null_fields(false),
         used_uneven_bit_fields(false),
-        keep_current_rowid(false),
         copy_current_rowid(NULL),
         not_used_in_distinct(false),
         cache_idx_cond(NULL),
@@ -617,12 +616,73 @@ class QEP_TAB : public QEP_shared_owner {
   bool used_null_fields;
   bool used_uneven_bit_fields;
 
-  /*
-    Used by DuplicateElimination. tab->table->ref must have the rowid
-    whenever we have a current record. copy_current_rowid needed because
-    we cannot bind to the rowid buffer before the table has been opened.
-  */
-  bool keep_current_rowid;
+  // Whether the row ID is needed for this table, and where the row ID can be
+  // found.
+  //
+  // If rowid_status != NO_ROWID_NEEDED, it indicates that this table is part of
+  // weedout. In order for weedout to eliminate duplicate rows, it needs a
+  // unique ID for each row it reads. In general, any operator that needs the
+  // row ID should ask the storage engine directly for the ID of the last row
+  // read by calling handler::position(). However, it is not that simple...
+  //
+  // As mentioned, position() will ask the storage engine to provide the row ID
+  // of the last row read. But some iterators (i.e. HashJoinIterator) buffer
+  // rows, so that the last row returned by i.e. HashJoinIterator is not
+  // necessarily the same as the last row returned by the storage engine.
+  // This means that any iterator that buffers rows without using a temporary
+  // table must store and restore the row ID itself. If a temporary table is
+  // used, the temporary table engine will provide the row ID.
+  //
+  // When creating the iterator tree, any iterator that needs to interact with
+  // row IDs must adhere to the following rules:
+  //
+  //   1. Any iterator that buffers rows without using a temporary table must
+  //      store and restore the row ID if rowid_status != NO_ROWID_NEEDED.
+  //      In addition, they must mark that they do so by changing the value of
+  //      rowid_status to ROWID_PROVIDED_BY_ITERATOR_READ_CALL in their
+  //      constructor.
+  //   2. Any iterator that needs the row ID (currently only WeedoutIterator)
+  //      must check rowid_status to see if they should call position() or trust
+  //      that a row ID is provided by another iterator. Note that when filesort
+  //      sorts by row ID, it handles everything regarding row ID itself.
+  //      It manages this because sorting by row ID always goes through a
+  //      temporary table, which in turn will provide the row ID to filesort.
+  //   3. As the value of rowid_status may change while building the iterator
+  //      tree, all iterators interacting with row IDs must cache the
+  //      value they see in their constructor.
+  //
+  //  Consider the following example:
+  //
+  //        Weedout (t1,t3)
+  //              |
+  //         Nested loop
+  //        /          |
+  //    Hash join      t3
+  //    /      |
+  //   t1      t2
+  //
+  // During query planning, rowid_status will be set to
+  // NEED_TO_CALL_POSITION_FOR_ROWID on t1 and t3 due to the planned weedout.
+  // When the iterator tree is constructed, the hash join constructor will be
+  // called first. It caches the value of rowid_status for t1 per rule 3 above,
+  // and changes the value to ROWID_PROVIDED_BY_ITERATOR_READ_CALL per rule 1.
+  // This notifies any iterator above itself that they should not call
+  // position(). When the nested loop constructor is called, nothing happens, as
+  // the iterator does not interact with row IDs in any way. When the weedout
+  // constructor is called, it caches the value of rowid_status for t1 and t3
+  // per rule 3. During execution, the weedout will call position() on t3,
+  // since rowid_status was NEED_TO_CALL_POSITION_FOR_ROWID when the iterator
+  // was constructed. It will not call position() on t1, as rowid_status was set
+  // to ROWID_PROVIDED_BY_ITERATOR_READ_CALL by the hash join iterator.
+  //
+  // Note that if you have a NULL-complemented row, there is no guarantee that
+  // position() will provide a valid row ID, or not even a valid row ID pointer.
+  // So all operations must check for NULL-complemented rows before trying to
+  // use/copy a row ID.
+  rowid_statuses rowid_status{NO_ROWID_NEEDED};
+
+  // Helper structure for copying the row ID. Only used by BNL and BKA in the
+  // non-iterator executor.
   CACHE_FIELD *copy_current_rowid;
 
   /** true <=> remove duplicates on this table. */

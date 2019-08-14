@@ -4091,7 +4091,6 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   fulltext_searched = 0;
   file->ft_handler = 0;
   reginfo.impossible_range = 0;
-  ref_is_set_without_position_call = false;
 
   /* Catch wrong handling of the autoinc_field_has_explicit_non_null_value. */
   DBUG_ASSERT(!autoinc_field_has_explicit_non_null_value);

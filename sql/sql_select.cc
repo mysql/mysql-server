@@ -94,6 +94,7 @@
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables
+#include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"  // ignore_gaf_const_opt
@@ -1085,7 +1086,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
       tab->null_bit = jt_null_bits++;
     }
     qep_tab->table()->prepare_for_position();
-    qep_tab->keep_current_rowid = true;
+    qep_tab->rowid_status = NEED_TO_CALL_POSITION_FOR_ROWID;
   }
 
   SJ_TMP_TABLE *sjtbl;
@@ -1779,9 +1780,9 @@ bool SELECT_LEX::optimize(THD *thd) {
   Find how much space the prevous read not const tables takes in cache.
 */
 
-void calc_used_field_length(TABLE *table, bool keep_current_rowid,
-                            uint *p_used_fields, uint *p_used_fieldlength,
-                            uint *p_used_blobs, bool *p_used_null_fields,
+void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
+                            uint *p_used_fieldlength, uint *p_used_blobs,
+                            bool *p_used_null_fields,
                             bool *p_used_uneven_bit_fields) {
   uint null_fields, blobs, fields, rec_length;
   Field **f_ptr, *field;
@@ -1809,7 +1810,7 @@ void calc_used_field_length(TABLE *table, bool keep_current_rowid,
     rec_length += max<uint>(4U, blob_length);
   }
 
-  if (keep_current_rowid) {
+  if (needs_rowid) {
     rec_length += table->file->ref_length;
     fields++;
   }
