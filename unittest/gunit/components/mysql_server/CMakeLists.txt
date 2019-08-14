@@ -47,13 +47,19 @@ ENDFOREACH()
 
 MYSQL_ADD_COMPONENT(self_required_test_component
   self_required_test_component.cc
-  SKIP_INSTALL MODULE)
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
 MYSQL_ADD_COMPONENT(cyclic_dependency_test_component_1
   cyclic_dependency_test_component_1.cc
-  SKIP_INSTALL MODULE)
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
 MYSQL_ADD_COMPONENT(cyclic_dependency_test_component_2
   cyclic_dependency_test_component_2.cc
-  SKIP_INSTALL MODULE)
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
 
 SET(EXAMPLE_COMPONENTS
   component_example_component1

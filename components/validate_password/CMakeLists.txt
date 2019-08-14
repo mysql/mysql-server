@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,5 +22,6 @@
 
 MYSQL_ADD_COMPONENT(validate_password
   validate_password_imp.cc
-  MODULE
-  LINK_LIBRARIES library_mysys)
+  MODULE_ONLY
+  LINK_LIBRARIES library_mysys
+  )

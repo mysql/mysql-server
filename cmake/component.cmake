@@ -26,18 +26,19 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 
 # MYSQL_ADD_COMPONENT(component source1...sourceN
 #
-# [STATIC|MODULE|TEST]
-#
+# [STATIC|MODULE_ONLY]
+# [TEST_ONLY]
 # [LINK_LIBRARIES lib1...libN]
-
+# [SKIP_INSTALL]
+#
 # STATIC - generate new static library,
-# MODULE - generate dynamic library,
-# TEST - include library only with test distribution
+# MODULE_ONLY - generate dynamic library,
+# TEST_ONLY - include library only with test distribution
 
 MACRO(MYSQL_ADD_COMPONENT)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES"
-    "STATIC;MODULE;TEST;SKIP_INSTALL"
+    "STATIC;MODULE_ONLY;TEST_ONLY;SKIP_INSTALL"
     ${ARGN}
     )
 
@@ -70,7 +71,7 @@ MACRO(MYSQL_ADD_COMPONENT)
     SET(MYSQLD_STATIC_COMPONENT_LIBS ${MYSQLD_STATIC_COMPONENT_LIBS}
         ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
-  ELSEIF(ARG_MODULE)
+  ELSEIF(ARG_MODULE_ONLY)
     SET(kind MODULE)
   ELSE()
     MESSAGE(FATAL_ERROR "Unknown component type ${target}")
@@ -88,7 +89,7 @@ MACRO(MYSQL_ADD_COMPONENT)
   SET_TARGET_PROPERTIES(${target} PROPERTIES PREFIX "")
   ADD_DEPENDENCIES(${target} GenError)
 
-  IF (ARG_MODULE)
+  IF (ARG_MODULE_ONLY)
     # Store all components in the same directory, for easier testing.
     SET_TARGET_PROPERTIES(${target} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
@@ -100,10 +101,10 @@ MACRO(MYSQL_ADD_COMPONENT)
 
     IF(NOT ARG_SKIP_INSTALL)
       # Install dynamic library.
-      IF(NOT ARG_TEST)
-        SET(INSTALL_COMPONENT Server)
-      ELSE()
+      IF(ARG_TEST_ONLY)
         SET(INSTALL_COMPONENT Test)
+      ELSE()
+        SET(INSTALL_COMPONENT Server)
       ENDIF()
 
       ADD_INSTALL_RPATH_FOR_OPENSSL(${target})

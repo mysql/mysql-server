@@ -20,8 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(LIBRARY_MYSYS_SOURCES
+ADD_LIBRARY(library_mysys STATIC
   my_memory.cc
 )
-
-ADD_LIBRARY(library_mysys STATIC ${LIBRARY_MYSYS_SOURCES})

@@ -22,4 +22,6 @@
 
 MYSQL_ADD_COMPONENT(pfs_example
   pfs_example.cc
-  TEST MODULE)
+  MODULE_ONLY
+  TEST_ONLY
+  )
