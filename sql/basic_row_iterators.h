@@ -168,6 +168,7 @@ template <bool Packed_addon_fields>
 class SortBufferIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
+  // The table is used solely for NULL row flags.
   SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
                      Sort_result *sort_result, ha_rows *examined_rows);
   ~SortBufferIterator() override;
@@ -175,6 +176,7 @@ class SortBufferIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
   std::vector<std::string> DebugString() const override;
+  void UnlockRow() override {}
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -234,6 +236,7 @@ template <bool Packed_addon_fields>
 class SortFileIterator final : public TableRowIterator {
  public:
   // Takes ownership of tempfile.
+  // The table is used solely for NULL row flags.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                    Filesort_info *sort, ha_rows *examined_rows);
   ~SortFileIterator() override;
@@ -241,6 +244,7 @@ class SortFileIterator final : public TableRowIterator {
   bool Init() override { return false; }
   int Read() override;
   std::vector<std::string> DebugString() const override;
+  void UnlockRow() override {}
 
  private:
   uchar *const m_rec_buf;
