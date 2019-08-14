@@ -249,5 +249,6 @@ bool validate_resource_group_priority(THD *thd, int *priority,
                                       const LEX_CSTRING &name,
                                       const resourcegroups::Type &type);
 bool check_resource_group_support();
-bool check_resource_group_name_len(const LEX_CSTRING &name);
+bool check_resource_group_name_len(const LEX_CSTRING &name,
+                                   Sql_condition::enum_severity_level severity);
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

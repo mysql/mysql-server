@@ -509,10 +509,17 @@ bool check_resource_group_support() {
   return false;
 }
 
-bool check_resource_group_name_len(const LEX_CSTRING &name) {
-  if (name.length > NAME_CHAR_LEN) {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
-    return true;
+bool check_resource_group_name_len(
+    const LEX_CSTRING &name, Sql_condition::enum_severity_level severity) {
+  if (name.length <= NAME_CHAR_LEN) {
+    return false;
   }
-  return false;
+  if (severity == Sql_condition::SL_ERROR) {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+  } else {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_TOO_LONG_IDENT,
+                        ER_THD(current_thd, ER_TOO_LONG_IDENT), name.str);
+  }
+  return true;
 }
