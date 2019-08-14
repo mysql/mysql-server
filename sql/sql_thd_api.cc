@@ -48,7 +48,8 @@
 #include "sql/mysqld.h"  // key_thread_one_connection
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
-#include "sql/rpl_rli.h"  // is_mts_worker
+#include "sql/resourcegroups/platform/thread_attrs_api.h"  // num_vcpus
+#include "sql/rpl_rli.h"                                   // is_mts_worker
 #include "sql/rpl_slave_commit_order_manager.h"
 #include "sql/sql_alter.h"
 // commit_order_manager_check_deadlock
@@ -656,4 +657,8 @@ void remove_ssl_err_thread_state() {
 #if !defined(HAVE_OPENSSL11)
   ERR_remove_thread_state(nullptr);
 #endif
+}
+
+unsigned int thd_get_num_vcpus() {
+  return resourcegroups::platform::num_vcpus();
 }

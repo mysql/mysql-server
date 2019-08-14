@@ -128,6 +128,7 @@ void *thd_get_ha_data(const void * thd, const struct handlerton *hton);
 void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
+unsigned int thd_get_num_vcpus();
 #include "my_command.h"
 enum enum_server_command {
   COM_SLEEP,

@@ -56,25 +56,25 @@ rpl_semi_sync_master_wait_for_slave_count	1
 #
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = -1;
 Warnings:
-Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_sl value: '-1'
+Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_slave_count value: '-1'
 SHOW  VARIABLES LIKE 'rpl_semi_sync_master_wait_for_slave_count';
 Variable_name	Value
 rpl_semi_sync_master_wait_for_slave_count	1
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 0;
 Warnings:
-Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_sl value: '0'
+Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_slave_count value: '0'
 SHOW  VARIABLES LIKE 'rpl_semi_sync_master_wait_for_slave_count';
 Variable_name	Value
 rpl_semi_sync_master_wait_for_slave_count	1
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 65536;
 Warnings:
-Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_sl value: '65536'
+Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_slave_count value: '65536'
 SHOW  VARIABLES LIKE 'rpl_semi_sync_master_wait_for_slave_count';
 Variable_name	Value
 rpl_semi_sync_master_wait_for_slave_count	65535
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 300000;
 Warnings:
-Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_sl value: '300000'
+Warning	1292	Truncated incorrect rpl_semi_sync_master_wait_for_slave_count value: '300000'
 SHOW  VARIABLES LIKE 'rpl_semi_sync_master_wait_for_slave_count';
 Variable_name	Value
 rpl_semi_sync_master_wait_for_slave_count	65535

@@ -45,7 +45,7 @@ select @@global.innodb_stats_persistent_sample_pages;
 20
 SET global innodb_stats_persistent_sample_pages=0;
 Warnings:
-Warning	1292	Truncated incorrect innodb_stats_persistent_sample_p value: '0'
+Warning	1292	Truncated incorrect innodb_stats_persistent_sample_pages value: '0'
 SELECT @@global.innodb_stats_persistent_sample_pages;
 @@global.innodb_stats_persistent_sample_pages
 1
@@ -71,7 +71,7 @@ SELECT @@global.innodb_stats_persistent_sample_pages;
 10
 SET global innodb_stats_persistent_sample_pages=-7;
 Warnings:
-Warning	1292	Truncated incorrect innodb_stats_persistent_sample_p value: '-7'
+Warning	1292	Truncated incorrect innodb_stats_persistent_sample_pages value: '-7'
 SELECT @@global.innodb_stats_persistent_sample_pages;
 @@global.innodb_stats_persistent_sample_pages
 1

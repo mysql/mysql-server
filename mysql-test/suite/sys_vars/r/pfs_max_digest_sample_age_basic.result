@@ -73,7 +73,7 @@ SELECT @@global.performance_schema_max_digest_sample_age;
 0
 SET @@global.performance_schema_max_digest_sample_age = 1048577;
 Warnings:
-Warning	1292	Truncated incorrect performance_schema_max_digest_sa value: '1048577'
+Warning	1292	Truncated incorrect performance_schema_max_digest_sample_age value: '1048577'
 SELECT @@global.performance_schema_max_digest_sample_age;
 @@global.performance_schema_max_digest_sample_age
 1048576

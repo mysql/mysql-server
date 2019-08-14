@@ -5107,11 +5107,11 @@ ER_DUPLICATED_VALUE_IN_TYPE
         por "Coluna '%-.100s' tem valor duplicado '%-.64s' em %s"
         spa "Columna '%-.100s' tiene valor doblado '%-.64s' en %s"
 ER_TRUNCATED_WRONG_VALUE 22007
-        eng "Truncated incorrect %-.32s value: '%-.128s'"
-        ger "Falscher %-.32s-Wert gekürzt: '%-.128s'"
-        jpn "不正な %-.32s の値が切り捨てられました。: '%-.128s'"
-        por "Truncado errado %-.32s valor: '%-.128s'"
-        spa "Equivocado truncado %-.32s valor: '%-.128s'"
+        eng "Truncated incorrect %-.64s value: '%-.128s'"
+        ger "Falscher %-.64s-Wert gekürzt: '%-.128s'"
+        jpn "不正な %-.64s の値が切り捨てられました。: '%-.128s'"
+        por "Truncado errado %-.64s valor: '%-.128s'"
+        spa "Equivocado truncado %-.64s valor: '%-.128s'"
 OBSOLETE_ER_TOO_MUCH_AUTO_TIMESTAMP_COLS
         eng "Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
         ger "Fehlerhafte Tabellendefinition. Es kann nur eine einzige TIMESTAMP-Spalte mit CURRENT_TIMESTAMP als DEFAULT oder in einer ON-UPDATE-Klausel geben"

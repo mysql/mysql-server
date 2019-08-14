@@ -894,6 +894,11 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 */
 
 void remove_ssl_err_thread_state();
+
+/**
+  Interface to get the number of VCPUs.
+*/
+unsigned int thd_get_num_vcpus();
 #ifdef __cplusplus
 }
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "thread_attrs_api.h"
+
+#include <sys/sysctl.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "sql/log.h"
@@ -79,14 +82,15 @@ bool set_thread_priority(int, my_thread_os_id_t) {
   return true;
 }
 
-uint32_t num_vcpus_using_affinity() {
-  DBUG_ASSERT(0);
-  return 0;
-}
+uint32_t num_vcpus_using_affinity() { return 0; }
 
 uint32_t num_vcpus_using_config() {
-  DBUG_ASSERT(0);
-  return 0;
+  int name[2] = {CTL_HW, HW_AVAILCPU};
+  int ncpu;
+
+  size_t size = sizeof(ncpu);
+  sysctl(name, 2, &ncpu, &size, nullptr, 0);
+  return ncpu;
 }
 
 bool can_thread_priority_be_set() {

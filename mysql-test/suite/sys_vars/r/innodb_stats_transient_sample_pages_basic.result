@@ -53,7 +53,7 @@ SET global innodb_stats_transient_sample_pages=' ';
 ERROR 42000: Incorrect argument type to variable 'innodb_stats_transient_sample_pages'
 SET global innodb_stats_transient_sample_pages=-7;
 Warnings:
-Warning	1292	Truncated incorrect innodb_stats_transient_sample_pa value: '-7'
+Warning	1292	Truncated incorrect innodb_stats_transient_sample_pages value: '-7'
 SELECT @@global.innodb_stats_transient_sample_pages;
 @@global.innodb_stats_transient_sample_pages
 1
