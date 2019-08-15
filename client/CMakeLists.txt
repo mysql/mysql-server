@@ -23,10 +23,7 @@
 ADD_WSHADOW_WARNING()
 
 # We are not interesting in profiling clients.
-MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
-ENDIF()
+DISABLE_MISSING_PROFILE_WARNING()
 
 ## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)

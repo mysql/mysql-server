@@ -21,10 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Warnings about missing PGO profile data are not useful for unit tests.
-MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
-ENDIF()
+DISABLE_MISSING_PROFILE_WARNING()
 
 # We omit core-t here, since it will always fail.
 SET(TESTS simple skip todo skip_all no_plan)

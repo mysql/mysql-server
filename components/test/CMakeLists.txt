@@ -21,10 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # We are not interesting in profiling tests.
-MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
-ENDIF()
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_COMPONENT(test_udf_registration
   test_udf_registration.cc

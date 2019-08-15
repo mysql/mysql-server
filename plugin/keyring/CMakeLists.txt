@@ -22,6 +22,8 @@
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file")
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 MYSQL_ADD_PLUGIN(keyring_file
   buffer.cc
   buffered_file_io.cc
