@@ -66,11 +66,6 @@ MACRO(MYSQL_ADD_COMPONENT)
   # Build either static library or module
   IF (ARG_STATIC)
     SET(kind STATIC)
-
-    # Update mysqld dependencies
-    SET(MYSQLD_STATIC_COMPONENT_LIBS ${MYSQLD_STATIC_COMPONENT_LIBS}
-        ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
-
   ELSEIF(ARG_MODULE_ONLY)
     SET(kind MODULE)
   ELSE()
