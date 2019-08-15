@@ -11193,13 +11193,29 @@ int ha_ndbcluster::open(const char *name, int, uint,
     return res;
   }
 
+  // Don't allow opening table unless schema distribution is ready and
+  // schema synchronization have completed. The user who wants to use
+  // this table has to wait.
+  if (ndb_binlog_is_read_only()) {
+    const Thd_ndb *thd_ndb = get_thd_ndb(thd);
+    thd_ndb->push_warning(
+        "Can't open table '%s' from NDB, schema distribution is not ready",
+        name);
+    local_close(thd, false);
+    return HA_ERR_NO_CONNECTION;
+  }
+
   // Acquire NDB_SHARE reference for handler
   m_share = NDB_SHARE::acquire_for_handler(name, this);
   if (m_share == nullptr) {
-    // NOTE! This never happens, the NDB_SHARE should already have been
-    // created by schema distribution or auto discovery
+    // Failed to acquire the NDB_SHARE. This is a rare case, it should already
+    // have been created when table was created, during schema synchronization
+    // or by auto discovery. Push warning explaining the problem and return a
+    // sensible error
+    const Thd_ndb *thd_ndb = get_thd_ndb(thd);
+    thd_ndb->push_warning("Could not open NDB_SHARE for '%s'", name);
     local_close(thd, false);
-    return 1;
+    return HA_ERR_NO_CONNECTION;
   }
 
   // Init table lock structure
@@ -11213,10 +11229,6 @@ int ha_ndbcluster::open(const char *name, int, uint,
   if ((res = update_stats(thd, 1)) || (res = info(HA_STATUS_CONST))) {
     local_close(thd, true);
     return res;
-  }
-  if (ndb_binlog_is_read_only()) {
-    table->db_stat |= HA_READ_ONLY;
-    ndb_log_info("table '%s' opened read only", name);
   }
   return 0;
 }
