@@ -138,9 +138,9 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   }
 
   const dd::Properties &p = dd_index->se_private_data();
-  uint64 id;
-  uint32 root;
-  uint64 trx_id;
+  uint64 id = 0;
+  uint32 root = 0;
+  uint64 trx_id = 0;
   ut_ad(p.exists(dd_index_key_strings[DD_INDEX_ID]));
   p.get(dd_index_key_strings[DD_INDEX_ID], &id);
   if (id != index->id) {

@@ -3367,7 +3367,7 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   /* Normal, non-zero timeout case. */
 
   MDL_lock *lock;
-  MDL_ticket *ticket;
+  MDL_ticket *ticket = nullptr;
   struct timespec abs_timeout;
   MDL_wait::enum_wait_status wait_status;
   /* Do some work outside the critical section. */
