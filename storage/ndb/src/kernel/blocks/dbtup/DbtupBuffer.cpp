@@ -264,7 +264,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   bool connectedToNode= getNodeInfo(nodeId).m_connected;
   const Uint32 type= getNodeInfo(nodeId).m_type;
   const bool is_api= (type >= NodeInfo::API && type <= NodeInfo::MGM);
-  //const bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(6,4,0));
 
   if (ERROR_INSERTED(4006) && (nodeId != getOwnNodeId())){
     // Use error insert to turn routing on
@@ -327,10 +326,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     if(nodeId != getOwnNodeId())
     {
       jamDebug();
-    
-      //Assume no prehistoric versions not supporting long TRANSID_AI signals anymore
-      ndbassert(getNodeInfo(nodeId).m_version >= MAKE_VERSION(6,4,0));
-
       if (is_api)
       {
         sendAPI_TRANSID_AI(signal, recBlockref,
