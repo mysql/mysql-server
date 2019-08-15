@@ -203,6 +203,59 @@ NdbRestarter::getNodeGroup(int nodeId){
 }
 
 int
+NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_ptr)
+{
+  if (!isConnected())
+  {
+    return -1;
+  }
+
+  if (getStatus() != 0)
+  {
+    return -1;
+  }
+
+  Vector<int> node_group_replicas;
+  for (unsigned i = 0; i < ndbNodes.size(); i++)
+  {
+    const unsigned node_group = ndbNodes[i].node_group;
+    if (node_group == RNIL)
+    {
+      // Data node without node group
+      continue;
+    }
+    require(node_group < RNIL);
+
+    // Grow vector if needed.
+    int zero_replicas = 0;
+    node_group_replicas.fill(node_group + 1, zero_replicas);
+
+    // If not seen node group before, add it.
+    if (node_group_replicas[node_group] == 0)
+    {
+      node_groups.push_back(node_group);
+    }
+
+    node_group_replicas[node_group]++;
+  }
+
+  if (max_alive_replicas_ptr != NULL)
+  {
+    int max_alive_replicas = 0;
+    for (unsigned i = 0; i < node_group_replicas.size(); i++)
+    {
+      const int ng_replicas = node_group_replicas[i];
+      if (max_alive_replicas < ng_replicas)
+      {
+        max_alive_replicas = ng_replicas;
+      }
+    }
+    *max_alive_replicas_ptr = max_alive_replicas;
+  }
+  return 0;
+}
+
+int
 NdbRestarter::getNextMasterNodeId(int nodeId){
   if (!isConnected())
     return -1;
