@@ -70,6 +70,7 @@ SET(TESTS
   test_arg_handler.cc
   test_vt100.cc
   test_string_utils.cc
+  test_process_launcher.cc
 )
 
 FOREACH(TEST ${TESTS})

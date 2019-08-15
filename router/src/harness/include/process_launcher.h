@@ -23,9 +23,12 @@
 #ifndef _PROCESS_LAUNCHER_H_
 #define _PROCESS_LAUNCHER_H_
 
+#include <chrono>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 #include <utility>
-#include "harness_export.h"
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS 1
@@ -36,12 +39,17 @@
 #else
 #include <unistd.h>
 #endif
-#include <stdint.h>
-#include <chrono>
-#include <stdexcept>
-#include <string>
+
+#include "harness_export.h"
 
 namespace mysql_harness {
+#ifdef _WIN32
+namespace win32 {
+// reverse of CommandLineToArgv()
+HARNESS_EXPORT std::string cmdline_quote_arg(const std::string &arg);
+HARNESS_EXPORT std::string cmdline_from_args(const char *const *args);
+}  // namespace win32
+#endif
 
 /** an alive, spawned process
  *
@@ -65,8 +73,8 @@ class HARNESS_EXPORT SpawnedProcess {
         child_in_wr{INVALID_HANDLE_VALUE},
         child_out_rd{INVALID_HANDLE_VALUE},
         child_out_wr{INVALID_HANDLE_VALUE},
-  // pi
-  // si
+        pi{},
+        si{},
 #else
         childpid{-1},
         fd_in{-1, -1},
