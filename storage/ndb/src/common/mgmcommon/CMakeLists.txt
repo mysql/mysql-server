@@ -21,13 +21,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv
+  )
+
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_mgmapiclient.cmake)
 
 ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
+  ConfigObject.cpp
   ConfigRetriever.cpp
-  IPCConfig.cpp
   ConfigSection.cpp
-  ConfigObject.cpp)
+  IPCConfig.cpp
+  )
 

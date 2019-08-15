@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -59,5 +59,6 @@ FUNCTION(NDB_ADD_EXECUTABLE target)
     TARGET_LINK_LIBRARIES(${target} libmysql)
   ENDIF()
 
-  SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/../${INSTALL_LIBDIR}")
+  SET_PROPERTY(TARGET ${target}
+    PROPERTY INSTALL_RPATH "\$ORIGIN/../${INSTALL_LIBDIR}")
 ENDFUNCTION()

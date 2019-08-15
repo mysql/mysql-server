@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ ENDIF()
 OPTION(WITH_NDBMTD
   "Build the MySQL Cluster multithreadded data node" ON)
 
-SET(WITH_NDB_PORT "" CACHE INTEGER
+SET(WITH_NDB_PORT "" CACHE STRING
   "Default port used by MySQL Cluster management server")
 IF(WITH_NDB_PORT GREATER 0)
   SET(NDB_PORT ${WITH_NDB_PORT})

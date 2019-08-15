@@ -106,17 +106,20 @@ SET(NDBCLIENT_LIBS
   ndbconf)
 
 SET(LIBS_TO_MERGE
-  mysys mytime strings
+  mysys
+  mytime
   ndbapi
-  ndbtransport
-  ndbtrace
-  ndbsignaldata
+  ndbconf
+  ndbgeneral
+  ndblogger
   ndbmgmapi
   ndbmgmcommon
-  ndblogger
   ndbportlib
-  ndbgeneral
-  ndbconf)
+  ndbsignaldata
+  ndbtrace
+  ndbtransport
+  strings
+  )
 
 IF(WITH_ZLIB STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
@@ -152,7 +155,8 @@ IF(LINUX_INSTALL_RPATH_ORIGIN)
   SET_PROPERTY(TARGET ndbclient_so PROPERTY INSTALL_RPATH "\$ORIGIN/")
 ENDIF()
 IF(WIN32_CLANG AND WITH_ASAN)
-  TARGET_LINK_LIBRARIES(ndbclient_so "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+  TARGET_LINK_LIBRARIES(ndbclient_so
+    "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
 ENDIF()
 
 IF(WIN32)
