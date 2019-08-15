@@ -4940,7 +4940,8 @@ AlternativeIterator::AlternativeIterator(
       m_ref(ref),
       m_source_iterator(std::move(source)),
       m_table_scan_iterator(
-          NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows)) {
+          NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows)),
+      m_table(table) {
   for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
        ++key_part_idx) {
     bool *cond_guard = ref->cond_guards[key_part_idx];
@@ -4959,6 +4960,12 @@ bool AlternativeIterator::Init() {
       break;
     }
   }
+
+  if (m_iterator != m_last_iterator_inited) {
+    m_table->file->ha_index_or_rnd_end();
+    m_last_iterator_inited = m_iterator;
+  }
+
   return m_iterator->Init();
 }
 

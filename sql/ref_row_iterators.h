@@ -282,12 +282,19 @@ class AlternativeIterator final : public RowIterator {
   // depending on the value of applicable_cond_guards. Set up during Init().
   RowIterator *m_iterator = nullptr;
 
+  // Points to the last iterator that was Init()-ed. Used to reset the handler
+  // when switching from one iterator to the other.
+  RowIterator *m_last_iterator_inited = nullptr;
+
   // The iterator we are normally reading records from (a RefIterator or
   // similar).
   unique_ptr_destroy_only<RowIterator> m_source_iterator;
 
   // Our fallback iterator (possibly wrapped in a TimingIterator).
   unique_ptr_destroy_only<RowIterator> m_table_scan_iterator;
+
+  // The underlying table.
+  TABLE *const m_table;
 };
 
 #endif  // SQL_REF_ROW_ITERATORS_H
