@@ -20358,6 +20358,8 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
     gcpPtr.p->gcpUserptr = dihPtr;
     gcpPtr.p->gcpBlockref = dihBlockRef;
+    ndbrequire(refToMain(gcpPtr.p->gcpBlockref) == DBDIH ||
+               refToMain(gcpPtr.p->gcpBlockref) == DBLQH);
     return;
   }//if
   
@@ -20426,6 +20428,8 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   gcpPtr.p->gcpBlockref = dihBlockRef;
   gcpPtr.p->gcpUserptr = dihPtr;
   gcpPtr.p->gcpId = gci;
+  ndbrequire(refToMain(gcpPtr.p->gcpBlockref) == DBDIH ||
+             refToMain(gcpPtr.p->gcpBlockref) == DBLQH);
 
   if (cstartPhase != ZNIL)
   {
@@ -20593,6 +20597,7 @@ void Dblqh::initGcpRecLab(Signal* signal)
 /*                                                                          */
 /*       SUBROUTINE SHORT NAME = IGR                                        */
 /* ======================================================================== */
+  ndbrequire(clogPartFileSize <= NDB_MAX_LOG_PARTS);
   for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
@@ -20659,6 +20664,7 @@ Dblqh::checkGcpCompleted(Signal* signal,
   if (gcpPtr.i != RNIL)
   {
     jam();
+    ndbrequire(logPartPtr.i < NDB_MAX_LOG_PARTS);
 /* ------------------------------------------------------------------------- */
 /* IF THE GLOBAL CHECKPOINT IS NOT WAITING FOR COMPLETION THEN WE CAN QUIT   */
 /* THE SEARCH IMMEDIATELY.                                                   */
@@ -20786,6 +20792,8 @@ Dblqh::execFSSYNCCONF(Signal* signal)
   saveConf->dihPtr = localGcpPtr.p->gcpUserptr;
   saveConf->nodeId = getOwnNodeId();
   saveConf->gci    = localGcpPtr.p->gcpId;
+  ndbrequire(refToMain(localGcpPtr.p->gcpBlockref) == DBDIH ||
+             refToMain(localGcpPtr.p->gcpBlockref) == DBLQH);
   sendSignal(localGcpPtr.p->gcpBlockref, GSN_GCP_SAVECONF, signal, 
 	     GCPSaveConf::SignalLength, JBA);
   ccurrentGcprec = RNIL;

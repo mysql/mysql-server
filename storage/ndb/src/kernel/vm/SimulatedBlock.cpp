@@ -732,7 +732,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
-ndbrequire(signal->header.m_noOfSections == 0);
+  ndbrequire(signal->header.m_noOfSections == 0);
   check_sections(signal, signal->header.m_noOfSections, 0);
 
   signal->header.theLength = length;
@@ -742,7 +742,8 @@ ndbrequire(signal->header.m_noOfSections == 0);
 
   Uint32 tSignalId = signal->header.theSignalId;
   
-  if ((length == 0) || length > 25 || (recBlock == 0)) {
+  if (unlikely((length == 0) || length > 25 || (recBlock == 0)))
+  {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
     return;
   }//if
