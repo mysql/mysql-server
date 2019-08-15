@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 #ifdef _WIN32
 #include <direct.h>  // getcwd
+#include <io.h>      // write
 #else
 #include <unistd.h>
 #endif
@@ -648,10 +649,10 @@ static duk_ret_t cb_load_module(duk_context *ctx) {
             "};\n"
             // make sure eval returns it
             "EventEmitter;\n")) {
-      duk_throw(ctx);
+      return duk_throw(ctx);
     }
     if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
-      duk_throw(ctx);
+      return duk_throw(ctx);
     }
     duk_put_prop_string(ctx, 1, "EventEmitter");
 
