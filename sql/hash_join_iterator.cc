@@ -89,14 +89,20 @@ HashJoinIterator::HashJoinIterator(
     m_join_conditions.emplace_back(join_condition, thd->mem_root);
   }
 
-  // Mark that the iterator takes responsibility of asking for row IDs wherever
-  // needed for all the build tables. Note that the tables in the probe input
-  // will be marked similarly only if we degrade into on-disk hash join.
-  //  for (const hash_join_buffer::Table &it : m_build_input_tables.tables()) {
-  //    if (it.qep_tab->keep_current_rowid) {
-  //      it.qep_tab->table()->ref_is_set_without_position_call = true;
-  //    }
-  //  }
+  // Mark that this iterator will provide the row ID, so that iterators above
+  // this one does not call position(). See QEP_TAB::rowid_status for more
+  // details.
+  for (const hash_join_buffer::Table &it : m_build_input_tables.tables()) {
+    if (it.qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
+      it.qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
+    }
+  }
+
+  for (const hash_join_buffer::Table &it : m_probe_input_table.tables()) {
+    if (it.qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
+      it.qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
+    }
+  }
 }
 
 // Whether to turn on batch mode for the build input. This code is basically a
@@ -259,57 +265,13 @@ static bool WriteRowToChunk(
   }
 }
 
-// table->file->position() sets the row ID (stored in table->file->ref) to that
-// of the last row fetched by the storage engine, which is not necessarily the
-// actual row stored in table->record[0] (e.g. if it comes from a hash join
-// buffer). Since joins in MySQL are left-deep, we start fetching the row ID on
-// the rightmost table of the subtree input and keep moving left in the subtree
-// until we find a table that has a join buffer operator attached to it (which
-// is implicitly a hash join operation, since that is currently the only
-// operation the iterator executor will handle). That is our stop condition.
-// Note that this function is only called when reading from the build input (the
-// left iterator input).
-//
-// Let us look at a visualization of a possible execution plan for the query;
-//
-// SELECT *
-// FROM t1
-// JOIN t2 ON t1.col1 = t2.col1
-// JOIN t3 ON t2.col1 < t3.col1
-// JOIN t4 ON t3.col1 = t4.col1;
-//
-//      HJ-1---+
-//      /      |
-//     NL      |
-//    /  \     |
-//  HJ-2  \    |
-//  /  \   \   |
-// t1  t2  t3  t4
-//
-// For simplicity, let us assume that keep_current_rowid is set to "true" for
-// all tables. When HJ-1 (hash join 1) reads from the left subtree (t1, t2 and
-// t3), this function will first see if there are any "operations" (i.e. hash
-// join) attached to t3's QEP_TAB. Since there are none, the function will ask
-// t3 for its row ID, and then move to t2. Since t2's QEP_TAB has an operation
-// attached to it, the function returns. It is HJ-2's responsibility to ensure
-// the correct row ID for t1 and t2.
-//
-// The right subtree is a lot simpler; if the QEP_TAB has marked that the row ID
-// should be kept, just ask the table for the row ID without further
-// complication.
-//
-// TODO(efroseth): If joins become anything else than left-deep, this function
-// will need to be rewritten.
+// Request the row ID for all tables where it should be kept.
 static void RequestRowId(
-    const Prealloced_array<hash_join_buffer::Table, 4> &tables,
-    bool right_subtree) {
-  for (int i = static_cast<int>(tables.size() - 1); i >= 0; --i) {
-    if (!right_subtree && tables[i].qep_tab->op != nullptr) {
-      break;
-    }
-
-    if (tables[i].qep_tab->keep_current_rowid && tables[i].can_call_position) {
-      TABLE *table = tables[i].qep_tab->table();
+    const Prealloced_array<hash_join_buffer::Table, 4> &tables) {
+  for (const hash_join_buffer::Table &it : tables) {
+    TABLE *table = it.qep_tab->table();
+    if (it.rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID &&
+        can_call_position(table)) {
       table->file->position(table->record[0]);
     }
   }
@@ -337,7 +299,7 @@ static bool WriteRowsToChunks(
 
     DBUG_ASSERT(res == 0);
 
-    RequestRowId(tables.tables(), !write_to_build_chunk);
+    RequestRowId(tables.tables());
     if (WriteRowToChunk(thd, chunks, write_to_build_chunk, tables,
                         join_conditions, xxhash_seed, join_key_buffer)) {
       DBUG_ASSERT(thd->is_error());  // my_error should have been called.
@@ -408,7 +370,7 @@ bool HashJoinIterator::BuildHashTable() {
     }
 
     DBUG_ASSERT(res == 0);
-    RequestRowId(m_build_input_tables.tables(), /*right_subtree=*/false);
+    RequestRowId(m_build_input_tables.tables());
     if (m_row_buffer.StoreRow(thd())) {
       // The row buffer is full, so start spilling to disk. If the row buffer is
       // empty, we didn't manage to put in a single row into the buffer. We do
@@ -486,15 +448,6 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
   if (m_current_chunk == -1) {
     // We are before the first chunk, so move to the next.
     move_to_next_chunk = true;
-
-    // From now on, all the rows from the probe input will have their row IDs
-    // set directly from the hash join iterator. Mark this on the table so that
-    // other iterators (i.e. WeedoutIterator) does not try to call position().
-    for (const hash_join_buffer::Table &it : m_probe_input_table.tables()) {
-      if (it.qep_tab->keep_current_rowid) {
-        it.qep_tab->table()->ref_is_set_without_position_call = true;
-      }
-    }
   } else if (m_build_chunk_current_row >=
              m_chunk_files_on_disk[m_current_chunk].build_chunk.num_rows()) {
     // We are done reading all the rows from the build chunk.
@@ -576,7 +529,7 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
   }
 
   DBUG_ASSERT(result == 0);
-  RequestRowId(m_probe_input_table.tables(), /*right_subtree=*/true);
+  RequestRowId(m_probe_input_table.tables());
 
   // If we are spilling to disk, we need to match the row against rows from the
   // build input that are written out to chunk files. So we need to write the

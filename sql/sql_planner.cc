@@ -101,7 +101,7 @@ static uint cache_record_length(JOIN *join, uint idx) {
       uint used_fields, used_blobs;
       bool used_null_fields, used_uneven_bit_fields;
       /*
-        (1) keep_current_rowid: we don't know if Duplicate Weedout may be
+        (1) needs_rowid: we don't know if Duplicate Weedout may be
         used, length will thus be inaccurate, this is acceptable.
       */
       calc_used_field_length(join_tab->table(),

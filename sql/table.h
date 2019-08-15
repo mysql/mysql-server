@@ -175,6 +175,12 @@ enum enum_table_ref_type {
 */
 enum class Ident_name_check { OK, WRONG, TOO_LONG };
 
+enum rowid_statuses {
+  NO_ROWID_NEEDED,
+  ROWID_PROVIDED_BY_ITERATOR_READ_CALL,
+  NEED_TO_CALL_POSITION_FOR_ROWID
+};
+
 /*************************************************************************/
 
 /**
@@ -1526,10 +1532,6 @@ struct TABLE {
   bool const_table{false};
   /// True if writes to this table should not write rows and just write keys.
   bool no_rows{false};
-  /// If true, table->file->ref will be current without calling position(),
-  /// and position should _not_ be called. This is used only by
-  /// StreamingIterator, when synthesizing fake refs.
-  bool ref_is_set_without_position_call{false};
 
   /**
      If set, the optimizer has found that row retrieval should access index
@@ -3975,6 +3977,24 @@ class Autoinc_field_has_explicit_non_null_value_reset_guard {
  private:
   TABLE *m_table;
 };
+
+// Whether we can ask the storage engine for the row ID of the last row read.
+//
+// Some operations needs a row ID to operate correctly (i.e. weedout). Normally,
+// the row ID is provided by the storage engine by calling handler::position().
+// But there are cases when position() should not be called:
+//
+//   1. If we have a const table (rows are fetched during optimization), we
+//      should not call position().
+//   2. If we have a NULL-complemented row, calling position() would give a
+//      random row ID back, as there has not been any row read.
+//
+// Operations that needs the row ID must also check the value of
+// QEP_TAB::rowid_status to see whether they actually need a row ID.
+// See QEP_TAB::rowid_status for more details.
+inline bool can_call_position(const TABLE *table) {
+  return !table->const_table && !(table->is_nullable() && table->null_row);
+}
 
 //////////////////////////////////////////////////////////////////////////
 

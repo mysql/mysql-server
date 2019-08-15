@@ -192,9 +192,10 @@ void JOIN_CACHE::calc_record_fields() {
 
   for (; tab < qep_tab; tab++) {
     uint used_fields, used_fieldlength, used_blobs;
+    const bool needs_rowid = (tab->rowid_status != NO_ROWID_NEEDED);
     calc_used_field_length(
-        tab->table(), tab->keep_current_rowid, &used_fields, &used_fieldlength,
-        &used_blobs, &tab->used_null_fields, &tab->used_uneven_bit_fields);
+        tab->table(), needs_rowid, &used_fields, &used_fieldlength, &used_blobs,
+        &tab->used_null_fields, &tab->used_uneven_bit_fields);
     flag_fields += tab->used_null_fields || tab->used_uneven_bit_fields;
     flag_fields += tab->table()->is_nullable();
     fields += used_fields;
@@ -364,7 +365,7 @@ void JOIN_CACHE::create_remaining_fields(bool all_read_fields) {
         &copy_ptr);
 
     /* SemiJoinDuplicateElimination: allocate space for rowid if needed */
-    if (tab->keep_current_rowid) {
+    if (tab->rowid_status != NO_ROWID_NEEDED) {
       copy->str = table->file->ref;
       copy->length = table->file->ref_length;
       copy->type = 0;
@@ -1933,8 +1934,9 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
 
   RowIterator *iterator = qep_tab->iterator.get();
   do {
-    if (qep_tab->keep_current_rowid)
+    if (qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
       qep_tab->table()->file->position(qep_tab->table()->record[0]);
+    }
 
     if (join->thd->killed) {
       /* The user has aborted the execution of the query */
@@ -2407,8 +2409,9 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(
       join->thd->send_kill_message();
       return NESTED_LOOP_KILLED;
     }
-    if (qep_tab->keep_current_rowid)
+    if (qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
       qep_tab->table()->file->position(qep_tab->table()->record[0]);
+    }
     /*
       If only the first match is needed and it has been already found
       for the associated partial join record then the returned candidate
@@ -3217,7 +3220,9 @@ enum_nested_loop_state JOIN_CACHE_BKA_UNIQUE::join_matching_records(
       key_chain_ptr = key_ref_ptr + get_size_of_key_offset();
     }
 
-    if (qep_tab->keep_current_rowid) table->file->position(table->record[0]);
+    if (qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
+      table->file->position(table->record[0]);
+    }
 
     if (unlikely(qep_tab->lateral_derived_tables_depend_on_me)) {
       /*

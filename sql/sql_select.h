@@ -1082,9 +1082,9 @@ void reset_statement_timer(THD *thd);
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
-void calc_used_field_length(TABLE *table, bool keep_current_rowid,
-                            uint *p_used_fields, uint *p_used_fieldlength,
-                            uint *p_used_blobs, bool *p_used_null_fields,
+void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
+                            uint *p_used_fieldlength, uint *p_used_blobs,
+                            bool *p_used_null_fields,
                             bool *p_used_uneven_bit_fields);
 
 ORDER *simple_remove_const(ORDER *order, Item *where);

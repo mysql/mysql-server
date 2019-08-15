@@ -36,6 +36,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
+#include "sql/table.h"
 #include "sql_string.h"
 
 class THD;

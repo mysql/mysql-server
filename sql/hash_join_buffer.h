@@ -76,6 +76,7 @@
 #include "my_table_map.h"
 #include "prealloced_array.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/table.h"
 #include "sql_string.h"
 
 class Field;
@@ -102,14 +103,14 @@ struct Table {
   QEP_TAB *qep_tab;
   Prealloced_array<Column, 8> columns;
 
-  // We should not always call table->file->position() to get the row ID. For
-  // instance, if the table is a part of a multi-level hash join, it is only the
-  // innermost hash join that should call position(). The other hash join
-  // iterators should rely on the innermost iterator to set the row ID.
-  bool can_call_position{false};
-
   // Whether to copy the NULL flags or not.
   bool copy_null_flags{false};
+
+  // A cached value of QEP_TAB::rowid_status. This determines whether we need to
+  // copy/restore the row ID for each row, and how we should retrieve the row ID
+  // (i.e., should we call handler::position() or not). See the comment on
+  // QEP_TAB::rowid_status for more details.
+  rowid_statuses rowid_status;
 };
 
 /// A structure that contains a list of tables for the hash join operation,
@@ -241,8 +242,8 @@ class KeyHasher {
 /// The output buffer will contain three things:
 ///
 /// 1) NULL flags for each nullable column.
-/// 2) The row ID for each row. This is only stored if
-///    QEP_TAB::keep_current_rowid is set.
+/// 2) The row ID for each row. This is only stored if QEP_TAB::rowid_status !=
+///    NO_ROWID_NEEDED.
 /// 3) The actual data from the columns.
 ///
 /// @retval true if error, false otherwise

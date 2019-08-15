@@ -3455,7 +3455,9 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
         // This new iteration sees the rows made by the previous one:
         recursive_row_count_start = *recursive_row_count;
       }
-      if (qep_tab->keep_current_rowid) table->file->position(table->record[0]);
+      if (qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
+        table->file->position(table->record[0]);
+      }
       rc = evaluate_join_record(join, qep_tab);
     }
   }

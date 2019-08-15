@@ -47,6 +47,7 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
+#include "prealloced_array.h"
 #include "sql/item.h"
 #include "sql/row_iterator.h"
 #include "sql/table.h"
@@ -818,6 +819,11 @@ class StreamingIterator final : public TableRowIterator {
   Temp_table_param *m_temp_table_param;
   const bool m_copy_fields_and_items;
   ha_rows m_row_number;
+
+  // Whether the iterator should generate and provide a row ID. Only true if the
+  // iterator is part of weedout, where the iterator will create a fake row ID
+  // to uniquely identify the rows it produces.
+  bool m_provide_rowid{false};
 };
 
 /**
@@ -947,6 +953,11 @@ class WeedoutIterator final : public RowIterator {
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
   SJ_TMP_TABLE *m_sj;
+
+  // The cached value of QEP_TAB::rowid_status for each of the tables in the
+  // weedout. Index 0 corresponds to the first table in m_sj.
+  // See QEP_TAB::rowid_status for why we need to cache this value.
+  Prealloced_array<rowid_statuses, 4> m_rowid_status;
 };
 
 /**
