@@ -5,6 +5,7 @@
 # Server is down
 # Must not crash
 # Restarting the server
+# restart
 include/assert_grep.inc [Searching for the plugins disabled warning in the log]
 # Cleanup
 # delete mysqld log
