@@ -60,6 +60,7 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define PLUGIN_INIT_SKIP_DYNAMIC_LOADING 1
 #define PLUGIN_INIT_SKIP_PLUGIN_TABLE 2
 #define PLUGIN_INIT_SKIP_INITIALIZATION 4
+#define PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE 8
 
 #define MYSQL_ANY_PLUGIN -1
 
@@ -76,6 +77,7 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define PLUGIN_IS_READY 8
 #define PLUGIN_IS_DYING 16
 #define PLUGIN_IS_DISABLED 32
+#define PLUGIN_IS_WAITING_FOR_UPGRADE 64
 
 /* A handle for the dynamic library containing a plugin or plugins. */
 
@@ -156,6 +158,13 @@ extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
 extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
 extern bool plugin_register_dynamic_and_init_all(int *argc, char **argv,
                                                  int init_flags);
+
+namespace dd {
+namespace upgrade {
+extern bool plugin_initialize_delayed_after_upgrade();
+}
+}  // namespace dd
+
 extern bool is_builtin_and_core_se_initialized();
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
