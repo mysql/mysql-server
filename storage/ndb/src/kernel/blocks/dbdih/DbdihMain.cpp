@@ -4759,19 +4759,22 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
       else
       {
 	/**
-	 * All done, reply to master
+	 * All done, reply to master if node is still up.
 	 */
 	jam();
-        if (!isMaster())
+        if (getNodeStatus(c_nodeStartSlave.nodeId) == NodeRecord::ALIVE)
         {
           jam();
-          setNodeRecoveryStatus(c_nodeStartSlave.nodeId,
-                                NodeRecord::NODE_GETTING_INCLUDED);
+          if (!isMaster())
+          {
+            jam();
+            setNodeRecoveryStatus(c_nodeStartSlave.nodeId,
+                                  NodeRecord::NODE_GETTING_INCLUDED);
+          }
+	  signal->theData[0] = c_nodeStartSlave.nodeId;
+	  signal->theData[1] = cownNodeId;
+	  sendSignal(cmasterdihref, GSN_INCL_NODECONF, signal, 2, JBB);
         }
-	signal->theData[0] = c_nodeStartSlave.nodeId;
-	signal->theData[1] = cownNodeId;
-	sendSignal(cmasterdihref, GSN_INCL_NODECONF, signal, 2, JBB);
-	
 	c_nodeStartSlave.nodeId = 0;
 	return;
       }
