@@ -7678,12 +7678,32 @@ void
 Qmgr::execSTOP_REQ(Signal* signal)
 {
   jamEntry();
-  c_stopReq = * (StopReq*)signal->getDataPtr();
+
+  const StopReq* req = (const StopReq*)signal->getDataPtr();
+  c_stopReq.senderRef = req->senderRef;
+  c_stopReq.senderData = req->senderData;
+  c_stopReq.requestInfo = req->requestInfo;
+  c_stopReq.nodes.clear();
+  if (signal->getNoOfSections() >= 1)
+  {
+    jam();
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(c_stopReq.nodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    c_stopReq.nodes.assign(NdbNodeBitmask48::Size, req->nodes);
+  }
 
   if (c_stopReq.senderRef)
   {
     jam();
-    ndbrequire(NdbNodeBitmask::get(c_stopReq.nodes, getOwnNodeId()));
+    ndbrequire(c_stopReq.nodes.get(getOwnNodeId()));
     
     StopConf *conf = (StopConf*)signal->getDataPtrSend();
     conf->senderData = c_stopReq.senderData;
@@ -7697,7 +7717,7 @@ bool
 Qmgr::check_multi_node_shutdown(Signal* signal)
 {
   if (c_stopReq.senderRef && 
-      NdbNodeBitmask::get(c_stopReq.nodes, getOwnNodeId()))
+      c_stopReq.nodes.get(getOwnNodeId()))
   {
     jam();
     if(StopReq::getPerformRestart(c_stopReq.requestInfo))
