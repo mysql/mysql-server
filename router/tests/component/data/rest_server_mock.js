@@ -9,6 +9,10 @@ var connect_exec_time = (mysqld.global.connect_exec_time === undefined)
   handshake: {
     greeting: {
       exec_time: connect_exec_time
+    },
+    auth: {
+      username: mysqld.global.username,
+      password: mysqld.global.password
     }
   },
   stmts: function (stmt) {

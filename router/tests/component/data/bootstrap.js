@@ -32,6 +32,12 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex([
 ], options);
 
 ({
+  handshake: {
+    auth: {
+      username: "root",
+      password: "fake-pass",
+    }
+  },
   stmts: function (stmt) {
     var res;
     if (common_responses.hasOwnProperty(stmt)) {

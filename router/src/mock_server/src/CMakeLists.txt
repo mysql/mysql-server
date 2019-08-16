@@ -139,6 +139,7 @@ add_harness_plugin(mock_server
   duk_node_fs.c
   mock_server_plugin.cc
   mock_server_component.cc
+  authentication.cc
   REQUIRES mysql_protocol;duktape;${PROTOBUF_LIBRARY};mysqlxmessages)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC

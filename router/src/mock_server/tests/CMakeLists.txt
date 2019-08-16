@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_SUBDIRECTORY(src)
-IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
-  ADD_SUBDIRECTORY(tests)
-ENDIF()
+SET(TEST_FILES
+  test_authentication.cc
+  )
+
+FOREACH(TEST_FILE ${TEST_FILES})
+  ADD_TEST_FILE(
+    ${TEST_FILE}
+    MODULE mock_server
+    INCLUDE_DIRS ../src/
+    LIB_DEPENDS mysql_protocol_static
+    EXTRA_SOURCES ../src/authentication.cc
+    )
+ENDFOREACH()

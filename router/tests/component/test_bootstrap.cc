@@ -48,6 +48,9 @@
  */
 
 using namespace std::chrono_literals;
+using namespace std::string_literals;
+
+static constexpr const char kRootPassword[] = "fake-pass";
 
 // we create a number of classes to logically group tests together. But to avoid
 // code duplication, we derive them from a class which contains the common code
@@ -155,7 +158,7 @@ void CommonBootstrapTest::bootstrap_failover(
 
   // type in the password
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   ASSERT_NO_FATAL_FAILURE(
       check_exit_code(router, expected_exitcode, wait_for_exit_timeout))
@@ -718,7 +721,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // add login hook
     router.register_response("Please enter MySQL password for root: ",
-                             "fake-pass\n");
+                             kRootPassword + "\n"s);
 
     // check if the bootstraping was successful
     EXPECT_TRUE(router.expect_output(
@@ -821,7 +824,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       1);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
@@ -857,7 +860,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
     // add login hook
     router.register_response("Please enter MySQL password for root: ",
-                             "fake-pass\n");
+                             kRootPassword + "\n"s);
 
     // check if the bootstraping was successful
     EXPECT_TRUE(
@@ -1075,7 +1078,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   check_exit_code(router, EXIT_SUCCESS);
 
@@ -1118,7 +1121,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   check_exit_code(router, EXIT_SUCCESS);
 
@@ -1205,7 +1208,7 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
       EXIT_FAILURE);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged (first line) and error message
   // printed (last line)
@@ -1256,7 +1259,7 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
       EXIT_FAILURE);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged (all but last) and error message
   // printed (last line)
@@ -1309,7 +1312,7 @@ TEST_F(ErrorReportTest,
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged (all but last) and error message
   // printed (last line)
