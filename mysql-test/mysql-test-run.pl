@@ -378,7 +378,7 @@ sub main {
   close(FH);
 
   # --help will not reach here, so now it's safe to assume we have binaries
-  My::SafeProcess::find_bin($bindir);
+  My::SafeProcess::find_bin($bindir, $path_client_bindir);
 
   $secondary_engine_support = ($secondary_engine_support and
                 find_secondary_engine($bindir)) ? 1 : 0 ;
