@@ -26,9 +26,6 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-# Pass alternative ssl setting if provided.
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
-
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
@@ -422,7 +419,6 @@ mkdir debug
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -461,7 +457,6 @@ mkdir release
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"

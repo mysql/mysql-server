@@ -34,12 +34,6 @@
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
 
-# Pass path to the libcurl "lib" directory
-%{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
-
-# Pass alternative ssl setting if provided.
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
-
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -126,9 +120,11 @@ BuildRequires:  perl(IO::Socket::INET)
 BuildRequires:  perl(JSON)
 BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
+%if 0%{?commercial}
+BuildRequires:  libcurl-devel
+%endif
 BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
-BuildRequires:  openssl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %{?sles12:BuildRequires: gcc7 gcc7-c++}
@@ -601,6 +597,8 @@ mkdir debug
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
@@ -610,9 +608,6 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
-           %{?aws_sdk_option} \
-           %{?curl_lib_option} \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -647,6 +642,8 @@ mkdir release
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
@@ -656,9 +653,6 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
-           %{?aws_sdk_option} \
-           %{?curl_lib_option} \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
