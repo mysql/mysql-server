@@ -205,6 +205,33 @@ InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
 
 #
+# .6node3rpl
+#
+
+[cluster_config.6node3rpl]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5,CHOOSE_host6,CHOOSE_host1
+ndbapi = CHOOSE_host1,CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5,CHOOSE_host6
+
+NoOfReplicas = 3
+IndexMemory = 100M
+DataMemory = 500M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 8
+FragmentLogFileSize = 128M
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+
+SharedGlobalMemory=256M
+DiskPageBufferMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+TimeBetweenWatchDogCheckInitial=60000
+
+#
 # .4node4rpl
 #
 
