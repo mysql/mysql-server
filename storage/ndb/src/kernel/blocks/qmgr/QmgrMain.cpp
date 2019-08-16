@@ -59,6 +59,7 @@
 
 #include <TransporterRegistry.hpp> // Get connect address
 
+#include "../dbdih/Dbdih.hpp"
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -7351,9 +7352,23 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   if (refToBlock(req.senderRef) != QMGR) // request from management server
   {
     /* master */
-    if (getOwnNodeId() != cpresident)
+    Dbdih *dih = (Dbdih*)globalData.getBlock(DBDIH, instance());
+    bool is_dih_master = dih->is_master();
+    if (getOwnNodeId() != cpresident || !is_dih_master)
     {
       jam();
+      /**
+       * Either we are not president which leads to that we are not master
+       * in DIH, or we are president but hasn't yet seen our election to
+       * master in DIH. Either way we respond with NotMaster, if we are
+       * president and not master the response will lead to a retry which
+       * is likely to be successful.
+       */
+      if (getOwnNodeId() == cpresident)
+      {
+        jam();
+        g_eventLogger->info("President, but not master at ALLOC_NODEID_REQ");
+      }
       error = AllocNodeIdRef::NotMaster;
     }
     else if (!opAllocNodeIdReq.m_tracker.done())

@@ -2781,6 +2781,8 @@ private:
 
   /* The highest data node id in the cluster. */
   Uint32 m_max_node_id;
+public:
+  bool is_master() { return isMaster(); }
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)
