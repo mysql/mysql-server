@@ -2394,9 +2394,21 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
   }
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
   else {
+    /*
+      If any of the row->data[] below is NULL, it can result in a
+      crash. Error out early as it indicates a malformed packet.
+      For data[0], data[1] and data[5], strmake_root() will handle
+      NULL values.
+    */
+    if (!row->data[2] || !row->data[3] || !row->data[4]) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      return 1;
+    }
+
     cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-    field->org_table = field->table = strdup_root(alloc, (char *)row->data[0]);
-    field->name = strdup_root(alloc, (char *)row->data[1]);
+    field->org_table = field->table =
+        strmake_root(alloc, (char *)row->data[0], lengths[0]);
+    field->name = strmake_root(alloc, (char *)row->data[1], lengths[1]);
     field->length = (uint)uint3korr((uchar *)row->data[2]);
     field->type = (enum enum_field_types)(uchar)row->data[3][0];
 
@@ -2426,7 +2438,7 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
     }
     if (IS_NUM(field->type)) field->flags |= NUM_FLAG;
     if (default_value && row->data[5]) {
-      field->def = strdup_root(alloc, (char *)row->data[5]);
+      field->def = strmake_root(alloc, (char *)row->data[5], lengths[5]);
       field->def_length = lengths[5];
     } else
       field->def = 0;
