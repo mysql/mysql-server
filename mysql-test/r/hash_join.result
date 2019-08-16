@@ -1491,6 +1491,10 @@ Warning	1265	Data truncated for column 'col_time_key' at row 20
 ALTER TABLE cc ENABLE KEYS;
 Warnings:
 Note	1031	Table storage engine for 'cc' doesn't have this option
+ANALYZE TABLE c, cc;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
+test.cc	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT
 alias1.pk AS field1
 FROM
@@ -1530,18 +1534,18 @@ EXPLAIN
                 -> Temporary table with deduplication
                     -> Remove duplicate alias1 rows using temporary table (weedout)
                         -> Inner hash join
-                            -> Index scan on sq2_alias2 using col_date_key  (cost=49.35 rows=21)
+                            -> Index scan on sq2_alias2 using col_date_key  (cost=1.93 rows=20)
                             -> Hash
                                 -> Nested loop inner join
-                                    -> Filter: (sq2_alias1.col_varchar_key is not null)  (cost=0.35 rows=1)
-                                        -> Index scan on sq2_alias1 using col_varchar_key  (cost=0.35 rows=1)
+                                    -> Filter: (sq2_alias1.col_varchar_key is not null)  (cost=2.25 rows=20)
+                                        -> Index scan on sq2_alias1 using col_varchar_key  (cost=2.25 rows=20)
                                     -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)
                                         -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)
                                             -> Materialize
                                                 -> Limit: 100 row(s)
-                                                    -> Nested loop left join  (cost=0.70 rows=1)
-                                                        -> Table scan on sq1_alias2  (cost=0.35 rows=1)
-                                                        -> Index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.35 rows=1)
+                                                    -> Nested loop left join  (cost=9.92 rows=27)
+                                                        -> Table scan on sq1_alias2  (cost=2.25 rows=20)
+                                                        -> Index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
