@@ -80,6 +80,9 @@ BuildRequires:  perl(Env)
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
+%if 0%{?commercial}
+BuildRequires:  libcurl-devel
+%endif
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
@@ -173,12 +176,12 @@ mkdir release
            -DWITH_ROUTER=OFF \
            -DWITH_NUMA=OFF \
            %{?mecab_option} \
-           -DWITH_SSL=system \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
-%if 0%{?with_meb:1}
+%if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
 %endif
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
