@@ -2135,7 +2135,8 @@ NdbImportImpl::OpList::~OpList()
   Op* one_op = NULL;
   while ((one_op = pop_front()) != NULL)
   {
-    require(one_op->m_row == NULL);
+    // See bug 30192989
+    //  require(one_op->m_row == NULL);
     delete one_op;
   }
 }
