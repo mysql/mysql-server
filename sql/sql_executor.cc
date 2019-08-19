@@ -5549,7 +5549,7 @@ static bool table_rec_cmp(TABLE *table) {
   @returns generated hash
 */
 
-ulonglong unique_hash(Field *field, ulonglong *hash_val) {
+ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
   const uchar *pos, *end;
   uint64 seed1 = 0, seed2 = 4;
   ulonglong crc = *hash_val;
@@ -5568,7 +5568,7 @@ ulonglong unique_hash(Field *field, ulonglong *hash_val) {
   end = pos + field->data_length();
 
   if (field->type() == MYSQL_TYPE_JSON) {
-    Field_json *json_field = down_cast<Field_json *>(field);
+    const Field_json *json_field = down_cast<const Field_json *>(field);
 
     crc = json_field->make_hash_key(*hash_val);
   } else if (field->key_type() == HA_KEYTYPE_TEXT ||

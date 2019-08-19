@@ -401,7 +401,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
                        List<Item> *res_selected_fields,
                        List<Item> *res_all_fields);
 bool check_unique_constraint(TABLE *table);
-ulonglong unique_hash(Field *field, ulonglong *hash);
+ulonglong unique_hash(const Field *field, ulonglong *hash);
 
 class QEP_TAB : public QEP_shared_owner {
  public:

@@ -4322,7 +4322,7 @@ class Field_json : public Field_blob {
 
     @param[in]  hash_val  An initial hash value.
   */
-  ulonglong make_hash_key(ulonglong hash_val);
+  ulonglong make_hash_key(ulonglong hash_val) const;
 
   /**
     Get a read-only pointer to the binary representation of the JSON document

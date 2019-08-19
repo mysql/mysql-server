@@ -85,8 +85,8 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
 
 /// Struct that holds information about a sort field.
 struct st_sort_field {
-  Field *field;  ///< Field to sort
-  Item *item;    ///< Item if not sorting fields
+  const Field *field;  ///< Field to sort
+  Item *item;          ///< Item if not sorting fields
 
   /// Length of sort field. Beware, can be 0xFFFFFFFFu (infinite)!
   uint length;

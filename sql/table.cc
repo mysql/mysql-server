@@ -7183,7 +7183,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   - the gcol is virtual and we're reading it from the engine without using a
   covering index on it.
 */
-void TABLE::mark_gcol_in_maps(Field *field) {
+void TABLE::mark_gcol_in_maps(const Field *field) {
   bitmap_set_bit(write_set, field->field_index);
 
   /*

@@ -1330,7 +1330,7 @@ inline bool advance_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
   Returns the length of the key, sans NULL indicator byte and varlength prefix,
   or UINT_MAX if the value would not provably fit within the given bounds.
 */
-size_t make_sortkey_from_field(Field *field, Nullable<size_t> dst_length,
+size_t make_sortkey_from_field(const Field *field, Nullable<size_t> dst_length,
                                uchar *to, uchar *to_end, bool *maybe_null) {
   bool is_varlen = !dst_length.has_value();
 
@@ -1555,7 +1555,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
     if (!sort_field->is_varlen) dst_length = sort_field->length;
     uint actual_length;
     if (sort_field->field) {
-      Field *field = sort_field->field;
+      const Field *field = sort_field->field;
       DBUG_ASSERT(sort_field->field_type == field->type());
 
       actual_length =
@@ -1686,7 +1686,7 @@ static void register_used_fields(Sort_param *param) {
 
   for (sort_field = param->local_sortorder.begin();
        sort_field != param->local_sortorder.end(); sort_field++) {
-    Field *field;
+    const Field *field;
     if ((field = sort_field->field)) {
       if (field->table == table) {
         bitmap_set_bit(bitmap, field->field_index);
