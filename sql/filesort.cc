@@ -160,6 +160,7 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 
 void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
                                      ulong max_length_for_sort_data,
+                                     uint fixed_sort_length,
                                      bool force_sort_positions) {
   if (m_addon_fields_status != Addon_fields_status::unknown_status) {
     // Already decided.
@@ -190,7 +191,7 @@ void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
       to sorted fields and get its total length in m_addon_length.
     */
     addon_fields = file_sort->get_addon_fields(
-        max_length_for_sort_data, table->field, m_fixed_sort_length,
+        max_length_for_sort_data, table->field, fixed_sort_length,
         &m_addon_fields_status, &m_addon_length, &m_packable_length);
   }
 }
@@ -207,7 +208,7 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
 
   local_sortorder = sf_array;
 
-  decide_addon_fields(file_sort, table, max_length_for_sort_data,
+  decide_addon_fields(file_sort, table, max_length_for_sort_data, sortlen,
                       file_sort->m_force_sort_positions);
   if (using_addon_fields()) {
     fixed_res_length = m_addon_length;
@@ -2468,9 +2469,13 @@ Addon_fields *Filesort::get_addon_fields(
 }
 
 bool Filesort::using_addon_fields() {
-  m_sort_param.decide_addon_fields(this, qep_tab->table(),
-                                   m_thd->variables.max_length_for_sort_data,
-                                   m_force_sort_positions);
+  if (m_sort_param.m_addon_fields_status ==
+      Addon_fields_status::unknown_status) {
+    m_sort_param.decide_addon_fields(
+        this, qep_tab->table(), m_thd->variables.max_length_for_sort_data,
+        sortlength(m_thd, sortorder, m_sort_order_length),
+        m_force_sort_positions);
+  }
   return m_sort_param.using_addon_fields();
 }
 
