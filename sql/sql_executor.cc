@@ -2741,6 +2741,54 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     Filesort *filesort = qep_tab->filesort;
     qep_tab->filesort = nullptr;
 
+    Filesort *dup_filesort = nullptr;
+    bool limit_1_for_dup_filesort = false;
+
+    // The pre-iterator executor does duplicate removal by going into the
+    // temporary table and actually deleting records, using a hash table for
+    // smaller tables and an O(n²) algorithm for large tables. This kind of
+    // deletion is not cleanly representable in the iterator model, so we do it
+    // using a duplicate-removing filesort instead, which has a straight-up
+    // O(n log n) cost.
+    if (qep_tab->needs_duplicate_removal) {
+      bool all_order_fields_used;
+      ORDER *order = create_order_from_distinct(
+          thd, ref_items[qep_tab->ref_item_slice], this->order, fields_list,
+          /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
+          &all_order_fields_used);
+      if (order == nullptr) {
+        // Only const fields.
+        limit_1_for_dup_filesort = true;
+      } else {
+        bool force_sort_positions = false;
+        if (all_order_fields_used) {
+          // The ordering for DISTINCT already gave us the right sort order,
+          // so no need to sort again.
+          filesort = nullptr;
+        } else if (filesort != nullptr && !filesort->using_addon_fields()) {
+          // We have the rather unusual situation here that we have two sorts
+          // directly after each other, with no temporary table in-between,
+          // and filesort expects to be able to refer to rows by their position.
+          // Usually, the sort for DISTINCT would be a superset of the sort for
+          // ORDER BY, but not always (e.g. when sorting by some expression),
+          // so we could end up in a situation where the first sort is by addon
+          // fields and the second one is by positions.
+          //
+          // Thus, in this case, we force the first sort to be by positions,
+          // so that the result comes from SortFileIndirectIterator or
+          // SortBufferIndirectIterator. These will both position the cursor
+          // on the underlying temporary table correctly before returning it,
+          // so that the successive filesort will save the right position
+          // for the row.
+          force_sort_positions = true;
+        }
+
+        dup_filesort = new (thd->mem_root) Filesort(
+            thd, qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
+            /*remove_duplicates=*/true, force_sort_positions);
+      }
+    }
+
     qep_tab->iterator.reset();
     join_setup_iterator(qep_tab);
 
@@ -2780,13 +2828,22 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
            MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
 
       // If we don't need the row IDs, and don't have some sort of deduplication
-      // (e.g. for GROUP BY), filesort can take in the data directly, without
-      // going through a temporary table.
+      // (e.g. for GROUP BY) on the table, filesort can take in the data
+      // directly, without going through a temporary table.
+      //
+      // If there are two sorts, we need row IDs if either one of them needs it.
+      // Above, we've set up so that the innermost sort (for DISTINCT) always
+      // needs row IDs if the outermost (for ORDER BY) does. The other way is
+      // fine, though; if the innermost needs row IDs but the outermost doesn't,
+      // then we can use row IDs here (ie., no streaming) but drop them in the
+      // outer sort. Thus, we check the using_addon_fields() flag on the
+      // innermost.
       //
       // TODO: If the sort order is suitable (or extendable), we could take over
       // the deduplicating responsibilities of the temporary table and activate
       // this mode even if qep_tab->temporary_table_deduplicates() is set.
-      if (filesort != nullptr && filesort->using_addon_fields() &&
+      Filesort *first_sort = dup_filesort != nullptr ? dup_filesort : filesort;
+      if (first_sort != nullptr && first_sort->using_addon_fields() &&
           !qep_tab->temporary_table_deduplicates()) {
         iterator = NewIterator<StreamingIterator>(
             thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
@@ -2810,57 +2867,16 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       qep_tab->mark_condition_as_pushed_to_sort();
     }
 
-    // The pre-iterator executor does duplicate removal by going into the
-    // temporary table and actually deleting records, using a hash table for
-    // smaller tables and an O(n²) algorithm for large tables. This kind of
-    // deletion is not cleanly representable in the iterator model, so we do it
-    // using a duplicate-removing filesort instead, which has a straight-up
-    // O(n log n) cost.
-    if (qep_tab->needs_duplicate_removal) {
-      bool all_order_fields_used;
-      ORDER *order = create_order_from_distinct(
-          thd, ref_items[qep_tab->ref_item_slice], this->order, fields_list,
-          /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
-          &all_order_fields_used);
-      if (order == nullptr) {
-        // Only const fields.
-        iterator = NewIterator<LimitOffsetIterator>(
-            thd, move(iterator), /*select_limit_cnt=*/1, /*offset_limit_cnt=*/0,
-            /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
-      } else {
-        bool force_sort_positions = false;
-        if (all_order_fields_used) {
-          // The ordering for DISTINCT already gave us the right sort order,
-          // so no need to sort again.
-          filesort = nullptr;
-        } else if (filesort != nullptr && !filesort->using_addon_fields()) {
-          // We have the rather unusual situation here that we have two sorts
-          // directly after each other, with no temporary table in-between,
-          // and filesort expects to be able to refer to rows by their position.
-          // Usually, the sort for DISTINCT would be a superset of the sort for
-          // ORDER BY, but not always (e.g. when sorting by some expression),
-          // so we could end up in a situation where the first sort is by addon
-          // fields and the second one is by positions.
-          //
-          // Thus, in this case, we force the first sort to be by positions,
-          // so that the result comes from SortFileIndirectIterator or
-          // SortBufferIndirectIterator. These will both position the cursor
-          // on the underlying temporary table correctly before returning it,
-          // so that the successive filesort will save the right position
-          // for the row.
-          force_sort_positions = true;
-        }
-
-        Filesort *dup_filesort = new (thd->mem_root) Filesort(
-            thd, qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
-            /*remove_duplicates=*/true, force_sort_positions);
-        iterator = NewIterator<SortingIterator>(thd, dup_filesort,
-                                                move(iterator), &examined_rows);
-        qep_tab->table()->duplicate_removal_iterator =
-            down_cast<SortingIterator *>(iterator->real_iterator());
-      }
+    if (limit_1_for_dup_filesort) {
+      iterator = NewIterator<LimitOffsetIterator>(
+          thd, move(iterator), /*select_limit_cnt=*/1, /*offset_limit_cnt=*/0,
+          /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+    } else if (dup_filesort != nullptr) {
+      iterator = NewIterator<SortingIterator>(thd, dup_filesort, move(iterator),
+                                              &examined_rows);
+      qep_tab->table()->duplicate_removal_iterator =
+          down_cast<SortingIterator *>(iterator->real_iterator());
     }
-
     if (filesort != nullptr) {
       iterator = NewIterator<SortingIterator>(thd, filesort, move(iterator),
                                               &examined_rows);
