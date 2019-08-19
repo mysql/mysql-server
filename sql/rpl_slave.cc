@@ -9525,9 +9525,6 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     goto err;
   }
 
-  if (have_execute_option && (error = change_execute_options(lex_mi, mi)))
-    goto err;
-
   THD_STAGE_INFO(thd, stage_changing_master);
 
   int thread_mask_stopped_threads;
@@ -9546,6 +9543,9 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     my_error(ER_MASTER_INFO, MYF(0));
     goto err;
   }
+
+  if (have_execute_option && (error = change_execute_options(lex_mi, mi)))
+    goto err;
 
   if ((thread_mask & SLAVE_SQL) == 0)  // If execute threads are stopped
   {
