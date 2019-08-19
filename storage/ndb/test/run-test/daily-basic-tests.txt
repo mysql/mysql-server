@@ -2031,11 +2031,11 @@ args: -n SlowDihFileWrites T1
 
 max-time : 300
 cmd: testScan
-args: -n TupCheckSumError T18
+args: -n TupCheckSumError T1
 
 max-time : 300
 cmd: testScan
-args: -n InterpretNok6000 T18
+args: -n InterpretNok6000 T1
 
 # Bug18408671 added on 17.04.2014
 #max-time : 300
