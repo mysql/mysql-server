@@ -3834,7 +3834,7 @@ Backup::execNODE_FAILREP(Signal* signal)
   }
   else
   {
-    memset(rep->theNodes,
+    memset(rep->theNodes + NdbNodeBitmask48::Size,
            0,
            _NDB_NBM_DIFF_BYTES);
   }

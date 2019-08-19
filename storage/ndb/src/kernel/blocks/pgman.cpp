@@ -968,7 +968,7 @@ Pgman::lirs_reference(EmulatedJamBuffer *jamBuf,
 void
 Pgman::do_stats_loop(Signal* signal)
 {
-  D("do_stats_loop");
+  //D("do_stats_loop");
 #ifdef VM_TRACE
   verify_all();
 #endif
@@ -1038,7 +1038,7 @@ Pgman::do_busy_loop(Signal* signal, bool direct, EmulatedJamBuffer *jamBuf)
 void
 Pgman::do_cleanup_loop(Signal* signal)
 {
-  D("do_cleanup_loop");
+  //D("do_cleanup_loop");
   process_cleanup(signal);
 
   Uint32 delay = m_param.m_cleanup_loop_delay;
@@ -1309,7 +1309,7 @@ Pgman::process_callback(Signal* signal,
 bool
 Pgman::process_cleanup(Signal* signal)
 {
-  D(">process_cleanup");
+  //D(">process_cleanup");
   Page_queue& pl_queue = m_page_queue;
 
   // XXX for now start always from beginning
@@ -1318,7 +1318,7 @@ Pgman::process_cleanup(Signal* signal)
   if (m_cleanup_ptr.i == RNIL && ! pl_queue.first(m_cleanup_ptr))
   {
     jam();
-    D("<process_cleanup: empty queue");
+    //D("<process_cleanup: empty queue");
     return false;
   }
 
