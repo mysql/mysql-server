@@ -47,12 +47,6 @@ enum class Compression_negotiation { k_disabled, k_preferred, k_required };
 enum class Compression_algorithm { k_none, k_deflate, k_lz4 };
 
 /**
-  Enum that defines the compression style that is used by
-  X Protocol in 'uplink' and 'downlink'.
-*/
-enum class Compression_style { k_none, k_single, k_multiple, k_group };
-
-/**
   Interface defining X Compression operations.
 
   This interface should be used internally by XProtocol and XConnection
@@ -70,19 +64,6 @@ class XCompression {
 
  public:
   virtual ~XCompression() = default;
-
-  /**
-    Reinitialize 'uplink' and 'downlink' compression context using set
-    algorithm.
-
-    Some compression algorithm may be only set before session or capability
-    setup, in that case setting such algorithm may fail. Also some algorithms
-    set once may be not changeable.
-  */
-  virtual bool reinitialize(
-      const Compression_algorithm algorithm,
-      const std::set<Compression_style> &uplink_style,
-      const std::set<Compression_style> &downlink_style) = 0;
 
   /**
     Downlink compression stream

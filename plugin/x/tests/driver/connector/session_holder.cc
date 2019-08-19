@@ -55,8 +55,6 @@ xcl::XSession *Session_holder::get_session() { return m_session.get(); }
 
 xcl::XError Session_holder::connect(const bool is_raw_connection) {
   DBUG_TRACE;
-  setup_compression();
-
   setup_ssl();
   setup_msg_callbacks();
   setup_other_options();
@@ -137,40 +135,6 @@ void Session_holder::setup_other_options() {
   if (!m_options.auth_methods.empty())
     m_session->set_mysql_option(Mysqlx_option::Authentication_method,
                                 m_options.auth_methods);
-}
-
-void Session_holder::setup_compression() {
-  DBUG_TRACE;
-  using Mysqlx_option = xcl::XSession::Mysqlx_option;
-
-  if (m_options.compression_mode.empty()) return;
-
-  xcl::XError error;
-  error = m_session->set_mysql_option(
-      Mysqlx_option::Compression_negotiation_mode, m_options.compression_mode);
-  if (error)
-    throw xcl::XError{CR_X_UNSUPPORTED_OPTION_VALUE,
-                      "Unsupported value for \"compression-mode\" option"};
-
-  error = m_session->set_mysql_option(Mysqlx_option::Compression_algorithms,
-                                      m_options.compression_algorithm);
-  if (error)
-    throw xcl::XError{CR_X_UNSUPPORTED_OPTION_VALUE,
-                      "Unsupported value for \"compression-algorithm\" option"};
-
-  error = m_session->set_mysql_option(Mysqlx_option::Compression_client_style,
-                                      m_options.compression_client_style);
-  if (error)
-    throw xcl::XError{
-        CR_X_UNSUPPORTED_OPTION_VALUE,
-        "Unsupported value for \"compression-client-style\" option"};
-
-  error = m_session->set_mysql_option(Mysqlx_option::Compression_server_style,
-                                      m_options.compression_server_style);
-  if (error)
-    throw xcl::XError{
-        CR_X_UNSUPPORTED_OPTION_VALUE,
-        "Unsupported value for \"compression-server-style\" option"};
 }
 
 void Session_holder::setup_ssl() {

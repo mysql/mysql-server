@@ -59,11 +59,6 @@ class Client_interface {
  public:
   virtual ~Client_interface() {}
 
-  virtual void enable_compression_algo(const Compression_algorithm algo) = 0;
-  virtual void configure_compression_style(const Compression_style style) = 0;
-  virtual void configure_compression_client_style(
-      const Compression_style style) = 0;
-
   virtual Protocol_encoder_interface &protocol() const = 0;
   virtual Server_interface &server() const = 0;
   virtual Vio_interface &connection() = 0;

@@ -23,7 +23,6 @@
 */
 
 #include "my_config.h"
-#include "typelib.h"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
@@ -411,33 +410,6 @@ static MYSQL_SYSVAR_BOOL(
     "establishment, using this variable it can be disabled",
     NULL, &xpl::Plugin_system_variables::update_func<bool>, true);
 
-static MYSQL_SYSVAR_SET(
-    compression_algorithms,
-    *xpl::Plugin_system_variables::m_compression_algorithms.value(),
-    PLUGIN_VAR_OPCMDARG,
-    "Compression algorithms: where option can be DEFLATE, LZ4", NULL,
-    &xpl::Plugin_system_variables::update_func<unsigned long long>,
-    3 /* default=DEFLATE,LZ4 */,
-    xpl::Plugin_system_variables::m_compression_algorithms.typelib());
-
-static MYSQL_SYSVAR_SET(
-    compression_server_style,
-    *xpl::Plugin_system_variables::m_compression_server_style.value(),
-    PLUGIN_VAR_OPCMDARG,
-    "Compression style server: where option can be SINGLE, MULTIPLE, GROUP",
-    NULL, &xpl::Plugin_system_variables::update_func<unsigned long long>,
-    6 /* default=MULTIPLE,GROUP */,
-    xpl::Plugin_system_variables::m_compression_server_style.typelib());
-
-static MYSQL_SYSVAR_SET(
-    compression_client_style,
-    *xpl::Plugin_system_variables::m_compression_client_style.value(),
-    PLUGIN_VAR_OPCMDARG,
-    "Compression style client: where option can be SINGLE, MULTIPLE, GROUP",
-    NULL, &xpl::Plugin_system_variables::update_func<unsigned long long>,
-    7 /* default=SINGLE,MULTIPLE,GROUP */,
-    xpl::Plugin_system_variables::m_compression_client_style.typelib());
-
 static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(port),
     MYSQL_SYSVAR(max_connections),
@@ -461,9 +433,6 @@ static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(write_timeout),
     MYSQL_SYSVAR(document_id_unique_prefix),
     MYSQL_SYSVAR(enable_hello_notice),
-    MYSQL_SYSVAR(compression_algorithms),
-    MYSQL_SYSVAR(compression_server_style),
-    MYSQL_SYSVAR(compression_client_style),
     NULL};
 
 #define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \
@@ -584,23 +553,9 @@ static SHOW_VAR xpl_plugin_status[] = {
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "bytes_received", ngs::Common_status_variables::m_bytes_received),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
-        "bytes_sent_compressed_payload",
-        ngs::Common_status_variables::m_bytes_sent_compressed_payload),
-    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
-        "bytes_sent_uncompressed_frame",
-        ngs::Common_status_variables::m_bytes_sent_uncompressed_frame),
-    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
-        "bytes_received_compressed_payload",
-        ngs::Common_status_variables::m_bytes_received_compressed_payload),
-    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
-        "bytes_received_uncompressed_frame",
-        ngs::Common_status_variables::m_bytes_received_uncompressed_frame),
-    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "errors_sent", ngs::Common_status_variables::m_errors_sent),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "rows_sent", ngs::Common_status_variables::m_rows_sent),
-    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
-        "messages_sent", ngs::Common_status_variables::m_messages_sent),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "notice_warning_sent",
         ngs::Common_status_variables::m_notice_warning_sent),

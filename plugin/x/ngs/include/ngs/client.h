@@ -34,8 +34,8 @@
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder_compression.h"
 #include "plugin/x/src/capabilities/configurator.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/helper/chrono.h"
@@ -108,12 +108,6 @@ class Client : public Client_interface {
   void set_write_timeout(const uint32_t) override;
 
   bool handle_session_connect_attr_set(ngs::Message_request &command);
-
-  void enable_compression_algo(const Compression_algorithm algo) override;
-  void configure_compression_style(const Compression_style style) override;
-  void configure_compression_client_style(
-      const Compression_style style) override;
-
   void handle_message(Message_request *message) override;
 
  private:
@@ -179,12 +173,6 @@ class Client : public Client_interface {
 
   uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
   uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
-  Compression_style m_cached_compression_client_style =
-      Compression_style::k_none;
-  Compression_style m_cached_compression_server_style =
-      Compression_style::k_none;
-  Compression_algorithm m_cached_compression_algorithm =
-      Compression_algorithm::k_none;
 
   Error_code read_one_message_and_dispatch();
 
@@ -205,8 +193,6 @@ class Client : public Client_interface {
   void set_encoder(Protocol_encoder_interface *enc);
 
  private:
-  Protocol_encoder_compression *get_protocol_compression_or_install_it();
-
   Client(const Client &) = delete;
   Client &operator=(const Client &) = delete;
 

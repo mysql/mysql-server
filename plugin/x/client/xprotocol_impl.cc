@@ -113,18 +113,6 @@ bool is_timeout_error(const XError &error) {
   return (CR_X_READ_TIMEOUT == error.error());
 }
 
-bool is_compressed(const XProtocol::Header_message_type_id id) {
-  switch (id) {
-    case Mysqlx::ServerMessages::COMPRESSION_MULTIPLE:
-    case Mysqlx::ServerMessages::COMPRESSION_GROUP:
-    case Mysqlx::ServerMessages::COMPRESSION_SINGLE:
-      return true;
-
-    default:
-      return false;
-  }
-}
-
 class Query_sequencer : public Query_instances {
  public:
   Instance_id instances_fetch_begin() override { return m_last_instance++; }
@@ -182,11 +170,6 @@ XError Protocol_impl::execute_authenticate(const std::string &user,
                   ERR_MSG_INVALID_AUTH_METHOD + method);
 
   return error;
-}
-
-void Protocol_impl::use_compression(const Compression_algorithm algo) {
-  DBUG_TRACE;
-  m_compression->reinitialize(algo, {}, {});
 }
 
 std::unique_ptr<XProtocol::Capabilities>
@@ -846,179 +829,6 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::recv_single_message(
   }
 }
 
-XError Protocol_impl::send_compressed_frame(
-    const Client_message_type_id message_id, const Message &message) {
-  DBUG_TRACE;
-
-  /*
-    clang-format off
-    This method generate X Protocol frame that carries single compressed message,
-    the meaning of `payload` changes for this frame-type (COMPRESSION_SINGLE, dec:46, hex:0x2E).
-    `compresses-payload` is protobuf serialized message compressed with preselected algorithm.
-
-    | <-------------------------- X Protocol frame ----------------------------------> |
-    |                    |                                                             |
-    | <- payload-size -> | <------------------------ payload ------------------------> |
-    |                    |                                                             |
-    |                    | <-------------------- compression-frame ------------------> |
-    |                    |                          |                                  |
-    |                    | <------- compression-header --------> |<compressed-payload->|
-    |                    |        |          |                   |                     |
-    |                    |<f-type>|<msg-type>|<uncompressed-size>|                     |
-    | 4 bytes            | 1 byte | 1 byte   | 4 bytes           | payload-size - 6    |
-    clang-format on
-  */
-  int64_t total_size = 0;
-  std::string compressed_messages(sizeof(uint32_t) + 1, ' ');
-
-  {
-    StringOutputStream out_stream(&compressed_messages);
-    auto compressed_out_stream = m_compression->uplink(&out_stream);
-
-    if (!compressed_out_stream) {
-      return XError{CR_X_COMPRESSION_NOT_CONFIGURED,
-                    ER_TEXT_COMPRESSION_NOT_CONFIGURED};
-    }
-
-    CodedOutputStream cos(compressed_out_stream.get());
-
-    total_size = message.ByteSize();
-
-    dispatch_send_message(message_id, message);
-
-    message.SerializeToCodedStream(&cos);
-  }
-
-  compressed_messages[0] = message_id;
-  CodedOutputStream::WriteLittleEndian32ToArray(
-      total_size, reinterpret_cast<uint8_t *>(&compressed_messages[1]));
-
-  return send(Mysqlx::ClientMessages::COMPRESSION_SINGLE,
-              (const uint8_t *)compressed_messages.c_str(),
-              compressed_messages.length());
-}
-
-XError Protocol_impl::send_compressed_frames(
-    const Client_message_type_id mid, const std::vector<Message *> &messages) {
-  DBUG_TRACE;
-
-  /*
-    clang-format off
-    This method generate X Protocol frame that carries single compressed message,
-    the meaning of `payload` changes for this frame-type (COMPRESSION_MULTIPLE, dec:47, hex:0x2F).
-    `compresses-payload` is protobuf serialized message prepended with the message size as uint32,
-    compressed with preselected algorithm.
-
-    | <-------------------------- X Protocol frame ----------------------------------> |
-    |                    |                                                             |
-    | <- payload-size -> | <------------------------ payload ------------------------> |
-    |                    |                                                             |
-    |                    | <-------------------- compression-frame ------------------> |
-    |                    |                          |                                  |
-    |                    | <------- compression-header --------> |<compressed-payload->|
-    |                    |        |          |                   |                     |
-    |                    |<f-type>|<msg-type>|<uncompressed-size>|                     |
-    | 4 bytes            | 1 byte | 1 byte   | 4 bytes           | payload-size - 6    |
-    clang-format on
-  */
-  int64_t total_size = 0;
-  std::string compressed_messages(sizeof(uint32_t) + 1, ' ');
-
-  {
-    StringOutputStream out_stream(&compressed_messages);
-    auto compressed_out_stream = m_compression->uplink(&out_stream);
-
-    if (!compressed_out_stream) {
-      return XError{CR_X_COMPRESSION_NOT_CONFIGURED,
-                    ER_TEXT_COMPRESSION_NOT_CONFIGURED};
-    }
-
-    CodedOutputStream cos(compressed_out_stream.get());
-
-    for (const auto message : messages) {
-      const auto msg_size = message->ByteSize();
-
-      dispatch_send_message(mid, *message);
-
-      cos.WriteLittleEndian32(msg_size);
-      message->SerializeToCodedStream(&cos);
-
-      total_size += msg_size + 4;
-    }
-  }
-
-  compressed_messages[0] = mid;
-  CodedOutputStream::WriteLittleEndian32ToArray(
-      total_size, reinterpret_cast<uint8_t *>(&compressed_messages[1]));
-
-  return send(Mysqlx::ClientMessages::COMPRESSION_MULTIPLE,
-              (const uint8_t *)compressed_messages.c_str(),
-              compressed_messages.length());
-}
-
-XError Protocol_impl::send_compressed_group_of_frames(
-    const std::vector<std::pair<Client_message_type_id, Message *>> &messages) {
-  DBUG_TRACE;
-
-  /*
-    clang-format off
-    This method generate X Protocol frame that carries single compressed message,
-    the meaning of `payload` changes for this frame-type (COMPRESSION_GROUP, dec:48, hex:0x30).
-    `compresses-payload` is protobuf serialized message prepended with the message-type (uint8)
-    and message size (uint32), compressed with preselected algorithm.
-
-    | <-------------------------- X Protocol frame ----------------------------------> |
-    |                    |                                                             |
-    | <- payload-size -> | <------------------------ payload ------------------------> |
-    |                    |                                                             |
-    |                    | <-------------------- compression-frame ------------------> |
-    |                    |                            |                                |
-    |                    | <-- compression-header --> | <---- group-frame-payload ---> |
-    |                    |        |                   | <---- compressed-payload ----> |
-    |                    |        |                   |                                |
-    |                    |<GROUP >|<uncompressed-size>|                                |
-    | 4 bytes            | 1 byte | 4 bytes           | (payload-size - 5) bytes       |
-
-    clang-format on
-  */
-  int64_t total_size = 0;
-  std::string compressed_messages(sizeof(uint32_t), ' ');
-
-  {
-    StringOutputStream out_stream(&compressed_messages);
-    auto compressed_out_stream = m_compression->uplink(&out_stream);
-
-    if (!compressed_out_stream) {
-      return XError{CR_X_COMPRESSION_NOT_CONFIGURED,
-                    ER_TEXT_COMPRESSION_NOT_CONFIGURED};
-    }
-
-    CodedOutputStream cos(compressed_out_stream.get());
-
-    for (const auto &message : messages) {
-      const auto msg_id = message.first;
-      const auto header_msg_id = static_cast<Header_message_type_id>(msg_id);
-      const auto msg = message.second;
-      const auto msg_size = msg->ByteSize();
-
-      dispatch_send_message(msg_id, *msg);
-
-      cos.WriteLittleEndian32(msg_size + 1);
-      cos.WriteRaw(&header_msg_id, 1);
-      msg->SerializeToCodedStream(&cos);
-
-      total_size += msg_size + 5;
-    }
-  }
-
-  CodedOutputStream::WriteLittleEndian32ToArray(
-      total_size, reinterpret_cast<uint8_t *>(&compressed_messages[0]));
-
-  return send(Mysqlx::ClientMessages::COMPRESSION_GROUP,
-              (const uint8_t *)compressed_messages.c_str(),
-              compressed_messages.length());
-}
-
 std::unique_ptr<Protocol_impl::Message> Protocol_impl::alloc_message(
     const Header_message_type_id mid) {
   DBUG_TRACE;
@@ -1064,11 +874,6 @@ std::unique_ptr<Protocol_impl::Message> Protocol_impl::alloc_message(
     case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS:
       ret_val.reset(new Mysqlx::Resultset::FetchDoneMoreOutParams());
       break;
-
-    case Mysqlx::ServerMessages::COMPRESSION_SINGLE:    // fall-through
-    case Mysqlx::ServerMessages::COMPRESSION_MULTIPLE:  // fall-through
-    case Mysqlx::ServerMessages::COMPRESSION_GROUP:
-      return nullptr;
   }
 
   return ret_val;
@@ -1123,81 +928,10 @@ XProtocol::Message *Protocol_impl::recv_id(
   return msg.release();
 }
 
-XProtocol::Message *Protocol_impl::read_compressed(Server_message_type_id *mid,
-                                                   XError *out_error) {
-  DBUG_TRACE;
-
-  if (nullptr == m_compressed_input_stream.get()) {
-    *out_error = XError{CR_X_COMPRESSION_NOT_CONFIGURED,
-                        ER_TEXT_COMPRESSION_NOT_CONFIGURED};
-    return nullptr;
-  }
-
-  std::unique_ptr<XProtocol::Message> message;
-
-  {
-    CodedInputStream cis(m_compressed_input_stream.get());
-
-    // Currently only XQuery_result class sets the m_context->m_global_error
-    // on invalid sequence of fetched resultsets.
-    //
-    // Fatal errors might be also set in m_global_error, where fatal errors
-    // might
-    //
-    // * IO errors
-    // * Server fatal Mysqlx.Error messages
-    // * compression errors
-    //
-    // This topic needs to be investigated
-    switch (m_compression_message_id) {
-      case Mysqlx::ServerMessages::COMPRESSION_GROUP: {
-        Header_message_type_id id;
-        uint32_t size;
-        cis.ReadLittleEndian32(&size);
-        cis.ReadRaw(&id, 1);
-        cis.PushLimit(size - 1);
-        DBUG_LOG("debug", "COMPRESSION_GROUP HEADER id:" << static_cast<int>(id)
-                                                         << ", size:" << size);
-        *mid = static_cast<Server_message_type_id>(id);
-      } break;
-
-      case Mysqlx::ServerMessages::COMPRESSION_MULTIPLE:
-        uint32_t size;
-        cis.ReadLittleEndian32(&size);
-        cis.PushLimit(size);
-        DBUG_LOG("debug", "COMPRESSION_MULTIPLE HEADER size:" << size);
-        *mid = m_compression_inner_message_id;
-        break;
-
-      default:
-        DBUG_LOG("debug", "COMPRESSION_SINGLE HEADER no-data");
-        *mid = m_compression_inner_message_id;
-    }
-
-    message = deserialize_message(*mid, &cis, out_error);
-
-    if (!*out_error) *out_error = m_connection_input_stream->GetIOError();
-  }
-
-  if (!details::has_data(m_compressed_input_stream.get())) {
-    DBUG_LOG("debug", "No more data in compressed packet,"
-                          << " removing compression stream");
-    m_compressed_input_stream.reset();
-  }
-
-  if (*out_error) return nullptr;
-
-  return message.release();
-}
-
 XProtocol::Message *Protocol_impl::recv_message_with_header(
     Server_message_type_id *mid, XError *out_error) {
   DBUG_TRACE;
   uint32_t payload_size = 0;
-
-  if (m_compressed_input_stream) {
-    return read_compressed(mid, out_error);
-  }
 
   Header_message_type_id header_mid;
   *out_error = recv_header(&header_mid, &payload_size);
@@ -1209,79 +943,27 @@ XProtocol::Message *Protocol_impl::recv_message_with_header(
            "Reading X message of type: " << static_cast<int>(header_mid)
                                          << ", and size: " << payload_size);
 
-  const bool is_mid_compressed = details::is_compressed(header_mid);
-
-  if (is_mid_compressed) {
-    m_compression_message_id = static_cast<Server_message_type_id>(header_mid);
-  }
-
   m_connection_input_stream->AllowedRead(payload_size);
 
-  {
-    // The 'cis' variable must be destroyed before doing read_buffered
-    google::protobuf::io::CodedInputStream cis(m_connection_input_stream.get());
+  // The 'cis' variable must be destroyed before doing read_buffered
+  google::protobuf::io::CodedInputStream cis(m_connection_input_stream.get());
 
-    cis.PushLimit(payload_size);
+  cis.PushLimit(payload_size);
 
-    if (!is_mid_compressed) {
-      DBUG_PRINT("info", ("Reading uncompressed X message"));
-      auto result = deserialize_message(header_mid, &cis, out_error);
+  DBUG_PRINT("info", ("Reading uncompressed X message"));
+  auto result = deserialize_message(header_mid, &cis, out_error);
 
-      if (!*out_error) {
-        *out_error = m_connection_input_stream->GetIOError();
-      }
-
-      if (*out_error) {
-        return nullptr;
-      }
-
-      *mid = static_cast<XProtocol::Server_message_type_id>(header_mid);
-
-      return result.release();
-    }
-
-    bool read_ok = true;
-
-    *mid = static_cast<XProtocol::Server_message_type_id>(header_mid);
-
-    switch (*mid) {
-      case Mysqlx::ServerMessages::COMPRESSION_SINGLE:
-      case Mysqlx::ServerMessages::COMPRESSION_MULTIPLE: {
-        Header_message_type_id inner_message_id = 0;
-        read_ok = read_ok && cis.ReadRaw(&inner_message_id, 1);
-        read_ok = read_ok && cis.Skip(4);
-
-        m_compression_inner_message_id =
-            static_cast<Server_message_type_id>(inner_message_id);
-        break;
-      }
-
-      case Mysqlx::ServerMessages::COMPRESSION_GROUP:
-        read_ok = read_ok && cis.Skip(4);
-        break;
-
-      default: {
-      }
-    }
-    if (!read_ok) {
-      *out_error = m_connection_input_stream->GetIOError();
-      return nullptr;
-    }
-
-    bool out_ignore = false;
-    *out_error = dispatch_received(*mid, Mysqlx::ServerMessages(), &out_ignore);
-
-    if (*out_error || out_ignore) {
-      skip_not_parsed(&cis, out_error);
-
-      return nullptr;
-    }
+  if (!*out_error) {
+    *out_error = m_connection_input_stream->GetIOError();
   }
 
-  m_compressed_input_stream =
-      m_compression->downlink(m_connection_input_stream.get());
+  if (*out_error) {
+    return nullptr;
+  }
 
-  return read_compressed(mid, out_error);
+  *mid = static_cast<XProtocol::Server_message_type_id>(header_mid);
+
+  return result.release();
 }
 
 }  // namespace xcl

@@ -98,7 +98,6 @@ class Session_holder {
  private:
   xcl::XError setup_session();
   xcl::XError setup_connection();
-  void setup_compression();
   void setup_ssl();
   void setup_other_options();
   void setup_msg_callbacks();

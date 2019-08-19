@@ -43,13 +43,6 @@ uint32_t Plugin_system_variables::m_interactive_timeout;
 uint32_t Plugin_system_variables::m_document_id_unique_prefix;
 bool Plugin_system_variables::m_enable_hello_notice;
 
-Set_variable Plugin_system_variables::m_compression_algorithms{
-    {"DEFLATE", "LZ4", nullptr}};
-Set_variable Plugin_system_variables::m_compression_server_style{
-    {"SINGLE", "MULTIPLE", "GROUP", nullptr}};
-Set_variable Plugin_system_variables::m_compression_client_style{
-    {"SINGLE", "MULTIPLE", "GROUP", nullptr}};
-
 Ssl_config Plugin_system_variables::ssl_config;
 
 std::vector<Plugin_system_variables::Value_changed_callback>
