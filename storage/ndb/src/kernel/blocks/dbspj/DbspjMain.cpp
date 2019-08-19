@@ -5973,7 +5973,7 @@ Uint32
 Dbspj::lookup_execNODE_FAILREP(Signal* signal,
                                Ptr<Request> requestPtr,
                                Ptr<TreeNode> treeNodePtr,
-                               NdbNodeBitmask mask)
+                               const NdbNodeBitmask mask)
 {
   jam();
   Uint32 node = 0;
@@ -8512,7 +8512,7 @@ Uint32
 Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
                                  Ptr<Request> requestPtr,
                                  Ptr<TreeNode> treeNodePtr,
-                                 NdbNodeBitmask nodes)
+                                 const NdbNodeBitmask nodes)
 {
   jam();
 

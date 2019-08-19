@@ -632,7 +632,7 @@ public:
      * This function is called on node-failure
      */
     Uint32 (Dbspj::*m_execNODE_FAILREP)(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                        NdbNodeBitmask);
+                                        const NdbNodeBitmask);
     /**
      * This function is called when request/node(s) is/are removed
      *  should only do local cleanup(s)

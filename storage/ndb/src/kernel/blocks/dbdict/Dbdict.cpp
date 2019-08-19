@@ -5471,7 +5471,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   }
   else
   {
-    memset(nodeFail->theNodes,
+    memset(nodeFail->theNodes + NdbNodeBitmask48::Size,
            0,
            _NDB_NBM_DIFF_BYTES);
   }
@@ -5483,13 +5483,12 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   c_masterNodeId = nodeFail->masterNodeId;
 
   c_noNodesFailed += numberOfFailedNodes;
-  Uint32 theFailedNodes[NdbNodeBitmask::Size];
-  memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
-  c_reservedCounterMgr.execNODE_FAILREP(signal);
-  c_counterMgr.execNODE_FAILREP(signal);
 
   NdbNodeBitmask failedNodes;
-  failedNodes.assign(NdbNodeBitmask::Size, theFailedNodes);
+  failedNodes.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
+  c_reservedCounterMgr.execNODE_FAILREP(signal, failedNodes);
+  c_counterMgr.execNODE_FAILREP(signal, failedNodes);
+
   c_aliveNodes.bitANDC(failedNodes);
   if (masterFailed && c_masterNodeId == getOwnNodeId())
   {

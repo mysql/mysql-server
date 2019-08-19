@@ -7389,7 +7389,9 @@ Qmgr::execNODE_FAILREP(Signal * signal)
   }
   // make sure any distributed signals get acknowledged
   // destructive of the signal
-  c_counterMgr.execNODE_FAILREP(signal);
+  NdbNodeBitmask failedNodes;
+  failedNodes.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
+  c_counterMgr.execNODE_FAILREP(signal, failedNodes);
 }
 
 void
