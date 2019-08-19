@@ -66,10 +66,19 @@ ProcessLauncher::~ProcessLauncher() {
   }
 }
 
+static std::error_code last_error_code() noexcept {
+#ifdef _WIN32
+  return std::error_code{static_cast<int>(GetLastError()),
+                         std::system_category()};
+#else
+  return std::error_code{errno, std::generic_category()};
+#endif
+}
+
 std::error_code ProcessLauncher::send_shutdown_event(
     ShutdownEvent event /* = ShutdownEvent::TERM */) const noexcept {
+  bool ok{false};
 #ifdef _WIN32
-  bool ok = false;  // need to initialize to avoid -Werror=maybe-uninitialized
   switch (event) {
     case ShutdownEvent::TERM:
       ok = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi.dwProcessId);
@@ -78,11 +87,7 @@ std::error_code ProcessLauncher::send_shutdown_event(
       ok = TerminateProcess(pi.hProcess, 0);
       break;
   }
-
-  return ok ? std::error_code{}
-            : std::error_code(GetLastError(), std::system_category());
 #else
-  bool ok = false;  // need to initialize to avoid -Werror=maybe-uninitialized
   switch (event) {
     case ShutdownEvent::TERM:
       ok = ::kill(childpid, SIGTERM) == 0;
@@ -91,10 +96,9 @@ std::error_code ProcessLauncher::send_shutdown_event(
       ok = ::kill(childpid, SIGKILL) == 0;
       break;
   }
-
-  return ok ? std::error_code{}
-            : std::error_code(errno, std::generic_category());
 #endif
+
+  return ok ? std::error_code{} : last_error_code();
 }
 
 #ifdef _WIN32
@@ -171,21 +175,22 @@ void ProcessLauncher::start() {
   saAttr.bInheritHandle = TRUE;
   saAttr.lpSecurityDescriptor = NULL;
 
-  if (!CreatePipe(&child_out_rd, &child_out_wr, &saAttr, 0))
-    report_error("Failed to create child_out_rd");
+  if (!CreatePipe(&child_out_rd, &child_out_wr, &saAttr, 0)) {
+    throw std::system_error(last_error_code(), "Failed to create child_out_rd");
+  }
 
   if (!SetHandleInformation(child_out_rd, HANDLE_FLAG_INHERIT, 0))
-    report_error("Failed to create child_out_rd");
+    throw std::system_error(last_error_code(), "Failed to create child_out_rd");
 
   // force non blocking IO in Windows
   // DWORD mode = PIPE_NOWAIT;
   // BOOL res = SetNamedPipeHandleState(child_out_rd, &mode, NULL, NULL);
 
   if (!CreatePipe(&child_in_rd, &child_in_wr, &saAttr, 0))
-    report_error("Failed to create child_in_rd");
+    throw std::system_error(last_error_code(), "Failed to create child_in_rd");
 
   if (!SetHandleInformation(child_in_wr, HANDLE_FLAG_INHERIT, 0))
-    report_error("Failed to created child_in_wr");
+    throw std::system_error(last_error_code(), "Failed to created child_in_wr");
 
   std::string arguments = win32::cmdline_from_args(args);
 
@@ -211,7 +216,8 @@ void ProcessLauncher::start() {
                     &pi);                               // lpProcessInformation
 
   if (!bSuccess) {
-    report_error(("Failed to start process " + arguments).c_str());
+    throw std::system_error(last_error_code(),
+                            "Failed to start process " + arguments);
   } else {
     is_alive = true;
   }
@@ -242,7 +248,7 @@ int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
                           std::to_string(timeout.count()) +
                           " ms for the process '" + cmd_line + "' to exit"));
         case WAIT_FAILED:
-          throw std::system_error(GetLastError(), std::system_category());
+          throw std::system_error(last_error_code());
         default:
           throw std::runtime_error(
               "Unexpected error while waiting for the process '" + cmd_line +
@@ -251,9 +257,10 @@ int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
     }
   }
   if (get_ret == FALSE) {
-    DWORD dwError = GetLastError();
-    if (dwError != ERROR_INVALID_HANDLE)  // not closed already?
-      report_error(NULL);
+    auto ec = last_error_code();
+    if (ec != std::error_code(ERROR_INVALID_HANDLE,
+                              std::system_category()))  // not closed already?
+      throw std::system_error(ec);
     else
       dwExit = 128;  // Invalid handle
   }
@@ -261,8 +268,6 @@ int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
 }
 
 int ProcessLauncher::close() {
-  // note: report_error() throws std::system_error
-
   DWORD dwExit;
   if (GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
@@ -274,23 +279,25 @@ int ProcessLauncher::close() {
               .count();
       if (WaitForSingleObject(pi.hProcess, wait_timeout) != WAIT_OBJECT_0) {
         // use the big hammer if that did not work
-        if (send_shutdown_event(ShutdownEvent::KILL)) report_error(NULL);
+        if (send_shutdown_event(ShutdownEvent::KILL))
+          throw std::system_error(last_error_code());
 
         // wait again, if that fails not much we can do
         if (WaitForSingleObject(pi.hProcess, wait_timeout) != WAIT_OBJECT_0) {
-          report_error(NULL);
+          throw std::system_error(last_error_code());
         }
       }
     }
   } else {
-    if (is_alive) report_error(NULL);
+    if (is_alive) throw std::system_error(last_error_code());
   }
 
-  if (!CloseHandle(pi.hProcess)) report_error(NULL);
-  if (!CloseHandle(pi.hThread)) report_error(NULL);
+  if (!CloseHandle(pi.hProcess)) throw std::system_error(last_error_code());
+  if (!CloseHandle(pi.hThread)) throw std::system_error(last_error_code());
 
-  if (!CloseHandle(child_out_rd)) report_error(NULL);
-  if (!child_in_wr_closed && !CloseHandle(child_in_wr)) report_error(NULL);
+  if (!CloseHandle(child_out_rd)) throw std::system_error(last_error_code());
+  if (!child_in_wr_closed && !CloseHandle(child_in_wr))
+    throw std::system_error(last_error_code());
 
   is_alive = false;
   return 0;
@@ -310,11 +317,13 @@ int ProcessLauncher::read(char *buf, size_t count,
         PeekNamedPipe(child_out_rd, NULL, 0, NULL, &dwBytesAvail, NULL);
 
     if (!bSuccess) {
-      DWORD dwCode = GetLastError();
-      if (dwCode == ERROR_NO_DATA || dwCode == ERROR_BROKEN_PIPE)
+      auto ec = last_error_code();
+      if (ec == std::error_code(ERROR_NO_DATA, std::system_category()) ||
+          ec == std::error_code(ERROR_BROKEN_PIPE, std::system_category())) {
         return EOF;
-      else
-        report_error(NULL);
+      } else {
+        throw std::system_error(last_error_code());
+      }
     }
 
     // we got data, let's read it
@@ -338,11 +347,13 @@ int ProcessLauncher::read(char *buf, size_t count,
   BOOL bSuccess = ReadFile(child_out_rd, buf, count, &dwBytesRead, NULL);
 
   if (bSuccess == FALSE) {
-    DWORD dwCode = GetLastError();
-    if (dwCode == ERROR_NO_DATA || dwCode == ERROR_BROKEN_PIPE)
+    auto ec = last_error_code();
+    if (ec == std::error_code(ERROR_NO_DATA, std::system_category()) ||
+        ec == std::error_code(ERROR_BROKEN_PIPE, std::system_category())) {
       return EOF;
-    else
-      report_error(NULL);
+    } else {
+      throw std::system_error(ec);
+    }
   }
 
   return dwBytesRead;
@@ -350,11 +361,15 @@ int ProcessLauncher::read(char *buf, size_t count,
 
 int ProcessLauncher::write(const char *buf, size_t count) {
   DWORD dwBytesWritten;
-  BOOL bSuccess = FALSE;
-  bSuccess = WriteFile(child_in_wr, buf, count, &dwBytesWritten, NULL);
+
+  BOOL bSuccess = WriteFile(child_in_wr, buf, count, &dwBytesWritten, NULL);
   if (!bSuccess) {
-    if (GetLastError() != ERROR_NO_DATA)  // otherwise child process just died.
-      report_error(NULL);
+    auto ec = last_error_code();
+    if (ec !=
+        std::error_code(
+            ERROR_NO_DATA,
+            std::system_category()))  // otherwise child process just died.
+      throw std::system_error(ec);
   } else {
     // When child input buffer is full, this returns zero in NO_WAIT mode.
     return dwBytesWritten;
@@ -367,28 +382,6 @@ void ProcessLauncher::end_of_write() {
   child_in_wr_closed = true;
 }
 
-void ProcessLauncher::report_error(const char *msg, const char *prefix) {
-  DWORD dwCode = GetLastError();
-  LPTSTR lpMsgBuf;
-
-  if (msg != NULL) {
-    throw std::system_error(dwCode, std::generic_category(), msg);
-  } else {
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                      FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL, dwCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                  (LPTSTR)&lpMsgBuf, 0, NULL);
-    std::string msgerr;
-    if (prefix != nullptr) {
-      msgerr += std::string(prefix) + "; ";
-    }
-    msgerr += "SystemError: ";
-    msgerr += lpMsgBuf;
-    msgerr += "with error code %d" + std::to_string(dwCode) + ".";
-    throw std::system_error(dwCode, std::generic_category(), msgerr);
-  }
-}
-
 uint64_t ProcessLauncher::get_fd_write() const { return (uint64_t)child_in_wr; }
 
 uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)child_out_rd; }
@@ -397,10 +390,12 @@ uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)child_out_rd; }
 
 void ProcessLauncher::start() {
   if (pipe(fd_in) < 0) {
-    report_error(NULL, "ProcessLauncher::start() pipe(fd_in)");
+    throw std::system_error(last_error_code(),
+                            "ProcessLauncher::start() pipe(fd_in)");
   }
   if (pipe(fd_out) < 0) {
-    report_error(NULL, "ProcessLauncher::start() pipe(fd_out)");
+    throw std::system_error(last_error_code(),
+                            "ProcessLauncher::start() pipe(fd_out)");
   }
 
   // Ignore broken pipe signal
@@ -408,7 +403,8 @@ void ProcessLauncher::start() {
 
   childpid = fork();
   if (childpid == -1) {
-    report_error(NULL, "ProcessLauncher::start() fork()");
+    throw std::system_error(last_error_code(),
+                            "ProcessLauncher::start() fork()");
   }
 
   if (childpid == 0) {
@@ -419,25 +415,31 @@ void ProcessLauncher::start() {
     ::close(fd_out[0]);
     ::close(fd_in[1]);
     while (dup2(fd_out[1], STDOUT_FILENO) == -1) {
-      if (errno == EINTR)
+      auto ec = last_error_code();
+      if (ec == std::errc::interrupted) {
         continue;
-      else
-        report_error(NULL, "ProcessLauncher::start() dup2()");
+      } else {
+        throw std::system_error(ec, "ProcessLauncher::start() dup2()");
+      }
     }
 
     if (redirect_stderr) {
       while (dup2(fd_out[1], STDERR_FILENO) == -1) {
-        if (errno == EINTR)
+        auto ec = last_error_code();
+        if (ec == std::errc::interrupted) {
           continue;
-        else
-          report_error(NULL, "ProcessLauncher::start() dup2()");
+        } else {
+          throw std::system_error(ec, "ProcessLauncher::start() dup2()");
+        }
       }
     }
     while (dup2(fd_in[0], STDIN_FILENO) == -1) {
-      if (errno == EINTR)
+      auto ec = last_error_code();
+      if (ec == std::errc::interrupted) {
         continue;
-      else
-        report_error(NULL, "ProcessLauncher::start() dup2()");
+      } else {
+        throw std::system_error(ec, "ProcessLauncher::start() dup2()");
+      }
     }
 
     fcntl(fd_out[1], F_SETFD, FD_CLOEXEC);
@@ -445,17 +447,19 @@ void ProcessLauncher::start() {
 
     execvp(cmd_line.c_str(), const_cast<char *const *>(args));
     // if exec returns, there is an error.
-    int my_errno = errno;
+    auto ec = last_error_code();
     fprintf(stderr, "%s could not be executed: %s (errno %d)\n",
-            cmd_line.c_str(), strerror(my_errno), my_errno);
+            cmd_line.c_str(), ec.message().c_str(), ec.value());
 
-    // we need to identify an ENOENT and since some programs return 2 as
-    // exit-code we need to return a non-existent code, 128 is a general
-    // convention used to indicate a failure to execute another program in a
-    // subprocess
-    if (my_errno == 2) my_errno = 128;
-
-    exit(my_errno);
+    if (ec == std::errc::no_such_file_or_directory) {
+      // we need to identify an ENOENT and since some programs return 2 as
+      // exit-code we need to return a non-existent code, 128 is a general
+      // convention used to indicate a failure to execute another program in a
+      // subprocess
+      exit(128);
+    } else {
+      exit(ec.value());
+    }
   } else {
     ::close(fd_out[1]);
     ::close(fd_in[0]);
@@ -522,48 +526,22 @@ int ProcessLauncher::read(char *buf, size_t count,
   FD_SET(fd_out[0], &set);
 
   int res = select(fd_out[0] + 1, &set, NULL, NULL, &timeout_tv);
-  if (res < 0) report_error(nullptr, "select()");
+  if (res < 0) throw std::system_error(last_error_code(), "select()");
   if (res == 0) return 0;
 
   if ((n = (int)::read(fd_out[0], buf, count)) >= 0) return n;
 
-  report_error(nullptr, "read");
-  return -1;
+  throw std::system_error(last_error_code(), "read");
 }
 
 int ProcessLauncher::write(const char *buf, size_t count) {
   int n;
   if ((n = (int)::write(fd_in[1], buf, count)) >= 0) return n;
-  if (errno == EPIPE) return 0;
-  report_error(NULL, "write");
-  return -1;
-}
 
-void ProcessLauncher::report_error(const char *msg, const char *prefix) {
-  char sys_err[64] = {'\0'};
-  int errnum = errno;
-  if (msg == NULL) {
-    // we do this #ifdef dance because on unix systems strerror_r() will
-    // generate a warning if we don't collect the result (warn_unused_result
-    // attribute)
-#if ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) || \
-     (defined _XOPEN_SOURCE && (_XOPEN_SOURCE >= 600))) &&        \
-    !defined _GNU_SOURCE
-    int r = strerror_r(errno, sys_err, sizeof(sys_err));
-    (void)r;  // silence unused variable;
-#elif defined(_GNU_SOURCE) && defined(__GLIBC__)
-    const char *r = strerror_r(errno, sys_err, sizeof(sys_err));
-    (void)r;  // silence unused variable;
-#else
-    strerror_r(errno, sys_err, sizeof(sys_err));
-#endif
+  auto ec = last_error_code();
+  if (ec == std::errc::broken_pipe) return 0;
 
-    std::string s = std::string(prefix) + "; " + std::string(sys_err) +
-                    "with errno ." + std::to_string(errnum);
-    throw std::system_error(errnum, std::generic_category(), s);
-  } else {
-    throw std::system_error(errnum, std::generic_category(), msg);
-  }
+  throw std::system_error(ec, "write");
 }
 
 uint64_t ProcessLauncher::get_pid() const {
@@ -594,7 +572,7 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
       }
     } else if (ret == -1) {
       throw std::system_error(
-          errno, std::generic_category(),
+          last_error_code(),
           std::string("waiting for process '" + cmd_line + "' failed"));
     } else {
       if (WIFEXITED(status)) {

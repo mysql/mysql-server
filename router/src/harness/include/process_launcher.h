@@ -222,13 +222,6 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
 
  private:
   /**
-   * Throws an exception with the specified message, if msg == NULL, the
-   * exception's message is specific of the platform error. (errno in Linux /
-   * GetLastError in Windows).
-   */
-  void report_error(const char *msg, const char *prefix = nullptr);
-
-  /**
    * Closes child process and returns process' exit code.
    *
    * @throws std::system_error if sending signal to child process fails
