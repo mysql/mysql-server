@@ -347,7 +347,7 @@ Gcs_xcom_proxy_impl::~Gcs_xcom_proxy_impl() {
 
   delete m_socket_util;
 
-  ::xcom_input_free_signal_connection();
+  xcom_input_disconnect();
 }
 
 site_def const *Gcs_xcom_proxy_impl::find_site_def(synode_no synode) {
@@ -521,10 +521,14 @@ void Gcs_xcom_proxy_impl::set_should_exit(bool should_exit) {
 bool Gcs_xcom_proxy_impl::xcom_input_connect(std::string const &address,
                                              xcom_port port) {
   m_xcom_input_queue.reset();
-  ::xcom_input_free_signal_connection();
+  xcom_input_disconnect();
   bool const successful =
       ::xcom_input_new_signal_connection(address.c_str(), port);
   return successful;
+}
+
+void Gcs_xcom_proxy_impl::xcom_input_disconnect() {
+  ::xcom_input_free_signal_connection();
 }
 
 bool Gcs_xcom_proxy_impl::xcom_input_try_push(app_data_ptr data) {
