@@ -5433,6 +5433,10 @@ bool Alter_info::add_field(
     if (default_value->type() == Item::FUNC_ITEM) {
       Item_func *func = down_cast<Item_func *>(default_value);
       if (func->basic_const_item()) {
+        if (func->result_type() != INT_RESULT) {
+          my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
+          return true;
+        }
         DBUG_ASSERT(dynamic_cast<Item_func_true *>(func) ||
                     dynamic_cast<Item_func_false *>(func));
         default_value = new Item_int(func->val_int());
