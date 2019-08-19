@@ -32,7 +32,7 @@ bool get_group_members_info(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks,
     Group_member_info_manager_interface *group_member_manager,
     char *channel_name) {
-  if (channel_name != NULL) {
+  if (channel_name != nullptr) {
     callbacks.set_channel_name(callbacks.context, *channel_name,
                                strlen(channel_name));
   }
@@ -41,7 +41,7 @@ bool get_group_members_info(
    This case means that the plugin has never been initialized...
    and one would not be able to extract information
    */
-  if (group_member_manager == NULL) {
+  if (group_member_manager == nullptr) {
     const char *member_state = Group_member_info::get_member_status_string(
         Group_member_info::MEMBER_OFFLINE);
     callbacks.set_member_state(callbacks.context, *member_state,
@@ -59,21 +59,22 @@ bool get_group_members_info(
     /* purecov: end */
   }
 
-  Group_member_info *member_info = NULL;
+  Group_member_info *member_info = nullptr;
   /*
     If the local member is already OFFLINE but still has the previous
     membership because is waiting for the leave view, do not report
     the other members.
   */
-  if (local_member_info != NULL && local_member_info->get_recovery_status() ==
-                                       Group_member_info::MEMBER_OFFLINE) {
+  if (local_member_info != nullptr &&
+      local_member_info->get_recovery_status() ==
+          Group_member_info::MEMBER_OFFLINE) {
     member_info = group_member_manager->get_group_member_info(
         local_member_info->get_uuid());
   } else {
     member_info = group_member_manager->get_group_member_info_by_index(index);
   }
 
-  if (member_info == NULL)  // The requested member is not managed...
+  if (member_info == nullptr)  // The requested member is not managed...
   {
     return true; /* purecov: inspected */
   }
@@ -122,7 +123,7 @@ bool get_group_member_stats(
     Group_member_info_manager_interface *group_member_manager,
     Applier_module *applier_module, Gcs_operations *gcs_module,
     char *channel_name) {
-  if (channel_name != NULL) {
+  if (channel_name != nullptr) {
     callbacks.set_channel_name(callbacks.context, *channel_name,
                                strlen(channel_name));
   }
@@ -131,25 +132,26 @@ bool get_group_member_stats(
    This case means that the plugin has never been initialized...
    and one would not be able to extract information
    */
-  if (group_member_manager == NULL) {
+  if (group_member_manager == nullptr) {
     return false;
   }
 
-  Group_member_info *member_info = NULL;
+  Group_member_info *member_info = nullptr;
   /*
     If the local member is already OFFLINE but still has the previous
     membership because is waiting for the leave view, do not report
     the other members.
   */
-  if (local_member_info != NULL && local_member_info->get_recovery_status() ==
-                                       Group_member_info::MEMBER_OFFLINE) {
+  if (local_member_info != nullptr &&
+      local_member_info->get_recovery_status() ==
+          Group_member_info::MEMBER_OFFLINE) {
     member_info = group_member_manager->get_group_member_info(
         local_member_info->get_uuid());
   } else {
     member_info = group_member_manager->get_group_member_info_by_index(index);
   }
 
-  if (member_info == NULL)  // The requested member is not managed...
+  if (member_info == nullptr)  // The requested member is not managed...
   {
     return true; /* purecov: inspected */
   }
@@ -159,7 +161,7 @@ bool get_group_member_stats(
 
   // Retrieve view information
   Gcs_view *view = gcs_module->get_current_view();
-  if (view != NULL) {
+  if (view != nullptr) {
     const char *view_id_representation =
         view->get_view_id().get_representation().c_str();
     callbacks.set_view_id(callbacks.context, *view_id_representation,
@@ -168,10 +170,10 @@ bool get_group_member_stats(
   }
 
   // Check if the group replication has started and a valid certifier exists
-  if (applier_module != NULL) {
+  if (applier_module != nullptr) {
     // For local member fetch information locally
     Certification_handler *cert = applier_module->get_certification_handler();
-    Certifier_interface *cert_module = (cert ? cert->get_certifier() : NULL);
+    Certifier_interface *cert_module = (cert ? cert->get_certifier() : nullptr);
     if (local_member_info && !local_member_info->get_uuid().compare(uuid) &&
         cert_module) {
       /* certification related data */
@@ -207,7 +209,7 @@ bool get_group_member_stats(
               ->get_transactions_local_rollback());
 
       /* transactions data */
-      char *committed_transactions_buf = NULL;
+      char *committed_transactions_buf = nullptr;
       size_t committed_transactions_buf_length = 0;
       int get_group_stable_transactions_set_string_outcome =
           cert_module->get_group_stable_transactions_set_string(
@@ -228,10 +230,11 @@ bool get_group_member_stats(
           last_conflict_free_transaction.length());
     } else  // Fetch network received information for remote members
     {
-      Pipeline_member_stats *pipeline_stats = NULL;
+      Pipeline_member_stats *pipeline_stats = nullptr;
       if ((pipeline_stats =
                applier_module->get_flow_control_module()->get_pipeline_stats(
-                   member_info->get_gcs_member_id().get_member_id())) != NULL) {
+                   member_info->get_gcs_member_id().get_member_id())) !=
+          nullptr) {
         callbacks.set_last_conflict_free_transaction(
             callbacks.context,
             *pipeline_stats->get_transaction_last_conflict_free().c_str(),
@@ -284,12 +287,12 @@ bool get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks,
     char *group_name_pointer, char *channel_name,
     bool is_group_replication_running) {
-  if (channel_name != NULL) {
+  if (channel_name != nullptr) {
     callbacks.set_channel_name(callbacks.context, *channel_name,
                                strlen(channel_name));
   }
 
-  if (group_name_pointer != NULL) {
+  if (group_name_pointer != nullptr) {
     callbacks.set_group_name(callbacks.context, *group_name_pointer,
                              strlen(group_name_pointer));
     callbacks.set_source_uuid(callbacks.context, *group_name_pointer,

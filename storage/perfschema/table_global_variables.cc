@@ -73,8 +73,8 @@ Plugin_table table_global_variables::m_table_def(
 PFS_engine_table_share table_global_variables::m_share = {
     &pfs_readonly_world_acl,
     table_global_variables::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_global_variables::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -103,7 +103,7 @@ table_global_variables::table_global_variables()
       m_sysvar_cache(false),
       m_pos(0),
       m_next_pos(0),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_global_variables::reset_position(void) {
   m_pos.m_index = 0;
@@ -134,7 +134,7 @@ int table_global_variables::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       m_next_pos.set_after(&m_pos);
       return make_row(system_var);
     }
@@ -152,7 +152,7 @@ int table_global_variables::rnd_pos(const void *pos) {
   DBUG_ASSERT(m_pos.m_index < m_sysvar_cache.size());
 
   const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
-  if (system_var != NULL) {
+  if (system_var != nullptr) {
     return make_row(system_var);
   }
   return HA_ERR_RECORD_DELETED;
@@ -171,7 +171,7 @@ int table_global_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
       sizeof(table_global_variables_context));
   new (m_context) table_global_variables_context(hash_version, false);
 
-  PFS_index_global_variables *result = NULL;
+  PFS_index_global_variables *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_global_variables);
   m_opened_index = result;
@@ -189,7 +189,7 @@ int table_global_variables::index_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       if (m_opened_index->match(system_var)) {
         if (!make_row(system_var)) {
           m_next_pos.set_after(&m_pos);

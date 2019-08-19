@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 
 /** The doublewrite buffer */
-buf_dblwr_t *buf_dblwr = NULL;
+buf_dblwr_t *buf_dblwr = nullptr;
 
 /** Set to TRUE when the doublewrite buffer is being created */
 ibool buf_dblwr_being_created = FALSE;
@@ -54,7 +54,7 @@ ibool buf_dblwr_being_created = FALSE;
  doublewrite buffer */
 ibool buf_dblwr_page_inside(page_no_t page_no) /*!< in: page number */
 {
-  if (buf_dblwr == NULL) {
+  if (buf_dblwr == nullptr) {
     return (FALSE);
   }
 
@@ -209,7 +209,7 @@ start_again:
 
   buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 
-  if (block2 == NULL) {
+  if (block2 == nullptr) {
     ib::error(ER_IB_MSG_97) << cannot_continue;
 
     /* We exit without committing the mtr to prevent
@@ -227,7 +227,7 @@ start_again:
        i++) {
     new_block =
         fseg_alloc_free_page(fseg_header, prev_page_no + 1, FSP_UP, &mtr);
-    if (new_block == NULL) {
+    if (new_block == nullptr) {
       ib::error(ER_IB_MSG_98) << cannot_continue;
 
       mtr_commit(&mtr);
@@ -507,7 +507,7 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
 
     /* Read in the actual page from the file */
     dberr_t err = fil_io(request, true, page_id, page_size, 0,
-                         page_size.physical(), read_buf, NULL);
+                         page_size.physical(), read_buf, nullptr);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_105)
@@ -576,7 +576,7 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
     buffer to the intended position. */
 
     err = fil_io(write_request, true, page_id, page_size, 0,
-                 page_size.physical(), const_cast<byte *>(page), NULL);
+                 page_size.physical(), const_cast<byte *>(page), nullptr);
 
     ut_a(err == DB_SUCCESS);
 
@@ -664,17 +664,17 @@ void buf_dblwr_free(void) {
   os_event_destroy(buf_dblwr->b_event);
   os_event_destroy(buf_dblwr->s_event);
   ut_free(buf_dblwr->write_buf_unaligned);
-  buf_dblwr->write_buf_unaligned = NULL;
+  buf_dblwr->write_buf_unaligned = nullptr;
 
   ut_free(buf_dblwr->buf_block_arr);
-  buf_dblwr->buf_block_arr = NULL;
+  buf_dblwr->buf_block_arr = nullptr;
 
   ut_free(buf_dblwr->in_use);
-  buf_dblwr->in_use = NULL;
+  buf_dblwr->in_use = nullptr;
 
   mutex_free(&buf_dblwr->mutex);
   ut_free(buf_dblwr);
-  buf_dblwr = NULL;
+  buf_dblwr = nullptr;
 }
 
 /** Updates the doublewrite buffer when an IO request is completed. */
@@ -682,7 +682,7 @@ void buf_dblwr_update(
     const buf_page_t *bpage, /*!< in: buffer block descriptor */
     buf_flush_t flush_type)  /*!< in: flush type */
 {
-  if (!srv_use_doublewrite_buf || buf_dblwr == NULL ||
+  if (!srv_use_doublewrite_buf || buf_dblwr == nullptr ||
       fsp_is_system_temporary(bpage->id.space())) {
     return;
   }
@@ -722,7 +722,7 @@ void buf_dblwr_update(
       for (i = srv_doublewrite_batch_size; i < size; ++i) {
         if (buf_dblwr->buf_block_arr[i] == bpage) {
           buf_dblwr->s_reserved--;
-          buf_dblwr->buf_block_arr[i] = NULL;
+          buf_dblwr->buf_block_arr[i] = nullptr;
           buf_dblwr->in_use[i] = false;
           break;
         }
@@ -849,7 +849,7 @@ static void buf_dblwr_write_block_to_datafile(
   dberr_t err;
   IORequest request(type);
 
-  if (bpage->zip.data != NULL) {
+  if (bpage->zip.data != nullptr) {
     ut_ad(bpage->size.is_compressed());
 
     err =
@@ -888,7 +888,7 @@ void buf_dblwr_flush_buffered_writes(void) {
   byte *write_buf;
   ulint first_free;
 
-  if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
+  if (!srv_use_doublewrite_buf || buf_dblwr == nullptr) {
     /* Sync the writes to the disk. */
     buf_dblwr_sync_datafiles();
     return;
@@ -969,7 +969,7 @@ try_again:
 
   err =
       fil_io(IORequestWrite, true, page_id_t(TRX_SYS_SPACE, buf_dblwr->block1),
-             univ_page_size, 0, len, (void *)write_buf, NULL);
+             univ_page_size, 0, len, (void *)write_buf, nullptr);
 
   ut_a(err == DB_SUCCESS);
 
@@ -987,7 +987,7 @@ try_again:
 
   err =
       fil_io(IORequestWrite, true, page_id_t(TRX_SYS_SPACE, buf_dblwr->block2),
-             univ_page_size, 0, len, (void *)write_buf, NULL);
+             univ_page_size, 0, len, (void *)write_buf, nullptr);
 
   ut_a(err == DB_SUCCESS);
 
@@ -1119,7 +1119,7 @@ void buf_dblwr_write_single_page(
 
   ut_a(buf_page_in_file(bpage));
   ut_a(srv_use_doublewrite_buf);
-  ut_a(buf_dblwr != NULL);
+  ut_a(buf_dblwr != nullptr);
 
   /* total number of slots available for single page flushes
   starts from srv_doublewrite_batch_size to the end of the
@@ -1199,14 +1199,14 @@ retry:
     err = fil_io(IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
                  univ_page_size, 0, univ_page_size.physical(),
                  (void *)(buf_dblwr->write_buf + univ_page_size.physical() * i),
-                 NULL);
+                 nullptr);
   } else {
     /* It is a regular page. Write it directly to the
     doublewrite buffer */
 
     err = fil_io(IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
                  univ_page_size, 0, univ_page_size.physical(),
-                 (void *)((buf_block_t *)bpage)->frame, NULL);
+                 (void *)((buf_block_t *)bpage)->frame, nullptr);
   }
 
   ut_a(err == DB_SUCCESS);

@@ -57,16 +57,16 @@ bool pfs_initialized = false;
   It is allocated at startup, or during runtime with scalable buffers.
 */
 void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
-  DBUG_ASSERT(klass != NULL);
+  DBUG_ASSERT(klass != nullptr);
   DBUG_ASSERT(size > 0);
 
-  void *ptr = NULL;
+  void *ptr = nullptr;
 
 #ifdef PFS_ALIGNEMENT
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
   if (unlikely(posix_memalign(&ptr, PFS_ALIGNEMENT, size))) {
-    return NULL;
+    return nullptr;
   }
 #else
 #ifdef HAVE_MEMALIGN
@@ -104,7 +104,7 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
 }
 
 void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr) {
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     return;
   }
 
@@ -140,19 +140,19 @@ void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr) {
 */
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                        myf flags) {
-  DBUG_ASSERT(klass != NULL);
+  DBUG_ASSERT(klass != nullptr);
   DBUG_ASSERT(n > 0);
   DBUG_ASSERT(size > 0);
-  void *ptr = NULL;
+  void *ptr = nullptr;
   size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
                klass->m_class.m_name);
-    return NULL;
+    return nullptr;
   }
 
-  if (NULL == (ptr = pfs_malloc(klass, array_size, flags))) {
+  if (nullptr == (ptr = pfs_malloc(klass, array_size, flags))) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
                klass->m_class.m_name);
   }
@@ -168,7 +168,7 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
 */
 void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                     void *ptr) {
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     return;
   }
   size_t array_size = n * size;

@@ -134,7 +134,7 @@ class Addon_fields {
  public:
   Addon_fields(Addon_fields_array arr)
       : m_field_descriptors(arr),
-        m_addon_buf(NULL),
+        m_addon_buf(nullptr),
         m_addon_buf_length(0),
         m_using_packed_addons(false) {
     DBUG_ASSERT(!arr.is_null());
@@ -146,7 +146,7 @@ class Addon_fields {
 
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
-    if (m_addon_buf != NULL) {
+    if (m_addon_buf != nullptr) {
       DBUG_ASSERT(m_addon_buf_length == sz);
       return m_addon_buf;
     }
@@ -332,8 +332,8 @@ class Sort_param {
 
   /// Are we packing the "addon fields"?
   bool using_packed_addons() const {
-    DBUG_ASSERT(m_using_packed_addons ==
-                (addon_fields != NULL && addon_fields->using_packed_addons()));
+    DBUG_ASSERT(m_using_packed_addons == (addon_fields != nullptr &&
+                                          addon_fields->using_packed_addons()));
     return m_using_packed_addons;
   }
 
@@ -345,7 +345,7 @@ class Sort_param {
 
   /// Are we using "addon fields"? Note that decide_addon_fields() or
   /// init_for_filesort() must be called before checking this.
-  bool using_addon_fields() const { return addon_fields != NULL; }
+  bool using_addon_fields() const { return addon_fields != nullptr; }
 
   /**
     Stores key fields in *dst.

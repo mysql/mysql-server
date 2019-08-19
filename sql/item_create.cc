@@ -1122,7 +1122,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
   DBUG_ASSERT((udf->type == UDFTYPE_FUNCTION) ||
               (udf->type == UDFTYPE_AGGREGATE));
 
-  Item *func = NULL;
+  Item *func = nullptr;
   POS pos;
 
   switch (udf->returns) {
@@ -1761,8 +1761,8 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
   Cast_type type;
   type.target = cast_target;
   type.charset = cs;
-  type.length = NULL;
-  type.dec = NULL;
+  type.length = nullptr;
+  type.dec = nullptr;
   return create_func_cast(thd, pos, a, &type);
 }
 
@@ -2013,7 +2013,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
                               bool send_error) {
   MYSQL_TIME_STATUS status;
   MYSQL_TIME ltime;
-  Item *item = NULL;
+  Item *item = nullptr;
   my_time_flags_t flags = TIME_FUZZY_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
     flags |= TIME_NO_ZERO_IN_DATE;
@@ -2061,7 +2061,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
     ErrConvString err(str, length, thd->variables.character_set_client);
     my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
   }
-  return NULL;
+  return nullptr;
 }
 
 /**

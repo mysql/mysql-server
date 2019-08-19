@@ -91,7 +91,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
       }
       key_buff = info->lastkey + info->s->base.max_key_length;
       start_key_len = _mi_pack_key(info, inx, key_buff, min_key->key,
-                                   min_key->keypart_map, (HA_KEYSEG **)0);
+                                   min_key->keypart_map, (HA_KEYSEG **)nullptr);
       res = rtree_estimate(info, inx, key_buff, start_key_len,
                            myisam_read_vec[min_key->flag]);
       res = res ? res : 1; /* Don't return 0 */

@@ -80,7 +80,7 @@ static char *fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
   FILE *real_in = input->m_file;
   char *line = fgets(buffer, (int)size, real_in);
   if (error) {
-    *error = (line == NULL) ? ferror(real_in) : 0;
+    *error = (line == nullptr) ? ferror(real_in) : 0;
   }
   return line;
 }

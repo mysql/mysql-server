@@ -103,8 +103,8 @@ server_error errors[] = {
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
 
-    {0, 0, 0, 0, 0, 0}  // DUMMY ROW
-#endif                  /* IN_DOXYGEN */
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}  // DUMMY ROW
+#endif                                          /* IN_DOXYGEN */
 };
 }
 

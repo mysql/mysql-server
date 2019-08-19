@@ -254,7 +254,7 @@ class KEY {
     DBUG_ASSERT(key_part_no < actual_key_parts);
     DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
                 rec_per_key_est >= 1.0);
-    DBUG_ASSERT(rec_per_key_float != NULL);
+    DBUG_ASSERT(rec_per_key_float != nullptr);
 
     rec_per_key_float[key_part_no] = rec_per_key_est;
   }
@@ -267,7 +267,7 @@ class KEY {
   */
 
   bool supports_records_per_key() const {
-    if (rec_per_key_float != NULL && rec_per_key != NULL) return true;
+    if (rec_per_key_float != nullptr && rec_per_key != nullptr) return true;
 
     return false;
   }

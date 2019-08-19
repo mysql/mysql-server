@@ -50,7 +50,7 @@ class Xpl_sync_variable : public ::testing::Test {
     Xpl_sync_variable *self = (Xpl_sync_variable *)data;
     self->set_value();
 
-    return NULL;
+    return nullptr;
   }
 
   static void *start_routine_set_and_expect(void *data) {
@@ -58,7 +58,7 @@ class Xpl_sync_variable : public ::testing::Test {
     self->set_value();
     self->m_sut.wait_for(EXPECTED_VALUE_SET_EXPECT);
 
-    return NULL;
+    return nullptr;
   }
 
   void set_value() {

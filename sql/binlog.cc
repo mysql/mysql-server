@@ -3118,7 +3118,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     if (log_file_name)
       binary_log->make_log_name(search_file_name, log_file_name);
     else
-      name = 0;  // Find first log
+      name = nullptr;  // Find first log
 
     linfo.index_file_offset = 0;
 
@@ -3195,7 +3195,7 @@ err:
     my_eof(thd);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->current_linfo = 0;
+  thd->current_linfo = nullptr;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   return errmsg != nullptr;
 }
@@ -5468,8 +5468,9 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
   }
 
   if (!delete_only) {
-    if (!open_index_file(index_file_name, 0, false /*need_lock_index=false*/))
-      error = open_binlog(save_name, 0, max_size, false,
+    if (!open_index_file(index_file_name, nullptr,
+                         false /*need_lock_index=false*/))
+      error = open_binlog(save_name, nullptr, max_size, false,
                           false /*need_lock_index=false*/,
                           false /*need_sid_lock=false*/, nullptr,
                           thd->lex->next_binlog_file_nr) ||
@@ -6120,7 +6121,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge) {
 
   error = (to_log[0] ? purge_logs(to_log, true, false /*need_lock_index=false*/,
                                   true /*need_update_threads=true*/,
-                                  (ulonglong *)0, auto_purge)
+                                  (ulonglong *)nullptr, auto_purge)
                      : 0);
 
 err:
@@ -6356,7 +6357,7 @@ int MYSQL_BIN_LOG::new_file_impl(
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   old_name = name;
-  name = 0;  // Don't free name
+  name = nullptr;  // Don't free name
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX, false /*need_lock_log=false*/,
         false /*need_lock_index=false*/);
 
@@ -6382,7 +6383,8 @@ int MYSQL_BIN_LOG::new_file_impl(
 
   /* reopen index binlog file, BUG#34582 */
   file_to_open = index_file_name;
-  error = open_index_file(index_file_name, 0, false /*need_lock_index=false*/);
+  error = open_index_file(index_file_name, nullptr,
+                          false /*need_lock_index=false*/);
   if (!error) {
     /* reopen the binary log file. */
     file_to_open = new_name_ptr;
@@ -7489,7 +7491,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
   if (using_heuristic_recover()) {
     /* generate a new binlog to mask a corrupted one */
     mysql_mutex_lock(&LOCK_log);
-    open_binlog(opt_name, 0, max_binlog_size, false,
+    open_binlog(opt_name, nullptr, max_binlog_size, false,
                 true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
                 nullptr);
     mysql_mutex_unlock(&LOCK_log);
@@ -8042,7 +8044,7 @@ THD *MYSQL_BIN_LOG::fetch_and_process_flush_stage_queue(
   THD *first_seen =
       Commit_stage_manager::get_instance().fetch_queue_skip_acquire_lock(
           Commit_stage_manager::BINLOG_FLUSH_STAGE);
-  DBUG_ASSERT(first_seen != NULL);
+  DBUG_ASSERT(first_seen != nullptr);
 
   THD *commit_order_thd =
       Commit_stage_manager::get_instance().fetch_queue_skip_acquire_lock(
@@ -8517,7 +8519,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     appointed itself leader for the flush phase.
   */
 
-  if (change_stage(thd, Commit_stage_manager::BINLOG_FLUSH_STAGE, thd, NULL,
+  if (change_stage(thd, Commit_stage_manager::BINLOG_FLUSH_STAGE, thd, nullptr,
                    &LOCK_log)) {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d", thd->thread_id(),
                           thd->commit_error));
@@ -10400,30 +10402,31 @@ class Row_data_memory {
     @param data
     Pointer to the table record.
    */
-  Row_data_memory(TABLE *table, const uchar *data) : m_memory(0) {
+  Row_data_memory(TABLE *table, const uchar *data) : m_memory(nullptr) {
 #ifndef DBUG_OFF
     m_alloc_checked = false;
 #endif
     allocate_memory(table, max_row_length(table, data));
-    m_ptr[0] = has_memory() ? m_memory : 0;
-    m_ptr[1] = 0;
+    m_ptr[0] = has_memory() ? m_memory : nullptr;
+    m_ptr[1] = nullptr;
   }
 
   Row_data_memory(TABLE *table, const uchar *data1, const uchar *data2,
                   ulonglong value_options = 0)
-      : m_memory(0) {
+      : m_memory(nullptr) {
 #ifndef DBUG_OFF
     m_alloc_checked = false;
 #endif
     size_t len1 = max_row_length(table, data1);
     size_t len2 = max_row_length(table, data2, value_options);
     allocate_memory(table, len1 + len2);
-    m_ptr[0] = has_memory() ? m_memory : 0;
-    m_ptr[1] = has_memory() ? m_memory + len1 : 0;
+    m_ptr[0] = has_memory() ? m_memory : nullptr;
+    m_ptr[1] = has_memory() ? m_memory + len1 : nullptr;
   }
 
   ~Row_data_memory() {
-    if (m_memory != 0 && m_release_memory_on_destruction) my_free(m_memory);
+    if (m_memory != nullptr && m_release_memory_on_destruction)
+      my_free(m_memory);
   }
 
   /**
@@ -10436,12 +10439,12 @@ class Row_data_memory {
 #ifndef DBUG_OFF
     m_alloc_checked = true;
 #endif
-    return m_memory != 0;
+    return m_memory != nullptr;
   }
 
   uchar *slot(uint s) {
     DBUG_ASSERT(s < sizeof(m_ptr) / sizeof(*m_ptr));
-    DBUG_ASSERT(m_ptr[s] != 0);
+    DBUG_ASSERT(m_ptr[s] != nullptr);
     DBUG_ASSERT(m_alloc_checked == true);
     return m_ptr[s];
   }
@@ -10585,7 +10588,7 @@ class Row_data_memory {
         allocated. We allocate memory for two records so that it can
         be used when processing update rows as well.
       */
-      if (table->write_row_record == 0)
+      if (table->write_row_record == nullptr)
         table->write_row_record = (uchar *)table->mem_root.Alloc(2 * maxlen);
       m_memory = table->write_row_record;
       m_release_memory_on_destruction = false;
@@ -10626,7 +10629,7 @@ int THD::binlog_write_row(TABLE *table, bool is_trans, uchar const *record,
       binlog_prepare_pending_rows_event<Write_rows_log_event>(
           table, server_id, len, is_trans, extra_row_info);
 
-  if (unlikely(ev == 0)) return HA_ERR_OUT_OF_MEM;
+  if (unlikely(ev == nullptr)) return HA_ERR_OUT_OF_MEM;
 
   return ev->add_row_data(row_data, len);
 }
@@ -10688,7 +10691,7 @@ int THD::binlog_update_row(TABLE *table, bool is_trans,
   if (part_info) {
     ev->m_extra_row_info.set_source_partition_id(source_part_id);
   }
-  if (unlikely(ev == 0)) return HA_ERR_OUT_OF_MEM;
+  if (unlikely(ev == nullptr)) return HA_ERR_OUT_OF_MEM;
 
   error = ev->add_row_data(before_row, before_size) ||
           ev->add_row_data(after_row, after_size);
@@ -10738,7 +10741,7 @@ int THD::binlog_delete_row(TABLE *table, bool is_trans, uchar const *record,
       binlog_prepare_pending_rows_event<Delete_rows_log_event>(
           table, server_id, len, is_trans, extra_row_info);
 
-  if (unlikely(ev == 0)) return HA_ERR_OUT_OF_MEM;
+  if (unlikely(ev == nullptr)) return HA_ERR_OUT_OF_MEM;
 
   error = ev->add_row_data(row_data, len);
 
@@ -10828,7 +10831,7 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional) {
       binlog_table_maps = 0;
     }
 
-    error = mysql_bin_log.flush_and_set_pending_rows_event(this, 0,
+    error = mysql_bin_log.flush_and_set_pending_rows_event(this, nullptr,
                                                            is_transactional);
   }
 

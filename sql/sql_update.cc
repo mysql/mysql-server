@@ -170,7 +170,7 @@ bool compare_records(const TABLE *table) {
       (including NULL bits) not in the write_set may not have been read and
       can therefore not be compared.
     */
-    for (Field **ptr = table->field; *ptr != NULL; ptr++) {
+    for (Field **ptr = table->field; *ptr != nullptr; ptr++) {
       Field *field = *ptr;
       if (bitmap_is_set(table->write_set, field->field_index)) {
         if (field->real_maybe_null()) {
@@ -227,7 +227,7 @@ static bool check_fields(THD *thd, List<Item> &items) {
       result_field on Item_ref which refer on this field
     */
     Item_field *const base_table_field = item->field_for_view_update();
-    DBUG_ASSERT(base_table_field != NULL);
+    DBUG_ASSERT(base_table_field != nullptr);
 
     Item_field *const cloned_field = new Item_field(thd, base_table_field);
     if (!cloned_field) return true; /* purecov: inspected */
@@ -354,10 +354,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     updates are optimized in JOIN::optimize().
   */
   if (conds || order)
-    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
+    static_cast<void>(substitute_gc(thd, select_lex, conds, nullptr, order));
 
   if (conds != nullptr) {
-    COND_EQUAL *cond_equal = NULL;
+    COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
     if (table_list->check_option) {
       /*
@@ -416,8 +416,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
     }
     if (conds != nullptr) {
-      conds = substitute_for_best_equal_field(thd, conds, cond_equal, 0);
-      if (conds == NULL) return true;
+      conds = substitute_for_best_equal_field(thd, conds, cond_equal, nullptr);
+      if (conds == nullptr) return true;
 
       conds->update_used_tables();
     }
@@ -466,7 +466,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     Opt_trace_object wrapper(&thd->opt_trace);
     wrapper.add_utf8_table(update_table_ref);
 
-    if (!no_rows && conds != NULL) {
+    if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       no_rows = test_quick_select(thd, keys_to_use, 0, limit, safe_update,
@@ -598,7 +598,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
         ha_rows examined_rows = 0;
         iterator =
-            create_table_iterator(thd, NULL, &qep_tab, false,
+            create_table_iterator(thd, nullptr, &qep_tab, false,
                                   /*ignore_not_found_rows=*/false,
                                   &examined_rows, /*using_table_scan=*/nullptr);
 
@@ -622,8 +622,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           Filesort has already found and selected the rows we want to update,
           so we don't need the where clause
         */
-        qep_tab.set_quick(NULL);
-        qep_tab.set_condition(NULL);
+        qep_tab.set_quick(nullptr);
+        qep_tab.set_condition(nullptr);
       } else {
         /*
           We are doing a search on a key that is updated. In this case
@@ -664,7 +664,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         if (used_index == MAX_KEY || qep_tab.quick()) {
-          iterator = create_table_iterator(thd, NULL, &qep_tab, false,
+          iterator = create_table_iterator(thd, nullptr, &qep_tab, false,
                                            /*ignore_not_found_rows=*/false,
                                            /*examined_rows=*/nullptr,
                                            /*using_table_scan=*/nullptr);
@@ -750,8 +750,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
 
-        qep_tab.set_quick(NULL);
-        qep_tab.set_condition(NULL);
+        qep_tab.set_quick(nullptr);
+        qep_tab.set_condition(nullptr);
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
@@ -1143,7 +1143,7 @@ static bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update) {
       bool primkey_clustered = (table1->file->primary_key_is_clustered() &&
                                 table1->s->primary_key != MAX_KEY);
 
-      bool table_partitioned = (table1->part_info != NULL);
+      bool table_partitioned = (table1->part_info != nullptr);
 
       if (!table_partitioned && !primkey_clustered) continue;
 
@@ -1312,7 +1312,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   SELECT_LEX *const select = lex->select_lex;
   TABLE_LIST *const table_list = select->get_table_list();
 
-  TABLE_LIST *single_table_updated = NULL;
+  TABLE_LIST *single_table_updated = nullptr;
 
   List<Item> *update_fields = &select->item_list;
   table_map tables_for_update;
@@ -1407,7 +1407,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     Prepared_stmt_arena_holder ps_holder(thd);
     result = new (thd->mem_root)
         Query_result_update(update_fields, update_value_list);
-    if (result == NULL) return true; /* purecov: inspected */
+    if (result == nullptr) return true; /* purecov: inspected */
 
     // The former is for the pre-iterator executor; the latter is for the
     // iterator executor.
@@ -1422,7 +1422,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
 
-  if (setup_fields(thd, Ref_item_array(), *update_fields, UPDATE_ACL, NULL,
+  if (setup_fields(thd, Ref_item_array(), *update_fields, UPDATE_ACL, nullptr,
                    false, true))
     return true;
 
@@ -1438,8 +1438,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   DBUG_ASSERT(update_table_count_local > 0);
 
-  if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL, NULL,
-                   false, false))
+  if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL,
+                   nullptr, false, false))
     return true; /* purecov: inspected */
 
   thd->mark_used_columns = mark_used_columns_saved;
@@ -1496,7 +1496,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
         return true; /* purecov: inspected */
 
       // Mark all containing view references as updating
-      for (TABLE_LIST *ref = tl; ref != NULL; ref = ref->referencing_view)
+      for (TABLE_LIST *ref = tl; ref != nullptr; ref = ref->referencing_view)
         ref->updating = true;
 
       // Check that table is unique, updatability has already been checked.
@@ -1542,7 +1542,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (tr->updating) {
       TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, false);
-      if (duplicate != NULL) {
+      if (duplicate != nullptr) {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
         return true;
       }
@@ -1559,7 +1559,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   for (TABLE_LIST *tl = table_list; tl; tl = tl->next_local) {
     if (tl->is_merged()) {
       DBUG_ASSERT(tl->is_view_or_derived());
-      TABLE_LIST *for_update = NULL;
+      TABLE_LIST *for_update = nullptr;
       if (tl->check_single_table(&for_update, tables_for_update)) {
         my_error(ER_VIEW_MULTIUPDATE, MYF(0), tl->view_db.str,
                  tl->view_name.str);
@@ -1589,7 +1589,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
       return true;
   }
 
-  DBUG_ASSERT(select->having_cond() == NULL &&
+  DBUG_ASSERT(select->having_cond() == nullptr &&
               select->group_list.elements == 0);
 
   if (select->has_ft_funcs() && setup_ftfuncs(thd, select))
@@ -1605,7 +1605,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   if (select->has_sj_candidates() && select->flatten_subqueries(thd))
     return true; /* purecov: inspected */
 
-  select->set_sj_candidates(NULL);
+  select->set_sj_candidates(nullptr);
 
   if (select->apply_local_transforms(thd, true))
     return true; /* purecov: inspected */
@@ -1656,7 +1656,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     }
     // Resolving may be needed for subsequent executions
     if (tr->check_option && !tr->check_option->fixed &&
-        tr->check_option->fix_fields(thd, NULL))
+        tr->check_option->fix_fields(thd, nullptr))
       return true; /* purecov: inspected */
   }
 
@@ -1680,7 +1680,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     /* TODO: add support of view of join support */
     if (tables_to_update & tr->map()) {
       auto dup = new (thd->mem_root) TABLE_LIST(*tr);
-      if (dup == NULL) return true;
+      if (dup == nullptr) return true;
 
       TABLE *const table = tr->table;
 
@@ -1705,21 +1705,21 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   update_tables = update_list.first;
 
   tmp_tables = (TABLE **)thd->mem_calloc(sizeof(TABLE *) * update_table_count);
-  if (tmp_tables == NULL) return true;
+  if (tmp_tables == nullptr) return true;
   tmp_table_param = new (thd->mem_root) Temp_table_param[update_table_count];
-  if (tmp_table_param == NULL) return true;
+  if (tmp_table_param == nullptr) return true;
   fields_for_table =
       (List_item **)thd->alloc(sizeof(List_item *) * update_table_count);
-  if (fields_for_table == NULL) return true;
+  if (fields_for_table == nullptr) return true;
   values_for_table =
       (List_item **)thd->alloc(sizeof(List_item *) * update_table_count);
-  if (values_for_table == NULL) return true;
+  if (values_for_table == nullptr) return true;
 
-  DBUG_ASSERT(update_operations == NULL);
+  DBUG_ASSERT(update_operations == nullptr);
   update_operations =
       (COPY_INFO **)thd->mem_calloc(sizeof(COPY_INFO *) * update_table_count);
 
-  if (update_operations == NULL) return true;
+  if (update_operations == nullptr) return true;
   for (uint i = 0; i < update_table_count; i++) {
     fields_for_table[i] = new (thd->mem_root) List_item;
     values_for_table[i] = new (thd->mem_root) List_item;
@@ -1745,7 +1745,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
                                              select->leaf_table_count));
   copy_field = new (thd->mem_root) Copy_field[max_fields];
 
-  for (TABLE_LIST *ref = leaves; ref != NULL; ref = ref->next_leaf) {
+  for (TABLE_LIST *ref = leaves; ref != nullptr; ref = ref->next_leaf) {
     if (tables_to_update & ref->map()) {
       const uint position = ref->shared;
       List<Item> *cols = fields_for_table[position];
@@ -1754,7 +1754,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
       COPY_INFO *update = new (thd->mem_root)
           COPY_INFO(COPY_INFO::UPDATE_OPERATION, cols, vals);
-      if (update == NULL ||
+      if (update == nullptr ||
           update->add_function_default_columns(table, table->write_set))
         return true;
 
@@ -1872,7 +1872,7 @@ bool Query_result_update::optimize() {
       error_if_full_join(join))
     return true;
   main_table = join->best_ref[0]->table();
-  table_to_update = 0;
+  table_to_update = nullptr;
 
   /* Any update has at least one pair (field, value) */
   DBUG_ASSERT(fields->elements);
@@ -2084,7 +2084,7 @@ void Query_result_update::cleanup(THD *thd) {
       trans_safe || updated_rows == 0 ||
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
-  if (update_operations != NULL)
+  if (update_operations != nullptr)
     for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
 }
 
@@ -2228,13 +2228,13 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       fill_record(thd, tmp_table,
                   tmp_table->visible_field_ptr() + 1 +
                       unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], NULL, NULL, false);
+                  *values_for_table[offset], nullptr, nullptr, false);
 
       /* Write row, ignoring duplicated updates to a row */
       error = tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE) {
         if (error &&
-            create_ondisk_from_heap(thd, tmp_table, error, true, NULL)) {
+            create_ondisk_from_heap(thd, tmp_table, error, true, nullptr)) {
           update_completed = true;
           return true;  // Not a table_is_full error
         }
@@ -2634,7 +2634,8 @@ bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
     if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
 
   // Where clause
-  if (select->where_cond() != NULL && walk_item(select->where_cond(), visitor))
+  if (select->where_cond() != nullptr &&
+      walk_item(select->where_cond(), visitor))
     return true;
 
   // Order clause

@@ -67,7 +67,7 @@ Plugin_table table_ews_by_account_by_event_name::m_table_def(
 PFS_engine_table_share table_ews_by_account_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_ews_by_account_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ews_by_account_by_event_name::delete_all_rows,
     table_ews_by_account_by_event_name::get_row_count,
     sizeof(pos_ews_by_account_by_event_name),
@@ -142,7 +142,7 @@ int table_ews_by_account_by_event_name::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
-    if (account != NULL) {
+    if (account != nullptr) {
       for (; m_pos.has_more_view(); m_pos.next_view()) {
         switch (m_pos.m_index_2) {
           case pos_ews_by_account_by_event_name::VIEW_MUTEX:
@@ -170,7 +170,7 @@ int table_ews_by_account_by_event_name::rnd_next(void) {
             instr_class = find_metadata_class(m_pos.m_index_3);
             break;
           default:
-            instr_class = NULL;
+            instr_class = nullptr;
             DBUG_ASSERT(false);
             break;
         }
@@ -193,7 +193,7 @@ int table_ews_by_account_by_event_name::rnd_pos(const void *pos) {
   set_position(pos);
 
   account = global_account_container.get(m_pos.m_index_1);
-  if (account == NULL) {
+  if (account == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -223,7 +223,7 @@ int table_ews_by_account_by_event_name::rnd_pos(const void *pos) {
       instr_class = find_metadata_class(m_pos.m_index_3);
       break;
     default:
-      instr_class = NULL;
+      instr_class = nullptr;
       DBUG_ASSERT(false);
   }
 
@@ -236,7 +236,7 @@ int table_ews_by_account_by_event_name::rnd_pos(const void *pos) {
 
 int table_ews_by_account_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_ews_by_account_by_event_name *result = NULL;
+  PFS_index_ews_by_account_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ews_by_account_by_event_name);
   m_opened_index = result;
@@ -251,7 +251,7 @@ int table_ews_by_account_by_event_name::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
-    if (account != NULL) {
+    if (account != nullptr) {
       if (m_opened_index->match(account)) {
         for (; m_pos.has_more_view(); m_pos.next_view()) {
           if (!m_opened_index->match_view(m_pos.m_index_2)) {
@@ -285,12 +285,12 @@ int table_ews_by_account_by_event_name::index_next(void) {
                 instr_class = find_metadata_class(m_pos.m_index_3);
                 break;
               default:
-                instr_class = NULL;
+                instr_class = nullptr;
                 DBUG_ASSERT(false);
                 break;
             }
 
-            if (instr_class != NULL) {
+            if (instr_class != nullptr) {
               if (m_opened_index->match(instr_class)) {
                 if (!make_row(account, instr_class)) {
                   m_next_pos.set_after(&m_pos);
@@ -299,7 +299,7 @@ int table_ews_by_account_by_event_name::index_next(void) {
               }
               m_pos.set_after(&m_pos);
             }
-          } while (instr_class != NULL);
+          } while (instr_class != nullptr);
         }
       }
     }

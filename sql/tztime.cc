@@ -1190,7 +1190,7 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
 const String *Time_zone_utc::get_name() const {
   /* Should be never called */
   DBUG_ASSERT(0);
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -1410,7 +1410,7 @@ static bool tz_inited = false;
   shared by all time zones.
 */
 static uint tz_leapcnt = 0;
-static LS_INFO *tz_lsis = 0;
+static LS_INFO *tz_lsis = nullptr;
 
 /*
   Shows whenever we have found time zone tables during start-up.
@@ -1727,17 +1727,17 @@ void my_tz_free() {
 
 static Time_zone *tz_load_from_open_tables(const String *tz_name,
                                            TABLE_LIST *tz_tables) {
-  TABLE *table = 0;
-  TIME_ZONE_INFO *tz_info = NULL;
+  TABLE *table = nullptr;
+  TIME_ZONE_INFO *tz_info = nullptr;
   Tz_names_entry *tmp_tzname;
-  Time_zone *return_val = 0;
+  Time_zone *return_val = nullptr;
   int res;
   uint tzid, ttid;
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
-  char *alloc_buff = NULL;
-  char *tz_name_buff = NULL;
+  char *alloc_buff = nullptr;
+  char *tz_name_buff = nullptr;
   /*
     Temporary arrays that are used for loading of data for filling
     TIME_ZONE_INFO structure
@@ -1936,7 +1936,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   }
 
   (void)table->file->ha_index_end();
-  table = 0;
+  table = nullptr;
 
   /*
     Let us check how correct our time zone description is. We don't check for
@@ -1951,7 +1951,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   if (!(alloc_buff = (char *)tz_storage.Alloc(sizeof(TIME_ZONE_INFO) +
                                               tz_name->length() + 1))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
-    return 0;
+    return nullptr;
   }
 
   /* Move the temporary tz_info into the allocated area */

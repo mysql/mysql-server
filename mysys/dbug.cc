@@ -212,7 +212,7 @@ static bool init_done = false; /* Set to true when initialization done */
   Protected by @c THR_LOCK_init_settings.
 */
 static struct settings init_settings;
-static const char *db_process = 0; /* Pointer to process name; argv[0] */
+static const char *db_process = nullptr; /* Pointer to process name; argv[0] */
 
 struct CODE_STATE {
   const char *process; /* Pointer to process name; usually argv[0] */
@@ -323,15 +323,16 @@ static CODE_STATE *code_state(void) {
 
   if (!init_done) {
     init_done = true;
-    native_mutex_init(&THR_LOCK_dbug, NULL);
-    native_mutex_init(&THR_LOCK_gcov, NULL);
+    native_mutex_init(&THR_LOCK_dbug, nullptr);
+    native_mutex_init(&THR_LOCK_gcov, nullptr);
     native_rw_init(&THR_LOCK_init_settings);
     memset(&init_settings, 0, sizeof(init_settings));
     init_settings.out_file = stderr;
     init_settings.flags = OPEN_APPEND;
   }
 
-  if (!(cs_ptr = my_thread_var_dbug())) return 0; /* Thread not initialised */
+  if (!(cs_ptr = my_thread_var_dbug()))
+    return nullptr; /* Thread not initialised */
   if (!(cs = *cs_ptr)) {
     cs = (CODE_STATE *)DbugMalloc(sizeof(*cs));
     memset(cs, 0, sizeof(*cs));
@@ -466,11 +467,11 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
     stack->maxdepth = 0;
     stack->sub_level = 0;
     stack->out_file = stderr;
-    stack->prof_file = NULL;
-    stack->functions = NULL;
-    stack->p_functions = NULL;
-    stack->keywords = NULL;
-    stack->processes = NULL;
+    stack->prof_file = nullptr;
+    stack->functions = nullptr;
+    stack->p_functions = nullptr;
+    stack->keywords = nullptr;
+    stack->processes = nullptr;
   } else if (!stack->out_file) {
     stack->flags = stack->next->flags;
     stack->delay = stack->next->delay;
@@ -515,7 +516,7 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
       case 'd':
         if (sign < 0 && control == end) {
           if (!is_shared(stack, keywords)) FreeList(stack->keywords);
-          stack->keywords = NULL;
+          stack->keywords = nullptr;
           stack->flags &= ~DEBUG_ON;
           break;
         }
@@ -525,13 +526,13 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
           if (DEBUGGING) {
             stack->keywords = ListDel(stack->keywords, control, end);
             /* Turn off DEBUG_ON if it is last keyword to be removed. */
-            if (stack->keywords == NULL) stack->flags &= ~DEBUG_ON;
+            if (stack->keywords == nullptr) stack->flags &= ~DEBUG_ON;
           }
           break;
         }
 
         /* Do not add keyword if debugging all is enabled. */
-        if (!(DEBUGGING && stack->keywords == NULL)) {
+        if (!(DEBUGGING && stack->keywords == nullptr)) {
           stack->keywords = ListAdd(stack->keywords, control, end);
           stack->flags |= DEBUG_ON;
         }
@@ -539,7 +540,7 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
         /* If debug all is enabled, make the keyword list empty. */
         if (sign == 1 && control == end) {
           FreeList(stack->keywords);
-          stack->keywords = NULL;
+          stack->keywords = nullptr;
         }
 
         break;
@@ -550,7 +551,7 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
         f_used = 1;
         if (sign < 0 && control == end) {
           if (!is_shared(stack, functions)) FreeList(stack->functions);
-          stack->functions = NULL;
+          stack->functions = nullptr;
           break;
         }
         if (rel && is_shared(stack, functions))
@@ -610,12 +611,12 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
         if (control != end)
           DBUGOpenFile(cs, control, end, stack->flags & OPEN_APPEND);
         else
-          DBUGOpenFile(cs, "-", 0, 0);
+          DBUGOpenFile(cs, "-", nullptr, 0);
         break;
       case 'p':
         if (sign < 0 && control == end) {
           if (!is_shared(stack, processes)) FreeList(stack->processes);
-          stack->processes = NULL;
+          stack->processes = nullptr;
           break;
         }
         if (rel && is_shared(stack, processes))
@@ -667,13 +668,13 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
     /*
       Enforce nothing is shared with the global init_settings
     */
-    assert((stack->functions == NULL) ||
+    assert((stack->functions == nullptr) ||
            (stack->functions != init_settings.functions));
-    assert((stack->p_functions == NULL) ||
+    assert((stack->p_functions == nullptr) ||
            (stack->p_functions != init_settings.p_functions));
-    assert((stack->keywords == NULL) ||
+    assert((stack->keywords == nullptr) ||
            (stack->keywords != init_settings.keywords));
-    assert((stack->processes == NULL) ||
+    assert((stack->processes == nullptr) ||
            (stack->processes != init_settings.processes));
   }
 
@@ -721,7 +722,7 @@ static void FixTraceFlags(uint old_fflags, CODE_STATE *cs) {
     if we haven't started tracing yet, no call stack at all - we're safe.
   */
   framep = cs->framep;
-  if (framep == 0) return;
+  if (framep == nullptr) return;
 
   /*
     Ok, the tracing has started, call stack isn't empty.
@@ -855,7 +856,7 @@ void _db_push_(const char *control) {
 */
 
 int _db_is_pushed_() {
-  CODE_STATE *cs = NULL;
+  CODE_STATE *cs = nullptr;
   get_code_state_or_return false;
   return (cs->stack != &init_settings);
 }
@@ -1123,7 +1124,7 @@ void _db_enter_(const char *_func_, int func_len, const char *_file_,
   if (!((cs = code_state()))) {
     _stack_frame_->level =
         0; /* Set to avoid valgrind warnings if dbug is enabled later */
-    _stack_frame_->prev = 0;
+    _stack_frame_->prev = nullptr;
     return;
   }
   save_errno = errno;
@@ -1221,7 +1222,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_) {
   cs->func = _stack_frame_->func;
   cs->func_len = _stack_frame_->func_len;
   cs->file = _stack_frame_->file;
-  if (cs->framep != NULL) cs->framep = cs->framep->prev;
+  if (cs->framep != nullptr) cs->framep = cs->framep->prev;
   errno = save_errno;
 
   unlock_stack(cs);
@@ -1482,7 +1483,7 @@ next:
     memcpy((*cur)->str, start, len);
     (*cur)->str[len] = 0;
     (*cur)->flags = todo | subdir;
-    (*cur)->next_link = 0;
+    (*cur)->next_link = nullptr;
   }
   return head;
 }
@@ -1515,8 +1516,8 @@ static struct link *ListCopy(struct link *orig) {
   struct link *head;
   size_t len;
 
-  head = NULL;
-  while (orig != NULL) {
+  head = nullptr;
+  while (orig != nullptr) {
     len = strlen(orig->str);
     new_malloc = (struct link *)DbugMalloc(sizeof(struct link) + len);
     memcpy(new_malloc->str, orig->str, len);
@@ -1553,7 +1554,7 @@ static struct link *ListCopy(struct link *orig) {
 static int InList(struct link *linkp, const char *cp) {
   int result;
 
-  for (result = MATCHED; linkp != NULL; linkp = linkp->next_link) {
+  for (result = MATCHED; linkp != nullptr; linkp = linkp->next_link) {
     if (!fnmatch(linkp->str, cp, 0)) return linkp->flags;
     if (!(linkp->flags & EXCLUDE)) result = NOT_MATCHED;
     if (linkp->flags & SUBDIR) result |= SUBDIR;
@@ -1570,7 +1571,7 @@ static int InList(struct link *linkp, const char *cp) {
 
 static uint ListFlags(struct link *linkp) {
   uint f;
-  for (f = 0; linkp != NULL; linkp = linkp->next_link) f |= linkp->flags;
+  for (f = 0; linkp != nullptr; linkp = linkp->next_link) f |= linkp->flags;
   return f;
 }
 
@@ -1686,10 +1687,10 @@ void _db_end_() {
   init_settings.maxdepth = 0;
   init_settings.delay = 0;
   init_settings.sub_level = 0;
-  init_settings.functions = 0;
-  init_settings.p_functions = 0;
-  init_settings.keywords = 0;
-  init_settings.processes = 0;
+  init_settings.functions = nullptr;
+  init_settings.p_functions = nullptr;
+  init_settings.keywords = nullptr;
+  init_settings.processes = nullptr;
   native_rw_unlock(&THR_LOCK_init_settings);
   FreeState(cs, &tmp, 0);
 }
@@ -1730,7 +1731,7 @@ static int DoTrace(CODE_STATE *cs) {
 
 FILE *_db_fp_(void) {
   CODE_STATE *cs;
-  get_code_state_or_return NULL;
+  get_code_state_or_return nullptr;
   return cs->stack->out_file;
 }
 
@@ -1825,7 +1826,7 @@ static void Indent(CODE_STATE *cs, int indent) {
 static void FreeList(struct link *linkp) {
   struct link *old;
 
-  while (linkp != NULL) {
+  while (linkp != nullptr) {
     old = linkp;
     linkp = linkp->next_link;
     free((void *)old);
@@ -1873,7 +1874,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_) {
 #else
     struct timeval tv;
     struct tm *tm_p;
-    if (gettimeofday(&tv, NULL) != -1) {
+    if (gettimeofday(&tv, nullptr) != -1) {
       if ((tm_p = localtime((const time_t *)&tv.tv_sec))) {
         (void)fprintf(cs->stack->out_file,
                       /* "%04d-%02d-%02d " */
@@ -1916,7 +1917,7 @@ static void DBUGOpenFile(CODE_STATE *cs, const char *name, const char *end,
                          int append) {
   FILE *fp;
 
-  if (name != NULL) {
+  if (name != nullptr) {
     if (end) {
       size_t len = end - name;
       memcpy(cs->stack->name, name, len);
@@ -1964,7 +1965,7 @@ static void DBUGOpenFile(CODE_STATE *cs, const char *name, const char *end,
  */
 
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp) {
-  if (fp != NULL && fp != stderr && fp != stdout && fclose(fp) == EOF) {
+  if (fp != nullptr && fp != stderr && fp != stdout && fclose(fp) == EOF) {
     native_mutex_lock(&THR_LOCK_dbug);
     (void)fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
@@ -2095,12 +2096,12 @@ static bool Writable(const char *pathname) {
     if (my_access(pathname, W_OK) == 0) granted = true;
   } else {
     lastslash = strrchr(const_cast<char *>(pathname), '/');
-    if (lastslash != NULL)
+    if (lastslash != nullptr)
       *lastslash = '\0';
     else
       pathname = ".";
     if (my_access(pathname, W_OK) == 0) granted = true;
-    if (lastslash != NULL) *lastslash = '/';
+    if (lastslash != nullptr) *lastslash = '/';
   }
   return granted;
 }
@@ -2120,7 +2121,7 @@ static void DbugFlush(CODE_STATE *cs) {
 /* For debugging */
 
 void _db_flush_() {
-  CODE_STATE *cs = NULL;
+  CODE_STATE *cs = nullptr;
   get_code_state_or_return;
   (void)fflush(cs->stack->out_file);
 }

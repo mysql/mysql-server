@@ -334,9 +334,9 @@ void Raw_new_record::finalize() {
 
   m_table->autoinc_field_has_explicit_non_null_value = false;
   m_table->file->ha_release_auto_increment();
-  m_table->next_number_field = NULL;
+  m_table->next_number_field = nullptr;
 
-  m_table = NULL;
+  m_table = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////

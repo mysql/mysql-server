@@ -56,7 +56,7 @@ bool my_ref_counted::release_reference(uint64 *new_count) {
     }
   } while (!m_count.compare_exchange_weak(old_val, old_val - 1));
 
-  if (new_count != NULL) {
+  if (new_count != nullptr) {
     *new_count = old_val - 1;
   }
   return false;

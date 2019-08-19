@@ -43,7 +43,7 @@ class Client;
 
 class Protocol_monitor : public iface::Protocol_monitor {
  public:
-  Protocol_monitor() : m_client(0) {}
+  Protocol_monitor() : m_client(nullptr) {}
   void init(Client *client);
 
   void on_notice_warning_send() override;

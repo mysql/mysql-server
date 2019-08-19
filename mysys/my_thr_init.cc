@@ -320,7 +320,7 @@ extern "C" void my_thread_end() {
     if (tmp->dbug) {
       DBUG_POP();
       free(tmp->dbug);
-      tmp->dbug = NULL;
+      tmp->dbug = nullptr;
     }
     free(tmp);
 
@@ -335,7 +335,7 @@ extern "C" void my_thread_end() {
     if (--THR_thread_count == 0) mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
   }
-  set_mysys_thread_var(NULL);
+  set_mysys_thread_var(nullptr);
 #endif
 }
 
@@ -356,7 +356,7 @@ void set_my_thread_var_id(my_thread_id id) { mysys_thread_var()->id = id; }
 
 CODE_STATE **my_thread_var_dbug() {
   struct st_my_thread_var *tmp = THR_mysys;
-  return tmp ? &tmp->dbug : NULL;
+  return tmp ? &tmp->dbug : nullptr;
 }
 #endif /* DBUG_OFF */
 

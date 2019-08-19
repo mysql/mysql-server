@@ -40,20 +40,20 @@ struct sql_digest_storage;
 volatile bool ready_to_exit = false;
 
 uint lower_case_table_names = 0;
-CHARSET_INFO *files_charset_info = NULL;
-CHARSET_INFO *system_charset_info = NULL;
+CHARSET_INFO *files_charset_info = nullptr;
+CHARSET_INFO *system_charset_info = nullptr;
 
 void compute_digest_hash(const sql_digest_storage *, unsigned char *) {}
 
 void reset_status_vars() {}
 
 struct System_status_var *get_thd_status_var(THD *, bool *) {
-  return NULL;
+  return nullptr;
 }
 
 unsigned int mysql_errno_to_sqlstate_index(unsigned int) { return 0; }
 
-SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return NULL; }
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
 
 int mysql_plugin_registry_release(SERVICE_TYPE(registry) *
                                   reg MY_ATTRIBUTE((unused))) {

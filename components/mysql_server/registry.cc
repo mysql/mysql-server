@@ -109,7 +109,7 @@ mysql_registry_imp::get_service_implementation_by_interface(
   my_interface_mapping::const_iterator iter =
       mysql_registry_imp::interface_mapping.find(interface);
   if (iter == mysql_registry_imp::interface_mapping.cend()) {
-    return NULL;
+    return nullptr;
   }
 
   return iter->second;
@@ -151,7 +151,7 @@ uint64_t mysql_registry_imp::get_service_implementation_reference_count(
 bool mysql_registry_imp::acquire_nolock(const char *service_name,
                                         my_h_service *out_service) {
   try {
-    if (out_service == NULL) {
+    if (out_service == nullptr) {
       return true;
     }
     my_service_registry::const_iterator iter;
@@ -182,13 +182,13 @@ bool mysql_registry_imp::acquire_nolock(const char *service_name,
 */
 bool mysql_registry_imp::release_nolock(my_h_service service) {
   try {
-    if (service == NULL) {
+    if (service == nullptr) {
       return true;
     }
 
     mysql_service_implementation *service_implementation =
         mysql_registry_imp::get_service_implementation_by_interface(service);
-    if (service_implementation == NULL) {
+    if (service_implementation == nullptr) {
       return true;
     }
     return service_implementation->release_reference();
@@ -366,17 +366,17 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::acquire_related,
 
     mysql_service_implementation *service_implementation =
         mysql_registry_imp::get_service_implementation_by_interface(service);
-    if (service_implementation == NULL) {
+    if (service_implementation == nullptr) {
       return true;
     }
     /* Find dot, the component name is right after the dot. */
     const char *component_part =
         strchr(service_implementation->name_c_str(), '.');
-    if (component_part == NULL) {
+    if (component_part == nullptr) {
       return true;
     }
     /* Assure given service_name is not fully qualified. */
-    if (strchr(service_name, '.') != NULL) {
+    if (strchr(service_name, '.') != nullptr) {
       return true;
     }
     my_string service_implementation_name =
@@ -570,7 +570,7 @@ DEFINE_METHOD(void, mysql_registry_imp::iterator_release,
 DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_get,
                    (my_h_service_iterator iterator, const char **out_name)) {
   try {
-    *out_name = NULL;
+    *out_name = nullptr;
 
     if (!iterator) return true;
 

@@ -54,22 +54,22 @@
 const char *ssl_mode_names_lib[] = {"DISABLED",  "PREFERRED",       "REQUIRED",
                                     "VERIFY_CA", "VERIFY_IDENTITY", NullS};
 TYPELIB ssl_mode_typelib = {array_elements(ssl_mode_names_lib) - 1, "",
-                            ssl_mode_names_lib, NULL};
+                            ssl_mode_names_lib, nullptr};
 
 const char *ssl_fips_mode_names_lib[] = {"OFF", "ON", "STRICT", NullS};
 TYPELIB ssl_fips_mode_typelib = {array_elements(ssl_fips_mode_names_lib) - 1,
-                                 "", ssl_fips_mode_names_lib, NULL};
+                                 "", ssl_fips_mode_names_lib, nullptr};
 
 static uint opt_ssl_mode = SSL_MODE_PREFERRED;
-static char *opt_ssl_ca = 0;
-static char *opt_ssl_capath = 0;
-static char *opt_ssl_cert = 0;
-static char *opt_ssl_cipher = 0;
-static char *opt_tls_ciphersuites = 0;
-static char *opt_ssl_key = 0;
-static char *opt_ssl_crl = 0;
-static char *opt_ssl_crlpath = 0;
-static char *opt_tls_version = 0;
+static char *opt_ssl_ca = nullptr;
+static char *opt_ssl_capath = nullptr;
+static char *opt_ssl_cert = nullptr;
+static char *opt_ssl_cipher = nullptr;
+static char *opt_tls_ciphersuites = nullptr;
+static char *opt_ssl_key = nullptr;
+static char *opt_ssl_crl = nullptr;
+static char *opt_ssl_crlpath = nullptr;
+static char *opt_tls_version = nullptr;
 static ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static bool ssl_mode_set_explicitly = false;
 
@@ -90,7 +90,8 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
     mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca, opt_ssl_capath,
                   opt_ssl_cipher);
   else
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, NULL, NULL, opt_ssl_cipher);
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, nullptr, nullptr,
+                  opt_ssl_cipher);
   mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
   mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
   mysql_options(mysql, MYSQL_OPT_TLS_VERSION, opt_tls_version);

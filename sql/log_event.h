@@ -1914,7 +1914,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
         Log_event(thd_arg, 0, cache_type_arg, logging_type_arg, header(),
                   footer()),
         deferred(false) {
-    common_header->set_is_valid(name != 0);
+    common_header->set_is_valid(name != nullptr);
   }
   int pack_info(Protocol *protocol) override;
 #else

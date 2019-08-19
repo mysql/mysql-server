@@ -91,7 +91,7 @@ static struct my_err_head {
   const char *(*get_errmsg)(int); /* returns error message format */
   int meh_first;                  /* error number matching array slot 0 */
   int meh_last;                   /* error number matching last slot */
-} my_errmsgs_globerrs = {NULL, get_global_errmsg, EE_ERROR_FIRST,
+} my_errmsgs_globerrs = {nullptr, get_global_errmsg, EE_ERROR_FIRST,
                          EE_ERROR_LAST};
 
 static struct my_err_head *my_errmsgs_list = &my_errmsgs_globerrs;
@@ -118,7 +118,7 @@ char *my_strerror(char *buf, size_t len, int nr) {
   if ((nr >= HA_ERR_FIRST) && (nr <= HA_ERR_LAST))
     msg = handler_error_messages[nr - HA_ERR_FIRST];
 
-  if (msg != NULL)
+  if (msg != nullptr)
     strmake(buf, msg, len - 1);
   else {
     /*
@@ -194,9 +194,9 @@ const char *my_get_err_msg(int nr) {
     we return NULL.
   */
   if (!(format = (meh_p && (nr >= meh_p->meh_first)) ? meh_p->get_errmsg(nr)
-                                                     : NULL) ||
+                                                     : nullptr) ||
       !*format)
-    return NULL;
+    return nullptr;
 
   return format;
 }
@@ -410,14 +410,14 @@ bool my_error_unregister(int first, int last) {
 void my_error_unregister_all(void) {
   struct my_err_head *cursor, *saved_next;
 
-  for (cursor = my_errmsgs_globerrs.meh_next; cursor != NULL;
+  for (cursor = my_errmsgs_globerrs.meh_next; cursor != nullptr;
        cursor = saved_next) {
     /* We need this ptr, but we're about to free its container, so save it. */
     saved_next = cursor->meh_next;
 
     my_free(cursor);
   }
-  my_errmsgs_globerrs.meh_next = NULL; /* Freed in first iteration above. */
+  my_errmsgs_globerrs.meh_next = nullptr; /* Freed in first iteration above. */
 
   my_errmsgs_list = &my_errmsgs_globerrs;
 }

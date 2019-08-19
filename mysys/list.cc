@@ -50,7 +50,7 @@ LIST *list_add(LIST *root, LIST *element) {
     element->prev = root->prev;
     root->prev = element;
   } else
-    element->prev = 0;
+    element->prev = nullptr;
   element->next = root;
   return element; /* New root */
 }
@@ -77,7 +77,7 @@ void list_free(LIST *root, uint free_data) {
 LIST *list_cons(void *data, LIST *list) {
   LIST *new_charset =
       (LIST *)my_malloc(key_memory_LIST, sizeof(LIST), MYF(MY_FAE));
-  if (!new_charset) return 0;
+  if (!new_charset) return nullptr;
   new_charset->data = data;
   return list_add(list, new_charset);
 }

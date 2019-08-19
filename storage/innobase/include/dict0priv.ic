@@ -53,11 +53,11 @@ dict_table_t *dict_table_get_low(const char *table_name) /*!< in: table name */
     if (srv_load_corrupted) {
       error << ", but innodb_force_load_corrupted is set";
     } else {
-      return (NULL);
+      return (nullptr);
     }
   }
 
-  if (table == NULL) {
+  if (table == nullptr) {
     table = dict_load_table(table_name, true, DICT_ERR_IGNORE_NONE);
   }
 

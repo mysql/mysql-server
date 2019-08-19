@@ -205,12 +205,12 @@ class System_variable {
 class Status_variable {
  public:
   Status_variable()
-      : m_name(NULL),
+      : m_name(nullptr),
         m_name_length(0),
         m_value_length(0),
         m_type(SHOW_UNDEF),
         m_scope(SHOW_SCOPE_UNDEF),
-        m_charset(NULL),
+        m_charset(nullptr),
         m_initialized(false) {}
 
   Status_variable(const SHOW_VAR *show_var, System_status_var *status_array,
@@ -238,7 +238,7 @@ class Status_variable {
 */
 class Find_THD_variable : public Find_THD_Impl {
  public:
-  Find_THD_variable() : m_unsafe_thd(NULL) {}
+  Find_THD_variable() : m_unsafe_thd(nullptr) {}
   Find_THD_variable(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
   virtual bool operator()(THD *thd);
@@ -377,7 +377,7 @@ class PFS_variable_cache {
   */
   const Var_type *get(uint index = 0) const {
     if (index >= m_cache.size()) {
-      return NULL;
+      return nullptr;
     }
 
     const Var_type *p = &m_cache.at(index);
@@ -460,13 +460,13 @@ PFS_variable_cache<Var_type>::~PFS_variable_cache() {}
 */
 template <class Var_type>
 THD *PFS_variable_cache<Var_type>::get_THD(THD *unsafe_thd) {
-  if (unsafe_thd == NULL) {
+  if (unsafe_thd == nullptr) {
     /*
       May happen, precisely because the pointer is unsafe
       (THD just disconnected for example).
       No need to walk Global_THD_manager for that.
     */
-    return NULL;
+    return nullptr;
   }
 
   m_thd_finder.set_unsafe_thd(unsafe_thd);
@@ -476,7 +476,7 @@ THD *PFS_variable_cache<Var_type>::get_THD(THD *unsafe_thd) {
 
 template <class Var_type>
 THD *PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
-  DBUG_ASSERT(pfs_thread != NULL);
+  DBUG_ASSERT(pfs_thread != nullptr);
   return get_THD(pfs_thread->m_thd);
 }
 
@@ -567,7 +567,7 @@ int PFS_variable_cache<Var_type>::materialize_session(PFS_thread *pfs_thread,
     return 0;
   }
 
-  if (!pfs_thread->m_lock.is_populated() || pfs_thread->m_thd == NULL) {
+  if (!pfs_thread->m_lock.is_populated() || pfs_thread->m_thd == nullptr) {
     return 1;
   }
 
@@ -588,7 +588,7 @@ int PFS_variable_cache<Var_type>::materialize_session(PFS_thread *pfs_thread,
     return 1;
   }
 
-  if (!pfs_thread->m_lock.is_populated() || pfs_thread->m_thd == NULL) {
+  if (!pfs_thread->m_lock.is_populated() || pfs_thread->m_thd == nullptr) {
     return 1;
   }
 
@@ -683,7 +683,7 @@ class PFS_status_variable_cache : public PFS_variable_cache<Status_variable> {
  protected:
   /* Get PFS_user, account or host associated with a PFS_thread. Implemented by
    * table class. */
-  virtual PFS_client *get_pfs(PFS_thread *) { return NULL; }
+  virtual PFS_client *get_pfs(PFS_thread *) { return nullptr; }
 
   /* True if query is a SHOW command. */
   bool m_show_command;

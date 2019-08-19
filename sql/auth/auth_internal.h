@@ -65,7 +65,7 @@ typedef std::map<std::string, unsigned long> Db_access_map;
 typedef std::map<std::string, Grant_table_aggregate> Table_access_map_storage;
 class Table_access_map {
  public:
-  Table_access_map() : m_thd(0) {}
+  Table_access_map() : m_thd(nullptr) {}
 
   typedef Table_access_map_storage::iterator iterator;
   typedef Table_access_map_storage::value_type value_type;
@@ -201,8 +201,8 @@ void grant_tables_setup_for_open(
 void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
-                            std::set<LEX_USER *> *extra_users = NULL,
-                            Rewrite_params *rewrite_params = NULL,
+                            std::set<LEX_USER *> *extra_users = nullptr,
+                            Rewrite_params *rewrite_params = nullptr,
                             bool extra_error = false,
                             bool log_to_binlog = true);
 void acl_notify_htons(THD *thd, enum_sql_command operation,

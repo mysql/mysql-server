@@ -43,11 +43,11 @@
 
 /* set default options */
 static int opt_testcase = 0;
-static char *opt_db = 0;
-static char *opt_user = 0;
-static char *opt_password = 0;
-static char *opt_host = 0;
-static char *opt_unix_socket = 0;
+static char *opt_db = nullptr;
+static char *opt_user = nullptr;
+static char *opt_password = nullptr;
+static char *opt_host = nullptr;
+static char *opt_unix_socket = nullptr;
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
 #endif
@@ -55,14 +55,14 @@ static unsigned int opt_port;
 static bool tty_password = false;
 static int opt_silent = 0;
 
-static MYSQL *mysql = 0;
+static MYSQL *mysql = nullptr;
 static char current_db[] = "client_test_db";
 static unsigned int test_count = 0;
 static unsigned int opt_count = 0;
 static unsigned int opt_count_read = 0;
 static unsigned int iter_count = 0;
 static bool have_innodb = false;
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static unsigned int opt_drop_db = 1;
 
 static const char *opt_basedir = "./";
@@ -81,7 +81,7 @@ const char *default_dbug_option = "d:t:o,/tmp/mysql_client_test.trace";
 /*
 Read and parse arguments and MySQL options from my.cnf
 */
-static const char *client_test_load_default_groups[] = {"client", 0};
+static const char *client_test_load_default_groups[] = {"client", nullptr};
 
 struct my_tests_st {
   const char *name;
@@ -308,7 +308,7 @@ static MYSQL_STMT *STDCALL mysql_simple_prepare(MYSQL *mysql_arg,
   MYSQL_STMT *stmt = mysql_stmt_init(mysql_arg);
   if (stmt && mysql_stmt_prepare(stmt, query, (ulong)strlen(query))) {
     mysql_stmt_close(stmt);
-    return 0;
+    return nullptr;
   }
   return stmt;
 }
@@ -334,13 +334,13 @@ static MYSQL *client_connect(ulong flag, uint protocol, bool auto_reconnect) {
     fprintf(stdout, "\n Establishing a connection to '%s' ...",
             opt_host ? opt_host : "");
 
-  if (!(mysql = mysql_client_init(NULL))) {
+  if (!(mysql = mysql_client_init(nullptr))) {
     opt_silent = 0;
     myerror("mysql_client_init() failed");
     exit(1);
   }
   /* enable local infile, in non-binary builds often disabled by default */
-  mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, nullptr);
   mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -478,7 +478,7 @@ static int my_process_result_set(MYSQL_RES *result) {
 
   my_print_result_metadata(result);
 
-  while ((row = mysql_fetch_row(result)) != NULL) {
+  while ((row = mysql_fetch_row(result)) != nullptr) {
     mysql_field_seek(result, 0);
     if (!opt_silent) {
       fputc('\t', stdout);
@@ -488,7 +488,7 @@ static int my_process_result_set(MYSQL_RES *result) {
     for (i = 0; i < mysql_num_fields(result); i++) {
       field = mysql_fetch_field(result);
       if (!opt_silent) {
-        if (row[i] == NULL)
+        if (row[i] == nullptr)
           fprintf(stdout, " %-*s |", (int)field->max_length, "NULL");
         else if (IS_NUM(field->type))
           fprintf(stdout, " %*s |", (int)field->max_length, row[i]);
@@ -1032,7 +1032,7 @@ static bool thread_query(const char *query) {
 
   error = false;
   if (!opt_silent) fprintf(stdout, "\n in thread_query(%s)", query);
-  if (!(l_mysql = mysql_client_init(NULL))) {
+  if (!(l_mysql = mysql_client_init(nullptr))) {
     myerror("mysql_client_init() failed");
     return true;
   }
@@ -1055,24 +1055,27 @@ end:
 }
 
 static struct my_option client_test_long_options[] = {
-    {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"count", 't', "Number of times test to be executed", &opt_count_read,
-     &opt_count_read, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-    {"database", 'D', "Database to use", &opt_db, &opt_db, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"do-not-drop-database", 'd', "Do not drop database while disconnecting", 0,
-     0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_count_read, nullptr, GET_UINT, REQUIRED_ARG, 1, 0, 0, nullptr, 0,
+     nullptr},
+    {"database", 'D', "Database to use", &opt_db, &opt_db, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"do-not-drop-database", 'd', "Do not drop database while disconnecting",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug", '#', "Output debug log", &default_dbug_option,
-     &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host", &opt_host, &opt_host, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"help", '?', "Display this help and exit", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host", &opt_host, &opt_host, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given it's "
      "asked from the tty.",
-     0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -1080,34 +1083,38 @@ static struct my_option client_test_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
-     0, 0},
+     &opt_port, &opt_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"show-tests", 'T', "Show all tests' names", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"silent", 's', "Be more silent", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", 'm', "Base name of shared memory.",
      &shared_memory_base_name, (uchar **)&shared_memory_base_name, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"socket", 'S', "Socket file to use for connection", &opt_unix_socket,
-     &opt_unix_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_unix_socket, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"testcase", 'c',
-     "May disable some code when runs as mysql-test-run testcase.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"user", 'u', "User for login if not current user", &opt_user, &opt_user, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"vardir", 'v', "Data dir for tests.", &opt_vardir, &opt_vardir, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "May disable some code when runs as mysql-test-run testcase.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"user", 'u', "User for login if not current user", &opt_user, &opt_user,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"vardir", 'v', "Data dir for tests.", &opt_vardir, &opt_vardir, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
-     &opt_getopt_ll_test, &opt_getopt_ll_test, 0, GET_LL, REQUIRED_ARG, 0, 0,
-     LLONG_MAX, 0, 0, 0},
+     &opt_getopt_ll_test, &opt_getopt_ll_test, nullptr, GET_LL, REQUIRED_ARG, 0,
+     0, LLONG_MAX, nullptr, 0, nullptr},
     {"plugin_dir", 0, "Directory for client-side plugins.", &opt_plugin_dir,
-     &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"default_auth", 0, "Default authentication client-side plugin to use.",
-     &opt_default_auth, &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_default_auth, &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   /* show the usage string when the user asks for this */
@@ -1121,7 +1128,7 @@ static void usage(void) {
 
 static struct my_tests_st *get_my_tests(); /* To be defined in main .c file */
 
-static struct my_tests_st *my_testlist = 0;
+static struct my_tests_st *my_testlist = nullptr;
 
 static bool get_one_option(int optid,
                            const struct my_option *opt MY_ATTRIBUTE((unused)),
@@ -1208,7 +1215,7 @@ main routine
 
 int main(int argc, char **argv) {
   int i;
-  char **tests_to_run = NULL, **curr_test;
+  char **tests_to_run = nullptr, **curr_test;
   struct my_tests_st *fptr;
   my_testlist = get_my_tests();
 
@@ -1235,10 +1242,11 @@ int main(int argc, char **argv) {
     tests_to_run = (char **)malloc((argc + 1) * sizeof(char *));
     if (!tests_to_run) exit(1);
     for (i = 0; i < argc; i++) tests_to_run[i] = strdup(argv[i]);
-    tests_to_run[i] = NULL;
+    tests_to_run[i] = nullptr;
   }
 
-  if (mysql_server_init(0, NULL, NULL)) DIE("Can't initialize MySQL server");
+  if (mysql_server_init(0, nullptr, nullptr))
+    DIE("Can't initialize MySQL server");
 
   /* connect to server with no flags, default protocol, auto reconnect true */
   mysql = client_connect(0, MYSQL_PROTOCOL_DEFAULT, true);
@@ -1247,7 +1255,7 @@ int main(int argc, char **argv) {
   for (iter_count = 1; iter_count <= opt_count; iter_count++) {
     /* Start of tests */
     test_count = 1;
-    start_time = time((time_t *)0);
+    start_time = time((time_t *)nullptr);
     if (!tests_to_run) {
       for (fptr = my_testlist; fptr->name; fptr++) (*fptr->function)();
     } else {
@@ -1269,7 +1277,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    end_time = time((time_t *)0);
+    end_time = time((time_t *)nullptr);
     total_time += difftime(end_time, start_time);
 
     /* End of tests */

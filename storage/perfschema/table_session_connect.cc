@@ -61,7 +61,7 @@ table_session_connect::table_session_connect(
     m_copy_session_connect_attrs = (char *)my_malloc(
         PSI_INSTRUMENT_ME, session_connect_attrs_size_per_thread, MYF(0));
   } else {
-    m_copy_session_connect_attrs = NULL;
+    m_copy_session_connect_attrs = nullptr;
   }
   m_copy_session_connect_attrs_length = 0;
 }
@@ -84,7 +84,7 @@ int table_session_connect::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       if (m_opened_index->match(thread)) {
         do {
           /*
@@ -132,8 +132,8 @@ static bool parse_length_encoded_string(const char **ptr, char *dest,
                                         const CHARSET_INFO *from_cs,
                                         uint nchars_max) {
   ulong copy_length, data_length;
-  const char *well_formed_error_pos = NULL, *cannot_convert_error_pos = NULL,
-             *from_end_pos = NULL;
+  const char *well_formed_error_pos = nullptr,
+             *cannot_convert_error_pos = nullptr, *from_end_pos = nullptr;
 
   data_length =
       net_field_length(const_cast<uchar **>(pointer_cast<const uchar **>(ptr)));
@@ -241,7 +241,7 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal) {
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
   safe_class = sanitize_thread_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -253,7 +253,7 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal) {
 
   /* Make a safe copy of the session attributes */
 
-  if (m_copy_session_connect_attrs == NULL) {
+  if (m_copy_session_connect_attrs == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -268,7 +268,7 @@ int table_session_connect::make_row(PFS_thread *pfs, uint ordinal) {
          m_copy_session_connect_attrs_length);
 
   cs = get_charset(pfs->m_session_connect_attrs_cs_number, MYF(0));
-  if (cs == NULL) {
+  if (cs == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 

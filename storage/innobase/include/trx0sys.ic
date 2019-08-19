@@ -191,14 +191,14 @@ trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id) /*!< in: trx id to search for */
   ut_ad(trx_sys_mutex_own());
 
   if (trx_sys->rw_trx_set.empty()) {
-    return (NULL);
+    return (nullptr);
   }
 
   TrxIdSet::iterator it;
 
   it = trx_sys->rw_trx_set.find(TrxTrack(trx_id));
 
-  return (it == trx_sys->rw_trx_set.end() ? NULL : it->m_trx);
+  return (it == trx_sys->rw_trx_set.end() ? nullptr : it->m_trx);
 }
 
 /** Returns the minimum trx id in trx list. This is the smallest id for which
@@ -214,7 +214,7 @@ trx_id_t trx_rw_min_trx_id_low(void) {
 
   const trx_t *trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
 
-  if (trx == NULL) {
+  if (trx == nullptr) {
     id = trx_sys->max_trx_id;
   } else {
     assert_trx_in_rw_list(trx);
@@ -266,13 +266,13 @@ trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt) {
   ut_ad(trx_sys_mutex_own());
 
   if (trx_id < trx_rw_min_trx_id_low()) {
-    trx = NULL;
+    trx = nullptr;
   } else if (trx_id >= trx_sys->max_trx_id) {
     /* There must be corruption: we let the caller handle the
     diagnostic prints in this case. */
 
-    trx = NULL;
-    if (corrupt != NULL) {
+    trx = nullptr;
+    if (corrupt != nullptr) {
       *corrupt = TRUE;
     }
   } else {
@@ -281,7 +281,7 @@ trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt) {
     TRX_STATE_COMMITTED_IN_MEMORY in a same critical section protected by
     trx_sys->mutex, which we happen to hold here, so we expect the state of trx
     to match its presence in that list */
-    ut_ad(trx == NULL || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
+    ut_ad(trx == nullptr || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
   }
 
   return (trx);
@@ -294,14 +294,14 @@ trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt, bool do_ref_count) {
   /* Fast checking. If it's smaller than minimal active trx id, just
   return NULL. */
   if (trx_sys->min_active_id.load() > trx_id) {
-    return (NULL);
+    return (nullptr);
   }
 
   trx_sys_mutex_enter();
 
   trx = trx_rw_is_active_low(trx_id, corrupt);
 
-  if (trx != 0) {
+  if (trx != nullptr) {
     trx = trx_reference(trx, do_ref_count);
   }
 

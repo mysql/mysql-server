@@ -48,7 +48,7 @@ class InvocationHelper {
         order(o),
         count_fail(0),
         count_success(0) {
-    mutex.init(PSI_NOT_INSTRUMENTED, NULL);
+    mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
   }
 
   ~InvocationHelper() { mutex.destroy(); }
@@ -127,7 +127,7 @@ class mock_gcs_xcom_view_change_control_interface
 
  public:
   mock_gcs_xcom_view_change_control_interface()
-      : m_current_view(NULL),
+      : m_current_view(nullptr),
         m_belongs_to_group(false),
         m_mutex_current_view(),
         m_joining_leaving_mutex(),
@@ -135,8 +135,8 @@ class mock_gcs_xcom_view_change_control_interface
         m_leaving(false)
 
   {
-    m_mutex_current_view.init(PSI_NOT_INSTRUMENTED, NULL);
-    m_joining_leaving_mutex.init(PSI_NOT_INSTRUMENTED, NULL);
+    m_mutex_current_view.init(PSI_NOT_INSTRUMENTED, nullptr);
+    m_joining_leaving_mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
   }
 
   ~mock_gcs_xcom_view_change_control_interface() {
@@ -213,10 +213,10 @@ class mock_gcs_xcom_view_change_control_interface
   void set_unsafe_current_view(Gcs_view *view) { set_current_view(view); }
 
   Gcs_view *get_current_view() {
-    Gcs_view *view = NULL;
+    Gcs_view *view = nullptr;
 
     m_mutex_current_view.lock();
-    if (m_current_view != NULL) view = new Gcs_view(*m_current_view);
+    if (m_current_view != nullptr) view = new Gcs_view(*m_current_view);
     m_mutex_current_view.unlock();
 
     return view;
@@ -444,7 +444,7 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
                          xcom_proxy, xcom_group_management, gcs_engine,
                          state_exchange, view_control, boot, socket_util) {}
 
-  enum_gcs_error join() { return join(NULL); }
+  enum_gcs_error join() { return join(nullptr); }
 
   enum_gcs_error join(Gcs_view *view) {
     enum_gcs_error ret = GCS_NOK;
@@ -488,7 +488,7 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
     ret = do_leave();
 
     if (ret == GCS_OK) {
-      m_view_control->set_current_view(NULL);
+      m_view_control->set_current_view(nullptr);
       m_view_control->set_belongs_to_group(false);
     }
 
@@ -510,7 +510,7 @@ class XComControlTest : public GcsBaseTest {
 
   virtual void SetUp() {
     m_wait_called = false;
-    m_wait_called_mutex.init(PSI_NOT_INSTRUMENTED, NULL);
+    m_wait_called_mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
     m_wait_called_cond.init(PSI_NOT_INSTRUMENTED);
 
     mock_se = new mock_gcs_xcom_state_exchange_interface();
@@ -527,7 +527,7 @@ class XComControlTest : public GcsBaseTest {
 
     mock_socket_util = new mock_my_xp_socket_util();
 
-    gcs_engine.initialize(NULL);
+    gcs_engine.initialize(nullptr);
 
     xcom_group_mgm = new Gcs_xcom_group_management(&proxy, *group_id);
 
@@ -787,7 +787,7 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   // Fail to connect to the peer every time.
   EXPECT_CALL(proxy, xcom_client_open_connection(Eq("127.0.0.1"), Eq(12346)))
       .Times(3)
-      .WillRepeatedly(Return((connection_descriptor *)NULL));
+      .WillRepeatedly(Return((connection_descriptor *)nullptr));
 
   /*
    Fail to connect on the first attempt.
@@ -796,7 +796,7 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   */
   EXPECT_CALL(proxy, xcom_client_open_connection(Eq("127.0.0.1"), Eq(12347)))
       .Times(3)
-      .WillOnce(Return((connection_descriptor *)NULL))
+      .WillOnce(Return((connection_descriptor *)nullptr))
       .WillRepeatedly(Return((connection_descriptor *)con));
   EXPECT_CALL(*mock_socket_util, disable_nagle_in_socket(_))
       .Times(2)
@@ -836,7 +836,7 @@ TEST_F(XComControlTest, JoinTestAllPeersUnavailable) {
   */
   EXPECT_CALL(proxy, xcom_client_open_connection(_, _))
       .Times((peers.size() - 1) * Gcs_xcom_control::CONNECTION_ATTEMPTS)
-      .WillRepeatedly(Return((connection_descriptor *)NULL));
+      .WillRepeatedly(Return((connection_descriptor *)nullptr));
   EXPECT_CALL(*mock_socket_util, disable_nagle_in_socket(_)).Times(0);
   EXPECT_CALL(proxy, xcom_client_add_node(_, _, _)).Times(0);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _, _)).Times(0);
@@ -1082,7 +1082,7 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
     installed any view.
   */
   ASSERT_FALSE(xcom_control_if->belongs_to_group());
-  ASSERT_TRUE(xcom_control_if->get_current_view() == NULL);
+  ASSERT_TRUE(xcom_control_if->get_current_view() == nullptr);
 
   synode_no message_id;
   message_id.group_id = Gcs_xcom_utils::build_xcom_group_id(*this->group_id);
@@ -1122,11 +1122,11 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
 
   Gcs_view *current_view = xcom_control_if->get_current_view();
   ASSERT_TRUE(xcom_control_if->belongs_to_group());
-  ASSERT_TRUE(current_view != NULL);
+  ASSERT_TRUE(current_view != nullptr);
 
   const Gcs_xcom_view_identifier &current_view_id =
       down_cast<const Gcs_xcom_view_identifier &>(current_view->get_view_id());
-  ASSERT_TRUE((&current_view_id) != NULL);
+  ASSERT_TRUE((&current_view_id) != nullptr);
   ASSERT_EQ(typeid(Gcs_xcom_view_identifier).name(),
             typeid(current_view_id).name());
 
@@ -1147,7 +1147,7 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
   delete left_set;
   delete current_view;
   delete xcom_nodes;
-  mock_vce->set_current_view(NULL);
+  mock_vce->set_current_view(nullptr);
 
   // TODO: replace the following with free_site_def(site_config) once
   //       the header file in site_def.h is fixed
@@ -1910,7 +1910,7 @@ void *parallel_invocation(void *ptr) {
   InvocationHelper *helper = (InvocationHelper *)ptr;
   helper->invokeMethod();
 
-  return NULL;
+  return nullptr;
 }
 
 TEST_F(XComControlTest, ParallellJoinsTest) {
@@ -1926,12 +1926,12 @@ TEST_F(XComControlTest, ParallellJoinsTest) {
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, JJ);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 1);
   ASSERT_EQ(helper->count_fail, 1);
@@ -1956,12 +1956,12 @@ TEST_F(XComControlTest, ParallelLeavesTest) {
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, LL);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 1);
   ASSERT_EQ(helper->count_fail, 1);
@@ -1985,12 +1985,12 @@ TEST_F(XComControlTest, ParallelLeaveAndDelayedJoinTest) {
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, LJ);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 2);
 
@@ -2011,12 +2011,12 @@ TEST_F(XComControlTest, ParallelJoinAndDelayedLeaveTest) {
   InvocationHelper *helper = new InvocationHelper(xcom_control_if, JL);
 
   My_xp_thread_impl thread;
-  thread.create(PSI_NOT_INSTRUMENTED, NULL, parallel_invocation,
+  thread.create(PSI_NOT_INSTRUMENTED, nullptr, parallel_invocation,
                 (void *)helper);
 
   helper->invokeMethod();
 
-  thread.join(NULL);
+  thread.join(nullptr);
 
   ASSERT_EQ(helper->count_success, 2);
 
@@ -2084,7 +2084,7 @@ TEST_F(XComControlTest, NodeTooFarMessage) {
   mgr->update_last_removed(last_removed);
   mgr->run_process_suspicions(true);
 
-  Gcs_xcom_node_information *node = NULL;
+  Gcs_xcom_node_information *node = nullptr;
   for (it = member_suspect_nodes.begin(); it != member_suspect_nodes.end();
        ++it) {
     node = const_cast<Gcs_xcom_node_information *>(
@@ -2195,7 +2195,7 @@ TEST_F(XComControlTest, LocalViewAfterExpel) {
   free_node_set(&nodes);
   delete xcom_nodes;
   delete current_view;
-  mock_vce->set_current_view(NULL);
+  mock_vce->set_current_view(nullptr);
 }
 
 }  // namespace gcs_xcom_control_unittest

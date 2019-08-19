@@ -194,10 +194,10 @@ TEST_F(Keys_container_test, StoreFetchRemove) {
   EXPECT_EQ(keys_container->store_key(sample_key), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
 
-  Key key_id("Roberts_key", NULL, "Robert", NULL, 0);
+  Key key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
   IKey *fetched_key = keys_container->fetch_key(&key_id);
 
-  ASSERT_TRUE(fetched_key != NULL);
+  ASSERT_TRUE(fetched_key != nullptr);
   std::string expected_key_signature = "Roberts_keyRobert";
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
@@ -218,16 +218,16 @@ TEST_F(Keys_container_test, StoreFetchRemove) {
 TEST_F(Keys_container_test, FetchNotExisting) {
   IKeyring_io *keyring_io = new Buffered_file_io(logger);
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
-  Key key_id("Roberts_key", NULL, "Robert", NULL, 0);
+  Key key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
   IKey *fetched_key = keys_container->fetch_key(&key_id);
-  ASSERT_TRUE(fetched_key == NULL);
+  ASSERT_TRUE(fetched_key == nullptr);
   delete sample_key;  // unused in this test
 }
 
 TEST_F(Keys_container_test, RemoveNotExisting) {
   IKeyring_io *keyring_io = new Buffered_file_io(logger);
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
-  Key key_id("Roberts_key", "AES", "Robert", NULL, 0);
+  Key key_id("Roberts_key", "AES", "Robert", nullptr, 0);
   ASSERT_TRUE(keys_container->remove_key(&key_id) == true);
   delete sample_key;  // unused in this test
 }
@@ -237,9 +237,9 @@ TEST_F(Keys_container_test, StoreFetchNotExisting) {
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
   EXPECT_EQ(keys_container->store_key(sample_key), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
-  Key key_id("NotRoberts_key", NULL, "NotRobert", NULL, 0);
+  Key key_id("NotRoberts_key", nullptr, "NotRobert", nullptr, 0);
   IKey *fetched_key = keys_container->fetch_key(&key_id);
-  ASSERT_TRUE(fetched_key == NULL);
+  ASSERT_TRUE(fetched_key == nullptr);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
 }
 
@@ -248,7 +248,7 @@ TEST_F(Keys_container_test, StoreRemoveNotExisting) {
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
   EXPECT_EQ(keys_container->store_key(sample_key), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
-  Key key_id("NotRoberts_key", "AES", "NotRobert", NULL, 0);
+  Key key_id("NotRoberts_key", "AES", "NotRobert", nullptr, 0);
   // Failed to remove key
   ASSERT_TRUE(keys_container->remove_key(&key_id) == true);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
@@ -281,10 +281,10 @@ TEST_F(Keys_container_test, StoreStoreStoreFetchRemove) {
   EXPECT_EQ(keys_container->store_key(key3), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 4);
 
-  Key key2_id("Roberts_key2", NULL, "Robert", NULL, 0);
+  Key key2_id("Roberts_key2", nullptr, "Robert", nullptr, 0);
   IKey *fetched_key = keys_container->fetch_key(&key2_id);
 
-  ASSERT_TRUE(fetched_key != NULL);
+  ASSERT_TRUE(fetched_key != nullptr);
   std::string expected_key_signature = "Roberts_key2Robert";
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
@@ -296,7 +296,7 @@ TEST_F(Keys_container_test, StoreStoreStoreFetchRemove) {
                reinterpret_cast<const char *>(key_data_fetched));
   ASSERT_TRUE(key_data2.length() + 1 == key_data_fetched_size);
 
-  Key key3_id("Roberts_key3", "AES", "Robert", NULL, 0);
+  Key key3_id("Roberts_key3", "AES", "Robert", nullptr, 0);
   keys_container->remove_key(&key3_id);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
 
@@ -334,14 +334,14 @@ TEST_F(Keys_container_test, StoreKeyInVer10StoreKeyInVer20FetchKeyInVer20) {
   keys_container->set_keyring_io(keyring_io_20);
 
   std::string key_data1("Robi1");
-  Key key_1_id("Roberts_key1", NULL, "Robert", NULL, 0);
+  Key key_1_id("Roberts_key1", nullptr, "Robert", nullptr, 0);
   Key *key1 = new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(),
                       key_data1.length() + 1);
   EXPECT_EQ(keys_container->store_key(key1), 0);
 
-  Key key_id("Roberts_key", NULL, "Robert", NULL, 0);
+  Key key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
   IKey *fetched_key = keys_container->fetch_key(&key_id);
-  ASSERT_TRUE(fetched_key != NULL);
+  ASSERT_TRUE(fetched_key != nullptr);
   std::string expected_key_signature = "Roberts_keyRobert";
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
@@ -356,7 +356,7 @@ TEST_F(Keys_container_test, StoreKeyInVer10StoreKeyInVer20FetchKeyInVer20) {
   keys_container->remove_key(&key_id);
 
   IKey *fetched_key_1 = keys_container->fetch_key(&key_1_id);
-  ASSERT_TRUE(fetched_key_1 != NULL);
+  ASSERT_TRUE(fetched_key_1 != nullptr);
   expected_key_signature = "Roberts_key1Robert";
   EXPECT_STREQ(fetched_key_1->get_key_signature()->c_str(),
                expected_key_signature.c_str());
@@ -536,9 +536,9 @@ TEST_F(Keys_container_test_dont_close,
   keys_container = new Keys_container(logger);
   EXPECT_EQ(keys_container->init(keyring_io_2, file_name), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
-  Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
+  Key sample_key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
   IKey *fetchedKey = keys_container->fetch_key(&sample_key_id);
-  ASSERT_TRUE(fetchedKey != NULL);
+  ASSERT_TRUE(fetchedKey != nullptr);
 
   ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_keyRobert");
   ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "Robi",
@@ -579,7 +579,7 @@ TEST_F(Keys_container_test_dont_close,
 
   ASSERT_TRUE(keys_container->init(keyring_io_dont_remove_backup, file_name) ==
               0);
-  Key sample_key_id("Roberts_key", "AES", "Robert", NULL, 0);
+  Key sample_key_id("Roberts_key", "AES", "Robert", nullptr, 0);
   EXPECT_EQ(keys_container->remove_key(&sample_key_id), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
 
@@ -594,9 +594,9 @@ TEST_F(Keys_container_test_dont_close,
   keys_container = new Keys_container(logger);
   EXPECT_EQ(keys_container->init(keyring_io_2, "./keyring.backup"), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-  Key sample_key2_id("Roberts_key2", NULL, "Robert", NULL, 0);
+  Key sample_key2_id("Roberts_key2", nullptr, "Robert", nullptr, 0);
   IKey *fetchedKey = keys_container->fetch_key(&sample_key2_id);
-  ASSERT_TRUE(fetchedKey != NULL);
+  ASSERT_TRUE(fetchedKey != nullptr);
   ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_key2Robert");
   ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "xobi2",
                      fetchedKey->get_key_data_size()) == 0);
@@ -635,9 +635,9 @@ TEST_F(Keys_container_test_dont_close,
   keys_container = new Keys_container(logger);
 
   EXPECT_EQ(keys_container->init(keyring_io_dont_remove_backup, file_name), 0);
-  Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
+  Key sample_key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
   IKey *fetchedKey = keys_container->fetch_key(&sample_key_id);
-  ASSERT_TRUE(fetchedKey != NULL);
+  ASSERT_TRUE(fetchedKey != nullptr);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
   // check if the backup file was not created
   EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
@@ -697,15 +697,15 @@ TEST_F(Keys_container_test_dont_close,
   ASSERT_TRUE(keys_container->init(keyring_io_2, file_name) == 0);
   // Check that keyring from backup was loaded as the keyring file is corrupted
   ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-  Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
-  Key sample_key2_id("Roberts_key2", NULL, "Robert", NULL, 0);
+  Key sample_key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
+  Key sample_key2_id("Roberts_key2", nullptr, "Robert", nullptr, 0);
   IKey *fetchedKey = keys_container->fetch_key(&sample_key2_id);
-  ASSERT_TRUE(fetchedKey != NULL);
+  ASSERT_TRUE(fetchedKey != nullptr);
   ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_key2Robert");
   ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "xobi2",
                      fetchedKey->get_key_data_size()) == 0);
   IKey *fetchedKey2 = keys_container->fetch_key(&sample_key_id);
-  ASSERT_TRUE(fetchedKey2 != NULL);
+  ASSERT_TRUE(fetchedKey2 != nullptr);
   ASSERT_TRUE(*fetchedKey2->get_key_signature() == "Roberts_keyRobert");
   ASSERT_TRUE(memcmp(fetchedKey2->get_key_data(), "Robi",
                      fetchedKey2->get_key_data_size()) == 0);
@@ -754,15 +754,15 @@ TEST_F(Keys_container_test_dont_close,
                   StrEq("Found malformed keyring backup file - removing it")));
   EXPECT_EQ(keys_container->init(keyring_io_2, file_name), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-  Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
-  Key sample_key2_id("Roberts_key2", NULL, "Robert", NULL, 0);
+  Key sample_key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
+  Key sample_key2_id("Roberts_key2", nullptr, "Robert", nullptr, 0);
   IKey *fetchedKey = keys_container->fetch_key(&sample_key2_id);
-  ASSERT_TRUE(fetchedKey != NULL);
+  ASSERT_TRUE(fetchedKey != nullptr);
   ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_key2Robert");
   ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "xobi2",
                      fetchedKey->get_key_data_size()) == 0);
   IKey *fetchedKey2 = keys_container->fetch_key(&sample_key_id);
-  ASSERT_TRUE(fetchedKey2 != NULL);
+  ASSERT_TRUE(fetchedKey2 != nullptr);
   ASSERT_TRUE(*fetchedKey2->get_key_signature() == "Roberts_keyRobert");
   ASSERT_TRUE(memcmp(fetchedKey2->get_key_data(), "Robi",
                      fetchedKey2->get_key_data_size()) == 0);
@@ -805,9 +805,9 @@ TEST_F(
   EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
   EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
-  Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
+  Key sample_key_id("Roberts_key", nullptr, "Robert", nullptr, 0);
   IKey *fetchedKey = keys_container->fetch_key(&sample_key_id);
-  ASSERT_TRUE(fetchedKey != NULL);
+  ASSERT_TRUE(fetchedKey != nullptr);
 
   ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_keyRobert");
   ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "Robi",
@@ -990,7 +990,7 @@ TEST_F(Keys_container_with_mocked_io_test,
     EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, NULL, NONE))
-        .WillOnce(Return((ISerialized_object *)NULL));
+        .WillOnce(Return((ISerialized_object *)nullptr));
     EXPECT_CALL(
         *logger,
         log(ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
@@ -1027,7 +1027,7 @@ TEST_F(Keys_container_with_mocked_io_test,
     EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, sample_key, STORE_KEY))
-        .WillOnce(Return((ISerialized_object *)NULL));
+        .WillOnce(Return((ISerialized_object *)nullptr));
     EXPECT_CALL(*logger,
                 log(ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
   }
@@ -1081,7 +1081,7 @@ TEST_F(Keys_container_with_mocked_io_test,
     EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, NULL, NONE))
-        .WillOnce(Return((ISerialized_object *)NULL));
+        .WillOnce(Return((ISerialized_object *)nullptr));
     EXPECT_CALL(
         *logger,
         log(ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
@@ -1148,7 +1148,7 @@ TEST_F(Keys_container_with_mocked_io_test,
     EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, sample_key, REMOVE_KEY))
-        .WillOnce(Return((ISerialized_object *)NULL));
+        .WillOnce(Return((ISerialized_object *)nullptr));
     EXPECT_CALL(*logger,
                 log(ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
   }
@@ -1327,7 +1327,7 @@ TEST_F(Keys_container_with_mocked_io_test,
     EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, sample_key, REMOVE_KEY))
-        .WillOnce(Return((ISerialized_object *)NULL));
+        .WillOnce(Return((ISerialized_object *)nullptr));
     EXPECT_CALL(*logger,
                 log(ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
   }

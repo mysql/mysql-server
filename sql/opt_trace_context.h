@@ -87,7 +87,7 @@ typedef Prealloced_array<Opt_trace_stmt *, 16> Opt_trace_stmt_array;
 
 class Opt_trace_context {
  public:
-  Opt_trace_context() : pimpl(NULL), I_S_disabled(0) {}
+  Opt_trace_context() : pimpl(nullptr), I_S_disabled(0) {}
   ~Opt_trace_context();
 
   /**
@@ -140,7 +140,7 @@ class Opt_trace_context {
 
   /// Returns whether there is a current trace
   bool is_started() const {
-    return unlikely(pimpl != NULL) && pimpl->current_stmt_in_gen != NULL;
+    return unlikely(pimpl != nullptr) && pimpl->current_stmt_in_gen != nullptr;
   }
 
   /**
@@ -231,7 +231,7 @@ class Opt_trace_context {
      @param  f  feature
   */
   bool feature_enabled(feature_value f) const {
-    return unlikely(pimpl != NULL) && (pimpl->features & f);
+    return unlikely(pimpl != nullptr) && (pimpl->features & f);
   }
 
   /**
@@ -254,7 +254,7 @@ class Opt_trace_context {
   /// Temporarily disables I_S for this trace and its children.
   void disable_I_S_for_this_and_children() {
     ++I_S_disabled;
-    if (unlikely(pimpl != NULL)) pimpl->disable_I_S_for_this_and_children();
+    if (unlikely(pimpl != nullptr)) pimpl->disable_I_S_for_this_and_children();
   }
 
   /**
@@ -264,7 +264,7 @@ class Opt_trace_context {
   void restore_I_S() {
     --I_S_disabled;
     DBUG_ASSERT(I_S_disabled >= 0);
-    if (unlikely(pimpl != NULL)) pimpl->restore_I_S();
+    if (unlikely(pimpl != nullptr)) pimpl->restore_I_S();
   }
 
  private:
@@ -280,7 +280,7 @@ class Opt_trace_context {
   class Opt_trace_context_impl {
    public:
     Opt_trace_context_impl()
-        : current_stmt_in_gen(NULL),
+        : current_stmt_in_gen(nullptr),
           stack_of_current_stmts(PSI_INSTRUMENT_ME),
           all_stmts_for_I_S(PSI_INSTRUMENT_ME),
           all_stmts_to_del(PSI_INSTRUMENT_ME),

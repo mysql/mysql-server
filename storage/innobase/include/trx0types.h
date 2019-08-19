@@ -543,7 +543,7 @@ typedef std::vector<trx_id_t, ut_allocator<trx_id_t>> trx_ids_t;
 /** Mapping read-write transactions from id to transaction instance, for
 creating read views and during trx id lookup for MVCC and locking. */
 struct TrxTrack {
-  explicit TrxTrack(trx_id_t id, trx_t *trx = NULL) : m_id(id), m_trx(trx) {
+  explicit TrxTrack(trx_id_t id, trx_t *trx = nullptr) : m_id(id), m_trx(trx) {
     // Do nothing
   }
 

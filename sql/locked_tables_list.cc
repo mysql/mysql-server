@@ -51,8 +51,8 @@ Locked_tables_list::Locked_tables_list()
 
 bool Locked_tables_list::init_locked_tables(THD *thd) {
   DBUG_ASSERT(thd->locked_tables_mode == LTM_NONE);
-  DBUG_ASSERT(m_locked_tables == NULL);
-  DBUG_ASSERT(m_reopen_array == NULL);
+  DBUG_ASSERT(m_locked_tables == nullptr);
+  DBUG_ASSERT(m_reopen_array == nullptr);
   DBUG_ASSERT(m_locked_tables_count == 0);
 
   for (TABLE *table = thd->open_tables; table;
@@ -67,7 +67,7 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
     if (!multi_alloc_root(&m_locked_tables_root, &dst_table_list,
                           sizeof(*dst_table_list), &db, db_len + 1, &table_name,
                           table_name_len + 1, &alias, alias_len + 1, NullS)) {
-      unlock_locked_tables(0);
+      unlock_locked_tables(nullptr);
       return true;
     }
 
@@ -100,8 +100,8 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
     */
     m_reopen_array = (TABLE **)m_locked_tables_root.Alloc(
         sizeof(TABLE *) * (m_locked_tables_count + 1));
-    if (m_reopen_array == NULL) {
-      unlock_locked_tables(0);
+    if (m_reopen_array == nullptr) {
+      unlock_locked_tables(nullptr);
       return true;
     }
   }
@@ -145,7 +145,7 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
         Clear the position in the list, the TABLE object will be
         returned to the table cache.
       */
-      table_list->table->pos_in_locked_tables = NULL;
+      table_list->table->pos_in_locked_tables = nullptr;
     }
     thd->leave_locked_tables_mode();
 
@@ -167,9 +167,9 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
     request for metadata locks and TABLE_LIST elements.
   */
   free_root(&m_locked_tables_root, MYF(0));
-  m_locked_tables = NULL;
+  m_locked_tables = nullptr;
   m_locked_tables_last = &m_locked_tables;
-  m_reopen_array = NULL;
+  m_reopen_array = nullptr;
   m_locked_tables_count = 0;
 }
 
@@ -209,10 +209,10 @@ void Locked_tables_list::unlink_from_list(const THD *thd,
   DBUG_ASSERT(table_list->table->pos_in_locked_tables == table_list);
 
   /* Clear the pointer, the table will be returned to the table cache. */
-  table_list->table->pos_in_locked_tables = NULL;
+  table_list->table->pos_in_locked_tables = nullptr;
 
   /* Mark the table as closed in the locked tables list. */
-  table_list->table = NULL;
+  table_list->table = nullptr;
 
   /*
     If the table is being dropped or renamed, remove it from
@@ -221,7 +221,7 @@ void Locked_tables_list::unlink_from_list(const THD *thd,
   */
   if (remove_from_locked_tables) {
     *table_list->prev_global = table_list->next_global;
-    if (table_list->next_global == NULL)
+    if (table_list->next_global == nullptr)
       m_locked_tables_last = table_list->prev_global;
     else
       table_list->next_global->prev_global = table_list->prev_global;
@@ -257,7 +257,7 @@ void Locked_tables_list::unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock,
       */
       DBUG_ASSERT(thd->open_tables == m_reopen_array[reopen_count]);
 
-      thd->open_tables->pos_in_locked_tables->table = NULL;
+      thd->open_tables->pos_in_locked_tables->table = nullptr;
 
       close_thread_table(thd, &thd->open_tables);
     }
@@ -265,10 +265,10 @@ void Locked_tables_list::unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock,
   /* Exclude all closed tables from the LOCK TABLES list. */
   for (TABLE_LIST *table_list = m_locked_tables; table_list;
        table_list = table_list->next_global) {
-    if (table_list->table == NULL) {
+    if (table_list->table == nullptr) {
       /* Unlink from list. */
       *table_list->prev_global = table_list->next_global;
-      if (table_list->next_global == NULL)
+      if (table_list->next_global == nullptr)
         m_locked_tables_last = table_list->prev_global;
       else
         table_list->next_global->prev_global = table_list->prev_global;
@@ -310,7 +310,7 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
 
     /* Links into thd->open_tables upon success */
     if (open_table(thd, table_list, &ot_ctx)) {
-      unlink_all_closed_tables(thd, 0, reopen_count);
+      unlink_all_closed_tables(thd, nullptr, reopen_count);
       thd->pop_diagnostics_area();
       if (!thd->get_stmt_da()->is_error() && tmp_da.is_error()) {
         // Copy the exception condition information.
@@ -347,8 +347,8 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
     lock =
         mysql_lock_tables(thd, m_reopen_array, reopen_count, MYSQL_OPEN_REOPEN);
     thd->in_lock_tables = false;
-    if (lock == NULL ||
-        (merged_lock = mysql_lock_merge(thd->lock, lock)) == NULL) {
+    if (lock == nullptr ||
+        (merged_lock = mysql_lock_merge(thd->lock, lock)) == nullptr) {
       unlink_all_closed_tables(thd, lock, reopen_count);
       if (!thd->killed) my_error(ER_LOCK_DEADLOCK, MYF(0));
       return true;

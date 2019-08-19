@@ -88,7 +88,7 @@ extern "C" void handle_fatal_signal(int sig) {
   const long secs = utc_time.wSecond;
 #else
   /* Using time() instead of my_time() to avoid looping */
-  const time_t curr_time = time(NULL);
+  const time_t curr_time = time(nullptr);
   /* Calculate time of day */
   const long tmins = curr_time / 60;
   const long thrs = tmins / 60;

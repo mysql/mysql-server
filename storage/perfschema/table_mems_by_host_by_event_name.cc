@@ -71,7 +71,7 @@ Plugin_table table_mems_by_host_by_event_name::m_table_def(
 PFS_engine_table_share table_mems_by_host_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_mems_by_host_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_mems_by_host_by_event_name::delete_all_rows,
     table_mems_by_host_by_event_name::get_row_count,
     sizeof(PFS_simple_index),
@@ -132,17 +132,17 @@ int table_mems_by_host_by_event_name::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host()) {
     host = global_host_container.get(m_pos.m_index_1, &has_more_host);
-    if (host != NULL) {
+    if (host != nullptr) {
       do {
         memory_class = find_memory_class(m_pos.m_index_2);
-        if (memory_class != NULL) {
+        if (memory_class != nullptr) {
           if (!memory_class->is_global()) {
             m_next_pos.set_after(&m_pos);
             return make_row(host, memory_class);
           }
           m_pos.next_class();
         }
-      } while (memory_class != NULL);
+      } while (memory_class != nullptr);
     }
   }
 
@@ -156,9 +156,9 @@ int table_mems_by_host_by_event_name::rnd_pos(const void *pos) {
   set_position(pos);
 
   host = global_host_container.get(m_pos.m_index_1);
-  if (host != NULL) {
+  if (host != nullptr) {
     memory_class = find_memory_class(m_pos.m_index_2);
-    if (memory_class != NULL) {
+    if (memory_class != nullptr) {
       if (!memory_class->is_global()) {
         return make_row(host, memory_class);
       }
@@ -170,7 +170,7 @@ int table_mems_by_host_by_event_name::rnd_pos(const void *pos) {
 
 int table_mems_by_host_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_mems_by_host_by_event_name *result = NULL;
+  PFS_index_mems_by_host_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_mems_by_host_by_event_name);
   m_opened_index = result;
@@ -185,11 +185,11 @@ int table_mems_by_host_by_event_name::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host()) {
     host = global_host_container.get(m_pos.m_index_1, &has_more_host);
-    if (host != NULL) {
+    if (host != nullptr) {
       if (m_opened_index->match(host)) {
         do {
           memory_class = find_memory_class(m_pos.m_index_2);
-          if (memory_class != NULL) {
+          if (memory_class != nullptr) {
             if (!memory_class->is_global()) {
               if (m_opened_index->match(memory_class)) {
                 if (!make_row(host, memory_class)) {
@@ -200,7 +200,7 @@ int table_mems_by_host_by_event_name::index_next(void) {
             }
             m_pos.next_class();
           }
-        } while (memory_class != NULL);
+        } while (memory_class != nullptr);
       }
     }
   }

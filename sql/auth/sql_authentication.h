@@ -118,10 +118,10 @@ class Rsa_authentication_keys {
 
  public:
   Rsa_authentication_keys(char **private_key_path, char **public_key_path)
-      : m_public_key(0),
-        m_private_key(0),
+      : m_public_key(nullptr),
+        m_private_key(nullptr),
         m_cipher_len(0),
-        m_pem_public_key(0),
+        m_pem_public_key(nullptr),
         m_private_key_path(private_key_path),
         m_public_key_path(public_key_path) {}
   ~Rsa_authentication_keys() {}
@@ -203,7 +203,7 @@ class Cached_authentication_plugins {
   static const char *get_plugin_name(cached_plugins_enum plugin_index) {
     if (plugin_index < PLUGIN_LAST)
       return cached_plugins_names[plugin_index].str;
-    return 0;
+    return nullptr;
   }
 
   Cached_authentication_plugins();
@@ -220,7 +220,7 @@ class Cached_authentication_plugins {
   */
   plugin_ref get_cached_plugin_ref(cached_plugins_enum plugin_index) {
     if (plugin_index < PLUGIN_LAST) return cached_plugins[plugin_index];
-    return 0;
+    return nullptr;
   }
 
   plugin_ref cached_plugins[(uint)PLUGIN_LAST];

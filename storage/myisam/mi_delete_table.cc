@@ -40,7 +40,7 @@ int mi_delete_table(const char *name) {
 #endif
 
   fn_format(from, name, "", MI_NAME_IEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
-  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from)) {
+  if (my_is_symlink(from, nullptr) && (*myisam_test_invalid_symlink)(from)) {
     /*
       Symlink is pointing to file in data directory.
       Remove symlink, keep file.
@@ -52,7 +52,7 @@ int mi_delete_table(const char *name) {
       return my_errno();
   }
   fn_format(from, name, "", MI_NAME_DEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
-  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from)) {
+  if (my_is_symlink(from, nullptr) && (*myisam_test_invalid_symlink)(from)) {
     /*
       Symlink is pointing to file in data directory.
       Remove symlink, keep file.

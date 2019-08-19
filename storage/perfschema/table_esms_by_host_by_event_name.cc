@@ -87,7 +87,7 @@ Plugin_table table_esms_by_host_by_event_name::m_table_def(
 PFS_engine_table_share table_esms_by_host_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_esms_by_host_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_by_host_by_event_name::delete_all_rows,
     table_esms_by_host_by_event_name::get_row_count,
     sizeof(pos_esms_by_host_by_event_name),
@@ -156,7 +156,7 @@ int table_esms_by_host_by_event_name::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host()) {
     host = global_host_container.get(m_pos.m_index_1, &has_more_host);
-    if (host != NULL) {
+    if (host != nullptr) {
       statement_class = find_statement_class(m_pos.m_index_2);
       if (statement_class) {
         m_next_pos.set_after(&m_pos);
@@ -175,7 +175,7 @@ int table_esms_by_host_by_event_name::rnd_pos(const void *pos) {
   set_position(pos);
 
   host = global_host_container.get(m_pos.m_index_1);
-  if (host != NULL) {
+  if (host != nullptr) {
     statement_class = find_statement_class(m_pos.m_index_2);
     if (statement_class) {
       return make_row(host, statement_class);
@@ -187,7 +187,7 @@ int table_esms_by_host_by_event_name::rnd_pos(const void *pos) {
 
 int table_esms_by_host_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esms_by_host_by_event_name *result = NULL;
+  PFS_index_esms_by_host_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_host_by_event_name);
   m_opened_index = result;
@@ -202,7 +202,7 @@ int table_esms_by_host_by_event_name::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host()) {
     host = global_host_container.get(m_pos.m_index_1, &has_more_host);
-    if (host != NULL) {
+    if (host != nullptr) {
       if (m_opened_index->match(host)) {
         do {
           statement_class = find_statement_class(m_pos.m_index_2);
@@ -215,7 +215,7 @@ int table_esms_by_host_by_event_name::index_next(void) {
             }
             m_pos.m_index_2++;
           }
-        } while (statement_class != NULL);
+        } while (statement_class != nullptr);
       }
     }
   }

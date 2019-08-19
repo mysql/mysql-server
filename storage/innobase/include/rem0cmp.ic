@@ -107,7 +107,7 @@ int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
   ret = cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index, false,
                                &match_f, cmp_btree_recs);
 
-  if (matched_fields != NULL) {
+  if (matched_fields != nullptr) {
     *matched_fields = match_f;
   }
 

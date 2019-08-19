@@ -176,7 +176,7 @@ class Semijoin_mat_exec {
         mat_table_index(mat_table_index),
         inner_table_index(inner_table_index),
         table_param(),
-        table(NULL) {}
+        table(nullptr) {}
   ~Semijoin_mat_exec() {}
   TABLE_LIST *const sj_nest;     ///< Semi-join nest for this materialization
   const bool is_scan;            ///< true if executing a scan, false if lookup
@@ -216,7 +216,7 @@ class QEP_operation {
   */
   QEP_TAB *qep_tab;
 
-  QEP_operation() : qep_tab(NULL) {}
+  QEP_operation() : qep_tab(nullptr) {}
   QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg) {}
   virtual ~QEP_operation() {}
   virtual enum_op_type type() = 0;
@@ -264,7 +264,7 @@ class QEP_operation {
 class QEP_tmp_table : public QEP_operation {
  public:
   QEP_tmp_table(QEP_TAB *qep_tab_arg)
-      : QEP_operation(qep_tab_arg), write_func(NULL) {}
+      : QEP_operation(qep_tab_arg), write_func(nullptr) {}
   enum_op_type type() { return OT_TMP_TABLE; }
   enum_nested_loop_state put_record() { return put_record(false); }
   /*
@@ -418,33 +418,33 @@ class QEP_TAB : public QEP_shared_owner {
  public:
   QEP_TAB()
       : QEP_shared_owner(),
-        table_ref(NULL),
-        flush_weedout_table(NULL),
-        check_weed_out_table(NULL),
+        table_ref(nullptr),
+        flush_weedout_table(nullptr),
+        check_weed_out_table(nullptr),
         firstmatch_return(NO_PLAN_IDX),
         loosescan_key_len(0),
-        loosescan_buf(NULL),
+        loosescan_buf(nullptr),
         match_tab(NO_PLAN_IDX),
         found_match(false),
         found(false),
         not_null_compl(false),
         first_unmatched(NO_PLAN_IDX),
         rematerialize(false),
-        materialize_table(NULL),
-        next_select(NULL),
+        materialize_table(nullptr),
+        next_select(nullptr),
         used_null_fields(false),
         used_uneven_bit_fields(false),
-        copy_current_rowid(NULL),
+        copy_current_rowid(nullptr),
         not_used_in_distinct(false),
-        cache_idx_cond(NULL),
-        having(NULL),
-        op(NULL),
-        tmp_table_param(NULL),
-        filesort(NULL),
+        cache_idx_cond(nullptr),
+        having(nullptr),
+        op(nullptr),
+        tmp_table_param(nullptr),
+        filesort(nullptr),
         ref_item_slice(REF_SLICE_SAVED_BASE),
         send_records(0),
-        m_condition_optim(NULL),
-        m_quick_optim(NULL),
+        m_condition_optim(nullptr),
+        m_quick_optim(nullptr),
         m_keyread_optim(false),
         m_reversed_access(false),
         m_fetched_rows(0),

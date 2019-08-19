@@ -851,7 +851,7 @@ my_decimal *Item_temporal_hybrid_func::val_decimal(my_decimal *decimal_value) {
     if (sql_mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
 
     val_datetime(&ltime, flags);
-    return null_value ? 0
+    return null_value ? nullptr
                       : ltime.time_type == MYSQL_TIMESTAMP_TIME
                             ? time2my_decimal(&ltime, decimal_value)
                             : date2my_decimal(&ltime, decimal_value);
@@ -893,7 +893,7 @@ String *Item_temporal_hybrid_func::val_str_ascii(String *str) {
                           data_type() == MYSQL_TYPE_STRING
                               ? ltime.second_part ? DATETIME_MAX_DECIMALS : 0
                               : decimals)))
-    return NULL;
+    return nullptr;
 
   /* Check that the returned timestamp type matches to the function type */
   DBUG_ASSERT((data_type() == MYSQL_TYPE_TIME &&
@@ -1162,7 +1162,7 @@ String *Item_func_monthname::val_str(String *str) {
   MYSQL_TIME ltime;
 
   if ((null_value = (get_arg0_date(&ltime, TIME_FUZZY_DATE) || !ltime.month)))
-    return (String *)0;
+    return (String *)nullptr;
 
   month_name = locale->month_names->type_names[ltime.month - 1];
   str->copy(month_name, strlen(month_name), &my_charset_utf8_bin,
@@ -1210,11 +1210,11 @@ static uint week_mode(uint mode) {
 
 bool Item_func_week::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (args[1] == NULL) {
+  if (args[1] == nullptr) {
     THD *thd = pc->thd;
     args[1] = new (pc->mem_root)
         Item_int(NAME_STRING("0"), thd->variables.default_week_format, 1);
-    if (args[1] == NULL) return true;
+    if (args[1] == nullptr) return true;
   }
   return super::itemize(pc, res);
 }
@@ -1295,7 +1295,7 @@ String *Item_func_dayname::val_str(String *str) {
   const char *day_name;
   uint err;
 
-  if (null_value) return (String *)0;
+  if (null_value) return (String *)nullptr;
 
   day_name = locale->day_names->type_names[weekday];
   str->copy(day_name, strlen(day_name), &my_charset_utf8_bin,
@@ -1396,7 +1396,7 @@ double Item_timeval_func::val_real() {
 String *Item_timeval_func::val_str(String *str) {
   struct timeval tm;
   if (val_timeval(&tm) || (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
-    return (String *)0;
+    return (String *)nullptr;
   str->length(my_timeval_to_str(&tm, str->ptr(), decimals));
   str->set_charset(collation.collation);
   return str;
@@ -1753,7 +1753,7 @@ bool Item_func_now::resolve_type(THD *thd) {
 }
 
 void Item_func_now_local::store_in(Field *field) {
-  THD *thd = field->table != NULL ? field->table->in_use : current_thd;
+  THD *thd = field->table != nullptr ? field->table->in_use : current_thd;
   const timeval tm = thd->query_start_timeval_trunc(field->decimals());
   field->set_notnull();
   return field->store_timestamp(&tm);
@@ -1934,9 +1934,9 @@ String *Item_func_date_format::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
 
   if (!is_time_format) {
-    if (get_arg0_date(&l_time, TIME_FUZZY_DATE)) return 0;
+    if (get_arg0_date(&l_time, TIME_FUZZY_DATE)) return nullptr;
   } else {
-    if (get_arg0_time(&l_time)) return 0;
+    if (get_arg0_time(&l_time)) return nullptr;
     l_time.year = l_time.month = l_time.day = 0;
   }
 
@@ -1966,7 +1966,7 @@ String *Item_func_date_format::val_str(String *str) {
 
 null_date:
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_from_unixtime::resolve_type(THD *thd) {
@@ -2040,7 +2040,8 @@ bool Item_func_convert_tz::get_date(
     to_tz_cached = args[2]->const_item();
   }
 
-  if (from_tz == 0 || to_tz == 0 || get_arg0_date(ltime, TIME_NO_ZERO_DATE)) {
+  if (from_tz == nullptr || to_tz == nullptr ||
+      get_arg0_date(ltime, TIME_NO_ZERO_DATE)) {
     null_value = true;
     return true;
   }
@@ -2954,7 +2955,7 @@ String *Item_func_get_format::val_str_ascii(String *str) {
   String *val = args[0]->val_str_ascii(str);
   size_t val_len;
 
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
 
   val_len = val->length();
   for (format = &known_date_time_formats[0];
@@ -2971,7 +2972,7 @@ String *Item_func_get_format::val_str_ascii(String *str) {
   }
 
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 void Item_func_get_format::print(const THD *thd, String *str,
@@ -3113,7 +3114,7 @@ bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
   date_time_format.format.str = format->ptr();
   date_time_format.format.length = format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(), ltime,
-                        cached_timestamp_type, 0, "datetime") ||
+                        cached_timestamp_type, nullptr, "datetime") ||
       date_should_be_null(data_type(), *ltime, fuzzy_date))
     goto null_date;
   ltime->time_type = cached_timestamp_type;

@@ -51,13 +51,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	name	tablespace name, will be copied
 @param[in]	flags	tablespace flags */
 void Datafile::init(const char *name, uint32_t flags) {
-  ut_ad(m_name == NULL);
-  ut_ad(name != NULL);
+  ut_ad(m_name == nullptr);
+  ut_ad(name != nullptr);
 
   m_name = mem_strdup(name);
   m_flags = flags;
-  m_encryption_key = NULL;
-  m_encryption_iv = NULL;
+  m_encryption_key = nullptr;
+  m_encryption_iv = nullptr;
 }
 
 /** Release the resources. */
@@ -65,20 +65,20 @@ void Datafile::shutdown() {
   close();
 
   ut_free(m_name);
-  m_name = NULL;
+  m_name = nullptr;
 
   free_filepath();
 
   free_first_page();
 
-  if (m_encryption_key != NULL) {
+  if (m_encryption_key != nullptr) {
     ut_free(m_encryption_key);
-    m_encryption_key = NULL;
+    m_encryption_key = nullptr;
   }
 
-  if (m_encryption_iv != NULL) {
+  if (m_encryption_iv != nullptr) {
     ut_free(m_encryption_iv);
-    m_encryption_iv = NULL;
+    m_encryption_iv = nullptr;
   }
 }
 
@@ -87,7 +87,7 @@ void Datafile::shutdown() {
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_or_create(bool read_only_mode) {
   bool success;
-  ut_a(m_filepath != NULL);
+  ut_a(m_filepath != nullptr);
   ut_ad(m_handle.m_file == OS_FILE_CLOSED);
 
   m_handle =
@@ -113,7 +113,7 @@ dberr_t Datafile::open_read_only(bool strict) {
 
   /* This function can be called for file objects that do not need
   to be opened, which is the case when the m_filepath is NULL */
-  if (m_filepath == NULL) {
+  if (m_filepath == nullptr) {
     return (DB_ERROR);
   }
 
@@ -148,7 +148,7 @@ dberr_t Datafile::open_read_write(bool read_only_mode) {
 
   /* This function can be called for file objects that do not need
   to be opened, which is the case when the m_filepath is NULL */
-  if (m_filepath == NULL) {
+  if (m_filepath == nullptr) {
     return (DB_ERROR);
   }
 
@@ -217,7 +217,7 @@ void Datafile::make_filepath(const char *dirpath, const char *filename,
 
   m_filepath = Fil_path::make(path, name, ext);
 
-  ut_ad(m_filepath != NULL);
+  ut_ad(m_filepath != nullptr);
 
   set_filename();
 }
@@ -234,10 +234,10 @@ void Datafile::set_filepath(const char *filepath) {
 
 /** Free the filepath buffer. */
 void Datafile::free_filepath() {
-  if (m_filepath != NULL) {
+  if (m_filepath != nullptr) {
     ut_free(m_filepath);
-    m_filepath = NULL;
-    m_filename = NULL;
+    m_filepath = nullptr;
+    m_filename = nullptr;
   }
 }
 
@@ -275,7 +275,7 @@ will be freed in the destructor.
 void Datafile::set_name(const char *name) {
   ut_free(m_name);
 
-  if (name != NULL) {
+  if (name != nullptr) {
     m_name = mem_strdup(name);
   } else if (fsp_is_file_per_table(m_space_id, m_flags)) {
     m_name = fil_path_to_space_name(m_filepath);
@@ -373,8 +373,8 @@ dberr_t Datafile::read_first_page(bool read_only_mode) {
 void Datafile::free_first_page() {
   if (m_first_page_buf) {
     ut_free(m_first_page_buf);
-    m_first_page_buf = NULL;
-    m_first_page = NULL;
+    m_first_page_buf = nullptr;
+    m_first_page = nullptr;
   }
 }
 
@@ -397,7 +397,7 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
   /* Validate this single-table-tablespace with the data dictionary,
   but do not compare the DATA_DIR flag, in case the tablespace was
   remotely located. */
-  err = validate_first_page(space_id, 0, for_import);
+  err = validate_first_page(space_id, nullptr, for_import);
   if (err != DB_SUCCESS) {
     return (err);
   }
@@ -467,7 +467,7 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
   ut_ad(!srv_read_only_mode);
   ut_ad(is_open());
 
-  err = validate_first_page(space_id, 0, false);
+  err = validate_first_page(space_id, nullptr, false);
 
   switch (err) {
     case DB_SUCCESS:
@@ -513,11 +513,11 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
 
       /* Free the previously read first page and then re-validate. */
       free_first_page();
-      err = validate_first_page(space_id, 0, false);
+      err = validate_first_page(space_id, nullptr, false);
   }
 
   if (err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META) {
-    set_name(NULL);
+    set_name(nullptr);
   }
 
   return (err);
@@ -540,23 +540,23 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                                       bool for_import) {
   char *prev_name;
   char *prev_filepath;
-  const char *error_txt = NULL;
+  const char *error_txt = nullptr;
 
   m_is_valid = true;
 
-  if (m_first_page == NULL &&
+  if (m_first_page == nullptr &&
       read_first_page(srv_read_only_mode) != DB_SUCCESS) {
     error_txt = "Cannot read first page";
   } else {
     ut_ad(m_first_page_buf);
     ut_ad(m_first_page);
 
-    if (flush_lsn != NULL) {
+    if (flush_lsn != nullptr) {
       *flush_lsn = mach_read_from_8(m_first_page + FIL_PAGE_FILE_FLUSH_LSN);
     }
   }
 
-  if (error_txt == NULL && m_space_id == TRX_SYS_SPACE && !m_flags) {
+  if (error_txt == nullptr && m_space_id == TRX_SYS_SPACE && !m_flags) {
     /* Check if the whole page is blank. */
 
     const byte *b = m_first_page;
@@ -573,7 +573,7 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
 
   const page_size_t page_size(m_flags);
 
-  if (error_txt != NULL) {
+  if (error_txt != nullptr) {
     /* skip the next few tests */
   } else if (univ_page_size.logical() != page_size.logical()) {
     /* Page size must be univ_page_size. */
@@ -636,7 +636,7 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
     } */
   }
 
-  if (error_txt != NULL) {
+  if (error_txt != nullptr) {
     ib::error(ER_IB_MSG_399)
         << error_txt << " in datafile: " << m_filepath
         << ", Space ID:" << m_space_id << ", Flags: " << m_flags << ". "
@@ -669,8 +669,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       free_first_page();
       ut_free(m_encryption_key);
       ut_free(m_encryption_iv);
-      m_encryption_key = NULL;
-      m_encryption_iv = NULL;
+      m_encryption_key = nullptr;
+      m_encryption_iv = nullptr;
       return (DB_INVALID_ENCRYPTION_META);
     } else {
       ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
@@ -682,8 +682,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
         memcmp(m_encryption_key, m_encryption_iv, ENCRYPTION_KEY_LEN) == 0) {
       ut_free(m_encryption_key);
       ut_free(m_encryption_iv);
-      m_encryption_key = NULL;
-      m_encryption_iv = NULL;
+      m_encryption_key = nullptr;
+      m_encryption_iv = nullptr;
     }
   }
 #ifndef UNIV_HOTBACKUP
@@ -876,7 +876,7 @@ dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
   /* Find if double write buffer contains page_no of given space id. */
   const byte *page = recv_sys->dblwr.find_page(m_space_id, restore_page_no);
 
-  if (page == NULL) {
+  if (page == nullptr) {
     /* If the first page of the given user tablespace is not there
     in the doublewrite buffer, then the recovery is going to fail
     now. Hence this is treated as an error. */

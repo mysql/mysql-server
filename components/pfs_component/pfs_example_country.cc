@@ -190,7 +190,7 @@ int country_index_read(PSI_index_handle *index, PSI_key_reader *reader,
 /* Read the next indexed value */
 int country_index_next(PSI_table_handle *handle) {
   Country_Table_Handle *h = (Country_Table_Handle *)handle;
-  Country_index *i = NULL;
+  Country_index *i = nullptr;
 
   switch (h->index_num) {
     case 0:

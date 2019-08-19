@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ using std::placeholders::_1;
 
 int64 Abstract_connection_provider::Message_handler_wrapper::pass_message(
     const Mysql::Tools::Base::Message_data &message) {
-  if (m_message_handler != NULL) {
+  if (m_message_handler != nullptr) {
     return (*m_message_handler)(message) ? -1 : 0;
   }
   return 0;

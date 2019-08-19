@@ -85,13 +85,13 @@ class Callback {
   @return This function always returns true.
 */
 static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
-  plugin = my_plugin_lock(NULL, &plugin);
+  plugin = my_plugin_lock(nullptr, &plugin);
   if (plugin) {
     Callback *callback = reinterpret_cast<Callback *>(arg);
     callback->invoke(
         reinterpret_cast<st_mysql_keyring *>(plugin_decl(plugin)->info));
   }
-  plugin_unlock(NULL, plugin);
+  plugin_unlock(nullptr, plugin);
   // this function should get executed only for the first plugin. This is why
   // it always returns error. plugin_foreach will stop after first iteration.
   return true;

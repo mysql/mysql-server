@@ -223,7 +223,7 @@ class Explain {
   */
   bool push_extra(Extra_tag tag) {
     extra *e = new (explain_thd->mem_root) extra(tag);
-    return e == NULL || fmt->entry()->col_extra.push_back(e);
+    return e == nullptr || fmt->entry()->col_extra.push_back(e);
   }
 
   /**
@@ -396,7 +396,7 @@ class Explain_table_base : public Explain {
       : Explain(context_type_arg, explain_thd_arg, query_thd_arg,
                 select_lex_arg),
         table(table_arg),
-        tab(NULL) {}
+        tab(nullptr) {}
 
   virtual bool explain_partitions();
   virtual bool explain_possible_keys();
@@ -546,11 +546,11 @@ bool Explain::shallow_explain() {
 */
 
 bool Explain::mark_subqueries(Item *item, qep_row *destination) {
-  if (item == NULL || !fmt->is_hierarchical()) return false;
+  if (item == nullptr || !fmt->is_hierarchical()) return false;
 
   item->compile(&Item::explain_subquery_checker,
                 reinterpret_cast<uchar **>(&destination),
-                &Item::explain_subquery_propagator, NULL);
+                &Item::explain_subquery_propagator, nullptr);
   return false;
 }
 
@@ -700,7 +700,7 @@ bool Explain::prepare_columns() {
 bool Explain::send() {
   DBUG_TRACE;
 
-  if (fmt->begin_context(context_type, NULL)) return true;
+  if (fmt->begin_context(context_type, nullptr)) return true;
 
   /* Don't log this into the slow query log */
   explain_thd->server_status &=
@@ -926,7 +926,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     size_t len;
     int pushed_id = 0;
     for (QEP_TAB *prev = select_lex->join->qep_tab; prev <= tab; prev++) {
-      if (prev->table() == NULL) continue;
+      if (prev->table() == nullptr) continue;
 
       const TABLE *prev_root = prev->table()->file->member_of_pushed_join();
       if (prev_root == prev->table()) {
@@ -1145,7 +1145,7 @@ bool Explain_join::begin_sort_context(Explain_sort_clause clause,
   const Explain_format_flags *flags = &join->explain_flags;
   return (flags->get(clause, ESP_EXISTS) &&
           !flags->get(clause, ESP_IS_SIMPLE) &&
-          fmt->begin_context(ctx, NULL, flags));
+          fmt->begin_context(ctx, nullptr, flags));
 }
 
 bool Explain_join::end_sort_context(Explain_sort_clause clause,
@@ -1159,7 +1159,7 @@ bool Explain_join::begin_simple_sort_context(Explain_sort_clause clause,
                                              enum_parsing_context ctx) {
   const Explain_format_flags *flags = &join->explain_flags;
   return (flags->get(clause, ESP_IS_SIMPLE) &&
-          fmt->begin_context(ctx, NULL, flags));
+          fmt->begin_context(ctx, nullptr, flags));
 }
 
 bool Explain_join::end_simple_sort_context(Explain_sort_clause clause,
@@ -1192,7 +1192,7 @@ bool Explain_join::shallow_explain() {
       list of plan rows. Explain printing code (traditional/json) will deal with
       it.
     */
-    tab = NULL;
+    tab = nullptr;
     if (fmt->begin_context(CTX_QEP_TAB) || prepare_columns() ||
         fmt->flush_entry() || fmt->end_context(CTX_QEP_TAB))
       return true; /* purecov: inspected */
@@ -1658,7 +1658,8 @@ bool Explain_table::shallow_explain() {
       flags.set(ESC_ORDER_BY, ESP_USING_TMPTABLE);
   }
 
-  if (order_list && fmt->begin_context(CTX_ORDER_BY, NULL, &flags)) return true;
+  if (order_list && fmt->begin_context(CTX_ORDER_BY, nullptr, &flags))
+    return true;
 
   if (fmt->begin_context(CTX_QEP_TAB)) return true;
 
@@ -1950,12 +1951,12 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
         // INSERT/REPLACE SELECT ... FROM dual
         ret = Explain_table(
                   explain_thd, query_thd, select_lex,
-                  query_plan->get_lex()->insert_table_leaf->table, NULL,
+                  query_plan->get_lex()->insert_table_leaf->table, nullptr,
                   MAX_KEY, HA_POS_ERROR, false, false,
                   (query_plan->get_lex()->sql_command == SQLCOM_INSERT_SELECT
                        ? MT_INSERT
                        : MT_REPLACE),
-                  false, NULL)
+                  false, nullptr)
                   .send() ||
               explain_thd->is_error();
       } else
@@ -2222,7 +2223,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     return ExplainIterator(explain_thd, query_thd, unit);
   }
 
-  Query_result *explain_result = NULL;
+  Query_result *explain_result = nullptr;
 
   if (!other)
     explain_result = unit->query_result()
@@ -2336,7 +2337,8 @@ bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
 */
 class Find_thd_query_lock : public Find_THD_Impl {
  public:
-  explicit Find_thd_query_lock(my_thread_id value) : m_id(value), m_thd(NULL) {}
+  explicit Find_thd_query_lock(my_thread_id value)
+      : m_id(value), m_thd(nullptr) {}
   ~Find_thd_query_lock() {
     if (m_thd) m_thd->unlock_query_plan();
   }
@@ -2362,7 +2364,7 @@ class Find_thd_query_lock : public Find_THD_Impl {
 */
 bool Sql_cmd_explain_other_thread::execute(THD *thd) {
   bool res = false;
-  THD *query_thd = NULL;
+  THD *query_thd = nullptr;
   bool send_ok = false;
   const char *user;
   bool unlock_thd_data = false;
@@ -2386,7 +2388,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
     user = thd->security_context()->priv_user().str;
   } else {
     // Can see all connections
-    user = NULL;
+    user = nullptr;
   }
 
   // Pick thread
@@ -2426,8 +2428,8 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
     */
     if (!qp->is_ps_query() &&  // (1)
         is_explainable_query(qp->get_command()) &&
-        !qp->get_lex()->is_explain() &&   // (2)
-        qp->get_lex()->sphead == NULL &&  // (3)
+        !qp->get_lex()->is_explain() &&      // (2)
+        qp->get_lex()->sphead == nullptr &&  // (3)
         (!qp->get_lex()->m_sql_cmd ||
          qp->get_lex()->m_sql_cmd->is_prepared()))  // (4)
     {
@@ -2475,7 +2477,7 @@ err:
 
 void Modification_plan::register_in_thd() {
   thd->lock_query_plan();
-  DBUG_ASSERT(thd->query_plan.get_modification_plan() == NULL);
+  DBUG_ASSERT(thd->query_plan.get_modification_plan() == nullptr);
   thd->query_plan.set_modification_plan(this);
   thd->unlock_query_plan();
 }
@@ -2519,7 +2521,7 @@ Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
       need_tmp_table(need_tmp_table_arg),
       need_sort(need_sort_arg),
       used_key_is_modified(used_key_is_modified_arg),
-      message(NULL),
+      message(nullptr),
       zero_result(false),
       examined_rows(rows) {
   DBUG_ASSERT(current_thd == thd);
@@ -2550,7 +2552,7 @@ Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
     : thd(thd_arg),
       mod_type(mt),
       table(table_arg),
-      tab(NULL),
+      tab(nullptr),
       key(MAX_KEY),
       limit(HA_POS_ERROR),
       need_tmp_table(false),
@@ -2568,7 +2570,7 @@ Modification_plan::~Modification_plan() {
     thd->lock_query_plan();
     DBUG_ASSERT(current_thd == thd &&
                 thd->query_plan.get_modification_plan() == this);
-    thd->query_plan.set_modification_plan(NULL);
+    thd->query_plan.set_modification_plan(nullptr);
     thd->unlock_query_plan();
   }
 }

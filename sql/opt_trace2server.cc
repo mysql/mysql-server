@@ -223,7 +223,7 @@ Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
 
   if (likely(!error)) {
     if (unlikely(support_I_S) && ctx->is_started()) {
-      if (instr != NULL) {
+      if (instr != nullptr) {
         String buffer;
         buffer.set_charset(system_charset_info);
         instr->print(thd, &buffer);
@@ -379,7 +379,7 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   Security_context *const backup_thd_sctx = thd->security_context();
   const GRANT_INFO backup_grant_info = view->grant;
 
-  view->security_ctx = NULL;  // no SUID context for view
+  view->security_ctx = nullptr;  // no SUID context for view
   // no SUID context for THD
   thd->set_security_context(&thd->m_main_security_ctx);
   const int rc = check_table_access(thd, SHOW_VIEW_ACL, view, false, 1, true);
@@ -433,7 +433,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {
   Security_context *const backup_thd_sctx = thd->security_context();
   thd->set_security_context(&thd->m_main_security_ctx);
   const TABLE_LIST *const first_not_own_table = thd->lex->first_not_own_table();
-  for (TABLE_LIST *t = tbl; t != NULL && t != first_not_own_table;
+  for (TABLE_LIST *t = tbl; t != nullptr && t != first_not_own_table;
        t = t->next_global) {
     DBUG_PRINT("opt", ("table: '%s'", t->table_name));
     /*
@@ -443,7 +443,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {
     if (!t->is_derived()) {
       const GRANT_INFO backup_grant_info = t->grant;
       Security_context *const backup_table_sctx = t->security_ctx;
-      t->security_ctx = NULL;
+      t->security_ctx = nullptr;
       /*
         (1) check_table_access() fills t->grant.privilege.
         (2) Because SELECT privileges can be column-based,
@@ -532,12 +532,12 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *) {
 
 ST_FIELD_INFO optimizer_trace_info[] = {
     /* name, length, type, value, maybe_null, old_name, open_method */
-    {"QUERY", 65535, MYSQL_TYPE_STRING, 0, false, NULL, 0},
-    {"TRACE", 65535, MYSQL_TYPE_STRING, 0, false, NULL, 0},
-    {"MISSING_BYTES_BEYOND_MAX_MEM_SIZE", 20, MYSQL_TYPE_LONG, 0, false, NULL,
-     0},
-    {"INSUFFICIENT_PRIVILEGES", 1, MYSQL_TYPE_TINY, 0, false, NULL, 0},
-    {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL, 0}};
+    {"QUERY", 65535, MYSQL_TYPE_STRING, 0, false, nullptr, 0},
+    {"TRACE", 65535, MYSQL_TYPE_STRING, 0, false, nullptr, 0},
+    {"MISSING_BYTES_BEYOND_MAX_MEM_SIZE", 20, MYSQL_TYPE_LONG, 0, false,
+     nullptr, 0},
+    {"INSUFFICIENT_PRIVILEGES", 1, MYSQL_TYPE_TINY, 0, false, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_STRING, 0, true, nullptr, 0}};
 
 /*
   LiteralsWithIntroducers :

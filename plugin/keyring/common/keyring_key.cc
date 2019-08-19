@@ -49,19 +49,19 @@ Key::Key(IKey *other) : Key() {
 
 void Key::init(const char *a_key_id, const char *a_key_type,
                const char *a_user_id, const void *a_key, size_t a_key_len) {
-  if (a_key_id != NULL) key_id = a_key_id;
+  if (a_key_id != nullptr) key_id = a_key_id;
 
-  if (a_key_type != NULL) {
+  if (a_key_type != nullptr) {
     key_type = a_key_type;
     set_key_type_enum(&key_type);
   } else {
     key_type_enum = Key_type::unknown;
   }
 
-  if (a_user_id != NULL) user_id = a_user_id;
+  if (a_user_id != nullptr) user_id = a_user_id;
 
   key_len = a_key_len;
-  if (a_key != NULL && key_len > 0) {
+  if (a_key != nullptr && key_len > 0) {
     key.reset(new uchar[a_key_len]);
     memcpy(key.get(), a_key, a_key_len);
   }
@@ -189,7 +189,7 @@ size_t Key::get_key_pod_size() const {
 }
 
 void Key::xor_data() {
-  if (key == NULL) return;
+  if (key == nullptr) return;
   static const char *obfuscate_str = "*305=Ljt0*!@$Hnm(*-9-w;:";
   for (size_t i = 0, l = 0; i < key_len;
        ++i, l = ((l + 1) % strlen(obfuscate_str)))

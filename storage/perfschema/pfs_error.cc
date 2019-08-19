@@ -50,11 +50,11 @@ static void fct_reset_events_errors_by_thread(PFS_thread *thread) {
 
 server_error error_names_array[] = {
 #ifndef IN_DOXYGEN
-    {0, 0, 0, 0, 0, 0},  // NULL ROW
+    {nullptr, 0, nullptr, nullptr, nullptr, 0},  // NULL ROW
 #include <mysqld_ername.h>
 
-    {0, 0, 0, 0, 0, 0}  // DUMMY ROW
-#endif                  /* IN_DOXYGEN */
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}  // DUMMY ROW
+#endif                                          /* IN_DOXYGEN */
 };
 
 int init_error(const PFS_global_param *param) {

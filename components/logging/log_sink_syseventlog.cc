@@ -82,7 +82,7 @@ static SYSLOG_FACILITY syslog_facility[] = {
     {LOG_AUTHPRIV, "authpriv"},
 #endif
 
-    {-1, NULL}};
+    {-1, nullptr}};
 
 // variable names
 #define OPT_FAC "facility"

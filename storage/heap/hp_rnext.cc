@@ -92,7 +92,7 @@ int heap_rnext(HP_INFO *info, uchar *record) {
           hp_search_next(info, keyinfo, info->lastkey, info->current_hash_ptr);
     else {
       if (!info->current_ptr && (info->update & HA_STATE_NEXT_FOUND)) {
-        pos = 0; /* Read next after last */
+        pos = nullptr; /* Read next after last */
         set_my_errno(HA_ERR_KEY_NOT_FOUND);
       } else if (!info->current_ptr) /* Deleted or first call */
         pos = hp_search(info, keyinfo, info->lastkey, 0);

@@ -66,7 +66,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
-    &COMPONENT_REF(mysql_server), 0};
+    &COMPONENT_REF(mysql_server), nullptr};
 
 DEFINE_METHOD(MYSQL_SESSION, mysql_component_mysql_admin_session_imp::open,
               (srv_session_error_cb, void *)) {
@@ -415,8 +415,8 @@ class dynamic_loader : public ::testing::Test {
  protected:
   virtual void SetUp() {
     my_getwd(opt_plugin_dir, FN_REFLEN, MYF(0));
-    reg = NULL;
-    loader = NULL;
+    reg = nullptr;
+    loader = nullptr;
     ASSERT_FALSE(mysql_services_bootstrap(&reg));
     ASSERT_FALSE(reg->acquire("dynamic_loader",
                               reinterpret_cast<my_h_service *>(
@@ -439,7 +439,7 @@ class dynamic_loader : public ::testing::Test {
   SERVICE_TYPE(dynamic_loader) * loader;
 };
 
-TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != NULL); }
+TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != nullptr); }
 
 TEST_F(dynamic_loader, try_load_component) {
   static const char *urns[] = {"file://component_example_component1"};

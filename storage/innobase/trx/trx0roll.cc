@@ -62,7 +62,7 @@ rollback */
 static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
-static const trx_t *trx_roll_crash_recv_trx = NULL;
+static const trx_t *trx_roll_crash_recv_trx = nullptr;
 
 /** In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
@@ -89,7 +89,7 @@ static void trx_rollback_to_savepoint_low(
 
   roll_node = roll_node_create(heap);
 
-  if (savept != NULL) {
+  if (savept != nullptr) {
     roll_node->partial = TRUE;
     roll_node->savept = *savept;
     check_trx_state(trx);
@@ -100,23 +100,24 @@ static void trx_rollback_to_savepoint_low(
   trx->error_state = DB_SUCCESS;
 
   if (trx_is_rseg_updated(trx)) {
-    ut_ad(trx->rsegs.m_redo.rseg != 0 || trx->rsegs.m_noredo.rseg != 0);
+    ut_ad(trx->rsegs.m_redo.rseg != nullptr ||
+          trx->rsegs.m_noredo.rseg != nullptr);
 
-    thr = pars_complete_graph_for_exec(roll_node, trx, heap, NULL);
+    thr = pars_complete_graph_for_exec(roll_node, trx, heap, nullptr);
 
     ut_a(thr == que_fork_start_command(
                     static_cast<que_fork_t *>(que_node_get_parent(thr))));
 
     que_run_threads(thr);
 
-    ut_a(roll_node->undo_thr != NULL);
+    ut_a(roll_node->undo_thr != nullptr);
     que_run_threads(roll_node->undo_thr);
 
     /* Free the memory reserved by the undo graph. */
     que_graph_free(static_cast<que_t *>(roll_node->undo_thr->common.parent));
   }
 
-  if (savept == NULL) {
+  if (savept == nullptr) {
     trx_rollback_finish(trx);
     MONITOR_INC(MONITOR_TRX_ROLLBACK);
   } else {
@@ -164,7 +165,7 @@ static dberr_t trx_rollback_for_mysql_low(
   object, and we set a dummy session that we use for all MySQL
   transactions. */
 
-  trx_rollback_to_savepoint_low(trx, NULL);
+  trx_rollback_to_savepoint_low(trx, nullptr);
 
   trx->op_info = "";
 
@@ -200,7 +201,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
       /* Check an validate that undo is available for GTID. */
       trx_undo_gtid_add_update_undo(trx, false, true);
       ut_ad(!trx_is_autocommit_non_locking(trx));
-      if (trx->rsegs.m_redo.rseg != NULL && trx_is_redo_rseg_updated(trx)) {
+      if (trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx)) {
         /* Flush prepare GTID for XA prepared transactions. */
         trx_undo_gtid_flush_prepare(trx);
 
@@ -216,11 +217,11 @@ static dberr_t trx_rollback_low(trx_t *trx) {
 
         mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
 
-        if (undo_ptr->insert_undo != NULL) {
+        if (undo_ptr->insert_undo != nullptr) {
           trx_undo_set_state_at_prepare(trx, undo_ptr->insert_undo, true, &mtr);
         }
 
-        if (undo_ptr->update_undo != NULL) {
+        if (undo_ptr->update_undo != nullptr) {
           trx_undo_gtid_set(trx, undo_ptr->update_undo);
           trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
         }
@@ -233,7 +234,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
         ut_ad(mtr.commit_lsn() > 0);
       }
 #ifdef ENABLED_DEBUG_SYNC
-      if (trx->mysql_thd == NULL) {
+      if (trx->mysql_thd == nullptr) {
         /* We could be executing XA ROLLBACK after
         XA PREPARE and a server restart. */
       } else if (!trx_is_redo_rseg_updated(trx)) {
@@ -299,7 +300,7 @@ dberr_t trx_rollback_last_sql_stat_for_mysql(
 
       err = trx_rollback_to_savepoint(trx, &trx->last_sql_stat_start);
 
-      if (trx->fts_trx != NULL) {
+      if (trx->fts_trx != nullptr) {
         fts_savepoint_rollback_last_stmt(trx);
       }
 
@@ -329,14 +330,14 @@ static trx_named_savept_t *trx_savepoint_find(
 {
   trx_named_savept_t *savep;
 
-  for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints); savep != NULL;
+  for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints); savep != nullptr;
        savep = UT_LIST_GET_NEXT(trx_savepoints, savep)) {
     if (0 == ut_strcmp(savep->name, name)) {
       return (savep);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Frees a single savepoint struct. */
@@ -356,7 +357,7 @@ void trx_roll_savepoints_free(
     trx_named_savept_t *savep) /*!< in: free all savepoints starting
                                with this savepoint i*/
 {
-  while (savep != NULL) {
+  while (savep != nullptr) {
     trx_named_savept_t *next_savep;
 
     next_savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
@@ -441,7 +442,7 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
 
   savep = trx_savepoint_find(trx, savepoint_name);
 
-  if (savep == NULL) {
+  if (savep == nullptr) {
     return (DB_NO_SAVEPOINT);
   }
 
@@ -528,11 +529,11 @@ dberr_t trx_release_savepoint_for_mysql(
 
   savep = trx_savepoint_find(trx, savepoint_name);
 
-  if (savep != NULL) {
+  if (savep != nullptr) {
     trx_roll_savepoint_free(trx, savep);
   }
 
-  return (savep != NULL ? DB_SUCCESS : DB_NO_SAVEPOINT);
+  return (savep != nullptr ? DB_SUCCESS : DB_NO_SAVEPOINT);
 }
 
 /** Determines if this transaction is rolling back an incomplete transaction
@@ -567,10 +568,10 @@ static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
 
   heap = mem_heap_create(512);
 
-  fork = que_fork_create(NULL, NULL, QUE_FORK_RECOVERY, heap);
+  fork = que_fork_create(nullptr, nullptr, QUE_FORK_RECOVERY, heap);
   fork->trx = trx;
 
-  thr = que_thr_create(fork, heap, NULL);
+  thr = que_thr_create(fork, heap, nullptr);
 
   roll_node = roll_node_create(heap);
 
@@ -604,7 +605,7 @@ static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
                            << rows_to_undo << unit << " rows to undo";
 
   que_run_threads(thr);
-  ut_a(roll_node->undo_thr != NULL);
+  ut_a(roll_node->undo_thr != nullptr);
 
   que_run_threads(roll_node->undo_thr);
 
@@ -620,7 +621,7 @@ static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
 
   mem_heap_free(heap);
 
-  trx_roll_crash_recv_trx = NULL;
+  trx_roll_crash_recv_trx = nullptr;
 }
 
 /** Rollback or clean up any resurrected incomplete transactions. It assumes
@@ -706,7 +707,7 @@ void trx_rollback_or_clean_recovered(
   do {
     trx_sys_mutex_enter();
 
-    for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != NULL;
+    for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
          trx = UT_LIST_GET_NEXT(trx_list, trx)) {
       assert_trx_in_rw_list(trx);
 
@@ -723,7 +724,7 @@ void trx_rollback_or_clean_recovered(
 
     trx_sys_mutex_exit();
 
-  } while (trx != NULL);
+  } while (trx != nullptr);
 
   if (all) {
     ib::info(ER_IB_MSG_1190) << "Rollback of non-prepared transactions"
@@ -789,7 +790,7 @@ static trx_undo_rec_t *trx_roll_pop_top_rec(
   trx_undo_rec_t *prev_rec = trx_undo_get_prev_rec(
       undo_page + offset, undo->hdr_page_no, undo->hdr_offset, true, mtr);
 
-  if (prev_rec == NULL) {
+  if (prev_rec == nullptr) {
     undo->empty = TRUE;
   } else {
     page_t *prev_rec_page = page_align(prev_rec);
@@ -858,7 +859,7 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
     trx_roll_try_truncate(trx, undo_ptr);
     mutex_exit(&rseg->mutex);
     mutex_exit(&trx->undo_mutex);
-    return (NULL);
+    return (nullptr);
   }
 
   is_insert = (undo == ins_undo);
@@ -914,14 +915,14 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
     roll_ptr_t *roll_ptr, /*!< out: roll pointer to undo record */
     mem_heap_t *heap)     /*!< in: memory heap where copied */
 {
-  trx_undo_rec_t *undo_rec = 0;
+  trx_undo_rec_t *undo_rec = nullptr;
 
   if (trx_is_redo_rseg_updated(trx)) {
     undo_rec = trx_roll_pop_top_rec_of_trx_low(trx, &trx->rsegs.m_redo, limit,
                                                roll_ptr, heap);
   }
 
-  if (undo_rec == 0 && trx_is_temp_rseg_updated(trx)) {
+  if (undo_rec == nullptr && trx_is_temp_rseg_updated(trx)) {
     undo_rec = trx_roll_pop_top_rec_of_trx_low(trx, &trx->rsegs.m_noredo, limit,
                                                roll_ptr, heap);
   }
@@ -944,10 +945,10 @@ static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
   ut_ad(trx_mutex_own(trx));
 
   heap = mem_heap_create(512);
-  fork = que_fork_create(NULL, NULL, QUE_FORK_ROLLBACK, heap);
+  fork = que_fork_create(nullptr, nullptr, QUE_FORK_ROLLBACK, heap);
   fork->trx = trx;
 
-  thr = que_thr_create(fork, heap, NULL);
+  thr = que_thr_create(fork, heap, nullptr);
 
   thr->child = row_undo_node_create(trx, thr, heap, partial_rollback);
 
@@ -1039,7 +1040,7 @@ que_thr_t *trx_rollback_step(que_thr_t *thr) /*!< in: query thread */
 
     node->state = ROLL_NODE_WAIT;
 
-    ut_a(node->undo_thr == NULL);
+    ut_a(node->undo_thr == nullptr);
 
     roll_limit = node->partial ? node->savept.least_undo_no : 0;
 

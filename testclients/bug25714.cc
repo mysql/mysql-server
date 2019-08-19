@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 
   mysql_init(&conn);
   if (!mysql_real_connect(&conn, "127.0.0.1", "root", "", "test", atoi(argv[1]),
-                          NULL, CLIENT_FOUND_ROWS)) {
+                          nullptr, CLIENT_FOUND_ROWS)) {
     fprintf(stderr, "Failed to connect to database: Error: %s\n",
             mysql_error(&conn));
     return 1;

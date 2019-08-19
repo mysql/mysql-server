@@ -101,7 +101,7 @@ bool mysql_dynamic_loader_scheme_file_path_filter_imp::
     check_and_make_absolute_urn(const char *input_urn, my_string &out_path) {
   /* Omit scheme prefix to get filename. */
   const char *file = strstr(input_urn, "://");
-  if (file == NULL) {
+  if (file == nullptr) {
     return true;
   }
   /* Offset by "://" */

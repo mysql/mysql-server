@@ -81,7 +81,7 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
   gcs->initialize(if_params);
 
   // invoke the callback with a message with size zero
-  do_cb_xcom_receive_data(null_synode, NULL, null_synode, 0, NULL);
+  do_cb_xcom_receive_data(null_synode, nullptr, null_synode, 0, nullptr);
 
   // finalize the interface
   gcs->finalize();

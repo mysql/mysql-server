@@ -269,8 +269,8 @@ static struct st_mysql_daemon xpl_plugin_info = {
 static MYSQL_SYSVAR_UINT(
     port, xpl::Plugin_system_variables::port,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Port on which X Plugin is going to accept incoming connections.", NULL,
-    NULL, MYSQLX_TCP_PORT, 1, std::numeric_limits<uint16>::max(), 0);
+    "Port on which X Plugin is going to accept incoming connections.", nullptr,
+    nullptr, MYSQLX_TCP_PORT, 1, std::numeric_limits<uint16>::max(), 0);
 
 static MYSQL_SYSVAR_INT(max_connections,
                         xpl::Plugin_system_variables::max_connections,
@@ -278,26 +278,26 @@ static MYSQL_SYSVAR_INT(max_connections,
                         "Maximum number of concurrent X protocol connections. "
                         "Actual number of connections is also affected by the "
                         "general max_connections.",
-                        NULL, NULL, 100, 1,
+                        nullptr, nullptr, 100, 1,
                         std::numeric_limits<unsigned short>::max(), 0);
 
 static MYSQL_SYSVAR_UINT(
     min_worker_threads, xpl::Plugin_system_variables::min_worker_threads,
-    PLUGIN_VAR_OPCMDARG, "Minimal number of worker threads.", NULL,
+    PLUGIN_VAR_OPCMDARG, "Minimal number of worker threads.", nullptr,
     &xpl::Plugin_system_variables::update_func<unsigned int>, 2U, 1, 100, 0);
 
 static MYSQL_SYSVAR_UINT(
     idle_worker_thread_timeout,
     xpl::Plugin_system_variables::idle_worker_thread_timeout,
     PLUGIN_VAR_OPCMDARG,
-    "Time after which an idle worker thread is terminated (in seconds).", NULL,
-    &xpl::Plugin_system_variables::update_func<unsigned int>, 60, 0, 60 * 60,
-    0);
+    "Time after which an idle worker thread is terminated (in seconds).",
+    nullptr, &xpl::Plugin_system_variables::update_func<unsigned int>, 60, 0,
+    60 * 60, 0);
 
 static MYSQL_SYSVAR_UINT(
     max_allowed_packet, xpl::Plugin_system_variables::max_allowed_packet,
     PLUGIN_VAR_OPCMDARG,
-    "Size of largest message that client is going to handle.", NULL,
+    "Size of largest message that client is going to handle.", nullptr,
     &xpl::Plugin_system_variables::update_func<unsigned int>, MBYTE(64),
     BYTE(512), GBYTE(1), 0);
 
@@ -306,48 +306,50 @@ static MYSQL_SYSVAR_UINT(
     PLUGIN_VAR_OPCMDARG,
     "Maximum allowed waiting time for connection to setup a session (in "
     "seconds).",
-    NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 30, 1,
+    nullptr, &xpl::Plugin_system_variables::update_func<unsigned int>, 30, 1,
     1000000000, 0);
 
 static MYSQL_SYSVAR_STR(ssl_key,
                         xpl::Plugin_system_variables::ssl_config.ssl_key,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "X509 key in PEM format.", NULL, NULL, NULL);
+                        "X509 key in PEM format.", nullptr, nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(ssl_ca, xpl::Plugin_system_variables::ssl_config.ssl_ca,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "CA file in PEM format.", NULL, NULL, NULL);
+                        "CA file in PEM format.", nullptr, nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(ssl_capath,
                         xpl::Plugin_system_variables::ssl_config.ssl_capath,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "CA directory.", NULL, NULL, NULL);
+                        "CA directory.", nullptr, nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(ssl_cert,
                         xpl::Plugin_system_variables::ssl_config.ssl_cert,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "X509 cert in PEM format.", NULL, NULL, NULL);
+                        "X509 cert in PEM format.", nullptr, nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(ssl_cipher,
                         xpl::Plugin_system_variables::ssl_config.ssl_cipher,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "SSL cipher to use.", NULL, NULL, NULL);
+                        "SSL cipher to use.", nullptr, nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(ssl_crl,
                         xpl::Plugin_system_variables::ssl_config.ssl_crl,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-                        "Certificate revocation list.", NULL, NULL, NULL);
+                        "Certificate revocation list.", nullptr, nullptr,
+                        nullptr);
 
 static MYSQL_SYSVAR_STR(ssl_crlpath,
                         xpl::Plugin_system_variables::ssl_config.ssl_crlpath,
                         PLUGIN_VAR_READONLY,
-                        "Certificate revocation list path.", NULL, NULL, NULL);
+                        "Certificate revocation list path.", nullptr, nullptr,
+                        nullptr);
 
 static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG |
                             PLUGIN_VAR_MEMALLOC,
-                        "X Plugin's unix socket for local connection.", NULL,
-                        NULL, NULL);
+                        "X Plugin's unix socket for local connection.", nullptr,
+                        nullptr, nullptr);
 
 static MYSQL_SYSVAR_STR(
     bind_address, xpl::Plugin_system_variables::bind_address,
@@ -356,21 +358,21 @@ static MYSQL_SYSVAR_STR(
     "followed by a network namespace delimited with /. "
     "E.g., the string value 127.0.0.1/red specifies to listen on "
     "IP address 127.0.0.1 from the network namespace 'red'.",
-    NULL, NULL, "*");
+    nullptr, nullptr, "*");
 
 static MYSQL_SYSVAR_UINT(
     port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
     "How long X Plugin is going to retry binding of server socket (in case of "
     "failure)",
-    NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0, 120,
-    0);
+    nullptr, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0,
+    120, 0);
 
 static MYSQL_THDVAR_UINT(
     wait_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for activity on noninteractive "
     "connection",
-    NULL, (&thd_variable<uint32_t, &xpl::iface::Client::set_wait_timeout>),
+    nullptr, (&thd_variable<uint32_t, &xpl::iface::Client::set_wait_timeout>),
     Global_timeouts::Default::k_wait_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
@@ -379,21 +381,21 @@ static MYSQL_SYSVAR_UINT(
     "Default value for \"mysqlx_wait_timeout\", when the connection is "
     "interactive. The value defines number or seconds that X Plugin must "
     "wait for activity on interactive connection",
-    NULL, &xpl::Plugin_system_variables::update_func<uint32_t>,
+    nullptr, &xpl::Plugin_system_variables::update_func<uint32_t>,
     Global_timeouts::Default::k_interactive_timeout, 1, 2147483, 0);
 
 static MYSQL_THDVAR_UINT(
     read_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for blocking read operation to "
     "complete",
-    NULL, (&thd_variable<uint32_t, &xpl::iface::Client::set_read_timeout>),
+    nullptr, (&thd_variable<uint32_t, &xpl::iface::Client::set_read_timeout>),
     Global_timeouts::Default::k_read_timeout, 1, 2147483, 0);
 
 static MYSQL_THDVAR_UINT(
     write_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for blocking write operation to "
     "complete",
-    NULL, (&thd_variable<uint32_t, &xpl::iface::Client::set_write_timeout>),
+    nullptr, (&thd_variable<uint32_t, &xpl::iface::Client::set_write_timeout>),
     Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
@@ -403,7 +405,7 @@ static MYSQL_SYSVAR_UINT(
     "Unique prefix is a value assigned by InnoDB cluster to the instance, "
     "which is meant to make document id unique across all replicasets from "
     "the same cluster",
-    NULL, &xpl::Plugin_system_variables::update_func<uint32_t>, 0, 0,
+    nullptr, &xpl::Plugin_system_variables::update_func<uint32_t>, 0, 0,
     std::numeric_limits<uint16_t>::max(), 0);
 
 static MYSQL_SYSVAR_BOOL(
@@ -411,7 +413,7 @@ static MYSQL_SYSVAR_BOOL(
     PLUGIN_VAR_OPCMDARG,
     "Hello notice is a X Protocol message send by the server after connection "
     "establishment, using this variable it can be disabled",
-    NULL, &xpl::Plugin_system_variables::update_func<bool>, true);
+    nullptr, &xpl::Plugin_system_variables::update_func<bool>, true);
 
 static MYSQL_SYSVAR_SET(
     compression_algorithms,
@@ -419,7 +421,7 @@ static MYSQL_SYSVAR_SET(
     PLUGIN_VAR_OPCMDARG,
     "Compression algorithms: where option can be DEFLATE_STREAM, LZ4_MESSAGE, "
     "ZSTD_STREAM",
-    NULL, &xpl::Plugin_system_variables::update_func<unsigned long long>,
+    nullptr, &xpl::Plugin_system_variables::update_func<unsigned long long>,
     7 /* default=DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM */,
     xpl::Plugin_system_variables::m_compression_algorithms.typelib());
 
@@ -447,7 +449,7 @@ static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(document_id_unique_prefix),
     MYSQL_SYSVAR(enable_hello_notice),
     MYSQL_SYSVAR(compression_algorithms),
-    NULL};
+    nullptr};
 
 #define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \
   {                                                                          \
@@ -685,7 +687,7 @@ static SHOW_VAR xpl_plugin_status[] = {
     GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("address", std::string,
                                         xpl::Server::get_tcp_bind_address),
 
-    {NULL, NULL, SHOW_BOOL, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL}};
 
 /**
   Handle an authentication audit event.
@@ -747,7 +749,7 @@ static int xpl_event_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 /** st_mysql_audit for sha2_cache_cleaner plugin */
 struct st_mysql_audit xpl_sha2_cache_cleaner = {
     MYSQL_AUDIT_INTERFACE_VERSION,  // interface version
-    NULL,                           // release_thd()
+    nullptr,                        // release_thd()
     xpl_event_notify,               // event_notify()
     {
         0,  // MYSQL_AUDIT_GENERAL_CLASS
@@ -793,12 +795,12 @@ mysql_declare_plugin(mysqlx){
     "X Plugin for MySQL",
     PLUGIN_LICENSE_GPL,
     xpl_plugin_init,             /* init       */
-    NULL,                        /* check uninstall */
+    nullptr,                     /* check uninstall */
     xpl_plugin_deinit,           /* deinit     */
     MYSQLX_PLUGIN_VERSION,       /* version    */
     xpl_plugin_status,           /* status var */
     xpl_plugin_system_variables, /* system var */
-    NULL,                        /* options    */
+    nullptr,                     /* options    */
     0                            /* flags      */
 },
     {

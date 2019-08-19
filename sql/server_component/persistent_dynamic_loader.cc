@@ -88,10 +88,10 @@ enum enum_component_table_field {
 static const TABLE_FIELD_TYPE component_table_fields[CT_FIELD_COUNT] = {
     {{STRING_WITH_LEN("component_id")},
      {STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("component_group_id")},
      {STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("component_urn")},
      {STRING_WITH_LEN("text")},
      {STRING_WITH_LEN("utf8")}}};
@@ -229,7 +229,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
     unique_ptr_destroy_only<RowIterator> iterator =
-        init_table_iterator(thd, component_table, NULL, false,
+        init_table_iterator(thd, component_table, nullptr, false,
                             /*ignore_not_found_rows=*/false);
     if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
@@ -476,7 +476,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       close_mysql_tables(thd);
     });
 
-    DBUG_ASSERT(component_table->key_info != NULL);
+    DBUG_ASSERT(component_table->key_info != nullptr);
 
     for (int i = 0; i < component_count; ++i) {
       /* Find component ID used in component table using memory mapping. */

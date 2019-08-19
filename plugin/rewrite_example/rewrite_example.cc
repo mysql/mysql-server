@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ static int rewrite_lower(MYSQL_THD, mysql_event_class_t event_class,
 /* Audit plugin descriptor */
 static struct st_mysql_audit rewrite_example_descriptor = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
-    NULL,                          /* release_thd()     */
+    nullptr,                       /* release_thd()     */
     rewrite_lower,                 /* event_notify()    */
     {
         0,
@@ -97,11 +97,11 @@ mysql_declare_plugin(audit_log){
     " to lower case",   /* description                   */
     PLUGIN_LICENSE_GPL, /* license                       */
     plugin_init,        /* plugin initializer            */
-    NULL,               /* plugin check uninstall        */
-    NULL,               /* plugin deinitializer          */
+    nullptr,            /* plugin check uninstall        */
+    nullptr,            /* plugin deinitializer          */
     0x0002,             /* version                       */
-    NULL,               /* status variables              */
-    NULL,               /* system variables              */
-    NULL,               /* reserverd                     */
+    nullptr,            /* status variables              */
+    nullptr,            /* system variables              */
+    nullptr,            /* reserverd                     */
     0                   /* flags                         */
 } mysql_declare_plugin_end;

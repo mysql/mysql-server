@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,14 +159,14 @@ TEST(ut0new, edgecases) {
   ut_allocator<byte> alloc1(mem_key_buf_buf_pool);
   ut_new_pfx_t pfx;
   void *ret;
-  const void *null_ptr = NULL;
+  const void *null_ptr = nullptr;
 
   ret = alloc1.allocate_large(0, &pfx);
   EXPECT_EQ(null_ptr, ret);
 
 #ifdef UNIV_PFS_MEMORY
   ret = alloc1.allocate(16);
-  ASSERT_TRUE(ret != NULL);
+  ASSERT_TRUE(ret != nullptr);
   ret = alloc1.reallocate(ret, 0, UT_NEW_THIS_FILE_PSI_KEY);
   EXPECT_EQ(null_ptr, ret);
 
@@ -183,7 +183,7 @@ TEST(ut0new, edgecases) {
 
 #ifdef UNIV_PFS_MEMORY
   ret = alloc2.allocate(16);
-  ASSERT_TRUE(ret != NULL);
+  ASSERT_TRUE(ret != nullptr);
   void *ret2 =
       alloc2.reallocate(ret, too_many_elements, UT_NEW_THIS_FILE_PSI_KEY);
   EXPECT_EQ(null_ptr, ret2);
@@ -201,7 +201,7 @@ TEST(ut0new, edgecases) {
   }
   EXPECT_TRUE(threw);
 
-  ret = alloc2.allocate(too_many_elements, NULL, PSI_NOT_INSTRUMENTED, false,
+  ret = alloc2.allocate(too_many_elements, nullptr, PSI_NOT_INSTRUMENTED, false,
                         false);
   EXPECT_EQ(null_ptr, ret);
 
@@ -210,7 +210,7 @@ TEST(ut0new, edgecases) {
     cc_t *cc = UT_NEW_ARRAY_NOKEY(cc_t, 16);
     /* Not reached, but silence a compiler warning
     about unused 'cc': */
-    ASSERT_TRUE(cc != NULL);
+    ASSERT_TRUE(cc != nullptr);
   } catch (...) {
     threw = true;
   }

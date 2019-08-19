@@ -55,7 +55,7 @@ void Sasl_client::interact(sasl_interact_t *ilist) {
         ilist->len = strlen((const char *)ilist->result);
         break;
       default:
-        ilist->result = NULL;
+        ilist->result = nullptr;
         ilist->len = 0;
     }
     ilist++;
@@ -75,7 +75,7 @@ void Sasl_client::set_plugin_info(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 */
 int Sasl_client::read_method_name_from_server() {
   int rc_server_read = -1;
-  unsigned char *packet = NULL;
+  unsigned char *packet = nullptr;
   std::stringstream log_stream;
   /*
     We are assuming that there will be only one method name passed by
@@ -83,7 +83,7 @@ int Sasl_client::read_method_name_from_server() {
   */
   const int max_method_name_len = 256;
 
-  if (m_vio == NULL) {
+  if (m_vio == nullptr) {
     return rc_server_read;
   }
   /** Get authentication method from the server. */
@@ -110,7 +110,7 @@ int Sasl_client::read_method_name_from_server() {
   return rc_server_read;
 }
 
-Sasl_client::Sasl_client() { m_connection = NULL; }
+Sasl_client::Sasl_client() { m_connection = nullptr; }
 
 int Sasl_client::initilize() {
   std::stringstream log_stream;
@@ -153,7 +153,7 @@ int Sasl_client::initilize() {
   log_stream.clear();
 #endif
   /** Initialize client-side of SASL. */
-  rc_sasl = sasl_client_init(NULL);
+  rc_sasl = sasl_client_init(nullptr);
   if (rc_sasl != SASL_OK) {
     log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
     log_error(log_stream.str());
@@ -161,8 +161,8 @@ int Sasl_client::initilize() {
   }
 
   /** Creating sasl connection. */
-  rc_sasl = sasl_client_new(m_service_name, NULL, NULL, NULL, callbacks, 0,
-                            &m_connection);
+  rc_sasl = sasl_client_new(m_service_name, nullptr, nullptr, nullptr,
+                            callbacks, 0, &m_connection);
   if (rc_sasl != SASL_OK) {
     log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
     log_error(log_stream.str());
@@ -177,7 +177,7 @@ int Sasl_client::initilize() {
 Sasl_client::~Sasl_client() {
   if (m_connection) {
     sasl_dispose(&m_connection);
-    m_connection = NULL;
+    m_connection = nullptr;
     sasl_client_done_wrapper();
   }
 }
@@ -198,7 +198,7 @@ int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
   int rc_server = CR_ERROR;
   std::stringstream log_stream;
 
-  if (m_vio == NULL) {
+  if (m_vio == nullptr) {
     goto EXIT;
   }
   /** Send the request to the MySQL server. */
@@ -213,7 +213,7 @@ int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
 
   /** Get the sasl response from the MySQL server. */
   *response_len = m_vio->read_packet(m_vio, response);
-  if ((*response_len) < 0 || (*response == NULL)) {
+  if ((*response_len) < 0 || (*response == nullptr)) {
     log_error(
         "Sasl_client::SendSaslRequestToServer: sasl response read failed");
     goto EXIT;
@@ -227,12 +227,12 @@ EXIT:
 
 int Sasl_client::sasl_start(char **client_output, int *client_output_length) {
   int rc_sasl = SASL_FAIL;
-  const char *mechanism = NULL;
-  char *sasl_client_output = NULL;
-  sasl_interact_t *interactions = NULL;
+  const char *mechanism = nullptr;
+  char *sasl_client_output = nullptr;
+  sasl_interact_t *interactions = nullptr;
   std::stringstream log_stream;
 
-  if (m_connection == NULL) {
+  if (m_connection == nullptr) {
     log_error("Sasl_client::SaslStart: sasl connection is null");
     return rc_sasl;
   }
@@ -251,7 +251,7 @@ int Sasl_client::sasl_start(char **client_output, int *client_output_length) {
     log_error(log_stream.str());
     goto EXIT;
   }
-  if (client_output != NULL) {
+  if (client_output != nullptr) {
     *client_output = sasl_client_output;
     log_stream << "Sasl_client::SaslStart sasl output: " << sasl_client_output;
     log_dbg(log_stream.str());
@@ -263,9 +263,9 @@ EXIT:
 int Sasl_client::sasl_step(char *server_in, int server_in_length,
                            char **client_out, int *client_out_length) {
   int rc_sasl = SASL_FAIL;
-  sasl_interact_t *interactions = NULL;
+  sasl_interact_t *interactions = nullptr;
 
-  if (m_connection == NULL) {
+  if (m_connection == nullptr) {
     return rc_sasl;
   }
   void *client_out_p = client_out;
@@ -296,9 +296,9 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio,
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int rc_sasl = SASL_FAIL;
   int rc_auth = CR_ERROR;
-  unsigned char *server_packet = NULL;
+  unsigned char *server_packet = nullptr;
   int server_packet_len = 0;
-  char *sasl_client_output = NULL;
+  char *sasl_client_output = nullptr;
   int sasl_client_output_len = 0;
   const char *opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
   int opt_val = opt ? atoi(opt) : 0;
@@ -362,12 +362,12 @@ EXIT:
   }
   if (g_logger_client) {
     delete g_logger_client;
-    g_logger_client = NULL;
+    g_logger_client = nullptr;
   }
   return rc_auth;
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     "Yashwant Sahu", "LDAP SASL Client Authentication Plugin", {0, 1, 0},
-    "PROPRIETARY", NULL, NULL, NULL, NULL,
-    sasl_authenticate, NULL mysql_end_client_plugin;
+    "PROPRIETARY", nullptr, nullptr, nullptr, nullptr, sasl_authenticate,
+    nullptr mysql_end_client_plugin;

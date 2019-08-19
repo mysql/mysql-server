@@ -47,7 +47,7 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     const LEX_CSTRING &db_cl_name) {
   const CHARSET_INFO *client_cs;
   const CHARSET_INFO *connection_cl;
-  const CHARSET_INFO *db_cl = NULL;
+  const CHARSET_INFO *db_cl = nullptr;
 
   bool invalid_creation_ctx = false;
 
@@ -69,7 +69,7 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     invalid_creation_ctx = true;
   }
 
-  if (resolve_collation(db_cl_name.str, NULL, &db_cl)) {
+  if (resolve_collation(db_cl_name.str, nullptr, &db_cl)) {
     LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE, (const char *)db_name.str,
            (const char *)table_name.str, "database_collation",
            (const char *)db_cl_name.str);
@@ -89,9 +89,9 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     from the disk.
   */
 
-  if (db_cl == NULL && get_default_db_collation(thd, db_name.str, &db_cl)) {
+  if (db_cl == nullptr && get_default_db_collation(thd, db_name.str, &db_cl)) {
     DBUG_ASSERT(thd->is_error() || thd->killed);
-    return NULL;
+    return nullptr;
   }
 
   db_cl = db_cl ? db_cl : thd->collation();

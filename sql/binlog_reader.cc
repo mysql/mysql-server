@@ -116,7 +116,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(fde != 0);
+  DBUG_ASSERT(fde != nullptr);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));
   DBUG_DUMP("data", buffer, event_len);
 

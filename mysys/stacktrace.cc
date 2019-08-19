@@ -195,11 +195,11 @@ void my_safe_puts_stderr(const char *val, size_t max_len) {
 #include <cxxabi.h>
 
 static char *my_demangle(const char *mangled_name, int *status) {
-  return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
+  return abi::__cxa_demangle(mangled_name, nullptr, nullptr, status);
 }
 
 static bool my_demangle_symbol(char *line) {
-  char *demangled = NULL;
+  char *demangled = nullptr;
 #ifdef __APPLE__  // OS X formatting of stacktraces is different from Linux
   char *begin = strstr(line, "_Z");
   char *end = begin ? strchr(begin, ' ') : NULL;
@@ -232,21 +232,21 @@ static bool my_demangle_symbol(char *line) {
   if (demangled) my_safe_printf_stderr("%s %s+%s\n", line, demangled, end);
 #else                       // !__APPLE__ and !__SUNPRO_CC
   char *begin = strchr(line, '(');
-  char *end = begin ? strchr(begin, '+') : NULL;
+  char *end = begin ? strchr(begin, '+') : nullptr;
 
   if (begin && end) {
     *begin++ = *end++ = '\0';
     int status;
     demangled = my_demangle(begin, &status);
     if (!demangled || status) {
-      demangled = NULL;
+      demangled = nullptr;
       begin[-1] = '(';
       end[-1] = '+';
     }
   }
   if (demangled) my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
 #endif
-  bool ret = (demangled == NULL);
+  bool ret = (demangled == nullptr);
   free(demangled);
   return (ret);
 }
@@ -284,7 +284,7 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 #endif
 
   void *addrs[128];
-  char **strings = NULL;
+  char **strings = nullptr;
   int n = backtrace(addrs, array_elements(addrs));
   my_safe_printf_stderr("stack_bottom = %p thread_stack 0x%lx\n", stack_bottom,
                         thread_stack);
@@ -792,7 +792,7 @@ void my_safe_print_system_time() {
   secs = utc_time.wSecond;
 #else
   /* Using time() instead of my_time() to avoid looping */
-  const time_t curr_time = time(NULL);
+  const time_t curr_time = time(nullptr);
   /* Calculate time of day */
   const long tmins = curr_time / 60;
   const long thrs = tmins / 60;

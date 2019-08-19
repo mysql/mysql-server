@@ -203,7 +203,7 @@ inline void *gis_wkb_fixed_alloc(size_t sz) { return gis_wkb_alloc(sz); }
 void *gis_wkb_realloc(void *p, size_t sz);
 
 inline void gis_wkb_free(void *p) {
-  if (p == NULL) return;
+  if (p == nullptr) return;
   char *cp = static_cast<char *>(p);
   my_free(cp - GEOM_HEADER_SIZE);
 }
@@ -465,7 +465,7 @@ class Geometry {
     Class_info(const char *name, int type_id, create_geom_t create_func);
   };
 
-  virtual const Class_info *get_class_info() const { return NULL; }
+  virtual const Class_info *get_class_info() const { return nullptr; }
 
   virtual uint32 get_data_size() const { return -1; }
 
@@ -697,7 +697,7 @@ class Geometry {
  protected:
   static Class_info *find_class(int type_id) {
     return ((type_id < wkb_first) || (type_id > wkb_last))
-               ? NULL
+               ? nullptr
                : ci_collection[type_id];
   }
   static Class_info *find_class(const char *name, size_t len);
@@ -773,8 +773,8 @@ class Geometry {
                 "Flags are expected to line up exactly with an uint64.");
 
   Geometry() {
-    m_ptr = NULL;
-    m_owner = NULL;
+    m_ptr = nullptr;
+    m_owner = nullptr;
     set_ownmem(false);
     set_byte_order(Geometry::wkb_ndr);
     set_srid(default_srid);
@@ -794,7 +794,7 @@ class Geometry {
     m_flags.nbytes = len;
     set_srid(srid);
     m_flags.geotype = flags.geotype;
-    m_owner = NULL;
+    m_owner = nullptr;
     set_ownmem(false);
   }
 
@@ -993,7 +993,7 @@ class Geometry {
   virtual void donate_data() {
     set_ownmem(false);
     set_nbytes(0);
-    m_ptr = NULL;
+    m_ptr = nullptr;
   }
 
  protected:
@@ -1206,7 +1206,7 @@ class Gis_point : public Geometry {
   typedef Geometry base;
 
   explicit Gis_point(bool is_bg_adapter = true)
-      : Geometry(NULL, 0, Flags_t(wkb_point, 0), default_srid) {
+      : Geometry(nullptr, 0, Flags_t(wkb_point, 0), default_srid) {
     set_ownmem(false);
     set_bg_adapter(is_bg_adapter);
   }
@@ -1217,8 +1217,8 @@ class Gis_point : public Geometry {
       : Geometry(ptr, nbytes, flags, srid) {
     set_geotype(wkb_point);
     DBUG_ASSERT(
-        (ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-        (ptr == NULL && get_nbytes() == 0));
+        (ptr != nullptr && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+        (ptr == nullptr && get_nbytes() == 0));
     set_ownmem(false);
     set_bg_adapter(true);
   }
@@ -1236,10 +1236,10 @@ class Gis_point : public Geometry {
   /// @return the coordinate
   template <std::size_t K>
   double get() const {
-    DBUG_ASSERT(
-        K < static_cast<size_t>(get_dimension()) &&
-        ((m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-         (m_ptr == NULL && get_nbytes() == 0)));
+    DBUG_ASSERT(K < static_cast<size_t>(get_dimension()) &&
+                ((m_ptr != nullptr &&
+                  get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+                 (m_ptr == nullptr && get_nbytes() == 0)));
 
     set_bg_adapter(true);
     const char *p = static_cast<char *>(m_ptr) + K * SIZEOF_STORED_DOUBLE;
@@ -1249,7 +1249,7 @@ class Gis_point : public Geometry {
       has not specified with any meaningful value, and in such a case the
       default value are expected to be all zeros.
      */
-    if (m_ptr == NULL) return 0;
+    if (m_ptr == nullptr) return 0;
 
     return float8get(p);
   }
@@ -1262,13 +1262,13 @@ class Gis_point : public Geometry {
   template <std::size_t K>
   void set(double const &value) {
     /* Allow assigning to others' memory. */
-    DBUG_ASSERT((m_ptr != NULL && K < static_cast<size_t>(get_dimension()) &&
+    DBUG_ASSERT((m_ptr != nullptr && K < static_cast<size_t>(get_dimension()) &&
                  get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-                (!get_ownmem() && get_nbytes() == 0 && m_ptr == NULL));
+                (!get_ownmem() && get_nbytes() == 0 && m_ptr == nullptr));
     set_bg_adapter(true);
-    if (m_ptr == NULL) {
+    if (m_ptr == nullptr) {
       m_ptr = gis_wkb_fixed_alloc(SIZEOF_STORED_DOUBLE * GEOM_DIM);
-      if (m_ptr == NULL) {
+      if (m_ptr == nullptr) {
         set_ownmem(false);
         set_nbytes(0);
         return;
@@ -1360,7 +1360,7 @@ class Gis_wkb_vector_const_iterator {
 
   Gis_wkb_vector_const_iterator() {
     m_curidx = -1;
-    m_owner = NULL;
+    m_owner = nullptr;
   }
 
   Gis_wkb_vector_const_iterator(index_type idx, const owner_t *owner) {
@@ -1577,7 +1577,7 @@ class Gis_wkb_vector_const_iterator {
   /// element.
   /// @return The reference to the element this iterator points to.
   reference operator*() const {
-    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+    DBUG_ASSERT(this->m_owner != nullptr && this->m_curidx >= 0 &&
                 this->m_curidx <
                     static_cast<index_type>(this->m_owner->size()));
     return (*m_owner)[m_curidx];
@@ -1824,7 +1824,7 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   /// element.
   /// @return The reference to the element this iterator points to.
   reference operator*() const {
-    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+    DBUG_ASSERT(this->m_owner != nullptr && this->m_curidx >= 0 &&
                 this->m_curidx <
                     static_cast<index_type>(this->m_owner->size()));
     return (*this->m_owner)[this->m_curidx];
@@ -1837,7 +1837,7 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   /// element.
   /// @return The address of the referenced object.
   pointer operator->() const {
-    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+    DBUG_ASSERT(this->m_owner != nullptr && this->m_curidx >= 0 &&
                 this->m_curidx <
                     static_cast<index_type>(this->m_owner->size()));
     return &(*this->m_owner)[this->m_curidx];
@@ -2028,7 +2028,7 @@ class Gis_wkb_vector : public Geometry {
                  gis::srid_t srid, bool is_bg_adapter = true);
   Gis_wkb_vector(const self &v);
 
-  Gis_wkb_vector() : Geometry() { m_geo_vect = NULL; }
+  Gis_wkb_vector() : Geometry() { m_geo_vect = nullptr; }
 
   ~Gis_wkb_vector() override {
     /*
@@ -2043,7 +2043,7 @@ class Gis_wkb_vector : public Geometry {
     try {
 #endif
       if (!is_bg_adapter()) return;
-      if (m_geo_vect != NULL) clear_wkb_data();
+      if (m_geo_vect != nullptr) clear_wkb_data();
 #if !defined(DBUG_OFF)
     } catch (...) {
       // Should never throw exceptions in destructor.
@@ -2054,7 +2054,7 @@ class Gis_wkb_vector : public Geometry {
 
   void clear_wkb_data() {
     delete m_geo_vect;
-    m_geo_vect = NULL;
+    m_geo_vect = nullptr;
   }
 
   self &operator=(const self &rhs);
@@ -2063,7 +2063,7 @@ class Gis_wkb_vector : public Geometry {
   void shallow_push(const Geometry *g) override SUPPRESS_UBSAN;
 
   Geo_vector *get_geo_vect(bool create_if_null = false) {
-    if (m_geo_vect == NULL && create_if_null) m_geo_vect = new Geo_vector;
+    if (m_geo_vect == nullptr && create_if_null) m_geo_vect = new Geo_vector;
     return m_geo_vect;
   }
 
@@ -2079,8 +2079,8 @@ class Gis_wkb_vector : public Geometry {
   void donate_data() override {
     set_ownmem(false);
     set_nbytes(0);
-    m_ptr = NULL;
-    m_geo_vect = NULL;
+    m_ptr = nullptr;
+    m_geo_vect = nullptr;
   }
 
   void set_ptr(void *ptr, size_t len);
@@ -2142,7 +2142,7 @@ class Gis_line_string : public Gis_wkb_vector<Gis_point> {
   typedef Gis_line_string self;
 
   explicit Gis_line_string(bool is_bg_adapter = true)
-      : base_type(NULL, 0, Flags_t(wkb_linestring, 0), default_srid,
+      : base_type(nullptr, 0, Flags_t(wkb_linestring, 0), default_srid,
                   is_bg_adapter) {}
 
   Gis_line_string(const void *wkb, size_t len, const Flags_t &flags,
@@ -2181,7 +2181,7 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
   Gis_polygon_ring &operator=(const Gis_polygon_ring &) = default;
 
   Gis_polygon_ring()
-      : base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0), default_srid,
+      : base(nullptr, 0, Flags_t(Geometry::wkb_linestring, 0), default_srid,
              true) {}
 
   bool set_ring_order(bool want_ccw);
@@ -2226,7 +2226,7 @@ class Gis_polygon : public Geometry {
     set_bg_adapter(true);
     // Create outer ring if none, although read only, calller may just want
     // to traverse the outer ring if any.
-    if (this->m_ptr == NULL) const_cast<self *>(this)->make_rings();
+    if (this->m_ptr == nullptr) const_cast<self *>(this)->make_rings();
 
     return *(outer_ring(this));
   }
@@ -2236,7 +2236,7 @@ class Gis_polygon : public Geometry {
     set_bg_adapter(true);
     // Create inner rings if none, although read only, calller may just want
     // to traverse the inner rings if any.
-    if (m_inn_rings == NULL) const_cast<self *>(this)->make_rings();
+    if (m_inn_rings == nullptr) const_cast<self *>(this)->make_rings();
 
     return *m_inn_rings;
   }
@@ -2256,8 +2256,8 @@ class Gis_polygon : public Geometry {
     so we have to default to true.
   */
   explicit Gis_polygon(bool isbgadapter = true)
-      : Geometry(NULL, 0, Flags_t(Geometry::wkb_polygon, 0), default_srid) {
-    m_inn_rings = NULL;
+      : Geometry(nullptr, 0, Flags_t(Geometry::wkb_polygon, 0), default_srid) {
+    m_inn_rings = nullptr;
     set_bg_adapter(isbgadapter);
   }
 
@@ -2276,8 +2276,8 @@ class Gis_polygon : public Geometry {
   void donate_data() override {
     set_ownmem(false);
     set_nbytes(0);
-    m_ptr = NULL;
-    m_inn_rings = NULL;
+    m_ptr = nullptr;
+    m_inn_rings = nullptr;
   }
 
   bool set_polygon_ring_order();
@@ -2329,7 +2329,7 @@ class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
   typedef Gis_multi_point self;
 
   explicit Gis_multi_point(bool is_bg_adapter = true)
-      : base_type(NULL, 0, Flags_t(wkb_multipoint, 0), default_srid,
+      : base_type(nullptr, 0, Flags_t(wkb_multipoint, 0), default_srid,
                   is_bg_adapter) {}
 
   Gis_multi_point(const void *ptr, size_t nbytes, const Flags_t &flags,
@@ -2369,7 +2369,7 @@ class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
   typedef Gis_multi_line_string self;
 
   explicit Gis_multi_line_string(bool is_bg_adapter = true)
-      : base(NULL, 0, Flags_t(wkb_multilinestring, 0), default_srid,
+      : base(nullptr, 0, Flags_t(wkb_multilinestring, 0), default_srid,
              is_bg_adapter) {}
 
   Gis_multi_line_string(const void *ptr, size_t nbytes, const Flags_t &,
@@ -2406,7 +2406,7 @@ class Gis_multi_polygon : public Gis_wkb_vector<Gis_polygon> {
   typedef Gis_wkb_vector<Gis_polygon> base;
 
   explicit Gis_multi_polygon(bool is_bg_adapter = true)
-      : base(NULL, 0, Flags_t(wkb_multipolygon, 0), default_srid,
+      : base(nullptr, 0, Flags_t(wkb_multipolygon, 0), default_srid,
              is_bg_adapter) {}
 
   Gis_multi_polygon(const void *ptr, size_t nbytes, const Flags_t &flags,
@@ -2426,7 +2426,7 @@ class Gis_geometry_collection : public Geometry {
 
  public:
   Gis_geometry_collection()
-      : Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid) {
+      : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0), default_srid) {
     set_bg_adapter(false);
   }
   Gis_geometry_collection(Geometry *geo, String *gcbuf);

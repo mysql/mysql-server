@@ -68,7 +68,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
     case ROW_RESULT:
     default:
       DBUG_ASSERT(0);
-      return 0;
+      return nullptr;
   }
 }
 
@@ -110,7 +110,7 @@ bool Cached_item_str::cmp(void) {
 }
 
 Cached_item_str::~Cached_item_str() {
-  item = 0;  // Safety
+  item = nullptr;  // Safety
 }
 
 Cached_item_json::Cached_item_json(Item *item_arg)

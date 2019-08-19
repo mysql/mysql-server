@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,17 +48,18 @@ TEST_F(CreateFieldTest, init) {
   // To do: Add all possible precisions.
   Item_func_now_local *now = new Item_func_now_local(0);
 
-  Mock_create_field field_definition_none(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
+  Mock_create_field field_definition_none(MYSQL_TYPE_TIMESTAMP, nullptr,
+                                          nullptr);
   EXPECT_EQ(Field::NONE, field_definition_none.auto_flags);
 
-  Mock_create_field field_definition_dn(MYSQL_TYPE_TIMESTAMP, now, NULL);
+  Mock_create_field field_definition_dn(MYSQL_TYPE_TIMESTAMP, now, nullptr);
   EXPECT_EQ(Field::DEFAULT_NOW, field_definition_dn.auto_flags);
 
   Mock_create_field field_definition_dnun(MYSQL_TYPE_TIMESTAMP, now, now);
   EXPECT_EQ((Field::DEFAULT_NOW | Field::ON_UPDATE_NOW),
             field_definition_dnun.auto_flags);
 
-  Mock_create_field field_definition_un(MYSQL_TYPE_TIMESTAMP, NULL, now);
+  Mock_create_field field_definition_un(MYSQL_TYPE_TIMESTAMP, nullptr, now);
   EXPECT_EQ(Field::ON_UPDATE_NOW, field_definition_un.auto_flags);
 }
 

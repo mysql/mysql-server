@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ bool create_serialized_meta_data(const char *schema_name MY_ATTRIBUTE((unused)),
     11. Assign output parameters and return.
   */
   *meta_data_length = 0;
-  *meta_data = NULL;
+  *meta_data = nullptr;
   return false;
 }
 

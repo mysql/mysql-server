@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,10 +34,10 @@
 #include "mysql/psi/mysql_memory.h"
 #include "typelib.h"
 
-LIST *myrg_open_list = 0;
+LIST *myrg_open_list = nullptr;
 static const char *merge_insert_methods[] = {"FIRST", "LAST", NullS};
 TYPELIB merge_insert_method = {array_elements(merge_insert_methods) - 1, "",
-                               merge_insert_methods, 0};
+                               merge_insert_methods, nullptr};
 
 PSI_memory_key rg_key_memory_MYRG_INFO;
 PSI_memory_key rg_key_memory_children;

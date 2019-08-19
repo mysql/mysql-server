@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ Security_context_wrapper::Security_context_wrapper(MYSQL_THD thd) {
 bool Security_context_wrapper::get_property(const char *property,
                                             LEX_CSTRING *value) {
   value->length = 0;
-  value->str = 0;
+  value->str = nullptr;
 
   if (!m_valid)
     return true;
@@ -68,7 +68,7 @@ bool Security_context_wrapper::get_property(const char *property,
 
 const char *Security_context_wrapper::get_proxy_user() {
   MYSQL_LEX_CSTRING proxy_user;
-  if (get_property("proxy_user", &proxy_user)) return 0;
+  if (get_property("proxy_user", &proxy_user)) return nullptr;
   return proxy_user.str;
 }
 
@@ -76,7 +76,7 @@ const char *Security_context_wrapper::get_proxy_user() {
 
 const char *Security_context_wrapper::get_priv_user() {
   MYSQL_LEX_CSTRING priv_user;
-  if (get_property("priv_user", &priv_user)) return 0;
+  if (get_property("priv_user", &priv_user)) return nullptr;
   return priv_user.str;
 }
 
@@ -84,7 +84,7 @@ const char *Security_context_wrapper::get_priv_user() {
 
 const char *Security_context_wrapper::get_priv_host() {
   MYSQL_LEX_CSTRING priv_host;
-  if (get_property("priv_host", &priv_host)) return 0;
+  if (get_property("priv_host", &priv_host)) return nullptr;
   return priv_host.str;
 }
 
@@ -92,7 +92,7 @@ const char *Security_context_wrapper::get_priv_host() {
 
 const char *Security_context_wrapper::get_user() {
   MYSQL_LEX_CSTRING user;
-  if (get_property("user", &user)) return 0;
+  if (get_property("user", &user)) return nullptr;
   return user.str;
 }
 
@@ -109,7 +109,7 @@ const char *Security_context_wrapper::get_host() {
     'user'@'host'/''@'host'/''@'' type of representation.
   */
   MYSQL_LEX_CSTRING host;
-  if (get_property("host", &host)) return 0;
+  if (get_property("host", &host)) return nullptr;
   return host.str;
 }
 
@@ -117,7 +117,7 @@ const char *Security_context_wrapper::get_host() {
 
 const char *Security_context_wrapper::get_ip() {
   MYSQL_LEX_CSTRING ip;
-  if (get_property("ip", &ip)) return 0;
+  if (get_property("ip", &ip)) return nullptr;
   return ip.str;
 }
 

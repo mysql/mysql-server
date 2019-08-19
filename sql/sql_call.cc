@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,14 +72,14 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
 
   sp_head *sp = sp_find_routine(thd, enum_sp_type::PROCEDURE, proc_name,
                                 &thd->sp_proc_cache, true);
-  if (sp == NULL) {
+  if (sp == nullptr) {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE", proc_name->m_qname.str);
     return true;
   }
 
   sp_pcontext *root_parsing_context = sp->get_root_parsing_context();
 
-  uint arg_count = proc_args != NULL ? proc_args->elements : 0;
+  uint arg_count = proc_args != nullptr ? proc_args->elements : 0;
 
   if (root_parsing_context->context_var_count() != arg_count) {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
@@ -88,7 +88,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
     return true;
   }
 
-  if (proc_args == NULL) return false;
+  if (proc_args == nullptr) return false;
 
   List_iterator<Item> it(*proc_args);
   Item *item;
@@ -114,7 +114,7 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
 
   sp_head *sp = sp_setup_routine(thd, enum_sp_type::PROCEDURE, proc_name,
                                  &thd->sp_proc_cache);
-  if (sp == NULL) {
+  if (sp == nullptr) {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE", proc_name->m_qname.str);
     return true;
   }
@@ -133,7 +133,7 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
   }
 
   if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_STORED_PROGRAM_EXECUTE),
-                         proc_name->m_db.str, proc_name->m_name.str, NULL))
+                         proc_name->m_db.str, proc_name->m_name.str, nullptr))
     return true;
 
   if (sp->m_flags & sp_head::MULTI_RESULTS) {

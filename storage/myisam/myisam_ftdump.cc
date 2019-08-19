@@ -41,28 +41,30 @@ static bool get_one_option(int, const struct my_option *, char *);
 
 static int count = 0, stats = 0, dump = 0, lstats = 0;
 static bool verbose;
-static char *query = NULL;
+static char *query = nullptr;
 static uint lengths[256];
 
 #define MAX_LEN (HA_FT_MAXBYTELEN + 10)
 #define HOW_OFTEN_TO_WRITE 10000
 
 static struct my_option my_long_options[] = {
-    {"help", 'h', "Display help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-     0, 0, 0, 0},
-    {"help", '?', "Synonym for -h.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
-     0},
-    {"count", 'c', "Calculate per-word stats (counts and global weights).", 0,
-     0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"dump", 'd', "Dump index (incl. data offsets and word weights).", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"length", 'l', "Report length distribution.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-    {"stats", 's', "Report global stats.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"verbose", 'v', "Be verbose.", &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {"help", 'h', "Display help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"help", '?', "Synonym for -h.", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"count", 'c', "Calculate per-word stats (counts and global weights).",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"dump", 'd', "Dump index (incl. data offsets and word weights).", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"length", 'l', "Report length distribution.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"stats", 's', "Report global stats.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "Be verbose.", &verbose, &verbose, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 extern st_keycache_thread_var *keycache_thread_var() {
   return &main_thread_keycache_var;
@@ -90,7 +92,7 @@ int main(int argc, char *argv[]) {
   if (count || dump) verbose = false;
   if (!count && !dump && !lstats && !query) stats = 1;
 
-  if (verbose) setbuf(stdout, NULL);
+  if (verbose) setbuf(stdout, nullptr);
 
   if (argc < 2) usage();
 
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]) {
   info->lastpos = HA_OFFSET_ERROR;
   info->update |= HA_STATE_PREV_FOUND;
 
-  while (!(error = mi_rnext(info, NULL, inx))) {
+  while (!(error = mi_rnext(info, nullptr, inx))) {
     keylen = *(info->lastkey);
 
     subkeys = ft_sintXkorr(info->lastkey + keylen + 1);
@@ -226,7 +228,7 @@ static bool get_one_option(int optid,
       break;
     case 's':
       stats = 1;
-      complain(query != 0);
+      complain(query != nullptr);
       break;
     case 'c':
       count = 1;
@@ -234,7 +236,7 @@ static bool get_one_option(int optid,
       break;
     case 'l':
       lstats = 1;
-      complain(query != 0);
+      complain(query != nullptr);
       break;
     case '?':
     case 'h':

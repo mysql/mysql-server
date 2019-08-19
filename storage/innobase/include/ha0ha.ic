@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -146,14 +146,14 @@ const rec_t *ha_search_and_get_data(
   hash_assert_can_search(table, fold);
   ut_ad(btr_search_enabled);
 
-  for (const ha_node_t *node = ha_chain_get_first(table, fold); node != NULL;
+  for (const ha_node_t *node = ha_chain_get_first(table, fold); node != nullptr;
        node = ha_chain_get_next(node)) {
     if (node->fold == fold) {
       return (node->data);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Looks for an element when we know the pointer to the data.
@@ -180,7 +180,7 @@ ha_node_t *ha_search_with_data(
     node = ha_chain_get_next(node);
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Looks for an element when we know the pointer to the data, and deletes

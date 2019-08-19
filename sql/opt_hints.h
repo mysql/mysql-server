@@ -279,7 +279,7 @@ class Opt_hints {
   virtual PT_hint *get_complex_hints(
       opt_hints_enum type MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(0);
-    return NULL; /* error C4716: must return a value */
+    return nullptr; /* error C4716: must return a value */
   }
 
   /**
@@ -346,9 +346,9 @@ class Opt_hints_global : public Opt_hints {
   Sys_var_hint *sys_var_hint;
 
   Opt_hints_global(MEM_ROOT *mem_root_arg)
-      : Opt_hints(NULL, NULL, mem_root_arg) {
-    max_exec_time = NULL;
-    sys_var_hint = NULL;
+      : Opt_hints(nullptr, nullptr, mem_root_arg) {
+    max_exec_time = nullptr;
+    sys_var_hint = nullptr;
   }
 
   void append_name(const THD *, String *) override {}
@@ -494,7 +494,7 @@ class Compound_key_hint {
   Compound_key_hint() {
     key_map.init();
     resolved = false;
-    pt_hint = NULL;
+    pt_hint = nullptr;
   }
 
   void set_pt_hint(PT_key_level_hint *pt_hint_arg) { pt_hint = pt_hint_arg; }
@@ -569,7 +569,7 @@ class Opt_hints_table : public Opt_hints {
     if (type_arg == INDEX_MERGE_HINT_ENUM) return &index_merge;
     if (type_arg == SKIP_SCAN_HINT_ENUM) return &skip_scan;
     DBUG_ASSERT(0);
-    return NULL;
+    return nullptr;
   }
 
   bool is_compound_key_hint(opt_hints_enum type_arg) {
@@ -615,7 +615,7 @@ class Opt_hints_key : public Opt_hints {
 
 class Hint_set_var {
  public:
-  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(NULL) {}
+  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(nullptr) {}
   set_var *var;      // Pointer to set_var object
   Item *save_value;  // Original variable value
 };

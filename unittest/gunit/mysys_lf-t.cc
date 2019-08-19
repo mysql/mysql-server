@@ -71,7 +71,7 @@ extern "C" void *test_lf_pinbox(void *arg) {
 
   if (with_my_thread_init) my_thread_end();
 
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -119,7 +119,7 @@ extern "C" void *test_lf_alloc(void *arg) {
   }
 
   if (with_my_thread_init) my_thread_end();
-  return 0;
+  return nullptr;
 }
 
 const int N_TLH = 1000;
@@ -159,12 +159,12 @@ extern "C" void *test_lf_hash(void *arg) {
   }
 
   if (with_my_thread_init) my_thread_end();
-  return 0;
+  return nullptr;
 }
 
 void do_tests() {
   lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
-  lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
+  lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), nullptr,
                &my_charset_bin);
 
   with_my_thread_init = 1;
@@ -223,11 +223,11 @@ static int test_match(const uchar *arg) {
 TEST(Mysys, LFHashRandomMatch) {
   LF_HASH hash;
   LF_PINS *pins;
-  uint32 val, *fnd, *null_fnd = NULL;
+  uint32 val, *fnd, *null_fnd = nullptr;
   int rc;
 
-  lf_hash_init2(&hash, sizeof(uint32), LF_HASH_UNIQUE, 0, sizeof(int), NULL,
-                &my_charset_bin, &test_hash, NULL, NULL, NULL);
+  lf_hash_init2(&hash, sizeof(uint32), LF_HASH_UNIQUE, 0, sizeof(int), nullptr,
+                &my_charset_bin, &test_hash, nullptr, nullptr, nullptr);
   /* Right after initialization hash is expected to be empty */
   EXPECT_EQ(0, hash.count.load());
 

@@ -46,7 +46,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
             hp_key_memory_HP_INFO,
             (uint)sizeof(HP_INFO) + 2 * share->max_key_length,
             MYF(MY_ZEROFILL)))) {
-    return 0;
+    return nullptr;
   }
   share->open_count++;
   /*
@@ -54,8 +54,8 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
     is not used for them anyway (and THR_LOCK is not initialized for them
     too).
   */
-  if (share->open_list.data != NULL)
-    thr_lock_data_init(&share->lock, &info->lock, NULL);
+  if (share->open_list.data != nullptr)
+    thr_lock_data_init(&share->lock, &info->lock, nullptr);
   info->s = share;
   info->lastkey = (uchar *)(info + 1);
   info->recbuf = (uchar *)(info->lastkey + share->max_key_length);
@@ -121,7 +121,7 @@ HP_INFO *heap_open(const char *name, int mode) {
   if (!(share = hp_find_named_heap(name))) {
     set_my_errno(ENOENT);
     mysql_mutex_unlock(&THR_LOCK_heap);
-    return 0;
+    return nullptr;
   }
   if ((info = heap_open_from_share(share, mode))) {
     info->open_list.data = (void *)info;
@@ -146,5 +146,5 @@ HP_SHARE *hp_find_named_heap(const char *name) {
       return info;
     }
   }
-  return (HP_SHARE *)0;
+  return (HP_SHARE *)nullptr;
 }

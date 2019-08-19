@@ -90,13 +90,13 @@ mysql_declare_plugin(keyring_udf){
     "Keyring UDF plugin",
     PLUGIN_LICENSE_GPL,
     keyring_udf_init,   /* Plugin Init */
-    NULL,               /* Plugin check uninstall */
+    nullptr,            /* Plugin check uninstall */
     keyring_udf_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;
 
 static bool get_current_user(std::string *current_user) {
@@ -164,7 +164,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
   }
 
   if (to_validate & VALIDATE_KEY_ID &&
-      (args->args[0] == NULL || args->arg_type[0] != STRING_RESULT)) {
+      (args->args[0] == nullptr || args->arg_type[0] != STRING_RESULT)) {
     strcpy(message,
            "Mismatch encountered. A string argument is expected "
            "for key id.");
@@ -172,7 +172,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
   }
 
   if (to_validate & VALIDATE_KEY_TYPE &&
-      (args->args[1] == NULL || args->arg_type[1] != STRING_RESULT)) {
+      (args->args[1] == nullptr || args->arg_type[1] != STRING_RESULT)) {
     strcpy(message,
            "Mismatch encountered. A string argument is expected "
            "for key type.");
@@ -180,7 +180,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
   }
 
   if (to_validate & VALIDATE_KEY_LENGTH) {
-    if (args->args[2] == NULL || args->arg_type[2] != INT_RESULT) {
+    if (args->args[2] == nullptr || args->arg_type[2] != INT_RESULT) {
       strcpy(message,
              "Mismatch encountered. An integer argument is expected "
              "for key length.");
@@ -197,7 +197,7 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
   }
 
   if (to_validate & VALIDATE_KEY &&
-      (args->args[2] == NULL || args->arg_type[2] != STRING_RESULT)) {
+      (args->args[2] == nullptr || args->arg_type[2] != STRING_RESULT)) {
     strcpy(message,
            "Mismatch encountered. A string argument is expected "
            "for key.");
@@ -210,7 +210,7 @@ static bool keyring_udf_func_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message, int to_validate,
     const boost::optional<size_t> max_lenth_to_return,
     const size_t size_of_memory_to_allocate) {
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
   uint expected_arg_count = get_args_count_from_validation_request(to_validate);
 
   if (validate(args, expected_arg_count, to_validate, message)) return true;
@@ -224,7 +224,7 @@ static bool keyring_udf_func_init(
 
   if (size_of_memory_to_allocate != 0) {
     initid->ptr = new (std::nothrow) char[size_of_memory_to_allocate];
-    if (initid->ptr == NULL)
+    if (initid->ptr == nullptr)
       return true;
     else
       memset(initid->ptr, 0, size_of_memory_to_allocate);
@@ -285,15 +285,15 @@ static bool fetch(const char *function_name, char *key_id, char **a_key,
   std::string current_user;
   if (get_current_user(&current_user)) return true;
 
-  char *key_type = NULL, *key = NULL;
+  char *key_type = nullptr, *key = nullptr;
   size_t key_len = 0;
 
   if (my_key_fetch(key_id, &key_type, current_user.c_str(),
                    reinterpret_cast<void **>(&key), &key_len)) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), function_name);
 
-    if (key != NULL) my_free(key);
-    if (key_type != NULL) my_free(key_type);
+    if (key != nullptr) my_free(key);
+    if (key_type != nullptr) my_free(key_type);
     return true;
   }
 
@@ -325,17 +325,17 @@ static bool fetch(const char *function_name, char *key_id, char **a_key,
     }
   }
 
-  if (a_key != NULL)
+  if (a_key != nullptr)
     *a_key = key;
   else
     my_free(key);
 
-  if (a_key_type != NULL)
+  if (a_key_type != nullptr)
     *a_key_type = key_type;
   else
     my_free(key_type);
 
-  if (a_key_len != NULL) *a_key_len = key_len;
+  if (a_key_len != nullptr) *a_key_len = key_len;
 
   return false;
 }
@@ -351,7 +351,7 @@ PLUGIN_EXPORT
 void keyring_key_fetch_deinit(UDF_INIT *initid) {
   if (initid->ptr) {
     delete[] initid->ptr;
-    initid->ptr = NULL;
+    initid->ptr = nullptr;
   }
 }
 
@@ -364,16 +364,16 @@ PLUGIN_EXPORT
 char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
                         unsigned long *length, unsigned char *is_null,
                         unsigned char *error) {
-  char *key = NULL;
+  char *key = nullptr;
   size_t key_len = 0;
 
-  if (fetch("keyring_key_fetch", args->args[0], &key, NULL, &key_len)) {
-    if (key != NULL) my_free(key);
+  if (fetch("keyring_key_fetch", args->args[0], &key, nullptr, &key_len)) {
+    if (key != nullptr) my_free(key);
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
-  if (key != NULL) {
+  if (key != nullptr) {
     memcpy(initid->ptr, key, key_len);
     my_free(key);
   } else
@@ -398,7 +398,7 @@ PLUGIN_EXPORT
 void keyring_key_type_fetch_deinit(UDF_INIT *initid) {
   if (initid->ptr) {
     delete[] initid->ptr;
-    initid->ptr = NULL;
+    initid->ptr = nullptr;
   }
 }
 
@@ -412,14 +412,15 @@ PLUGIN_EXPORT
 char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
                              unsigned long *length, unsigned char *is_null,
                              unsigned char *error) {
-  char *key_type = NULL;
-  if (fetch("keyring_key_type_fetch", args->args[0], NULL, &key_type, NULL)) {
-    if (key_type != NULL) my_free(key_type);
+  char *key_type = nullptr;
+  if (fetch("keyring_key_type_fetch", args->args[0], nullptr, &key_type,
+            nullptr)) {
+    if (key_type != nullptr) my_free(key_type);
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
-  if (key_type != NULL) {
+  if (key_type != nullptr) {
     memcpy(initid->ptr, key_type,
            std::min(strlen(key_type), KEYRING_UDF_KEY_TYPE_LENGTH));
     *length = std::min(strlen(key_type), KEYRING_UDF_KEY_TYPE_LENGTH);
@@ -444,7 +445,7 @@ PLUGIN_EXPORT
 void keyring_key_length_fetch_deinit(UDF_INIT *initid) {
   if (initid->ptr) {
     delete[] initid->ptr;
-    initid->ptr = NULL;
+    initid->ptr = nullptr;
   }
 }
 
@@ -459,14 +460,14 @@ long long keyring_key_length_fetch(UDF_INIT *, UDF_ARGS *args,
                                    unsigned char *is_null,
                                    unsigned char *error) {
   size_t key_len = 0;
-  char *key = NULL;
+  char *key = nullptr;
 
   *error =
-      fetch("keyring_key_length_fetch", args->args[0], &key, NULL, &key_len);
+      fetch("keyring_key_length_fetch", args->args[0], &key, nullptr, &key_len);
 
-  if (*error == 0 && key == NULL) *is_null = 1;
+  if (*error == 0 && key == nullptr) *is_null = 1;
 
-  if (key != NULL) my_free(key);
+  if (key != nullptr) my_free(key);
 
   // For the UDF 0 == failure.
   return (*error) ? 0 : key_len;

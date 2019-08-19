@@ -58,8 +58,8 @@ Plugin_table table_log_status::m_table_def(
 PFS_engine_table_share table_log_status::m_share = {
     &pfs_readonly_acl,
     table_log_status::create,
-    NULL,                            /* write_row */
-    NULL,                            /* delete_all_rows */
+    nullptr,                         /* write_row */
+    nullptr,                         /* delete_all_rows */
     table_log_status::get_row_count, /* records */
     sizeof(PFS_simple_index),        /* ref length */
     &m_table_lock,

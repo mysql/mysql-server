@@ -68,7 +68,7 @@ bool PT_subpartition::contextualize(Partition_parse_context *pc) {
 
   auto *sub_p_elem =
       new (pc->mem_root) partition_element(pc->current_partition);
-  if (sub_p_elem == NULL) return true;
+  if (sub_p_elem == nullptr) return true;
 
   if (check_string_char_length(to_lex_cstring(name), "", NAME_CHAR_LEN,
                                system_charset_info, true)) {
@@ -86,11 +86,11 @@ bool PT_subpartition::contextualize(Partition_parse_context *pc) {
                                      sub_p_elem,
                                      pc->is_add_or_reorganize_partition);
 
-  if (options != NULL) {
+  if (options != nullptr) {
     for (auto option : *options) {
       if (option->contextualize(&subpart_pc)) return true;
     }
-    if (sub_p_elem->engine_type != NULL)
+    if (sub_p_elem->engine_type != nullptr)
       part_info->default_engine_type = sub_p_elem->engine_type;
   }
   if (pc->current_partition->subpartitions.push_back(sub_p_elem)) return true;
@@ -123,7 +123,7 @@ bool PT_part_value_item_expr::contextualize(Partition_parse_context *pc) {
 }
 
 bool PT_part_value_item_list_paren::contextualize(Partition_parse_context *pc) {
-  pc->part_info->print_debug("( part_value_item_list_paren", NULL);
+  pc->part_info->print_debug("( part_value_item_list_paren", nullptr);
   /* Initialisation code needed for each list of value expressions */
   if (!(pc->part_info->part_type == partition_type::LIST &&
         pc->part_info->num_columns == 1U) &&
@@ -135,7 +135,7 @@ bool PT_part_value_item_list_paren::contextualize(Partition_parse_context *pc) {
     if (value->contextualize(pc)) return true;
   }
 
-  pc->part_info->print_debug(") part_value_item_list_paren", NULL);
+  pc->part_info->print_debug(") part_value_item_list_paren", nullptr);
   if (pc->part_info->num_columns == 0)
     pc->part_info->num_columns = pc->curr_list_object;
   if (pc->part_info->num_columns != pc->curr_list_object) {
@@ -146,7 +146,7 @@ bool PT_part_value_item_list_paren::contextualize(Partition_parse_context *pc) {
       ensures that we only report errors when we know we have an
       error.
     */
-    pc->part_info->print_debug("Kilroy I", NULL);
+    pc->part_info->print_debug("Kilroy I", nullptr);
     error(pc, paren_pos, ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
     return true;
   }
@@ -158,12 +158,12 @@ bool PT_part_values_in_item::contextualize(Partition_parse_context *pc) {
   if (super::contextualize(pc) || item->contextualize(pc)) return true;
 
   partition_info *const part_info = pc->part_info;
-  part_info->print_debug("part_values_in: part_value_item_list_paren", NULL);
+  part_info->print_debug("part_values_in: part_value_item_list_paren", nullptr);
 
   if (part_info->num_columns != 1U) {
     if (!pc->is_add_or_reorganize_partition || part_info->num_columns == 0 ||
         part_info->num_columns > MAX_REF_PARTS) {
-      part_info->print_debug("Kilroy III", NULL);
+      part_info->print_debug("Kilroy III", nullptr);
       error(pc, pos, ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
       return true;
     }
@@ -194,14 +194,15 @@ bool PT_part_values_in_list::contextualize(Partition_parse_context *pc) {
 }
 
 bool PT_part_definition::contextualize(Partition_parse_context *pc) {
-  DBUG_ASSERT(pc->current_partition == NULL && pc->curr_part_elem == NULL);
+  DBUG_ASSERT(pc->current_partition == nullptr &&
+              pc->curr_part_elem == nullptr);
 
   if (super::contextualize(pc)) return true;
 
   partition_info *const part_info = pc->part_info;
 
   auto *const curr_part = new (pc->thd->mem_root) partition_element();
-  if (curr_part == NULL) return true;
+  if (curr_part == nullptr) return true;
 
   Partition_parse_context ppc(pc->thd, part_info, curr_part, curr_part,
                               pc->is_add_or_reorganize_partition);
@@ -241,10 +242,10 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
         return true;
       }
 
-      if (opt_part_values == NULL)  // MAX_VALUE_SYM
+      if (opt_part_values == nullptr)  // MAX_VALUE_SYM
       {
         if (part_info->num_columns && part_info->num_columns != 1U) {
-          part_info->print_debug("Kilroy II", NULL);
+          part_info->print_debug("Kilroy II", nullptr);
           error(&ppc, values_pos,
                 ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
           return true;
@@ -270,15 +271,15 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       return true;
   }
 
-  if (opt_part_options != NULL) {
+  if (opt_part_options != nullptr) {
     for (auto option : *opt_part_options) {
       if (option->contextualize(&ppc)) return true;
     }
-    if (curr_part->engine_type != NULL)
+    if (curr_part->engine_type != nullptr)
       part_info->default_engine_type = curr_part->engine_type;
   }
 
-  if (opt_sub_partitions == NULL) {
+  if (opt_sub_partitions == nullptr) {
     if (part_info->num_subparts != 0 && !part_info->use_default_subpartitions) {
       /*
         We come here when we have defined subpartitions on the first
@@ -401,7 +402,8 @@ bool PT_part_type_def_key::contextualize(Partition_parse_context *pc) {
   pc->part_info->linear_hash_ind = is_linear;
   pc->part_info->list_of_part_fields = true;
 
-  if (opt_columns != NULL && set_part_field_list(pc, opt_columns)) return true;
+  if (opt_columns != nullptr && set_part_field_list(pc, opt_columns))
+    return true;
 
   return false;
 }
@@ -472,10 +474,10 @@ bool PT_partition::contextualize(Parse_context *pc) {
     part_info.use_default_num_partitions = false;
   }
 
-  if (opt_sub_part != NULL && opt_sub_part->contextualize(&part_pc))
+  if (opt_sub_part != nullptr && opt_sub_part->contextualize(&part_pc))
     return true;
 
-  if (part_defs == NULL) {
+  if (part_defs == nullptr) {
     if (part_info.part_type == partition_type::RANGE) {
       my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "RANGE");
       return true;

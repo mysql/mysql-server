@@ -52,7 +52,7 @@ Mysql_connection_options::Mysql_connection_options(Abstract_program *program)
     : m_ssl_options_provider(), m_program(program), m_protocol(0) {
   if (Mysql_connection_options::mysql_inited == false) {
     Mysql_connection_options::mysql_inited = true;
-    mysql_library_init(0, NULL, NULL);
+    mysql_library_init(0, nullptr, nullptr);
     atexit(atexit_mysql_library_end);
   }
 
@@ -141,7 +141,7 @@ void Mysql_connection_options::create_options() {
 }
 
 MYSQL *Mysql_connection_options::create_connection() {
-  MYSQL *connection = mysql_init(NULL);
+  MYSQL *connection = mysql_init(nullptr);
   if (this->m_compress) mysql_options(connection, MYSQL_OPT_COMPRESS, NullS);
 
   if (this->m_compress_algorithm.has_value())
@@ -152,7 +152,7 @@ MYSQL *Mysql_connection_options::create_connection() {
                 &this->m_zstd_compress_level);
 
   if (this->m_ssl_options_provider.apply_for_connection(connection))
-    return NULL;
+    return nullptr;
 
   if (this->m_protocol)
     mysql_options(connection, MYSQL_OPT_PROTOCOL, (char *)&this->m_protocol);
@@ -178,7 +178,7 @@ MYSQL *Mysql_connection_options::create_connection() {
     mysql_options(connection, MYSQL_DEFAULT_AUTH,
                   this->m_default_auth.value().c_str());
 
-  mysql_options(connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(connection, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   mysql_options4(connection, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  this->m_program->get_name().c_str());
 
@@ -190,21 +190,22 @@ MYSQL *Mysql_connection_options::create_connection() {
     set_get_server_public_key_option(connection,
                                      &this->m_get_server_public_key);
 
-  if (!mysql_real_connect(
-          connection, this->get_null_or_string(this->m_host),
-          this->get_null_or_string(this->m_user),
-          this->get_null_or_string(this->m_password), NULL, this->m_mysql_port,
-          this->get_null_or_string(this->m_mysql_unix_port), 0)) {
+  if (!mysql_real_connect(connection, this->get_null_or_string(this->m_host),
+                          this->get_null_or_string(this->m_user),
+                          this->get_null_or_string(this->m_password), nullptr,
+                          this->m_mysql_port,
+                          this->get_null_or_string(this->m_mysql_unix_port),
+                          0)) {
     this->db_error(connection, "while connecting to the MySQL server");
     mysql_close(connection);
-    return NULL;
+    return nullptr;
   }
 
   /* Reset auto-commit to the default */
   if (mysql_autocommit(connection, true)) {
     this->db_error(connection, "while resetting auto-commit");
     mysql_close(connection);
-    return NULL;
+    return nullptr;
   }
 
   return connection;
@@ -214,7 +215,7 @@ CHARSET_INFO *Mysql_connection_options::get_current_charset() const {
   return m_default_charset.has_value()
              ? get_charset_by_csname(m_default_charset.value().c_str(),
                                      MY_CS_PRIMARY, MYF(MY_WME))
-             : NULL;
+             : nullptr;
 }
 
 void Mysql_connection_options::set_current_charset(CHARSET_INFO *charset) {
@@ -226,7 +227,7 @@ const char *Mysql_connection_options::get_null_or_string(
   if (maybe_string.has_value()) {
     return maybe_string.value().c_str();
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 

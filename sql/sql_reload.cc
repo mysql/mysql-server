@@ -86,7 +86,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
   if (options & REFRESH_GRANT) {
-    THD *tmp_thd = 0;
+    THD *tmp_thd = nullptr;
     /*
       If handle_reload_request() is called from SIGHUP handler we have to
       allocate temporary THD for execution of acl_reload()/grant_reload().
@@ -110,10 +110,10 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
       }
     }
 
-    reset_mqh(thd, (LEX_USER *)NULL, true);
+    reset_mqh(thd, (LEX_USER *)nullptr, true);
     if (tmp_thd) {
       delete tmp_thd;
-      thd = 0;
+      thd = nullptr;
     }
   }
 
@@ -152,7 +152,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
       If handle_reload_request() is called from SIGHUP handler we have to
       allocate temporary THD for execution of binlog/relay log rotation.
      */
-    THD *tmp_thd = 0;
+    THD *tmp_thd = nullptr;
     if (!thd && (thd = (tmp_thd = new THD))) {
       thd->thread_stack = (char *)(&tmp_thd);
       thd->store_globals();
@@ -177,7 +177,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
       delete tmp_thd;
       /* Remember that we don't have a THD */
       current_thd = nullptr;
-      thd = 0;
+      thd = nullptr;
     }
   }
 
@@ -405,7 +405,8 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables) {
     IX and database-scope IX locks on the tables as this will make
     this statement incompatible with FLUSH TABLES WITH READ LOCK.
   */
-  if (lock_table_names(thd, all_tables, NULL, thd->variables.lock_wait_timeout,
+  if (lock_table_names(thd, all_tables, nullptr,
+                       thd->variables.lock_wait_timeout,
                        MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK))
     goto error;
 
@@ -417,7 +418,7 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables) {
     tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table_list->db,
                      table_list->table_name, false);
     /* Reset ticket to satisfy asserts in open_tables(). */
-    table_list->mdl_request.ticket = NULL;
+    table_list->mdl_request.ticket = nullptr;
   }
 
   /*

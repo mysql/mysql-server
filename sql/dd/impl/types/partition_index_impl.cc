@@ -67,8 +67,8 @@ class Sdi_wcontext;
 Partition_index_impl::Partition_index_impl()
     : m_options(),
       m_se_private_data(),
-      m_partition(NULL),
-      m_index(NULL),
+      m_partition(nullptr),
+      m_index(nullptr),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
 Partition_index_impl::Partition_index_impl(Partition_impl *partition,

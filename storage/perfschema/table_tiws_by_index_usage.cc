@@ -100,7 +100,7 @@ Plugin_table table_tiws_by_index_usage::m_table_def(
 PFS_engine_table_share table_tiws_by_index_usage::m_share = {
     &pfs_truncatable_acl,
     table_tiws_by_index_usage::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_tiws_by_index_usage::delete_all_rows,
     table_tiws_by_index_usage::get_row_count,
     sizeof(pos_tiws_by_index_usage),
@@ -192,7 +192,7 @@ int table_tiws_by_index_usage::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_table; m_pos.next_table()) {
     table_share =
         global_table_share_container.get(m_pos.m_index_1, &has_more_table);
-    if (table_share != NULL) {
+    if (table_share != nullptr) {
       uint safe_key_count = sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count) {
         m_next_pos.set_after(&m_pos);
@@ -216,7 +216,7 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
   set_position(pos);
 
   table_share = global_table_share_container.get(m_pos.m_index_1);
-  if (table_share != NULL) {
+  if (table_share != nullptr) {
     uint safe_key_count = sanitize_index_count(table_share->m_key_count);
     if (m_pos.m_index_2 < safe_key_count) {
       return make_row(table_share, m_pos.m_index_2);
@@ -231,7 +231,7 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
 
 int table_tiws_by_index_usage::index_init(uint idx MY_ATTRIBUTE((unused)),
                                           bool) {
-  PFS_index_tiws_by_index_usage *result = NULL;
+  PFS_index_tiws_by_index_usage *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_index_usage);
   m_opened_index = result;
@@ -246,7 +246,7 @@ int table_tiws_by_index_usage::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_table; m_pos.next_table()) {
     table_share =
         global_table_share_container.get(m_pos.m_index_1, &has_more_table);
-    if (table_share != NULL) {
+    if (table_share != nullptr) {
       if (m_opened_index->match(table_share)) {
         uint safe_key_count = sanitize_index_count(table_share->m_key_count);
         for (; m_pos.m_index_2 <= MAX_INDEXES; m_pos.m_index_2++) {
@@ -288,7 +288,7 @@ int table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
 
   if (!visitor.m_stat.m_has_data) {
     pfs_index = pfs_share->find_index_stat(index);
-    if (pfs_index == NULL) {
+    if (pfs_index == nullptr) {
       return HA_ERR_RECORD_DELETED;
     }
   } else {

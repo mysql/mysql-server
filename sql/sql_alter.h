@@ -69,7 +69,7 @@ class Alter_drop {
 
   Alter_drop(drop_type par_type, const char *par_name)
       : name(par_name), type(par_type) {
-    DBUG_ASSERT(par_name != NULL);
+    DBUG_ASSERT(par_name != nullptr);
   }
 };
 
@@ -135,7 +135,7 @@ class Alter_index_visibility {
  public:
   Alter_index_visibility(const char *name, bool is_visible)
       : m_name(name), m_is_visible(is_visible) {
-    assert(name != NULL);
+    assert(name != nullptr);
   }
 
   const char *name() const { return m_name; }

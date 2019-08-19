@@ -126,7 +126,7 @@ static const EVP_CIPHER *aes_evp_type(const my_aes_opmode mode) {
     case my_aes_256_ofb:
       return EVP_aes_256_ofb();
     default:
-      return NULL;
+      return nullptr;
   }
 }
 

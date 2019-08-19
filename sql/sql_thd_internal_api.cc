@@ -165,15 +165,15 @@ extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
 
 void thd_increment_bytes_sent(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) { /* current_thd==NULL when close_connection() calls
-                                net_send_error() */
+  if (likely(thd != nullptr)) { /* current_thd==NULL when close_connection()
+                                calls net_send_error() */
     thd->status_var.bytes_sent += length;
   }
 }
 
 void thd_increment_bytes_received(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) thd->status_var.bytes_received += length;
+  if (likely(thd != nullptr)) thd->status_var.bytes_received += length;
 }
 
 partition_info *thd_get_work_part_info(THD *thd) { return thd->work_part_info; }
@@ -224,7 +224,7 @@ bool thd_sqlcom_can_generate_row_events(const THD *thd) {
 enum durability_properties thd_get_durability_property(const THD *thd) {
   enum durability_properties ret = HA_REGULAR_DURABILITY;
 
-  if (thd != NULL) ret = thd->durability_property;
+  if (thd != nullptr) ret = thd->durability_property;
 
   return ret;
 }
@@ -239,7 +239,7 @@ bool thd_is_strict_mode(const THD *thd) { return thd->is_strict_mode(); }
 bool thd_is_error(const THD *thd) { return thd->is_error(); }
 
 bool is_mysql_datadir_path(const char *path) {
-  if (path == NULL || strlen(path) >= FN_REFLEN) return false;
+  if (path == nullptr || strlen(path) >= FN_REFLEN) return false;
 
   char mysql_data_dir[FN_REFLEN], path_dir[FN_REFLEN];
   convert_dirname(path_dir, path, NullS);
@@ -258,7 +258,7 @@ bool is_mysql_datadir_path(const char *path) {
 }
 
 int mysql_tmpfile_path(const char *path, const char *prefix) {
-  DBUG_ASSERT(path != NULL);
+  DBUG_ASSERT(path != nullptr);
   DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
 
   char filename[FN_REFLEN];

@@ -244,7 +244,7 @@ static void table_cache_init(
   for (i = 0; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
     /* the memory is actually allocated in
     table_cache_create_empty_row() */
-    table_cache->chunks[i].base = NULL;
+    table_cache->chunks[i].base = nullptr;
   }
 }
 
@@ -259,7 +259,7 @@ static void table_cache_free(
     table_cache_create_empty_row() */
     if (table_cache->chunks[i].base) {
       ut_free(table_cache->chunks[i].base);
-      table_cache->chunks[i].base = NULL;
+      table_cache->chunks[i].base = nullptr;
     }
   }
 }
@@ -294,7 +294,7 @@ static void *table_cache_create_empty_row(
 
     /* find the first not allocated chunk */
     for (i = 0; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
-      if (table_cache->chunks[i].base == NULL) {
+      if (table_cache->chunks[i].base == nullptr) {
         break;
       }
     }
@@ -324,7 +324,7 @@ static void *table_cache_create_empty_row(
     req_bytes = req_rows * table_cache->row_size;
 
     if (req_bytes > MAX_ALLOWED_FOR_ALLOC(cache)) {
-      return (NULL);
+      return (nullptr);
     }
 
     chunk = &table_cache->chunks[i];
@@ -441,25 +441,25 @@ static ibool fill_trx_row(
   row->trx_started = (ib_time_t)trx->start_time;
   row->trx_state = trx_get_que_state_str(trx);
   row->requested_lock_row = requested_lock_row;
-  ut_ad(requested_lock_row == NULL ||
+  ut_ad(requested_lock_row == nullptr ||
         i_s_locks_row_validate(requested_lock_row));
 
-  if (trx->lock.wait_lock != NULL) {
-    ut_a(requested_lock_row != NULL);
+  if (trx->lock.wait_lock != nullptr) {
+    ut_a(requested_lock_row != nullptr);
     row->trx_wait_started = (ib_time_t)trx->lock.wait_started;
   } else {
-    ut_a(requested_lock_row == NULL);
+    ut_a(requested_lock_row == nullptr);
     row->trx_wait_started = 0;
   }
 
   row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
 
-  if (trx->mysql_thd == NULL) {
+  if (trx->mysql_thd == nullptr) {
     /* For internal transactions e.g., purge and transactions
     being recovered at startup there is no associated MySQL
     thread data structure. */
     row->trx_mysql_thread_id = 0;
-    row->trx_query = NULL;
+    row->trx_query = nullptr;
     goto thd_done;
   }
 
@@ -474,25 +474,25 @@ static ibool fill_trx_row(
 
     row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 
-    if (row->trx_query == NULL) {
+    if (row->trx_query == nullptr) {
       return (FALSE);
     }
   } else {
-    row->trx_query = NULL;
+    row->trx_query = nullptr;
   }
 
 thd_done:
   s = trx->op_info;
 
-  if (s != NULL && s[0] != '\0') {
+  if (s != nullptr && s[0] != '\0') {
     TRX_I_S_STRING_COPY(s, row->trx_operation_state,
                         TRX_I_S_TRX_OP_STATE_MAX_LEN, cache);
 
-    if (row->trx_operation_state == NULL) {
+    if (row->trx_operation_state == nullptr) {
       return (FALSE);
     }
   } else {
-    row->trx_operation_state = NULL;
+    row->trx_operation_state = nullptr;
   }
 
   row->trx_tables_in_use = trx->n_mysql_tables_in_use;
@@ -533,15 +533,15 @@ thd_done:
 
   s = trx->detailed_error;
 
-  if (s != NULL && s[0] != '\0') {
+  if (s != nullptr && s[0] != '\0') {
     TRX_I_S_STRING_COPY(s, row->trx_foreign_key_error,
                         TRX_I_S_TRX_FK_ERROR_MAX_LEN, cache);
 
-    if (row->trx_foreign_key_error == NULL) {
+    if (row->trx_foreign_key_error == nullptr) {
       return (FALSE);
     }
   } else {
-    row->trx_foreign_key_error = NULL;
+    row->trx_foreign_key_error = nullptr;
   }
 
   row->trx_has_search_latch = (ibool)trx->has_search_latch;
@@ -571,7 +571,7 @@ static ulint put_nth_field(
   dict_field_t *dict_field;
   ulint ret;
 
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   if (buf_size == 0) {
     return (0);
@@ -651,8 +651,8 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   block = buf_page_try_get(
       page_id_t(lock_rec_get_space_id(lock), lock_rec_get_page_no(lock)), &mtr);
 
-  if (block == NULL) {
-    *lock_data = NULL;
+  if (block == nullptr) {
+    *lock_data = nullptr;
 
     mtr_commit(&mtr);
 
@@ -672,7 +672,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   ut_a(n_fields > 0);
 
-  heap = NULL;
+  heap = nullptr;
   offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
 
   /* format and store the data */
@@ -686,7 +686,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   *lock_data = container->cache_string(buf);
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     /* this means that rec_get_offsets() has created a new
     heap and has stored offsets in it; check that this is
     really the case and free the heap */
@@ -742,8 +742,8 @@ static i_s_locks_row_t *add_lock_to_cache(
       &cache->innodb_locks, cache);
 
   /* memory could not be allocated */
-  if (dst_row == NULL) {
-    return (NULL);
+  if (dst_row == nullptr) {
+    return (nullptr);
   }
 
   fill_locks_row(dst_row, lock, heap_no);
@@ -776,7 +776,7 @@ static ibool add_trx_relevant_locks_to_cache(
     i_s_locks_row_t *blocking_lock_row;
     lock_queue_iterator_t iter;
 
-    ut_a(trx->lock.wait_lock != NULL);
+    ut_a(trx->lock.wait_lock != nullptr);
 
     wait_lock_heap_no = wait_lock_get_heap_no(trx->lock.wait_lock);
 
@@ -785,7 +785,7 @@ static ibool add_trx_relevant_locks_to_cache(
         add_lock_to_cache(cache, trx->lock.wait_lock, wait_lock_heap_no);
 
     /* memory could not be allocated */
-    if (*requested_lock_row == NULL) {
+    if (*requested_lock_row == nullptr) {
       return (FALSE);
     }
 
@@ -794,7 +794,7 @@ static ibool add_trx_relevant_locks_to_cache(
 
     lock_queue_iterator_reset(&iter, trx->lock.wait_lock, ULINT_UNDEFINED);
 
-    for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != NULL;
+    for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != nullptr;
          curr_lock = lock_queue_iterator_get_prev(&iter)) {
       if (lock_has_to_wait(trx->lock.wait_lock, curr_lock)) {
         /* add the lock that is
@@ -806,13 +806,13 @@ static ibool add_trx_relevant_locks_to_cache(
                                               wait_lock_heap_no);
 
         /* memory could not be allocated */
-        if (blocking_lock_row == NULL) {
+        if (blocking_lock_row == nullptr) {
           return (FALSE);
         }
       }
     }
   } else {
-    *requested_lock_row = NULL;
+    *requested_lock_row = nullptr;
   }
 
   return (TRUE);
@@ -876,7 +876,7 @@ static void fetch_data_into_cache_low(
   to each transaction into innodb_locks' and innodb_lock_waits'
   caches. */
 
-  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != NULL;
+  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
        trx = (rw_trx_list ? UT_LIST_GET_NEXT(trx_list, trx)
                           : UT_LIST_GET_NEXT(mysql_trx_list, trx))) {
     i_s_trx_row_t *trx_row;
@@ -906,7 +906,7 @@ static void fetch_data_into_cache_low(
         table_cache_create_empty_row(&cache->innodb_trx, cache));
 
     /* memory could not be allocated */
-    if (trx_row == NULL) {
+    if (trx_row == nullptr) {
       cache->is_truncated = TRUE;
       trx_mutex_exit(trx);
       return;
@@ -1016,7 +1016,7 @@ void trx_i_s_cache_free(trx_i_s_cache_t *cache) /*!< in, own: cache to free */
 {
   rw_lock_free(cache->rw_lock);
   ut_free(cache->rw_lock);
-  cache->rw_lock = NULL;
+  cache->rw_lock = nullptr;
 
   mutex_free(&cache->last_read_mutex);
 
@@ -1110,7 +1110,7 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 
   ut_a(n < table_cache->rows_used);
 
-  row = NULL;
+  row = nullptr;
 
   for (i = 0; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
     if (table_cache->chunks[i].offset + table_cache->chunks[i].rows_allocd >
@@ -1121,7 +1121,7 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
     }
   }
 
-  ut_a(row != NULL);
+  ut_a(row != nullptr);
 
   return (row);
 }

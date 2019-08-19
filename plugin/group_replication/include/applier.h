@@ -162,10 +162,10 @@ class Transaction_prepared_action_packet : public Packet {
   Transaction_prepared_action_packet(const rpl_sid *sid, rpl_gno gno,
                                      const Gcs_member_identifier &gcs_member_id)
       : Packet(TRANSACTION_PREPARED_PACKET_TYPE),
-        m_sid_specified(sid != NULL ? true : false),
+        m_sid_specified(sid != nullptr ? true : false),
         m_gno(gno),
         m_gcs_member_id(gcs_member_id.get_member_id()) {
-    if (sid != NULL) {
+    if (sid != nullptr) {
       m_sid.copy_from(*sid);
     }
   }
@@ -176,7 +176,7 @@ class Transaction_prepared_action_packet : public Packet {
   const rpl_gno m_gno;
   const Gcs_member_identifier m_gcs_member_id;
 
-  const rpl_sid *get_sid() { return m_sid_specified ? &m_sid : NULL; }
+  const rpl_sid *get_sid() { return m_sid_specified ? &m_sid : nullptr; }
 
  private:
   rpl_sid m_sid;

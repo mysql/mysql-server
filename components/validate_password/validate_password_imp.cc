@@ -70,11 +70,11 @@ enum password_policy_enum {
   PASSWORD_POLICY_STRONG
 };
 
-static const char *policy_names[] = {"LOW", "MEDIUM", "STRONG", NULL};
+static const char *policy_names[] = {"LOW", "MEDIUM", "STRONG", nullptr};
 
 static TYPE_LIB password_policy_typelib_t = {array_elements(policy_names) - 1,
                                              "password_policy_typelib_t",
-                                             policy_names, NULL};
+                                             policy_names, nullptr};
 
 typedef std::string string_type;
 typedef std::set<string_type> set_type;
@@ -86,7 +86,7 @@ static int validate_password_mixed_case_count;
 static int validate_password_special_char_count;
 static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
-static char *validate_password_dictionary_file_last_parsed = NULL;
+static char *validate_password_dictionary_file_last_parsed = nullptr;
 static long long validate_password_dictionary_file_words_count = 0;
 static bool check_user_name;
 /*
@@ -102,7 +102,7 @@ static SHOW_VAR validate_password_status_variables[] = {
     {"validate_password.dictionary_file_words_count",
      (char *)&validate_password_dictionary_file_words_count, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
-    {NULL, NULL, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 /**
   Activate the new dictionary
@@ -119,7 +119,7 @@ static void dictionary_activate(set_type *dict_words) {
   std::stringstream ss; /* To store date & time in "YYYY-MM-DD HH:MM:SS" */
 
   /* fetch the start time */
-  start_time = time(0);
+  start_time = time(nullptr);
   localtime_r(&start_time, &tm);
 
   ss << std::setfill('0') << std::setw(4) << tm.tm_year + 1900 << "-"
@@ -138,7 +138,7 @@ static void dictionary_activate(set_type *dict_words) {
   */
   if (validate_password_dictionary_file_last_parsed) {
     my_free(validate_password_dictionary_file_last_parsed);
-    validate_password_dictionary_file_last_parsed = NULL;
+    validate_password_dictionary_file_last_parsed = nullptr;
   }
   validate_password_dictionary_file_last_parsed =
       (char *)my_malloc(PSI_NOT_INSTRUMENTED, ss.str().length() + 1, MYF(0));
@@ -156,7 +156,7 @@ static void read_dictionary_file() {
   set_type dict_words;
   std::streamoff file_length;
 
-  if (validate_password_dictionary_file == NULL) {
+  if (validate_password_dictionary_file == nullptr) {
     if (validate_password_policy == PASSWORD_POLICY_STRONG)
       LogEvent()
           .type(LOG_TYPE_ERROR)
@@ -206,7 +206,7 @@ static void free_dictionary_file() {
   if (!dictionary_words.empty()) dictionary_words.clear();
   if (validate_password_dictionary_file_last_parsed) {
     my_free(validate_password_dictionary_file_last_parsed);
-    validate_password_dictionary_file_last_parsed = NULL;
+    validate_password_dictionary_file_last_parsed = nullptr;
   }
   mysql_rwlock_unlock(&LOCK_dict_file);
 }
@@ -325,7 +325,7 @@ static bool my_memcmp_reverse(const char *a, size_t a_len, const char *b,
 */
 static bool is_valid_user(Security_context_handle ctx, const char *buffer,
                           int length, const char *field_name) {
-  MYSQL_LEX_CSTRING user = {NULL, 0};
+  MYSQL_LEX_CSTRING user = {nullptr, 0};
 
   if (mysql_service_mysql_security_context_options->get(ctx, field_name,
                                                         &user)) {
@@ -360,7 +360,7 @@ static bool is_valid_user(Security_context_handle ctx, const char *buffer,
 static bool is_valid_password_by_user_name(void *thd, my_h_string password) {
   char buffer[MAX_PASSWORD_LENGTH];
   int length;
-  Security_context_handle ctx = NULL;
+  Security_context_handle ctx = nullptr;
 
   if (!check_user_name) return true;
 
@@ -468,7 +468,7 @@ static int validate_password_policy_strength(void *thd, my_h_string password,
   int has_upper = 0;
   int has_special_chars = 0;
   int n_chars = 0;
-  my_h_string_iterator iter = NULL;
+  my_h_string_iterator iter = nullptr;
   int out_iter_char;
   bool out = false;
 
@@ -528,7 +528,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
   int policy = 0;
   int n_chars = 0;
   int out_iter_char;
-  my_h_string_iterator iter = NULL;
+  my_h_string_iterator iter = nullptr;
 
   *strength = 0;
 
@@ -613,8 +613,9 @@ int register_system_variables() {
   length.blk_sz = 0;
   if (mysql_service_component_sys_variable_register->register_variable(
           "validate_password", "length", PLUGIN_VAR_INT | PLUGIN_VAR_RQCMDARG,
-          "Password validate length to check for minimum password_length", NULL,
-          length_update, (void *)&length, (void *)&validate_password_length)) {
+          "Password validate length to check for minimum password_length",
+          nullptr, length_update, (void *)&length,
+          (void *)&validate_password_length)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
@@ -632,7 +633,7 @@ int register_system_variables() {
           PLUGIN_VAR_INT | PLUGIN_VAR_RQCMDARG,
           "password validate digit to ensure minimum numeric character in "
           "password",
-          NULL, length_update, (void *)&num_count,
+          nullptr, length_update, (void *)&num_count,
           (void *)&validate_password_number_count)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -651,7 +652,7 @@ int register_system_variables() {
           PLUGIN_VAR_INT | PLUGIN_VAR_RQCMDARG,
           "Password validate mixed case to ensure minimum upper/lower case "
           "in password",
-          NULL, length_update, (void *)&mixed_case_count,
+          nullptr, length_update, (void *)&mixed_case_count,
           (void *)&validate_password_mixed_case_count)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -670,7 +671,7 @@ int register_system_variables() {
           PLUGIN_VAR_INT | PLUGIN_VAR_RQCMDARG,
           "password validate special to ensure minimum special character "
           "in password",
-          NULL, length_update, (void *)&spl_char_count,
+          nullptr, length_update, (void *)&spl_char_count,
           (void *)&validate_password_special_char_count)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -687,7 +688,8 @@ int register_system_variables() {
           "validate_password", "policy", PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG,
           "password_validate_policy choosen policy to validate password "
           "possible values are LOW MEDIUM (default), STRONG",
-          NULL, NULL, (void *)&enum_arg, (void *)&validate_password_policy)) {
+          nullptr, nullptr, (void *)&enum_arg,
+          (void *)&validate_password_policy)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
@@ -697,13 +699,13 @@ int register_system_variables() {
   }
 
   STR_CHECK_ARG(str) str_arg;
-  str_arg.def_val = NULL;
+  str_arg.def_val = nullptr;
   if (mysql_service_component_sys_variable_register->register_variable(
           "validate_password", "dictionary_file",
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_RQCMDARG,
           "password_validate_dictionary file to be loaded and check for "
           "password",
-          NULL, dictionary_update, (void *)&str_arg,
+          nullptr, dictionary_update, (void *)&str_arg,
           (void *)&validate_password_dictionary_file)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -720,7 +722,7 @@ int register_system_variables() {
           PLUGIN_VAR_BOOL | PLUGIN_VAR_RQCMDARG,
           "Check if the password matches the login or the effective "
           "user names or the reverse of them",
-          NULL, NULL, (void *)&bool_arg, (void *)&check_user_name)) {
+          nullptr, nullptr, (void *)&bool_arg, (void *)&check_user_name)) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)

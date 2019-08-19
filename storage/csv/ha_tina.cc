@@ -209,7 +209,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *) {
                          &share, sizeof(*share), &tmp_name, length + 1,
                          NullS)) {
       mysql_mutex_unlock(&tina_mutex);
-      return NULL;
+      return nullptr;
     }
 
     share->use_count = 0;
@@ -228,7 +228,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *) {
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
     if (mysql_file_stat(csv_key_file_data, share->data_file_name, &file_stat,
-                        MYF(MY_WME)) == NULL)
+                        MYF(MY_WME)) == nullptr)
       goto error;
     share->saved_data_file_length = file_stat.st_size;
 
@@ -261,7 +261,7 @@ error:
   mysql_mutex_unlock(&tina_mutex);
   my_free(share);
 
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -476,7 +476,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
       current_position(0),
       next_position(0),
       local_saved_data_file_length(0),
-      file_buff(0),
+      file_buff(nullptr),
       chain_alloced(0),
       chain_size(DEFAULT_CHAIN_LENGTH),
       local_data_file_version(0),
@@ -573,7 +573,7 @@ int ha_tina::chain_append() {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
         if ((chain = (tina_set *)my_realloc(
                  csv_key_memory_tina_set, (uchar *)chain,
-                 chain_size * sizeof(tina_set), MYF(MY_WME))) == NULL)
+                 chain_size * sizeof(tina_set), MYF(MY_WME))) == nullptr)
           return -1;
       } else {
         tina_set *ptr =
@@ -1596,11 +1596,11 @@ mysql_declare_plugin(csv){
     "CSV storage engine",
     PLUGIN_LICENSE_GPL,
     tina_init_func, /* Plugin Init */
-    NULL,           /* Plugin check uninstall */
+    nullptr,        /* Plugin check uninstall */
     tina_done_func, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

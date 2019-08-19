@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(cyclic_dependency_test_component_1,
                   "mysql:cyclic_dependency_test_component_1")
-NULL, NULL END_DECLARE_COMPONENT();
+nullptr, nullptr END_DECLARE_COMPONENT();
 
 DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(cyclic_dependency_test_component_1)
     END_DECLARE_LIBRARY_COMPONENTS

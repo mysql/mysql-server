@@ -70,8 +70,8 @@ Plugin_table table_keyring_keys::s_table_def(
 PFS_engine_table_share table_keyring_keys::s_share = {
     &pfs_readonly_acl,
     table_keyring_keys::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_keyring_keys::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &s_table_lock,

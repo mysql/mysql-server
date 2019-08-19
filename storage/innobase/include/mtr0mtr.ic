@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,7 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Pushes an object to an mtr memo stack. */
 void mtr_t::memo_push(void *object, mtr_memo_type_t type) {
   ut_ad(is_active());
-  ut_ad(object != NULL);
+  ut_ad(object != nullptr);
   ut_ad(type >= MTR_MEMO_PAGE_S_FIX);
   ut_ad(type <= MTR_MEMO_SX_LOCK);
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
@@ -82,7 +82,7 @@ void mtr_t::release_s_latch_at_savepoint(ulint savepoint, rw_lock_t *lock) {
 
   rw_lock_s_unlock(lock);
 
-  slot->object = NULL;
+  slot->object = nullptr;
 #else  /* !UNIV_HOTBACKUP */
   UT_NOT_USED(savepoint);
   UT_NOT_USED(lock);
@@ -165,7 +165,7 @@ void mtr_t::release_block_at_savepoint(ulint savepoint, buf_block_t *block) {
 
   buf_page_release_latch(block, slot->type);
 
-  slot->object = NULL;
+  slot->object = nullptr;
 }
 #endif /* !UNIV_HOTBACKUP */
 

@@ -78,7 +78,7 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
   tmpdir->list = static_cast<char **>(
       my_malloc(key_memory_MY_TMPDIR_full_list,
                 sizeof(char *) * full_list.size(), MYF(MY_WME)));
-  if (tmpdir->list == NULL) return true;
+  if (tmpdir->list == nullptr) return true;
 
   mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
   memcpy(tmpdir->list, &full_list[0], sizeof(char *) * full_list.size());
@@ -98,7 +98,7 @@ char *my_tmpdir(MY_TMPDIR *tmpdir) {
 }
 
 void free_tmpdir(MY_TMPDIR *tmpdir) {
-  if (tmpdir->list == NULL) return;
+  if (tmpdir->list == nullptr) return;
   for (uint i = 0; i <= tmpdir->max; i++) my_free(tmpdir->list[i]);
   my_free(tmpdir->list);
   mysql_mutex_destroy(&tmpdir->mutex);

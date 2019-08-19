@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,7 @@ TEST_F(LockingServiceTest, CaseSensitive) {
 TEST_F(LockingServiceTest, ValidNames) {
   const char *ok_name[] = {"test"};
   {
-    const char *null = NULL;
+    const char *null = nullptr;
     const char *names1[] = {null};
     Mock_error_handler error_handler(m_thd, ER_LOCKING_SERVICE_WRONG_NAME);
     EXPECT_TRUE(acquire_locking_service_locks(m_thd, namespace1, names1, 1,

@@ -59,7 +59,7 @@ constexpr size_t Create_field::LONGBLOB_MAX_SIZE_IN_BYTES;
 Create_field::Create_field(Field *old_field, Field *orig_field)
     : hidden(old_field->hidden()),
       field_name(old_field->field_name),
-      change(NULL),
+      change(nullptr),
       comment(old_field->comment),
       sql_type(old_field->real_type()),
       decimals(old_field->decimals()),
@@ -217,7 +217,7 @@ bool Create_field::init(
   this->hidden = hidden;
   is_array = is_array_arg;
 
-  if (fld_default_value != NULL &&
+  if (fld_default_value != nullptr &&
       fld_default_value->type() == Item::FUNC_ITEM) {
     // We have a function default for insertions.
     constant_default = nullptr;
@@ -465,7 +465,7 @@ bool Create_field::init(
       flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
       /* Fall through */
     case MYSQL_TYPE_TIMESTAMP2:
-      if (display_width_in_codepoints == NULL) {
+      if (display_width_in_codepoints == nullptr) {
         m_max_display_width_in_codepoints =
             MAX_DATETIME_WIDTH + (decimals ? (1 + decimals) : 0);
       } else if (m_max_display_width_in_codepoints != MAX_DATETIME_WIDTH) {
@@ -580,7 +580,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   sql_type = sql_type_arg;
   m_max_display_width_in_codepoints = length_arg;
   auto_flags = Field::NONE;
-  interval = 0;
+  interval = nullptr;
   charset = &my_charset_bin;
   geom_type = Field::GEOM_GEOMETRY;
 

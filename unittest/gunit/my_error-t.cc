@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,10 @@ TEST(MyErrorTest, MyGetErrMsgUninitialized) {
   const char *msg;
 
   msg = my_get_err_msg(HA_ERR_KEY_NOT_FOUND);
-  EXPECT_TRUE(msg == NULL);
+  EXPECT_TRUE(msg == nullptr);
 }
 
-const char *faux_errmsgs[] = {"alpha", "beta", NULL, "delta"};
+const char *faux_errmsgs[] = {"alpha", "beta", nullptr, "delta"};
 
 static const int faux_error_first = 8000;
 static const int faux_error_last = 8003;
@@ -91,18 +91,18 @@ TEST(MyErrorTest, MyGetErrMsgInitialized) {
   // within range. gives NULL here. higher level function will
   // substitute a default string before printing.
   msg = my_get_err_msg(faux_error_first + 2);
-  EXPECT_TRUE(msg == NULL);
+  EXPECT_TRUE(msg == nullptr);
 
   // out of range
   msg = my_get_err_msg(faux_error_first - 1);
-  EXPECT_TRUE(msg == NULL);
+  EXPECT_TRUE(msg == nullptr);
 
   msg = my_get_err_msg(faux_error_last);
   EXPECT_STREQ("delta", msg);
 
   // out of range
   msg = my_get_err_msg(faux_error_last + 1);
-  EXPECT_TRUE(msg == NULL);
+  EXPECT_TRUE(msg == nullptr);
 
   EXPECT_FALSE(my_error_unregister(faux_error_first, faux_error_last));
 

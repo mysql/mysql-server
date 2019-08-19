@@ -210,7 +210,7 @@ Gcs_xcom_uuid Gcs_xcom_uuid::create_uuid() {
 }
 
 bool Gcs_xcom_uuid::encode(uchar **buffer, unsigned int *size) const {
-  if (buffer == NULL || *buffer == NULL || size == NULL) {
+  if (buffer == nullptr || *buffer == nullptr || size == nullptr) {
     /* purecov: begin tested */
     return false;
     /* purecov: end */
@@ -223,7 +223,7 @@ bool Gcs_xcom_uuid::encode(uchar **buffer, unsigned int *size) const {
 }
 
 bool Gcs_xcom_uuid::decode(const uchar *buffer, const unsigned int size) {
-  if (buffer == NULL) {
+  if (buffer == nullptr) {
     /* purecov: begin tested */
     return false;
     /* purecov: end */
@@ -258,15 +258,15 @@ Gcs_xcom_nodes::Gcs_xcom_nodes()
     : m_node_no(VOID_NODE_NO),
       m_nodes(),
       m_size(0),
-      m_addrs(NULL),
-      m_uuids(NULL) {}
+      m_addrs(nullptr),
+      m_uuids(nullptr) {}
 
 Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
     : m_node_no(site->nodeno),
       m_nodes(),
       m_size(nodes.node_set_len),
-      m_addrs(NULL),
-      m_uuids(NULL) {
+      m_addrs(nullptr),
+      m_uuids(nullptr) {
   Gcs_xcom_uuid uuid;
 
   for (unsigned int i = 0; i < nodes.node_set_len; ++i) {
@@ -316,7 +316,7 @@ const Gcs_xcom_node_information *Gcs_xcom_nodes::get_node(
       return &(*nodes_it);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 const Gcs_xcom_node_information *Gcs_xcom_nodes::get_node(
@@ -326,7 +326,7 @@ const Gcs_xcom_node_information *Gcs_xcom_nodes::get_node(
     if ((*nodes_it).get_node_no() == node_no) return &(*nodes_it);
   }
 
-  return NULL; /* purecov: tested */
+  return nullptr; /* purecov: tested */
 }
 
 /* purecov: begin tested */
@@ -338,7 +338,7 @@ const Gcs_xcom_node_information *Gcs_xcom_nodes::get_node(
       return &(*nodes_it);
   }
 
-  return NULL;
+  return nullptr;
 }
 /* purecov: end */
 
@@ -383,7 +383,7 @@ bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char ***ptr_addrs,
   /*
     If there is information already encoded, free it first.
   */
-  if (m_addrs != NULL || m_uuids != NULL) {
+  if (m_addrs != nullptr || m_uuids != nullptr) {
     /* purecov: begin tested */
     free_encode();
     /* purecov: end */
@@ -396,7 +396,7 @@ bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char ***ptr_addrs,
     If memory was not successfuly allocated, an error is
     reported.
   */
-  if ((m_addrs == NULL) || (m_uuids == NULL)) {
+  if ((m_addrs == nullptr) || (m_uuids == nullptr)) {
     /* purecov: begin deadcode */
     free_encode();
     return false;
@@ -430,7 +430,7 @@ bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char ***ptr_addrs,
 void Gcs_xcom_nodes::free_encode() {
   unsigned int i = 0;
 
-  if (m_uuids != NULL) {
+  if (m_uuids != nullptr) {
     for (; i < m_size; i++) {
       free(m_uuids[i].data.data_val);
     }
@@ -439,6 +439,6 @@ void Gcs_xcom_nodes::free_encode() {
   free(m_addrs);
   free(m_uuids);
 
-  m_addrs = NULL;
-  m_uuids = NULL;
+  m_addrs = nullptr;
+  m_uuids = nullptr;
 }

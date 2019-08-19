@@ -607,7 +607,7 @@ void pfs_rw_lock_x_lock_func(
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
 {
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
 
@@ -620,7 +620,7 @@ void pfs_rw_lock_x_lock_func(
 
     rw_lock_x_lock_func(lock, pass, file_name, static_cast<uint>(line));
 
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
     }
   } else {
@@ -641,7 +641,7 @@ ibool pfs_rw_lock_x_lock_func_nowait(
 {
   ibool ret;
 
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
 
@@ -654,7 +654,7 @@ ibool pfs_rw_lock_x_lock_func_nowait(
 
     ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, static_cast<int>(ret));
     }
   } else {
@@ -669,9 +669,9 @@ ibool pfs_rw_lock_x_lock_func_nowait(
 UNIV_INLINE
 void pfs_rw_lock_free_func(rw_lock_t *lock) /*!< in: pointer to rw-lock */
 {
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(lock->pfs_psi);
-    lock->pfs_psi = NULL;
+    lock->pfs_psi = nullptr;
   }
 
   rw_lock_free_func(lock);
@@ -688,7 +688,7 @@ void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
                                                   lock requested */
                              ulint line) /*!< in: line where requested */
 {
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
 
@@ -699,7 +699,7 @@ void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
 
     rw_lock_s_lock_func(lock, pass, file_name, line);
 
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
     }
   } else {
@@ -718,7 +718,7 @@ void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
                                                    lock requested */
                               ulint line) /*!< in: line where requested */
 {
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
 
@@ -729,7 +729,7 @@ void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
 
     rw_lock_sx_lock_func(lock, pass, file_name, line);
 
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
     }
   } else {
@@ -751,7 +751,7 @@ ibool pfs_rw_lock_s_lock_low(
 {
   ibool ret;
 
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
 
@@ -762,7 +762,7 @@ ibool pfs_rw_lock_s_lock_low(
 
     ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
     }
   } else {
@@ -786,7 +786,7 @@ ibool pfs_rw_lock_sx_lock_low(
 {
   ibool ret;
 
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
 
@@ -798,7 +798,7 @@ ibool pfs_rw_lock_sx_lock_low(
 
     ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
 
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
     }
   } else {
@@ -820,7 +820,7 @@ void pfs_rw_lock_x_unlock_func(
     rw_lock_t *lock) /*!< in/out: rw-lock */
 {
   /* Inform performance schema we are unlocking the lock */
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
   }
 
@@ -844,7 +844,7 @@ void pfs_rw_lock_sx_unlock_func(
     rw_lock_t *lock) /*!< in/out: rw-lock */
 {
   /* Inform performance schema we are unlocking the lock */
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)
     (lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK);
   }
@@ -869,7 +869,7 @@ void pfs_rw_lock_s_unlock_func(
     rw_lock_t *lock) /*!< in/out: rw-lock */
 {
   /* Inform performance schema we are unlocking the lock */
-  if (lock->pfs_psi != NULL) {
+  if (lock->pfs_psi != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
   }
 

@@ -1433,7 +1433,8 @@ monitor_info_t *srv_mon_get_info(
 {
   ut_a(monitor_id < NUM_MONITOR);
 
-  return ((monitor_id < NUM_MONITOR) ? &innodb_counter_info[monitor_id] : NULL);
+  return ((monitor_id < NUM_MONITOR) ? &innodb_counter_info[monitor_id]
+                                     : nullptr);
 }
 
 /** Get monitor's name by its monitor id (indexing into the
@@ -1448,7 +1449,7 @@ const char *srv_mon_get_name(
 
   return ((monitor_id < NUM_MONITOR)
               ? innodb_counter_info[monitor_id].monitor_name
-              : NULL);
+              : nullptr);
 }
 
 /** Turn on/off, reset monitor counters in a module. If module_id
@@ -2101,7 +2102,7 @@ void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
   MONITOR_MAX_VALUE(monitor) = MAX_RESERVED;
   MONITOR_MIN_VALUE(monitor) = MIN_RESERVED;
 
-  MONITOR_FIELD((monitor), mon_reset_time) = time(NULL);
+  MONITOR_FIELD((monitor), mon_reset_time) = time(nullptr);
 
   if (monitor_was_on) {
     MONITOR_ON(monitor);

@@ -59,7 +59,7 @@
 
 */
 
-int (*my_string_stack_guard)(int) = NULL;
+int (*my_string_stack_guard)(int) = nullptr;
 
 static char *mstr(char *str, const char *src, size_t l1, size_t l2) {
   l1 = l1 < l2 ? l1 : l2;
@@ -267,14 +267,14 @@ static struct my_cs_file_section_st sec[] = {
     {_CS_RESET_LAST_VARIABLE,
      "charsets/charset/collation/rules/reset/last_variable"},
 
-    {0, NULL}};
+    {0, nullptr}};
 
 static struct my_cs_file_section_st *cs_file_sec(const char *attr, size_t len) {
   struct my_cs_file_section_st *s;
   for (s = sec; s->str; s++) {
     if (!strncmp(attr, s->str, len) && s->str[len] == 0) return s;
   }
-  return NULL;
+  return nullptr;
 }
 
 #define MY_CS_CSDESCR_SIZE 64
@@ -309,7 +309,7 @@ static void my_charset_file_reset_collation(MY_CHARSET_FILE *i) {
 static void my_charset_file_init(MY_CHARSET_FILE *i) {
   my_charset_file_reset_charset(i);
   my_charset_file_reset_collation(i);
-  i->tailoring = NULL;
+  i->tailoring = nullptr;
   i->tailoring_alloced_length = 0;
 }
 
@@ -339,7 +339,7 @@ static int fill_uchar(uchar *a, uint size, const char *str, size_t len) {
     for (; (s < e) && !strchr(" \t\r\n", s[0]); s++)
       ;
     if (s == b || i > size) break;
-    a[i] = (uchar)strtoul(b, NULL, 16);
+    a[i] = (uchar)strtoul(b, nullptr, 16);
   }
   return 0;
 }
@@ -355,7 +355,7 @@ static int fill_uint16(uint16 *a, uint size, const char *str, size_t len) {
     for (; (s < e) && !strchr(" \t\r\n", s[0]); s++)
       ;
     if (s == b || i > size) break;
-    a[i] = (uint16)strtol(b, NULL, 16);
+    a[i] = (uint16)strtol(b, nullptr, 16);
   }
   return 0;
 }
@@ -444,7 +444,7 @@ static int cs_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
       break;
 
     case _CS_RESET:
-      return tailoring_append(st, " &", 0, NULL);
+      return tailoring_append(st, " &", 0, nullptr);
 
     default:
       break;
@@ -467,51 +467,51 @@ static int cs_leave(MY_XML_PARSER *st, const char *attr, size_t len) {
 
     /* Rules: Logical Reset Positions */
     case _CS_RESET_FIRST_NON_IGNORABLE:
-      rc = tailoring_append(st, "[first non-ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first non-ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_NON_IGNORABLE:
-      rc = tailoring_append(st, "[last non-ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last non-ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_PRIMARY_IGNORABLE:
-      rc = tailoring_append(st, "[first primary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first primary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_PRIMARY_IGNORABLE:
-      rc = tailoring_append(st, "[last primary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last primary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_SECONDARY_IGNORABLE:
-      rc = tailoring_append(st, "[first secondary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first secondary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_SECONDARY_IGNORABLE:
-      rc = tailoring_append(st, "[last secondary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last secondary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_TERTIARY_IGNORABLE:
-      rc = tailoring_append(st, "[first tertiary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[first tertiary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_TERTIARY_IGNORABLE:
-      rc = tailoring_append(st, "[last tertiary ignorable]", 0, NULL);
+      rc = tailoring_append(st, "[last tertiary ignorable]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_TRAILING:
-      rc = tailoring_append(st, "[first trailing]", 0, NULL);
+      rc = tailoring_append(st, "[first trailing]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_TRAILING:
-      rc = tailoring_append(st, "[last trailing]", 0, NULL);
+      rc = tailoring_append(st, "[last trailing]", 0, nullptr);
       break;
 
     case _CS_RESET_FIRST_VARIABLE:
-      rc = tailoring_append(st, "[first variable]", 0, NULL);
+      rc = tailoring_append(st, "[first variable]", 0, nullptr);
       break;
 
     case _CS_RESET_LAST_VARIABLE:
-      rc = tailoring_append(st, "[last variable]", 0, NULL);
+      rc = tailoring_append(st, "[last variable]", 0, nullptr);
       break;
 
     default:
@@ -543,13 +543,13 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
     case _CS_ORDER:
       break;
     case _CS_ID:
-      i->cs.number = strtol(attr, (char **)NULL, 10);
+      i->cs.number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_BINARY_ID:
-      i->cs.binary_number = strtol(attr, (char **)NULL, 10);
+      i->cs.binary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_PRIMARY_ID:
-      i->cs.primary_number = strtol(attr, (char **)NULL, 10);
+      i->cs.primary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_COLNAME:
       i->cs.name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);

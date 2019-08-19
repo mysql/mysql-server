@@ -171,7 +171,7 @@ ulint page_cur_search(const buf_block_t *block, const dict_index_t *index,
   ut_ad(dtuple_check_typed(tuple));
 
   page_cur_search_with_match(block, index, tuple, mode, &up_match, &low_match,
-                             cursor, NULL);
+                             cursor, nullptr);
   return (low_match);
 }
 

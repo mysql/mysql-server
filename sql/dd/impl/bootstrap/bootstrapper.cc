@@ -249,7 +249,7 @@ bool acquire_exclusive_mdl(THD *thd) {
     if ((*it)->entity() == nullptr) continue;
 
     MDL_request *table_request = new (thd->mem_root) MDL_request;
-    if (table_request == NULL) return true;
+    if (table_request == nullptr) return true;
     MDL_REQUEST_INIT(table_request, MDL_key::TABLE, MYSQL_SCHEMA_NAME.str,
                      (*it)->entity()->name().c_str(), MDL_EXCLUSIVE,
                      MDL_TRANSACTION);
@@ -1021,7 +1021,7 @@ void store_predefined_tablespace_metadata(THD *thd) {
         tablespace_def->get_files();
     List_iterator<const Plugin_tablespace::Plugin_tablespace_file> file_it(
         files);
-    const Plugin_tablespace::Plugin_tablespace_file *file = NULL;
+    const Plugin_tablespace::Plugin_tablespace_file *file = nullptr;
     while ((file = file_it++)) {
       Tablespace_file *space_file = tablespace->add_file();
       space_file->set_filename(file->get_name());

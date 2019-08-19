@@ -185,47 +185,51 @@ static const char *checksum_algorithms[] = {"crc32", "innodb", "none", NullS};
 
 /** Used to define an enumerate type of the "checksum algorithm". */
 static TYPELIB checksum_algorithms_typelib = {
-    array_elements(checksum_algorithms) - 1, "", checksum_algorithms, NULL};
+    array_elements(checksum_algorithms) - 1, "", checksum_algorithms, nullptr};
 
 /* Command line argument for ibd2sdi tool. */
 static struct my_option ibd2sdi_options[] = {
-    {"help", 'h', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"version", 'v', "Display version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"help", 'h', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'v', "Display version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #ifndef DBUG_OFF
     {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
-     &opts.dbug_setting, &opts.dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opts.dbug_setting, &opts.dbug_setting, nullptr, GET_STR, OPT_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif /* !DBUG_OFF */
     {"dump-file", 'd',
      "Dump the tablespace SDI into the file passed by user."
      " Without the filename, it will default to stdout",
-     &opts.dump_filename, &opts.dump_filename, 0, GET_STR, REQUIRED_ARG, 0, 0,
-     0, 0, 0, 0},
+     &opts.dump_filename, &opts.dump_filename, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
     {"skip-data", 's',
      "Skip retrieving data from SDI records. Retrieve only"
      " id and type.",
-     &opts.skip_data, &opts.skip_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opts.skip_data, &opts.skip_data, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"id", 'i', "Retrieve the SDI record matching the id passed by user.",
-     &opts.sdi_rec_id, &opts.sdi_rec_id, 0, GET_ULL, REQUIRED_ARG, 0, 0,
-     ULLONG_MAX, 0, 1, 0},
+     &opts.sdi_rec_id, &opts.sdi_rec_id, nullptr, GET_ULL, REQUIRED_ARG, 0, 0,
+     ULLONG_MAX, nullptr, 1, nullptr},
     {"type", 't', "Retrieve the SDI records matching the type passed by user.",
-     &opts.sdi_rec_type, &opts.sdi_rec_type, 0, GET_ULL, REQUIRED_ARG, 0, 0,
-     ULLONG_MAX, 0, 1, 0},
+     &opts.sdi_rec_type, &opts.sdi_rec_type, nullptr, GET_ULL, REQUIRED_ARG, 0,
+     0, ULLONG_MAX, nullptr, 1, nullptr},
     {"strict-check", 'c',
      "Specify the strict checksum algorithm by the user."
      " Allowed values are innodb, crc32, none.",
      &opts.strict_check, &opts.strict_check, &checksum_algorithms_typelib,
-     GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     GET_ENUM, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-check", 'n', "Ignore the checksum verification.", &opts.no_checksum,
-     &opts.no_checksum, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opts.no_checksum, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"pretty", 'p',
      "Pretty format the SDI output."
      "If false, SDI would be not human readable but it will be of less size",
-     &opts.pretty, &opts.pretty, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+     &opts.pretty, &opts.pretty, nullptr, GET_BOOL, OPT_ARG, 1, 0, 0, nullptr,
+     0, nullptr},
 
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /** Report a failed assertion.
 @param[in]	expr	the failed assertion if not NULL
@@ -235,7 +239,7 @@ void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
   fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " ULINTPF "\n",
           file, line);
 
-  if (expr != NULL) {
+  if (expr != nullptr) {
     fprintf(stderr, "ibd2sdi: Failing assertion: %s\n", expr);
   }
 
@@ -264,7 +268,7 @@ static void try_delete_temporary_filename(const char *temp_filename) {
 @return File pointer of the created file */
 static FILE *create_tmp_file(char *temp_file_buf, const char *dir,
                              const char *prefix_pattern) {
-  FILE *file = NULL;
+  FILE *file = nullptr;
   File fd = create_temp_file(temp_file_buf, dir, prefix_pattern,
                              O_CREAT | O_RDWR, KEEP_FILE, MYF(0));
 
@@ -272,9 +276,9 @@ static FILE *create_tmp_file(char *temp_file_buf, const char *dir,
     file = my_fdopen(fd, temp_file_buf, O_RDWR, MYF(0));
   }
 
-  DBUG_EXECUTE_IF("ib_tmp_file_fail", file = NULL; errno = EACCES;);
+  DBUG_EXECUTE_IF("ib_tmp_file_fail", file = nullptr; errno = EACCES;);
 
-  if (file == NULL) {
+  if (file == nullptr) {
     ib::error() << "Unable to create temporary file. err: " << strerror(errno);
 
     if (fd >= 0) {
@@ -764,7 +768,7 @@ class tablespace_creator {
   @param[in]	ibd_files	array of ibd file names
   @param[in]	map		tablespaces map */
   tablespace_creator(uint32_t num_files, char **ibd_files)
-      : m_num_files(num_files), m_ibd_files(ibd_files), m_tablespace(NULL) {}
+      : m_num_files(num_files), m_ibd_files(ibd_files), m_tablespace(nullptr) {}
 
   /* Destructor */
   ~tablespace_creator() { delete m_tablespace; }
@@ -844,7 +848,7 @@ bool tablespace_creator::create() {
     MY_STAT stat_info;
 
     /* stat the file to get size and page count. */
-    if (my_stat(filename, &stat_info, MYF(0)) == NULL) {
+    if (my_stat(filename, &stat_info, MYF(0)) == nullptr) {
       ib::error() << "Unable to get file stats " << filename;
       ib::error() << "File doesn't exist";
       return true;
@@ -926,7 +930,7 @@ bool tablespace_creator::create() {
 
     } else {
       /* We found next file of system tablespace. */
-      ut_ad(m_tablespace != NULL);
+      ut_ad(m_tablespace != nullptr);
 
       if (space_id != m_tablespace->get_space_id()) {
         ib::error() << "Multiple tablespaces passed."
@@ -1239,7 +1243,7 @@ inline bool ib_tablespace::check_sdi(page_no_t &root) {
 @param[in]	buf		Page of tablespace
 @return SDI root page number */
 inline page_no_t ib_tablespace::get_sdi_root_page_num(byte *buf) {
-  ut_ad(buf != NULL);
+  ut_ad(buf != nullptr);
   ulint sdi_offset = fsp_header_get_sdi_offset(m_page_size);
   uint32_t version = mach_read_from_4(buf + sdi_offset);
 
@@ -1268,7 +1272,7 @@ class ibd2sdi {
         m_is_specific_rec(false),
         m_specific_id(UINT64_MAX),
         m_specific_type(UINT64_MAX),
-        m_tablespace_creator(NULL) {}
+        m_tablespace_creator(nullptr) {}
 
   /** Destructor. Close all open files. */
   ~ibd2sdi() { delete m_tablespace_creator; }
@@ -1483,13 +1487,13 @@ bool ibd2sdi::dump_all_recs_in_leaf_level(ib_tablespace *ts,
   byte *current_rec = get_first_user_rec(ts, page_size.logical(), buf);
   uint64_t sdi_id;
   uint64_t sdi_type;
-  byte *sdi_data = NULL;
+  byte *sdi_data = nullptr;
   uint64_t sdi_data_len = 0;
   bool corrupt = false;
 
   /* Check and Dump records */
   fprintf(out_stream, "%s", "[\"ibd2sdi\"\n");
-  while (current_rec != NULL &&
+  while (current_rec != nullptr &&
          get_rec_type(current_rec) != REC_STATUS_SUPREMUM &&
          !explicit_sdi_rec_found && !corrupt) {
     dberr_t err = parse_fields_in_rec(ts, current_rec, &sdi_type, &sdi_id,
@@ -1500,7 +1504,7 @@ bool ibd2sdi::dump_all_recs_in_leaf_level(ib_tablespace *ts,
                                                      sdi_data_len, out_stream);
 
       free(sdi_data);
-      sdi_data = NULL;
+      sdi_data = nullptr;
     }
 
     if (explicit_sdi_rec_found) {
@@ -1969,7 +1973,7 @@ byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec_arg,
   if (next_rec_offset == 0) {
     ib::error() << "Record Corruption detected. Aborting";
     *corrupt = true;
-    return NULL;
+    return nullptr;
   }
 
   byte *next_rec = buf + next_rec_offset;
@@ -2003,13 +2007,13 @@ byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec_arg,
 
     if (next_page_num == FIL_NULL) {
       *corrupt = false;
-      return NULL;
+      return nullptr;
     }
 
     if (fetch_page(ts, next_page_num, buf_len, buf) == IB_ERROR) {
       ib::error() << "Couldn't read next page " << next_page_num;
       *corrupt = true;
-      return NULL;
+      return nullptr;
     } else {
       ib::dbug() << "Read page number: " << next_page_num;
     }
@@ -2020,18 +2024,18 @@ byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec_arg,
       ib::error() << "Unexpected page type: " << page_type
                   << ". Expected page type: " << FIL_PAGE_SDI;
       *corrupt = true;
-      return NULL;
+      return nullptr;
     }
 
     if (ts->inc_num_of_recs_on_page(next_page_num)) {
       *corrupt = true;
-      return NULL;
+      return nullptr;
     }
     next_rec = get_first_user_rec(ts, buf_len, buf);
   } else {
     if (ts->inc_num_of_recs_on_page(page_num)) {
       *corrupt = true;
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -2055,7 +2059,7 @@ void ibd2sdi::dump_sdi_rec(uint64_t sdi_type, uint64_t sdi_id, byte *sdi_data,
   fprintf(out_stream, "\t\"id\": " UINT64PF, sdi_id);
 
   if (!m_skip_data) {
-    ut_ad(sdi_data != NULL);
+    ut_ad(sdi_data != nullptr);
     fprintf(out_stream, ",\n");
     fprintf(out_stream, "\t\"object\":\n");
     fprintf(out_stream, "\t\t");
@@ -2103,7 +2107,7 @@ byte *ibd2sdi::get_first_user_rec(ib_tablespace *ts, uint32_t buf_len,
 
   if (next_rec_off_t > buf_len) {
     ut_ad(0);
-    return (NULL);
+    return (nullptr);
   }
 
   if (memcmp(buf + PAGE_NEW_INFIMUM, "infimum", strlen("infimum")) != 0) {
@@ -2126,7 +2130,7 @@ byte *ibd2sdi::get_first_user_rec(ib_tablespace *ts, uint32_t buf_len,
     current_rec =
         get_next_rec(ts, current_rec, page_size.logical(), buf, &corrupt);
     if (corrupt) {
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -2177,7 +2181,7 @@ bool ibd2sdi::process_files() {
 @return false on success, true on failure */
 bool ibd2sdi::dump() {
   bool ret = true;
-  ut_a(m_tablespace_creator != 0);
+  ut_a(m_tablespace_creator != nullptr);
   ib_tablespace *ts = m_tablespace_creator->get_tablespace();
   ret = process_sdi_from_copy(ts);
   return (ret);
@@ -2259,7 +2263,7 @@ int main(int argc, char **argv) {
 
     dump_file = create_tmp_file(tmp_filename_buf, dir_buf, "ib_sdi");
 
-    if (dump_file == NULL) {
+    if (dump_file == nullptr) {
       ib::error() << "Invalid Dumpfile passed";
       return 1;
     }

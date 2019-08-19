@@ -358,7 +358,7 @@ bool ConfigGenerator::warn_on_no_ssl(
 void ConfigGenerator::parse_bootstrap_options(
     const std::map<std::string, std::string> &bootstrap_options) {
   if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
-    char *end = NULL;
+    char *end = nullptr;
     const char *tmp = bootstrap_options.at("base-port").c_str();
     int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
     int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
@@ -889,7 +889,7 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   bool skip_x_protocol = false;
   int base_port = 0;
   if (user_options.find("base-port") != user_options.end()) {
-    char *end = NULL;
+    char *end = nullptr;
     const char *tmp = user_options.at("base-port").c_str();
     base_port = static_cast<int>(std::strtol(tmp, &end, 10));
     int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
@@ -969,7 +969,7 @@ unsigned get_password_retries(
     return kDefaultPasswordRetries;
   }
 
-  char *end = NULL;
+  char *end = nullptr;
   const char *tmp = user_options.at("password-retries").c_str();
   unsigned result = static_cast<unsigned>(std::strtoul(tmp, &end, 10));
   if (result == 0 || result > kMaxPasswordRetries || end != tmp + strlen(tmp)) {
@@ -1829,14 +1829,14 @@ static std::string find_executable_path() {
   harness_assert(!g_program_name.empty());
 
   if (g_program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(g_program_name.c_str(), NULL);
+    char *tmp = realpath(g_program_name.c_str(), nullptr);
     harness_assert(tmp);  // will fail if g_program_name provides bogus path
     std::string path(tmp);
     free(tmp);
     return path;
   } else {
     std::string path(std::getenv("PATH"));
-    char *last = NULL;
+    char *last = nullptr;
     char *p = strtok_r(&path[0], ":", &last);
     while (p) {
       if (*p && p[strlen(p) - 1] == '/') p[strlen(p) - 1] = 0;
@@ -1844,7 +1844,7 @@ static std::string find_executable_path() {
       if (access(tmp.c_str(), R_OK | X_OK) == 0) {
         return tmp;
       }
-      p = strtok_r(NULL, ":", &last);
+      p = strtok_r(nullptr, ":", &last);
     }
   }
 #endif

@@ -8,7 +8,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  * This file was modified by Oracle on 2015-01-23.
- * Modifications copyright (c) 2015, 2017, Oracle and/or its affiliates. All
+ * Modifications copyright (c) 2015, 2019, Oracle and/or its affiliates. All
  * rights reserved.
  */
 
@@ -215,7 +215,7 @@ int azopen(azio_stream *s, const char *path, int Flags) {
 int azdopen(azio_stream *s, File fd, int Flags) {
   if (fd < 0) return 0;
 
-  return az_open(s, NULL, Flags, fd);
+  return az_open(s, nullptr, Flags, fd);
 }
 
 /* ===========================================================================
@@ -372,7 +372,7 @@ void read_header(azio_stream *s, unsigned char *buffer) {
 int destroy(azio_stream *s) {
   int err = Z_OK;
 
-  if (s->stream.state != NULL) {
+  if (s->stream.state != nullptr) {
     if (s->mode == 'w')
       err = deflateEnd(&(s->stream));
     else if (s->mode == 'r')
@@ -546,7 +546,7 @@ int do_flush(azio_stream *s, int flush) {
   int done = 0;
   my_off_t afterwrite_pos;
 
-  if (s == NULL || s->mode != 'w') return Z_STREAM_ERROR;
+  if (s == nullptr || s->mode != 'w') return Z_STREAM_ERROR;
 
   s->stream.avail_in = 0; /* should be zero already anyway */
 
@@ -615,7 +615,7 @@ int ZEXPORT azflush(azio_stream *s, int flush) {
   Rewinds input file.
 */
 int azrewind(azio_stream *s) {
-  if (s == NULL || s->mode != 'r') return -1;
+  if (s == nullptr || s->mode != 'r') return -1;
 
   s->z_err = Z_OK;
   s->z_eof = 0;
@@ -639,7 +639,7 @@ int azrewind(azio_stream *s) {
   In this version of the library, azseek can be extremely slow.
 */
 my_off_t azseek(azio_stream *s, my_off_t offset, int whence) {
-  if (s == NULL || whence == SEEK_END || s->z_err == Z_ERRNO ||
+  if (s == nullptr || whence == SEEK_END || s->z_err == Z_ERRNO ||
       s->z_err == Z_DATA_ERROR) {
     return -1L;
   }
@@ -749,7 +749,7 @@ uLong getLong(azio_stream *s) {
   and deallocates all the (de)compression state.
 */
 int azclose(azio_stream *s) {
-  if (s == NULL) return Z_STREAM_ERROR;
+  if (s == nullptr) return Z_STREAM_ERROR;
 
   if (s->file < 1) return Z_OK;
 

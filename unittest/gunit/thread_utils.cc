@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ namespace {
 extern "C" void *thread_start_routine(void *arg) {
   Thread *start_arg = (Thread *)arg;
   Thread::run_wrapper(start_arg);
-  return NULL;
+  return nullptr;
 }
 
 // We cannot use ASSERT_FALSE in constructors/destructors,
@@ -53,7 +53,7 @@ void assert_false(int arg, int line) {
 
 int Thread::start() {
   const int retval =
-      my_thread_create(&m_thread_handle, NULL, thread_start_routine, this);
+      my_thread_create(&m_thread_handle, nullptr, thread_start_routine, this);
   if (retval != 0) {
     ADD_FAILURE() << " could not start thread, errno: " << errno;
     return retval;
@@ -63,7 +63,7 @@ int Thread::start() {
 }
 
 void Thread::join() {
-  const int failed = my_thread_join(&m_thread_handle, NULL);
+  const int failed = my_thread_join(&m_thread_handle, nullptr);
   if (failed) {
     ADD_FAILURE() << " could not join thread id " << m_thread_handle.thread
                   << " failed: " << failed << " errno: " << errno;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class Explain_format_traditional : public Explain_format {
   qep_row column_buffer;  ///< buffer for the current output row
 
  public:
-  Explain_format_traditional() : nil(NULL) {}
+  Explain_format_traditional() : nil(nullptr) {}
 
   virtual bool is_hierarchical() const { return false; }
   virtual bool send_headers(Query_result *result);

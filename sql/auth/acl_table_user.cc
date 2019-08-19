@@ -505,7 +505,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
       if (table_intact.check(m_table, ACL_TABLES::TABLE_USER)) return true;
 
       m_table->use_all_columns();
-      DBUG_ASSERT(m_combo->host.str != NULL);
+      DBUG_ASSERT(m_combo->host.str != nullptr);
       m_table->field[m_table_schema->host_idx()]->store(
           m_combo->host.str, m_combo->host.length, system_charset_info);
       m_table->field[m_table_schema->user_idx()]->store(
@@ -573,7 +573,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           return true;
         }
         restore_record(m_table, s->default_values);
-        DBUG_ASSERT(m_combo->host.str != NULL);
+        DBUG_ASSERT(m_combo->host.str != nullptr);
         m_table->field[m_table_schema->host_idx()]->store(
             m_combo->host.str, m_combo->host.length, system_charset_info);
         m_table->field[m_table_schema->user_idx()]->store(
@@ -597,7 +597,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
         old_plugin.str = get_field(
             m_thd->mem_root, m_table->field[m_table_schema->plugin_idx()]);
 
-        if (old_plugin.str == NULL || *old_plugin.str == '\0') {
+        if (old_plugin.str == nullptr || *old_plugin.str == '\0') {
           my_error(ER_PASSWORD_NO_MATCH, MYF(0));
           error = 1;
           return true;
@@ -1243,7 +1243,7 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
 */
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   DBUG_TRACE;
-  m_iterator = init_table_iterator(m_thd, m_table, NULL, false,
+  m_iterator = init_table_iterator(m_thd, m_table, nullptr, false,
                                    /*ignore_not_found_rows=*/false);
   if (m_iterator == nullptr) return true;
   m_table->use_all_columns();
@@ -1558,8 +1558,9 @@ bool Acl_table_user_reader::read_plugin_info(
     optimize_plugin_compare_by_pointer(&user.plugin);
   }
   /* Validate the hash string. */
-  plugin_ref plugin = NULL;
-  plugin = my_plugin_lock_by_name(0, user.plugin, MYSQL_AUTHENTICATION_PLUGIN);
+  plugin_ref plugin = nullptr;
+  plugin =
+      my_plugin_lock_by_name(nullptr, user.plugin, MYSQL_AUTHENTICATION_PLUGIN);
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
     if (auth->validate_authentication_string(
@@ -1569,10 +1570,10 @@ bool Acl_table_user_reader::read_plugin_info(
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
              user.user ? user.user : "",
              user.host.get_host() ? user.host.get_host() : "");
-      plugin_unlock(0, plugin);
+      plugin_unlock(nullptr, plugin);
       return true;
     }
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
   return false;
 }
@@ -1686,7 +1687,7 @@ void Acl_table_user_reader::read_password_history_fields(ACL_USER &user) {
           m_table->field[m_table_schema->password_reuse_history_idx()]);
       /* ptr is NULL in case of DB NULL. Take the default in that case */
       user.password_history_length = ptr ? atoi(ptr) : 0;
-      user.use_default_password_history = ptr == NULL;
+      user.use_default_password_history = ptr == nullptr;
     }
   }
 }
@@ -1706,7 +1707,7 @@ void Acl_table_user_reader::read_password_reuse_time_fields(ACL_USER &user) {
                     m_table->field[m_table_schema->password_reuse_time_idx()]);
       /* ptr is NULL in case of DB NULL. Take the default in that case */
       user.password_reuse_interval = ptr ? atoi(ptr) : 0;
-      user.use_default_password_reuse_interval = ptr == NULL;
+      user.use_default_password_reuse_interval = ptr == nullptr;
     }
   }
 }
@@ -1775,9 +1776,9 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       }
 
       /* Validate the hash string. */
-      plugin_ref plugin = NULL;
-      plugin =
-          my_plugin_lock_by_name(0, user.plugin, MYSQL_AUTHENTICATION_PLUGIN);
+      plugin_ref plugin = nullptr;
+      plugin = my_plugin_lock_by_name(nullptr, user.plugin,
+                                      MYSQL_AUTHENTICATION_PLUGIN);
       if (plugin) {
         st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
         if (auth->validate_authentication_string(
@@ -1787,10 +1788,10 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
                  user.user ? user.user : "",
                  user.host.get_host() ? user.host.get_host() : "");
-          plugin_unlock(0, plugin);
+          plugin_unlock(nullptr, plugin);
           return true;
         }
-        plugin_unlock(0, plugin);
+        plugin_unlock(nullptr, plugin);
       }
     } else {
       // user_attributes column is NULL. So use suitable defaults.

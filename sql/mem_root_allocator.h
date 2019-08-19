@@ -96,12 +96,13 @@ class Mem_root_allocator {
     DBUG_ASSERT(m_memroot == other.memroot());  // Don't swap memroot.
   }
 
-  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
-    if (n == 0) return NULL;
+  pointer allocate(size_type n,
+                   const_pointer hint MY_ATTRIBUTE((unused)) = nullptr) {
+    if (n == 0) return nullptr;
     if (n > max_size()) throw std::bad_alloc();
 
     pointer p = static_cast<pointer>(m_memroot->Alloc(n * sizeof(T)));
-    if (p == NULL) throw std::bad_alloc();
+    if (p == nullptr) throw std::bad_alloc();
     return p;
   }
 
@@ -109,7 +110,7 @@ class Mem_root_allocator {
 
   template <class U, class... Args>
   void construct(U *p, Args &&... args) {
-    DBUG_ASSERT(p != NULL);
+    DBUG_ASSERT(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);
     } catch (...) {
@@ -118,7 +119,7 @@ class Mem_root_allocator {
   }
 
   void destroy(pointer p) {
-    DBUG_ASSERT(p != NULL);
+    DBUG_ASSERT(p != nullptr);
     try {
       p->~T();
     } catch (...) {

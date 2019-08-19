@@ -77,7 +77,7 @@ class sp_variable {
         type(_type),
         mode(_mode),
         offset(_offset),
-        default_value(NULL) {}
+        default_value(nullptr) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////

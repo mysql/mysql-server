@@ -86,7 +86,7 @@ class Ha_innopart_share : public Partition_share {
   @param[in]	part_id	Partition number.
   @param[in]	table	Table. */
   inline void set_table_part(uint part_id, dict_table_t *table) {
-    ut_ad(m_table_parts != NULL);
+    ut_ad(m_table_parts != nullptr);
     ut_ad(part_id < m_tot_parts);
     m_table_parts[part_id] = table;
   }
@@ -101,7 +101,7 @@ class Ha_innopart_share : public Partition_share {
   @param[in]	part_id	Partition number.
   @return	InnoDB table. */
   inline dict_table_t *get_table_part(uint part_id) const {
-    ut_ad(m_table_parts != NULL);
+    ut_ad(m_table_parts != nullptr);
     ut_ad(part_id < m_tot_parts);
     return (m_table_parts[part_id]);
   }
@@ -484,13 +484,13 @@ class ha_innopart : public ha_innobase,
 
   FT_INFO *ft_init_ext(uint flags, uint inx, String *key) override {
     ut_ad(0);
-    return (NULL);
+    return (nullptr);
   }
 
   FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
                                   Ft_hints *hints) override {
     ut_ad(0);
-    return (NULL);
+    return (nullptr);
   }
 
   int ft_read(uchar *buf) override {

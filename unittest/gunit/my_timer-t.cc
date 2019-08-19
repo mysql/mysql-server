@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ static void timer_notify_function(my_timer_t *timer) {
 
 static void test_timer_create(test_timer_t *test) {
   memset(test, 0, sizeof(test_timer_t));
-  native_mutex_init(&test->mutex, NULL);
+  native_mutex_init(&test->mutex, nullptr);
   native_cond_init(&test->cond);
   test->timer.notify_function = timer_notify_function;
   EXPECT_EQ(my_timer_create(&test->timer), 0);
@@ -127,7 +127,7 @@ extern "C" void *test_timer_per_thread(void *arg) {
 
   while (iter--) test_timer();
 
-  return NULL;
+  return nullptr;
 }
 
 /* Test timer creation and deletion. */

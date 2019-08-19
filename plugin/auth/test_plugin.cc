@@ -152,7 +152,7 @@ static struct st_mysql_auth auth_test_handler = {
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 /**
   dialog test plugin mimicking the ordinary auth mechanism. Used to test the
@@ -182,7 +182,7 @@ static struct st_mysql_auth auth_cleartext_handler = {
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 mysql_declare_plugin(test_plugin){
     MYSQL_AUTHENTICATION_PLUGIN,
@@ -192,12 +192,12 @@ mysql_declare_plugin(test_plugin){
     "plugin API test plugin",
     PLUGIN_LICENSE_GPL,
     test_plugin_init,
-    NULL, /* Check uninstall */
-    NULL, /* Deinit */
+    nullptr, /* Check uninstall */
+    nullptr, /* Deinit */
     0x0101,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0,
 },
     {
@@ -207,13 +207,13 @@ mysql_declare_plugin(test_plugin){
         "Georgi Kodinov",
         "cleartext plugin API test plugin",
         PLUGIN_LICENSE_GPL,
-        NULL, /* Init */
-        NULL, /* Check uninstall */
-        NULL, /* Deinit */
+        nullptr, /* Init */
+        nullptr, /* Check uninstall */
+        nullptr, /* Deinit */
         0x0101,
-        NULL,
-        NULL,
-        NULL,
+        nullptr,
+        nullptr,
+        nullptr,
         0,
     } mysql_declare_plugin_end;
 
@@ -258,7 +258,7 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     pkt_len = vio->read_packet(vio, &pkt);
     if (pkt_len < 0) return CR_ERROR;
 
-    if (pkt == 0) {
+    if (pkt == nullptr) {
       /*
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
@@ -300,6 +300,6 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "auth_test_plugin",
-    "Georgi Kodinov", "Dialog Client Authentication Plugin", {0, 1, 0},
-    "GPL", NULL, NULL, NULL, NULL,
-    test_plugin_client, NULL mysql_end_client_plugin;
+    "Georgi Kodinov", "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL",
+    nullptr, nullptr, nullptr, nullptr, test_plugin_client,
+    nullptr mysql_end_client_plugin;

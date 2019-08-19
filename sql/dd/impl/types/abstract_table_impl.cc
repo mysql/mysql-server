@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -276,7 +276,7 @@ Column *Abstract_table_impl::get_column(Object_id column_id) {
     if (c->id() == column_id) return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -286,7 +286,7 @@ const Column *Abstract_table_impl::get_column(Object_id column_id) const {
     if (c->id() == column_id) return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -299,7 +299,7 @@ Column *Abstract_table_impl::get_column(const String_type &name) {
       return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -312,7 +312,7 @@ const Column *Abstract_table_impl::get_column(const String_type &name) const {
       return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////

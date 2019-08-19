@@ -34,7 +34,7 @@
 
 namespace xpl {
 
-CHARSET_INFO *Query_string_builder::m_charset = NULL;
+CHARSET_INFO *Query_string_builder::m_charset = nullptr;
 std::once_flag Query_string_builder::m_charset_initialized;
 
 void Query_string_builder::init_charset() {
@@ -44,7 +44,7 @@ void Query_string_builder::init_charset() {
 Query_string_builder::Query_string_builder(size_t reserve)
     : m_in_quoted(false), m_in_identifier(false) {
   std::call_once(m_charset_initialized, init_charset);
-  DBUG_ASSERT(m_charset != NULL);
+  DBUG_ASSERT(m_charset != nullptr);
 
   m_str.reserve(reserve);
 }

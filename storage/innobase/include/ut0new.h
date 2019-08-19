@@ -644,18 +644,18 @@ class ut_allocator {
   @param[in]  throw_on_error  if true, then exception is throw on
                               allocation failure
   @return pointer to the allocated memory */
-  pointer allocate(size_type n_elements, const_pointer hint = NULL,
+  pointer allocate(size_type n_elements, const_pointer hint = nullptr,
                    PSI_memory_key key = PSI_NOT_INSTRUMENTED,
                    bool set_to_zero = false, bool throw_on_error = true) {
     if (n_elements == 0) {
-      return (NULL);
+      return (nullptr);
     }
 
     if (n_elements > max_size()) {
       if (throw_on_error) {
         throw(std::bad_alloc());
       } else {
-        return (NULL);
+        return (nullptr);
       }
     }
 
@@ -677,14 +677,14 @@ class ut_allocator {
         ptr = malloc(total_bytes);
       }
 
-      if (ptr != NULL || retries >= alloc_max_retries) {
+      if (ptr != nullptr || retries >= alloc_max_retries) {
         break;
       }
 
       os_thread_sleep(1000000 /* 1 second */);
     }
 
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       ib::fatal_or_error(m_oom_fatal)
           << "Cannot allocate " << total_bytes << " bytes of memory after "
           << alloc_max_retries << " retries over " << alloc_max_retries
@@ -693,7 +693,7 @@ class ut_allocator {
       if (throw_on_error) {
         throw(std::bad_alloc());
       } else {
-        return (NULL);
+        return (nullptr);
       }
     }
 
@@ -712,7 +712,7 @@ class ut_allocator {
   @param[in,out]	ptr		pointer to memory to free
   @param[in]	n_elements	number of elements allocated (unused) */
   void deallocate(pointer ptr, size_type n_elements = 0) {
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       return;
     }
 
@@ -760,15 +760,15 @@ class ut_allocator {
   pointer reallocate(void *ptr, size_type n_elements, PSI_memory_key key) {
     if (n_elements == 0) {
       deallocate(static_cast<pointer>(ptr));
-      return (NULL);
+      return (nullptr);
     }
 
-    if (ptr == NULL) {
-      return (allocate(n_elements, NULL, key, false, false));
+    if (ptr == nullptr) {
+      return (allocate(n_elements, nullptr, key, false, false));
     }
 
     if (n_elements > max_size()) {
-      return (NULL);
+      return (nullptr);
     }
 
     ut_new_pfx_t *pfx_old;
@@ -782,21 +782,21 @@ class ut_allocator {
     for (size_t retries = 1;; retries++) {
       pfx_new = static_cast<ut_new_pfx_t *>(realloc(pfx_old, total_bytes));
 
-      if (pfx_new != NULL || retries >= alloc_max_retries) {
+      if (pfx_new != nullptr || retries >= alloc_max_retries) {
         break;
       }
 
       os_thread_sleep(1000000 /* 1 second */);
     }
 
-    if (pfx_new == NULL) {
+    if (pfx_new == nullptr) {
       ib::fatal_or_error(m_oom_fatal)
           << "Cannot reallocate " << total_bytes << " bytes of memory after "
           << alloc_max_retries << " retries over " << alloc_max_retries
           << " seconds. OS error: " << strerror(errno) << " (" << errno << "). "
           << OUT_OF_MEMORY_MSG;
       /* not reached */
-      return (NULL);
+      return (nullptr);
     }
 
     /* pfx_new still contains the description of the old block
@@ -821,10 +821,10 @@ class ut_allocator {
     static_assert(std::is_default_constructible<T>::value,
                   "Array element type must be default-constructible");
 
-    T *p = allocate(n_elements, NULL, key, false, false);
+    T *p = allocate(n_elements, nullptr, key, false, false);
 
-    if (p == NULL) {
-      return (NULL);
+    if (p == nullptr) {
+      return (nullptr);
     }
 
     T *first = p;
@@ -853,7 +853,7 @@ class ut_allocator {
   by new_array().
   @param[in,out]	ptr	pointer to the first object in the array */
   void delete_array(T *ptr) {
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       return;
     }
 
@@ -881,7 +881,7 @@ class ut_allocator {
   @return pointer to the allocated memory or NULL */
   pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx) {
     if (n_elements == 0 || n_elements > max_size()) {
-      return (NULL);
+      return (nullptr);
     }
 
     ulint n_bytes = n_elements * sizeof(T);
@@ -889,7 +889,7 @@ class ut_allocator {
     pointer ptr = reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes));
 
 #ifdef UNIV_PFS_MEMORY
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
     }
 #else
@@ -1023,7 +1023,7 @@ we redirect this to a template function. */
 @param[in,out]	ptr	pointer to the object */
 template <typename T>
 inline void ut_delete(T *ptr) {
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     return;
   }
 

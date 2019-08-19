@@ -59,9 +59,9 @@ static int repl_semi_reset_slave(Binlog_relay_IO_param *) {
 
 static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   MYSQL *mysql = param->mysql;
-  MYSQL_RES *res = 0;
+  MYSQL_RES *res = nullptr;
 #ifndef DBUG_OFF
-  MYSQL_ROW row = NULL;
+  MYSQL_ROW row = nullptr;
 #endif
   const char *query;
   uint mysql_error = 0;
@@ -86,7 +86,8 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   }
 
   DBUG_ASSERT(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
-              strtoul(row[0], 0, 10) == 0 || strtoul(row[0], 0, 10) == 1);
+              strtoul(row[0], nullptr, 10) == 0 ||
+              strtoul(row[0], nullptr, 10) == 1);
 
   if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE) {
     /* Master does not support semi-sync */
@@ -165,28 +166,28 @@ static void fix_rpl_semi_sync_trace_level(MYSQL_THD, SYS_VAR *, void *ptr,
 static MYSQL_SYSVAR_BOOL(
     enabled, rpl_semi_sync_slave_enabled, PLUGIN_VAR_OPCMDARG,
     "Enable semi-synchronous replication slave (disabled by default). ",
-    NULL,                              // check
+    nullptr,                           // check
     &fix_rpl_semi_sync_slave_enabled,  // update
     0);
 
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_slave_trace_level,
                           PLUGIN_VAR_OPCMDARG,
                           "The tracing level for semi-sync replication.",
-                          NULL,                            // check
+                          nullptr,                         // check
                           &fix_rpl_semi_sync_trace_level,  // update
                           32, 0, ~0UL, 1);
 
 static SYS_VAR *semi_sync_slave_system_vars[] = {
     MYSQL_SYSVAR(enabled),
     MYSQL_SYSVAR(trace_level),
-    NULL,
+    nullptr,
 };
 
 /* plugin status variables */
 static SHOW_VAR semi_sync_slave_status_vars[] = {
     {"Rpl_semi_sync_slave_status", (char *)&rpl_semi_sync_slave_status,
      SHOW_BOOL, SHOW_SCOPE_GLOBAL},
-    {NULL, NULL, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
+    {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
 };
 
 Binlog_relay_IO_observer relay_io_observer = {
@@ -242,11 +243,11 @@ mysql_declare_plugin(semi_sync_slave){
     "Semi-synchronous replication slave",
     PLUGIN_LICENSE_GPL,
     semi_sync_slave_plugin_init,   /* Plugin Init */
-    NULL,                          /* Plugin Check uninstall */
+    nullptr,                       /* Plugin Check uninstall */
     semi_sync_slave_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
     semi_sync_slave_status_vars, /* status variables */
     semi_sync_slave_system_vars, /* system variables */
-    NULL,                        /* config options */
+    nullptr,                     /* config options */
     0,                           /* flags */
 } mysql_declare_plugin_end;

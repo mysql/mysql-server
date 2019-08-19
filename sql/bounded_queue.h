@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ class Bounded_queue {
       size_t element_size = sizeof(Element_type),
       const allocator_type &alloc = allocator_type(PSI_NOT_INSTRUMENTED))
       : m_queue(Key_compare(), alloc),
-        m_sort_keys(NULL),
-        m_sort_param(NULL),
+        m_sort_keys(nullptr),
+        m_sort_param(nullptr),
         m_element_size(element_size) {}
 
   /**

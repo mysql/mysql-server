@@ -87,14 +87,16 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("name")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
     {{STRING_WITH_LEN("definer")},
      {STRING_WITH_LEN("char(93)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("execute_at")},
+     {STRING_WITH_LEN("datetime")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("interval_value")},
      {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("interval_field")},
      {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
@@ -104,20 +106,24 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
          ","
          "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
          "'SECOND_MICROSECOND')")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
-    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("created")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("modified")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("last_executed")},
      {STRING_WITH_LEN("datetime")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("starts")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{STRING_WITH_LEN("ends")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("starts")}, {STRING_WITH_LEN("datetime")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("ends")}, {STRING_WITH_LEN("datetime")}, {nullptr, 0}},
     {{STRING_WITH_LEN("status")},
      {STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("on_completion")},
      {STRING_WITH_LEN("enum('DROP','PRESERVE')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("sql_mode")},
      {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
@@ -132,11 +138,13 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
          "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("originator")},
+     {STRING_WITH_LEN("int(10)")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("time_zone")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("latin1")}},
@@ -149,7 +157,9 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("db_collation")},
      {STRING_WITH_LEN("char(32)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
+    {{STRING_WITH_LEN("body_utf8")},
+     {STRING_WITH_LEN("longblob")},
+     {nullptr, 0}}};
 
 static const TABLE_FIELD_DEF event_table_def = {ET_FIELD_COUNT,
                                                 event_table_fields};
@@ -165,14 +175,16 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("name")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
     {{STRING_WITH_LEN("definer")},
      {STRING_WITH_LEN("char(77)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("execute_at")},
+     {STRING_WITH_LEN("datetime")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("interval_value")},
      {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("interval_field")},
      {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
@@ -182,20 +194,24 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
          ","
          "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
          "'SECOND_MICROSECOND')")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
-    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("created")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("modified")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("last_executed")},
      {STRING_WITH_LEN("datetime")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("starts")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{STRING_WITH_LEN("ends")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("starts")}, {STRING_WITH_LEN("datetime")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("ends")}, {STRING_WITH_LEN("datetime")}, {nullptr, 0}},
     {{STRING_WITH_LEN("status")},
      {STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("on_completion")},
      {STRING_WITH_LEN("enum('DROP','PRESERVE')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("sql_mode")},
      {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
@@ -210,11 +226,13 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
          "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("originator")},
+     {STRING_WITH_LEN("int(10)")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("time_zone")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("latin1")}},
@@ -227,7 +245,9 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("db_collation")},
      {STRING_WITH_LEN("char(32)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
+    {{STRING_WITH_LEN("body_utf8")},
+     {STRING_WITH_LEN("longblob")},
+     {nullptr, 0}}};
 
 static const TABLE_FIELD_DEF event_table_def_old = {ET_FIELD_COUNT,
                                                     event_table_fields_old};
@@ -243,13 +263,13 @@ static void load_event_creation_context(THD *thd, TABLE *table,
   thd->variables.time_zone = my_tz_SYSTEM;
 
   if ((tz_name.str = get_field(thd->mem_root,
-                               table->field[ET_FIELD_TIME_ZONE])) == NULL) {
+                               table->field[ET_FIELD_TIME_ZONE])) == nullptr) {
     LogErr(WARNING_LEVEL, ER_EVENT_CANT_GET_TIMEZONE_FROM_FIELD,
            et_parse_data->dbname.str, et_parse_data->name.str);
   } else {
     tz_name.length = strlen(tz_name.str);
     String tz_str(tz_name.str, &my_charset_latin1);
-    if ((thd->variables.time_zone = my_tz_find(thd, &tz_str)) == NULL) {
+    if ((thd->variables.time_zone = my_tz_find(thd, &tz_str)) == nullptr) {
       thd->variables.time_zone = my_tz_SYSTEM;
       LogErr(WARNING_LEVEL, ER_EVENT_CANT_FIND_TIMEZONE,
              et_parse_data->dbname.str, et_parse_data->name.str);
@@ -387,7 +407,8 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
     et_parse_data->interval = (interval_type)i;
   }
 
-  if ((ptr = get_field(thd->mem_root, table->field[ET_FIELD_STATUS])) == NULL)
+  if ((ptr = get_field(thd->mem_root, table->field[ET_FIELD_STATUS])) ==
+      nullptr)
     return true;
 
   switch (ptr[0]) {
@@ -417,25 +438,25 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
   LEX_STRING event_body, event_body_utf8;
 
   et_parse_data.interval = INTERVAL_LAST;
-  et_parse_data.identifier = NULL;
+  et_parse_data.identifier = nullptr;
 
   if ((et_parse_data.definer.str = get_field(
-           thd->mem_root, event_table->field[ET_FIELD_DEFINER])) == NULL)
+           thd->mem_root, event_table->field[ET_FIELD_DEFINER])) == nullptr)
     return true;
   et_parse_data.definer.length = strlen(et_parse_data.definer.str);
 
-  if ((et_parse_data.name.str =
-           get_field(thd->mem_root, event_table->field[ET_FIELD_NAME])) == NULL)
+  if ((et_parse_data.name.str = get_field(
+           thd->mem_root, event_table->field[ET_FIELD_NAME])) == nullptr)
     return true;
   et_parse_data.name.length = strlen(et_parse_data.name.str);
 
-  if ((et_parse_data.dbname.str =
-           get_field(thd->mem_root, event_table->field[ET_FIELD_DB])) == NULL)
+  if ((et_parse_data.dbname.str = get_field(
+           thd->mem_root, event_table->field[ET_FIELD_DB])) == nullptr)
     return true;
   et_parse_data.dbname.length = strlen(et_parse_data.dbname.str);
 
   if ((et_parse_data.comment.str = get_field(
-           thd->mem_root, event_table->field[ET_FIELD_COMMENT])) == NULL)
+           thd->mem_root, event_table->field[ET_FIELD_COMMENT])) == nullptr)
     et_parse_data.comment.length = 0;
   else
     et_parse_data.comment.length = strlen(et_parse_data.comment.str);
@@ -459,11 +480,11 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
     return true;
 
   if ((ptr = get_field(thd->mem_root,
-                       event_table->field[ET_FIELD_ORIGINATOR])) == NULL)
+                       event_table->field[ET_FIELD_ORIGINATOR])) == nullptr)
     return true;
 
   if ((ptr = get_field(thd->mem_root,
-                       event_table->field[ET_FIELD_ON_COMPLETION])) == NULL)
+                       event_table->field[ET_FIELD_ON_COMPLETION])) == nullptr)
     return true;
 
   et_parse_data.on_completion =
@@ -471,13 +492,13 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
                      : Event_parse_data::ON_COMPLETION_PRESERVE);
 
   // Set up the event body.
-  if ((event_body.str =
-           get_field(thd->mem_root, event_table->field[ET_FIELD_BODY])) == NULL)
+  if ((event_body.str = get_field(
+           thd->mem_root, event_table->field[ET_FIELD_BODY])) == nullptr)
     return true;
   event_body.length = strlen(event_body.str);
 
   if ((event_body_utf8.str = get_field(
-           thd->mem_root, event_table->field[ET_FIELD_BODY_UTF8])) == NULL)
+           thd->mem_root, event_table->field[ET_FIELD_BODY_UTF8])) == nullptr)
     return true;
   event_body_utf8.length = strlen(event_body_utf8.str);
   et_parse_data.body_changed = true;

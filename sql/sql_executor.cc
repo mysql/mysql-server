@@ -353,8 +353,8 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     in all these cases we need all result rows.
   */
   ha_rows tmp_rows_limit =
-      ((order == NULL || skip_sort_order) && !tmp_table_group && !windowing &&
-       !select_lex->with_sum_func)
+      ((order == nullptr || skip_sort_order) && !tmp_table_group &&
+       !windowing && !select_lex->with_sum_func)
           ? m_select_limit
           : HA_POS_ERROR;
 
@@ -423,7 +423,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
-    group_list = NULL;
+    group_list = nullptr;
   } else {
     if (make_sum_func_list(all_fields, fields_list, false)) goto err;
     const bool need_distinct =
@@ -438,15 +438,15 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           add_sorting_to_table(const_tables, &order))
         goto err;
-      order = NULL;
+      order = nullptr;
     }
   }
   return false;
 
 err:
-  if (table != NULL) {
+  if (table != nullptr) {
     free_tmp_table(thd, table);
-    tab->set_table(NULL);
+    tab->set_table(nullptr);
   }
   return true;
 }
@@ -553,7 +553,8 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
       TABLE *table_arg = qep_tab->table();
       if ((write_error = table_arg->file->ha_write_row(table_arg->record[0]))) {
-        if (create_ondisk_from_heap(thd, table_arg, write_error, false, NULL))
+        if (create_ondisk_from_heap(thd, table_arg, write_error, false,
+                                    nullptr))
           return true;
       }
     }
@@ -574,7 +575,7 @@ void JOIN::optimize_distinct() {
     /* Should already have been optimized away */
     DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_ORDER_BY);
     if (m_ordered_index_usage == ORDERED_INDEX_ORDER_BY) {
-      order = NULL;
+      order = nullptr;
     }
   }
 }
@@ -781,13 +782,14 @@ static enum_nested_loop_state end_sj_materialize(JOIN *join, QEP_TAB *qep_tab,
       if (item.is_null()) return NESTED_LOOP_OK;
     }
     fill_record(thd, table, table->visible_field_ptr(),
-                sjm->sj_nest->nested_join->sj_inner_exprs, NULL, NULL, false);
+                sjm->sj_nest->nested_join->sj_inner_exprs, nullptr, nullptr,
+                false);
     if (thd->is_error()) return NESTED_LOOP_ERROR; /* purecov: inspected */
     if (!check_unique_constraint(table)) return NESTED_LOOP_OK;
     if ((error = table->file->ha_write_row(table->record[0]))) {
       /* create_ondisk_from_heap will generate error if needed */
       if (!table->file->is_ignorable_error(error)) {
-        if (create_ondisk_from_heap(thd, table, error, true, NULL))
+        if (create_ondisk_from_heap(thd, table, error, true, nullptr))
           return NESTED_LOOP_ERROR; /* purecov: inspected */
         /* Initialize the index, since create_ondisk_from_heap does
            not replicate the earlier index initialization */
@@ -823,7 +825,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
              down_cast<Item_func *>(cond)->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
     Item_equal *item_equal = (Item_equal *)cond;
-    bool contained_const = item_equal->get_const() != NULL;
+    bool contained_const = item_equal->get_const() != nullptr;
     if (item_equal->update_const(thd)) return true;
     if (!contained_const && item_equal->get_const()) {
       /* Update keys for range analysis */
@@ -3100,8 +3102,8 @@ static int do_select(JOIN *join) {
     */
     if (!join->where_cond || join->where_cond->val_int()) {
       // HAVING will be checked by end_select
-      error = (*end_select)(join, 0, false);
-      if (error >= NESTED_LOOP_OK) error = (*end_select)(join, 0, true);
+      error = (*end_select)(join, nullptr, false);
+      if (error >= NESTED_LOOP_OK) error = (*end_select)(join, nullptr, true);
 
       // This is a special case because const-only plans don't go through
       // iterators, which would normally be responsible for incrementing
@@ -3253,7 +3255,7 @@ enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
   QEP_operation *op = qep_tab->op;
 
   /* This function cannot be called if qep_tab has no associated operation */
-  DBUG_ASSERT(op != NULL);
+  DBUG_ASSERT(op != nullptr);
   if (end_of_records) {
     rc = op->end_send();
     if (rc >= NESTED_LOOP_OK) rc = sub_select(join, qep_tab, end_of_records);
@@ -4633,7 +4635,7 @@ int RefIterator<true>::Read() {  // Reverse read.
       to read to the beginning of the index if no qualifying record is
       found.
      */
-    DBUG_ASSERT(table()->file->pushed_idx_cond == NULL);
+    DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
     int error = table()->file->ha_index_prev(table()->record[0]);
     if (error) {
       return HandleError(error);
@@ -4688,7 +4690,7 @@ bool DynamicRangeIterator::Init() {
   if (thd()->is_error())  // @todo consolidate error reporting of
                           // test_quick_select
     return true;
-  DBUG_ASSERT(old_qck == NULL || old_qck != qck);
+  DBUG_ASSERT(old_qck == nullptr || old_qck != qck);
   m_qep_tab->set_quick(qck);
 
   /*
@@ -4771,7 +4773,7 @@ vector<string> DynamicRangeIterator::DebugString() const {
 void join_setup_iterator(QEP_TAB *tab) {
   bool using_table_scan;
   tab->iterator =
-      create_table_iterator(tab->join()->thd, NULL, tab, false,
+      create_table_iterator(tab->join()->thd, nullptr, tab, false,
                             /*ignore_not_found_rows=*/false,
                             /*examined_rows=*/nullptr, &using_table_scan);
   tab->set_using_table_scan(using_table_scan);
@@ -4855,8 +4857,8 @@ int join_materialize_semijoin(QEP_TAB *tab) {
   if ((rc = sub_select(tab->join(), first, true)) < 0) return rc;
   if (tab->table()->hash_field) tab->table()->file->ha_index_or_rnd_end();
 
-  last->next_select = NULL;
-  last->set_sj_mat_exec(NULL);
+  last->next_select = nullptr;
+  last->set_sj_mat_exec(nullptr);
 
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
   // Fields of inner tables should not be read anymore:
@@ -5172,7 +5174,7 @@ void QEP_TAB::pick_table_access_method() {
                                                      &join()->examined_rows);
       } else {
         iterator =
-            create_table_iterator(join()->thd, NULL, this, false,
+            create_table_iterator(join()->thd, nullptr, this, false,
                                   /*ignore_not_found_rows=*/false,
                                   &join()->examined_rows, &m_using_table_scan);
       }
@@ -5253,7 +5255,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     Note that qep_tab may be one past the last of qep_tab! So don't read its
     pointed content. But you can read qep_tab[-1] then.
   */
-  DBUG_ASSERT(qep_tab == NULL || qep_tab > join->qep_tab);
+  DBUG_ASSERT(qep_tab == nullptr || qep_tab > join->qep_tab);
   THD *thd = join->thd;
 
   if (!end_of_records) {
@@ -5309,7 +5311,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
       if (join->calc_found_rows) {
         join->do_send_rows = false;
         if (join->unit->fake_select_lex)
-          join->unit->fake_select_lex->select_limit = 0;
+          join->unit->fake_select_lex->select_limit = nullptr;
         return NESTED_LOOP_OK;
       }
       return NESTED_LOOP_QUERY_LIMIT;  // Abort nicely
@@ -7220,7 +7222,7 @@ static inline enum_nested_loop_state write_or_send_row(
       QEP_tmp_table::prepare_tmp_table() but we may have a set of buffered
       rows to write before such function is executed.
     */
-    if (create_ondisk_from_heap(join->thd, table, error, true, NULL) ||
+    if (create_ondisk_from_heap(join->thd, table, error, true, nullptr) ||
         (table->hash_field && table->file->ha_index_init(0, false)))
       return NESTED_LOOP_ERROR;  // Not a table_is_full error
   }
@@ -7265,7 +7267,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
 
       if ((error = table->file->ha_write_row(table->record[0]))) {
         if (table->file->is_ignorable_error(error)) goto end;
-        if (create_ondisk_from_heap(join->thd, table, error, true, NULL))
+        if (create_ondisk_from_heap(join->thd, table, error, true, nullptr))
           return NESTED_LOOP_ERROR;  // Not a table_is_full error
       }
       if (++qep_tab->send_records >= tmp_tbl->end_write_records &&
@@ -7618,7 +7620,7 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   }
   init_tmptable_sum_functions(join->sum_funcs);
   if ((error = table->file->ha_write_row(table->record[0]))) {
-    if (create_ondisk_from_heap(join->thd, table, error, false, NULL))
+    if (create_ondisk_from_heap(join->thd, table, error, false, nullptr))
       return NESTED_LOOP_ERROR;  // Not a table_is_full error
     /* Change method to update rows */
     if ((error = table->file->ha_index_init(0, false))) {
@@ -7680,8 +7682,8 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
                          join->sum_funcs_end[join->send_group_parts]);
           if (having_is_true(qep_tab->having)) {
             int error = table->file->ha_write_row(table->record[0]);
-            if (error &&
-                create_ondisk_from_heap(join->thd, table, error, false, NULL))
+            if (error && create_ondisk_from_heap(join->thd, table, error, false,
+                                                 nullptr))
               return NESTED_LOOP_ERROR;
           }
           if (join->rollup.state != ROLLUP::STATE_NONE) {
@@ -8300,7 +8302,7 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
     else if (item->type() == Item::FUNC_ITEM &&
              ((Item_func *)item)->functype() == Item_func::SUSERVAR_FUNC) {
       field = item->get_tmp_table_field();
-      if (field != NULL) {
+      if (field != nullptr) {
         /*
           Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
           would re-evaluate <expression>, and if expression were a subquery,
@@ -8324,7 +8326,8 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
         item_field = new (thd->mem_root) Item_field(field);
         if (item_field == nullptr) return true;
       }
-      if (item->real_item()->type() != Item::FIELD_ITEM) field->orig_table = 0;
+      if (item->real_item()->type() != Item::FIELD_ITEM)
+        field->orig_table = nullptr;
       item_field->item_name = item->item_name;
       if (item->type() == Item::REF_ITEM) {
         Item_field *ifield = (Item_field *)item_field;

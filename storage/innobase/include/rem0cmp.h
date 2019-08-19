@@ -226,7 +226,7 @@ respectively */
 UNIV_INLINE
 int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
                 const ulint *offsets2, const dict_index_t *index,
-                ulint *matched_fields = NULL, bool cmp_btree_recs = true);
+                ulint *matched_fields = nullptr, bool cmp_btree_recs = true);
 
 /** Compare two data fields.
 @param[in] dfield1 data field

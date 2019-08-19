@@ -72,7 +72,7 @@ Plugin_table table_global_status::m_table_def(
 PFS_engine_table_share table_global_status::m_share = {
     &pfs_truncatable_world_acl,
     table_global_status::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_global_status::delete_all_rows,
     table_global_status::get_row_count,
     sizeof(pos_t),
@@ -111,7 +111,7 @@ table_global_status::table_global_status()
       m_status_cache(false),
       m_pos(0),
       m_next_pos(0),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_global_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -139,7 +139,7 @@ int table_global_status::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
-    if (status_var != NULL) {
+    if (status_var != nullptr) {
       m_next_pos.set_after(&m_pos);
       return make_row(status_var);
     }
@@ -155,7 +155,7 @@ int table_global_status::rnd_pos(const void *pos) {
 
   set_position(pos);
   const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
-  if (status_var != NULL) {
+  if (status_var != nullptr) {
     return make_row(status_var);
   }
 
@@ -172,7 +172,7 @@ int table_global_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
       sizeof(table_global_status_context));
   new (m_context) table_global_status_context(status_version, false);
 
-  PFS_index_global_status *result = NULL;
+  PFS_index_global_status *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_global_status);
   m_opened_index = result;
@@ -189,7 +189,7 @@ int table_global_status::index_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
-    if (status_var != NULL) {
+    if (status_var != nullptr) {
       if (m_opened_index->match(status_var)) {
         if (!make_row(status_var)) {
           m_next_pos.set_after(&m_pos);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ Char_array_option::Char_array_option(char **value, bool allocated, string name,
                                      string description)
     : Abstract_value_option<char *>(value, allocated ? GET_STR_ALLOC : GET_STR,
                                     name, description, (uint64)NULL) {
-  *value = NULL;
+  *value = nullptr;
 }
 
 Char_array_option *Char_array_option::set_value(char *value) {

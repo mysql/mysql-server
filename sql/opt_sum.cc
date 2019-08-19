@@ -425,7 +425,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                   the optimization phase by init_fts_funcs(), but search will
                   still only be done once.
           */
-          else if (tables->next_leaf == NULL &&  // 1
+          else if (tables->next_leaf == nullptr &&  // 1
                    (func_type == Item_func::FT_FUNC ||
                     func_type == Item_func::MATCH_FUNC) &&  // 2
                    (tables->table->file->ha_table_flags() &
@@ -438,8 +438,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                     : down_cast<Item_func_match *>(
                           down_cast<Item_func_match_predicate *>(conds)
                               ->arguments()[0]);
-            fts_item->get_master()->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR,
-                                              false);
+            fts_item->get_master()->set_hints(nullptr, FT_NO_RANKING,
+                                              HA_POS_ERROR, false);
             if (fts_item->init_search(thd)) break;
             row_count = fts_item->get_count();
             have_exact_count = true;

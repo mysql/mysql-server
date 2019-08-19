@@ -53,7 +53,7 @@ class dict_intrinsic_table_t {
   }
 
   /** Destructor */
-  ~dict_intrinsic_table_t() { m_handler = NULL; }
+  ~dict_intrinsic_table_t() { m_handler = nullptr; }
 
  public:
   /* Table Handler holding other metadata information commonly needed
@@ -77,7 +77,7 @@ class innodb_session_t {
 
   /** Destructor */
   ~innodb_session_t() {
-    m_trx = NULL;
+    m_trx = nullptr;
 
     for (table_cache_t::iterator it = m_open_tables.begin();
          it != m_open_tables.end(); ++it) {
@@ -99,7 +99,7 @@ class innodb_session_t {
   @param[in]	table_name	name of the table
   @param[in,out]	table		table handler to register */
   void register_table_handler(const char *table_name, dict_table_t *table) {
-    ut_ad(lookup_table_handler(table_name) == NULL);
+    ut_ad(lookup_table_handler(table_name) == nullptr);
     m_open_tables.insert(table_cache_t::value_type(
         table_name, new dict_intrinsic_table_t(table)));
   }
@@ -108,7 +108,7 @@ class innodb_session_t {
   @param[in]	table_name	name of the table to lookup */
   dict_table_t *lookup_table_handler(const char *table_name) {
     table_cache_t::iterator it = m_open_tables.find(table_name);
-    return ((it == m_open_tables.end()) ? NULL : it->second->m_handler);
+    return ((it == m_open_tables.end()) ? nullptr : it->second->m_handler);
   }
 
   /** Remove table handler entry.

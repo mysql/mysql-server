@@ -83,7 +83,7 @@ Plugin_table table_host_cache::m_table_def(
 PFS_engine_table_share table_host_cache::m_share = {
     &pfs_truncatable_acl,
     table_host_cache::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_host_cache::delete_all_rows,
     table_host_cache::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -115,9 +115,9 @@ bool PFS_index_host_cache_by_host::match(const row_host_cache *row) {
 
 PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
   table_host_cache *t = new table_host_cache();
-  if (t != NULL) {
+  if (t != nullptr) {
     THD *thd = current_thd;
-    DBUG_ASSERT(thd != NULL);
+    DBUG_ASSERT(thd != nullptr);
     t->materialize(thd);
   }
   return t;
@@ -143,9 +143,9 @@ ha_rows table_host_cache::get_row_count(void) {
 
 table_host_cache::table_host_cache()
     : PFS_engine_table(&m_share, &m_pos),
-      m_all_rows(NULL),
+      m_all_rows(nullptr),
       m_row_count(0),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(0),
       m_next_pos(0) {}
 
@@ -155,7 +155,7 @@ void table_host_cache::materialize(THD *thd) {
   row_host_cache *rows;
   row_host_cache *row;
 
-  DBUG_ASSERT(m_all_rows == NULL);
+  DBUG_ASSERT(m_all_rows == nullptr);
   DBUG_ASSERT(m_row_count == 0);
 
   hostname_cache_lock();
@@ -167,7 +167,7 @@ void table_host_cache::materialize(THD *thd) {
   }
 
   rows = (row_host_cache *)thd->alloc(size * sizeof(row_host_cache));
-  if (rows == NULL) {
+  if (rows == nullptr) {
     /* Out of memory, this thread will error out. */
     goto end;
   }
@@ -255,7 +255,7 @@ int table_host_cache::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 
@@ -270,7 +270,7 @@ int table_host_cache::rnd_pos(const void *pos) {
 }
 
 int table_host_cache::index_init(uint idx, bool) {
-  PFS_index_host_cache *result = NULL;
+  PFS_index_host_cache *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -302,7 +302,7 @@ int table_host_cache::index_next(void) {
     }
   }
 
-  m_row = NULL;
+  m_row = nullptr;
   result = HA_ERR_END_OF_FILE;
 
   return result;

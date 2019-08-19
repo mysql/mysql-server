@@ -88,7 +88,7 @@ namespace dd {
 class Object_table;
 class Table;
 
-Dictionary_impl *Dictionary_impl::s_instance = NULL;
+Dictionary_impl *Dictionary_impl::s_instance = nullptr;
 
 Dictionary_impl *Dictionary_impl::instance() { return s_instance; }
 
@@ -194,7 +194,7 @@ bool Dictionary_impl::shutdown() {
   if (!Dictionary_impl::s_instance) return true;
 
   delete Dictionary_impl::s_instance;
-  Dictionary_impl::s_instance = NULL;
+  Dictionary_impl::s_instance = nullptr;
 
   return false;
 }
@@ -267,7 +267,7 @@ uint Dictionary_impl::set_P_S_version(THD *thd, uint version) {
 
 const Object_table *Dictionary_impl::get_dd_table(
     const String_type &schema_name, const String_type &table_name) const {
-  if (!is_dd_schema_name(schema_name)) return NULL;
+  if (!is_dd_schema_name(schema_name)) return nullptr;
 
   return System_tables::instance()->find_table(schema_name, table_name);
 }
@@ -595,7 +595,7 @@ bool create_native_table(THD *thd, const Plugin_table *pt) {
     4. Undo 1.
   */
   dd::cache::Dictionary_client *client = thd->dd_client();
-  const dd::Table *table_def = NULL;
+  const dd::Table *table_def = nullptr;
   if (client->acquire(pt->get_schema_name(), pt->get_name(), &table_def))
     return true;
 
@@ -644,7 +644,7 @@ bool drop_native_table(THD *thd, const char *schema_name,
     return true;
 
   dd::cache::Dictionary_client *client = thd->dd_client();
-  const dd::Table *table_def = NULL;
+  const dd::Table *table_def = nullptr;
   if (client->acquire(schema_name, table_name, &table_def)) {
     // Error is reported by the dictionary subsystem.
     return true;

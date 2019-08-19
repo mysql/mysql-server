@@ -91,8 +91,8 @@ class File_parser {
   bool content_ok;
 
  public:
-  File_parser() : start(0), end(0), content_ok(false) {
-    file_type.str = 0;
+  File_parser() : start(nullptr), end(nullptr), content_ok(false) {
+    file_type.str = nullptr;
     file_type.length = 0;
   }
 

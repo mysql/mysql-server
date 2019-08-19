@@ -534,13 +534,13 @@ static RET strtoX_checked_common(const char *value,
                                  RET default_value) noexcept {
   static_assert(std::is_integral<RET>::value,
                 "This template function is meant for integers.");
-  static_assert(sizeof(RET) <= sizeof(decltype(
-                                   std::strtol((char *)0, (char **)0, (int)0))),
+  static_assert(sizeof(RET) <= sizeof(decltype(std::strtol(
+                                   (char *)nullptr, (char **)nullptr, (int)0))),
                 "This function uses strtol() to convert signed integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");
   static_assert(sizeof(RET) <= sizeof(decltype(std::strtoul(
-                                   (char *)0, (char **)0, (int)0))),
+                                   (char *)nullptr, (char **)nullptr, (int)0))),
                 "This function uses strtoul() to convert unsigned integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");

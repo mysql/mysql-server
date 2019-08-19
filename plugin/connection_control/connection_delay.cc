@@ -54,9 +54,9 @@ struct st_mysql_information_schema connection_control_failed_attempts_view = {
 /** Fields of information_schema.connection_control_failed_attempts */
 static ST_FIELD_INFO failed_attempts_view_fields[] = {
     {"USERHOST", USERNAME_LENGTH + HOSTNAME_LENGTH + 6, MYSQL_TYPE_STRING, 0,
-     MY_I_S_UNSIGNED, 0, 0},
-    {"FAILED_ATTEMPTS", 16, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
-    {0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0}};
+     MY_I_S_UNSIGNED, nullptr, 0},
+    {"FAILED_ATTEMPTS", 16, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 namespace connection_control {
 
@@ -88,7 +88,7 @@ static stats_connection_control status_vars_enums[] = {
     STAT_CONNECTION_DELAY_TRIGGERED};
 size_t status_vars_enums_size = 1;
 
-static Connection_delay_action *g_max_failed_connection_handler = 0;
+static Connection_delay_action *g_max_failed_connection_handler = nullptr;
 
 Sql_string I_S_CONNECTION_CONTROL_FAILED_ATTEMPTS_USERHOST(
     "information_schema.connection_control_failed_login_attempts.userhost");
@@ -119,7 +119,7 @@ const uchar *connection_delay_event_hash_key(const uchar *el, size_t *length) {
   const Connection_event_record *const *entry;
   const Connection_event_record *entry_info;
   entry = reinterpret_cast<const Connection_event_record *const *>(el);
-  DBUG_ASSERT(entry != NULL);
+  DBUG_ASSERT(entry != nullptr);
   entry_info = *entry;
   *length = entry_info->get_length();
   return (const_cast<uchar *>(entry_info->get_userhost()));
@@ -149,14 +149,14 @@ Connection_delay_event::Connection_delay_event() {
 */
 
 bool Connection_delay_event::create_or_update_entry(const Sql_string &s) {
-  Connection_event_record **searched_entry = NULL;
-  Connection_event_record *searched_entry_info = NULL;
-  Connection_event_record *new_entry = NULL;
+  Connection_event_record **searched_entry = nullptr;
+  Connection_event_record *searched_entry_info = nullptr;
+  Connection_event_record *new_entry = nullptr;
   int insert_status;
   DBUG_TRACE;
 
   LF_PINS *pins = lf_hash_get_pins(&m_entries);
-  if (unlikely(pins == NULL)) return true;
+  if (unlikely(pins == nullptr)) return true;
 
   searched_entry = reinterpret_cast<Connection_event_record **>(
       lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
@@ -164,7 +164,7 @@ bool Connection_delay_event::create_or_update_entry(const Sql_string &s) {
   if (searched_entry && (searched_entry != MY_LF_ERRPTR)) {
     /* We found an entry, so increment the count */
     searched_entry_info = *searched_entry;
-    DBUG_ASSERT(searched_entry_info != NULL);
+    DBUG_ASSERT(searched_entry_info != nullptr);
     searched_entry_info->inc_count();
     lf_hash_search_unpin(pins);
     lf_hash_put_pins(pins);
@@ -186,7 +186,7 @@ bool Connection_delay_event::create_or_update_entry(const Sql_string &s) {
       */
       lf_hash_put_pins(pins);
       delete new_entry;
-      new_entry = NULL;
+      new_entry = nullptr;
       return true;
     }
   }
@@ -203,8 +203,8 @@ bool Connection_delay_event::create_or_update_entry(const Sql_string &s) {
 */
 
 bool Connection_delay_event::remove_entry(const Sql_string &s) {
-  Connection_event_record **searched_entry = NULL;
-  Connection_event_record *searched_entry_info = NULL;
+  Connection_event_record **searched_entry = nullptr;
+  Connection_event_record *searched_entry_info = nullptr;
   DBUG_TRACE;
 
   LF_PINS *pins = lf_hash_get_pins(&m_entries);
@@ -214,7 +214,7 @@ bool Connection_delay_event::remove_entry(const Sql_string &s) {
 
   if (searched_entry && searched_entry != MY_LF_ERRPTR) {
     searched_entry_info = *searched_entry;
-    DBUG_ASSERT(searched_entry_info != NULL);
+    DBUG_ASSERT(searched_entry_info != nullptr);
     int rc = lf_hash_delete(&m_entries, pins, s.c_str(), s.length());
     lf_hash_search_unpin(pins);
     lf_hash_put_pins(pins);
@@ -243,8 +243,8 @@ bool Connection_delay_event::remove_entry(const Sql_string &s) {
 */
 
 bool Connection_delay_event::match_entry(const Sql_string &s, void *value) {
-  Connection_event_record **searched_entry = NULL;
-  Connection_event_record *searched_entry_info = NULL;
+  Connection_event_record **searched_entry = nullptr;
+  Connection_event_record *searched_entry_info = nullptr;
   int64 count = DISABLE_THRESHOLD;
   bool error = true;
   DBUG_TRACE;
@@ -276,7 +276,7 @@ bool Connection_delay_event::match_entry(const Sql_string &s, void *value) {
 */
 
 void Connection_delay_event::reset_all() {
-  Connection_event_record **searched_entry = NULL;
+  Connection_event_record **searched_entry = nullptr;
   DBUG_TRACE;
   LF_PINS *pins = lf_hash_get_pins(&m_entries);
 
@@ -285,17 +285,17 @@ void Connection_delay_event::reset_all() {
     searched_entry = reinterpret_cast<Connection_event_record **>(
         lf_hash_random_match(&m_entries, pins, match_all_entries, 0));
 
-    if (searched_entry != NULL && searched_entry != MY_LF_ERRPTR &&
+    if (searched_entry != nullptr && searched_entry != MY_LF_ERRPTR &&
         (*searched_entry) &&
         !lf_hash_delete(&m_entries, pins, (*searched_entry)->get_userhost(),
                         (*searched_entry)->get_length())) {
       delete (*searched_entry);
-      *searched_entry = NULL;
+      *searched_entry = nullptr;
     } else {
       /* Failed to delete didn't remove any pins */
       lf_hash_search_unpin(pins);
     }
-  } while (searched_entry != 0);
+  } while (searched_entry != nullptr);
 
   lf_hash_put_pins(pins);
 }
@@ -342,7 +342,7 @@ void Connection_delay_event::fill_IS_table(TABLE_LIST *tables) {
   TABLE *table = tables->table;
   set_connection_delay_IS_table(table);
   LF_PINS *pins = lf_hash_get_pins(&m_entries);
-  void *key = 0;
+  void *key = nullptr;
 
   do {
     key =
@@ -351,7 +351,7 @@ void Connection_delay_event::fill_IS_table(TABLE_LIST *tables) {
                              connection_delay_IS_table_writer, 0);
     /* Always unpin after lf_hash_random_match() */
     lf_hash_search_unpin(pins);
-  } while (key != 0);
+  } while (key != nullptr);
 
   lf_hash_put_pins(pins);
 }
@@ -699,7 +699,7 @@ void Connection_delay_action::deinit() {
   m_stats_vars.clear();
   m_threshold = DISABLE_THRESHOLD;
   mysql_rwlock_unlock(m_lock);
-  m_lock = 0;
+  m_lock = nullptr;
 }
 
 /**
@@ -716,9 +716,9 @@ void Connection_delay_action::deinit() {
 
 static bool get_equal_condition_argument(Item *cond, Sql_string *eq_arg,
                                          const Sql_string &field_name) {
-  if (cond != 0 && cond->type() == Item::FUNC_ITEM) {
+  if (cond != nullptr && cond->type() == Item::FUNC_ITEM) {
     Item_func *func = static_cast<Item_func *>(cond);
-    if (func != NULL && func->functype() == Item_func::EQ_FUNC) {
+    if (func != nullptr && func->functype() == Item_func::EQ_FUNC) {
       Item_func_eq *eq_func = static_cast<Item_func_eq *>(func);
       if (eq_func->arguments()[0]->type() == Item::FIELD_ITEM &&
           my_strcasecmp(system_charset_info,
@@ -727,7 +727,7 @@ static bool get_equal_condition_argument(Item *cond, Sql_string *eq_arg,
         char buff[1024];
         String *res;
         String filter(buff, sizeof(buff), system_charset_info);
-        if (eq_func->arguments()[1] != NULL &&
+        if (eq_func->arguments()[1] != nullptr &&
             (res = eq_func->arguments()[1]->val_str(&filter))) {
           eq_arg->append(res->c_ptr_safe(), res->length());
           return false;
@@ -760,7 +760,7 @@ void Connection_delay_action::fill_IS_table(THD *thd, TABLE_LIST *tables,
     return;
   WR_lock wr_lock(m_lock);
   Sql_string eq_arg;
-  if (cond != 0 &&
+  if (cond != nullptr &&
       !get_equal_condition_argument(
           cond, &eq_arg, I_S_CONNECTION_CONTROL_FAILED_ATTEMPTS_USERHOST)) {
     int64 current_count = 0;
@@ -816,7 +816,7 @@ bool init_connection_delay_event(
 
 void deinit_connection_delay_event() {
   if (g_max_failed_connection_handler) delete g_max_failed_connection_handler;
-  g_max_failed_connection_handler = 0;
+  g_max_failed_connection_handler = nullptr;
   mysql_rwlock_destroy(&connection_event_delay_lock);
   return;
 }

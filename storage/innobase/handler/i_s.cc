@@ -287,7 +287,7 @@ static int field_store_string(
 {
   int ret;
 
-  if (str != NULL) {
+  if (str != nullptr) {
     ret =
         field->store(str, static_cast<uint>(strlen(str)), system_charset_info);
     field->set_notnull();
@@ -311,7 +311,7 @@ static int field_store_index_name(
 {
   int ret;
 
-  ut_ad(index_name != NULL);
+  ut_ad(index_name != nullptr);
   ut_ad(field->real_type() == MYSQL_TYPE_VARCHAR);
 
   /* Since TEMP_INDEX_PREFIX is not a valid UTF8, we need to convert
@@ -679,7 +679,7 @@ struct st_mysql_plugin i_s_innodb_trx = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -690,14 +690,14 @@ struct st_mysql_plugin i_s_innodb_trx = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -954,7 +954,7 @@ struct st_mysql_plugin i_s_innodb_cmp = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -965,14 +965,14 @@ struct st_mysql_plugin i_s_innodb_cmp = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -1012,7 +1012,7 @@ struct st_mysql_plugin i_s_innodb_cmp_reset = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -1023,14 +1023,14 @@ struct st_mysql_plugin i_s_innodb_cmp_reset = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -1136,7 +1136,7 @@ static int i_s_cmp_per_index_fill_low(
     char name[NAME_LEN];
     const dict_index_t *index = dict_index_find(iter->first);
 
-    if (index != NULL) {
+    if (index != nullptr) {
       if (dict_index_is_sdi(index)) {
         continue;
       }
@@ -1277,7 +1277,7 @@ struct st_mysql_plugin i_s_innodb_cmp_per_index = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -1288,14 +1288,14 @@ struct st_mysql_plugin i_s_innodb_cmp_per_index = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -1335,7 +1335,7 @@ struct st_mysql_plugin i_s_innodb_cmp_per_index_reset = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -1346,14 +1346,14 @@ struct st_mysql_plugin i_s_innodb_cmp_per_index_reset = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -1555,7 +1555,7 @@ struct st_mysql_plugin i_s_innodb_cmpmem = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -1566,14 +1566,14 @@ struct st_mysql_plugin i_s_innodb_cmpmem = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -1613,7 +1613,7 @@ struct st_mysql_plugin i_s_innodb_cmpmem_reset = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -1624,14 +1624,14 @@ struct st_mysql_plugin i_s_innodb_cmpmem_reset = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -1872,7 +1872,8 @@ static int i_s_metrics_fill(
       between time when monitor is enabled and time
       when it is disabled */
       if (MONITOR_IS_ON(count)) {
-        time_diff = difftime(time(NULL), MONITOR_FIELD(count, mon_start_time));
+        time_diff =
+            difftime(time(nullptr), MONITOR_FIELD(count, mon_start_time));
       } else {
         time_diff = difftime(MONITOR_FIELD(count, mon_stop_time),
                              MONITOR_FIELD(count, mon_start_time));
@@ -1932,7 +1933,7 @@ static int i_s_metrics_fill(
         reset */
         if (MONITOR_IS_ON(count)) {
           time_diff =
-              difftime(time(NULL), MONITOR_FIELD(count, mon_reset_time));
+              difftime(time(nullptr), MONITOR_FIELD(count, mon_reset_time));
         } else {
           time_diff = difftime(MONITOR_FIELD(count, mon_stop_time),
                                MONITOR_FIELD(count, mon_reset_time));
@@ -2066,7 +2067,7 @@ struct st_mysql_plugin i_s_innodb_metrics = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -2077,14 +2078,14 @@ struct st_mysql_plugin i_s_innodb_metrics = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -2174,7 +2175,7 @@ struct st_mysql_plugin i_s_innodb_ft_default_stopword = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -2185,14 +2186,14 @@ struct st_mysql_plugin i_s_innodb_ft_default_stopword = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -2354,7 +2355,7 @@ struct st_mysql_plugin i_s_innodb_ft_deleted = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -2365,14 +2366,14 @@ struct st_mysql_plugin i_s_innodb_ft_deleted = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -2436,7 +2437,7 @@ struct st_mysql_plugin i_s_innodb_ft_being_deleted = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -2447,14 +2448,14 @@ struct st_mysql_plugin i_s_innodb_ft_being_deleted = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -2635,7 +2636,7 @@ static int i_s_fts_index_cache_fill(
     return 0;
   }
 
-  if (user_table->fts == NULL || user_table->fts->cache == NULL) {
+  if (user_table->fts == nullptr || user_table->fts->cache == nullptr) {
     dd_table_close(user_table, thd, &mdl, false);
 
     return 0;
@@ -2703,7 +2704,7 @@ struct st_mysql_plugin i_s_innodb_ft_index_cache = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -2714,14 +2715,14 @@ struct st_mysql_plugin i_s_innodb_ft_index_cache = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -2972,7 +2973,7 @@ static int i_s_fts_index_table_fill_one_index(
     fts_string_t word;
     bool has_more = false;
 
-    word.f_str = NULL;
+    word.f_str = nullptr;
     word.f_len = 0;
     word.f_n_char = 0;
 
@@ -2995,7 +2996,7 @@ static int i_s_fts_index_table_fill_one_index(
 
         /* Prepare start point for next fetch */
         last_word = static_cast<fts_word_t *>(ib_vector_last(words));
-        ut_ad(last_word != NULL);
+        ut_ad(last_word != nullptr);
         fts_string_dup(&word, &last_word->text, heap);
       }
 
@@ -3111,7 +3112,7 @@ struct st_mysql_plugin i_s_innodb_ft_index_table = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -3122,14 +3123,14 @@ struct st_mysql_plugin i_s_innodb_ft_index_table = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -3157,7 +3158,7 @@ static ST_FIELD_INFO i_s_fts_config_fields_info[] = {
 
 static const char *fts_config_key[] = {
     FTS_OPTIMIZE_LIMIT_IN_SECS, FTS_SYNCED_DOC_ID, FTS_STOPWORD_TABLE_NAME,
-    FTS_USE_STOPWORD, NULL};
+    FTS_USE_STOPWORD, nullptr};
 
 /** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
  @return 0 on success, 1 on failure */
@@ -3172,7 +3173,7 @@ static int i_s_fts_config_fill(
   fts_table_t fts_table;
   dict_table_t *user_table;
   ulint i = 0;
-  dict_index_t *index = NULL;
+  dict_index_t *index = nullptr;
   unsigned char str[FTS_MAX_CONFIG_VALUE_LEN + 1];
   MDL_ticket *mdl = nullptr;
   char local_name[MAX_FULL_NAME_LEN];
@@ -3313,7 +3314,7 @@ struct st_mysql_plugin i_s_innodb_ft_config = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -3324,14 +3325,14 @@ struct st_mysql_plugin i_s_innodb_ft_config = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -3439,7 +3440,7 @@ static int i_s_innodb_temp_table_info_fill_table(
     Item *)             /*!< in: condition (ignored) */
 {
   int status = 0;
-  dict_table_t *table = NULL;
+  dict_table_t *table = nullptr;
 
   DBUG_TRACE;
 
@@ -3457,7 +3458,7 @@ static int i_s_innodb_temp_table_info_fill_table(
   all_temp_info_cache.reserve(UT_LIST_GET_LEN(dict_sys->table_non_LRU));
 
   mutex_enter(&dict_sys->mutex);
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != NULL;
+  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != nullptr;
        table = UT_LIST_GET_NEXT(table_LRU, table)) {
     if (!table->is_temporary()) {
       continue;
@@ -3532,7 +3533,7 @@ struct st_mysql_plugin i_s_innodb_temp_table_info = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -3543,14 +3544,14 @@ struct st_mysql_plugin i_s_innodb_temp_table_info = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -3977,7 +3978,7 @@ struct st_mysql_plugin i_s_innodb_buffer_stats = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -3988,14 +3989,14 @@ struct st_mysql_plugin i_s_innodb_buffer_stats = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -4166,13 +4167,13 @@ static int i_s_innodb_buffer_page_fill(
   for (ulint i = 0; i < num_page; i++) {
     const buf_page_info_t *page_info;
     char table_name[MAX_FULL_NAME_LEN + 1];
-    const char *table_name_end = NULL;
+    const char *table_name_end = nullptr;
     const char *state_str;
     enum buf_page_state state;
 
     page_info = info_array + i;
 
-    state_str = NULL;
+    state_str = nullptr;
 
     OK(fields[IDX_BUFFER_POOL_ID]->store(page_info->pool_id, true));
 
@@ -4258,7 +4259,7 @@ static int i_s_innodb_buffer_page_fill(
       case BUF_BLOCK_POOL_WATCH:
       case BUF_BLOCK_ZIP_PAGE:
       case BUF_BLOCK_ZIP_DIRTY:
-        state_str = NULL;
+        state_str = nullptr;
         break;
       case BUF_BLOCK_NOT_USED:
         state_str = "NOT_USED";
@@ -4444,7 +4445,7 @@ static void i_s_innodb_buffer_page_get_info(
       is, block->index will not always be set to
       NULL when the last adaptive hash index
       reference is dropped. */
-      page_info->hashed = (block->index != NULL);
+      page_info->hashed = (block->index != nullptr);
     } else {
       ut_ad(page_info->zip_ssize);
       frame = bpage->zip.data;
@@ -4617,7 +4618,7 @@ struct st_mysql_plugin i_s_innodb_buffer_page = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -4628,14 +4629,14 @@ struct st_mysql_plugin i_s_innodb_buffer_page = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -4808,11 +4809,11 @@ static int i_s_innodb_buf_page_lru_fill(
   for (ulint i = 0; i < num_page; i++) {
     const buf_page_info_t *page_info;
     char table_name[MAX_FULL_NAME_LEN + 1];
-    const char *table_name_end = NULL;
+    const char *table_name_end = nullptr;
     const char *state_str;
     enum buf_page_state state;
 
-    state_str = NULL;
+    state_str = nullptr;
 
     page_info = info_array + i;
 
@@ -4899,7 +4900,7 @@ static int i_s_innodb_buf_page_lru_fill(
       case BUF_BLOCK_NOT_USED:
       case BUF_BLOCK_MEMORY:
       case BUF_BLOCK_REMOVE_HASH:
-        state_str = NULL;
+        state_str = nullptr;
         break;
     };
 
@@ -4975,7 +4976,7 @@ static int i_s_innodb_fill_buffer_lru(THD *thd, TABLE_LIST *tables,
   information */
   bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
-  while (bpage != NULL) {
+  while (bpage != nullptr) {
     /* Use the same function that collect buffer info for
     INNODB_BUFFER_PAGE to get buffer page info */
     i_s_innodb_buffer_page_get_info(bpage, pool_id, lru_pos,
@@ -5085,7 +5086,7 @@ struct st_mysql_plugin i_s_innodb_buffer_page_lru = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -5096,14 +5097,14 @@ struct st_mysql_plugin i_s_innodb_buffer_page_lru = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -5289,7 +5290,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
                                             &mdl_on_tab, &mtr);
 
     mutex_exit(&dict_sys->mutex);
-    if (table_rec != NULL) {
+    if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
     }
 
@@ -5298,7 +5299,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     /* Get the next record */
     mutex_enter(&dict_sys->mutex);
 
-    if (table_rec != NULL) {
+    if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
     }
 
@@ -5326,7 +5327,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
                                                 dd_tables, &mdl_on_tab, &mtr);
 
     mutex_exit(&dict_sys->mutex);
-    if (table_rec != NULL) {
+    if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
     }
 
@@ -5335,7 +5336,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     /* Get the next record */
     mutex_enter(&dict_sys->mutex);
 
-    if (table_rec != NULL) {
+    if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
     }
 
@@ -5399,7 +5400,7 @@ struct st_mysql_plugin i_s_innodb_tables = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -5410,14 +5411,14 @@ struct st_mysql_plugin i_s_innodb_tables = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -5596,13 +5597,13 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     this INNODB_TABLES record */
     dd_process_dd_tables_rec_and_mtr_commit(heap, rec, &table_rec, dd_tables,
                                             &mdl_on_tab, &mtr);
-    if (table_rec != NULL) {
+    if (table_rec != nullptr) {
       ref_count = table_rec->get_ref_count();
     }
 
     mutex_exit(&dict_sys->mutex);
 
-    if (table_rec != NULL) {
+    if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tablestats(thd, table_rec, ref_count, tables->table);
     }
 
@@ -5611,7 +5612,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     /* Get the next record */
     mutex_enter(&dict_sys->mutex);
 
-    if (table_rec != NULL
+    if (table_rec != nullptr
 #ifdef UNIV_DEBUG
         && !dd_closed
 #endif
@@ -5678,7 +5679,7 @@ struct st_mysql_plugin i_s_innodb_tablestats = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -5689,14 +5690,14 @@ struct st_mysql_plugin i_s_innodb_tablestats = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -5858,7 +5859,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     /* Get the next record */
     mutex_enter(&dict_sys->mutex);
 
-    if (index_rec != NULL) {
+    if (index_rec != nullptr) {
       dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
 
       /* Close parent table if it's a fts aux table. */
@@ -5926,7 +5927,7 @@ struct st_mysql_plugin i_s_innodb_indexes = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -5937,14 +5938,14 @@ struct st_mysql_plugin i_s_innodb_indexes = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -6299,7 +6300,7 @@ struct st_mysql_plugin i_s_innodb_columns = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -6310,14 +6311,14 @@ struct st_mysql_plugin i_s_innodb_columns = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -6494,7 +6495,7 @@ struct st_mysql_plugin i_s_innodb_virtual = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -6505,14 +6506,14 @@ struct st_mysql_plugin i_s_innodb_virtual = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -6704,15 +6705,15 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(fields[INNODB_TABLESPACES_SPACE_VESION]->store(space_version, true));
 
-  char *filepath = NULL;
+  char *filepath = nullptr;
   if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
     mutex_enter(&dict_sys->mutex);
     filepath = fil_space_get_first_path(space_id);
     mutex_exit(&dict_sys->mutex);
   }
 
-  if (filepath == NULL) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != 0) {
+  if (filepath == nullptr) {
+    if (strstr(name, dict_sys_t::s_file_per_table_name) != nullptr) {
       mutex_enter(&dict_sys->mutex);
       filepath = fil_space_get_first_path(space_id);
       mutex_exit(&dict_sys->mutex);
@@ -6727,7 +6728,7 @@ static int i_s_dict_fill_innodb_tablespaces(
   memset(&file, 0xff, sizeof(file));
   memset(&stat, 0x0, sizeof(stat));
 
-  if (filepath != NULL) {
+  if (filepath != nullptr) {
     file = os_file_get_size(filepath);
 
     /* Get the file system (or Volume) block size. */
@@ -6800,7 +6801,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
 
   for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
                                  dd_tablespaces_name.c_str(), &dd_spaces);
-       rec != NULL; rec = dd_getnext_system_rec(&pcur, &mtr)) {
+       rec != nullptr; rec = dd_getnext_system_rec(&pcur, &mtr)) {
     space_id_t space;
     char *name;
     uint32_t flags;
@@ -6885,7 +6886,7 @@ struct st_mysql_plugin i_s_innodb_tablespaces = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -6896,14 +6897,14 @@ struct st_mysql_plugin i_s_innodb_tablespaces = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -7004,7 +7005,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
                                          dd_indexes_name.c_str(), &dd_indexes);
 
   /* Process each record in the table. */
-  while (rec != NULL) {
+  while (rec != nullptr) {
     /* Populate a dict_index_t structure with an information
     from a INNODB_INDEXES row. */
     bool ret = dd_process_dd_indexes_rec_simple(heap, rec, &index_id, &space_id,
@@ -7087,7 +7088,7 @@ struct st_mysql_plugin i_s_innodb_cached_indexes = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -7098,14 +7099,14 @@ struct st_mysql_plugin i_s_innodb_cached_indexes = {
     STRUCT_FLD(version, i_s_innodb_plugin_version),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */
@@ -7293,7 +7294,7 @@ struct st_mysql_plugin i_s_innodb_session_temp_tablespaces = {
 
     /* the function to invoke when plugin is un installed */
     /* int (*)(void*); */
-    NULL,
+    nullptr,
 
     /* the function to invoke when plugin is unloaded */
     /* int (*)(void*); */
@@ -7304,14 +7305,14 @@ struct st_mysql_plugin i_s_innodb_session_temp_tablespaces = {
     STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
     /* SHOW_VAR* */
-    STRUCT_FLD(status_vars, NULL),
+    STRUCT_FLD(status_vars, nullptr),
 
     /* SYS_VAR** */
-    STRUCT_FLD(system_vars, NULL),
+    STRUCT_FLD(system_vars, nullptr),
 
     /* reserved for dependency checking */
     /* void* */
-    STRUCT_FLD(__reserved1, NULL),
+    STRUCT_FLD(__reserved1, nullptr),
 
     /* Plugin flags */
     /* unsigned long */

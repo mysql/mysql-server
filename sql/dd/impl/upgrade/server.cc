@@ -65,7 +65,7 @@ extern const char *fill_help_tables[];
 
 const char *upgrade_modes[] = {"NONE", "MINIMAL", "AUTO", "FORCE", NullS};
 TYPELIB upgrade_mode_typelib = {array_elements(upgrade_modes) - 1, "",
-                                upgrade_modes, NULL};
+                                upgrade_modes, nullptr};
 
 namespace dd {
 namespace upgrade {
@@ -410,7 +410,7 @@ bool fix_sys_schema(THD *thd) {
   const char **query_ptr;
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA);
   thd->user_var_events_alloc = thd->mem_root;
-  for (query_ptr = &mysql_sys_schema[0]; *query_ptr != NULL; query_ptr++)
+  for (query_ptr = &mysql_sys_schema[0]; *query_ptr != nullptr; query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
   thd->mem_root->Clear();
   return false;
@@ -425,12 +425,12 @@ bool fix_mysql_tables(THD *thd) {
   }
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_MYSQL_TABLES);
-  for (query_ptr = &mysql_fix_privilege_tables[0]; *query_ptr != NULL;
+  for (query_ptr = &mysql_fix_privilege_tables[0]; *query_ptr != nullptr;
        query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYSTEM_TABLES);
-  for (query_ptr = &mysql_system_tables_data_fix[0]; *query_ptr != NULL;
+  for (query_ptr = &mysql_system_tables_data_fix[0]; *query_ptr != nullptr;
        query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
 
@@ -443,7 +443,7 @@ bool upgrade_help_tables(THD *thd) {
     return true;
   }
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "started");
-  for (const char **query_ptr = &fill_help_tables[0]; *query_ptr != NULL;
+  for (const char **query_ptr = &fill_help_tables[0]; *query_ptr != nullptr;
        query_ptr++)
     if (dd::execute_query(thd, *query_ptr)) {
       LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "failed");
@@ -730,7 +730,7 @@ bool invalid_sql(THD *thd, const char *dbname, const dd::String_type &sql) {
   lex_start(thd);
 
   thd->m_parser_state = &parser_state;
-  parser_state.m_lip.m_digest = NULL;
+  parser_state.m_lip.m_digest = nullptr;
 
   if (thd->sql_parser())
     error = (thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR);
@@ -822,7 +822,7 @@ bool upgrade_system_schemas(THD *thd) {
    * close everything.
    */
   close_thread_tables(thd);
-  close_cached_tables(NULL, NULL, false, LONG_TIMEOUT);
+  close_cached_tables(nullptr, nullptr, false, LONG_TIMEOUT);
 
   return dd::end_transaction(thd, err);
 }

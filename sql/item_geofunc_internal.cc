@@ -119,7 +119,7 @@ void BG_geometry_collection::merge_components(bool *pnull_value) {
   if (is_comp_no_overlapped()) return;
 
   POS pos;
-  Item_func_st_union ifsu(pos, NULL, NULL);
+  Item_func_st_union ifsu(pos, nullptr, nullptr);
   bool do_again = true;
   uint32 last_composition[6] = {0}, num_unchanged_composition = 0;
   size_t last_num_geos = 0;
@@ -307,7 +307,7 @@ class Rtree_entry_compare {
 template <typename Coordsys>
 bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
                                            bool *pnull_value) {
-  Geometry *gres = NULL;
+  Geometry *gres = nullptr;
   bool has_new = false;
   bool &null_value = *pnull_value;
   Pointer_vector<Geometry> added;
@@ -349,7 +349,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
     for (Rtree_result::iterator j = rtree_result.begin();
          j != rtree_result.end(); ++j) {
       Geometry *geom2 = m_geos[j->second];
-      if (*i == geom2 || geom2 == NULL) continue;
+      if (*i == geom2 || geom2 == nullptr) continue;
 
       // Equals is much easier and faster to check, so check it first.
       if (Item_func_spatial_rel::bg_geo_relation_check(
@@ -379,7 +379,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
       if (Item_func_spatial_rel::bg_geo_relation_check(
               geom2, *i, Item_func::SP_WITHIN_FUNC, &null_value) &&
           !null_value) {
-        m_geos[j->second] = NULL;
+        m_geos[j->second] = nullptr;
         continue;
       }
 
@@ -397,8 +397,8 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
       */
       char d11 = (*i)->feature_dimension();
       char d12 = geom2->feature_dimension();
-      Geometry *geom_d1 = NULL;
-      Geometry *geom_d2 = NULL;
+      Geometry *geom_d1 = nullptr;
+      Geometry *geom_d2 = nullptr;
       bool is_linear_areal = false;
 
       if (((d11 == 1 && d12 == 2) || (d12 == 1 && d11 == 2))) {
@@ -436,20 +436,20 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
         null_value = ifsu->null_value;
 
         if (null_value) {
-          if (gres != NULL && gres != *i && gres != geom2) delete gres;
+          if (gres != nullptr && gres != *i && gres != geom2) delete gres;
           stop_it = true;
           break;
         }
 
         if (gres != *i) *i = NULL;
-        if (gres != geom2) m_geos[j->second] = NULL;
-        if (gres != NULL && gres != *i && gres != geom2) {
+        if (gres != geom2) m_geos[j->second] = nullptr;
+        if (gres != nullptr && gres != *i && gres != geom2) {
           added.push_back(gres);
           String tmp_wkbbuf;
           added_wkbbufs.push_back(tmp_wkbbuf);
           added_wkbbufs.back().takeover(wkbres);
           has_new = true;
-          gres = NULL;
+          gres = nullptr;
         }
         /*
           Done with *i, it's either adopted, or removed or merged to a new
@@ -470,7 +470,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
   }  // for (*i)
 
   // Remove deleted Geometry object pointers, then append new components if any.
-  Is_target_geometry pred(NULL);
+  Is_target_geometry pred(nullptr);
   Geometry_list::iterator jj =
       std::remove_if(m_geos.begin(), m_geos.end(), pred);
   m_geos.resize(jj - m_geos.begin());
@@ -509,7 +509,7 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
   if (geout.get_type() == Geometry::wkb_multilinestring ||
       geout.get_type() == Geometry::wkb_multipolygon)
     geout.set_components_no_overlapped(true);
-  if (geout.get_ptr() == NULL) return true;
+  if (geout.get_ptr() == nullptr) return true;
   if (res) {
     char *resptr = geout.get_cptr() - GEOM_HEADER_SIZE;
     size_t len = geout.get_nbytes();
@@ -585,7 +585,7 @@ bool is_empty_geocollection(const Geometry *g) {
 }
 
 bool is_empty_geocollection(const String &wkbres) {
-  if (wkbres.ptr() == NULL) return true;
+  if (wkbres.ptr() == nullptr) return true;
 
   uint32 geotype = uint4korr(wkbres.ptr() + SRID_SIZE + 1);
 

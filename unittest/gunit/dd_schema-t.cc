@@ -166,7 +166,7 @@ class SchemaTest : public ::testing::Test {
 
 TEST_F(SchemaTest, CreateSchema) {
   // Execution context.
-  Schema_impl *schema = NULL;
+  Schema_impl *schema = nullptr;
   Update_dictionary_tables_ctx *ctx = begin_dd_updates();
   Fake_TABLE *schemata_table =
       static_cast<Fake_TABLE *>(ctx->otx.get_table<Schema>()->get_table());
@@ -267,7 +267,7 @@ TEST_F(SchemaTest, CreateSchema) {
 
 TEST_F(SchemaTest, UpdateSchema) {
   // Execution context.
-  Schema_impl *schema = NULL;
+  Schema_impl *schema = nullptr;
   Update_dictionary_tables_ctx *ctx = begin_dd_updates();
   Fake_TABLE *schemata_table =
       static_cast<Fake_TABLE *>(ctx->otx.get_table<Schema>()->get_table());
@@ -375,7 +375,7 @@ TEST_F(SchemaTest, UpdateSchema) {
 
 TEST_F(SchemaTest, GetSchema) {
   // Execution context.
-  const Schema_impl *schema = NULL;
+  const Schema_impl *schema = nullptr;
   Update_dictionary_tables_ctx *ctx = begin_dd_updates();
   Fake_TABLE *schemata_table =
       static_cast<Fake_TABLE *>(ctx->otx.get_table<Schema>()->get_table());
@@ -468,7 +468,7 @@ TEST_F(SchemaTest, GetSchema) {
   EXPECT_FALSE(t->find_record(key, r));
 
   // Restore the object from the record.
-  Entity_object *new_object = NULL;
+  Entity_object *new_object = nullptr;
   EXPECT_FALSE(Schema::DD_table::instance().restore_object_from_record(
       &ctx->otx, *r.get(), &new_object));
   schema = dynamic_cast<const Schema_impl *>(new_object);

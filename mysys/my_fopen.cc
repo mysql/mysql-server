@@ -63,7 +63,7 @@ static void make_ftype(char *to, int flag);
 FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
   FILE *fd;
   char type[5];
-  char *dup_filename = NULL;
+  char *dup_filename = nullptr;
   DBUG_TRACE;
   DBUG_PRINT("my",
              ("Name: '%s'  flags: %d  MyFlags: %d", filename, flags, MyFlags));
@@ -75,7 +75,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
 #else
   fd = fopen(filename, type);
 #endif
-  if (fd != 0) {
+  if (fd != nullptr) {
     /*
       The test works if MY_NFILE < 128. The problem is that fileno() is char
       on some OS (SUNOS). Actually the filename save isn't that important
@@ -90,7 +90,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
       return fd; /* safeguard */
     }
     dup_filename = my_strdup(key_memory_my_file_info, filename, MyFlags);
-    if (dup_filename != NULL) {
+    if (dup_filename != nullptr) {
       mysql_mutex_lock(&THR_LOCK_open);
       my_file_info[filedesc].name = dup_filename;
       my_stream_opened++;
@@ -112,7 +112,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
              MYF(0), filename, my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
-  return (FILE *)0;
+  return (FILE *)nullptr;
 } /* my_fopen */
 
 #if defined(_WIN32)

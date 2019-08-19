@@ -69,18 +69,18 @@ class Mem_root_array_YY {
   typedef Element_type value_type;
 
   void init(MEM_ROOT *root) {
-    DBUG_ASSERT(root != NULL);
+    DBUG_ASSERT(root != nullptr);
 
     m_root = root;
-    m_array = NULL;
+    m_array = nullptr;
     m_size = 0;
     m_capacity = 0;
   }
 
   /// Initialize empty array that we aren't going to grow
   void init_empty_const() {
-    m_root = NULL;
-    m_array = NULL;
+    m_root = nullptr;
+    m_array = nullptr;
     m_size = 0;
     m_capacity = 0;
   }
@@ -91,7 +91,7 @@ class Mem_root_array_YY {
   */
   void set_mem_root(MEM_ROOT *new_root) {
     m_root = new_root;
-    DBUG_ASSERT(m_root != NULL);
+    DBUG_ASSERT(m_root != nullptr);
   }
 
   Element_type &at(size_t n) {

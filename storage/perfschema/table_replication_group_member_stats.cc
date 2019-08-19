@@ -83,7 +83,7 @@ static void set_transactions_committed(void *const context, const char &value,
   struct st_row_group_member_stats *row =
       static_cast<struct st_row_group_member_stats *>(context);
 
-  if (row->trx_committed != NULL) {
+  if (row->trx_committed != nullptr) {
     my_free(row->trx_committed);
   }
 
@@ -189,8 +189,8 @@ Plugin_table table_replication_group_member_stats::m_table_def(
 PFS_engine_table_share table_replication_group_member_stats::m_share = {
     &pfs_readonly_acl,
     &table_replication_group_member_stats::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_group_member_stats::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -208,13 +208,13 @@ PFS_engine_table *table_replication_group_member_stats::create(
 
 table_replication_group_member_stats::table_replication_group_member_stats()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
-  m_row.trx_committed = NULL;
+  m_row.trx_committed = nullptr;
 }
 
 table_replication_group_member_stats::~table_replication_group_member_stats() {
-  if (m_row.trx_committed != NULL) {
+  if (m_row.trx_committed != nullptr) {
     my_free(m_row.trx_committed);
-    m_row.trx_committed = NULL;
+    m_row.trx_committed = nullptr;
   }
 }
 

@@ -133,8 +133,8 @@ static mysql_service_status_t pfs_example_deinit() {
 }
 
 static void test_mysql_mutex_part_1() {
-  mysql_mutex_init(key_mutex_x, &my_mutex_x, NULL);
-  mysql_mutex_init(key_mutex_y, &my_mutex_y, NULL);
+  mysql_mutex_init(key_mutex_x, &my_mutex_x, nullptr);
+  mysql_mutex_init(key_mutex_y, &my_mutex_y, nullptr);
 
   mysql_mutex_lock(&my_mutex_x);
   mysql_mutex_trylock(&my_mutex_y);
@@ -149,8 +149,8 @@ static void test_mysql_mutex_part_2() {
 }
 
 static void test_psi_mutex_part_1() {
-  psi_mutex_z = PSI_MUTEX_CALL(init_mutex)(key_mutex_z, NULL);
-  psi_mutex_t = PSI_MUTEX_CALL(init_mutex)(key_mutex_t, NULL);
+  psi_mutex_z = PSI_MUTEX_CALL(init_mutex)(key_mutex_z, nullptr);
+  psi_mutex_t = PSI_MUTEX_CALL(init_mutex)(key_mutex_t, nullptr);
 }
 
 static void test_psi_mutex_part_2() {
@@ -186,40 +186,40 @@ static void test_psi_rwlock_part_1() {
   PSI_rwlock_locker_state state;
   PSI_rwlock_locker *locker;
 
-  psi_rwlock_s1 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s1, NULL);
-  psi_rwlock_s2 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s2, NULL);
+  psi_rwlock_s1 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s1, nullptr);
+  psi_rwlock_s2 = PSI_RWLOCK_CALL(init_rwlock)(key_rwlock_s2, nullptr);
 
-  if (psi_rwlock_s1 != NULL) {
+  if (psi_rwlock_s1 != nullptr) {
     locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
         &state, psi_rwlock_s1, PSI_RWLOCK_SHAREDLOCK, "HERE", 12);
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
     }
   }
 
-  if (psi_rwlock_s2 != NULL) {
+  if (psi_rwlock_s2 != nullptr) {
     locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
         &state, psi_rwlock_s2, PSI_RWLOCK_EXCLUSIVELOCK, "THERE", 13);
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
     }
   }
 
-  if (psi_rwlock_s1 != NULL) {
+  if (psi_rwlock_s1 != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s1, PSI_RWLOCK_SHAREDUNLOCK);
   }
 
-  if (psi_rwlock_s2 != NULL) {
+  if (psi_rwlock_s2 != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s2, PSI_RWLOCK_EXCLUSIVEUNLOCK);
   }
 }
 
 static void test_psi_rwlock_part_2() {
-  if (psi_rwlock_s1 != NULL) {
+  if (psi_rwlock_s1 != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(psi_rwlock_s1);
   }
 
-  if (psi_rwlock_s2 != NULL) {
+  if (psi_rwlock_s2 != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(psi_rwlock_s2);
   }
 }

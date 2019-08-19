@@ -79,7 +79,7 @@ class ut_stage_alter_t {
   /** Constructor.
   @param[in]	pk	primary key of the old table */
   explicit ut_stage_alter_t(const dict_index_t *pk)
-      : m_progress(NULL),
+      : m_progress(nullptr),
         m_pk(pk),
         m_n_pk_recs(0),
         m_n_pk_pages(0),
@@ -190,7 +190,7 @@ class ut_stage_alter_t {
 
 /** Destructor. */
 inline ut_stage_alter_t::~ut_stage_alter_t() {
-  if (m_progress == NULL) {
+  if (m_progress == nullptr) {
     return;
   }
 
@@ -228,7 +228,7 @@ inline void ut_stage_alter_t::n_pk_recs_inc() { m_n_pk_recs++; }
 current phase.
 @param[in]	inc_val	flag this many units processed at once */
 inline void ut_stage_alter_t::inc(ulint inc_val /* = 1 */) {
-  if (m_progress == NULL) {
+  if (m_progress == nullptr) {
     return;
   }
 
@@ -351,7 +351,7 @@ inline void ut_stage_alter_t::begin_phase_end() {
 
 /** Update the estimate of total work to be done. */
 inline void ut_stage_alter_t::reestimate() {
-  if (m_progress == NULL) {
+  if (m_progress == nullptr) {
     return;
   }
 
@@ -397,7 +397,7 @@ inline void ut_stage_alter_t::reestimate() {
 /** Change the current phase.
 @param[in]	new_stage	pointer to the new stage to change to */
 inline void ut_stage_alter_t::change_phase(const PSI_stage_info *new_stage) {
-  if (m_progress == NULL) {
+  if (m_progress == nullptr) {
     return;
   }
 
@@ -441,7 +441,7 @@ class ut_stage_alter_ts {
 
   /** Destructor. */
   inline ~ut_stage_alter_ts() {
-    if (m_progress == NULL) {
+    if (m_progress == nullptr) {
       return;
     }
     mysql_end_stage();
@@ -461,7 +461,7 @@ class ut_stage_alter_ts {
   }
 
   void set_estimate(ulint units) {
-    if (m_progress == NULL) {
+    if (m_progress == nullptr) {
       return;
     }
 
@@ -473,7 +473,7 @@ class ut_stage_alter_ts {
   }
 
   void update_work(ulint units) {
-    if (m_progress == NULL) {
+    if (m_progress == nullptr) {
       return;
     }
 
@@ -490,7 +490,7 @@ class ut_stage_alter_ts {
   }
 
   void change_phase() {
-    if (m_progress == NULL) {
+    if (m_progress == nullptr) {
       ut_ad(m_cur_phase == NOT_STARTED);
       return;
     }
@@ -512,7 +512,7 @@ class ut_stage_alter_ts {
   }
 
   bool is_completed() {
-    if (m_progress == NULL) {
+    if (m_progress == nullptr) {
       return true;
     }
 

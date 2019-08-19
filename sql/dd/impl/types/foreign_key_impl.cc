@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ Foreign_key_impl::Foreign_key_impl()
     : m_match_option(OPTION_NONE),
       m_update_rule(RULE_NO_ACTION),
       m_delete_rule(RULE_NO_ACTION),
-      m_table(NULL),
+      m_table(nullptr),
       m_elements() {}
 
 Foreign_key_impl::Foreign_key_impl(Table_impl *table)

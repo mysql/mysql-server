@@ -138,7 +138,7 @@ bool Session::handle_auth_message(const Message_request &command) {
   int8_t type = command.get_message_type();
 
   if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START &&
-      m_auth_handler.get() == NULL) {
+      m_auth_handler.get() == nullptr) {
     const Mysqlx::Session::AuthenticateStart &authm =
         static_cast<const Mysqlx::Session::AuthenticateStart &>(
             *command.get_message());

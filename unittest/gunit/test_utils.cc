@@ -83,7 +83,7 @@ void setup_server_for_unit_tests() {
                   const_cast<char *>("--explicit_defaults_for_timestamp"),
                   const_cast<char *>("--datadir=" DATA_DIR),
                   const_cast<char *>("--lc-messages-dir=" ERRMSG_DIR),
-                  0};
+                  nullptr};
   set_remaining_args(6, argv);
   system_charset_info = &my_charset_utf8_general_ci;
   sys_var_init();

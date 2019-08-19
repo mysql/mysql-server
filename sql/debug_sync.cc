@@ -611,7 +611,7 @@ void debug_sync_end(void) {
   /* End the facility only if it had been initialized. */
   if (debug_sync_C_callback_ptr) {
     /* Clear the call back pointer in C files. */
-    debug_sync_C_callback_ptr = NULL;
+    debug_sync_C_callback_ptr = nullptr;
 
     /* Destroy the global variables. */
     debug_sync_global.ds_signal_set.clear();
@@ -683,7 +683,7 @@ void debug_sync_claim_memory_ownership(THD *thd) {
 
   st_debug_sync_control *ds_control = thd->debug_sync_control;
 
-  if (ds_control != NULL) {
+  if (ds_control != nullptr) {
     if (ds_control->ds_action) {
       st_debug_sync_action *action = ds_control->ds_action;
       st_debug_sync_action *action_end = action + ds_control->ds_allocated;
@@ -738,7 +738,7 @@ void debug_sync_end_thread(THD *thd) {
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
     my_free(ds_control);
-    thd->debug_sync_control = NULL;
+    thd->debug_sync_control = nullptr;
   }
 }
 
@@ -892,7 +892,7 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
       return action;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -1179,7 +1179,7 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action) {
 static inline const char *advance_mbchar_ptr(const char *ptr) {
   uint clen = my_mbcharlen(system_charset_info, (uchar)*ptr);
 
-  return (clen != 0) ? ptr + clen : NULL;
+  return (clen != 0) ? ptr + clen : nullptr;
 }
 
 /*
@@ -1192,7 +1192,7 @@ static inline const char *advance_mbchar_ptr(const char *ptr) {
 */
 
 static inline const char *skip_whitespace(const char *ptr) {
-  while (ptr != NULL && *ptr && my_isspace(system_charset_info, *ptr))
+  while (ptr != nullptr && *ptr && my_isspace(system_charset_info, *ptr))
     ptr = advance_mbchar_ptr(ptr);
 
   return ptr;
@@ -1207,7 +1207,7 @@ static inline const char *skip_whitespace(const char *ptr) {
 */
 
 static inline const char *get_token_end_ptr(const char *ptr) {
-  while (ptr != NULL && *ptr && !my_isspace(system_charset_info, *ptr))
+  while (ptr != nullptr && *ptr && !my_isspace(system_charset_info, *ptr))
     ptr = advance_mbchar_ptr(ptr);
 
   return ptr;
@@ -1271,7 +1271,7 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
   /* Skip leading space */
   ptr = const_cast<char *>(skip_whitespace(ptr));
 
-  if (ptr == NULL || !*ptr) return NULL;
+  if (ptr == nullptr || !*ptr) return nullptr;
 
   /* Get token start. */
   *token_p = ptr;
@@ -1279,7 +1279,7 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
   /* Find token end. */
   ptr = const_cast<char *>(get_token_end_ptr(ptr));
 
-  if (ptr == NULL) return NULL;
+  if (ptr == nullptr) return nullptr;
 
   /* Get token length. */
   *token_length_p = ptr - *token_p;
@@ -1290,7 +1290,7 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
 
     /* Advance by terminator character length. */
     ptr = const_cast<char *>(advance_mbchar_ptr(ptr));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       /* Terminate token. */
       *tmp = '\0';
 
@@ -1335,7 +1335,7 @@ static char *debug_sync_number(ulong *number_p, char *actstrptr) {
   if (!(ptr = debug_sync_token(&token, &token_length, actstrptr))) goto end;
 
   *number_p = strtoul(token, &ept, 10);
-  if (*ept) ptr = NULL;
+  if (*ept) ptr = nullptr;
 
 end:
   return ptr;
@@ -1374,7 +1374,7 @@ end:
 */
 
 static bool debug_sync_eval_action(THD *thd, char *action_str) {
-  st_debug_sync_action *action = NULL;
+  st_debug_sync_action *action = nullptr;
   const char *errmsg;
   char *ptr;
   char *token;
@@ -1487,7 +1487,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
     if (action->signal.copy(token, token_length, system_charset_info)) {
       /* Error is reported by my_malloc(). */
       /* purecov: begin tested */
-      errmsg = NULL;
+      errmsg = nullptr;
       goto err;
       /* purecov: end */
     }
@@ -1511,7 +1511,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
     if (action->wait_for.copy(token, token_length, system_charset_info)) {
       /* Error is reported by my_malloc(). */
       /* purecov: begin tested */
-      errmsg = NULL;
+      errmsg = nullptr;
       goto err;
       /* purecov: end */
     }
@@ -1770,7 +1770,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
   action->activation_count--;
 
   if (action->execute) {
-    const char *old_proc_info = NULL;
+    const char *old_proc_info = nullptr;
 
     action->execute--;
 
@@ -1814,7 +1814,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
 
     if (action->wait_for.length()) {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t *old_cond = 0;
+      mysql_cond_t *old_cond = nullptr;
       int error = 0;
       struct timespec abstime;
       std::string wait_for = action->wait_for.ptr();

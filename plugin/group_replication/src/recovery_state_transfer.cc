@@ -38,8 +38,8 @@ using std::string;
 Recovery_state_transfer::Recovery_state_transfer(
     char *recovery_channel_name, const string &member_uuid,
     Channel_observation_manager *channel_obsr_mngr)
-    : selected_donor(NULL),
-      group_members(NULL),
+    : selected_donor(nullptr),
+      group_members(nullptr),
       donor_connection_retry_count(0),
       recovery_aborted(false),
       donor_transfer_finished(false),
@@ -47,7 +47,7 @@ Recovery_state_transfer::Recovery_state_transfer(
       on_failover(false),
       donor_connection_interface(recovery_channel_name),
       channel_observation_manager(channel_obsr_mngr),
-      recovery_channel_observer(NULL),
+      recovery_channel_observer(nullptr),
       recovery_use_ssl(false),
       recovery_get_public_key(false),
       recovery_ssl_verify_server_cert(false),
@@ -77,7 +77,7 @@ Recovery_state_transfer::Recovery_state_transfer(
 }
 
 Recovery_state_transfer::~Recovery_state_transfer() {
-  if (group_members != NULL) {
+  if (group_members != nullptr) {
     std::vector<Group_member_info *>::iterator member_it =
         group_members->begin();
     while (member_it != group_members->end()) {
@@ -161,7 +161,7 @@ void Recovery_state_transfer::inform_of_receiver_stop(my_thread_id thread_id) {
 void Recovery_state_transfer::initialize_group_info() {
   DBUG_TRACE;
 
-  selected_donor = NULL;
+  selected_donor = nullptr;
   selected_donor_hostname.clear();
   // Update the group member info
   mysql_mutex_lock(&donor_selection_lock);
@@ -178,11 +178,11 @@ void Recovery_state_transfer::update_group_membership(bool update_donor) {
 
   // if needed update the reference to the donor member
   string donor_uuid;
-  if (selected_donor != NULL && update_donor) {
+  if (selected_donor != nullptr && update_donor) {
     donor_uuid.assign(selected_donor->get_uuid());
   }
 
-  if (group_members != NULL) {
+  if (group_members != nullptr) {
     std::vector<Group_member_info *>::iterator member_it =
         group_members->begin();
     while (member_it != group_members->end()) {
@@ -233,13 +233,13 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left) {
     * Was deleted in a previous group updated, but there was no need to
       select a new one since as the data transfer is finished
   */
-  if (selected_donor != NULL && did_members_left) {
+  if (selected_donor != nullptr && did_members_left) {
     current_donor_uuid.assign(selected_donor->get_uuid());
     current_donor_hostname.assign(selected_donor->get_hostname());
     current_donor_port = selected_donor->get_port();
     Group_member_info *current_donor =
         group_member_mgr->get_group_member_info(current_donor_uuid);
-    donor_left = (current_donor == NULL);
+    donor_left = (current_donor == nullptr);
     delete current_donor;
   }
 
@@ -256,7 +256,7 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left) {
   */
   if (donor_left) {
     // The selected donor no longer holds a meaning after deleting the group
-    selected_donor = NULL;
+    selected_donor = nullptr;
     if (connected_to_donor) {
       /*
        The donor_transfer_finished flag is not lock protected on the recovery
@@ -346,8 +346,8 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
 
     // if requested, and if the donor is still in the group, update its
     // reference
-    if (selected_donor_uuid != NULL && !m_uuid.compare(*selected_donor_uuid) &&
-        valid_donor) {
+    if (selected_donor_uuid != nullptr &&
+        !m_uuid.compare(*selected_donor_uuid) && valid_donor) {
       selected_donor = member;
     }
 
@@ -417,7 +417,7 @@ int Recovery_state_transfer::establish_donor_connection() {
 
       mysql_mutex_lock(&donor_selection_lock);
 
-      build_donor_list(NULL);
+      build_donor_list(nullptr);
       if (suitable_donors.empty()) {
         LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NO_VALID_DONOR);
         donor_connection_retry_count++;
@@ -481,7 +481,7 @@ int Recovery_state_transfer::initialize_donor_connection() {
   uint port = selected_donor->get_port();
 
   error = donor_connection_interface.initialize_channel(
-      hostname, port, NULL, NULL, recovery_use_ssl, recovery_ssl_ca,
+      hostname, port, nullptr, nullptr, recovery_use_ssl, recovery_ssl_ca,
       recovery_ssl_capath, recovery_ssl_cert, recovery_ssl_cipher,
       recovery_ssl_key, recovery_ssl_crl, recovery_ssl_crlpath,
       recovery_ssl_verify_server_cert, DEFAULT_THREAD_PRIORITY, 1, false,
@@ -609,9 +609,10 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, false, DEFAULT_THREAD_PRIORITY, 1, false, NULL,
-      false, NULL, 0, NULL, NULL);
+      const_cast<char *>("<NULL>"), 0, nullptr, nullptr, false, nullptr,
+      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, false,
+      DEFAULT_THREAD_PRIORITY, 1, false, nullptr, false, nullptr, 0, nullptr,
+      nullptr);
 
   return error;
 }

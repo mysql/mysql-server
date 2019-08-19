@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ TEST_F(XcomTransport, SerializeTooManySynodes) {
   a->body.app_u_u.synodes.synode_no_array_val =
       static_cast<synode_no *>(std::calloc(nr_synodes, sizeof(synode_no)));
 
-  pax_msg *p = pax_msg_new(null_synode, 0);
+  pax_msg *p = pax_msg_new(null_synode, nullptr);
   p->a = a;
   p->to = VOID_NODE_NO;
   p->op = client_msg;

@@ -75,12 +75,12 @@ struct plugin_local_variables {
     Initialize all variables, except mutexes.
   */
   void init() {
-    plugin_info_ptr = NULL;
+    plugin_info_ptr = nullptr;
     plugin_version = 0;
     group_sidno = 0;
 
-    online_wait_mutex = NULL;
-    plugin_stop_lock = NULL;
+    online_wait_mutex = nullptr;
+    plugin_stop_lock = nullptr;
     plugin_is_stopping = false;
     group_replication_running = false;
     group_replication_cloning = false;
@@ -103,7 +103,7 @@ struct plugin_local_variables {
     // the default is 5 minutes (300 secs).
     rejoin_timeout = 300ULL;
 
-    auto_increment_handler = NULL;
+    auto_increment_handler = nullptr;
     reg_srv = nullptr;
   }
 };
@@ -118,11 +118,12 @@ struct plugin_local_variables {
 */
 struct plugin_options_variables {
   const char *ssl_fips_mode_values[4] = {"OFF", "ON", "STRICT",
-                                         (const char *)0};
+                                         (const char *)nullptr};
 
-  const char *bool_type_allowed_values[3] = {"OFF", "ON", (const char *)0};
+  const char *bool_type_allowed_values[3] = {"OFF", "ON",
+                                             (const char *)nullptr};
   TYPELIB plugin_bool_typelib_t = {2, "bool_type_typelib_t",
-                                   bool_type_allowed_values, NULL};
+                                   bool_type_allowed_values, nullptr};
 
   char *group_name_var;
   bool start_group_replication_at_boot_var;
@@ -170,9 +171,9 @@ struct plugin_options_variables {
   char *recovery_tls_ciphersuites_var;
 
   const char *recovery_policies[3] = {"TRANSACTIONS_CERTIFIED",
-                                      "TRANSACTIONS_APPLIED", (char *)0};
+                                      "TRANSACTIONS_APPLIED", (char *)nullptr};
   TYPELIB recovery_policies_typelib_t = {2, "recovery_policies_typelib_t",
-                                         recovery_policies, NULL};
+                                         recovery_policies, nullptr};
   ulong recovery_completion_policy_var;
 
   ulong components_stop_timeout_var;
@@ -200,9 +201,9 @@ struct plugin_options_variables {
   ulonglong gtid_assignment_block_size_var;
 
   const char *ssl_mode_values[5] = {"DISABLED", "REQUIRED", "VERIFY_CA",
-                                    "VERIFY_IDENTITY", (char *)0};
+                                    "VERIFY_IDENTITY", (char *)nullptr};
   TYPELIB ssl_mode_values_typelib_t = {4, "ssl_mode_values_typelib_t",
-                                       ssl_mode_values, NULL};
+                                       ssl_mode_values, nullptr};
   ulong ssl_mode_var;
 
 #define IP_WHITELIST_STR_BUFFER_LENGTH 1024
@@ -222,9 +223,9 @@ struct plugin_options_variables {
   bool enforce_update_everywhere_checks_var;
 
   const char *flow_control_mode_values[3] = {"DISABLED", "QUOTA",
-                                             (const char *)0};
+                                             (const char *)nullptr};
   TYPELIB flow_control_mode_typelib_t = {2, "flow_control_mode_typelib_t",
-                                         flow_control_mode_values, NULL};
+                                         flow_control_mode_values, nullptr};
   ulong flow_control_mode_var;
 #define DEFAULT_FLOW_CONTROL_THRESHOLD 25000
 #define MAX_FLOW_CONTROL_THRESHOLD INT_MAX32
@@ -240,9 +241,9 @@ struct plugin_options_variables {
   char *communication_debug_options_var;
 
   const char *exit_state_actions[4] = {"READ_ONLY", "ABORT_SERVER",
-                                       "OFFLINE_MODE", (char *)0};
+                                       "OFFLINE_MODE", (char *)nullptr};
   TYPELIB exit_state_actions_typelib_t = {3, "exit_state_actions_typelib_t",
-                                          exit_state_actions, NULL};
+                                          exit_state_actions, nullptr};
   ulong exit_state_action_var;
 
   uint autorejoin_tries_var;

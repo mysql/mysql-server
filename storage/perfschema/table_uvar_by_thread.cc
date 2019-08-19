@@ -108,10 +108,10 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
     String str_buffer;
     uint decimals = 0;
     str_value = sql_uvar->val_str(&null_value, &str_buffer, decimals);
-    if (str_value != NULL) {
+    if (str_value != nullptr) {
       pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
     } else {
-      pfs_uvar.m_value.make_row(NULL, 0);
+      pfs_uvar.m_value.make_row(nullptr, 0);
     }
   }
 }
@@ -136,8 +136,8 @@ Plugin_table table_uvar_by_thread::m_table_def(
 PFS_engine_table_share table_uvar_by_thread::m_share = {
     &pfs_readonly_acl,
     table_uvar_by_thread::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_uvar_by_thread::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -197,10 +197,10 @@ int table_uvar_by_thread::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       if (materialize(thread) == 0) {
         const User_variable *uvar = m_THD_cache.get(m_pos.m_index_2);
-        if (uvar != NULL) {
+        if (uvar != nullptr) {
           /* If make_row() fails, get the next thread. */
           if (!make_row(thread, uvar)) {
             m_next_pos.set_after(&m_pos);
@@ -220,10 +220,10 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
   set_position(pos);
 
   thread = global_thread_container.get(m_pos.m_index_1);
-  if (thread != NULL) {
+  if (thread != nullptr) {
     if (materialize(thread) == 0) {
       const User_variable *uvar = m_THD_cache.get(m_pos.m_index_2);
-      if (uvar != NULL) {
+      if (uvar != nullptr) {
         return make_row(thread, uvar);
       }
     }
@@ -233,7 +233,7 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
 }
 
 int table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_uvar_by_thread *result = NULL;
+  PFS_index_uvar_by_thread *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_uvar_by_thread);
   m_opened_index = result;
@@ -247,13 +247,13 @@ int table_uvar_by_thread::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       if (m_opened_index->match(thread)) {
         if (materialize(thread) == 0) {
           const User_variable *uvar;
           do {
             uvar = m_THD_cache.get(m_pos.m_index_2);
-            if (uvar != NULL) {
+            if (uvar != nullptr) {
               if (m_opened_index->match(uvar)) {
                 if (!make_row(thread, uvar)) {
                   m_next_pos.set_after(&m_pos);
@@ -262,7 +262,7 @@ int table_uvar_by_thread::index_next(void) {
               }
               m_pos.m_index_2++;
             }
-          } while (uvar != NULL);
+          } while (uvar != nullptr);
         }
       }
     }
@@ -281,13 +281,13 @@ int table_uvar_by_thread::materialize(PFS_thread *thread) {
   }
 
   THD *unsafe_thd = thread->m_thd;
-  if (unsafe_thd == NULL) {
+  if (unsafe_thd == nullptr) {
     return 1;
   }
 
   Find_thd_user_var finder(unsafe_thd);
   THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
-  if (safe_thd == NULL) {
+  if (safe_thd == nullptr) {
     return 1;
   }
 
@@ -324,8 +324,8 @@ int table_uvar_by_thread::read_row_values(TABLE *table, unsigned char *buf,
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  DBUG_ASSERT(m_row.m_variable_name != NULL);
-  DBUG_ASSERT(m_row.m_variable_value != NULL);
+  DBUG_ASSERT(m_row.m_variable_name != nullptr);
+  DBUG_ASSERT(m_row.m_variable_value != nullptr);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index)) {

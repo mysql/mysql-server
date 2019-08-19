@@ -65,10 +65,10 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
   DBUG_TRACE;
 
   start = to; /* Return this */
-  if (progname &&
-      (dirname_part(to, progname, &to_length) ||
-       find_file_in_path(to, progname) ||
-       ((prog = getenv("_")) != 0 && dirname_part(to, prog, &to_length)))) {
+  if (progname && (dirname_part(to, progname, &to_length) ||
+                   find_file_in_path(to, progname) ||
+                   ((prog = getenv("_")) != nullptr &&
+                    dirname_part(to, prog, &to_length)))) {
     (void)intern_filename(to, to);
     if (!test_if_hard_path(to)) {
       if (!my_getwd(curr_dir, FN_REFLEN, MYF(0)))
@@ -76,8 +76,8 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
                 strlen(to) + 1);
     }
   } else {
-    if ((end = getenv("MY_BASEDIR_VERSION")) == 0 &&
-        (end = getenv("MY_BASEDIR")) == 0) {
+    if ((end = getenv("MY_BASEDIR_VERSION")) == nullptr &&
+        (end = getenv("MY_BASEDIR")) == nullptr) {
 #ifdef DEFAULT_BASEDIR
       end = DEFAULT_BASEDIR;
 #else

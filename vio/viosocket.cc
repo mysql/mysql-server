@@ -620,7 +620,7 @@ bool vio_get_normalized_ip_string(const struct sockaddr *addr,
 
   vio_get_normalized_ip(addr, addr_length, norm_addr, &norm_addr_length);
 
-  err_code = vio_getnameinfo(norm_addr, ip_string, ip_string_size, NULL, 0,
+  err_code = vio_getnameinfo(norm_addr, ip_string, ip_string_size, nullptr, 0,
                              NI_NUMERICHOST);
 
   if (!err_code) return false;
@@ -696,7 +696,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
       return true;
     }
 
-    *port = (uint16)strtol(port_buffer, NULL, 10);
+    *port = (uint16)strtol(port_buffer, nullptr, 10);
   }
 
   DBUG_PRINT("exit", ("Client IP address: %s; port: %d",

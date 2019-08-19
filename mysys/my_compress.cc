@@ -208,7 +208,7 @@ static uchar *zlib_compress_alloc(mysql_zlib_compress_context *comp_ctx,
 
   if (!(compbuf = (uchar *)my_malloc(key_memory_my_compress_alloc, *complen,
                                      MYF(MY_WME))))
-    return 0; /* Not enough memory */
+    return nullptr; /* Not enough memory */
 
   tmp_complen = (uint)*complen;
   res = compress2((Bytef *)compbuf, &tmp_complen,
@@ -218,14 +218,14 @@ static uchar *zlib_compress_alloc(mysql_zlib_compress_context *comp_ctx,
 
   if (res != Z_OK) {
     my_free(compbuf);
-    return 0;
+    return nullptr;
   }
 
   if (*complen >= *len) {
     *complen = 0;
     my_free(compbuf);
     DBUG_PRINT("note", ("Packet got longer on compression; Not compressed"));
-    return 0;
+    return nullptr;
   }
   /* Store length of compressed packet in *len */
   std::swap(*len, *complen);
@@ -301,7 +301,7 @@ uchar *my_compress_alloc(mysql_compress_context *comp_ctx, const uchar *packet,
     // If compression algorithm is set to none do not compress, even if compress
     // flag was set.
     *complen = 0;
-    return 0;
+    return nullptr;
   }
 
   DBUG_ASSERT(comp_ctx->algorithm == enum_compression_algorithm::MYSQL_ZLIB);

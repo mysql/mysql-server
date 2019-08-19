@@ -160,12 +160,12 @@ int Remote_clone_handler::extract_donor_info(
   std::vector<Group_member_info *> *all_members_info =
       group_member_mgr->get_all_members();
 
-  Sid_map local_sid_map(NULL);
-  Sid_map group_sid_map(NULL);
-  Gtid_set local_member_set(&local_sid_map, NULL);
-  Gtid_set group_set(&group_sid_map, NULL);
-  Sid_map purged_sid_map(NULL);
-  Gtid_set purged_set(&purged_sid_map, NULL);
+  Sid_map local_sid_map(nullptr);
+  Sid_map group_sid_map(nullptr);
+  Gtid_set local_member_set(&local_sid_map, nullptr);
+  Gtid_set group_set(&group_sid_map, nullptr);
+  Sid_map purged_sid_map(nullptr);
+  Gtid_set purged_set(&purged_sid_map, nullptr);
 
   if (local_member_set.add_gtid_text(
           local_member_info->get_gtid_executed().c_str()) != RETURN_STATUS_OK ||

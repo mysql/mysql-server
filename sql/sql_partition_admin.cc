@@ -443,8 +443,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     handlerton *hton = part_table->file->ht;
     part_table->file->print_error(ha_error, MYF(0));
     // Close TABLE instances which marked as old earlier.
-    close_all_tables_for_name(thd, swap_table->s, false, NULL);
-    close_all_tables_for_name(thd, part_table->s, false, NULL);
+    close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+    close_all_tables_for_name(thd, part_table->s, false, nullptr);
     /*
       Rollback all possible changes to data-dictionary and SE which
       Partition_handler::exchange_partitions() might have done before
@@ -467,8 +467,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
       handlerton *hton = part_table->file->ht;
 
       // Close TABLE instances which marked as old earlier.
-      close_all_tables_for_name(thd, swap_table->s, false, NULL);
-      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+      close_all_tables_for_name(thd, part_table->s, false, nullptr);
 
       /*
         Ensure that we call post-DDL hook and re-open tables even
@@ -511,8 +511,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
         tables. Ignore the fact that the statement might fail due to binlog
         write failure.
       */
-      close_all_tables_for_name(thd, swap_table->s, false, NULL);
-      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+      close_all_tables_for_name(thd, part_table->s, false, nullptr);
       (void)thd->locked_tables_list.reopen_tables(thd);
 
       if (write_bin_log(thd, true, thd->query().str, thd->query().length))
@@ -721,7 +721,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
       Since we about to update table definition in the data-dictionary below
       we need to remove its TABLE/TABLE_SHARE from TDC now.
     */
-    close_all_tables_for_name(thd, first_table->table->s, false, NULL);
+    close_all_tables_for_name(thd, first_table->table->s, false, nullptr);
   }
 
   if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) {

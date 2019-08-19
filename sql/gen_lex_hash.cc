@@ -127,7 +127,7 @@ class hash_map_info {
   int size_hash_map;
 
   hash_map_info()
-      : root_by_len(NULL), max_len(0), hash_map(NULL), size_hash_map(0) {}
+      : root_by_len(nullptr), max_len(0), hash_map(nullptr), size_hash_map(0) {}
 
   ~hash_map_info() {
     for (int i = 0; i < max_len; i++) root_by_len[i].destroy();

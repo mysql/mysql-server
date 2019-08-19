@@ -70,7 +70,7 @@ page_no_t trx_rseg_header_create(space_id_t space_id,
   /* Allocate a new file segment for the rollback segment */
   block = fseg_create(space_id, 0, TRX_RSEG + TRX_RSEG_FSEG_HEADER, mtr);
 
-  if (block == NULL) {
+  if (block == nullptr) {
     return (FIL_NULL); /* No space left */
   }
 
@@ -136,7 +136,7 @@ void trx_rseg_mem_free(trx_rseg_t *rseg) {
   ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
   ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
 
-  for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached); undo != NULL;
+  for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached); undo != nullptr;
        undo = next_undo) {
     next_undo = UT_LIST_GET_NEXT(undo_list, undo);
 
@@ -147,7 +147,7 @@ void trx_rseg_mem_free(trx_rseg_t *rseg) {
     trx_undo_mem_free(undo);
   }
 
-  for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached); undo != NULL;
+  for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached); undo != nullptr;
        undo = next_undo) {
     next_undo = UT_LIST_GET_NEXT(undo_list, undo);
 

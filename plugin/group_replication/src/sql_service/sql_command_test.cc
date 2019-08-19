@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ int sql_command_check() {
   int error = 1;
   Sql_service_interface *srvi = new Sql_service_interface();
 
-  if (srvi == NULL) {
+  if (srvi == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_CREATE_SESSION_UNABLE); /* purecov: inspected */

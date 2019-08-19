@@ -475,7 +475,7 @@ struct OSMutex {
     InitializeCriticalSection((LPCRITICAL_SECTION)&m_mutex);
 #else
     {
-      int ret = pthread_mutex_init(&m_mutex, NULL);
+      int ret = pthread_mutex_init(&m_mutex, nullptr);
       ut_a(ret == 0);
     }
 #endif /* _WIN32 */
@@ -1021,7 +1021,7 @@ struct latch_t {
     for library. We will never reach here because
     mutexes are disabled in library. */
     ut_error;
-    return (NULL);
+    return (nullptr);
 #endif /* !UNIV_LIBRARY */
   }
 

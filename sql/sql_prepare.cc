@@ -331,7 +331,8 @@ static inline void rewrite_query_if_needed(THD *thd) {
   bool general =
       (opt_general_log && !(opt_general_log_raw || thd->slave_thread));
 
-  if ((thd->sp_runtime_ctx == NULL) && (general || opt_slow_log || opt_bin_log))
+  if ((thd->sp_runtime_ctx == nullptr) &&
+      (general || opt_slow_log || opt_bin_log))
     mysql_rewrite_query(thd);
 }
 
@@ -351,7 +352,7 @@ static inline void log_execute_line(THD *thd) {
     sub-statements inside stored procedures are not logged into
     the general log.
   */
-  if (thd->sp_runtime_ctx != NULL) return;
+  if (thd->sp_runtime_ctx != nullptr) return;
 
   if (thd->rewritten_query.length())
     query_logger.general_log_write(thd, COM_STMT_EXECUTE,
@@ -984,7 +985,7 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
 
   if (show_precheck(thd, lex, false)) goto error;
 
-  DBUG_ASSERT(lex->result == NULL);
+  DBUG_ASSERT(lex->result == nullptr);
   DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
   DBUG_ASSERT(!lex->is_explain());
 
@@ -1001,7 +1002,7 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
-  if (unit->prepare(thd, 0, 0, 0)) goto error;
+  if (unit->prepare(thd, nullptr, 0, 0)) goto error;
 
   return false;
 error:
@@ -1100,7 +1101,7 @@ static bool select_like_stmt_test(THD *thd) {
   lex->select_lex->context.resolve_in_select_list = true;
 
   /* Calls SELECT_LEX::prepare */
-  const bool ret = lex->unit->prepare(thd, 0, 0, 0);
+  const bool ret = lex->unit->prepare(thd, nullptr, 0, 0);
   return ret;
 }
 
@@ -1237,7 +1238,7 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
     of what is done at statement execution (in mysql_execute_command()).
   */
   Opt_trace_start ots(thd, tables, sql_command, &lex->var_list,
-                      thd->query().str, thd->query().length, NULL,
+                      thd->query().str, thd->query().length, nullptr,
                       thd->variables.character_set_client);
 
   Opt_trace_object trace_command(&thd->opt_trace);
@@ -1465,7 +1466,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt =
       MYSQL_CREATE_PS(stmt, stmt->id, thd->m_statement_psi, stmt->name().str,
-                      stmt->name().length, NULL, 0);
+                      stmt->name().length, nullptr, 0);
 
   if (stmt->prepare(query, length)) {
     /* Delete this stmt stats from PS table. */
@@ -1585,7 +1586,7 @@ silent_error:
 
 static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len) {
   THD *thd = lex->thd;
-  char *query_str = 0;
+  char *query_str = nullptr;
 
   if (lex->prepared_stmt_code_is_varref) {
     /* This is PREPARE stmt FROM or EXECUTE IMMEDIATE @var. */
@@ -1709,7 +1710,7 @@ void mysql_sql_stmt_prepare(THD *thd) {
   /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt =
       MYSQL_CREATE_PS(stmt, stmt->id, thd->m_statement_psi, stmt->name().str,
-                      stmt->name().length, NULL, 0);
+                      stmt->name().length, nullptr, 0);
 
   if (stmt->prepare(query, query_len)) {
     /* Delete this stmt stats from PS table. */
@@ -1722,7 +1723,7 @@ void mysql_sql_stmt_prepare(THD *thd) {
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-          ->mark_as_changed(thd, NULL);
+          ->mark_as_changed(thd, nullptr);
     my_ok(thd, 0L, 0L, "Statement prepared");
   }
 }
@@ -1754,7 +1755,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex) {
   */
   lex->thd = thd;
 
-  if (lex->m_sql_cmd != NULL) lex->m_sql_cmd->cleanup(thd);
+  if (lex->m_sql_cmd != nullptr) lex->m_sql_cmd->cleanup(thd);
 
   for (; sl; sl = sl->next_select_in_list()) {
     if (!sl->first_execution) {
@@ -1779,7 +1780,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex) {
         DBUG_ASSERT(sl->having_cond()->real_item());
         sl->having_cond()->cleanup();
       }
-      DBUG_ASSERT(sl->join == 0);
+      DBUG_ASSERT(sl->join == nullptr);
       ORDER *order;
       /* Fix GROUP list */
       if (sl->group_list_ptrs && sl->group_list_ptrs->size() > 0) {
@@ -1842,7 +1843,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex) {
 
   lex->allow_sum_func = 0;
   lex->m_deny_window_func = 0;
-  lex->in_sum_func = NULL;
+  lex->in_sum_func = nullptr;
 
   lex->reset_exec_started();
 
@@ -2099,7 +2100,7 @@ void mysql_sql_stmt_close(THD *thd) {
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-          ->mark_as_changed(thd, NULL);
+          ->mark_as_changed(thd, nullptr);
     my_ok(thd);
   }
 }
@@ -2255,9 +2256,9 @@ bool Execute_sql_statement::execute_server_code(THD *thd) {
 
   parent_digest = thd->m_digest;
   parent_locker = thd->m_statement_psi;
-  thd->m_digest = NULL;
-  thd->m_statement_psi = NULL;
-  error = parse_sql(thd, &parser_state, NULL) || thd->is_error();
+  thd->m_digest = nullptr;
+  thd->m_statement_psi = nullptr;
+  error = parse_sql(thd, &parser_state, nullptr) || thd->is_error();
   thd->m_digest = parent_digest;
   thd->m_statement_psi = parent_locker;
 
@@ -2266,7 +2267,7 @@ bool Execute_sql_statement::execute_server_code(THD *thd) {
   thd->lex->set_trg_event_type_for_tables();
 
   parent_locker = thd->m_statement_psi;
-  thd->m_statement_psi = NULL;
+  thd->m_statement_psi = nullptr;
 
   /*
     Rewrite first (if needed); execution might replace passwords
@@ -2359,7 +2360,7 @@ Prepared_statement::~Prepared_statement() {
   */
   m_arena.free_items();
   if (lex) {
-    DBUG_ASSERT(lex->sphead == NULL);
+    DBUG_ASSERT(lex->sphead == nullptr);
     lex_end(lex);
     destroy(lex->result);
     delete (st_lex_local *)lex;  // TRASH memory
@@ -2380,7 +2381,7 @@ bool Prepared_statement::set_name(const LEX_CSTRING &name_arg) {
   m_name.length = name_arg.length;
   m_name.str = static_cast<char *>(
       memdup_root(m_arena.mem_root, name_arg.str, name_arg.length));
-  return m_name.str == NULL;
+  return m_name.str == nullptr;
 }
 
 /**
@@ -2401,7 +2402,7 @@ bool Prepared_statement::set_db(const LEX_CSTRING &db_arg) {
   } else {
     m_db = NULL_CSTR;
   }
-  return db_arg.str != NULL && m_db.str == NULL;
+  return db_arg.str != nullptr && m_db.str == nullptr;
 }
 
 /**************************************************************************
@@ -2438,7 +2439,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
   Query_arena *old_stmt_arena;
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
-  unsigned char *token_array = NULL;
+  unsigned char *token_array = nullptr;
 
   DBUG_TRACE;
   /*
@@ -2490,8 +2491,8 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
   lex_start(thd);
   lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
-  thd->m_digest = NULL;
-  thd->m_statement_psi = NULL;
+  thd->m_digest = nullptr;
+  thd->m_statement_psi = nullptr;
 
   sql_digest_state digest;
   digest.reset(token_array, max_digest_length);
@@ -2503,12 +2504,12 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
 
   thd->m_parser_state = &parser_state;
   invoke_pre_parse_rewrite_plugins(thd);
-  thd->m_parser_state = NULL;
+  thd->m_parser_state = nullptr;
 
   error = thd->is_error();
 
   if (!error) {
-    error = parse_sql(thd, &parser_state, NULL) || thd->is_error() ||
+    error = parse_sql(thd, &parser_state, nullptr) || thd->is_error() ||
             init_param_array(this);
   }
   if (!error) {  // We've just created the statement maybe there is a rewrite
@@ -2567,7 +2568,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
     statements: ensure we have no memory leak here if by someone tries
     to PREPARE stmt FROM "CREATE PROCEDURE ..."
   */
-  DBUG_ASSERT(lex->sphead == NULL || error != 0);
+  DBUG_ASSERT(lex->sphead == nullptr || error != 0);
   /* The order is important */
   lex->unit->cleanup(thd, true);
 
@@ -2641,7 +2642,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
       sub-statements inside stored procedures are not logged into
       the general log.
     */
-    if (thd->sp_runtime_ctx == NULL) {
+    if (thd->sp_runtime_ctx == nullptr) {
       if (thd->rewritten_query.length())
         query_logger.general_log_write(thd, COM_STMT_PREPARE,
                                        thd->rewritten_query.c_ptr_safe(),
@@ -2786,7 +2787,7 @@ reexecute:
     allocated items when cleaning up after validation of the prepared
     statement.
   */
-  DBUG_ASSERT(thd->item_list() == NULL);
+  DBUG_ASSERT(thd->item_list() == nullptr);
 
   /*
     Install the metadata observer. If some metadata version is
@@ -2794,7 +2795,7 @@ reexecute:
     the observer method will be invoked to push an error into
     the error stack.
   */
-  Reprepare_observer *stmt_reprepare_observer = NULL;
+  Reprepare_observer *stmt_reprepare_observer = nullptr;
 
   if (sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) {
     reprepare_observer.reset_reprepare_observer();
@@ -3315,7 +3316,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg, Ed_row *fields,
       m_column_count(column_count_arg),
       m_rows(rows_arg),
       m_fields(fields),
-      m_next_rset(NULL) {}
+      m_next_rset(nullptr) {}
 
 /***************************************************************************
  * Ed_result_set
@@ -3326,7 +3327,10 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg, Ed_row *fields,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-    : m_diagnostics_area(false), m_thd(thd), m_rsets(0), m_current_rset(0) {}
+    : m_diagnostics_area(false),
+      m_thd(thd),
+      m_rsets(nullptr),
+      m_current_rset(nullptr) {}
 
 /**
   Free all result sets of the previous statement, if any,
@@ -3428,10 +3432,10 @@ void Ed_connection::add_result_set(Ed_result_set *ed_result_set) {
 
 Protocol_local::Protocol_local(THD *thd, Ed_connection *ed_connection)
     : m_connection(ed_connection),
-      m_rset(NULL),
+      m_rset(nullptr),
       m_column_count(0),
-      m_current_row(NULL),
-      m_current_column(NULL),
+      m_current_row(nullptr),
+      m_current_column(nullptr),
       m_send_metadata(false),
       m_thd(thd) {}
 
@@ -3454,7 +3458,7 @@ void Protocol_local::opt_add_row_to_rset() {
 */
 
 bool Protocol_local::store_null() {
-  if (m_current_column == NULL)
+  if (m_current_column == nullptr)
     return true; /* start_row() failed to allocate memory. */
 
   memset(m_current_column, 0, sizeof(*m_current_column));
@@ -3470,7 +3474,7 @@ bool Protocol_local::store_null() {
 */
 
 bool Protocol_local::store_column(const void *data, size_t length) {
-  if (m_current_column == NULL)
+  if (m_current_column == nullptr)
     return true; /* start_row() failed to allocate memory. */
 
   m_current_column->str = new (&m_rset_root) char[length + 1];
@@ -3501,7 +3505,7 @@ bool Protocol_local::store_string(const char *str, size_t length,
     length = convert.length();
   }
 
-  if (m_current_column == NULL)
+  if (m_current_column == nullptr)
     return true; /* start_row() failed to allocate memory. */
 
   m_current_column->str = strmake_root(&m_rset_root, str, length);
@@ -3623,13 +3627,13 @@ bool Protocol_local::send_eof(uint, uint) {
   Ed_result_set *ed_result_set;
 
   DBUG_ASSERT(m_rset);
-  m_current_row = NULL;
+  m_current_row = nullptr;
 
   ed_result_set = new (&m_rset_root)
       Ed_result_set(m_rset, m_fields, m_column_count, &m_rset_root);
 
-  m_rset = NULL;
-  m_fields = NULL;
+  m_rset = nullptr;
+  m_fields = nullptr;
 
   if (!ed_result_set) return true;
 
@@ -3694,7 +3698,7 @@ bool Protocol_local::end_row() {
 
   DBUG_ASSERT(m_rset);
   opt_add_row_to_rset();
-  m_current_row = NULL;
+  m_current_row = nullptr;
 
   return false;
 }
@@ -3713,7 +3717,7 @@ bool Protocol_local::start_result_metadata(uint elements, uint,
 bool Protocol_local::end_result_metadata() {
   m_send_metadata = false;
   m_fields = new (&m_rset_root) Ed_row(m_current_row, m_column_count);
-  m_current_row = NULL;
+  m_current_row = nullptr;
   return false;
 }
 

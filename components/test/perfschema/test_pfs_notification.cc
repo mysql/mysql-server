@@ -226,7 +226,7 @@ bool check_user(std::string &user) {
 */
 void session_connect_callback(int handle,
                               const PSI_thread_attrs *thread_attrs) {
-  assert(thread_attrs != NULL);
+  assert(thread_attrs != nullptr);
 
   /*
     There two primary test modes: MTR and RQG. Logging is only enabled in
@@ -327,7 +327,7 @@ void session_connect_callback(int handle,
     PSI_thread_attrs my_thread_attrs;
 
     if (mysql_service_pfs_resource_group_v3->get_thread_system_attrs_by_id(
-            NULL, thread_attrs->m_thread_internal_id, &my_thread_attrs)) {
+            nullptr, thread_attrs->m_thread_internal_id, &my_thread_attrs)) {
       print_log("get_thread_resource_group_by_id failed");
     }
 
@@ -346,14 +346,14 @@ void session_connect_callback(int handle,
 
     /* Update resource group */
     if (mysql_service_pfs_resource_group_v3->set_thread_resource_group_by_id(
-            NULL, thread_attrs->m_thread_internal_id, group.c_str(),
+            nullptr, thread_attrs->m_thread_internal_id, group.c_str(),
             (int)group.length(), (void *)user_data)) {
       print_log("set_thread_resource_group_by_id failed");
     }
 
     /* Get thread attributes again to verify changes */
     if (mysql_service_pfs_resource_group_v3->get_thread_system_attrs_by_id(
-            NULL, thread_attrs->m_thread_internal_id, &my_thread_attrs)) {
+            nullptr, thread_attrs->m_thread_internal_id, &my_thread_attrs)) {
       print_log("get_thread_resource_group_by_id failed");
     }
 
@@ -363,8 +363,8 @@ void session_connect_callback(int handle,
     if (handle == 1) {
       std::string group = "RESOURCE_GROUP_" + std::to_string(handle);
       if (mysql_service_pfs_resource_group_v3->set_thread_resource_group_by_id(
-              NULL, thread_attrs->m_thread_internal_id, group.c_str(),
-              (int)group.length(), NULL)) {
+              nullptr, thread_attrs->m_thread_internal_id, group.c_str(),
+              (int)group.length(), nullptr)) {
         print_log("set_thread_resource_group_by_id failed");
       }
     }

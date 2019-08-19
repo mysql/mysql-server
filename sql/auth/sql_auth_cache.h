@@ -240,7 +240,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
   const char *get_proxied_user() { return proxied_user; }
   const char *get_proxied_host() { return proxied_host.get_host(); }
   void set_user(MEM_ROOT *mem, const char *user_arg) {
-    user = user_arg && *user_arg ? strdup_root(mem, user_arg) : NULL;
+    user = user_arg && *user_arg ? strdup_root(mem, user_arg) : nullptr;
   }
 
   bool check_validity(bool check_no_resolve);
@@ -249,7 +249,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
                const char *proxied_user_arg, bool any_proxy_user);
 
   inline static bool auth_element_equals(const char *a, const char *b) {
-    return (a == b || (a != NULL && b != NULL && !strcmp(a, b)));
+    return (a == b || (a != nullptr && b != nullptr && !strcmp(a, b)));
   }
 
   bool pk_equals(ACL_PROXY_USER *grant);

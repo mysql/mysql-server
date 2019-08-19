@@ -165,7 +165,7 @@ class Channel_info_local_socket : public Channel_info {
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
 
-    if (thd != NULL) {
+    if (thd != nullptr) {
       init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
     }
@@ -237,7 +237,7 @@ class Channel_info_tcpip_socket : public Channel_info {
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
 
-    if (thd != NULL) {
+    if (thd != nullptr) {
       thd->set_admin_connection(m_is_admin_conn);
       init_net_server_extension(thd);
     }
@@ -300,7 +300,7 @@ class TCP_socket {
 
   MYSQL_SOCKET create_socket(const struct addrinfo *addrinfo_list,
                              int addr_family, struct addrinfo **use_addrinfo) {
-    for (const struct addrinfo *cur_ai = addrinfo_list; cur_ai != NULL;
+    for (const struct addrinfo *cur_ai = addrinfo_list; cur_ai != nullptr;
          cur_ai = cur_ai->ai_next) {
       if (cur_ai->ai_family != addr_family) continue;
 
@@ -310,7 +310,7 @@ class TCP_socket {
 
       char ip_addr[INET6_ADDRSTRLEN];
 
-      if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof(ip_addr), NULL, 0,
+      if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof(ip_addr), nullptr, 0,
                           NI_NUMERICHOST)) {
         ip_addr[0] = 0;
       }
@@ -356,7 +356,7 @@ class TCP_socket {
     @retval   valid socket if successful else MYSQL_INVALID_SOCKET on failure.
   */
   MYSQL_SOCKET get_listener_socket() {
-    const char *bind_address_str = NULL;
+    const char *bind_address_str = nullptr;
 
     LogErr(INFORMATION_LEVEL, ER_CONN_TCP_ADDRESS, m_bind_addr_str.c_str(),
            m_tcp_port);
@@ -466,7 +466,7 @@ class TCP_socket {
          cur_ai = cur_ai->ai_next) {
       char ip_addr[INET6_ADDRSTRLEN];
 
-      if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof(ip_addr), NULL, 0,
+      if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof(ip_addr), nullptr, 0,
                           NI_NUMERICHOST)) {
         LogErr(ERROR_LEVEL, ER_CONN_TCP_IP_NOT_LOGGED);
         continue;
@@ -1164,7 +1164,7 @@ extern "C" void *admin_socket_thread(void *arg) {
   );
 
   my_thread_end();
-  my_thread_exit(0);
+  my_thread_exit(nullptr);
 
   return nullptr;
 }
@@ -1366,7 +1366,7 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
       LogErr(ERROR_LEVEL, ER_CONN_SOCKET_SELECT_FAILED, socket_errno);
   }
 
-  if (retval < 0 || connection_events_loop_aborted()) return NULL;
+  if (retval < 0 || connection_events_loop_aborted()) return nullptr;
 
   /* Is this a new connection request ? */
   bool is_unix_socket = false, is_admin_sock;
@@ -1417,17 +1417,17 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
   }
 #endif  // HAVE_LIBWRAP
 
-  Channel_info *channel_info = NULL;
+  Channel_info *channel_info = nullptr;
   if (is_unix_socket)
     channel_info = new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
     channel_info = new (std::nothrow)
         Channel_info_tcpip_socket(connect_sock, is_admin_sock);
-  if (channel_info == NULL) {
+  if (channel_info == nullptr) {
     (void)mysql_socket_shutdown(connect_sock, SHUT_RDWR);
     (void)mysql_socket_close(connect_sock);
     connection_errors_internal++;
-    return NULL;
+    return nullptr;
   }
 
 #ifdef HAVE_SETNS

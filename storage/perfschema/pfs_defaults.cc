@@ -37,7 +37,7 @@
 
 void install_default_setup(PSI_thread_bootstrap *thread_boot) {
   void *service = thread_boot->get_interface(PSI_CURRENT_THREAD_VERSION);
-  if (service == NULL) {
+  if (service == nullptr) {
     return;
   }
 
@@ -51,9 +51,9 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot) {
   PSI_thread_service_t *psi = (PSI_thread_service_t *)service;
 
   psi->register_thread(pfs_category, &thread_info, 1);
-  PSI_thread *psi_thread = psi->new_thread(thread_key, NULL, 0);
+  PSI_thread *psi_thread = psi->new_thread(thread_key, nullptr, 0);
 
-  if (psi_thread != NULL) {
+  if (psi_thread != nullptr) {
     /* LF_HASH needs a thread, for PINS */
     psi->set_thread(psi_thread);
 

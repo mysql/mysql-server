@@ -222,7 +222,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
 
     get_key_full_length_rdonly(off, lastkey);
     subkeys = ft_sintXkorr(lastkey + off);
-    DBUG_ASSERT(info->ft1_to_ft2 == 0 || subkeys >= 0);
+    DBUG_ASSERT(info->ft1_to_ft2 == nullptr || subkeys >= 0);
     comp_flag = SEARCH_SAME;
     if (subkeys >= 0) {
       /* normal word, one-level tree structure */
@@ -275,7 +275,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
       }
     }
   }
-  leaf_buff = 0;
+  leaf_buff = nullptr;
   leaf_page = 0;
   if (nod_flag) {
     leaf_page = _mi_kpos(nod_flag, keypos);
@@ -336,8 +336,9 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
                             &length)) {
         goto err;
       }
-      ret_value = _mi_insert(info, keyinfo, key, anc_buff, keypos, lastkey,
-                             (uchar *)0, (uchar *)0, (my_off_t)0, false);
+      ret_value =
+          _mi_insert(info, keyinfo, key, anc_buff, keypos, lastkey,
+                     (uchar *)nullptr, (uchar *)nullptr, (my_off_t)0, false);
     }
   }
   if (ret_value == 0 && mi_getint(anc_buff) > keyinfo->block_length) {
@@ -409,7 +410,8 @@ static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
                                 &tmp))
             goto err;
           ret_value = _mi_insert(info, keyinfo, key, leaf_buff, endpos, keybuff,
-                                 (uchar *)0, (uchar *)0, (my_off_t)0, false);
+                                 (uchar *)nullptr, (uchar *)nullptr,
+                                 (my_off_t)0, false);
         }
       }
       if (_mi_write_keypage(info, keyinfo, leaf_page, DFLT_INIT_HITS,
@@ -432,9 +434,10 @@ static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
   if (keypos != anc_buff + 2 + share->base.key_reflength &&
       !_mi_get_last_key(info, keyinfo, anc_buff, ret_key, keypos, &tmp))
     goto err;
-  prev_key = (keypos == anc_buff + 2 + share->base.key_reflength ? 0 : ret_key);
+  prev_key =
+      (keypos == anc_buff + 2 + share->base.key_reflength ? nullptr : ret_key);
   length = (*keyinfo->pack_key)(keyinfo, share->base.key_reflength,
-                                keypos == endpos ? (uchar *)0 : keypos,
+                                keypos == endpos ? (uchar *)nullptr : keypos,
                                 prev_key, prev_key, keybuff, &s_temp);
   if (length > 0)
     memmove(keypos + length, keypos, (size_t)(endpos - keypos));
@@ -515,7 +518,7 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
       goto err;
 
     /* merge pages and put parting key from anc_buff between */
-    prev_key = (leaf_length == p_length ? (uchar *)0 : leaf_key);
+    prev_key = (leaf_length == p_length ? (uchar *)nullptr : leaf_key);
     t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, buff + p_length,
                                     prev_key, prev_key, anc_key, &s_temp);
     length = buff_length - p_length;
@@ -530,7 +533,7 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
     /* remove key from anc_buff */
 
     if (!(s_length = remove_key(keyinfo, key_reflength, keypos, anc_key,
-                                anc_buff + anc_length, (my_off_t *)0)))
+                                anc_buff + anc_length, (my_off_t *)nullptr)))
       goto err;
 
     anc_length -= s_length;
@@ -557,10 +560,11 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
       _mi_kpointer(info, leaf_key + key_length, next_page);
       /* Save key in anc_buff */
       prev_key =
-          (keypos == anc_buff + 2 + key_reflength ? (uchar *)0 : anc_key),
-      t_length = (*keyinfo->pack_key)(keyinfo, key_reflength,
-                                      (keypos == endpos ? (uchar *)0 : keypos),
-                                      prev_key, prev_key, leaf_key, &s_temp);
+          (keypos == anc_buff + 2 + key_reflength ? (uchar *)nullptr : anc_key),
+      t_length =
+          (*keyinfo->pack_key)(keyinfo, key_reflength,
+                               (keypos == endpos ? (uchar *)nullptr : keypos),
+                               prev_key, prev_key, leaf_key, &s_temp);
       if (t_length >= 0)
         memmove(keypos + t_length, keypos, (size_t)(endpos - keypos));
       else
@@ -574,9 +578,9 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
                 (size_t)nod_flag);
       if (!(*keyinfo->get_key)(keyinfo, nod_flag, &half_pos, leaf_key))
         goto err;
-      t_length =
-          (int)(*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)0, (uchar *)0,
-                                    (uchar *)0, leaf_key, &s_temp);
+      t_length = (int)(*keyinfo->pack_key)(keyinfo, nod_flag, nullptr,
+                                           (uchar *)nullptr, (uchar *)nullptr,
+                                           leaf_key, &s_temp);
       /* t_length will always be > 0 for a new page !*/
       length = (uint)((buff + mi_getint(buff)) - half_pos);
       memmove((uchar *)buff + p_length + t_length, (uchar *)half_pos,
@@ -615,11 +619,11 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
     goto err;
 
   /* merge pages and put parting key from anc_buff between */
-  prev_key = (leaf_length == p_length ? (uchar *)0 : leaf_key);
+  prev_key = (leaf_length == p_length ? (uchar *)nullptr : leaf_key);
   t_length = (*keyinfo->pack_key)(
       keyinfo, nod_flag,
-      (leaf_length == p_length ? (uchar *)0 : leaf_buff + p_length), prev_key,
-      prev_key, anc_key, &s_temp);
+      (leaf_length == p_length ? (uchar *)nullptr : leaf_buff + p_length),
+      prev_key, prev_key, anc_key, &s_temp);
   if (t_length >= 0)
     memmove((uchar *)endpos + t_length, (uchar *)leaf_buff + p_length,
             (size_t)(leaf_length - p_length));
@@ -633,7 +637,7 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
 
   /* remove key from anc_buff */
   if (!(s_length = remove_key(keyinfo, key_reflength, keypos, anc_key,
-                              anc_buff + anc_length, (my_off_t *)0)))
+                              anc_buff + anc_length, (my_off_t *)nullptr)))
     goto err;
 
   anc_length -= s_length;
@@ -643,7 +647,7 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
     if (_mi_dispose(info, keyinfo, leaf_page, DFLT_INIT_HITS)) goto err;
   } else { /* Page is full */
     if (keypos == anc_buff + 2 + key_reflength)
-      anc_pos = 0; /* First key */
+      anc_pos = nullptr; /* First key */
     else if (!_mi_get_last_key(info, keyinfo, anc_buff, anc_pos = anc_key,
                                keypos, &length))
       goto err;
@@ -656,9 +660,9 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
     DBUG_DUMP("key_to_anc", (uchar *)leaf_key, key_length);
 
     temp_pos = anc_buff + anc_length;
-    t_length = (*keyinfo->pack_key)(keyinfo, key_reflength,
-                                    keypos == temp_pos ? (uchar *)0 : keypos,
-                                    anc_pos, anc_pos, leaf_key, &s_temp);
+    t_length = (*keyinfo->pack_key)(
+        keyinfo, key_reflength, keypos == temp_pos ? (uchar *)nullptr : keypos,
+        anc_pos, anc_pos, leaf_key, &s_temp);
     if (t_length > 0)
       memmove(keypos + t_length, keypos, (size_t)(temp_pos - keypos));
     else
@@ -673,8 +677,9 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
     if (!(length = (*keyinfo->get_key)(keyinfo, nod_flag, &half_pos, leaf_key)))
       goto err;
     DBUG_DUMP("key_to_leaf", (uchar *)leaf_key, length);
-    t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)0, (uchar *)0,
-                                    (uchar *)0, leaf_key, &s_temp);
+    t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)nullptr,
+                                    (uchar *)nullptr, (uchar *)nullptr,
+                                    leaf_key, &s_temp);
     length = (uint)((buff + buff_length) - half_pos);
     DBUG_PRINT("info", ("t_length: %d  length: %d", t_length, (int)length));
     memmove((uchar *)leaf_buff + p_length + t_length, (uchar *)half_pos,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,11 +39,14 @@
 
 static const sasl_callback_t callbacks[] = {
 #ifdef SASL_CB_GETREALM
-    {SASL_CB_GETREALM, NULL, NULL},
+    {SASL_CB_GETREALM, nullptr, nullptr},
 #endif
-    {SASL_CB_USER, NULL, NULL},         {SASL_CB_AUTHNAME, NULL, NULL},
-    {SASL_CB_PASS, NULL, NULL},         {SASL_CB_ECHOPROMPT, NULL, NULL},
-    {SASL_CB_NOECHOPROMPT, NULL, NULL}, {SASL_CB_LIST_END, NULL, NULL}};
+    {SASL_CB_USER, nullptr, nullptr},
+    {SASL_CB_AUTHNAME, nullptr, nullptr},
+    {SASL_CB_PASS, nullptr, nullptr},
+    {SASL_CB_ECHOPROMPT, nullptr, nullptr},
+    {SASL_CB_NOECHOPROMPT, nullptr, nullptr},
+    {SASL_CB_LIST_END, nullptr, nullptr}};
 
 sasl_security_properties_t security_properties = {
     /** Minimum acceptable final level. */
@@ -55,9 +58,9 @@ sasl_security_properties_t security_properties = {
     /** security flags */
     0,
     /** Property names. */
-    NULL,
+    nullptr,
     /** Property values. */
-    NULL,
+    nullptr,
 };
 
 class Sasl_client {

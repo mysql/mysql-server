@@ -51,11 +51,11 @@ struct st_test_statement {
 
 static struct st_test_statement test_query_plan[] = {
     /* DB   RESULT   QUERY */
-    {NULL, true, "SELECT 'first complex command' as a"},
-    {NULL, false, "SET AUTOCOMMIT = 0"},
+    {nullptr, true, "SELECT 'first complex command' as a"},
+    {nullptr, false, "SET AUTOCOMMIT = 0"},
     {"test", false, "INSERT INTO t1 VALUES (8,4)"},
-    {NULL, false, "COMMIT"},
-    {NULL, false, "SET AUTOCOMMIT = 1"},
+    {nullptr, false, "COMMIT"},
+    {nullptr, false, "SET AUTOCOMMIT = 1"},
     {"test", true, "SELECT COUNT(*) FROM t1"}};
 
 #define STRING_BUFFER_SIZE 1024
@@ -137,7 +137,7 @@ struct st_plugin_ctx {
   st_plugin_ctx() { reset(); }
 
   void reset() {
-    resultcs = NULL;
+    resultcs = nullptr;
     server_status = 0;
     current_col = 0;
     warn_count = 0;
@@ -732,7 +732,7 @@ static void test_selects(MYSQL_SESSION session, void *p) {
 
   struct st_plugin_ctx *plugin_ctx = new st_plugin_ctx();
 
-  const char *last_db = NULL;
+  const char *last_db = nullptr;
   size_t stmt_count = sizeof(test_query_plan) / sizeof(test_query_plan[0]);
   for (size_t i = 0; i < stmt_count; i++) {
     /* Change current DB if needed */
@@ -793,7 +793,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -822,7 +822,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -868,11 +868,11 @@ mysql_declare_plugin(test_daemon){
     "Test SQL commit",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100,                         /* 1.0 */
-    NULL,                           /* status variables */
-    NULL,                           /* system variables */
-    NULL,                           /* config options */
+    nullptr,                        /* status variables */
+    nullptr,                        /* system variables */
+    nullptr,                        /* config options */
     0,                              /* flags */
 } mysql_declare_plugin_end;

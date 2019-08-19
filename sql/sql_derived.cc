@@ -232,7 +232,7 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
   tl->derived_unit()->exclude_tree(thd);
-  tl->set_derived_unit(NULL);
+  tl->set_derived_unit(nullptr);
   tl->set_privileges(SELECT_ACL);
   return false;
 }
@@ -302,7 +302,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   if (is_view())  // but views cannot.
     for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
       // Make sure there are no outer references
-      DBUG_ASSERT(sl->context.outer_context == NULL);
+      DBUG_ASSERT(sl->context.outer_context == nullptr);
     }
 #endif
 
@@ -345,7 +345,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       it to have more than one recursive SELECT.
     */
     bool previous_is_recursive = false;
-    SELECT_LEX *last_non_recursive = NULL;
+    SELECT_LEX *last_non_recursive = nullptr;
     for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
       if (sl->is_recursive()) {
         if (sl->is_ordered() || sl->has_limit() || sl->is_distinct()) {
@@ -496,7 +496,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 {
   DBUG_TRACE;
 
-  DBUG_ASSERT(is_view_or_derived() && !is_merged() && table == NULL);
+  DBUG_ASSERT(is_view_or_derived() && !is_merged() && table == nullptr);
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
@@ -519,7 +519,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
     derived_result->table = table;
   }
 
-  if (table == NULL) {
+  if (table == nullptr) {
     // Create the result table for the materialization
     ulonglong create_options =
         derived->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
@@ -747,7 +747,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
     2) Table is a constant one with all NULL values.
   */
   if (table->is_created() ||                          // 1
-      (select_lex->join != NULL &&                    // 2
+      (select_lex->join != nullptr &&                 // 2
        (select_lex->join->const_table_map & map())))  // 2
   {
     /*
@@ -755,9 +755,9 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
       they would have been materialized already.
     */
 #ifndef DBUG_OFF
-    if (table != NULL) {
+    if (table != nullptr) {
       QEP_TAB *tab = table->reginfo.qep_tab;
-      DBUG_ASSERT(tab == NULL || tab->type() != JT_CONST ||
+      DBUG_ASSERT(tab == nullptr || tab->type() != JT_CONST ||
                   table->has_null_row());
     }
 #endif

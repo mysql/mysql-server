@@ -53,8 +53,8 @@ Plugin_table table_session_account_connect_attrs::m_table_def(
 PFS_engine_table_share table_session_account_connect_attrs::m_share = {
     &pfs_readonly_world_acl,
     table_session_account_connect_attrs::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     cursor_by_thread_connect_attr::get_row_count,
     sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
     &m_table_lock,
@@ -76,12 +76,12 @@ table_session_account_connect_attrs::table_session_account_connect_attrs()
 bool table_session_account_connect_attrs::thread_fits(PFS_thread *thread) {
   PFS_thread *current_thread = PFS_thread::get_current_thread();
   /* The current thread may not have instrumentation attached. */
-  if (current_thread == NULL) {
+  if (current_thread == nullptr) {
     return false;
   }
 
   /* The thread we compare to, by definition, has some instrumentation. */
-  DBUG_ASSERT(thread != NULL);
+  DBUG_ASSERT(thread != nullptr);
 
   uint username_length = current_thread->m_username_length;
   uint hostname_length = current_thread->m_hostname_length;

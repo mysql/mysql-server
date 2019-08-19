@@ -63,7 +63,7 @@ Plugin_table table_accounts::m_table_def(
 PFS_engine_table_share table_accounts::m_share = {
     &pfs_truncatable_acl,
     table_accounts::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_accounts::delete_all_rows,
     cursor_by_account::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -115,7 +115,7 @@ int table_accounts::delete_all_rows(void) {
 table_accounts::table_accounts() : cursor_by_account(&m_share) {}
 
 int table_accounts::index_init(uint, bool) {
-  PFS_index_accounts *result = NULL;
+  PFS_index_accounts *result = nullptr;
   result = PFS_NEW(PFS_index_accounts_by_user_host);
   m_opened_index = result;
   m_index = result;

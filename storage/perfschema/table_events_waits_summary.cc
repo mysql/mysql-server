@@ -65,7 +65,7 @@ Plugin_table table_events_waits_summary_by_instance::m_table_def(
 PFS_engine_table_share table_events_waits_summary_by_instance::m_share = {
     &pfs_truncatable_acl,
     table_events_waits_summary_by_instance::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_waits_summary_by_instance::delete_all_rows,
     table_all_instr::get_row_count,
     sizeof(pos_all_instr),
@@ -126,7 +126,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_mutex *pfs) {
   if (m_fields >= 1) {
     PFS_mutex_class *safe_class;
     safe_class = sanitize_mutex_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -138,7 +138,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_rwlock *pfs) {
   if (m_fields >= 1) {
     PFS_rwlock_class *safe_class;
     safe_class = sanitize_rwlock_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -150,7 +150,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_cond *pfs) {
   if (m_fields >= 1) {
     PFS_cond_class *safe_class;
     safe_class = sanitize_cond_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -162,7 +162,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_file *pfs) {
   if (m_fields >= 1) {
     PFS_file_class *safe_class;
     safe_class = sanitize_file_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -174,7 +174,7 @@ bool PFS_index_events_waits_summary_by_event_name::match(PFS_socket *pfs) {
   if (m_fields >= 1) {
     PFS_socket_class *safe_class;
     safe_class = sanitize_socket_class(pfs->m_class);
-    if (unlikely(safe_class == NULL)) {
+    if (unlikely(safe_class == nullptr)) {
       return false;
     }
     return m_key.match(safe_class);
@@ -205,7 +205,7 @@ table_events_waits_summary_by_instance::table_events_waits_summary_by_instance()
 }
 
 int table_events_waits_summary_by_instance::index_init(uint idx, bool) {
-  PFS_index_all_instr *result = NULL;
+  PFS_index_all_instr *result = nullptr;
   switch (idx) {
     case 0:
       result = PFS_NEW(PFS_index_events_waits_summary_by_instance);
@@ -253,7 +253,7 @@ int table_events_waits_summary_by_instance::make_instr_row(
 int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs) {
   PFS_mutex_class *safe_class;
   safe_class = sanitize_mutex_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -268,7 +268,7 @@ int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs) {
 int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs) {
   PFS_rwlock_class *safe_class;
   safe_class = sanitize_rwlock_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -283,7 +283,7 @@ int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs) {
 int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs) {
   PFS_cond_class *safe_class;
   safe_class = sanitize_cond_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -298,7 +298,7 @@ int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs) {
 int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
   PFS_file_class *safe_class;
   safe_class = sanitize_file_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -318,7 +318,7 @@ int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
 int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs) {
   PFS_socket_class *safe_class;
   safe_class = sanitize_socket_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 

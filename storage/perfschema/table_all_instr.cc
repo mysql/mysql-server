@@ -61,7 +61,7 @@ int table_all_instr::rnd_next(void) {
       case pos_all_instr::VIEW_MUTEX: {
         PFS_mutex_iterator it = global_mutex_container.iterate(m_pos.m_index_2);
         mutex = it.scan_next(&m_pos.m_index_2);
-        if (mutex != NULL) {
+        if (mutex != nullptr) {
           m_next_pos.set_after(&m_pos);
           return make_mutex_row(mutex);
         }
@@ -70,7 +70,7 @@ int table_all_instr::rnd_next(void) {
         PFS_rwlock_iterator it =
             global_rwlock_container.iterate(m_pos.m_index_2);
         rwlock = it.scan_next(&m_pos.m_index_2);
-        if (rwlock != NULL) {
+        if (rwlock != nullptr) {
           m_next_pos.set_after(&m_pos);
           return make_rwlock_row(rwlock);
         }
@@ -78,7 +78,7 @@ int table_all_instr::rnd_next(void) {
       case pos_all_instr::VIEW_COND: {
         PFS_cond_iterator it = global_cond_container.iterate(m_pos.m_index_2);
         cond = it.scan_next(&m_pos.m_index_2);
-        if (cond != NULL) {
+        if (cond != nullptr) {
           m_next_pos.set_after(&m_pos);
           return make_cond_row(cond);
         }
@@ -86,7 +86,7 @@ int table_all_instr::rnd_next(void) {
       case pos_all_instr::VIEW_FILE: {
         PFS_file_iterator it = global_file_container.iterate(m_pos.m_index_2);
         file = it.scan_next(&m_pos.m_index_2);
-        if (file != NULL) {
+        if (file != nullptr) {
           m_next_pos.set_after(&m_pos);
           return make_file_row(file);
         }
@@ -95,7 +95,7 @@ int table_all_instr::rnd_next(void) {
         PFS_socket_iterator it =
             global_socket_container.iterate(m_pos.m_index_2);
         socket = it.scan_next(&m_pos.m_index_2);
-        if (socket != NULL) {
+        if (socket != nullptr) {
           m_next_pos.set_after(&m_pos);
           return make_socket_row(socket);
         }
@@ -118,31 +118,31 @@ int table_all_instr::rnd_pos(const void *pos) {
   switch (m_pos.m_index_1) {
     case pos_all_instr::VIEW_MUTEX:
       mutex = global_mutex_container.get(m_pos.m_index_2);
-      if (mutex != NULL) {
+      if (mutex != nullptr) {
         return make_mutex_row(mutex);
       }
       break;
     case pos_all_instr::VIEW_RWLOCK:
       rwlock = global_rwlock_container.get(m_pos.m_index_2);
-      if (rwlock != NULL) {
+      if (rwlock != nullptr) {
         return make_rwlock_row(rwlock);
       }
       break;
     case pos_all_instr::VIEW_COND:
       cond = global_cond_container.get(m_pos.m_index_2);
-      if (cond != NULL) {
+      if (cond != nullptr) {
         return make_cond_row(cond);
       }
       break;
     case pos_all_instr::VIEW_FILE:
       file = global_file_container.get(m_pos.m_index_2);
-      if (file != NULL) {
+      if (file != nullptr) {
         return make_file_row(file);
       }
       break;
     case pos_all_instr::VIEW_SOCKET:
       socket = global_socket_container.get(m_pos.m_index_2);
-      if (socket != NULL) {
+      if (socket != nullptr) {
         return make_socket_row(socket);
       }
       break;
@@ -163,7 +163,7 @@ int table_all_instr::index_next(void) {
         PFS_mutex_iterator it = global_mutex_container.iterate(m_pos.m_index_2);
         do {
           mutex = it.scan_next(&m_pos.m_index_2);
-          if (mutex != NULL) {
+          if (mutex != nullptr) {
             if (m_opened_index->match(mutex)) {
               if (!make_mutex_row(mutex)) {
                 m_next_pos.set_after(&m_pos);
@@ -171,7 +171,7 @@ int table_all_instr::index_next(void) {
               }
             }
           }
-        } while (mutex != NULL);
+        } while (mutex != nullptr);
       } break;
       case pos_all_instr::VIEW_RWLOCK: {
         PFS_rwlock *rwlock;
@@ -179,7 +179,7 @@ int table_all_instr::index_next(void) {
             global_rwlock_container.iterate(m_pos.m_index_2);
         do {
           rwlock = it.scan_next(&m_pos.m_index_2);
-          if (rwlock != NULL) {
+          if (rwlock != nullptr) {
             if (m_opened_index->match(rwlock)) {
               if (!make_rwlock_row(rwlock)) {
                 m_next_pos.set_after(&m_pos);
@@ -187,14 +187,14 @@ int table_all_instr::index_next(void) {
               }
             }
           }
-        } while (rwlock != NULL);
+        } while (rwlock != nullptr);
       } break;
       case pos_all_instr::VIEW_COND: {
         PFS_cond *cond;
         PFS_cond_iterator it = global_cond_container.iterate(m_pos.m_index_2);
         do {
           cond = it.scan_next(&m_pos.m_index_2);
-          if (cond != NULL) {
+          if (cond != nullptr) {
             if (m_opened_index->match(cond)) {
               if (!make_cond_row(cond)) {
                 m_next_pos.set_after(&m_pos);
@@ -202,14 +202,14 @@ int table_all_instr::index_next(void) {
               }
             }
           }
-        } while (cond != NULL);
+        } while (cond != nullptr);
       } break;
       case pos_all_instr::VIEW_FILE: {
         PFS_file *file;
         PFS_file_iterator it = global_file_container.iterate(m_pos.m_index_2);
         do {
           file = it.scan_next(&m_pos.m_index_2);
-          if (file != NULL) {
+          if (file != nullptr) {
             if (m_opened_index->match(file)) {
               if (!make_file_row(file)) {
                 m_next_pos.set_after(&m_pos);
@@ -217,7 +217,7 @@ int table_all_instr::index_next(void) {
               }
             }
           }
-        } while (file != NULL);
+        } while (file != nullptr);
       } break;
       case pos_all_instr::VIEW_SOCKET: {
         PFS_socket *socket;
@@ -225,7 +225,7 @@ int table_all_instr::index_next(void) {
             global_socket_container.iterate(m_pos.m_index_2);
         do {
           socket = it.scan_next(&m_pos.m_index_2);
-          if (socket != NULL) {
+          if (socket != nullptr) {
             if (m_opened_index->match(socket)) {
               if (!make_socket_row(socket)) {
                 m_next_pos.set_after(&m_pos);
@@ -233,7 +233,7 @@ int table_all_instr::index_next(void) {
               }
             }
           }
-        } while (socket != NULL);
+        } while (socket != nullptr);
       } break;
     }
   }

@@ -68,9 +68,9 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_user *user;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_user *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  DBUG_ASSERT(typed_entry != nullptr);
   user = *typed_entry;
-  DBUG_ASSERT(user != NULL);
+  DBUG_ASSERT(user != nullptr);
   *length = user->m_key.m_key_length;
   result = user->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -98,9 +98,9 @@ void cleanup_user_hash(void) {
 }
 
 static LF_PINS *get_user_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_user_hash_pins == NULL)) {
+  if (unlikely(thread->m_user_hash_pins == nullptr)) {
     if (!user_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_user_hash_pins = lf_hash_get_pins(&user_hash);
   }
@@ -124,9 +124,9 @@ static void set_user_key(PFS_user_key *key, const char *user,
 PFS_user *find_or_create_user(PFS_thread *thread, const char *username,
                               uint username_length) {
   LF_PINS *pins = get_user_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_user_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
   PFS_user_key key;
@@ -151,12 +151,12 @@ search:
   lf_hash_search_unpin(pins);
 
   pfs = global_user_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_key = key;
     if (username_length > 0) {
       pfs->m_username = &pfs->m_key.m_hash_key[0];
     } else {
-      pfs->m_username = NULL;
+      pfs->m_username = nullptr;
     }
     pfs->m_username_length = username_length;
 
@@ -176,16 +176,16 @@ search:
     if (res > 0) {
       if (++retry_count > retry_max) {
         global_user_container.m_lost++;
-        return NULL;
+        return nullptr;
       }
       goto search;
     }
 
     global_user_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void PFS_user::aggregate(bool alive) {
@@ -266,7 +266,7 @@ PFS_user *sanitize_user(PFS_user *unsafe) {
 
 static void purge_user(PFS_thread *thread, PFS_user *user) {
   LF_PINS *pins = get_user_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return;
   }
 
@@ -304,7 +304,7 @@ class Proc_purge_user : public PFS_buffer_processor<PFS_user> {
 /** Purge non connected users, reset stats of connected users. */
 void purge_all_user(void) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return;
   }
 

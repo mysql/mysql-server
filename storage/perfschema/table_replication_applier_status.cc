@@ -66,8 +66,8 @@ Plugin_table table_replication_applier_status::m_table_def(
 PFS_engine_table_share table_replication_applier_status::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_status::create,
-    NULL,                                            /* write_row */
-    NULL,                                            /* delete_all_rows */
+    nullptr,                                         /* write_row */
+    nullptr,                                         /* delete_all_rows */
     table_replication_applier_status::get_row_count, /* records */
     sizeof(pos_t),                                   /* ref length */
     &m_table_lock,
@@ -136,7 +136,7 @@ int table_replication_applier_status::rnd_next(void) {
 int table_replication_applier_status::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
 
   set_position(pos);
 
@@ -153,7 +153,7 @@ int table_replication_applier_status::rnd_pos(const void *pos) {
 
 int table_replication_applier_status::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_rpl_applier_status *result = NULL;
+  PFS_index_rpl_applier_status *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_status);
   m_opened_index = result;
@@ -187,10 +187,10 @@ int table_replication_applier_status::index_next(void) {
 }
 
 int table_replication_applier_status::make_row(Master_info *mi) {
-  char *slave_sql_running_state = NULL;
+  char *slave_sql_running_state = nullptr;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  DBUG_ASSERT(mi != nullptr);
+  DBUG_ASSERT(mi->rli != nullptr);
 
   m_row.channel_name_length =
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;

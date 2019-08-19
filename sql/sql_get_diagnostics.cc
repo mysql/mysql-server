@@ -90,7 +90,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
 
   /* Bail out early if statement succeeded. */
   if (!rc) {
-    thd->get_stmt_da()->set_ok_status(0, 0, NULL);
+    thd->get_stmt_da()->set_ok_status(0, 0, nullptr);
     return false;
   }
 
@@ -110,7 +110,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
                          message);
 
   /* Appending might have failed. */
-  if (!(rc = thd->is_error())) thd->get_stmt_da()->set_ok_status(0, 0, NULL);
+  if (!(rc = thd->is_error())) thd->get_stmt_da()->set_ok_status(0, 0, nullptr);
 
   return rc;
 }
@@ -181,7 +181,7 @@ bool Statement_information::aggregate(THD *thd, const Diagnostics_area *da) {
 
 Item *Statement_information_item::get_value(THD *thd,
                                             const Diagnostics_area *da) {
-  Item *value = NULL;
+  Item *value = nullptr;
   DBUG_TRACE;
 
   switch (m_name) {
@@ -220,7 +220,7 @@ Item *Statement_information_item::get_value(THD *thd,
 bool Condition_information::aggregate(THD *thd, const Diagnostics_area *da) {
   bool rv = false;
   longlong cond_number;
-  const Sql_condition *cond = NULL;
+  const Sql_condition *cond = nullptr;
   Condition_information_item *cond_info_item;
   Diagnostics_area::Sql_condition_iterator it_conds = da->sql_conditions();
   List_iterator_fast<Condition_information_item> it_items(*m_items);
@@ -278,7 +278,7 @@ Item *Condition_information_item::make_utf8_string_item(THD *thd,
   const CHARSET_INFO *from_cs = str->charset() ? str->charset() : to_cs;
   Item_string *item = new Item_string(str->ptr(), str->length(), from_cs);
   /* If necessary, convert the string (ignoring errors), then copy it over. */
-  return item ? item->charset_converter(thd, to_cs, false) : NULL;
+  return item ? item->charset_converter(thd, to_cs, false) : nullptr;
 }
 
 /**
@@ -295,7 +295,7 @@ Item *Condition_information_item::make_utf8_string_item(THD *thd,
 Item *Condition_information_item::get_value(THD *thd,
                                             const Sql_condition *cond) {
   String str;
-  Item *value = NULL;
+  Item *value = nullptr;
   DBUG_TRACE;
 
   switch (m_name) {

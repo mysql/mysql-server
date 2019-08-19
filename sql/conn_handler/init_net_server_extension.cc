@@ -52,7 +52,7 @@ static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
                                   void *user_data, size_t /* unused: count */) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
-  DBUG_ASSERT(thd != NULL);
+  DBUG_ASSERT(thd != nullptr);
 
   if (thd->m_server_idle) {
     /*
@@ -72,7 +72,7 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
                                  bool rc) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
-  DBUG_ASSERT(thd != NULL);
+  DBUG_ASSERT(thd != nullptr);
 
   if (thd->m_server_idle) {
     /*
@@ -89,10 +89,10 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
 
     if (!rc) {
-      DBUG_ASSERT(thd->m_statement_psi == NULL);
+      DBUG_ASSERT(thd->m_statement_psi == nullptr);
       thd->m_statement_psi = MYSQL_START_STATEMENT(
           &thd->m_statement_state, stmt_info_new_packet.m_key, thd->db().str,
-          thd->db().length, thd->charset(), NULL);
+          thd->db().length, thd->charset(), nullptr);
 
       /*
         Starts a new stage in performance schema, if compiled in and enabled.
@@ -112,8 +112,8 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
 
 void init_net_server_extension(THD *thd) {
   /* Start with a clean state for connection events. */
-  thd->m_idle_psi = NULL;
-  thd->m_statement_psi = NULL;
+  thd->m_idle_psi = nullptr;
+  thd->m_statement_psi = nullptr;
   thd->m_server_idle = false;
 
   /* Hook up the NET_SERVER callback in the net layer. */

@@ -69,10 +69,10 @@ class User_variables {
 
  public:
   User_variables()
-      : m_pfs(NULL), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME) {}
+      : m_pfs(nullptr), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME) {}
 
   void reset() {
-    m_pfs = NULL;
+    m_pfs = nullptr;
     m_thread_internal_id = 0;
     m_array.clear();
   }
@@ -80,7 +80,7 @@ class User_variables {
   void materialize(PFS_thread *pfs, THD *thd);
 
   bool is_materialized(PFS_thread *pfs) {
-    DBUG_ASSERT(pfs != NULL);
+    DBUG_ASSERT(pfs != nullptr);
     if (m_pfs != pfs) {
       return false;
     }
@@ -92,7 +92,7 @@ class User_variables {
 
   const User_variable *get(uint index) const {
     if (index >= m_array.size()) {
-      return NULL;
+      return nullptr;
     }
 
     const User_variable *p = &m_array.at(index);

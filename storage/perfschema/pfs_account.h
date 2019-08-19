@@ -97,7 +97,7 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
 
   const PFS_memory_shared_stat *read_instr_class_memory_stats() const {
     if (!m_has_memory_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_memory_stats;
   }

@@ -350,7 +350,7 @@ void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   while (node != nullptr) {
     auto callback = *node->m_cb.thread_create;
-    if (callback != NULL) {
+    if (callback != nullptr) {
       callback(&thread_attrs);
     }
     node = pfs_notification_registry.get_next(node, EVENT_THREAD_CREATE);
@@ -377,7 +377,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   while (node != nullptr) {
     auto callback = *node->m_cb.thread_destroy;
-    if (callback != NULL) {
+    if (callback != nullptr) {
       callback(&thread_attrs);
     }
     node = pfs_notification_registry.get_next(node, EVENT_THREAD_DESTROY);
@@ -403,7 +403,7 @@ void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_connect;
-    if (callback != NULL) {
+    if (callback != nullptr) {
       callback(&thread_attrs);
     }
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CONNECT);
@@ -429,7 +429,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_disconnect;
-    if (callback != NULL) {
+    if (callback != nullptr) {
       callback(&thread_attrs);
     }
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_DISCONNECT);
@@ -455,7 +455,7 @@ void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_change_user;
-    if (callback != NULL) {
+    if (callback != nullptr) {
       callback(&thread_attrs);
     }
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CHANGE_USER);
@@ -483,7 +483,7 @@ SERVICE_IMPLEMENTATION(mysql_server, pfs_notification_v3) = {
   @return 0 if successful, 1 otherwise
 */
 int register_pfs_notification_service() {
-  SERVICE_TYPE(registry) *r = NULL;
+  SERVICE_TYPE(registry) *r = nullptr;
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
@@ -511,7 +511,7 @@ int register_pfs_notification_service() {
   @return 0 if successful, 1 otherwise
 */
 int unregister_pfs_notification_service() {
-  SERVICE_TYPE(registry) *r = NULL;
+  SERVICE_TYPE(registry) *r = nullptr;
   int result = 0;
 
   r = mysql_plugin_registry_acquire();

@@ -79,7 +79,7 @@ static bool get_bool_argument(const char *argument, bool *error);
   order of their arguments must correspond to each other.
 */
 static const char *special_opt_prefix[] = {"skip",    "disable", "enable",
-                                           "maximum", "loose",   0};
+                                           "maximum", "loose",   nullptr};
 static const uint special_opt_prefix_lengths[] = {4, 7, 6, 7, 5, 0};
 enum enum_special_opt {
   OPT_SKIP,
@@ -139,7 +139,8 @@ bool is_key_cache_variable_suffix(const char *suffix) {
 */
 int handle_options(int *argc, char ***argv, const struct my_option *longopts,
                    my_get_one_option get_one_option) {
-  return my_handle_options(argc, argv, longopts, get_one_option, NULL, false);
+  return my_handle_options(argc, argv, longopts, get_one_option, nullptr,
+                           false);
 }
 
 union ull_dbl {
@@ -244,7 +245,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
   uint argvpos = 0, length;
   bool end_of_options = false, must_be_var, set_maximum_value, option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
-  char **arg_sep = NULL, **persist_arg_sep = NULL;
+  char **arg_sep = nullptr, **persist_arg_sep = nullptr;
   const struct my_option *optp;
   void *value;
   bool is_cmdline_arg = true, is_persist_arg = true;
@@ -287,7 +288,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     */
     pos = arg_sep + 1;
     while (*pos && pos != persist_arg_sep) {
-      update_variable_source((const char *)*pos, NULL);
+      update_variable_source((const char *)*pos, nullptr);
       ++pos;
     }
   }
@@ -331,7 +332,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
     }
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
     {
-      char *argument = 0;
+      char *argument = nullptr;
       must_be_var = false;
       set_maximum_value = false;
       option_is_loose = false;
@@ -352,7 +353,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
         if (*optend == '=')
           optend++;
         else
-          optend = 0;
+          optend = nullptr;
 
         /*
          * For component system variables key_name is the component name and
@@ -654,7 +655,7 @@ done:
     Items in argv, before the destroyed one, are all non-option -arguments
     to the program, yet to be (possibly) handled.
   */
-  (*argv)[argvpos] = 0;
+  (*argv)[argvpos] = nullptr;
   return 0;
 }
 
@@ -1072,7 +1073,7 @@ template ulonglong eval_num_suffix<ulonglong>(const char *, int *,
 static longlong getopt_ll(const char *arg, const struct my_option *optp,
                           int *err) {
   longlong num = eval_num_suffix<longlong>(arg, err, optp->name);
-  return getopt_ll_limit_value(num, optp, NULL);
+  return getopt_ll_limit_value(num, optp, nullptr);
 }
 
 /**
@@ -1163,7 +1164,7 @@ static ulonglong getopt_ull(const char *arg, const struct my_option *optp,
   ulonglong num;
 
   /* If a negative number is specified as a value for the option. */
-  if (arg == NULL || is_negative_num(arg) == true) {
+  if (arg == nullptr || is_negative_num(arg) == true) {
     num = (ulonglong)optp->min_value;
     my_getopt_error_reporter(WARNING_LEVEL,
                              EE_ADJUSTED_ULONGLONG_VALUE_FOR_OPTION, optp->name,
@@ -1171,7 +1172,7 @@ static ulonglong getopt_ull(const char *arg, const struct my_option *optp,
   } else
     num = eval_num_suffix<ulonglong>(arg, err, optp->name);
 
-  return getopt_ull_limit_value(num, optp, NULL);
+  return getopt_ull_limit_value(num, optp, nullptr);
 }
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
@@ -1262,7 +1263,7 @@ static double getopt_double(const char *arg, const struct my_option *optp,
     *err = EXIT_ARGUMENT_INVALID;
     return 0.0;
   }
-  return getopt_double_limit_value(num, optp, NULL);
+  return getopt_double_limit_value(num, optp, nullptr);
 }
 
 /*
@@ -1282,29 +1283,30 @@ static void init_one_value(const struct my_option *option, void *variable,
       *((bool *)variable) = (bool)value;
       break;
     case GET_INT:
-      *((int *)variable) = (int)getopt_ll_limit_value((int)value, option, NULL);
+      *((int *)variable) =
+          (int)getopt_ll_limit_value((int)value, option, nullptr);
       break;
     case GET_ENUM:
       *((ulong *)variable) = (ulong)value;
       break;
     case GET_UINT:
       *((uint *)variable) =
-          (uint)getopt_ull_limit_value((uint)value, option, NULL);
+          (uint)getopt_ull_limit_value((uint)value, option, nullptr);
       break;
     case GET_LONG:
       *((long *)variable) =
-          (long)getopt_ll_limit_value((long)value, option, NULL);
+          (long)getopt_ll_limit_value((long)value, option, nullptr);
       break;
     case GET_ULONG:
       *((ulong *)variable) =
-          (ulong)getopt_ull_limit_value((ulong)value, option, NULL);
+          (ulong)getopt_ull_limit_value((ulong)value, option, nullptr);
       break;
     case GET_LL:
-      *((longlong *)variable) = getopt_ll_limit_value(value, option, NULL);
+      *((longlong *)variable) = getopt_ll_limit_value(value, option, nullptr);
       break;
     case GET_ULL:
       *((ulonglong *)variable) =
-          getopt_ull_limit_value((ulonglong)value, option, NULL);
+          getopt_ull_limit_value((ulonglong)value, option, nullptr);
       break;
     case GET_SET:
     case GET_FLAGSET:
@@ -1357,7 +1359,7 @@ static void fini_one_value(const struct my_option *option, void *variable,
   switch ((option->var_type & GET_TYPE_MASK)) {
     case GET_STR_ALLOC:
       my_free(*((char **)variable));
-      *((char **)variable) = NULL;
+      *((char **)variable) = nullptr;
       break;
     default: /* dummy default to avoid compiler warnings */
       break;
@@ -1395,7 +1397,7 @@ static void init_variables(const struct my_option *options,
     if (options->u_max_value)
       init_one_value(options, options->u_max_value, options->max_value);
     value = (options->var_type & GET_ASK_ADDR
-                 ? (*getopt_get_addr)("", 0, options, 0)
+                 ? (*getopt_get_addr)("", 0, options, nullptr)
                  : options->value);
     if (value) init_one_value(options, value, options->def_value);
   }
@@ -1520,9 +1522,9 @@ void my_print_variables_ex(const struct my_option *options, FILE *file) {
   putc('\n', file);
 
   for (optp = options; optp->name; optp++) {
-    void *value =
-        (optp->var_type & GET_ASK_ADDR ? (*getopt_get_addr)("", 0, optp, 0)
-                                       : optp->value);
+    void *value = (optp->var_type & GET_ASK_ADDR
+                       ? (*getopt_get_addr)("", 0, optp, nullptr)
+                       : optp->value);
     if (value) {
       length = print_name(optp, file);
       for (; length < name_space; length++) putc(' ', file);

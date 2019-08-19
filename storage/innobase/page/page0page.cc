@@ -247,7 +247,7 @@ byte *page_mem_alloc_heap(
     return (block);
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -361,7 +361,7 @@ static page_t *page_create_low(buf_block_t *block, ulint comp,
 @param[in]	page_type	page type (FIL_PAGE_INDEX, FIL_PAGE_RTREE
                                 or FIL_PAGE_SDI) */
 void page_parse_create(buf_block_t *block, ulint comp, page_type_t page_type) {
-  if (block != NULL) {
+  if (block != nullptr) {
     page_create_low(block, comp, page_type);
   }
 }
@@ -474,7 +474,7 @@ void page_copy_rec_list_end_no_locks(
   page_t *new_page = buf_block_get_frame(new_block);
   page_cur_t cur1;
   rec_t *cur2;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -539,8 +539,8 @@ rec_t *page_copy_rec_list_end(
   page_t *page = page_align(rec);
   rec_t *ret = page_rec_get_next(page_get_infimum_rec(new_page));
   ulint num_moved = 0;
-  rtr_rec_move_t *rec_move = NULL;
-  mem_heap_t *heap = NULL;
+  rtr_rec_move_t *rec_move = nullptr;
+  mem_heap_t *heap = nullptr;
 
 #ifdef UNIV_ZIP_DEBUG
   if (new_page_zip) {
@@ -595,7 +595,7 @@ rec_t *page_copy_rec_list_end(
   for MVCC. */
   if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page) &&
       !index->table->is_temporary()) {
-    page_update_max_trx_id(new_block, NULL, page_get_max_trx_id(page), mtr);
+    page_update_max_trx_id(new_block, nullptr, page_get_max_trx_id(page), mtr);
   }
 
   if (new_page_zip) {
@@ -623,7 +623,7 @@ rec_t *page_copy_rec_list_end(
           mem_heap_free(heap);
         }
 
-        return (NULL);
+        return (nullptr);
       } else {
         /* The page was reorganized:
         Seek to ret_pos. */
@@ -675,9 +675,9 @@ rec_t *page_copy_rec_list_start(
   page_zip_des_t *new_page_zip = buf_block_get_page_zip(new_block);
   page_cur_t cur1;
   rec_t *cur2;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint num_moved = 0;
-  rtr_rec_move_t *rec_move = NULL;
+  rtr_rec_move_t *rec_move = nullptr;
   rec_t *ret = page_rec_get_prev(page_get_supremum_rec(new_page));
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -735,7 +735,7 @@ rec_t *page_copy_rec_list_start(
   for MVCC. */
   if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page_align(rec)) &&
       !index->table->is_temporary()) {
-    page_update_max_trx_id(new_block, NULL,
+    page_update_max_trx_id(new_block, nullptr,
                            page_get_max_trx_id(page_align(rec)), mtr);
   }
 
@@ -771,7 +771,7 @@ rec_t *page_copy_rec_list_start(
           mem_heap_free(heap);
         }
 
-        return (NULL);
+        return (nullptr);
       }
 
       /* The page was reorganized: Seek to ret_pos. */
@@ -844,7 +844,7 @@ byte *page_parse_delete_rec_list(
   /* Read the record offset as a 2-byte ulint */
 
   if (end_ptr < ptr + 2) {
-    return (NULL);
+    return (nullptr);
   }
 
   offset = mach_read_from_2(ptr);
@@ -888,7 +888,7 @@ void page_delete_rec_list_end(
   ulint n_owned;
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
   page_t *page = page_align(rec);
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -935,7 +935,7 @@ void page_delete_rec_list_end(
   /* Reset the last insert info in the page header and increment
   the modify clock for the frame */
 
-  page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
+  page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, nullptr);
 
   /* The page gets invalid for optimistic searches: increment the
   frame modify clock */
@@ -1045,9 +1045,9 @@ void page_delete_rec_list_end(
   }
 
   page_dir_slot_set_rec(slot, page_get_supremum_rec(page));
-  page_dir_slot_set_n_owned(slot, NULL, n_owned);
+  page_dir_slot_set_n_owned(slot, nullptr, n_owned);
 
-  page_dir_set_n_slots(page, NULL, slot_index + 1);
+  page_dir_set_n_slots(page, nullptr, slot_index + 1);
 
   /* Remove the record chain segment from the record chain */
   page_rec_set_next(prev_rec, page_get_supremum_rec(page));
@@ -1055,12 +1055,12 @@ void page_delete_rec_list_end(
   /* Catenate the deleted chain segment to the page free list */
 
   page_rec_set_next(last_rec, page_header_get_ptr(page, PAGE_FREE));
-  page_header_set_ptr(page, NULL, PAGE_FREE, rec);
+  page_header_set_ptr(page, nullptr, PAGE_FREE, rec);
 
-  page_header_set_field(page, NULL, PAGE_GARBAGE,
+  page_header_set_field(page, nullptr, PAGE_GARBAGE,
                         size + page_header_get_field(page, PAGE_GARBAGE));
 
-  page_header_set_field(page, NULL, PAGE_N_RECS,
+  page_header_set_field(page, nullptr, PAGE_N_RECS,
                         (ulint)(page_get_n_recs(page) - n_recs));
 }
 
@@ -1075,7 +1075,7 @@ void page_delete_rec_list_start(
   page_cur_t cur1;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
 
   rec_offs_init(offsets_);
 
@@ -1891,7 +1891,7 @@ ibool page_simple_validate_old(
   /* Check then the free list */
   rec = page_header_get_ptr(page, PAGE_FREE);
 
-  while (rec != NULL) {
+  while (rec != nullptr) {
     if (UNIV_UNLIKELY(rec < page + FIL_PAGE_DATA ||
                       rec >= page + UNIV_PAGE_SIZE)) {
       ib::error(ER_IB_MSG_879) << "Free list record has"
@@ -2073,7 +2073,7 @@ ibool page_simple_validate_new(
   /* Check then the free list */
   rec = page_header_get_ptr(page, PAGE_FREE);
 
-  while (rec != NULL) {
+  while (rec != nullptr) {
     if (UNIV_UNLIKELY(rec < page + FIL_PAGE_DATA ||
                       rec >= page + UNIV_PAGE_SIZE)) {
       ib::error(ER_IB_MSG_893) << "Free list record has"
@@ -2132,13 +2132,13 @@ ibool page_validate(
   ulint slot_no;
   ulint data_size;
   const rec_t *rec;
-  const rec_t *old_rec = NULL;
+  const rec_t *old_rec = nullptr;
   ulint offs;
   ulint n_slots;
   ibool ret = FALSE;
   ulint i;
-  ulint *offsets = NULL;
-  ulint *old_offsets = NULL;
+  ulint *offsets = nullptr;
+  ulint *old_offsets = nullptr;
 
 #ifdef UNIV_GIS_DEBUG
   if (dict_index_is_spatial(index)) {
@@ -2401,7 +2401,7 @@ ibool page_validate(
   /* Check then the free list */
   rec = page_header_get_ptr(page, PAGE_FREE);
 
-  while (rec != NULL) {
+  while (rec != nullptr) {
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
     if (UNIV_UNLIKELY(!page_rec_validate(rec, offsets))) {
       goto func_exit;
@@ -2467,7 +2467,7 @@ const rec_t *page_find_rec_with_heap_no(
       if (rec_heap_no == heap_no) {
         return (rec);
       } else if (rec_heap_no == PAGE_HEAP_NO_SUPREMUM) {
-        return (NULL);
+        return (nullptr);
       }
 
       rec = page + rec_get_next_offs(rec, TRUE);
@@ -2481,7 +2481,7 @@ const rec_t *page_find_rec_with_heap_no(
       if (rec_heap_no == heap_no) {
         return (rec);
       } else if (rec_heap_no == PAGE_HEAP_NO_SUPREMUM) {
-        return (NULL);
+        return (nullptr);
       }
 
       rec = page + rec_get_next_offs(rec, FALSE);
@@ -2530,7 +2530,7 @@ bool page_delete_rec(
     ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-    page_cur_delete_rec(pcur, index, offsets, 0);
+    page_cur_delete_rec(pcur, index, offsets, nullptr);
 
 #ifdef UNIV_ZIP_DEBUG
     ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -2547,7 +2547,7 @@ bool page_delete_rec(
 @retval infimum record if all records are delete-marked */
 const rec_t *page_find_rec_last_not_deleted(const page_t *page) {
   const rec_t *rec = page_get_infimum_rec(page);
-  const rec_t *prev_rec = NULL;  // remove warning
+  const rec_t *prev_rec = nullptr;  // remove warning
 
   /* Because the page infimum is never delete-marked,
   prev_rec will always be assigned to it first. */

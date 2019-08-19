@@ -84,7 +84,7 @@ Plugin_table table_esms_by_thread_by_event_name::m_table_def(
 PFS_engine_table_share table_esms_by_thread_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_esms_by_thread_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_by_thread_by_event_name::delete_all_rows,
     table_esms_by_thread_by_event_name::get_row_count,
     sizeof(pos_esms_by_thread_by_event_name),
@@ -151,7 +151,7 @@ int table_esms_by_thread_by_event_name::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       statement_class = find_statement_class(m_pos.m_index_2);
       if (statement_class) {
         m_next_pos.set_after(&m_pos);
@@ -170,7 +170,7 @@ int table_esms_by_thread_by_event_name::rnd_pos(const void *pos) {
   set_position(pos);
 
   thread = global_thread_container.get(m_pos.m_index_1);
-  if (thread != NULL) {
+  if (thread != nullptr) {
     statement_class = find_statement_class(m_pos.m_index_2);
     if (statement_class) {
       return make_row(thread, statement_class);
@@ -195,11 +195,11 @@ int table_esms_by_thread_by_event_name::index_next() {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL) {
+    if (thread != nullptr) {
       if (m_opened_index->match(thread)) {
         do {
           statement_class = find_statement_class(m_pos.m_index_2);
-          if (statement_class != NULL) {
+          if (statement_class != nullptr) {
             if (m_opened_index->match(statement_class)) {
               if (!make_row(thread, statement_class)) {
                 m_next_pos.set_after(&m_pos);
@@ -208,7 +208,7 @@ int table_esms_by_thread_by_event_name::index_next() {
             }
             m_pos.m_index_2++;
           }
-        } while (statement_class != NULL);
+        } while (statement_class != nullptr);
       }
     }
   }

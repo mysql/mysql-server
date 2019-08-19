@@ -235,8 +235,8 @@ static dict_table_t *ib_lookup_table_by_name(
 
   table = dict_table_get_low(name);
 
-  if (table != NULL && table->ibd_file_missing) {
-    table = NULL;
+  if (table != nullptr && table->ibd_file_missing) {
+    table = nullptr;
   }
 
   return (table);
@@ -314,13 +314,13 @@ static ib_err_t ib_read_tuple(
         return (DB_END_OF_INDEX);
       }
 
-      if (rec_buf_list[*cur_slot] == NULL) {
+      if (rec_buf_list[*cur_slot] == nullptr) {
         rec_buf_list[*cur_slot] = malloc(16384);
       }
 
       rec_buf = rec_buf_list[*cur_slot];
 
-      if (rec_buf == NULL) {
+      if (rec_buf == nullptr) {
         return (DB_END_OF_INDEX);
       }
       *used_len = 0;
@@ -397,9 +397,9 @@ static ib_tpl_t ib_key_tuple_new_low(
 
   tuple = static_cast<ib_tuple_t *>(mem_heap_alloc(heap, sizeof(*tuple)));
 
-  if (tuple == NULL) {
+  if (tuple == nullptr) {
     mem_heap_free(heap);
-    return (NULL);
+    return (nullptr);
   }
 
   tuple->heap = heap;
@@ -440,8 +440,8 @@ static ib_tpl_t ib_key_tuple_new(
 
   heap = mem_heap_create(64);
 
-  if (heap == NULL) {
-    return (NULL);
+  if (heap == nullptr) {
+    return (nullptr);
   }
 
   return (ib_key_tuple_new_low(index, n_cols, heap));
@@ -458,9 +458,9 @@ static ib_tpl_t ib_row_tuple_new_low(
 
   tuple = static_cast<ib_tuple_t *>(mem_heap_alloc(heap, sizeof(*tuple)));
 
-  if (tuple == NULL) {
+  if (tuple == nullptr) {
     mem_heap_free(heap);
-    return (NULL);
+    return (nullptr);
   }
 
   tuple->heap = heap;
@@ -485,8 +485,8 @@ static ib_tpl_t ib_row_tuple_new(
 
   heap = mem_heap_create(64);
 
-  if (heap == NULL) {
-    return (NULL);
+  if (heap == nullptr) {
+    return (nullptr);
   }
 
   return (ib_row_tuple_new_low(index, n_cols, heap));
@@ -567,7 +567,7 @@ ib_err_t ib_trx_release(ib_trx_t ib_trx) /*!< in: trx handle */
 {
   trx_t *trx = (trx_t *)ib_trx;
 
-  ut_ad(trx != NULL);
+  ut_ad(trx != nullptr);
   trx_free_for_mysql(trx);
 
   return (DB_SUCCESS);
@@ -682,7 +682,7 @@ static ib_err_t ib_table_get_id_low(
 
   table = ib_lookup_table_by_name(table_name);
 
-  if (table != NULL) {
+  if (table != nullptr) {
     *table_id = (table->id);
 
     err = DB_SUCCESS;
@@ -704,7 +704,7 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 
   heap = mem_heap_create(sizeof(*cursor) * 2);
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     row_prebuilt_t *prebuilt;
 
     cursor = static_cast<ib_cursor_t *>(mem_heap_zalloc(heap, sizeof(*cursor)));
@@ -713,7 +713,7 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 
     cursor->query_heap = mem_heap_create(64);
 
-    if (cursor->query_heap == NULL) {
+    if (cursor->query_heap == nullptr) {
       mem_heap_free(heap);
 
       return (DB_OUT_OF_MEMORY);
@@ -733,9 +733,9 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 
     prebuilt->index = index;
 
-    ut_a(prebuilt->index != NULL);
+    ut_a(prebuilt->index != nullptr);
 
-    if (prebuilt->trx != NULL) {
+    if (prebuilt->trx != nullptr) {
       ++prebuilt->trx->n_mysql_tables_in_use;
 
       prebuilt->index_usable = prebuilt->index->is_usable(prebuilt->trx);
@@ -784,10 +784,10 @@ ib_err_t ib_cursor_open_index_using_name(
 
   *idx_type = 0;
   *idx_id = 0;
-  *ib_crsr = NULL;
+  *ib_crsr = nullptr;
 
   table = cursor->prebuilt->table;
-  ut_a(table != NULL);
+  ut_a(table != nullptr);
 
   mutex_enter(&dict_sys->mutex);
   table->acquire();
@@ -797,7 +797,7 @@ ib_err_t ib_cursor_open_index_using_name(
   index = table->first_index();
 
   /* Traverse the user defined indexes. */
-  while (index != NULL) {
+  while (index != nullptr) {
     if (innobase_strcasecmp(index->name, index_name) == 0) {
       index_id = index->id;
       *idx_type = index->type;
@@ -817,15 +817,15 @@ ib_err_t ib_cursor_open_index_using_name(
     err = ib_create_cursor(ib_crsr, table, index, cursor->prebuilt->trx);
   }
 
-  if (*ib_crsr != NULL) {
+  if (*ib_crsr != nullptr) {
     const ib_cursor_t *cursor;
 
     cursor = *(ib_cursor_t **)ib_crsr;
 
-    if (cursor->prebuilt->index == NULL) {
+    if (cursor->prebuilt->index == nullptr) {
       err = ib_cursor_close(*ib_crsr);
       ut_a(err == DB_SUCCESS);
-      *ib_crsr = NULL;
+      *ib_crsr = nullptr;
     }
   }
 
@@ -859,16 +859,16 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
   }
 
   ut_free(normalized_name);
-  normalized_name = NULL;
+  normalized_name = nullptr;
 
   /* It can happen that another thread has created the table but
   not the cluster index or it's a broken table definition. Refuse to
   open if that's the case. */
-  if (table != NULL && table->first_index() == NULL) {
-    table = NULL;
+  if (table != nullptr && table->first_index() == nullptr) {
+    table = nullptr;
   }
 
-  if (table != NULL) {
+  if (table != nullptr) {
     err = ib_create_cursor_with_clust_index(ib_crsr, table, (trx_t *)ib_trx);
     if (mdl != nullptr) {
       (*ib_crsr)->mdl = mdl;
@@ -905,7 +905,7 @@ ib_err_t ib_cursor_reset(ib_crsr_t ib_crsr) /*!< in/out: InnoDB cursor */
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   row_prebuilt_t *prebuilt = cursor->prebuilt;
 
-  if (cursor->valid_trx && prebuilt->trx != NULL &&
+  if (cursor->valid_trx && prebuilt->trx != nullptr &&
       prebuilt->trx->n_mysql_tables_in_use > 0) {
     --prebuilt->trx->n_mysql_tables_in_use;
   }
@@ -978,12 +978,12 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
   ib_qry_proc_free(&cursor->q_proc);
 
   /* The transaction could have been detached from the cursor. */
-  if (cursor->valid_trx && trx != NULL && trx->n_mysql_tables_in_use > 0) {
+  if (cursor->valid_trx && trx != nullptr && trx->n_mysql_tables_in_use > 0) {
     --trx->n_mysql_tables_in_use;
   }
 
   row_prebuilt_free(prebuilt, FALSE);
-  cursor->prebuilt = NULL;
+  cursor->prebuilt = nullptr;
 
   if (cursor->mdl != nullptr) {
     dd_mdl_release(trx->mysql_thd, &cursor->mdl);
@@ -991,7 +991,7 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
 
   mem_heap_free(cursor->query_heap);
   mem_heap_free(cursor->heap);
-  cursor = NULL;
+  cursor = nullptr;
 
   return (DB_SUCCESS);
 }
@@ -1085,7 +1085,7 @@ static void ib_insert_query_graph_create(
 
   ut_a(trx_is_started(trx));
 
-  if (node->ins == NULL) {
+  if (node->ins == nullptr) {
     dtuple_t *row;
     ib_qry_grph_t *grph = &q_proc->grph;
     mem_heap_t *heap = cursor->query_heap;
@@ -1093,8 +1093,8 @@ static void ib_insert_query_graph_create(
 
     node->ins = ins_node_create(INS_DIRECT, table, heap);
 
-    node->ins->select = NULL;
-    node->ins->values_list = NULL;
+    node->ins->select = nullptr;
+    node->ins->values_list = nullptr;
 
     row = dtuple_create(heap, table->get_n_cols());
     dict_table_copy_types(row, table);
@@ -1104,7 +1104,7 @@ static void ib_insert_query_graph_create(
     ins_node_set_new_row(node->ins, row);
 
     grph->ins = static_cast<que_fork_t *>(que_node_get_parent(
-        pars_complete_graph_for_exec(node->ins, trx, heap, NULL)));
+        pars_complete_graph_for_exec(node->ins, trx, heap, nullptr)));
 
     grph->ins->state = QUE_FORK_ACTIVE;
   } else {
@@ -1198,7 +1198,7 @@ upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
 
   ut_a(trx_is_started(trx));
 
-  if (node->upd == NULL) {
+  if (node->upd == nullptr) {
     node->upd = static_cast<upd_node_t *>(
         row_create_update_node_for_mysql(table, heap));
   } else {
@@ -1209,7 +1209,7 @@ upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
   ut_ad(!dict_table_have_virtual_index(table));
 
   grph->upd = static_cast<que_fork_t *>(que_node_get_parent(
-      pars_complete_graph_for_exec(node->upd, trx, heap, NULL)));
+      pars_complete_graph_for_exec(node->upd, trx, heap, nullptr)));
 
   grph->upd->state = QUE_FORK_ACTIVE;
 
@@ -1236,7 +1236,7 @@ static void ib_update_col(
     dfield_copy_data(&upd_field->new_val, dfield);
   }
 
-  upd_field->exp = NULL;
+  upd_field->exp = nullptr;
 
   upd_field->orig_len = 0;
 
@@ -1486,7 +1486,7 @@ static ib_err_t ib_delete_row(
 
   page_format = static_cast<ib_bool_t>(dict_table_is_comp(index->table));
 
-  ib_read_tuple(rec, page_format, tuple, NULL, 0, NULL, NULL, NULL);
+  ib_read_tuple(rec, page_format, tuple, nullptr, 0, nullptr, nullptr, nullptr);
 
   upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
 
@@ -1498,7 +1498,7 @@ static ib_err_t ib_delete_row(
 
     dfield_copy_data(&upd_field->new_val, dfield);
 
-    upd_field->exp = NULL;
+    upd_field->exp = nullptr;
 
     upd_field->orig_len = 0;
 
@@ -1545,7 +1545,7 @@ ib_err_t ib_cursor_delete_row(
     const rec_t *rec;
     ib_bool_t page_format;
     mtr_t mtr;
-    rec_t *copy = NULL;
+    rec_t *copy = nullptr;
     byte ptr[UNIV_PAGE_SIZE_MAX];
 
     page_format = static_cast<ib_bool_t>(dict_table_is_comp(index->table));
@@ -1553,7 +1553,7 @@ ib_err_t ib_cursor_delete_row(
     mtr_start(&mtr);
 
     if (btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr)) {
-      mem_heap_t *heap = NULL;
+      mem_heap_t *heap = nullptr;
       ulint offsets_[REC_OFFS_NORMAL_SIZE];
       ulint *offsets = offsets_;
 
@@ -1621,7 +1621,7 @@ ib_err_t ib_cursor_read_row(
       pcur = prebuilt->pcur;
     }
 
-    if (pcur == NULL) {
+    if (pcur == nullptr) {
       return (DB_ERROR);
     }
 
@@ -1636,7 +1636,7 @@ ib_err_t ib_cursor_read_row(
       rec = btr_pcur_get_rec(pcur);
 
       if (!rec_get_deleted_flag(rec, page_format)) {
-        if (prebuilt->innodb_api && prebuilt->innodb_api_rec != NULL) {
+        if (prebuilt->innodb_api && prebuilt->innodb_api_rec != nullptr) {
           rec = prebuilt->innodb_api_rec;
         }
       }
@@ -1752,7 +1752,7 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
 
   ut_a(prebuilt->select_lock_type <= LOCK_NUM);
 
-  prebuilt->innodb_api_rec = NULL;
+  prebuilt->innodb_api_rec = nullptr;
 
   buf = static_cast<unsigned char *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
 
@@ -1816,7 +1816,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
 {
   const dtype_t *dtype;
   dfield_t *dfield;
-  void *dst = NULL;
+  void *dst = nullptr;
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
   ulint col_len;
 
@@ -1844,15 +1844,15 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
   if (ib_col_is_capped(dtype)) {
     len = ut_min(len, static_cast<ib_ulint_t>(col_len));
 
-    if (dst == NULL || len > dfield_get_len(dfield)) {
+    if (dst == nullptr || len > dfield_get_len(dfield)) {
       dst = mem_heap_alloc(tuple->heap, col_len);
-      ut_a(dst != NULL);
+      ut_a(dst != nullptr);
     }
-  } else if (dst == NULL || len > dfield_get_len(dfield)) {
+  } else if (dst == nullptr || len > dfield_get_len(dfield)) {
     dst = mem_heap_alloc(tuple->heap, len);
   }
 
-  if (dst == NULL) {
+  if (dst == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
 
@@ -1953,7 +1953,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
         if (len < col_len) {
           ulint pad_len = col_len - len;
 
-          ut_a(cs != NULL);
+          ut_a(cs != nullptr);
           ut_a(!(pad_len % cs->mbminlen));
 
           cs->cset->fill(cs, (char *)dst + len, pad_len, 0x20 /* space */);
@@ -2160,7 +2160,7 @@ const char *ib_get_idx_field_name(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Get a column type, length and attributes from the tuple.
@@ -2370,7 +2370,7 @@ const void *ib_col_get_value(ib_tpl_t ib_tpl, /*!< in: tuple instance */
   data = dfield_get_data(dfield);
   data_len = dfield_get_len(dfield);
 
-  return (data_len != UNIV_SQL_NULL ? data : NULL);
+  return (data_len != UNIV_SQL_NULL ? data : nullptr);
 }
 
 /** Get a column type, length and attributes from the tuple.
@@ -2417,7 +2417,7 @@ ib_err_t ib_tuple_get_cluster_key(
   ulint i;
   ulint n_fields;
   ib_err_t err = DB_SUCCESS;
-  ib_tuple_t *dst_tuple = NULL;
+  ib_tuple_t *dst_tuple = nullptr;
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   ib_tuple_t *src_tuple = (ib_tuple_t *)ib_src_tpl;
   dict_index_t *clust_index;
@@ -2794,7 +2794,7 @@ static ib_err_t ib_cursor_open_table_using_id(
 
   table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl, false, true);
 
-  if (table == NULL) {
+  if (table == nullptr) {
     return (DB_TABLE_NOT_FOUND);
   }
 
@@ -2878,8 +2878,8 @@ static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
 dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                    uint32_t uncomp_len, uint32_t comp_len, const void *sdi,
                    trx_t *trx) {
-  ut_ad(ib_sdi_key != NULL);
-  ut_ad(sdi != NULL);
+  ut_ad(ib_sdi_key != nullptr);
+  ut_ad(sdi != nullptr);
 
   DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_2)
                                 << "ib_sdi: sdi_set: " << tablespace_id
@@ -2887,7 +2887,7 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                                 << ib_sdi_key->sdi_key->id
                                 << " sdi_len: " << comp_len;);
 
-  ib_crsr_t ib_crsr = NULL;
+  ib_crsr_t ib_crsr = nullptr;
   ib_err_t err = ib_sdi_open_table(tablespace_id, trx, &ib_crsr);
 
   if (err != DB_SUCCESS) {
@@ -2919,7 +2919,8 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 
     ib_tpl_t old_tuple = ib_clust_read_tuple_create(ib_crsr);
     ib_cursor_stmt_begin(ib_crsr);
-    ib_cursor_read_row(ib_crsr, old_tuple, NULL, 0, NULL, NULL, NULL);
+    ib_cursor_read_row(ib_crsr, old_tuple, nullptr, 0, nullptr, nullptr,
+                       nullptr);
 
     /* Move the cursor to position of the record to update
     and X-latch the record */
@@ -2994,10 +2995,10 @@ and ids
 @return DB_SUCCESS if retrieval of SDI kyes is successful, else error */
 dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
                         trx_t *trx) {
-  ut_ad(ib_sdi_vector != NULL);
+  ut_ad(ib_sdi_vector != nullptr);
   ut_ad(ib_sdi_vector->sdi_vector->m_vec.empty());
 
-  ib_crsr_t ib_crsr = NULL;
+  ib_crsr_t ib_crsr = nullptr;
   ib_err_t err = ib_sdi_open_table(tablespace_id, trx, &ib_crsr);
 
   if (err != DB_SUCCESS) {
@@ -3014,7 +3015,8 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
   ib_tpl_t tuple = ib_clust_read_tuple_create(ib_crsr);
   do {
     /* Read the current row from cursor position */
-    err = ib_cursor_read_row(ib_crsr, tuple, NULL, 0, NULL, NULL, NULL);
+    err = ib_cursor_read_row(ib_crsr, tuple, nullptr, 0, nullptr, nullptr,
+                             nullptr);
     if (err != DB_SUCCESS) {
       break;
     }
@@ -3047,11 +3049,11 @@ hold the compressed SDI retrieved from tablespace. */
 dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                    void *comp_sdi, uint32_t *comp_sdi_len,
                    uint32_t *uncomp_sdi_len, trx_t *trx) {
-  ut_ad(ib_sdi_key != NULL);
-  ut_ad(comp_sdi != NULL);
-  ut_ad(comp_sdi_len != NULL);
+  ut_ad(ib_sdi_key != nullptr);
+  ut_ad(comp_sdi != nullptr);
+  ut_ad(comp_sdi_len != nullptr);
 
-  if (comp_sdi_len == NULL || comp_sdi == NULL) {
+  if (comp_sdi_len == nullptr || comp_sdi == nullptr) {
     return (DB_ERROR);
   }
 
@@ -3063,7 +3065,7 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 
   );
 
-  ib_crsr_t ib_crsr = NULL;
+  ib_crsr_t ib_crsr = nullptr;
   ib_err_t err = ib_sdi_open_table(tablespace_id, trx, &ib_crsr);
 
   if (err != DB_SUCCESS) {
@@ -3080,7 +3082,8 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
     /* Read the current row from cursor position */
     ib_tpl_t tuple = ib_clust_read_tuple_create(ib_crsr);
     ib_cursor_stmt_begin(ib_crsr);
-    err = ib_cursor_read_row(ib_crsr, tuple, NULL, 0, NULL, NULL, NULL);
+    err = ib_cursor_read_row(ib_crsr, tuple, nullptr, 0, nullptr, nullptr,
+                             nullptr);
     if (err == DB_SUCCESS) {
       uint32_t buf_len = *comp_sdi_len;
       ib_tuple_read_u32(tuple, 2, uncomp_sdi_len);
@@ -3137,14 +3140,14 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                        trx_t *trx) {
-  ut_ad(ib_sdi_key != NULL);
+  ut_ad(ib_sdi_key != nullptr);
 
   DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_10)
                                 << "ib_sdi: sdi_delete: " << tablespace_id
                                 << " Key: " << ib_sdi_key->sdi_key->type << " "
                                 << ib_sdi_key->sdi_key->id;);
 
-  ib_crsr_t ib_crsr = NULL;
+  ib_crsr_t ib_crsr = nullptr;
   ib_err_t err = ib_sdi_open_table(tablespace_id, trx, &ib_crsr);
 
   if (err != DB_SUCCESS) {
@@ -3193,7 +3196,7 @@ ib_err_t ib_sdi_create(space_id_t tablespace_id) {
   is set, then we assume SDI indexes are already created and
   we don't re-create SDI indexes */
   fil_space_t *space = fil_space_acquire(tablespace_id);
-  if (space == NULL) {
+  if (space == nullptr) {
     return (DB_ERROR);
   }
 
@@ -3227,7 +3230,7 @@ is corrupted.
 @return DB_SUCCESS if dropping of SDI index is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   fil_space_t *space = fil_space_acquire(tablespace_id);
-  if (space == NULL) {
+  if (space == nullptr) {
     return (DB_ERROR);
   }
 
@@ -3270,7 +3273,7 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   rw_lock_x_unlock(&space->latch);
   fil_space_release(space);
 
-  dict_sdi_remove_from_cache(space->id, NULL, false);
+  dict_sdi_remove_from_cache(space->id, nullptr, false);
 
   return (DB_SUCCESS);
 }

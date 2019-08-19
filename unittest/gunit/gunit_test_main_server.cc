@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,10 +49,12 @@ bool opt_unit_help = false;
 
 struct my_option unittest_options[] = {
     {"tap-output", 1, "TAP (default) or gunit output.", &opt_use_tap,
-     &opt_use_tap, NULL, GET_BOOL, OPT_ARG, opt_use_tap, 0, 1, 0, 0, NULL},
-    {"help", 2, "Help.", &opt_unit_help, &opt_unit_help, NULL, GET_BOOL, NO_ARG,
-     opt_unit_help, 0, 1, 0, 0, NULL},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_use_tap, nullptr, GET_BOOL, OPT_ARG, opt_use_tap, 0, 1, nullptr, 0,
+     nullptr},
+    {"help", 2, "Help.", &opt_unit_help, &opt_unit_help, nullptr, GET_BOOL,
+     NO_ARG, opt_unit_help, 0, 1, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 extern "C" bool get_one_option(int, const struct my_option *, char *) {
   return false;

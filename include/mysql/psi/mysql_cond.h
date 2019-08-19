@@ -139,7 +139,7 @@ static inline int inline_mysql_cond_init(
 #ifdef HAVE_PSI_COND_INTERFACE
   that->m_psi = PSI_COND_CALL(init_cond)(key, &that->m_cond);
 #else
-  that->m_psi = NULL;
+  that->m_psi = nullptr;
 #endif
   return native_cond_init(&that->m_cond);
 }
@@ -148,9 +148,9 @@ static inline int inline_mysql_cond_destroy(
     mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
     int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_COND_CALL(destroy_cond)(that->m_psi);
-    that->m_psi = NULL;
+    that->m_psi = nullptr;
   }
 #endif
   return native_cond_destroy(&that->m_cond);
@@ -163,7 +163,7 @@ static inline int inline_mysql_cond_wait(
   int result;
 
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_cond_locker *locker;
     PSI_cond_locker_state state;
@@ -179,7 +179,7 @@ static inline int inline_mysql_cond_wait(
     );
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_COND_CALL(end_cond_wait)(locker, result);
     }
 
@@ -205,7 +205,7 @@ static inline int inline_mysql_cond_timedwait(
   int result;
 
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_cond_locker *locker;
     PSI_cond_locker_state state;
@@ -222,7 +222,7 @@ static inline int inline_mysql_cond_timedwait(
     );
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_COND_CALL(end_cond_wait)(locker, result);
     }
 
@@ -246,7 +246,7 @@ static inline int inline_mysql_cond_signal(
     int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_COND_CALL(signal_cond)(that->m_psi);
   }
 #endif
@@ -259,7 +259,7 @@ static inline int inline_mysql_cond_broadcast(
     int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_COND_CALL(broadcast_cond)(that->m_psi);
   }
 #endif

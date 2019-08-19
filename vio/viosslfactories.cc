@@ -133,16 +133,16 @@ static unsigned char dh2048_g[] = {
 static DH *get_dh2048(void) {
   DH *dh;
   if ((dh = DH_new())) {
-    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
+    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), nullptr);
     if (!p || !g
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
+        || !DH_set0_pqg(dh, p, nullptr, g)
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     ) {
       /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
-      return NULL;
+      return nullptr;
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p = p;
@@ -476,7 +476,7 @@ uint get_fips_mode() { return FIPS_mode(); }
 
 long process_tls_version(const char *tls_version) {
   const char *separator = ",";
-  char *token, *lasts = NULL;
+  char *token, *lasts = nullptr;
 
 #ifdef HAVE_TLSv13
   const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
@@ -513,7 +513,7 @@ long process_tls_version(const char *tls_version) {
         break;
       }
     }
-    token = my_strtok_r(NULL, separator, &lasts);
+    token = my_strtok_r(nullptr, separator, &lasts);
   }
 
   if (!tls_found)
@@ -548,7 +548,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     *error = SSL_TLS_VERSION_INVALID;
     DBUG_PRINT("error", ("TLS version invalid : %s", sslGetErrString(*error)));
     report_errors();
-    return 0;
+    return nullptr;
   }
 
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
@@ -560,7 +560,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
                      | SSL_OP_NO_TICKET);
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
-    return 0;
+    return nullptr;
 
   if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ?
 #ifdef HAVE_TLSv13
@@ -575,7 +575,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
     my_free(ssl_fd);
-    return 0;
+    return nullptr;
   }
 
 #ifdef HAVE_TLSv13
@@ -583,7 +583,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     Set OpenSSL TLS v1.3 ciphersuites.
     Note that an empty list is permissible.
   */
-  if (NULL != ciphersuites) {
+  if (nullptr != ciphersuites) {
     /*
       Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
       (that's permissible and mentioned in the documentation),
@@ -611,7 +611,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     Note that we have already consumed tls_cipher_blocked
     worth of space.
   */
-  strncat(cipher_list, cipher == 0 ? tls_ciphers_list : cipher,
+  strncat(cipher_list, cipher == nullptr ? tls_ciphers_list : cipher,
           SSL_CIPHER_LIST_SIZE - strlen(cipher_list) - 1);
 
   if (ret_set_cipherlist ==
@@ -682,7 +682,7 @@ error:
   report_errors();
   SSL_CTX_free(ssl_fd->ssl_context);
   my_free(ssl_fd);
-  return 0;
+  return nullptr;
 }
 
 /************************ VioSSLConnectorFd
@@ -699,17 +699,17 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     Turn off verification of servers certificate if both
     ca_file and ca_path is set to NULL
   */
-  if (ca_file == 0 && ca_path == 0) verify = SSL_VERIFY_NONE;
+  if (ca_file == nullptr && ca_path == nullptr) verify = SSL_VERIFY_NONE;
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,
                               ssl_ctx_flags))) {
-    return 0;
+    return nullptr;
   }
 
   /* Init the VioSSLFd as a "connector" ie. the client side */
 
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, nullptr);
 
   return ssl_fd;
 }
@@ -725,14 +725,14 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
                               ssl_ctx_flags))) {
-    return 0;
+    return nullptr;
   }
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */
 
   /* Set max number of cached sessions, returns the previous size */
   SSL_CTX_sess_set_cache_size(ssl_fd->ssl_context, 128);
 
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, nullptr);
 
   /*
     Set session_id - an identifier for this server session

@@ -99,9 +99,9 @@ static uint add_flag_field_to_join_cache(uchar *str, uint length,
   copy->str = str;
   copy->length = length;
   copy->type = 0;
-  copy->field = 0;
+  copy->field = nullptr;
   copy->referenced_field_no = 0;
-  copy->next_copy_rowid = NULL;
+  copy->next_copy_rowid = nullptr;
   (*field)++;
   return length;
 }
@@ -151,7 +151,7 @@ static uint add_table_data_fields_to_join_cache(
       }
       copy->field = *fld_ptr;
       copy->referenced_field_no = 0;
-      copy->next_copy_rowid = NULL;
+      copy->next_copy_rowid = nullptr;
       copy++;
       (*field_cnt)++;
       used_fields--;
@@ -239,7 +239,7 @@ int JOIN_CACHE::alloc_fields(uint external_fields) {
   field_descr = (CACHE_FIELD *)(*THR_MALLOC)
                     ->Alloc(fields_size + sizeof(CACHE_FIELD *) * ptr_cnt);
   blob_ptr = (CACHE_FIELD **)((uchar *)field_descr + fields_size);
-  return (field_descr == NULL);
+  return (field_descr == nullptr);
 }
 
 /*
@@ -369,11 +369,11 @@ void JOIN_CACHE::create_remaining_fields(bool all_read_fields) {
       copy->str = table->file->ref;
       copy->length = table->file->ref_length;
       copy->type = 0;
-      copy->field = 0;
+      copy->field = nullptr;
       copy->referenced_field_no = 0;
-      copy->next_copy_rowid = NULL;
+      copy->next_copy_rowid = nullptr;
       // Chain rowid copy objects belonging to same join_tab
-      if (tab->copy_current_rowid != NULL)
+      if (tab->copy_current_rowid != nullptr)
         copy->next_copy_rowid = tab->copy_current_rowid;
       tab->copy_current_rowid = copy;
       length += copy->length;
@@ -454,16 +454,16 @@ void JOIN_CACHE::set_constants() {
   @returns false if success, otherwise true.
 */
 bool JOIN_CACHE::alloc_buffer() {
-  DBUG_EXECUTE_IF("jb_alloc_fail", buff = NULL; DBUG_SET("-d,jb_alloc_fail");
+  DBUG_EXECUTE_IF("jb_alloc_fail", buff = nullptr; DBUG_SET("-d,jb_alloc_fail");
                   return true;);
 
   DBUG_EXECUTE_IF("jb_alloc_100MB",
                   buff = (uchar *)my_malloc(key_memory_JOIN_CACHE,
                                             100 * 1024 * 1024, MYF(0));
-                  return buff == NULL;);
+                  return buff == nullptr;);
 
   buff = (uchar *)my_malloc(key_memory_JOIN_CACHE, buff_size, MYF(0));
-  return buff == NULL;
+  return buff == nullptr;
 }
 
 /**
@@ -1221,7 +1221,7 @@ uint JOIN_CACHE::write_record_data(uchar *link, bool *is_full) {
     The length of the record will be inserted here when all fields of the record
     are put into the cache.
   */
-  uchar *rec_len_ptr = NULL;
+  uchar *rec_len_ptr = nullptr;
   if (with_length) {
     rec_len_ptr = cp;
     cp += size_of_rec_len;
@@ -1355,7 +1355,7 @@ uint JOIN_CACHE::write_record_data(uchar *link, bool *is_full) {
 
 void JOIN_CACHE::reset_cache(bool for_writing) {
   pos = buff;
-  curr_rec_link = 0;
+  curr_rec_link = nullptr;
   if (for_writing) {
 #ifndef DBUG_OFF
     m_read_only = false;
@@ -1389,7 +1389,7 @@ void JOIN_CACHE::reset_cache(bool for_writing) {
 
 bool JOIN_CACHE::put_record_in_cache() {
   bool is_full;
-  uchar *link = 0;
+  uchar *link = nullptr;
   if (prev_cache) link = prev_cache->get_curr_rec_link();
   write_record_data(link, &is_full);
   return (is_full);
@@ -1414,7 +1414,7 @@ bool JOIN_CACHE::put_record_in_cache() {
 
 bool JOIN_CACHE::get_record() {
   bool res;
-  uchar *prev_rec_ptr = 0;
+  uchar *prev_rec_ptr = nullptr;
   if (with_length) pos += size_of_rec_len;
   if (prev_cache) {
     pos += prev_cache->get_size_of_rec_offset();
@@ -2393,15 +2393,15 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(
   /* Set functions to iterate over keys in the join buffer */
   RANGE_SEQ_IF seq_funcs = {
       bka_range_seq_init, bka_range_seq_next,
-      check_only_first_match ? bka_range_seq_skip_record : 0,
-      qep_tab->cache_idx_cond ? bka_skip_index_tuple : 0};
+      check_only_first_match ? bka_range_seq_skip_record : nullptr,
+      qep_tab->cache_idx_cond ? bka_skip_index_tuple : nullptr};
 
   if (init_join_matching_records(&seq_funcs, records)) return NESTED_LOOP_ERROR;
 
   int error;
   handler *file = qep_tab->table()->file;
   enum_nested_loop_state rc = NESTED_LOOP_OK;
-  uchar *rec_ptr = NULL;
+  uchar *rec_ptr = nullptr;
 
   while (!(error = file->ha_multi_range_read_next((char **)&rec_ptr))) {
     if (join->thd->killed) {
@@ -2564,7 +2564,7 @@ bool JOIN_CACHE_BKA::get_next_key(key_range *key) {
     init_pos = pos;
 
     /* Read a reference to the previous cache if any */
-    uchar *prev_rec_ptr = NULL;
+    uchar *prev_rec_ptr = nullptr;
     if (prev_cache) {
       pos += prev_cache->get_size_of_rec_offset();
       // position of this record in previous buffer:

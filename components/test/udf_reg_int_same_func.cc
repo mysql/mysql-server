@@ -74,7 +74,7 @@ static mysql_service_status_t init() {
   bool ret_int = false;
   ret_int = mysql_service_udf_registration->udf_register(
       "myfunc_int", INT_RESULT, (Udf_func_any)myfunc_int, myfunc_int_init,
-      NULL);
+      nullptr);
   return ret_int;
 }
 

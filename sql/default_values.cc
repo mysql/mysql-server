@@ -260,11 +260,11 @@ bool prepare_default_value_buffer_and_table_share(THD *thd,
 
   // Get the handler temporarily, needed to get minimal record length as
   // well as extra record length.
-  handler *file = NULL;
+  handler *file = nullptr;
   handlerton *engine = share->db_type();
-  if (!(file =
-            get_new_handler(NULL, table.partition_type() != dd::Table::PT_NONE,
-                            thd->mem_root, engine))) {
+  if (!(file = get_new_handler(nullptr,
+                               table.partition_type() != dd::Table::PT_NONE,
+                               thd->mem_root, engine))) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(handler)));
     return true;

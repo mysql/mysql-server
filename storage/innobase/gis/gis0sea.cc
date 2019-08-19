@@ -229,14 +229,14 @@ static bool rtr_pcur_getnext_from_path(
         if (rtr_info->tree_blocks[idx]) {
           mtr_release_block_at_savepoint(mtr, rtr_info->tree_savepoints[idx],
                                          rtr_info->tree_blocks[idx]);
-          rtr_info->tree_blocks[idx] = NULL;
+          rtr_info->tree_blocks[idx] = nullptr;
         }
       }
       for (ulint idx = RTR_MAX_LEVELS; idx < RTR_MAX_LEVELS + 3; idx++) {
         if (rtr_info->tree_blocks[idx]) {
           mtr_release_block_at_savepoint(mtr, rtr_info->tree_savepoints[idx],
                                          rtr_info->tree_blocks[idx]);
-          rtr_info->tree_blocks[idx] = NULL;
+          rtr_info->tree_blocks[idx] = nullptr;
         }
       }
     }
@@ -254,10 +254,10 @@ static bool rtr_pcur_getnext_from_path(
 
     page_id_t page_id(space, next_rec.page_no);
 
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+    block = buf_page_get_gen(page_id, page_size, rw_latch, nullptr,
                              Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
 
-    if (block == NULL) {
+    if (block == nullptr) {
       continue;
     } else if (rw_latch != RW_NO_LATCH) {
       ut_ad(!dict_index_is_ibuf(index));
@@ -275,7 +275,7 @@ static bool rtr_pcur_getnext_from_path(
     if (page_ssn > path_ssn) {
       page_no_t next_page_no = btr_page_get_next(page, mtr);
       rtr_non_leaf_stack_push(rtr_info->path, next_page_no, path_ssn, level, 0,
-                              NULL, 0);
+                              nullptr, 0);
 
       if (!srv_read_only_mode && mode != PAGE_CUR_RTREE_INSERT &&
           mode != PAGE_CUR_RTREE_LOCATE) {
@@ -290,7 +290,7 @@ static bool rtr_pcur_getnext_from_path(
     }
 
     page_cursor = btr_cur_get_page_cur(btr_cur);
-    page_cursor->rec = NULL;
+    page_cursor->rec = nullptr;
 
     if (mode == PAGE_CUR_RTREE_LOCATE) {
       if (level == target_level && level == 0) {
@@ -401,7 +401,7 @@ static bool rtr_pcur_getnext_from_path(
 
       mtr_release_block_at_savepoint(mtr, rtr_info->tree_savepoints[tree_idx],
                                      rtr_info->tree_blocks[tree_idx]);
-      rtr_info->tree_blocks[tree_idx] = NULL;
+      rtr_info->tree_blocks[tree_idx] = nullptr;
     }
 
   } while (!rtr_info->path->empty());
@@ -482,7 +482,7 @@ static bool rtr_compare_cursor_rec(
 
   rec = btr_cur_get_rec(cursor);
 
-  offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, heap);
+  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, heap);
 
   return (btr_node_ptr_get_child_page_no(rec, offsets) == page_no);
 }
@@ -539,7 +539,7 @@ void rtr_pcur_open_low(
                               0, file, line, mtr);
   cursor->m_pos_state = BTR_PCUR_IS_POSITIONED;
 
-  cursor->m_trx_if_known = NULL;
+  cursor->m_trx_if_known = nullptr;
 
   low_match = btr_pcur_get_low_match(cursor);
 
@@ -577,7 +577,7 @@ void rtr_pcur_open_low(
       if (rtr_info->tree_blocks[tree_idx]) {
         mtr_release_block_at_savepoint(mtr, rtr_info->tree_savepoints[tree_idx],
                                        rtr_info->tree_blocks[tree_idx]);
-        rtr_info->tree_blocks[tree_idx] = NULL;
+        rtr_info->tree_blocks[tree_idx] = nullptr;
       }
     }
 
@@ -631,7 +631,7 @@ static ulint *rtr_page_get_father_node_ptr(
   tuple = rtr_index_build_node_ptr(index, &mbr, user_rec, page_no, heap, level);
 
   if (sea_cur && !sea_cur->rtr_info) {
-    sea_cur = NULL;
+    sea_cur = nullptr;
   }
 
   rtr_get_father_node(index, level + 1, tuple, sea_cur, cursor, page_no, mtr);
@@ -687,8 +687,8 @@ void rtr_page_get_father(dict_index_t *index, buf_block_t *block, mtr_t *mtr,
 #ifdef UNIV_DEBUG
   ulint *offsets;
 
-  offsets =
-      rtr_page_get_father_block(NULL, heap, index, block, mtr, sea_cur, cursor);
+  offsets = rtr_page_get_father_block(nullptr, heap, index, block, mtr, sea_cur,
+                                      cursor);
 
   ulint page_no = btr_node_ptr_get_child_page_no(cursor->page_cur.rec, offsets);
 
@@ -735,7 +735,7 @@ void rtr_get_father_node(
     page_no_t page_no,     /*!< Current page no */
     mtr_t *mtr)            /*!< in: mtr */
 {
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   bool ret = false;
   const rec_t *rec;
   ulint n_fields;
@@ -819,7 +819,7 @@ func_exit:
 
   if (new_rtr && btr_cur->rtr_info) {
     rtr_clean_rtr_info(btr_cur->rtr_info, true);
-    btr_cur->rtr_info = NULL;
+    btr_cur->rtr_info = nullptr;
   }
 }
 
@@ -898,9 +898,9 @@ void rtr_init_rtr_info(
 
   if (!reinit) {
     /* Reset all members. */
-    rtr_info->path = NULL;
-    rtr_info->parent_path = NULL;
-    rtr_info->matches = NULL;
+    rtr_info->path = nullptr;
+    rtr_info->parent_path = nullptr;
+    rtr_info->matches = nullptr;
 
     mutex_create(LATCH_ID_RTR_PATH_MUTEX, &rtr_info->rtr_path_mutex);
 
@@ -910,16 +910,16 @@ void rtr_init_rtr_info(
     rtr_info->mbr.xmax = 0.0;
     rtr_info->mbr.ymin = 0.0;
     rtr_info->mbr.ymax = 0.0;
-    rtr_info->thr = NULL;
-    rtr_info->heap = NULL;
-    rtr_info->cursor = NULL;
-    rtr_info->index = NULL;
+    rtr_info->thr = nullptr;
+    rtr_info->heap = nullptr;
+    rtr_info->cursor = nullptr;
+    rtr_info->index = nullptr;
     rtr_info->need_prdt_lock = false;
     rtr_info->need_page_lock = false;
     rtr_info->allocated = false;
     rtr_info->mbr_adj = false;
     rtr_info->fd_del = false;
-    rtr_info->search_tuple = NULL;
+    rtr_info->search_tuple = nullptr;
     rtr_info->search_mode = PAGE_CUR_UNSUPP;
   }
 
@@ -965,11 +965,11 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
   }
 
   UT_DELETE(rtr_info->parent_path);
-  rtr_info->parent_path = NULL;
+  rtr_info->parent_path = nullptr;
 
-  if (rtr_info->path != NULL) {
+  if (rtr_info->path != nullptr) {
     UT_DELETE(rtr_info->path);
-    rtr_info->path = NULL;
+    rtr_info->path = nullptr;
     initialized = true;
   }
 
@@ -987,7 +987,7 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
 
   if (free_all) {
     if (rtr_info->matches) {
-      if (rtr_info->matches->matched_recs != NULL) {
+      if (rtr_info->matches->matched_recs != nullptr) {
         UT_DELETE(rtr_info->matches->matched_recs);
       }
 
@@ -1173,10 +1173,10 @@ static bool rtr_cur_restore_position(
       rec = btr_pcur_get_rec(r_cursor);
 
       heap = mem_heap_create(256);
-      offsets1 = rec_get_offsets(r_cursor->m_old_rec, index, NULL,
+      offsets1 = rec_get_offsets(r_cursor->m_old_rec, index, nullptr,
                                  r_cursor->m_old_n_fields, &heap);
       offsets2 =
-          rec_get_offsets(rec, index, NULL, r_cursor->m_old_n_fields, &heap);
+          rec_get_offsets(rec, index, nullptr, r_cursor->m_old_n_fields, &heap);
 
       comp = rec_offs_comp(offsets1);
 
@@ -1219,7 +1219,7 @@ static bool rtr_cur_restore_position(
 search_again:
   page_id_t page_id(space, page_no);
 
-  block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
+  block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, nullptr,
                            Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
 
   ut_ad(block);
@@ -1239,10 +1239,10 @@ search_again:
 
     rec = btr_pcur_get_rec(r_cursor);
 
-    offsets1 = rec_get_offsets(r_cursor->m_old_rec, index, NULL,
+    offsets1 = rec_get_offsets(r_cursor->m_old_rec, index, nullptr,
                                r_cursor->m_old_n_fields, &heap);
     offsets2 =
-        rec_get_offsets(rec, index, NULL, r_cursor->m_old_n_fields, &heap);
+        rec_get_offsets(rec, index, nullptr, r_cursor->m_old_n_fields, &heap);
 
     comp = rec_offs_comp(offsets1);
 
@@ -1479,17 +1479,17 @@ bool rtr_cur_search_with_match(
   const rec_t *last_rec;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   int cmp = 1;
   bool is_leaf;
   double least_inc = DBL_MAX;
   const rec_t *best_rec;
-  const rec_t *last_match_rec = NULL;
+  const rec_t *last_match_rec = nullptr;
   ulint level;
   bool match_init = false;
   space_id_t space = block->page.id.space();
   page_cur_mode_t orig_mode = mode;
-  const rec_t *first_rec = NULL;
+  const rec_t *first_rec = nullptr;
 
   rec_offs_init(offsets_);
 
@@ -1640,7 +1640,7 @@ bool rtr_cur_search_with_match(
           new_seq = rtr_get_current_ssn_id(index);
 
           rtr_non_leaf_stack_push(rtr_info->path, page_no, new_seq, level - 1,
-                                  0, NULL, 0);
+                                  0, nullptr, 0);
 
           if (is_loc) {
             rtr_non_leaf_insert_stack_push(index, rtr_info->parent_path, level,

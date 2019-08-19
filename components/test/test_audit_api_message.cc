@@ -106,12 +106,12 @@ static long long message_user(UDF_INIT *init MY_ATTRIBUTE((unused)),
 static mysql_service_status_t init() {
   if (mysql_service_udf_registration->udf_register(
           "test_audit_api_message_internal", INT_RESULT,
-          (Udf_func_any)message_internal, NULL, NULL))
+          (Udf_func_any)message_internal, nullptr, nullptr))
     return true;
 
   if (mysql_service_udf_registration->udf_register(
           "test_audit_api_message_user", INT_RESULT, (Udf_func_any)message_user,
-          NULL, NULL)) {
+          nullptr, nullptr)) {
     int was_present = 0;
 
     mysql_service_udf_registration->udf_unregister(

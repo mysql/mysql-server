@@ -703,7 +703,7 @@ void Mts_submode_logical_clock::attach_temp_tables(THD *thd,
     mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);
     return;
   }
-  c_rli->info_thd->temporary_tables = 0;
+  c_rli->info_thd->temporary_tables = nullptr;
   do {
     /* store the current table */
     cur_table = table;
@@ -756,7 +756,7 @@ void Mts_submode_logical_clock::detach_temp_tables(THD *thd,
   mysql_mutex_lock(&c_rli->mts_temp_table_LOCK);
   mts_move_temp_tables_to_thd(c_rli->info_thd, thd->temporary_tables);
   mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);
-  thd->temporary_tables = 0;
+  thd->temporary_tables = nullptr;
 }
 
 /**
@@ -877,7 +877,7 @@ Slave_worker *Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli) {
     Slave_worker *w_i = *it;
     if (w_i->jobs.len == 0) return w_i;
   }
-  return 0;
+  return nullptr;
 }
 
 /**

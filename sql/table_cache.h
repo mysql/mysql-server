@@ -293,7 +293,7 @@ void Table_cache::unlink_unused_table(TABLE *table) {
   table->prev->next = table->next;
   if (table == m_unused_tables) {
     m_unused_tables = m_unused_tables->next;
-    if (table == m_unused_tables) m_unused_tables = NULL;
+    if (table == m_unused_tables) m_unused_tables = nullptr;
   }
   check_unused();
 }
@@ -414,7 +414,7 @@ void Table_cache::remove_table(TABLE *table) {
       Remove reference to deleted cache element from array
       in the TABLE_SHARE.
     */
-    table->s->cache_element[table_cache_manager.cache_index(this)] = NULL;
+    table->s->cache_element[table_cache_manager.cache_index(this)] = nullptr;
   }
 }
 
@@ -445,11 +445,11 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
 
   assert_owner();
 
-  *share = NULL;
+  *share = nullptr;
 
   std::string key_str(key, key_length);
   const auto el_it = m_cache.find(key_str);
-  if (el_it == m_cache.end()) return NULL;
+  if (el_it == m_cache.end()) return nullptr;
   Table_cache_element *el = el_it->second.get();
 
   *share = el->share;
@@ -502,7 +502,7 @@ void Table_cache::release_table(THD *thd, TABLE *table) {
   /* We shouldn't put the table to 'unused' list if the share is old. */
   DBUG_ASSERT(!table->s->has_old_version());
 
-  table->in_use = NULL;
+  table->in_use = nullptr;
 
   /* Remove TABLE from the list of used objects for the table in this cache. */
   el->used_tables.remove(table);
@@ -524,7 +524,7 @@ void Table_cache::release_table(THD *thd, TABLE *table) {
   @note Assumes that caller owns locks on all table caches.
 */
 Table_cache_iterator::Table_cache_iterator(const TABLE_SHARE *share_arg)
-    : share(share_arg), current_cache_index(0), current_table(NULL) {
+    : share(share_arg), current_cache_index(0), current_table(nullptr) {
   table_cache_manager.assert_owner_all();
   move_to_next_table();
 }
@@ -569,7 +569,7 @@ TABLE *Table_cache_iterator::operator++(int) {
 
 void Table_cache_iterator::rewind() {
   current_cache_index = 0;
-  current_table = NULL;
+  current_table = nullptr;
   move_to_next_table();
 }
 

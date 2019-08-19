@@ -321,7 +321,7 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
       [](evhttp_request *req, void *ev_cb_arg) {
         auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
-        if ((req == NULL) && (errno != 0)) {
+        if ((req == nullptr) && (errno != 0)) {
           // request failed. Try to capture the last errno and hope
           // it is related to the failure
           ctx->req->socket_error_code({errno, std::system_category()});

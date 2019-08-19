@@ -76,7 +76,7 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     pkt_len = vio->read_packet(vio, &pkt);
     if (pkt_len < 0) return CR_ERROR;
 
-    if (pkt == 0) {
+    if (pkt == nullptr) {
       /*
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
@@ -118,6 +118,5 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "qa_auth_client", "Horst Hunger",
-    "Dialog Client Authentication Plugin", {0, 1, 0},
-    "GPL", NULL, NULL, NULL, NULL,
-    test_plugin_client, NULL mysql_end_client_plugin;
+    "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL", nullptr, nullptr,
+    nullptr, nullptr, test_plugin_client, nullptr mysql_end_client_plugin;

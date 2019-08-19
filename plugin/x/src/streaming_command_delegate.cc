@@ -113,7 +113,7 @@ Streaming_command_delegate::~Streaming_command_delegate() { on_destruction(); }
 void Streaming_command_delegate::reset() {
   log_debug("Streaming_command_delegate::reset");
   m_sent_result = false;
-  m_resultcs = NULL;
+  m_resultcs = nullptr;
   m_handle_ok_received = false;
   Command_delegate::reset();
 }

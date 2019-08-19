@@ -63,7 +63,7 @@ Plugin_table table_hosts::m_table_def(
 PFS_engine_table_share table_hosts::m_share = {
     &pfs_truncatable_acl,
     table_hosts::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_hosts::delete_all_rows,
     cursor_by_host::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -116,7 +116,7 @@ int table_hosts::delete_all_rows(void) {
 table_hosts::table_hosts() : cursor_by_host(&m_share) {}
 
 int table_hosts::index_init(uint, bool) {
-  PFS_index_hosts *result = NULL;
+  PFS_index_hosts *result = nullptr;
   result = PFS_NEW(PFS_index_hosts_by_host);
   m_opened_index = result;
   m_index = result;

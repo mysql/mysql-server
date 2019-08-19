@@ -50,7 +50,7 @@ int cursor_by_host::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_host_iterator it = global_host_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -64,7 +64,7 @@ int cursor_by_host::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_host_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -79,7 +79,7 @@ int cursor_by_host::index_next(void) {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -87,7 +87,7 @@ int cursor_by_host::index_next(void) {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

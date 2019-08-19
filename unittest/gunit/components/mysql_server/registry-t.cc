@@ -65,7 +65,7 @@
 extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
-    &COMPONENT_REF(mysql_server), 0};
+    &COMPONENT_REF(mysql_server), nullptr};
 
 DEFINE_METHOD(MYSQL_SESSION, mysql_component_mysql_admin_session_imp::open,
               (srv_session_error_cb, void *)) {
@@ -429,13 +429,13 @@ class registry : public ::testing::Test {
   SERVICE_TYPE(registry) * reg;
 };
 
-TEST_F(registry, bootstrap) { ASSERT_TRUE(reg != NULL); }
+TEST_F(registry, bootstrap) { ASSERT_TRUE(reg != nullptr); }
 
 TEST_F(registry, basic_operations) {
   my_h_service hreg, hreg2;
 
   ASSERT_FALSE(reg->acquire("registry", &hreg));
-  ASSERT_TRUE(hreg != NULL);
+  ASSERT_TRUE(hreg != nullptr);
   ASSERT_FALSE(reg->acquire("registry.mysql_server", &hreg2));
   ASSERT_TRUE(hreg == hreg2);
   ASSERT_TRUE(hreg == reinterpret_cast<my_h_service>(
@@ -569,7 +569,7 @@ TEST_F(registry, registration_and_default) {
 TEST_F(registry, my_service) {
   my_h_service hreg;
   ASSERT_FALSE(reg->acquire("registry_query", &hreg));
-  ASSERT_TRUE(hreg != NULL);
+  ASSERT_TRUE(hreg != nullptr);
 
   {
     my_service<SERVICE_TYPE(registry_query)> service("registry_query", reg);
@@ -643,13 +643,15 @@ TEST_F(registry, acquire_related) {
   ASSERT_FALSE(registration_service->unregister("another_service.component2"));
 
   /* Bad service implementation pointer */
-  ASSERT_TRUE(reg->acquire_related("bad_name", my_h_service{}, NULL));
+  ASSERT_TRUE(reg->acquire_related("bad_name", my_h_service{}, nullptr));
   ASSERT_TRUE(reg->acquire_related(
       "bad_name",
-      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)), NULL));
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)),
+      nullptr));
   ASSERT_TRUE(reg->acquire_related(
       "bad_name.with_component",
-      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)), NULL));
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)),
+      nullptr));
 
   {
     my_service<SERVICE_TYPE(registry)> scheme_file_service(

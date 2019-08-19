@@ -79,7 +79,7 @@ struct handle_less {
 // dummy stream that "eats" all input
 struct null_stream : public std::ostream {
   // Visual Studio needs a default constructor.
-  null_stream() : std::ostream(NULL) {}
+  null_stream() : std::ostream(nullptr) {}
 };
 
 template <typename T>

@@ -58,7 +58,7 @@ PFS_ALIGNED bool events_waits_history_long_full = false;
 /** Index in EVENTS_WAITS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_cacheline_atomic_uint32 events_waits_history_long_index;
 /** EVENTS_WAITS_HISTORY_LONG circular buffer. */
-PFS_ALIGNED PFS_events_waits *events_waits_history_long_array = NULL;
+PFS_ALIGNED PFS_events_waits *events_waits_history_long_array = nullptr;
 
 /**
   Initialize table EVENTS_WAITS_HISTORY_LONG.
@@ -85,7 +85,7 @@ void cleanup_events_waits_history_long(void) {
   PFS_FREE_ARRAY(&builtin_memory_waits_history_long,
                  events_waits_history_long_size, sizeof(PFS_events_waits),
                  events_waits_history_long_array);
-  events_waits_history_long_array = NULL;
+  events_waits_history_long_array = nullptr;
 }
 
 static inline void copy_events_waits(PFS_events_waits *dest,

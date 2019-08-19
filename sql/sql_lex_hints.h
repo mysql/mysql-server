@@ -210,7 +210,7 @@ class Hint_scanner {
               DBUG_ASSERT(0 < double_separators && double_separators < yyleng);
               s.length = yyleng - double_separators;
               s.str = (char *)thd->alloc(s.length);
-              if (s.str == NULL) return HINT_ERROR;  // OOM
+              if (s.str == nullptr) return HINT_ERROR;  // OOM
             }
             if (double_separators > 0)
               compact<Quote>(&s, yytext, yyleng, double_separators);
@@ -448,7 +448,7 @@ class Hint_scanner {
     @param token        A token number to add.
   */
   void add_digest(uint token) {
-    if (digest_state == NULL) return;  // Digest buffer is full.
+    if (digest_state == nullptr) return;  // Digest buffer is full.
 
     Lexer_yystype fake_yylvalue;
     /*

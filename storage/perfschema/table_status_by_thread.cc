@@ -83,7 +83,7 @@ Plugin_table table_status_by_thread::m_table_def(
 PFS_engine_table_share table_status_by_thread::m_share = {
     &pfs_truncatable_acl,
     table_status_by_thread::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_status_by_thread::delete_all_rows,
     table_status_by_thread::get_row_count,
     sizeof(pos_t),
@@ -121,7 +121,7 @@ table_status_by_thread::table_status_by_thread()
       m_status_cache(true),
       m_pos(),
       m_next_pos(),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_status_by_thread::reset_position(void) {
   m_pos.reset();
@@ -154,7 +154,7 @@ int table_status_by_thread::rnd_next(void) {
         global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (m_status_cache.materialize_session(pfs_thread) == 0) {
       const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
-      if (stat_var != NULL) {
+      if (stat_var != nullptr) {
         /* If make_row() fails go to the next thread. */
         if (!make_row(pfs_thread, stat_var)) {
           m_next_pos.set_after(&m_pos);
@@ -179,7 +179,7 @@ int table_status_by_thread::rnd_pos(const void *pos) {
 
   if (m_status_cache.materialize_session(pfs_thread) == 0) {
     const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
-    if (stat_var != NULL) {
+    if (stat_var != nullptr) {
       return make_row(pfs_thread, stat_var);
     }
   }
@@ -196,7 +196,7 @@ int table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
       sizeof(table_status_by_thread_context));
   new (m_context) table_status_by_thread_context(status_version, false);
 
-  PFS_index_status_by_thread *result = NULL;
+  PFS_index_status_by_thread *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_status_by_thread);
   m_opened_index = result;
@@ -217,13 +217,13 @@ int table_status_by_thread::index_next(void) {
     PFS_thread *pfs_thread =
         global_thread_container.get(m_pos.m_index_1, &has_more_thread);
 
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         if (m_status_cache.materialize_session(pfs_thread) == 0) {
           const Status_variable *stat_var;
           do {
             stat_var = m_status_cache.get(m_pos.m_index_2);
-            if (stat_var != NULL) {
+            if (stat_var != nullptr) {
               if (m_opened_index->match(stat_var)) {
                 if (!make_row(pfs_thread, stat_var)) {
                   m_next_pos.set_after(&m_pos);
@@ -232,7 +232,7 @@ int table_status_by_thread::index_next(void) {
               }
               m_pos.m_index_2++;
             }
-          } while (stat_var != NULL);
+          } while (stat_var != nullptr);
         }
       }
     }

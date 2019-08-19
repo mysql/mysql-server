@@ -77,7 +77,7 @@ struct SYS_VAR;
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
 bool caching_sha2_auto_generate_rsa_keys = true;
-Rsa_authentication_keys *g_caching_sha2_rsa_keys = 0;
+Rsa_authentication_keys *g_caching_sha2_rsa_keys = nullptr;
 
 namespace sha2_password {
 using std::min;
@@ -730,7 +730,7 @@ const int CACHING_SHA2_PASSWORD_ITERATIONS =
     sha2_password::DEFAULT_STORED_DIGEST_ROUNDS;
 
 /** Caching_sha2_password handle */
-sha2_password::Caching_sha2_password *g_caching_sha2_password = 0;
+sha2_password::Caching_sha2_password *g_caching_sha2_password = nullptr;
 
 /** caching_sha2_password plugin handle - Mostly used for logging */
 static MYSQL_PLUGIN caching_sha2_auth_plugin_ref;
@@ -931,8 +931,8 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char scramble[SCRAMBLE_LENGTH + 1];
   int cipher_length = 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
-  RSA *private_key = NULL;
-  RSA *public_key = NULL;
+  RSA *private_key = nullptr;
+  RSA *public_key = nullptr;
 
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
@@ -978,7 +978,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
   std::string authorization_id;
   const char *hostname = mpvio->acl_user->host.get_host();
-  make_hash_key(info->authenticated_as, hostname ? hostname : NULL,
+  make_hash_key(info->authenticated_as, hostname ? hostname : nullptr,
                 authorization_id);
 
   if (pkt_len != sha2_password::CACHING_SHA2_DIGEST_LENGTH) return CR_ERROR;
@@ -1028,7 +1028,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     public_key = g_caching_sha2_rsa_keys->get_public_key();
 
     /* Without the keys encryption isn't possible. */
-    if (private_key == NULL || public_key == NULL) {
+    if (private_key == nullptr || public_key == nullptr) {
       if (caching_sha2_auth_plugin_ref)
         LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
       return CR_ERROR;
@@ -1239,7 +1239,7 @@ static int caching_sha2_authentication_deinit(
   DBUG_TRACE;
   if (g_caching_sha2_password) {
     delete g_caching_sha2_password;
-    g_caching_sha2_password = 0;
+    g_caching_sha2_password = nullptr;
   }
   return 0;
 }
@@ -1330,13 +1330,13 @@ static MYSQL_SYSVAR_STR(
     private_key_path, caching_sha2_rsa_private_key_path,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
     "A fully qualified path to the private RSA key used for authentication.",
-    NULL, NULL, AUTH_DEFAULT_RSA_PRIVATE_KEY);
+    nullptr, nullptr, AUTH_DEFAULT_RSA_PRIVATE_KEY);
 
 static MYSQL_SYSVAR_STR(
     public_key_path, caching_sha2_rsa_public_key_path,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
     "A fully qualified path to the public RSA key used for authentication.",
-    NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
+    nullptr, nullptr, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
 static MYSQL_SYSVAR_BOOL(
     auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_keys,
@@ -1344,19 +1344,19 @@ static MYSQL_SYSVAR_BOOL(
     "Auto generate RSA keys at server startup if corresponding "
     "system variables are not specified and key files are not present "
     "at the default location.",
-    NULL, NULL, true);
+    nullptr, nullptr, true);
 
 /** Array of system variables. Used in plugin declaration. */
 static SYS_VAR *caching_sha2_password_sysvars[] = {
     MYSQL_SYSVAR(private_key_path), MYSQL_SYSVAR(public_key_path),
-    MYSQL_SYSVAR(auto_generate_rsa_keys), 0};
+    MYSQL_SYSVAR(auto_generate_rsa_keys), nullptr};
 
 /** Array of status variables. Used in plugin declaration. */
 static SHOW_VAR caching_sha2_password_status_variables[] = {
     {"Caching_sha2_password_rsa_public_key",
      (char *)&show_caching_sha2_password_rsa_public_key, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
+    {nullptr, nullptr, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
 
 /**
   Handle an authentication audit event.
@@ -1406,7 +1406,7 @@ static int sha2_cache_cleaner_notify(MYSQL_THD, mysql_event_class_t event_class,
 /** st_mysql_audit for sha2_cache_cleaner plugin */
 struct st_mysql_audit sha2_cache_cleaner = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
-    NULL,                          /* release_thd() */
+    nullptr,                       /* release_thd() */
     sha2_cache_cleaner_notify,     /* event_notify() */
     {
         0, /* MYSQL_AUDIT_GENERAL_CLASS */
@@ -1449,12 +1449,12 @@ mysql_declare_plugin(caching_sha2_password){
     "Caching sha2 authentication",          /* description                   */
     PLUGIN_LICENSE_GPL,                     /* license                       */
     caching_sha2_authentication_init,       /* plugin initializer            */
-    NULL,                                   /* Uninstall notifier            */
+    nullptr,                                /* Uninstall notifier            */
     caching_sha2_authentication_deinit,     /* plugin deinitializer          */
     0x0100,                                 /* version (1.0)                 */
     caching_sha2_password_status_variables, /* status variables              */
     caching_sha2_password_sysvars,          /* system variables              */
-    NULL,                                   /* reserverd                     */
+    nullptr,                                /* reserverd                     */
     0,                                      /* flags                         */
 },
     {
@@ -1465,11 +1465,11 @@ mysql_declare_plugin(caching_sha2_password){
         "Cache cleaner for Caching sha2 authentication", /* description */
         PLUGIN_LICENSE_GPL,                /* license                       */
         caching_sha2_cache_cleaner_init,   /* plugin initializer            */
-        NULL,                              /* Uninstall notifier            */
+        nullptr,                           /* Uninstall notifier            */
         caching_sha2_cache_cleaner_deinit, /* plugin deinitializer          */
         0x0100,                            /* version (1.0)                 */
-        NULL,                              /* status variables              */
-        NULL,                              /* system variables              */
-        NULL,                              /* reserverd                     */
+        nullptr,                           /* status variables              */
+        nullptr,                           /* system variables              */
+        nullptr,                           /* reserverd                     */
         0                                  /* flags                         */
     } mysql_declare_plugin_end;

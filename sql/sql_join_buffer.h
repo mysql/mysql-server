@@ -80,10 +80,10 @@ struct CACHE_FIELD {
   uint offset;      /**< field offset to be saved in cache buffer */
 
   void bind_buffer(uchar *buffer) {
-    if (next_copy_rowid != NULL) next_copy_rowid->bind_buffer(buffer);
+    if (next_copy_rowid != nullptr) next_copy_rowid->bind_buffer(buffer);
     str = buffer;
   }
-  bool buffer_is_bound() const { return str != NULL; }
+  bool buffer_is_bound() const { return str != nullptr; }
 };
 
 /**
@@ -548,9 +548,9 @@ class JOIN_CACHE : public QEP_operation {
       : QEP_operation(qep_tab_arg),
         save_read_set_for_gcol(*THR_MALLOC),
         join(j),
-        buff(NULL),
+        buff(nullptr),
         prev_cache(prev),
-        next_cache(NULL) {
+        next_cache(nullptr) {
     if (prev_cache) prev_cache->next_cache = this;
   }
   virtual ~JOIN_CACHE() {}
@@ -563,11 +563,11 @@ class JOIN_CACHE : public QEP_operation {
       If there is a previous/next cache linked to this cache through the
       (next|prev)_cache pointer: remove the link.
     */
-    if (prev_cache) prev_cache->next_cache = NULL;
-    if (next_cache) next_cache->prev_cache = NULL;
+    if (prev_cache) prev_cache->next_cache = nullptr;
+    if (next_cache) next_cache->prev_cache = nullptr;
 
     my_free(buff);
-    buff = NULL;
+    buff = nullptr;
   }
 
   /** Bits describing cache's type @sa setup_join_buffering() */
@@ -588,7 +588,7 @@ class JOIN_CACHE_BNL final : public JOIN_CACHE {
 
  public:
   JOIN_CACHE_BNL(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
-      : JOIN_CACHE(j, qep_tab_arg, prev), const_cond(NULL) {}
+      : JOIN_CACHE(j, qep_tab_arg, prev), const_cond(nullptr) {}
 
   int init() override;
 

@@ -87,7 +87,8 @@ class Mock_COPY_INFO : public COPY_INFO {
 class Mock_COPY_INFO_insert : public COPY_INFO {
  public:
   Mock_COPY_INFO_insert()
-      : COPY_INFO(COPY_INFO::INSERT_OPERATION, static_cast<List<Item> *>(NULL),
+      : COPY_INFO(COPY_INFO::INSERT_OPERATION,
+                  static_cast<List<Item> *>(nullptr),
                   true,  // manage_defaults
                   DUP_UPDATE) {}
   Mock_COPY_INFO_insert(List<Item> *fields)
@@ -106,7 +107,7 @@ class Mock_COPY_INFO_insert : public COPY_INFO {
 class Mock_COPY_INFO_update : public COPY_INFO {
  public:
   Mock_COPY_INFO_update()
-      : COPY_INFO(COPY_INFO::UPDATE_OPERATION, NULL, NULL) {}
+      : COPY_INFO(COPY_INFO::UPDATE_OPERATION, nullptr, nullptr) {}
   // Import protected member functions, so we can test them.
   using COPY_INFO::get_cached_bitmap;
   using COPY_INFO::get_function_default_columns;
@@ -153,7 +154,7 @@ TEST_F(CopyInfoTest, insertAccessors) {
 
   EXPECT_EQ(COPY_INFO::INSERT_OPERATION, insert.get_operation_type());
   EXPECT_EQ(&inserted_columns, insert.get_changed_columns());
-  EXPECT_EQ(static_cast<List<Item> *>(NULL), insert.get_changed_columns2());
+  EXPECT_EQ(static_cast<List<Item> *>(nullptr), insert.get_changed_columns2());
   EXPECT_TRUE(insert.get_manage_defaults());
   EXPECT_EQ(DUP_REPLACE, insert.get_duplicate_handling());
 }
@@ -189,7 +190,7 @@ TEST_F(CopyInfoTest, updateAccessors) {
 
   EXPECT_EQ(COPY_INFO::UPDATE_OPERATION, update.get_operation_type());
   EXPECT_EQ(&columns, update.get_changed_columns());
-  EXPECT_EQ(static_cast<List<Item> *>(NULL), update.get_changed_columns2());
+  EXPECT_EQ(static_cast<List<Item> *>(nullptr), update.get_changed_columns2());
   EXPECT_TRUE(update.get_manage_defaults());
   EXPECT_EQ(DUP_ERROR, update.get_duplicate_handling());
 }
@@ -219,7 +220,7 @@ TEST_F(CopyInfoTest, getFunctionDefaultColumns) {
   Field_long a = make_field();
   Fake_TABLE table(&a);
 
-  MY_BITMAP *initial_value = NULL;
+  MY_BITMAP *initial_value = nullptr;
 
   EXPECT_EQ(initial_value, insert.get_cached_bitmap());
 

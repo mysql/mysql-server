@@ -226,7 +226,7 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
   va_end(args);
 
   if (!(start = static_cast<char *>(root->Alloc(tot_length))))
-    return 0; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   va_start(args, root);
   res = start;
@@ -244,7 +244,7 @@ char *strdup_root(MEM_ROOT *root, const char *str) {
 }
 
 char *safe_strdup_root(MEM_ROOT *root, const char *str) {
-  return str ? strdup_root(root, str) : 0;
+  return str ? strdup_root(root, str) : nullptr;
 }
 
 void free_root(MEM_ROOT *root, myf flags) {

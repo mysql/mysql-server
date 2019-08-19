@@ -84,8 +84,8 @@ PFS_engine_table_share
     table_replication_applier_status_by_coordinator::m_share = {
         &pfs_readonly_acl,
         table_replication_applier_status_by_coordinator::create,
-        NULL, /* write_row */
-        NULL, /* delete_all_rows */
+        nullptr, /* write_row */
+        nullptr, /* delete_all_rows */
         table_replication_applier_status_by_coordinator::get_row_count,
         sizeof(pos_t), /* ref length */
         &m_table_lock,
@@ -192,7 +192,7 @@ int table_replication_applier_status_by_coordinator::rnd_next(void) {
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
 
   set_position(pos);
 
@@ -209,7 +209,7 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {
 
 int table_replication_applier_status_by_coordinator::index_init(uint idx,
                                                                 bool) {
-  PFS_index_rpl_applier_status_by_coord *result = NULL;
+  PFS_index_rpl_applier_status_by_coord *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -261,8 +261,8 @@ int table_replication_applier_status_by_coordinator::index_next(void) {
 }
 
 int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  DBUG_ASSERT(mi != nullptr);
+  DBUG_ASSERT(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->rli->data_lock);
 

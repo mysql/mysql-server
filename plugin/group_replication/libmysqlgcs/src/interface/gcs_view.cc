@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@ Gcs_view::Gcs_view(const std::vector<Gcs_member_identifier> &members,
                    const std::vector<Gcs_member_identifier> &leaving,
                    const std::vector<Gcs_member_identifier> &joined,
                    const Gcs_group_identifier &group_id)
-    : m_members(NULL),
-      m_view_id(NULL),
-      m_leaving(NULL),
-      m_joined(NULL),
-      m_group_id(NULL),
+    : m_members(nullptr),
+      m_view_id(nullptr),
+      m_leaving(nullptr),
+      m_joined(nullptr),
+      m_group_id(nullptr),
       m_error_code(Gcs_view::OK) {
   clone(members, view_id, leaving, joined, group_id, m_error_code);
 }
@@ -45,21 +45,21 @@ Gcs_view::Gcs_view(const std::vector<Gcs_member_identifier> &members,
                    const std::vector<Gcs_member_identifier> &joined,
                    const Gcs_group_identifier &group_id,
                    Gcs_view::Gcs_view_error_code error_code)
-    : m_members(NULL),
-      m_view_id(NULL),
-      m_leaving(NULL),
-      m_joined(NULL),
-      m_group_id(NULL),
+    : m_members(nullptr),
+      m_view_id(nullptr),
+      m_leaving(nullptr),
+      m_joined(nullptr),
+      m_group_id(nullptr),
       m_error_code(Gcs_view::OK) {
   clone(members, view_id, leaving, joined, group_id, error_code);
 }
 
 Gcs_view::Gcs_view(Gcs_view const &view)
-    : m_members(NULL),
-      m_view_id(NULL),
-      m_leaving(NULL),
-      m_joined(NULL),
-      m_group_id(NULL),
+    : m_members(nullptr),
+      m_view_id(nullptr),
+      m_leaving(nullptr),
+      m_joined(nullptr),
+      m_group_id(nullptr),
       m_error_code(Gcs_view::OK) {
   clone(view.get_members(), view.get_view_id(), view.get_leaving_members(),
         view.get_joined_members(), view.get_group_id(), view.get_error_code());
@@ -139,9 +139,9 @@ const Gcs_member_identifier *Gcs_view::get_member(
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 bool Gcs_view::has_member(const std::string &member_id) const {
-  return get_member(member_id) != NULL;
+  return get_member(member_id) != nullptr;
 }

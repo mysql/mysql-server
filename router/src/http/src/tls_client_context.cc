@@ -49,7 +49,7 @@ void TlsClientContext::verify(TlsVerify verify) {
       mode = SSL_VERIFY_PEER;
       break;
   }
-  SSL_CTX_set_verify(ssl_ctx_.get(), mode, NULL);
+  SSL_CTX_set_verify(ssl_ctx_.get(), mode, nullptr);
 }
 
 void TlsClientContext::cipher_suites(const std::string &ciphers) {

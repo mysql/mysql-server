@@ -188,7 +188,7 @@ class sp_instr : public sp_printable {
   bool opt_is_marked() const { return m_marked; }
 
   virtual SQL_I_List<Item_trigger_field> *get_instr_trig_field_list() {
-    return NULL;
+    return nullptr;
   }
 
   Query_arena m_arena;
@@ -225,11 +225,11 @@ class sp_lex_instr : public sp_instr {
  public:
   sp_lex_instr(uint ip, sp_pcontext *ctx, LEX *lex, bool is_lex_owner)
       : sp_instr(ip, ctx),
-        m_lex(NULL),
+        m_lex(nullptr),
         m_is_lex_owner(false),
         m_first_execution(true),
-        m_prelocking_tables(NULL),
-        m_lex_query_tables_own_last(NULL) {
+        m_prelocking_tables(nullptr),
+        m_lex_query_tables_own_last(nullptr) {
     set_lex(lex, is_lex_owner);
   }
 
@@ -541,9 +541,9 @@ class sp_instr_set : public sp_lex_instr {
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
-  virtual bool is_invalid() const { return m_value_item == NULL; }
+  virtual bool is_invalid() const { return m_value_item == nullptr; }
 
-  virtual void invalidate() { m_value_item = NULL; }
+  virtual void invalidate() { m_value_item = nullptr; }
 
   virtual bool on_after_expr_parsing(THD *thd) {
     DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
@@ -601,9 +601,9 @@ class sp_instr_set_trigger_field : public sp_lex_instr {
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
-  virtual bool is_invalid() const { return m_value_item == NULL; }
+  virtual bool is_invalid() const { return m_value_item == nullptr; }
 
-  virtual void invalidate() { m_value_item = NULL; }
+  virtual void invalidate() { m_value_item = nullptr; }
 
   virtual bool on_after_expr_parsing(THD *thd);
 
@@ -667,11 +667,11 @@ class sp_instr_freturn : public sp_lex_instr {
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
-  virtual bool is_invalid() const { return m_expr_item == NULL; }
+  virtual bool is_invalid() const { return m_expr_item == nullptr; }
 
   virtual void invalidate() {
     // it's already deleted.
-    m_expr_item = NULL;
+    m_expr_item = nullptr;
   }
 
   virtual bool on_after_expr_parsing(THD *thd) {
@@ -717,10 +717,10 @@ class sp_instr_freturn : public sp_lex_instr {
 class sp_instr_jump : public sp_instr, public sp_branch_instr {
  public:
   sp_instr_jump(uint ip, sp_pcontext *ctx)
-      : sp_instr(ip, ctx), m_dest(0), m_optdest(NULL) {}
+      : sp_instr(ip, ctx), m_dest(0), m_optdest(nullptr) {}
 
   sp_instr_jump(uint ip, sp_pcontext *ctx, uint dest)
-      : sp_instr(ip, ctx), m_dest(dest), m_optdest(NULL) {}
+      : sp_instr(ip, ctx), m_dest(dest), m_optdest(nullptr) {}
 
   /////////////////////////////////////////////////////////////////////////
   // sp_printable implementation.
@@ -785,8 +785,8 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
       : sp_lex_instr(ip, ctx, lex, true),
         m_dest(0),
         m_cont_dest(0),
-        m_optdest(NULL),
-        m_cont_optdest(NULL),
+        m_optdest(nullptr),
+        m_cont_optdest(nullptr),
         m_expr_item(expr_item),
         m_expr_query(expr_query) {}
 
@@ -795,8 +795,8 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
       : sp_lex_instr(ip, ctx, lex, true),
         m_dest(dest),
         m_cont_dest(0),
-        m_optdest(NULL),
-        m_cont_optdest(NULL),
+        m_optdest(nullptr),
+        m_cont_optdest(nullptr),
         m_expr_item(expr_item),
         m_expr_query(expr_query) {}
 
@@ -817,9 +817,11 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_invalid() const { return m_expr_item == NULL; }
+  virtual bool is_invalid() const { return m_expr_item == nullptr; }
 
-  virtual void invalidate() { m_expr_item = NULL; /* it's already deleted. */ }
+  virtual void invalidate() {
+    m_expr_item = nullptr; /* it's already deleted. */
+  }
 
   virtual LEX_CSTRING get_expr_query() const { return m_expr_query; }
 
@@ -1013,9 +1015,9 @@ class sp_instr_jump_case_when : public sp_lex_branch_instr {
 
   virtual void invalidate() {
     // Items should be already deleted in lex-keeper.
-    m_case_expr_item = NULL;
-    m_eq_item = NULL;
-    m_expr_item = NULL;  // it's a WHEN-expression.
+    m_case_expr_item = nullptr;
+    m_eq_item = nullptr;
+    m_expr_item = nullptr;  // it's a WHEN-expression.
   }
 
   /**

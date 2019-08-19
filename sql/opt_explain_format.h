@@ -199,9 +199,9 @@ class qep_row {
 
     mem_root_str() { cleanup(); }
     void cleanup() {
-      str = NULL;
+      str = nullptr;
       length = 0;
-      deferred = NULL;
+      deferred = nullptr;
     }
     bool is_empty();
     bool set(const char *str_arg) { return set(str_arg, strlen(str_arg)); }
@@ -223,7 +223,7 @@ class qep_row {
     */
     void set(Lazy *x) {
       deferred = x;
-      str = NULL;
+      str = nullptr;
       length = 0;
     }
     /**
@@ -236,18 +236,18 @@ class qep_row {
       return set_const(str_arg, strlen(str_arg));
     }
     void set_const(const char *str_arg, size_t length_arg) {
-      deferred = NULL;
+      deferred = nullptr;
       str = str_arg;
       length = length_arg;
     }
 
     static char *strndup_root(MEM_ROOT *root, const char *str, size_t len) {
-      if (len == 0 || str == NULL) return const_cast<char *>("");
+      if (len == 0 || str == nullptr) return const_cast<char *>("");
       if (str[len - 1] == 0)
         return static_cast<char *>(memdup_root(root, str, len));
 
       char *ret = static_cast<char *>(root->Alloc(len + 1));
-      if (ret != NULL) {
+      if (ret != nullptr) {
         memcpy(ret, str, len);
         ret[len] = 0;
       }
@@ -271,7 +271,7 @@ class qep_row {
     */
     const char *const data;
 
-    explicit extra(Extra_tag tag_arg, const char *data_arg = NULL)
+    explicit extra(Extra_tag tag_arg, const char *data_arg = nullptr)
         : tag(tag_arg), data(data_arg) {}
   };
 
@@ -508,7 +508,7 @@ class Explain_format {
   Query_result *output;  ///< output resulting data there
 
  public:
-  Explain_format() : output(NULL) {}
+  Explain_format() : output(nullptr) {}
   virtual ~Explain_format() {}
 
   /**
@@ -544,8 +544,8 @@ class Explain_format {
     @param flags        Format flags, see Explain_format_flags.
   */
   virtual bool begin_context(enum_parsing_context context,
-                             SELECT_LEX_UNIT *subquery = 0,
-                             const Explain_format_flags *flags = NULL) = 0;
+                             SELECT_LEX_UNIT *subquery = nullptr,
+                             const Explain_format_flags *flags = nullptr) = 0;
 
   /**
     Leave the current context

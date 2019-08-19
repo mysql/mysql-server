@@ -123,7 +123,7 @@ void Mysql_crawler::enumerate_objects() {
 
     this->process_dump_task(m_current_database_start_dump_task);
     this->enumerate_database_objects(*database);
-    m_current_database_start_dump_task = NULL;
+    m_current_database_start_dump_task = nullptr;
   }
 
   m_dump_end_task->add_dependency(m_tables_definition_ready_dump_task);
@@ -140,7 +140,7 @@ void Mysql_crawler::enumerate_objects() {
     m_current_database_end_dump_task = *it_end;
     this->enumerate_views(**it);
     this->process_dump_task(m_current_database_end_dump_task);
-    m_current_database_end_dump_task = NULL;
+    m_current_database_end_dump_task = nullptr;
   }
 
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&databases);

@@ -214,21 +214,21 @@ static void copy_string(MEM_ROOT *mem_root, String *dst, const String *src) {
 }
 
 Sql_condition::Sql_condition(MEM_ROOT *mem_root)
-    : m_class_origin((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_subclass_origin((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_constraint_catalog((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_constraint_schema((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_constraint_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_catalog_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_schema_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_table_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_column_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_cursor_name((const char *)NULL, 0, &my_charset_utf8_bin),
+    : m_class_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_constraint_schema((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_constraint_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_catalog_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_schema_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_table_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_column_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_cursor_name((const char *)nullptr, 0, &my_charset_utf8_bin),
       m_message_text(),
       m_mysql_errno(0),
       m_severity_level(Sql_condition::SL_ERROR),
       m_mem_root(mem_root) {
-  DBUG_ASSERT(mem_root != NULL);
+  DBUG_ASSERT(mem_root != nullptr);
   memset(m_returned_sqlstate, 0, sizeof(m_returned_sqlstate));
 }
 
@@ -236,24 +236,24 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
                              const char *returned_sqlstate,
                              Sql_condition::enum_severity_level severity,
                              const char *message_text)
-    : m_class_origin((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_subclass_origin((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_constraint_catalog((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_constraint_schema((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_constraint_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_catalog_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_schema_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_table_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_column_name((const char *)NULL, 0, &my_charset_utf8_bin),
-      m_cursor_name((const char *)NULL, 0, &my_charset_utf8_bin),
+    : m_class_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_constraint_schema((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_constraint_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_catalog_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_schema_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_table_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_column_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+      m_cursor_name((const char *)nullptr, 0, &my_charset_utf8_bin),
       m_message_text(),
       m_mysql_errno(mysql_errno),
       m_severity_level(severity),
       m_mem_root(mem_root) {
-  DBUG_ASSERT(mem_root != NULL);
+  DBUG_ASSERT(mem_root != nullptr);
   DBUG_ASSERT(mysql_errno != 0);
-  DBUG_ASSERT(returned_sqlstate != NULL);
-  DBUG_ASSERT(message_text != NULL);
+  DBUG_ASSERT(returned_sqlstate != nullptr);
+  DBUG_ASSERT(message_text != nullptr);
 
   set_message_text(message_text);
   set_returned_sqlstate(returned_sqlstate);
@@ -330,7 +330,7 @@ void Sql_condition::set_class_origins() {
 }
 
 Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
-    : m_stacked_da(NULL),
+    : m_stacked_da(nullptr),
       m_is_sent(false),
       m_can_overwrite_status(false),
       m_allow_unlimited_conditions(allow_unlimited_conditions),
@@ -582,7 +582,7 @@ Sql_condition *Diagnostics_area::error_condition() const {
         strcmp(cond->returned_sqlstate(), returned_sqlstate()) == 0)
       return cond;
   }
-  return NULL;
+  return nullptr;
 }
 
 void Diagnostics_area::reserve_number_of_conditions(THD *thd, uint count) {
@@ -595,7 +595,7 @@ void Diagnostics_area::reserve_number_of_conditions(THD *thd, uint count) {
 Sql_condition *Diagnostics_area::push_warning(
     THD *thd, uint mysql_errno, const char *returned_sqlstate,
     Sql_condition::enum_severity_level severity, const char *message_text) {
-  Sql_condition *cond = NULL;
+  Sql_condition *cond = nullptr;
 
   if (m_allow_unlimited_conditions ||
       m_conditions_list.elements() < thd->variables.max_error_count) {
@@ -622,7 +622,7 @@ Sql_condition *Diagnostics_area::push_warning(
 
 void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da,
                                              bool copy_conditions) {
-  DBUG_ASSERT(da->m_stacked_da == NULL);
+  DBUG_ASSERT(da->m_stacked_da == nullptr);
   da->m_stacked_da = this;
   if (copy_conditions) {
     da->copy_sql_conditions_from_da(thd, this);
@@ -634,7 +634,7 @@ void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da,
 Diagnostics_area *Diagnostics_area::pop_diagnostics_area() {
   DBUG_ASSERT(m_stacked_da);
   Diagnostics_area *da = m_stacked_da;
-  m_stacked_da = NULL;
+  m_stacked_da = nullptr;
   return da;
 }
 
@@ -661,7 +661,7 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
 
   if (severity == Sql_condition::SL_ERROR) severity = Sql_condition::SL_WARNING;
 
-  (void)thd->raise_condition(code, NULL, severity, message_text);
+  (void)thd->raise_condition(code, nullptr, severity, message_text);
 }
 
 void push_warning(THD *thd, uint code) {
@@ -685,7 +685,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_PRINT("enter", ("warning: %u", code));
 
   DBUG_ASSERT(code != 0);
-  DBUG_ASSERT(format != NULL);
+  DBUG_ASSERT(format != nullptr);
 
   va_start(args, format);
   vsnprintf(warning, sizeof(warning), format, args);
@@ -695,7 +695,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
 
 void push_deprecated_warn(THD *thd, const char *old_syntax,
                           const char *new_syntax) {
-  if (thd != NULL)
+  if (thd != nullptr)
     push_warning_printf(
         thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), old_syntax, new_syntax);
@@ -705,7 +705,7 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
 }
 
 void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax) {
-  if (thd != NULL)
+  if (thd != nullptr)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
@@ -808,7 +808,7 @@ ErrConvString::ErrConvString(double nr) {
   DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
   buf_length =
       my_gcvt(nr, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(err_buffer)) - 1,
-              err_buffer, NULL);
+              err_buffer, nullptr);
 }
 
 ErrConvString::ErrConvString(const my_decimal *nr) {

@@ -289,8 +289,8 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   const uchar *kseg, *vseg;
   const uchar *sort_order = keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF + 2], *t_buff = tt_buff + 2;
-  const uchar *saved_from = NULL;
-  uchar *saved_to = NULL;
+  const uchar *saved_from = nullptr;
+  uchar *saved_to = nullptr;
   const uchar *saved_vseg = nullptr;
   uint saved_length = 0, saved_prefix_len = 0;
   uint length_pack;
@@ -965,7 +965,7 @@ uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
       if (*return_key_length == 0) {
         mi_print_error(info->s, HA_ERR_CRASHED);
         set_my_errno(HA_ERR_CRASHED);
-        return 0;
+        return nullptr;
       }
     }
   }
@@ -1032,7 +1032,7 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
         DBUG_PRINT("error", ("Couldn't find last key:  page: %p", page));
         mi_print_error(info->s, HA_ERR_CRASHED);
         set_my_errno(HA_ERR_CRASHED);
-        return 0;
+        return nullptr;
       }
     }
   }
@@ -1318,7 +1318,7 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
   keyseg = keyinfo->seg;
   key_length = _mi_keylength(keyinfo, key) + nod_flag;
 
-  sort_order = 0;
+  sort_order = nullptr;
   if ((keyinfo->flag & HA_FULLTEXT) &&
       ((keyseg->type == HA_KEYTYPE_TEXT) ||
        (keyseg->type == HA_KEYTYPE_VARTEXT1) ||
@@ -1342,13 +1342,13 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
       s_temp->key = key;
       s_temp->key_length = 0;
       s_temp->totlength = key_length - 1 + diff_flag;
-      s_temp->next_key_pos = 0; /* No next key */
+      s_temp->next_key_pos = nullptr; /* No next key */
       return (s_temp->totlength);
     }
     s_temp->store_not_null = true;
     key_length--; /* We don't store NULL */
     if (prev_key && !*prev_key++)
-      org_key = prev_key = 0; /* Can't pack against prev */
+      org_key = prev_key = nullptr; /* Can't pack against prev */
     else if (org_key)
       org_key++; /* Skip NULL */
   } else
@@ -1395,7 +1395,7 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
     length += diff_flag;
     if (next_key) {                 /* Can't combine with next */
       s_temp->n_length = *next_key; /* Needed by _mi_store_key */
-      next_key = 0;
+      next_key = nullptr;
     }
   } else {
     if (start != key) { /* Starts as prev key */
@@ -1526,7 +1526,7 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
           }
         }
         if (!(tmp_length = (uint)(key - start))) { /* Key can't be re-packed */
-          s_temp->next_key_pos = 0;
+          s_temp->next_key_pos = nullptr;
           return length;
         }
         ref_length += tmp_length;
@@ -1605,7 +1605,7 @@ int _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
     while (*key++ == *next_key++)
       ;
     if ((ref_length = (uint)(key - s_temp->key) - 1) == next_length) {
-      s_temp->next_key_pos = 0;
+      s_temp->next_key_pos = nullptr;
       return length; /* can't pack next key */
     }
     s_temp->prev_length = 0;

@@ -380,7 +380,8 @@ static int handle_end_row(void *pctx) {
   if (ctx->cmd == COM_STMT_PREPARE && ctx->current_row == 0 &&
       ctx->tables.size() == 1 && ctx->tables[0].columns.size() == 4 &&
       ctx->tables[0].columns[0].row_values.size() == 1) {
-    ctx->stmt_id = std::stoul(ctx->tables[0].columns[0].row_values[0], 0, 10);
+    ctx->stmt_id =
+        std::stoul(ctx->tables[0].columns[0].row_values[0], nullptr, 10);
   }
   ctx->tables.back().num_rows++;
   ctx->current_row++;
@@ -1733,7 +1734,7 @@ static struct my_stmt_tests_st my_tests[] = {
     {"Test COM_STMT_EXECUTE with out-params as placeholders", test_8},
     {"Test COM_STMT_EXECUTE with out-params as variables", test_9},
     {"Test COM_QUERY with out-params as placeholders", test_10},
-    {0, 0}};
+    {nullptr, nullptr}};
 
 static void test_sql(void *p) {
   DBUG_TRACE;
@@ -1795,7 +1796,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -1830,7 +1831,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -1877,12 +1878,12 @@ mysql_declare_plugin(test_daemon){
     "Tests prepared statements",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;
 /* purecov: end */

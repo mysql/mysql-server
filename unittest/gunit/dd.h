@@ -170,7 +170,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
 */
 inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   List<Field> m_field_list;
-  Fake_TABLE *table = NULL;
+  Fake_TABLE *table = nullptr;
   Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
@@ -434,7 +434,7 @@ inline void set_attributes(dd::Column_statistics *obj,
 
 template <typename T>
 T *nullp() {
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace dd_unittest

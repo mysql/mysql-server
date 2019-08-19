@@ -84,9 +84,9 @@ Table_trigger_dispatcher *Table_trigger_dispatcher::create(
 */
 Table_trigger_dispatcher::Table_trigger_dispatcher(TABLE *subject_table)
     : m_subject_table(subject_table),
-      m_record1_field(NULL),
-      m_new_field(NULL),
-      m_old_field(NULL),
+      m_record1_field(nullptr),
+      m_new_field(nullptr),
+      m_old_field(nullptr),
       m_has_unparseable_trigger(false) {
   memset(m_trigger_map, 0, sizeof(m_trigger_map));
   m_parse_error_message[0] = 0;
@@ -239,10 +239,10 @@ bool Table_trigger_dispatcher::create_trigger(
   m_old_field = m_subject_table->field;
   m_new_field = m_subject_table->field;
 
-  if (lex->sphead->setup_trigger_fields(thd, this, NULL, true)) return true;
+  if (lex->sphead->setup_trigger_fields(thd, this, nullptr, true)) return true;
 
-  m_old_field = NULL;
-  m_new_field = NULL;
+  m_old_field = nullptr;
+  m_new_field = nullptr;
 
   // Create new trigger.
 
@@ -309,7 +309,7 @@ bool Table_trigger_dispatcher::prepare_record1_accessors() {
         (ptrdiff_t)(m_subject_table->record[1] - m_subject_table->record[0]));
   }
 
-  *old_fld = 0;
+  *old_fld = nullptr;
 
   return false;
 }
@@ -558,8 +558,8 @@ bool Table_trigger_dispatcher::process_triggers(
 
   bool rc = tc->execute_triggers(thd);
 
-  m_new_field = NULL;
-  m_old_field = NULL;
+  m_new_field = nullptr;
+  m_old_field = nullptr;
 
   return rc;
 }

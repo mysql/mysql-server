@@ -206,7 +206,7 @@ static struct st_file_buffer file_buffer;
 static QUEUE queue;
 static HUFF_COUNTS *global_count;
 static char zero_string[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-static const char *load_default_groups[] = {"myisampack", 0};
+static const char *load_default_groups[] = {"myisampack", nullptr};
 
 extern st_keycache_thread_var *keycache_thread_var() {
   return &main_thread_keycache_var;
@@ -243,10 +243,10 @@ int main(int argc, char **argv) {
         error = 1;
       else {
         merge.file = &isam_file;
-        merge.current = 0;
+        merge.current = nullptr;
         merge.free_file = 0;
         merge.count = 1;
-        if (compress(&merge, 0))
+        if (compress(&merge, nullptr))
           error = 1;
         else
           ok = 1;
@@ -265,41 +265,46 @@ enum options_mp { OPT_CHARSETS_DIR_MP = 256 };
 
 static struct my_option my_long_options[] = {
     {"backup", 'b', "Make a backup of the table as table_name.OLD.", &backup,
-     &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &backup, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"character-sets-dir", OPT_CHARSETS_DIR_MP,
-     "Directory where character sets are.", &charsets_dir, &charsets_dir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Directory where character sets are.", &charsets_dir, &charsets_dir,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
-     GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
+     nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
     {"force", 'f',
-     "Force packing of table even if it gets bigger or if tempfile exists.", 0,
-     0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     "Force packing of table even if it gets bigger or if tempfile exists.",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"join", 'j',
      "Join all given tables into 'new_table_name'. All tables MUST have "
      "identical layouts.",
-     &join_table, &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
-     0, 0},
-    {"tmpdir", 'T', "Use temporary directory to store temporary table.", 0, 0,
-     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"test", 't', "Don't pack table, only test packing it.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &join_table, &join_table, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"silent", 's', "Be more silent.", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"tmpdir", 'T', "Use temporary directory to store temporary table.",
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"test", 't', "Don't pack table, only test packing it.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v',
      "Write info about progress and packing result. Use many -v for more "
      "verbosity!",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"wait", 'w', "Wait and retry if table is in use.", &opt_wait, &opt_wait, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"wait", 'w', "Wait and retry if table is in use.", &opt_wait, &opt_wait,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   print_version();
@@ -392,14 +397,14 @@ static MI_INFO *open_isam_file(char *name, int mode) {
             name, mode,
             (opt_wait ? HA_OPEN_WAIT_IF_LOCKED : HA_OPEN_ABORT_IF_LOCKED)))) {
     (void)fprintf(stderr, "%s gave error %d on open\n", name, my_errno());
-    return 0;
+    return nullptr;
   }
   share = isam_file->s;
   if (share->options & HA_OPTION_COMPRESS_RECORD && !join_table) {
     if (!force_pack) {
       (void)fprintf(stderr, "%s is already compressed\n", name);
       (void)mi_close(isam_file);
-      return 0;
+      return nullptr;
     }
     if (verbose) puts("Recompressing already compressed table");
     share->options &= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
@@ -409,7 +414,7 @@ static MI_INFO *open_isam_file(char *name, int mode) {
        share->state.state.data_file_length < 1024)) {
     (void)fprintf(stderr, "%s is too small to compress\n", name);
     (void)mi_close(isam_file);
-    return 0;
+    return nullptr;
   }
   (void)mi_lock_database(isam_file, F_WRLCK);
   return isam_file;
@@ -418,7 +423,7 @@ static MI_INFO *open_isam_file(char *name, int mode) {
 static bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count) {
   uint i, j;
   mrg->count = 0;
-  mrg->current = 0;
+  mrg->current = nullptr;
   mrg->file = (MI_INFO **)my_malloc(PSI_NOT_INSTRUMENTED,
                                     sizeof(MI_INFO *) * count, MYF(MY_FAE));
   mrg->free_file = 1;
@@ -471,8 +476,8 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
   share = isam_file->s;
   new_file = join_isam_file = -1;
   trees = fields = 0;
-  huff_trees = 0;
-  huff_counts = 0;
+  huff_trees = nullptr;
+  huff_counts = nullptr;
 
   /* Create temporary or join file */
 
@@ -541,7 +546,7 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
     temporary Huffman trees.
   */
   if (init_queue(&queue, key_memory_QUEUE, 256, 0, false, compare_huff_elements,
-                 0))
+                 nullptr))
     goto err;
 
   /*
@@ -883,7 +888,7 @@ static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
                count->int_tree.elements_in_tree > 1)) {
             delete_tree(&count->int_tree);
             my_free(count->tree_buff);
-            count->tree_buff = 0;
+            count->tree_buff = nullptr;
           } else {
             /*
               If tree_insert() succeeds, it either creates a new element
@@ -1215,7 +1220,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
 
       DBUG_EXECUTE_IF("forceintervall",
                       huff_counts->bytes_packed = ~(my_off_t)0;);
-      tree.element_buffer = 0;
+      tree.element_buffer = nullptr;
       if (!make_huff_tree(&tree, huff_counts) &&
           tree.bytes_packed + tree.tree_pack_length <
               huff_counts->bytes_packed) {
@@ -1227,7 +1232,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       } else {
         my_free(huff_counts->tree_buff);
         delete_tree(&huff_counts->int_tree);
-        huff_counts->tree_buff = 0;
+        huff_counts->tree_buff = nullptr;
       }
       if (tree.element_buffer) my_free(tree.element_buffer);
     }
@@ -1327,13 +1332,13 @@ static HUFF_TREE *make_huff_trees(HUFF_COUNTS *huff_counts, uint trees) {
   if (!(huff_tree = (HUFF_TREE *)my_malloc(PSI_NOT_INSTRUMENTED,
                                            trees * sizeof(HUFF_TREE),
                                            MYF(MY_WME | MY_ZEROFILL))))
-    return 0;
+    return nullptr;
 
   for (tree = 0; tree < trees; tree++) {
     if (make_huff_tree(huff_tree + tree, huff_counts + tree)) {
       while (tree--) my_free(huff_tree[tree].element_buffer);
       my_free(huff_tree);
-      return 0;
+      return nullptr;
     }
   }
   return huff_tree;
@@ -1385,7 +1390,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts) {
   if (queue.max_elements < found) {
     delete_queue(&queue);
     if (init_queue(&queue, key_memory_QUEUE, found, 0, false,
-                   compare_huff_elements, 0))
+                   compare_huff_elements, nullptr))
       return -1;
   }
 
@@ -1449,7 +1454,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts) {
       if (huff_counts->counts[i]) {
         new_huff_el = huff_tree->element_buffer + (found++);
         new_huff_el->count = huff_counts->counts[i];
-        new_huff_el->a.leaf.null = 0;
+        new_huff_el->a.leaf.null = nullptr;
         new_huff_el->a.leaf.element_nr = i;
         queue.root[found] = (uchar *)new_huff_el;
       }
@@ -1462,7 +1467,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts) {
     while (found < 2) {
       new_huff_el = huff_tree->element_buffer + (found++);
       new_huff_el->count = 0;
-      new_huff_el->a.leaf.null = 0;
+      new_huff_el->a.leaf.null = nullptr;
       if (last)
         new_huff_el->a.leaf.element_nr = huff_tree->min_chr = last - 1;
       else
@@ -1563,7 +1568,7 @@ static int save_counts_in_queue(void *v_key, element_count count,
 
   new_huff_el = tree->element_buffer + (tree->elements++);
   new_huff_el->count = count;
-  new_huff_el->a.leaf.null = 0;
+  new_huff_el->a.leaf.null = nullptr;
   new_huff_el->a.leaf.element_nr =
       (uint)(key - tree->counts->tree_buff) / tree->counts->field_length;
   queue.root[tree->elements] = (uchar *)new_huff_el;
@@ -1710,7 +1715,7 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees) {
                   ALLOWED_JOIN_DIFF) {
             memcpy(i->counts, count.counts, sizeof(count.counts[0]) * 256);
             my_free(j->tree->element_buffer);
-            j->tree->element_buffer = 0;
+            j->tree->element_buffer = nullptr;
             j->tree = i->tree;
             memmove((uchar *)i->counts, (uchar *)count.counts,
                     sizeof(count.counts[0]) * 256);
@@ -2687,7 +2692,7 @@ static int save_state(MI_INFO *isam_file, PACK_MRG_INFO *mrg,
   share->state.state.empty = 0;
   share->state.dellink = HA_OFFSET_ERROR;
   share->state.split = (ha_rows)mrg->records;
-  share->state.version = (ulong)time((time_t *)0);
+  share->state.version = (ulong)time((time_t *)nullptr);
   if (!mi_is_all_keys_active(share->state.key_map, share->base.keys)) {
     /*
       Some indexes are disabled, cannot use current key_file_length value
@@ -2736,7 +2741,7 @@ static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
         std::max(isam_file->s->state.state.key_file_length, new_length);
   }
   state.dellink = HA_OFFSET_ERROR;
-  state.version = (ulong)time((time_t *)0);
+  state.version = (ulong)time((time_t *)nullptr);
   mi_clear_all_keys_active(state.key_map);
   state.state.checksum = crc;
   if (isam_file->s->base.keys) isamchk_neaded = 1;
@@ -2748,7 +2753,7 @@ static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
 
 static void mrg_reset(PACK_MRG_INFO *mrg) {
   if (mrg->current) {
-    mrg->current = 0;
+    mrg->current = nullptr;
   }
 }
 
@@ -2846,7 +2851,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count) {
     if (huff_counts->tree_buff) {
       my_free(huff_counts->tree_buff);
       delete_tree(&huff_counts->int_tree);
-      huff_counts->tree_buff = NULL;
+      huff_counts->tree_buff = nullptr;
       DBUG_PRINT("fakebigcodes", ("freed distinct column values"));
     }
 

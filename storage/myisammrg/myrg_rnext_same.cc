@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ int myrg_rnext_same(MYRG_INFO *info, uchar *buf) {
   if (!info->current_table) return (HA_ERR_KEY_NOT_FOUND);
 
   /* at first, do rnext for the table found before */
-  if ((err = mi_rnext_same(info->current_table->table, NULL))) {
+  if ((err = mi_rnext_same(info->current_table->table, nullptr))) {
     if (err == HA_ERR_END_OF_FILE) {
       queue_remove(&(info->by_key), 0);
       if (!info->by_key.elements) return HA_ERR_END_OF_FILE;

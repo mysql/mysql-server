@@ -69,8 +69,8 @@ Plugin_table table_variables_info::m_table_def(
 PFS_engine_table_share table_variables_info::m_share = {
     &pfs_readonly_world_acl,
     table_variables_info::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_variables_info::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -116,7 +116,7 @@ int table_variables_info::rnd_next(void) {
        m_pos.next()) {
     if (m_sysvarinfo_cache.is_materialized()) {
       const System_variable *system_var = m_sysvarinfo_cache.get(m_pos.m_index);
-      if (system_var != NULL) {
+      if (system_var != nullptr) {
         m_next_pos.set_after(&m_pos);
         return make_row(system_var);
       }
@@ -131,7 +131,7 @@ int table_variables_info::rnd_pos(const void *pos) {
 
   if (m_sysvarinfo_cache.is_materialized()) {
     const System_variable *system_var = m_sysvarinfo_cache.get(m_pos.m_index);
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       return make_row(system_var);
     }
   }

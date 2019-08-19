@@ -71,8 +71,8 @@ Plugin_table table_metadata_locks::m_table_def(
 PFS_engine_table_share table_metadata_locks::m_share = {
     &pfs_readonly_acl,
     table_metadata_locks::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_metadata_locks::get_row_count,
     sizeof(PFS_simple_index),
     &m_table_lock,
@@ -165,7 +165,7 @@ int table_metadata_locks::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_mdl_iterator it = global_mdl_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -179,7 +179,7 @@ int table_metadata_locks::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_mdl_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -187,7 +187,7 @@ int table_metadata_locks::rnd_pos(const void *pos) {
 }
 
 int table_metadata_locks::index_init(uint idx, bool) {
-  PFS_index_metadata_locks *result = NULL;
+  PFS_index_metadata_locks *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -217,7 +217,7 @@ int table_metadata_locks::index_next(void) {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -225,7 +225,7 @@ int table_metadata_locks::index_next(void) {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

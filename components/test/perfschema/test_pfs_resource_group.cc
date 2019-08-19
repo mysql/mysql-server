@@ -125,7 +125,7 @@ void session_event(const Event_info &event_info);
   Callback for session connection.
 */
 void session_connect_callback(const PSI_thread_attrs *thread_attrs) {
-  assert(thread_attrs != NULL);
+  assert(thread_attrs != nullptr);
   session_event(Event_info(SESSION_CONNECT, thread_attrs));
 }
 
@@ -133,7 +133,7 @@ void session_connect_callback(const PSI_thread_attrs *thread_attrs) {
   Callback for session disconnect.
 */
 void session_disconnect_callback(const PSI_thread_attrs *thread_attrs) {
-  assert(thread_attrs != NULL);
+  assert(thread_attrs != nullptr);
   session_event(Event_info(SESSION_DISCONNECT, thread_attrs));
 }
 
@@ -170,7 +170,7 @@ void session_event(const Event_info &event) {
       /* Set the resource group name for a thread. */
       ret =
           mysql_service_pfs_resource_group_v3->set_thread_resource_group_by_id(
-              NULL, thread_id, group_name.c_str(), (int)group_name.length(),
+              nullptr, thread_id, group_name.c_str(), (int)group_name.length(),
               (void *)attrs.m_user_data);
 
       std::string msg("set_thread_resource_group(");

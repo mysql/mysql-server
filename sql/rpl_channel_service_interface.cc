@@ -164,11 +164,11 @@ static void delete_surrogate_thread(THD *thd) {
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->type = SLAVE_REPLICATION_CHANNEL;
-  channel_info->hostname = 0;
+  channel_info->hostname = nullptr;
   channel_info->port = 0;
-  channel_info->user = 0;
-  channel_info->password = 0;
-  channel_info->ssl_info = 0;
+  channel_info->user = nullptr;
+  channel_info->password = nullptr;
+  channel_info->ssl_info = nullptr;
   channel_info->auto_position = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_type = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_workers = RPL_SERVICE_SERVER_DEFAULT;
@@ -179,7 +179,7 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->preserve_relay_logs = false;
   channel_info->retry_count = 0;
   channel_info->connect_retry = 0;
-  channel_info->public_key_path = 0;
+  channel_info->public_key_path = nullptr;
   channel_info->get_public_key = 0;
   channel_info->compression_algorithm = nullptr;
   channel_info->zstd_compression_level = 0;
@@ -187,22 +187,22 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
   channel_ssl_info->use_ssl = 0;
-  channel_ssl_info->ssl_ca_file_name = 0;
-  channel_ssl_info->ssl_ca_directory = 0;
-  channel_ssl_info->ssl_cert_file_name = 0;
-  channel_ssl_info->ssl_crl_file_name = 0;
-  channel_ssl_info->ssl_crl_directory = 0;
-  channel_ssl_info->ssl_key = 0;
-  channel_ssl_info->ssl_cipher = 0;
-  channel_ssl_info->tls_version = 0;
+  channel_ssl_info->ssl_ca_file_name = nullptr;
+  channel_ssl_info->ssl_ca_directory = nullptr;
+  channel_ssl_info->ssl_cert_file_name = nullptr;
+  channel_ssl_info->ssl_crl_file_name = nullptr;
+  channel_ssl_info->ssl_crl_directory = nullptr;
+  channel_ssl_info->ssl_key = nullptr;
+  channel_ssl_info->ssl_cipher = nullptr;
+  channel_ssl_info->tls_version = nullptr;
   channel_ssl_info->ssl_verify_server_cert = 0;
-  channel_ssl_info->tls_ciphersuites = 0;
+  channel_ssl_info->tls_ciphersuites = nullptr;
 }
 
 void initialize_channel_connection_info(Channel_connection_info *channel_info) {
   channel_info->until_condition = CHANNEL_NO_UNTIL_CONDITION;
-  channel_info->gtid = 0;
-  channel_info->view_id = 0;
+  channel_info->gtid = nullptr;
+  channel_info->view_id = nullptr;
 }
 
 static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
@@ -999,7 +999,7 @@ int channel_get_credentials(const char *channel, const char **user, char **pass,
 
   Master_info *mi = channel_map.get_mi(channel);
 
-  if (mi == NULL) {
+  if (mi == nullptr) {
     channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }

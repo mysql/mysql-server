@@ -80,7 +80,7 @@ static Opt_hints_qb *get_qb_hints(Parse_context *pc) {
   if (pc->select->opt_hints_qb) return pc->select->opt_hints_qb;
 
   Opt_hints_global *global_hints = get_global_hints(pc);
-  if (global_hints == NULL) return NULL;
+  if (global_hints == nullptr) return nullptr;
 
   Opt_hints_qb *qb = new (pc->thd->mem_root)
       Opt_hints_qb(global_hints, pc->thd->mem_root, pc->select->select_number);
@@ -113,9 +113,9 @@ static Opt_hints_qb *find_qb_hints(Parse_context *pc,
       static_cast<Opt_hints_qb *>(pc->thd->lex->opt_hints_global->find_by_name(
           qb_name, system_charset_info));
 
-  if (qb == NULL) {
-    hint->print_warn(pc->thd, ER_WARN_UNKNOWN_QB_NAME, qb_name, NULL, NULL,
-                     NULL);
+  if (qb == nullptr) {
+    hint->print_warn(pc->thd, ER_WARN_UNKNOWN_QB_NAME, qb_name, nullptr,
+                     nullptr, nullptr);
   }
 
   return qb;
@@ -203,7 +203,7 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   Opt_hints_qb *qb = find_qb_hints(pc, &qb_name, this);
-  if (qb == NULL) return false;  // TODO: Should this generate a warning?
+  if (qb == nullptr) return false;  // TODO: Should this generate a warning?
 
   bool no_warn = false;   // If true, do not print a warning
   bool conflict = false;  // true if this hint conflicts with a previous hint
@@ -255,7 +255,8 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
   if (conflict ||
       // Set hint or detect if hint has been set before
       (qb->set_switch(switch_on(), type(), false) && !no_warn))
-    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &qb_name, NULL, NULL, this);
+    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &qb_name, nullptr, nullptr,
+               this);
 
   return false;
 }
@@ -317,7 +318,7 @@ bool PT_hint_list::contextualize(Parse_context *pc) {
   if (!get_qb_hints(pc)) return true;
 
   for (PT_hint **h = hints.begin(), **end = hints.end(); h < end; h++) {
-    if (*h != NULL && (*h)->contextualize(pc)) return true;
+    if (*h != nullptr && (*h)->contextualize(pc)) return true;
   }
   return false;
 }
@@ -328,10 +329,11 @@ bool PT_table_level_hint::contextualize(Parse_context *pc) {
   if (table_list.empty())  // Query block level hint
   {
     Opt_hints_qb *qb = find_qb_hints(pc, &qb_name, this);
-    if (qb == NULL) return false;
+    if (qb == nullptr) return false;
 
     if (qb->set_switch(switch_on(), type(), false))
-      print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &qb_name, NULL, NULL, this);
+      print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &qb_name, nullptr, nullptr,
+                 this);
     return false;
   }
 
@@ -346,14 +348,15 @@ bool PT_table_level_hint::contextualize(Parse_context *pc) {
         qb_name.length > 0 ? &qb_name : &table_name->opt_query_block;
 
     Opt_hints_qb *qb = find_qb_hints(pc, qb_name_str, this);
-    if (qb == NULL) return false;
+    if (qb == nullptr) return false;
 
     Opt_hints_table *tab = get_table_hints(pc, table_name, qb);
     if (!tab) return true;
 
     if (tab->set_switch(switch_on(), type(), true))
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
-                 &table_name->opt_query_block, &table_name->table, NULL, this);
+                 &table_name->opt_query_block, &table_name->table, nullptr,
+                 this);
   }
 
   return false;
@@ -376,7 +379,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   Opt_hints_qb *qb = find_qb_hints(pc, &table_name.opt_query_block, this);
-  if (qb == NULL) return false;
+  if (qb == nullptr) return false;
 
   Opt_hints_table *tab = get_table_hints(pc, &table_name, qb);
   if (!tab) return true;
@@ -386,14 +389,14 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
   {
     if (tab->set_switch(switch_on(), type(), false)) {
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
-                 &table_name.table, NULL, this);
+                 &table_name.table, nullptr, this);
       return false;
     }
   }
 
   if (type() == INDEX_MERGE_HINT_ENUM && key_list.size() == 1 && switch_on()) {
     print_warn(pc->thd, ER_WARN_INVALID_HINT, &table_name.opt_query_block,
-               &table_name.table, NULL, this);
+               &table_name.table, nullptr, this);
     return false;
   }
 
@@ -412,7 +415,8 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
       is_conflicting = true;
       if (tab->is_compound_key_hint(type())) {
         print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
-                   &table_name.opt_query_block, &table_name.table, NULL, this);
+                   &table_name.opt_query_block, &table_name.table, nullptr,
+                   this);
         break;
       } else
         print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
@@ -439,7 +443,8 @@ bool PT_hint_qb_name::contextualize(Parse_context *pc) {
   if (qb->get_name() ||                         // QB name is already set
       qb->get_parent()->find_by_name(&qb_name,  // Name is already used
                                      system_charset_info)) {
-    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, NULL, NULL, NULL, this);
+    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, nullptr, nullptr, nullptr,
+               this);
     return false;
   }
 
@@ -463,7 +468,8 @@ bool PT_hint_max_execution_time::contextualize(Parse_context *pc) {
   Opt_hints_global *global_hint = get_global_hints(pc);
   if (global_hint->is_specified(type())) {
     // Hint duplication: /*+ MAX_EXECUTION_TIME ... MAX_EXECUTION_TIME */
-    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, NULL, NULL, NULL, this);
+    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, nullptr, nullptr, nullptr,
+               this);
     return false;
   }
 

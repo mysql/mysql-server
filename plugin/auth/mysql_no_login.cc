@@ -1,4 +1,4 @@
-/*  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -67,13 +67,13 @@ static int set_salt(const char *password MY_ATTRIBUTE((unused)),
 
 static struct st_mysql_auth mysql_no_login_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-    0,
+    nullptr,
     mysql_no_login,
     generate_auth_string_hash,
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 mysql_declare_plugin(mysql_no_login){
     MYSQL_AUTHENTICATION_PLUGIN,      /* type constant    */
@@ -82,12 +82,12 @@ mysql_declare_plugin(mysql_no_login){
     "Todd Farmer",                    /* Author           */
     "No login authentication plugin", /* Description      */
     PLUGIN_LICENSE_GPL,               /* License          */
-    NULL,                             /* Init function    */
-    NULL,                             /* Check uninstall function */
-    NULL,                             /* Deinit function  */
+    nullptr,                          /* Init function    */
+    nullptr,                          /* Check uninstall function */
+    nullptr,                          /* Deinit function  */
     0x0101,                           /* Version (1.0)    */
-    NULL,                             /* status variables */
-    NULL,                             /* system variables */
-    NULL,                             /* config options   */
+    nullptr,                          /* status variables */
+    nullptr,                          /* system variables */
+    nullptr,                          /* config options   */
     0,                                /* flags            */
 } mysql_declare_plugin_end;

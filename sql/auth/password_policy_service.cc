@@ -72,7 +72,7 @@ int my_validate_password_policy(const char *password,
                                 unsigned int password_len) {
   plugin_ref plugin;
   String password_str;
-  my_h_service h_pv_svc = NULL;
+  my_h_service h_pv_svc = nullptr;
   SERVICE_TYPE(validate_password) * ret;
   int res = 0;
 
@@ -88,7 +88,7 @@ int my_validate_password_policy(const char *password,
     }
     imp_mysql_server_registry.release(h_pv_svc);
   } else {
-    plugin = my_plugin_lock_by_name(0, validate_password_plugin,
+    plugin = my_plugin_lock_by_name(nullptr, validate_password_plugin,
                                     MYSQL_VALIDATE_PASSWORD_PLUGIN);
     if (plugin) {
       st_mysql_validate_password *password_validate =
@@ -98,7 +98,7 @@ int my_validate_password_policy(const char *password,
         my_error(ER_NOT_VALID_PASSWORD, MYF(0));
         res = 1;
       }
-      plugin_unlock(0, plugin);
+      plugin_unlock(nullptr, plugin);
     }
   }
 
@@ -130,9 +130,9 @@ int my_calculate_password_strength(const char *password,
                                    unsigned int password_len) {
   int res = 0;
   unsigned int strength;
-  DBUG_ASSERT(password != NULL);
+  DBUG_ASSERT(password != nullptr);
 
-  my_h_service h_pv_svc = NULL;
+  my_h_service h_pv_svc = nullptr;
   SERVICE_TYPE(validate_password) * ret;
   String password_str;
 
@@ -144,14 +144,14 @@ int my_calculate_password_strength(const char *password,
       res = strength;
     imp_mysql_server_registry.release(h_pv_svc);
   } else {
-    plugin_ref plugin = my_plugin_lock_by_name(0, validate_password_plugin,
-                                               MYSQL_VALIDATE_PASSWORD_PLUGIN);
+    plugin_ref plugin = my_plugin_lock_by_name(
+        nullptr, validate_password_plugin, MYSQL_VALIDATE_PASSWORD_PLUGIN);
     if (plugin) {
       st_mysql_validate_password *password_strength =
           (st_mysql_validate_password *)plugin_decl(plugin)->info;
 
       res = password_strength->get_password_strength(&password_str);
-      plugin_unlock(0, plugin);
+      plugin_unlock(nullptr, plugin);
     }
   }
   return (res);

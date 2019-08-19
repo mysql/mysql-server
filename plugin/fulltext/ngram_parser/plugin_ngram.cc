@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,14 +151,14 @@ static int ngram_get_token_size(const CHARSET_INFO *cs, const char *token,
 @retval	1	on failure. */
 static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
                               int len, MYSQL_FTPARSER_BOOLEAN_INFO *bool_info) {
-  MYSQL_FTPARSER_BOOLEAN_INFO token_info = {FT_TOKEN_WORD, 0, 0, 0, 0, 0,
-                                            ' ',           0};
+  MYSQL_FTPARSER_BOOLEAN_INFO token_info = {FT_TOKEN_WORD, 0,      0, 0, 0, 0,
+                                            ' ',           nullptr};
   const CHARSET_INFO *cs = param->cs;
   int token_size;
   int ret = 0;
 
   DBUG_ASSERT(bool_info->type == FT_TOKEN_WORD);
-  DBUG_ASSERT(bool_info->quot == NULL);
+  DBUG_ASSERT(bool_info->quot == nullptr);
   DBUG_ASSERT(cs->mbminlen == 1);
 
   /* Convert rules:
@@ -175,16 +175,16 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
     bool_info->type = FT_TOKEN_LEFT_PAREN;
     bool_info->quot = reinterpret_cast<char *>(1);
 
-    ret = param->mysql_add_word(param, NULL, 0, bool_info);
+    ret = param->mysql_add_word(param, nullptr, 0, bool_info);
     RETURN_IF_ERROR(ret);
 
     ret = ngram_parse(param, token, len, &token_info);
     RETURN_IF_ERROR(ret);
 
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
-    ret = param->mysql_add_word(param, NULL, 0, bool_info);
+    ret = param->mysql_add_word(param, nullptr, 0, bool_info);
 
-    DBUG_ASSERT(bool_info->quot == NULL);
+    DBUG_ASSERT(bool_info->quot == nullptr);
     bool_info->type = FT_TOKEN_WORD;
   }
 
@@ -196,12 +196,12 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
 @retval	0	on success
 @retval	1	on failure. */
 static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
-  MYSQL_FTPARSER_BOOLEAN_INFO bool_info = {FT_TOKEN_WORD, 0, 0, 0, 0, 0,
-                                           ' ',           0};
+  MYSQL_FTPARSER_BOOLEAN_INFO bool_info = {FT_TOKEN_WORD, 0,      0, 0, 0, 0,
+                                           ' ',           nullptr};
   const CHARSET_INFO *cs = param->cs;
   uchar **start = reinterpret_cast<uchar **>(&param->doc);
   uchar *end = *start + param->length;
-  FT_WORD word = {NULL, 0, 0};
+  FT_WORD word = {nullptr, 0, 0};
   int ret = 0;
 
   switch (param->mode) {
@@ -217,7 +217,7 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
       the words into ngram. */
       while (fts_get_word(cs, start, end, &word, &bool_info)) {
         if (bool_info.type == FT_TOKEN_WORD) {
-          if (bool_info.quot != NULL) {
+          if (bool_info.quot != nullptr) {
             /* Phrase search */
             ret = ngram_parse(param, reinterpret_cast<char *>(word.pos),
                               word.len, &bool_info);
@@ -225,7 +225,7 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
             /* Term serach */
             ret = ngram_term_convert(param, reinterpret_cast<char *>(word.pos),
                                      word.len, &bool_info);
-            DBUG_ASSERT(bool_info.quot == NULL);
+            DBUG_ASSERT(bool_info.quot == nullptr);
             DBUG_ASSERT(bool_info.type == FT_TOKEN_WORD);
           }
         } else {
@@ -244,15 +244,15 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
 
 /** Fulltext ngram parser */
 static struct st_mysql_ftparser ngram_parser_descriptor = {
-    MYSQL_FTPARSER_INTERFACE_VERSION, ngram_parser_parse, 0, 0};
+    MYSQL_FTPARSER_INTERFACE_VERSION, ngram_parser_parse, nullptr, nullptr};
 
 static MYSQL_SYSVAR_INT(
     token_size, ngram_token_size, PLUGIN_VAR_READONLY,
-    "InnoDB ngram full text plugin parser token size in characters", NULL, NULL,
-    2, 1, 10, 0);
+    "InnoDB ngram full text plugin parser token size in characters", nullptr,
+    nullptr, 2, 1, 10, 0);
 
 /** Ngram plugin system variables */
-static SYS_VAR *ngram_system_variables[] = {MYSQL_SYSVAR(token_size), NULL};
+static SYS_VAR *ngram_system_variables[] = {MYSQL_SYSVAR(token_size), nullptr};
 
 /** Ngram plugin descriptor */
 mysql_declare_plugin(ngram_parser){
@@ -262,12 +262,12 @@ mysql_declare_plugin(ngram_parser){
     "Oracle Corp",            /*!< author	*/
     "Ngram Full-Text Parser", /*!< description*/
     PLUGIN_LICENSE_GPL,
-    NULL,                   /*!< init function (when loaded)*/
-    NULL,                   /*!< check uninstall function*/
-    NULL,                   /*!< deinit function (when unloaded)*/
+    nullptr,                /*!< init function (when loaded)*/
+    nullptr,                /*!< check uninstall function*/
+    nullptr,                /*!< deinit function (when unloaded)*/
     0x0001,                 /*!< version	*/
-    NULL,                   /*!< status variables	*/
+    nullptr,                /*!< status variables	*/
     ngram_system_variables, /*!< system variables	*/
-    NULL,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

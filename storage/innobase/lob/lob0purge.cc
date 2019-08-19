@@ -218,7 +218,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   data should not be read. OTOH we do not ref.set_page_no(FIL_NULL, 0)
   until we delete all the pages, so that the recovery can use the reference to
   find the remaining parts of the LOB. */
-  ref.set_length(0, 0);
+  ref.set_length(0, nullptr);
   ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
 
   page_no_t first_page_no = ref.page_no();
@@ -286,7 +286,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ut_ad(ctx->get_page_zip() != nullptr);
   /* We are done with cleaning up index entries for the given version, so now we
   can modify the reference, so that it is no longer reachable. */
-  ref.set_page_no(FIL_NULL, 0);
+  ref.set_page_no(FIL_NULL, nullptr);
   ut_ad(ref.length() == 0);
   ctx->x_latch_rec_page(&local_mtr);
   ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
@@ -388,8 +388,8 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 
   if (ctx->get_page_zip() != nullptr) {
-    ref.set_page_no(FIL_NULL, 0);
-    ref.set_length(0, 0);
+    ref.set_page_no(FIL_NULL, nullptr);
+    ref.set_length(0, nullptr);
     ctx->zblob_write_blobref(ctx->m_field_no, mtr);
   } else {
     /* Note that page_zip will be NULL in

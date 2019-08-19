@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,10 +33,10 @@ namespace keyring {
 
 class Buffer : public ISerialized_object {
  public:
-  Buffer() : data(NULL) { mark_as_empty(); }
-  Buffer(size_t memory_size) : data(NULL) { reserve(memory_size); }
+  Buffer() : data(nullptr) { mark_as_empty(); }
+  Buffer(size_t memory_size) : data(nullptr) { reserve(memory_size); }
   ~Buffer() {
-    if (data != NULL) delete[] data;
+    if (data != nullptr) delete[] data;
   }
 
   void free();

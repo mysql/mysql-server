@@ -102,7 +102,7 @@ class table_plugin_table : public PFS_engine_table {
 class PFS_plugin_table_index : public PFS_engine_index_abstract {
  public:
   PFS_plugin_table_index(PFS_engine_table_proxy *st_table)
-      : m_st_table(st_table), m_idx(0), m_plugin_index(NULL) {}
+      : m_st_table(st_table), m_idx(0), m_plugin_index(nullptr) {}
 
   ~PFS_plugin_table_index() {}
 

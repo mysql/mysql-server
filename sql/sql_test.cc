@@ -75,15 +75,15 @@
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] = {
     /* TL_UNLOCK                  */ "No lock",
-    /* TL_READ_DEFAULT            */ NULL,
+    /* TL_READ_DEFAULT            */ nullptr,
     /* TL_READ                    */ "Low priority read lock",
     /* TL_READ_WITH_SHARED_LOCKS  */ "Shared read lock",
     /* TL_READ_HIGH_PRIORITY      */ "High priority read lock",
     /* TL_READ_NO_INSERT          */ "Read lock without concurrent inserts",
     /* TL_WRITE_ALLOW_WRITE       */ "Write lock that allows other writers",
-    /* TL_WRITE_CONCURRENT_DEFAULT*/ NULL,
+    /* TL_WRITE_CONCURRENT_DEFAULT*/ nullptr,
     /* TL_WRITE_CONCURRENT_INSERT */ "Concurrent insert lock",
-    /* TL_WRITE_DEFAULT           */ NULL,
+    /* TL_WRITE_DEFAULT           */ nullptr,
     /* TL_WRITE_LOW_PRIORITY      */ "Low priority write lock",
     /* TL_WRITE                   */ "High priority write lock",
     /* TL_WRITE_ONLY              */ "Highest priority write lock"};
@@ -233,7 +233,7 @@ void print_plan(JOIN *join, uint idx, double record_count, double read_time,
   JOIN_TAB **plan_nodes;
   TABLE *table;
 
-  if (info == 0) info = "";
+  if (info == nullptr) info = "";
 
   DBUG_LOCK_FILE;
   if (join->best_read == DBL_MAX) {

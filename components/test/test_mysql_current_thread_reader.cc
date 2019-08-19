@@ -50,33 +50,33 @@ static char *test_thd_reader_current_user_udf(UDF_INIT *, UDF_ARGS *args,
                                               unsigned char *error) {
   if (args->arg_count != 0) {
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
   MYSQL_THD thd;
   if (mysql_service_mysql_current_thread_reader->get(&thd)) {
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
   Security_context_handle ctx;
   if (mysql_service_mysql_thd_security_context->get(thd, &ctx)) {
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
   MYSQL_LEX_CSTRING user;
   if (mysql_service_mysql_security_context_options->get(ctx, "priv_user",
                                                         &user)) {
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
   MYSQL_LEX_CSTRING host;
   if (mysql_service_mysql_security_context_options->get(ctx, "priv_host",
                                                         &host)) {
     *error = 1;
-    return NULL;
+    return nullptr;
   }
 
   snprintf(reinterpret_cast<char *>(result), 255, "%.*s@%.*s",
@@ -91,7 +91,7 @@ static mysql_service_status_t init() {
   Udf_func_string udf = test_thd_reader_current_user_udf;
   if (mysql_service_udf_registration->udf_register(
           "test_thd_reader_current_user", STRING_RESULT,
-          reinterpret_cast<Udf_func_any>(udf), NULL, NULL)) {
+          reinterpret_cast<Udf_func_any>(udf), nullptr, nullptr)) {
     fprintf(stderr, "Can't register the test_thd_reader_current_user UDF\n");
     return 1;
   }

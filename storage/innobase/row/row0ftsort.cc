@@ -105,7 +105,7 @@ store Doc ID during sort */
 
   /* The first field is on the Tokenized Word */
   field = new_index->get_field(0);
-  field->name = NULL;
+  field->name = nullptr;
   field->prefix_len = 0;
   field->is_ascending = true;
   field->col = static_cast<dict_col_t *>(
@@ -120,7 +120,7 @@ store Doc ID during sort */
 
   /* Doc ID */
   field = new_index->get_field(1);
-  field->name = NULL;
+  field->name = nullptr;
   field->prefix_len = 0;
   field->is_ascending = true;
   field->col = static_cast<dict_col_t *>(
@@ -162,7 +162,7 @@ store Doc ID during sort */
 
   /* The third field is on the word's position in the original doc */
   field = new_index->get_field(2);
-  field->name = NULL;
+  field->name = nullptr;
   field->prefix_len = 0;
   field->is_ascending = true;
   field->col = static_cast<dict_col_t *>(
@@ -195,9 +195,9 @@ ibool row_fts_psort_info_init(
 {
   ulint i;
   ulint j;
-  fts_psort_common_t *common_info = NULL;
-  fts_psort_t *psort_info = NULL;
-  fts_psort_t *merge_info = NULL;
+  fts_psort_common_t *common_info = nullptr;
+  fts_psort_t *psort_info = nullptr;
+  fts_psort_t *merge_info = nullptr;
   ulint block_size;
   ibool ret = TRUE;
 
@@ -226,11 +226,11 @@ ibool row_fts_psort_info_init(
   common_info->new_table = (dict_table_t *)new_table;
   common_info->trx = trx;
   common_info->all_info = psort_info;
-  common_info->sort_event = os_event_create(0);
-  common_info->merge_event = os_event_create(0);
+  common_info->sort_event = os_event_create(nullptr);
+  common_info->merge_event = os_event_create(nullptr);
   common_info->opt_doc_id_size = opt_doc_id_size;
 
-  ut_ad(trx->mysql_thd != NULL);
+  ut_ad(trx->mysql_thd != nullptr);
   const char *path = thd_innodb_tmpdir(trx->mysql_thd);
   /* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
   each parallel sort thread. Each "sort bucket" holds records for
@@ -459,9 +459,9 @@ static ibool row_merge_fts_doc_tokenize(
     ib_uint32_t position;
     ulint cur_len = 0;
     doc_id_t write_doc_id;
-    row_fts_token_t *fts_token = NULL;
+    row_fts_token_t *fts_token = nullptr;
 
-    if (parser != NULL) {
+    if (parser != nullptr) {
       if (t_ctx->processed_len == 0) {
         UT_LIST_INIT(t_ctx->fts_token_list, &row_fts_token_t::token_list);
 
@@ -494,8 +494,8 @@ static ibool row_merge_fts_doc_tokenize(
 
     /* Ignore string whose character number is less than
     "fts_min_token_size" or more than "fts_max_token_size" */
-    if (!fts_check_token(&str, NULL, is_ngram, NULL)) {
-      if (parser != NULL) {
+    if (!fts_check_token(&str, nullptr, is_ngram, nullptr)) {
+      if (parser != nullptr) {
         UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
         ut_free(fts_token);
       } else {
@@ -515,7 +515,7 @@ static ibool row_merge_fts_doc_tokenize(
     stopword list */
     if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram,
                          doc->charset)) {
-      if (parser != NULL) {
+      if (parser != nullptr) {
         UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
         ut_free(fts_token);
       } else {
@@ -582,7 +582,7 @@ static ibool row_merge_fts_doc_tokenize(
     ++field;
 
     /* The third field is the position */
-    if (parser != NULL) {
+    if (parser != nullptr) {
       mach_write_to_4(reinterpret_cast<byte *>(&position),
                       (fts_token->position + t_ctx->init_pos));
     } else {
@@ -624,7 +624,7 @@ static ibool row_merge_fts_doc_tokenize(
 
     /* Increment the number of tuples */
     n_tuple[idx]++;
-    if (parser != NULL) {
+    if (parser != nullptr) {
       UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
       ut_free(fts_token);
     } else {
@@ -662,14 +662,14 @@ void row_merge_fts_get_next_doc_item(
     fts_psort_t *psort_info,   /*!< in: psort_info */
     fts_doc_item_t **doc_item) /*!< in/out: doc item */
 {
-  if (*doc_item != NULL) {
+  if (*doc_item != nullptr) {
     ut_free(*doc_item);
   }
 
   mutex_enter(&psort_info->mutex);
 
   *doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
-  if (*doc_item != NULL) {
+  if (*doc_item != nullptr) {
     UT_LIST_REMOVE(psort_info->fts_doc_list, *doc_item);
 
     ut_ad(psort_info->memory_used >=
@@ -684,7 +684,7 @@ void row_merge_fts_get_next_doc_item(
 It also performs the initial in memory sort of the parsed records. */
 static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
   ulint i;
-  fts_doc_item_t *doc_item = NULL;
+  fts_doc_item_t *doc_item = nullptr;
   row_merge_buf_t **buf;
   ibool processed = FALSE;
   merge_file_t **merge_file;
@@ -694,7 +694,7 @@ static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
   ib_uint64_t total_rec = 0;
   ulint num_doc_processed = 0;
   doc_id_t last_doc_id = 0;
-  mem_heap_t *blob_heap = NULL;
+  mem_heap_t *blob_heap = nullptr;
   fts_doc_t doc;
   dict_table_t *table = psort_info->psort_common->new_table;
   dict_table_t *old_table = psort_info->psort_common->old_table;
@@ -704,7 +704,7 @@ static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
   ulint retried = 0;
   dberr_t error = DB_SUCCESS;
 
-  ut_ad(psort_info->psort_common->trx->mysql_thd != NULL);
+  ut_ad(psort_info->psort_common->trx->mysql_thd != nullptr);
   const char *path =
       thd_innodb_tmpdir(psort_info->psort_common->trx->mysql_thd);
 
@@ -738,7 +738,7 @@ loop:
 
     last_doc_id = doc_item->doc_id;
 
-    ut_ad(dfield->data != NULL && dfield_get_len(dfield) != UNIV_SQL_NULL);
+    ut_ad(dfield->data != nullptr && dfield_get_len(dfield) != UNIV_SQL_NULL);
 
     /* If finish processing the last item, update "doc" with
     strings in the doc_item, otherwise continue processing last
@@ -761,7 +761,7 @@ loop:
         doc.text.f_len = data_len;
       }
 
-      doc.tokens = 0;
+      doc.tokens = nullptr;
       t_ctx.processed_len = 0;
     } else {
       /* Not yet finish processing the "doc" on hand,
@@ -807,7 +807,7 @@ loop:
   /* If we run out of current sort buffer, need to sort
   and flush the sort buffer to disk */
   if (t_ctx.rows_added[t_ctx.buf_used] && !processed) {
-    row_merge_buf_sort(buf[t_ctx.buf_used], NULL);
+    row_merge_buf_sort(buf[t_ctx.buf_used], nullptr);
     row_merge_buf_write(buf[t_ctx.buf_used], merge_file[t_ctx.buf_used],
                         block[t_ctx.buf_used]);
 
@@ -847,13 +847,13 @@ loop:
     goto func_exit;
   }
 
-  if (doc_item == NULL) {
+  if (doc_item == nullptr) {
     os_thread_yield();
   }
 
   row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
-  if (doc_item != NULL) {
+  if (doc_item != nullptr) {
     if (last_doc_id != doc_item->doc_id) {
       t_ctx.init_pos = 0;
     }
@@ -871,7 +871,7 @@ exit:
   be hold in one block memory */
   for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
     if (t_ctx.rows_added[i]) {
-      row_merge_buf_sort(buf[i], NULL);
+      row_merge_buf_sort(buf[i], nullptr);
       row_merge_buf_write(buf[i], merge_file[i], block[i]);
 
       /* Write to temp file, only if records have
@@ -962,7 +962,7 @@ func_exit:
   /* Free fts doc list in case of error. */
   do {
     row_merge_fts_get_next_doc_item(psort_info, &doc_item);
-  } while (doc_item != NULL);
+  } while (doc_item != nullptr);
 
   psort_info->child_status = FTS_CHILD_COMPLETE;
   os_event_set(psort_info->psort_common->sort_event);
@@ -1089,7 +1089,7 @@ static dberr_t row_merge_write_fts_word(
     }
 
     ut_free(fts_node->ilist);
-    fts_node->ilist = NULL;
+    fts_node->ilist = nullptr;
   }
 
   ib_vector_reset(word->nodes);
@@ -1107,7 +1107,7 @@ static void row_fts_insert_tuple(
     doc_id_t *in_doc_id,         /*!< in: last item doc id */
     dtuple_t *dtuple)            /*!< in: entry to insert */
 {
-  fts_node_t *fts_node = NULL;
+  fts_node_t *fts_node = nullptr;
   dfield_t *dfield;
   doc_id_t doc_id;
   ulint position;
@@ -1119,8 +1119,8 @@ static void row_fts_insert_tuple(
     fts_node = static_cast<fts_node_t *>(ib_vector_last(word->nodes));
   }
 
-  if (fts_node == NULL || fts_node->ilist_size > FTS_ILIST_MAX_SIZE) {
-    fts_node = static_cast<fts_node_t *>(ib_vector_push(word->nodes, NULL));
+  if (fts_node == nullptr || fts_node->ilist_size > FTS_ILIST_MAX_SIZE) {
+    fts_node = static_cast<fts_node_t *>(ib_vector_push(word->nodes, nullptr));
 
     memset(fts_node, 0x0, sizeof(*fts_node));
   }
@@ -1128,7 +1128,7 @@ static void row_fts_insert_tuple(
   /* If dtuple == NULL, this is the last word to be processed */
   if (!dtuple) {
     if (fts_node && ib_vector_size(positions) > 0) {
-      fts_cache_node_add_positions(NULL, fts_node, *in_doc_id, positions);
+      fts_cache_node_add_positions(nullptr, fts_node, *in_doc_id, positions);
 
       /* Write out the current word */
       row_merge_write_fts_word(ins_ctx, word);
@@ -1156,7 +1156,7 @@ static void row_fts_insert_tuple(
     /* Getting a new word, flush the last position info
     for the currnt word in fts_node */
     if (ib_vector_size(positions) > 0) {
-      fts_cache_node_add_positions(NULL, fts_node, *in_doc_id, positions);
+      fts_cache_node_add_positions(nullptr, fts_node, *in_doc_id, positions);
     }
 
     /* Write out the current word */
@@ -1200,7 +1200,7 @@ static void row_fts_insert_tuple(
   } else {
     ulint num_pos = ib_vector_size(positions);
 
-    fts_cache_node_add_positions(NULL, fts_node, *in_doc_id, positions);
+    fts_cache_node_add_positions(nullptr, fts_node, *in_doc_id, positions);
     for (i = 0; i < num_pos; i++) {
       ib_vector_pop(positions);
     }
@@ -1232,17 +1232,17 @@ static int row_fts_sel_tree_propagate(
   child_left = sel_tree[parent * 2 + 1];
   child_right = sel_tree[parent * 2 + 2];
 
-  if (child_left == -1 || mrec[child_left] == NULL) {
-    if (child_right == -1 || mrec[child_right] == NULL) {
+  if (child_left == -1 || mrec[child_left] == nullptr) {
+    if (child_right == -1 || mrec[child_right] == nullptr) {
       selected = -1;
     } else {
       selected = child_right;
     }
-  } else if (child_right == -1 || mrec[child_right] == NULL) {
+  } else if (child_right == -1 || mrec[child_right] == nullptr) {
     selected = child_left;
   } else if (cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
                                 offsets[child_left], offsets[child_right],
-                                index, NULL) < 0) {
+                                index, nullptr) < 0) {
     selected = child_left;
   } else {
     selected = child_right;
@@ -1322,7 +1322,7 @@ static void row_fts_build_sel_tree_level(
     /* Select the smaller one to set parent pointer */
     int cmp = cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
                                  offsets[child_left], offsets[child_right],
-                                 index, NULL);
+                                 index, nullptr);
 
     sel_tree[start + i] = cmp < 0 ? child_left : child_right;
   }
@@ -1480,7 +1480,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
 
   aux_table = dd_table_open_on_name(nullptr, nullptr, aux_table_name, false,
                                     DICT_ERR_IGNORE_NONE);
-  ut_ad(aux_table != NULL);
+  ut_ad(aux_table != nullptr);
   dd_table_close(aux_table, nullptr, nullptr, false);
   aux_index = aux_table->first_index();
 
@@ -1517,7 +1517,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
   for (i = 0; i < fts_sort_pll_degree; i++) {
     if (psort_info[i].merge_file[id]->n_rec == 0) {
       /* No Rows to read */
-      mrec[i] = b[i] = NULL;
+      mrec[i] = b[i] = nullptr;
     } else {
       /* Read from temp file only if it has been
       written to. Otherwise, block memory holds
@@ -1550,7 +1550,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
 
         if (min_rec >= (int)fts_sort_pll_degree) {
           row_fts_insert_tuple(&ins_ctx, &new_word, positions, &last_doc_id,
-                               NULL);
+                               nullptr);
 
           goto exit;
         }
@@ -1562,7 +1562,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
         }
 
         if (cmp_rec_rec_simple(mrec[i], mrec[min_rec], offsets[i],
-                               offsets[min_rec], index, NULL) < 0) {
+                               offsets[min_rec], index, nullptr) < 0) {
           min_rec = static_cast<int>(i);
         }
       }
@@ -1571,7 +1571,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
 
       if (min_rec == -1) {
         row_fts_insert_tuple(&ins_ctx, &new_word, positions, &last_doc_id,
-                             NULL);
+                             nullptr);
 
         goto exit;
       }

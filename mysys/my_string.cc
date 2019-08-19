@@ -179,5 +179,5 @@ bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...) {
 
 void dynstr_free(DYNAMIC_STRING *str) {
   my_free(str->str);
-  str->str = NULL;
+  str->str = nullptr;
 }

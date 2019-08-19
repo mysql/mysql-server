@@ -51,12 +51,12 @@ void Compression_lz4_writer::append(const std::string &data_to_append) {
     this->prepare_buffer(0);
     this->process_buffer(LZ4F_compressBegin(m_compression_context,
                                             (void *)&m_buffer[0],
-                                            m_buffer.capacity(), NULL));
+                                            m_buffer.capacity(), nullptr));
   }
   this->prepare_buffer(data_to_append.size());
   this->process_buffer(LZ4F_compressUpdate(
       m_compression_context, (void *)&m_buffer[0], m_buffer.capacity(),
-      data_to_append.c_str(), data_to_append.size(), NULL));
+      data_to_append.c_str(), data_to_append.size(), nullptr));
 }
 
 Compression_lz4_writer::~Compression_lz4_writer() {
@@ -64,7 +64,7 @@ Compression_lz4_writer::~Compression_lz4_writer() {
   if (m_buffer.capacity() != 0) {
     this->process_buffer(LZ4F_compressEnd(m_compression_context,
                                           (void *)&m_buffer[0],
-                                          m_buffer.capacity(), NULL));
+                                          m_buffer.capacity(), nullptr));
     LZ4F_freeCompressionContext(m_compression_context);
   }
 }

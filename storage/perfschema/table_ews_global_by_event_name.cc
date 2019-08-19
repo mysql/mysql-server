@@ -65,7 +65,7 @@ Plugin_table table_ews_global_by_event_name::m_table_def(
 PFS_engine_table_share table_ews_global_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_ews_global_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ews_global_by_event_name::delete_all_rows,
     table_ews_global_by_event_name::get_row_count,
     sizeof(pos_ews_global_by_event_name),
@@ -270,7 +270,7 @@ int table_ews_global_by_event_name::rnd_pos(const void *pos) {
 
 int table_ews_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                bool) {
-  PFS_index_ews_global_by_event_name *result = NULL;
+  PFS_index_ews_global_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ews_global_by_event_name);
   m_opened_index = result;
@@ -303,7 +303,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (mutex_class != NULL);
+        } while (mutex_class != nullptr);
         break;
       case pos_ews_global_by_event_name::VIEW_RWLOCK:
         do {
@@ -315,7 +315,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (rwlock_class != NULL);
+        } while (rwlock_class != nullptr);
 
         break;
       case pos_ews_global_by_event_name::VIEW_COND:
@@ -328,7 +328,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (cond_class != NULL);
+        } while (cond_class != nullptr);
         break;
       case pos_ews_global_by_event_name::VIEW_FILE:
         do {
@@ -340,7 +340,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (file_class != NULL);
+        } while (file_class != nullptr);
         break;
       case pos_ews_global_by_event_name::VIEW_TABLE:
         do {
@@ -356,7 +356,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (table_class != NULL);
+        } while (table_class != nullptr);
         break;
       case pos_ews_global_by_event_name::VIEW_SOCKET:
         do {
@@ -368,7 +368,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (socket_class != NULL);
+        } while (socket_class != nullptr);
         break;
       case pos_ews_global_by_event_name::VIEW_IDLE:
         do {
@@ -380,7 +380,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (instr_class != NULL);
+        } while (instr_class != nullptr);
         break;
       case pos_ews_global_by_event_name::VIEW_METADATA:
         do {
@@ -392,7 +392,7 @@ int table_ews_global_by_event_name::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (instr_class != NULL);
+        } while (instr_class != nullptr);
         break;
       default:
         break;

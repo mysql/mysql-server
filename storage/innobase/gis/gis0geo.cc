@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -166,11 +166,11 @@ int split_rtree_node(
     const dd::Spatial_reference_system *srs) /*!< in: SRS of R-tree */
 {
   rtr_split_node_t *cur;
-  rtr_split_node_t *a = NULL;
-  rtr_split_node_t *b = NULL;
+  rtr_split_node_t *a = nullptr;
+  rtr_split_node_t *b = nullptr;
   double *g1 = reserve_coords(d_buffer, n_dim);
   double *g2 = reserve_coords(d_buffer, n_dim);
-  rtr_split_node_t *next = NULL;
+  rtr_split_node_t *next = nullptr;
   int next_node = 0;
   int i;
   int first_rec_group = 1;

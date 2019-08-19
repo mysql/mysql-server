@@ -440,7 +440,7 @@ not to hold it.
 @return page io_fix state */
 UNIV_INLINE
 enum buf_io_fix buf_page_get_io_fix_unlocked(const buf_page_t *bpage) {
-  ut_ad(bpage != NULL);
+  ut_ad(bpage != nullptr);
 
   enum buf_io_fix io_fix = bpage->io_fix;
 
@@ -628,7 +628,7 @@ to make this pure.
 @return control block, or NULL */
 UNIV_INLINE
 buf_block_t *buf_page_get_block(buf_page_t *bpage) {
-  if (bpage != NULL) {
+  if (bpage != nullptr) {
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
     buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
@@ -643,7 +643,7 @@ buf_block_t *buf_page_get_block(buf_page_t *bpage) {
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -985,12 +985,12 @@ UNIV_INLINE
 buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
                                      const page_id_t &page_id, rw_lock_t **lock,
                                      ulint lock_mode, bool watch) {
-  buf_page_t *bpage = NULL;
+  buf_page_t *bpage = nullptr;
   rw_lock_t *hash_lock;
   ulint mode = RW_LOCK_S;
 
-  if (lock != NULL) {
-    *lock = NULL;
+  if (lock != nullptr) {
+    *lock = nullptr;
     ut_ad(lock_mode == RW_LOCK_X || lock_mode == RW_LOCK_S);
     mode = lock_mode;
   }
@@ -1017,7 +1017,7 @@ buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
 
   if (!bpage || buf_pool_watch_is_sentinel(buf_pool, bpage)) {
     if (!watch) {
-      bpage = NULL;
+      bpage = nullptr;
     }
     goto unlock_and_exit;
   }
@@ -1025,7 +1025,7 @@ buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
   ut_ad(buf_page_in_file(bpage));
   ut_ad(page_id.equals_to(bpage->id));
 
-  if (lock == NULL) {
+  if (lock == nullptr) {
     /* The caller wants us to release the page_hash lock */
     goto unlock_and_exit;
   } else {
@@ -1066,7 +1066,7 @@ buf_block_t *buf_block_hash_get_locked(buf_pool_t *buf_pool,
       buf_page_hash_get_locked(buf_pool, page_id, lock, lock_mode);
   buf_block_t *block = buf_page_get_block(bpage);
 
-  if (block != NULL) {
+  if (block != nullptr) {
     ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
     ut_ad(!lock || rw_lock_own(*lock, lock_mode));
 
@@ -1082,13 +1082,13 @@ buf_block_t *buf_block_hash_get_locked(buf_pool_t *buf_pool,
         rw_lock_x_unlock(*lock);
       }
     }
-    *lock = NULL;
-    return (NULL);
+    *lock = nullptr;
+    return (nullptr);
   }
 
   ut_ad(!bpage);
-  ut_ad(lock == NULL || *lock == NULL);
-  return (NULL);
+  ut_ad(lock == nullptr || *lock == nullptr);
+  return (nullptr);
 }
 
 /** Returns TRUE if the page can be found in the buffer pool hash table.
@@ -1100,7 +1100,7 @@ UNIV_INLINE
 ibool buf_page_peek(const page_id_t &page_id) {
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
-  return (buf_page_hash_get(buf_pool, page_id) != NULL);
+  return (buf_page_hash_get(buf_pool, page_id) != nullptr);
 }
 
 /** Releases a compressed-only page acquired with buf_page_get_zip(). */

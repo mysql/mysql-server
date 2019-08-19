@@ -222,7 +222,7 @@ lock_t *lock_prdt_has_lock(ulint precise_mode, /*!< in: LOCK_S or LOCK_X */
   ut_ad(!(precise_mode & LOCK_INSERT_INTENTION));
 
   for (lock = lock_rec_get_first(lock_hash_get(type_mode), block, PRDT_HEAPNO);
-       lock != NULL; lock = lock_rec_get_next(PRDT_HEAPNO, lock)) {
+       lock != nullptr; lock = lock_rec_get_next(PRDT_HEAPNO, lock)) {
     ut_ad(lock->type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
     if (lock->trx == trx && !(lock->type_mode & LOCK_INSERT_INTENTION) &&
@@ -247,7 +247,7 @@ lock_t *lock_prdt_has_lock(ulint precise_mode, /*!< in: LOCK_S or LOCK_X */
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Checks if some other transaction has a conflicting predicate
@@ -268,7 +268,7 @@ static const lock_t *lock_prdt_other_has_conflicting(
 
   for (const lock_t *lock =
            lock_rec_get_first(lock_hash_get(mode), block, PRDT_HEAPNO);
-       lock != NULL; lock = lock_rec_get_next_const(PRDT_HEAPNO, lock)) {
+       lock != nullptr; lock = lock_rec_get_next_const(PRDT_HEAPNO, lock)) {
     if (lock->trx == trx) {
       continue;
     }
@@ -278,7 +278,7 @@ static const lock_t *lock_prdt_other_has_conflicting(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Reset the Minimum Bounding Rectangle (to a large area) */
@@ -346,7 +346,7 @@ static lock_t *lock_prdt_find_on_page(
   ut_ad(lock_mutex_own());
 
   for (lock = lock_rec_get_first_on_page(lock_hash_get(type_mode), block);
-       lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
+       lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
     if (lock->trx == trx && lock->type_mode == type_mode) {
       if (lock->type_mode & LOCK_PRDT_PAGE) {
         return (lock);
@@ -361,7 +361,7 @@ static lock_t *lock_prdt_find_on_page(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Adds a predicate lock request in the predicate lock queue.
@@ -400,7 +400,7 @@ static lock_t *lock_prdt_add_to_queue(
 
     lock_t *lock = lock_prdt_find_on_page(type_mode, block, prdt, trx);
 
-    if (lock != NULL) {
+    if (lock != nullptr) {
       if (lock->type_mode & LOCK_PREDICATE) {
         lock_prdt_enlarge_prdt(lock, prdt);
       }
@@ -457,7 +457,7 @@ dberr_t lock_prdt_insert_check_and_lock(
   /* Only need to check locks on prdt_hash */
   lock = lock_rec_get_first(lock_sys->prdt_hash, block, PRDT_HEAPNO);
 
-  if (lock == NULL) {
+  if (lock == nullptr) {
     lock_mutex_exit();
 
     /* Update the page max trx id field */
@@ -482,7 +482,7 @@ dberr_t lock_prdt_insert_check_and_lock(
   const lock_t *wait_for =
       lock_prdt_other_has_conflicting(mode, block, prdt, trx);
 
-  if (wait_for != NULL) {
+  if (wait_for != nullptr) {
     rtr_mbr_t *mbr = prdt_get_mbr_from_prdt(prdt);
 
     trx_mutex_enter(trx);
@@ -598,7 +598,7 @@ static void lock_prdt_update_split_low(
       /* Duplicate the lock to new page */
 
       lock_prdt_add_to_queue(lock->type_mode, new_block, lock->index, lock->trx,
-                             NULL);
+                             nullptr);
 
       continue;
     }
@@ -648,7 +648,7 @@ void lock_prdt_update_split(
   lock_prdt_update_split_low(block, new_block, prdt, new_prdt, space, page_no,
                              LOCK_PREDICATE);
 
-  lock_prdt_update_split_low(block, new_block, NULL, NULL, space, page_no,
+  lock_prdt_update_split_low(block, new_block, nullptr, nullptr, space, page_no,
                              LOCK_PRDT_PAGE);
 }
 
@@ -661,7 +661,7 @@ void lock_init_prdt_from_mbr(
 {
   memset(prdt, 0, sizeof(*prdt));
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     prdt->data = mem_heap_alloc(heap, sizeof(*mbr));
     ut_memcpy(prdt->data, mbr, sizeof(*mbr));
   } else {
@@ -713,7 +713,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
   const ulint prdt_mode = mode | type_mode;
   lock_t *lock = lock_rec_get_first_on_page(hash, block);
 
-  if (lock == NULL) {
+  if (lock == nullptr) {
     RecLock rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
     trx_mutex_enter(trx);
@@ -731,12 +731,12 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                                 lock->index->rtr_srs.get())))) {
       lock = lock_prdt_has_lock(mode, type_mode, block, prdt, trx);
 
-      if (lock == NULL) {
+      if (lock == nullptr) {
         const lock_t *wait_for;
 
         wait_for = lock_prdt_other_has_conflicting(prdt_mode, block, prdt, trx);
 
-        if (wait_for != NULL) {
+        if (wait_for != nullptr) {
           RecLock rec_lock(thr, index, block, PRDT_HEAPNO, prdt_mode, prdt);
 
           trx_mutex_enter(trx);
@@ -778,7 +778,7 @@ dberr_t lock_place_prdt_page_lock(
     dict_index_t *index, /*!< in: secondary index */
     que_thr_t *thr)      /*!< in: query thread */
 {
-  ut_ad(thr != NULL);
+  ut_ad(thr != nullptr);
   ut_ad(!srv_read_only_mode);
 
   ut_ad(!index->is_clustered());
@@ -797,22 +797,22 @@ dberr_t lock_place_prdt_page_lock(
   const ulint mode = LOCK_S | LOCK_PRDT_PAGE;
   trx_t *trx = thr_get_trx(thr);
 
-  if (lock != NULL) {
+  if (lock != nullptr) {
     trx_mutex_enter(trx);
 
     /* Find a matching record lock owned by this transaction. */
 
-    while (lock != NULL && lock->trx != trx) {
+    while (lock != nullptr && lock->trx != trx) {
       lock = lock_rec_get_next_on_page_const(lock);
     }
 
-    ut_ad(lock == NULL || lock->type_mode == (mode | LOCK_REC));
-    ut_ad(lock == NULL || lock_rec_get_n_bits(lock) != 0);
+    ut_ad(lock == nullptr || lock->type_mode == (mode | LOCK_REC));
+    ut_ad(lock == nullptr || lock_rec_get_n_bits(lock) != 0);
 
     trx_mutex_exit(trx);
   }
 
-  if (lock == NULL) {
+  if (lock == nullptr) {
     RecID rec_id(space, page_no, PRDT_HEAPNO);
     RecLock rec_lock(index, rec_id, mode);
 
@@ -847,7 +847,7 @@ bool lock_test_prdt_page_lock(const trx_t *trx, space_id_t space,
 
   lock_mutex_exit();
 
-  return (lock == NULL || trx == lock->trx);
+  return (lock == nullptr || trx == lock->trx);
 }
 
 /** Moves the locks of a page to another page and resets the lock bits of
@@ -867,7 +867,7 @@ void lock_prdt_rec_move(
   lock_mutex_enter();
 
   for (lock = lock_rec_get_first(lock_sys->prdt_hash, donator, PRDT_HEAPNO);
-       lock != NULL; lock = lock_rec_get_next(PRDT_HEAPNO, lock)) {
+       lock != nullptr; lock = lock_rec_get_next(PRDT_HEAPNO, lock)) {
     const ulint type_mode = lock->type_mode;
     lock_prdt_t *lock_prdt = lock_get_prdt_from_lock(lock);
 
@@ -897,7 +897,7 @@ void lock_prdt_page_free_from_discard(const buf_block_t *block,
 
   lock = lock_rec_get_first_on_page_addr(lock_hash, space, page_no);
 
-  while (lock != NULL) {
+  while (lock != nullptr) {
     next_lock = lock_rec_get_next_on_page(lock);
 
     trx_t *trx = lock->trx;

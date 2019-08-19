@@ -64,7 +64,7 @@ Plugin_table table_esmh_global::m_table_def(
 PFS_engine_table_share table_esmh_global::m_share = {
     &pfs_truncatable_acl,
     table_esmh_global::create,
-    NULL,
+    nullptr,
     table_esmh_global::delete_all_rows,
     table_esmh_global::get_row_count,
     sizeof(pos_t),
@@ -130,7 +130,7 @@ int table_esmh_global::rnd_pos(const void *pos) {
 }
 
 int table_esmh_global::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esmh_global *result = NULL;
+  PFS_index_esmh_global *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esmh_global);
   m_opened_index = result;

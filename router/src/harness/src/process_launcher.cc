@@ -525,7 +525,7 @@ int ProcessLauncher::read(char *buf, size_t count,
   FD_ZERO(&set);
   FD_SET(fd_out[0], &set);
 
-  int res = select(fd_out[0] + 1, &set, NULL, NULL, &timeout_tv);
+  int res = select(fd_out[0] + 1, &set, nullptr, nullptr, &timeout_tv);
   if (res < 0) throw std::system_error(last_error_code(), "select()");
   if (res == 0) return 0;
 

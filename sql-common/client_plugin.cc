@@ -151,12 +151,12 @@ static struct st_mysql_client_plugin *find_plugin(const char *name, int type) {
 
   DBUG_ASSERT(initialized);
   DBUG_ASSERT(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
-  if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) return 0;
+  if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) return nullptr;
 
   for (p = plugin_list[type]; p; p = p->next) {
     if (strcmp(p->plugin->name, name) == 0) return p->plugin;
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -201,7 +201,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
     the new trace plugin and give error. This is done before the
     new plugin gets initialized.
   */
-  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN && NULL != trace_plugin) {
+  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN && nullptr != trace_plugin) {
     errmsg = "Can not load another trace plugin while one is already loaded";
     goto err1;
   }
@@ -248,13 +248,13 @@ err1:
                            ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
   if (dlhandle) dlclose(dlhandle);
-  return NULL;
+  return nullptr;
 }
 
 static struct st_mysql_client_plugin *add_plugin_noargs(
     MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
     int argc, ...) {
-  struct st_mysql_client_plugin *retval = NULL;
+  struct st_mysql_client_plugin *retval = nullptr;
   va_list ap;
   va_start(ap, argc);
   retval = do_add_plugin(mysql, plugin, dlhandle, argc, ap);
@@ -338,7 +338,7 @@ int mysql_client_plugin_init() {
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
   for (builtin = mysql_client_builtins; *builtin; builtin++)
-    add_plugin_noargs(&mysql, *builtin, 0, 0);
+    add_plugin_noargs(&mysql, *builtin, nullptr, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 
@@ -377,7 +377,7 @@ void mysql_client_plugin_deinit() {
 /* see <mysql/client_plugin.h> for a full description */
 struct st_mysql_client_plugin *mysql_client_register_plugin(
     MYSQL *mysql, struct st_mysql_client_plugin *plugin) {
-  if (is_not_initialized(mysql, plugin->name)) return NULL;
+  if (is_not_initialized(mysql, plugin->name)) return nullptr;
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
@@ -387,9 +387,9 @@ struct st_mysql_client_plugin *mysql_client_register_plugin(
                              unknown_sqlstate,
                              ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                              plugin->name, "it is already loaded");
-    plugin = NULL;
+    plugin = nullptr;
   } else
-    plugin = add_plugin_noargs(mysql, plugin, 0, 0);
+    plugin = add_plugin_noargs(mysql, plugin, nullptr, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
   return plugin;
@@ -412,7 +412,7 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
   DBUG_PRINT("entry", ("name=%s type=%d int argc=%d", name, type, argc));
   if (is_not_initialized(mysql, name)) {
     DBUG_PRINT("leave", ("mysql not initialized"));
-    return NULL;
+    return nullptr;
   }
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
@@ -497,7 +497,7 @@ err:
   DBUG_PRINT("leave", ("plugin load error : %s", errmsg));
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), name, errmsg);
-  return NULL;
+  return nullptr;
 }
 
 /* see <mysql/client_plugin.h> for a full description */
@@ -519,7 +519,7 @@ struct st_mysql_client_plugin *mysql_client_find_plugin(MYSQL *mysql,
 
   DBUG_TRACE;
   DBUG_PRINT("entry", ("name=%s, type=%d", name, type));
-  if (is_not_initialized(mysql, name)) return NULL;
+  if (is_not_initialized(mysql, name)) return nullptr;
 
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) {
     set_mysql_extended_error(

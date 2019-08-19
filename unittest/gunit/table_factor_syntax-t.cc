@@ -54,7 +54,7 @@ class TableFactorSyntaxTest : public ParserTest {
 
     if (num_terms > 1) {
       SELECT_LEX *term2 = term1->next_select();
-      ASSERT_FALSE(term2 == NULL);
+      ASSERT_FALSE(term2 == nullptr);
 
       EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
@@ -72,7 +72,7 @@ class TableFactorSyntaxTest : public ParserTest {
     SELECT_LEX *first_term = parse(query);
     SELECT_LEX_UNIT *unit = first_term->master_unit();
     EXPECT_EQ(1U, unit->global_parameters()->order_list.elements) << query;
-    EXPECT_FALSE(unit->global_parameters()->select_limit == NULL) << query;
+    EXPECT_FALSE(unit->global_parameters()->select_limit == nullptr) << query;
   }
 };
 
@@ -139,7 +139,7 @@ TEST_F(TableFactorSyntaxTest, Union) {
 
   Item_func *top_where_cond = down_cast<Item_func *>(block->where_cond());
   Item_field *d1a = down_cast<Item_field *>(top_where_cond->arguments()[0]);
-  ASSERT_FALSE(d1a->context == NULL);
+  ASSERT_FALSE(d1a->context == nullptr);
   EXPECT_EQ(dt, d1a->context->first_name_resolution_table);
 
   EXPECT_EQ(1U, block->top_join_list.size());

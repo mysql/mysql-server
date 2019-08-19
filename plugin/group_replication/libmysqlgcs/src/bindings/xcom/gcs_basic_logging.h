@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,9 +63,9 @@ class Gcs_basic_logging {
     Constructor that creates the logger, debugger and sink.
   */
   Gcs_basic_logging()
-      : logger(NULL),
-        debugger(NULL),
-        sink(NULL),
+      : logger(nullptr),
+        debugger(nullptr),
+        sink(nullptr),
         saved_debug_options(GCS_DEBUG_NONE) {
     saved_debug_options = Gcs_debug_options::get_current_debug_options();
     Gcs_debug_options::force_debug_options(GCS_DEBUG_ALL);

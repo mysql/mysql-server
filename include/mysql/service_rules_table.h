@@ -73,7 +73,7 @@ class Cursor {
   explicit Cursor(THD *thd);
 
   /// Creates a past-the-end cursor.
-  Cursor() : m_thd(NULL), m_table_list(NULL), m_is_finished(true) {}
+  Cursor() : m_thd(nullptr), m_table_list(nullptr), m_is_finished(true) {}
 
   Cursor(const Cursor &) = default;
 

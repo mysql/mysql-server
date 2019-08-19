@@ -64,13 +64,13 @@ class Tablespace {
     shutdown();
     ut_ad(m_files.empty());
     ut_ad(m_space_id == SPACE_UNKNOWN);
-    if (m_name != NULL) {
+    if (m_name != nullptr) {
       ut_free(m_name);
-      m_name = NULL;
+      m_name = nullptr;
     }
-    if (m_path != NULL) {
+    if (m_path != nullptr) {
       ut_free(m_path);
-      m_path = NULL;
+      m_path = nullptr;
     }
   }
 
@@ -81,9 +81,9 @@ class Tablespace {
   /** Set tablespace name
   @param[in]	name	tablespace name */
   void set_name(const char *name) {
-    ut_ad(m_name == NULL);
+    ut_ad(m_name == nullptr);
     m_name = mem_strdup(name);
-    ut_ad(m_name != NULL);
+    ut_ad(m_name != nullptr);
   }
 
   /** Get tablespace name
@@ -94,9 +94,9 @@ class Tablespace {
   @param[in]	path	where tablespace file(s) resides
   @param[in]	len	length of the file path */
   void set_path(const char *path, size_t len) {
-    ut_ad(m_path == NULL);
+    ut_ad(m_path == nullptr);
     m_path = mem_strdupl(path, len);
-    ut_ad(m_path != NULL);
+    ut_ad(m_path != nullptr);
 
     Fil_path::normalize(m_path);
   }

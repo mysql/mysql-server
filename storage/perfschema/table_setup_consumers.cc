@@ -122,8 +122,8 @@ Plugin_table table_setup_consumers::m_table_def(
 PFS_engine_table_share table_setup_consumers::m_share = {
     &pfs_updatable_acl,
     table_setup_consumers::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_setup_consumers::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
@@ -154,7 +154,7 @@ ha_rows table_setup_consumers::get_row_count(void) {
 
 table_setup_consumers::table_setup_consumers()
     : PFS_engine_table(&m_share, &m_pos),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(0),
       m_next_pos(0) {}
 
@@ -173,7 +173,7 @@ int table_setup_consumers::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 
@@ -188,7 +188,7 @@ int table_setup_consumers::rnd_pos(const void *pos) {
 }
 
 int table_setup_consumers::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_setup_consumers *result = NULL;
+  PFS_index_setup_consumers *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_setup_consumers);
   m_opened_index = result;
@@ -207,7 +207,7 @@ int table_setup_consumers::index_next(void) {
     }
   }
 
-  m_row = NULL;
+  m_row = nullptr;
   return HA_ERR_END_OF_FILE;
 }
 

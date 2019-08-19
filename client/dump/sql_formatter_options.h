@@ -73,7 +73,7 @@ class Sql_formatter_options
     static const char *gtid_purged_mode_names[4] = {"OFF", "AUTO", "ON", NullS};
     TYPELIB static gtid_purged_mode_typelib = {
         array_elements(gtid_purged_mode_names) - 1, "", gtid_purged_mode_names,
-        NULL};
+        nullptr};
     return &gtid_purged_mode_typelib;
   }
 };

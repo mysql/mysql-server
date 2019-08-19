@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -201,7 +201,7 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
   /* Calculate length of string */
   len = 0;
   va_start(ap, format);
-  len = mem_heap_printf_low(NULL, format, ap);
+  len = mem_heap_printf_low(nullptr, format, ap);
   va_end(ap);
 
   /* Now create it for real. */
@@ -221,7 +221,7 @@ is detected. A fatal error is logged if an error is detected.
 void mem_heap_validate(const mem_heap_t *heap) {
   ulint size = 0;
 
-  for (const mem_block_t *block = heap; block != NULL;
+  for (const mem_block_t *block = heap; block != nullptr;
        block = UT_LIST_GET_NEXT(list, block)) {
     mem_block_validate(block);
 
@@ -258,7 +258,7 @@ mem_block_t *mem_heap_create_block_func(
                            MEM_HEAP_BUFFER */
 {
 #ifndef UNIV_LIBRARY
-  buf_block_t *buf_block = NULL;
+  buf_block_t *buf_block = nullptr;
 #endif /* !UNIV_LIBRARY */
   mem_block_t *block;
   ulint len;
@@ -266,7 +266,7 @@ mem_block_t *mem_heap_create_block_func(
   ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER) ||
         (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     mem_block_validate(heap);
     ut_d(mem_heap_validate(heap));
   }
@@ -288,19 +288,19 @@ mem_block_t *mem_heap_create_block_func(
       the heap header free block field */
 
       buf_block = static_cast<buf_block_t *>(heap->free_block);
-      heap->free_block = NULL;
+      heap->free_block = nullptr;
 
       if (UNIV_UNLIKELY(!buf_block)) {
-        return (NULL);
+        return (nullptr);
       }
     } else {
-      buf_block = buf_block_alloc(NULL);
+      buf_block = buf_block_alloc(nullptr);
     }
 
     block = (mem_block_t *)buf_block->frame;
   }
 
-  if (block == NULL) {
+  if (block == nullptr) {
 #ifdef UNIV_NO_ERR_MSGS
     ib::fatal()
 #else
@@ -315,13 +315,13 @@ mem_block_t *mem_heap_create_block_func(
   UNIV_MEM_ALLOC(block, MEM_BLOCK_HEADER_SIZE);
 
   block->buf_block = buf_block;
-  block->free_block = NULL;
+  block->free_block = nullptr;
 
 #else  /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
   len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
   block = static_cast<mem_block_t *>(ut_malloc_nokey(len));
   ut_a(block);
-  block->free_block = NULL;
+  block->free_block = nullptr;
 #endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 
   ut_d(ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name)));
@@ -333,7 +333,7 @@ mem_block_t *mem_heap_create_block_func(
   mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
   mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
 
-  if (UNIV_UNLIKELY(heap == NULL)) {
+  if (UNIV_UNLIKELY(heap == nullptr)) {
     /* This is the first block of the heap. The field
     total_size should be initialized here */
     block->total_size = len;
@@ -389,8 +389,8 @@ mem_block_t *mem_heap_add_block(mem_heap_t *heap, /*!< in: memory heap */
 
   new_block = mem_heap_create_block(heap, new_size, heap->type, heap->file_name,
                                     heap->line);
-  if (new_block == NULL) {
-    return (NULL);
+  if (new_block == nullptr) {
+    return (nullptr);
   }
 
   /* Add the new block as the last block */
@@ -467,7 +467,7 @@ void mem_heap_free_block_free(mem_heap_t *heap) /*!< in: heap */
 
     buf_block_free(static_cast<buf_block_t *>(heap->free_block));
 
-    heap->free_block = NULL;
+    heap->free_block = nullptr;
   }
 }
 #endif /* !UNIV_LIBRARY */

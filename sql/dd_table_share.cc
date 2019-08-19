@@ -262,7 +262,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
                           const dd::Table *table_def) {
   my_bitmap_map *bitmaps;
   bool use_hash;
-  handler *handler_file = 0;
+  handler *handler_file = nullptr;
 
   // Mark 'system' tables (tables with one row) to help the Optimizer.
   share->system =
@@ -289,7 +289,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   // Setup other fields =====================================================
   /* Allocate handler */
-  if (!(handler_file = get_new_handler(share, (share->m_part_info != NULL),
+  if (!(handler_file = get_new_handler(share, (share->m_part_info != nullptr),
                                        &share->mem_root, share->db_type()))) {
     my_error(ER_INVALID_DD_OBJECT, MYF(0), share->path.str,
              "Failed to initialize handler.");
@@ -602,8 +602,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
     DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
     DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
 
-    plugin_unlock(NULL, share->db_plugin);
-    share->db_plugin = my_plugin_lock(NULL, &tmp_plugin);
+    plugin_unlock(nullptr, share->db_plugin);
+    share->db_plugin = my_plugin_lock(nullptr, &tmp_plugin);
   } else {
     my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name.str);
     return true;
@@ -833,12 +833,12 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
     interval = (TYPELIB *)share->mem_root.Alloc(sizeof(TYPELIB));
     interval->type_names = (const char **)share->mem_root.Alloc(
         sizeof(char *) * (interval_parts + 1));
-    interval->type_names[interval_parts] = 0;
+    interval->type_names[interval_parts] = nullptr;
 
     interval->type_lengths =
         (uint *)share->mem_root.Alloc(sizeof(uint) * interval_parts);
     interval->count = interval_parts;
-    interval->name = NULL;
+    interval->name = nullptr;
 
     //
     // Iterate through all the column elements
@@ -902,9 +902,9 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
                                 const dd::Column *col_obj, uchar *null_pos,
                                 uint null_bit_pos, uchar *rec_pos,
                                 uint field_nr) {
-  char *name = NULL;
+  char *name = nullptr;
   enum_field_types field_type;
-  const CHARSET_INFO *charset = NULL;
+  const CHARSET_INFO *charset = nullptr;
   Field *reg_field;
   ha_storage_media field_storage;
   column_format_type field_column_format;
@@ -934,7 +934,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Collation ID
   charset = dd_get_mysql_charset(col_obj->collation_id());
-  if (charset == NULL) {
+  if (charset == nullptr) {
     my_printf_error(ER_UNKNOWN_COLLATION,
                     "invalid collation id %llu for table %s, column %s", MYF(0),
                     col_obj->collation_id(), share->table_name.str, name);
@@ -968,7 +968,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     field_column_format = COLUMN_FORMAT_TYPE_DEFAULT;
 
   // Read Interval TYPELIB
-  TYPELIB *interval = NULL;
+  TYPELIB *interval = nullptr;
 
   if (field_type == MYSQL_TYPE_ENUM || field_type == MYSQL_TYPE_SET) {
     //
@@ -979,12 +979,12 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     interval = (TYPELIB *)share->mem_root.Alloc(sizeof(TYPELIB));
     interval->type_names = (const char **)share->mem_root.Alloc(
         sizeof(char *) * (interval_parts + 1));
-    interval->type_names[interval_parts] = 0;
+    interval->type_names[interval_parts] = nullptr;
 
     interval->type_lengths =
         (uint *)share->mem_root.Alloc(sizeof(uint) * interval_parts);
     interval->count = interval_parts;
-    interval->name = NULL;
+    interval->name = nullptr;
 
     //
     // Iterate through all the column elements
@@ -1286,7 +1286,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
           strmake_root(&share->mem_root, name.c_str(), name.length());
       share->keynames.type_names[key_nr] = keyinfo->name;  // Post processing ??
     } else
-      share->keynames.type_names[key_nr] = NULL;
+      share->keynames.type_names[key_nr] = nullptr;
     // share->keynames.count= key_nr+1;
   }
 
@@ -1392,7 +1392,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       DBUG_ASSERT(false);
 
     keyinfo->parser =
-        my_plugin_lock_by_name(NULL, parser_name, MYSQL_FTPARSER_PLUGIN);
+        my_plugin_lock_by_name(nullptr, parser_name, MYSQL_FTPARSER_PLUGIN);
     if (!keyinfo->parser) {
       my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
       if (thd->is_error()) return true;
@@ -1532,7 +1532,7 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       return true; /* purecov: inspected */
     memset(share->keynames.type_names, 0, ((share->keys + 1) * sizeof(char *)));
 
-    share->keynames.type_names[share->keys] = NULL;
+    share->keynames.type_names[share->keys] = nullptr;
     share->keynames.count = share->keys;
 
     // In first iteration get all the index_obj, so that we get all
@@ -1610,7 +1610,7 @@ static char *copy_option_string(MEM_ROOT *mem_root,
   if (options.exists(key) && !options.get(key, &tmp_str) && tmp_str.length()) {
     return strdup_root(mem_root, tmp_str.c_str());
   }
-  return NULL;
+  return nullptr;
 }
 
 static void get_partition_options(MEM_ROOT *mem_root,
@@ -1766,7 +1766,7 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
         return true;
     } else {
       uint list_index = 0, max_index = 0, entries = 0, null_entry = 0;
-      part_elem_value *list_val, *list_val_array = NULL;
+      part_elem_value *list_val, *list_val_array = nullptr;
       for (const dd::Partition_value *part_value : part_obj->values()) {
         max_index = std::max(max_index, part_value->list_num());
         entries++;
@@ -2005,7 +2005,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                        &part_info->part_field_list)) {
       return true;
     }
-    part_info->part_func_string = NULL;
+    part_info->part_func_string = nullptr;
     part_info->part_func_len = 0;
   } else {
     part_info->part_func_string =
@@ -2020,7 +2020,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                          &part_info->subpart_field_list)) {
         return true;
       }
-      part_info->subpart_func_string = NULL;
+      part_info->subpart_func_string = nullptr;
       part_info->subpart_func_len = 0;
     } else {
       part_info->subpart_func_string =
@@ -2128,7 +2128,8 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   // generated partitioning clause.
   Sql_mode_parse_guard parse_guard(thd);
 
-  buf = generate_partition_syntax(part_info, &buf_len, true, true, false, NULL);
+  buf = generate_partition_syntax(part_info, &buf_len, true, true, false,
+                                  nullptr);
 
   if (!buf) return true;
 

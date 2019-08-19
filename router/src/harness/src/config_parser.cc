@@ -350,7 +350,7 @@ void Config::do_read_file(const Path &path) {
 }
 
 void Config::do_read_stream(std::istream &input) {
-  ConfigSection *current = NULL;
+  ConfigSection *current = nullptr;
   std::string line;
   while (getline(input, line)) {
     strip(&line);
@@ -416,7 +416,7 @@ void Config::do_read_stream(std::istream &input) {
         current = &add(section_name,
                        section_key);  // throws syntax_error, bad_section
     } else {                          // if (line[0] != '[')
-      if (current == NULL)
+      if (current == nullptr)
         throw syntax_error("Option line before start of section");
       // Got option line
       std::string::size_type pos = line.find_first_of(":=");

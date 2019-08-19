@@ -122,7 +122,7 @@ dberr_t arch_init() {
       return (DB_OUT_OF_MEMORY);
     }
 
-    log_archiver_thread_event = os_event_create(0);
+    log_archiver_thread_event = os_event_create(nullptr);
   }
 
   if (arch_page_sys == nullptr) {
@@ -132,7 +132,7 @@ dberr_t arch_init() {
       return (DB_OUT_OF_MEMORY);
     }
 
-    page_archiver_thread_event = os_event_create(0);
+    page_archiver_thread_event = os_event_create(nullptr);
   }
 
   arch_page_sys->recover();

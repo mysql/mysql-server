@@ -55,7 +55,7 @@ sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
                          Field *return_value_fld, bool in_sub_stmt)
     : end_partial_result_set(false),
       m_root_parsing_ctx(root_parsing_ctx),
-      m_var_table(NULL),
+      m_var_table(nullptr),
       m_return_value_fld(return_value_fld),
       m_return_value_set(false),
       m_in_sub_stmt(in_sub_stmt),
@@ -82,12 +82,12 @@ sp_rcontext *sp_rcontext::create(THD *thd, const sp_pcontext *root_parsing_ctx,
   sp_rcontext *ctx = new (thd->mem_root)
       sp_rcontext(root_parsing_ctx, return_value_fld, thd->in_sub_stmt);
 
-  if (!ctx) return NULL;
+  if (!ctx) return nullptr;
 
   if (ctx->alloc_arrays(thd) || ctx->init_var_table(thd) ||
       ctx->init_var_items(thd)) {
     destroy(ctx);
-    return NULL;
+    return nullptr;
   }
 
   return ctx;
@@ -263,8 +263,8 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
   if (thd->is_fatal_sub_stmt_error && m_in_sub_stmt) return false;
 
   Diagnostics_area *da = thd->get_stmt_da();
-  const sp_handler *found_handler = NULL;
-  Sql_condition *found_condition = NULL;
+  const sp_handler *found_handler = nullptr;
+  Sql_condition *found_condition = nullptr;
 
   if (thd->is_error()) {
     sp_pcontext *cur_pctx = cur_spi->get_parsing_ctx();
@@ -331,7 +331,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
 
   DBUG_ASSERT(found_condition);
 
-  sp_handler_entry *handler_entry = NULL;
+  sp_handler_entry *handler_entry = nullptr;
   for (size_t i = 0; i < m_visible_handlers.size(); ++i) {
     sp_handler_entry *h = m_visible_handlers.at(i);
 
@@ -469,7 +469,7 @@ bool sp_cursor::close() {
 
 void sp_cursor::destroy() {
   delete m_server_side_cursor;
-  m_server_side_cursor = NULL;
+  m_server_side_cursor = nullptr;
 }
 
 bool sp_cursor::fetch(List<sp_variable> *vars) {

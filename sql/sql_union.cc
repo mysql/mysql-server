@@ -102,8 +102,8 @@ bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
 }
 
 bool Query_result_union::send_data(THD *thd, List<Item> &values) {
-  if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL,
-                  false))
+  if (fill_record(thd, table, table->visible_field_ptr(), values, nullptr,
+                  nullptr, false))
     return true; /* purecov: inspected */
 
   if (!check_unique_constraint(table)) return false;
@@ -155,7 +155,7 @@ bool Query_result_union::create_result_table(
     THD *thd_arg, List<Item> *column_types, bool is_union_distinct,
     ulonglong options, const char *table_alias, bool bit_fields_as_long,
     bool create_table) {
-  DBUG_ASSERT(table == NULL);
+  DBUG_ASSERT(table == nullptr);
   tmp_table_param = Temp_table_param();
   count_field_types(thd_arg->lex->current_select(), &tmp_table_param,
                     *column_types, false, true);
@@ -183,9 +183,9 @@ bool Query_result_union::create_result_table(
     }
   }
 
-  if (!(table = create_tmp_table(thd_arg, &tmp_table_param, *column_types, NULL,
-                                 is_union_distinct, true, options, HA_POS_ERROR,
-                                 table_alias)))
+  if (!(table = create_tmp_table(thd_arg, &tmp_table_param, *column_types,
+                                 nullptr, is_union_distinct, true, options,
+                                 HA_POS_ERROR, table_alias)))
     return true;
   if (create_table) {
     table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -303,7 +303,7 @@ bool Query_result_union_direct::change_query_result(THD *thd,
 }
 
 bool Query_result_union_direct::postponed_prepare(THD *thd, List<Item> &types) {
-  if (result == NULL) return false;
+  if (result == nullptr) return false;
 
   return result->prepare(thd, types, unit);
 }
@@ -336,7 +336,7 @@ bool Query_result_union_direct::send_data(THD *thd, List<Item> &items) {
     return false;
   }
 
-  if (fill_record(thd, table, table->field, items, NULL, NULL, false))
+  if (fill_record(thd, table, table->field, items, nullptr, nullptr, false))
     return true; /* purecov: inspected */
 
   return result->send_data(thd, unit->item_list);
@@ -443,8 +443,8 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
               fake_select_lex->master_unit() == this &&
               !fake_select_lex->group_list.elements &&
-              fake_select_lex->where_cond() == NULL &&
-              fake_select_lex->having_cond() == NULL);
+              fake_select_lex->where_cond() == nullptr &&
+              fake_select_lex->having_cond() == nullptr);
 
   if (fake_select_lex->prepare(thd_arg)) return true;
 
@@ -500,8 +500,9 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
 
   // Save fake_select_lex in case we don't need it for anything but
   // global parameters.
-  if (saved_fake_select_lex == NULL &&  // Don't overwrite on PS second prepare
-      fake_select_lex != NULL)
+  if (saved_fake_select_lex ==
+          nullptr &&  // Don't overwrite on PS second prepare
+      fake_select_lex != nullptr)
     saved_fake_select_lex = fake_select_lex;
 
   const bool simple_query_expression = is_simple();
@@ -512,7 +513,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
       if (!(tmp_result = union_result = new (thd->mem_root)
                 Query_result_union_direct(sel_result, last_select)))
         goto err; /* purecov: inspected */
-      if (fake_select_lex != NULL) fake_select_lex = NULL;
+      if (fake_select_lex != nullptr) fake_select_lex = nullptr;
       instantiate_tmp_table = false;
     } else {
       if (!(tmp_result = union_result =
@@ -521,7 +522,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
       instantiate_tmp_table = true;
     }
 
-    if (fake_select_lex != NULL) {
+    if (fake_select_lex != nullptr) {
       /*
         There exists a query block that consolidates the UNION result.
         Prepare the active options for this query block. If these options
@@ -662,7 +663,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
     If the query is using Query_result_union_direct, we have postponed
     preparation of the underlying Query_result until column types are known.
   */
-  if (union_result != NULL && union_result->postponed_prepare(thd, types))
+  if (union_result != nullptr && union_result->postponed_prepare(thd, types))
     goto err;
 
   if (!simple_query_expression) {
@@ -711,7 +712,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
       */
       table->reset_item_list(&item_list);
     }
-    if (fake_select_lex != NULL) {
+    if (fake_select_lex != nullptr) {
       thd->lex->set_current_select(fake_select_lex);
 
       if (prepare_fake_select_lex(thd)) goto err;
@@ -802,8 +803,8 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
                 fake_select_lex->master_unit() == this &&
                 !fake_select_lex->group_list.elements &&
                 fake_select_lex->get_table_list() == &result_table_list &&
-                fake_select_lex->where_cond() == NULL &&
-                fake_select_lex->having_cond() == NULL);
+                fake_select_lex->where_cond() == nullptr &&
+                fake_select_lex->having_cond() == nullptr);
 
     if (fake_select_lex->optimize(thd)) return true;
   } else if (saved_fake_select_lex != nullptr) {
@@ -1081,7 +1082,7 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
       return true;
   }
 
-  if (fake_select_lex != NULL) {
+  if (fake_select_lex != nullptr) {
     // Don't save result as it's needed only for consequent exec.
     ret = explain_query_specification(explain_thd, query_thd, fake_select_lex,
                                       CTX_UNION_RESULT);
@@ -1652,7 +1653,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
 
       if (sl == union_distinct && sl->next_select()) {
         // This is UNION DISTINCT, so there should be a fake_select_lex
-        DBUG_ASSERT(fake_select_lex != NULL);
+        DBUG_ASSERT(fake_select_lex != nullptr);
         if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
           return true; /* purecov: inspected */
         table->no_keyread = true;
@@ -1664,7 +1665,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
         return true; /* purecov: inspected */
     }
 
-    if (fake_select_lex != NULL) {
+    if (fake_select_lex != nullptr) {
       thd->lex->set_current_select(fake_select_lex);
       if (table->hash_field)  // Prepare for access method of JOIN::exec
         table->file->ha_index_or_rnd_end();
@@ -1733,9 +1734,9 @@ bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
   if (full && union_result) {
     union_result->cleanup(thd);
     destroy(union_result);
-    union_result = NULL;  // Safety
+    union_result = nullptr;  // Safety
     if (table) free_tmp_table(thd, table);
-    table = NULL;  // Safety
+    table = nullptr;  // Safety
   }
 
   /*
@@ -1968,7 +1969,7 @@ bool SELECT_LEX::cleanup(THD *thd, bool full) {
       DBUG_ASSERT(join->select_lex == this);
       error = join->destroy();
       destroy(join);
-      join = NULL;
+      join = nullptr;
     } else
       join->cleanup();
   }

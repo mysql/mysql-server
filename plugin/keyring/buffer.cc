@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,20 +29,20 @@
 
 namespace keyring {
 void Buffer::free() {
-  if (data != NULL) {
+  if (data != nullptr) {
     delete[] data;
-    data = NULL;
+    data = nullptr;
   }
   mark_as_empty();
   DBUG_ASSERT(size == 0 && position == 0);
 }
 
 bool Buffer::get_next_key(IKey **key) {
-  *key = NULL;
+  *key = nullptr;
 
   std::unique_ptr<Key> key_ptr(new Key());
   size_t number_of_bytes_read_from_buffer = 0;
-  if (data == NULL) {
+  if (data == nullptr) {
     DBUG_ASSERT(size == 0);
     return true;
   }

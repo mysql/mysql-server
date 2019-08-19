@@ -199,7 +199,7 @@ static void get_options(int *argc, char ***argv) {
             else
               pos = *(++*argv);
           }
-          start_offset = (my_off_t)my_strtoll(pos, NULL, 10);
+          start_offset = (my_off_t)my_strtoll(pos, nullptr, 10);
           pos = " ";
           break;
         case 'p':
@@ -227,7 +227,7 @@ static void get_options(int *argc, char ***argv) {
           }
           record_pos_file = pos;
           if (!--*argc) goto err;
-          record_pos = (my_off_t)my_strtoll(*(++*argv), NULL, 10);
+          record_pos = (my_off_t)my_strtoll(*(++*argv), nullptr, 10);
           pos = " ";
           break;
         case 'v':
@@ -330,7 +330,7 @@ static int examine_log(const char *file_name, char **table_names) {
   DBUG_TRACE;
 
   if ((file = my_open(file_name, O_RDONLY, MYF(MY_WME))) < 0) return 1;
-  write_file = 0;
+  write_file = nullptr;
   if (write_filename) {
     if (!(write_file = my_fopen(write_filename, O_WRONLY, MYF(MY_WME)))) {
       my_close(file, MYF(0));
@@ -384,10 +384,10 @@ static int examine_log(const char *file_name, char **table_names) {
               "Maybe you should use the -P option ?\n",
               curr_file_info->show_name);
         if (my_b_read(&cache, (uchar *)head, 2)) goto err;
-        buff = 0;
-        file_info.name = 0;
-        file_info.show_name = 0;
-        file_info.record = 0;
+        buff = nullptr;
+        file_info.name = nullptr;
+        file_info.show_name = nullptr;
+        file_info.record = nullptr;
         if (read_string(&cache, &buff, (uint)mi_uint2korr(head))) goto err;
         {
           uint i;
@@ -478,7 +478,8 @@ static int examine_log(const char *file_name, char **table_names) {
           printf_log("%s: %s(%d) -> %d", FILENAME(curr_file_info),
                      command_name[command], (int)extra_command, result);
         if (update && curr_file_info && !curr_file_info->closed) {
-          if (mi_extra(curr_file_info->isam, extra_command, 0) != (int)result) {
+          if (mi_extra(curr_file_info->isam, extra_command, nullptr) !=
+              (int)result) {
             fflush(stdout);
             (void)fprintf(
                 stderr, "Warning: error %d, expected %d on command %s at %s\n",
@@ -521,7 +522,7 @@ static int examine_log(const char *file_name, char **table_names) {
         if (my_b_read(&cache, (uchar *)head, 12)) goto err;
         filepos = mi_sizekorr(head);
         length = mi_uint4korr(head + 8);
-        buff = 0;
+        buff = nullptr;
         if (read_string(&cache, &buff, (uint)length)) goto err;
         if ((!record_pos_file ||
              ((record_pos == filepos || record_pos == NO_FILEPOS) &&
@@ -646,7 +647,7 @@ static int read_string(IO_CACHE *file, uchar **to, uint length) {
                                  MYF(MY_WME))) ||
       my_b_read(file, (uchar *)*to, length)) {
     if (*to) my_free(*to);
-    *to = 0;
+    *to = nullptr;
     return 1;
   }
   *((uchar *)*to + length) = '\0';
@@ -714,7 +715,7 @@ static int close_some_file(TREE *tree) {
   struct st_access_param access_param;
 
   access_param.min_accessed = LONG_MAX;
-  access_param.found = 0;
+  access_param.found = nullptr;
 
   (void)tree_walk(tree, test_when_accessed, &access_param, left_root_right);
   if (!access_param.found)

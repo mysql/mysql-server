@@ -236,13 +236,13 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
 
   if (UNIV_UNLIKELY(n > REC_MAX_N_FIELDS)) {
     page_zip_fail(("page_zip_fields_decode: n = %lu\n", (ulong)n));
-    return (NULL);
+    return (nullptr);
   }
 
   if (UNIV_UNLIKELY(b > end)) {
     page_zip_fail(("page_zip_fields_decode: %p > %p\n", (const void *)b,
                    (const void *)end));
-    return (NULL);
+    return (nullptr);
   }
 
   table = dict_mem_table_create("ZIP_DUMMY", DICT_HDR_SPACE, n, 0, 0,
@@ -279,7 +279,7 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
       mtype = DATA_FIXBINARY;
     }
 
-    dict_mem_table_add_col(table, NULL, NULL, mtype,
+    dict_mem_table_add_col(table, nullptr, nullptr, mtype,
                            val & 1 ? DATA_NOT_NULL : 0, len);
 
     /* The is_ascending flag does not matter during decompression,
@@ -298,7 +298,7 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
       val = ULINT_UNDEFINED;
     } else if (UNIV_UNLIKELY(val >= n)) {
       page_zip_fields_free(index);
-      index = NULL;
+      index = nullptr;
     } else {
       index->type = DICT_CLUSTERED;
     }
@@ -308,7 +308,7 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
     /* Decode the number of nullable fields. */
     if (UNIV_UNLIKELY(index->n_nullable > val)) {
       page_zip_fields_free(index);
-      index = NULL;
+      index = nullptr;
     } else {
       index->n_nullable = val;
     }
@@ -360,7 +360,7 @@ static const byte *page_zip_apply_log_ext(
              " %p - %p >= %p - %p\n",
              (ulong)len, (const void *)dst, (const void *)next_out,
              (const void *)end, (const void *)data));
-        return (NULL);
+        return (nullptr);
       }
 
       memcpy(next_out, data, dst - next_out);
@@ -377,7 +377,7 @@ static const byte *page_zip_apply_log_ext(
             ("page_zip_apply_log_ext:"
              " ext %p+%lu >= %p\n",
              (const void *)data, (ulong)len, (const void *)end));
-        return (NULL);
+        return (nullptr);
       }
 
       memcpy(next_out, data, len);
@@ -393,7 +393,7 @@ static const byte *page_zip_apply_log_ext(
         ("page_zip_apply_log_ext:"
          " last %p+%lu >= %p\n",
          (const void *)data, (ulong)len, (const void *)end));
-    return (NULL);
+    return (nullptr);
   }
   memcpy(next_out, data, len);
   data += len;
@@ -439,18 +439,18 @@ static const byte *page_zip_apply_log(
             ("page_zip_apply_log:"
              " invalid val %x%x\n",
              data[-2], data[-1]));
-        return (NULL);
+        return (nullptr);
       }
     }
     if (UNIV_UNLIKELY(data >= end)) {
       page_zip_fail(("page_zip_apply_log: %p >= %p\n", (const void *)data,
                      (const void *)end));
-      return (NULL);
+      return (nullptr);
     }
     if (UNIV_UNLIKELY((val >> 1) > n_dense)) {
       page_zip_fail(
           ("page_zip_apply_log: %lu>>1 > %lu\n", (ulong)val, (ulong)n_dense));
-      return (NULL);
+      return (nullptr);
     }
 
     /* Determine the heap number and status bits of the record. */
@@ -466,7 +466,7 @@ static const byte *page_zip_apply_log(
     if (UNIV_UNLIKELY(hs > heap_status)) {
       page_zip_fail(
           ("page_zip_apply_log: %lu > %lu\n", (ulong)hs, (ulong)heap_status));
-      return (NULL);
+      return (nullptr);
     } else if (hs == heap_status) {
       /* A new record was allocated from the heap. */
       if (UNIV_UNLIKELY(val & 1)) {
@@ -476,7 +476,7 @@ static const byte *page_zip_apply_log(
              " attempting to create"
              " deleted rec %lu\n",
              (ulong)hs));
-        return (NULL);
+        return (nullptr);
       }
       heap_status += 1 << REC_HEAP_NO_SHIFT;
     }
@@ -485,7 +485,7 @@ static const byte *page_zip_apply_log(
 
     if (val & 1) {
       /* Clear the data bytes of the record. */
-      mem_heap_t *heap = NULL;
+      mem_heap_t *heap = nullptr;
       ulint *offs;
       offs = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
       memset(rec, 0, rec_offs_data_size(offs));
@@ -520,13 +520,13 @@ static const byte *page_zip_apply_log(
             ("page_zip_apply_log:"
              " %lu&REC_STATUS_NODE_PTR\n",
              (ulong)hs));
-        return (NULL);
+        return (nullptr);
       }
 
       data = page_zip_apply_log_ext(rec, offsets, trx_id_col, data, end);
 
       if (UNIV_UNLIKELY(!data)) {
-        return (NULL);
+        return (nullptr);
       }
     } else if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
       len = rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE;
@@ -536,7 +536,7 @@ static const byte *page_zip_apply_log(
             ("page_zip_apply_log:"
              " node_ptr %p+%lu >= %p\n",
              (const void *)data, (ulong)len, (const void *)end));
-        return (NULL);
+        return (nullptr);
       }
       memcpy(rec, data, len);
       data += len;
@@ -550,7 +550,7 @@ static const byte *page_zip_apply_log(
             ("page_zip_apply_log:"
              " sec %p+%lu >= %p\n",
              (const void *)data, (ulong)len, (const void *)end));
-        return (NULL);
+        return (nullptr);
       }
 
       memcpy(rec, data, len);
@@ -566,7 +566,7 @@ static const byte *page_zip_apply_log(
             ("page_zip_apply_log:"
              " trx_id %p+%lu >= %p\n",
              (const void *)data, (ulong)l, (const void *)end));
-        return (NULL);
+        return (nullptr);
       }
 
       /* Copy any preceding data bytes. */
@@ -581,7 +581,7 @@ static const byte *page_zip_apply_log(
             ("page_zip_apply_log:"
              " clust %p+%lu >= %p\n",
              (const void *)data, (ulong)len, (const void *)end));
-        return (NULL);
+        return (nullptr);
       }
       memcpy(b, data, len);
       data += len;
@@ -1399,7 +1399,7 @@ ibool page_zip_decompress_low(
                               after page creation */
 {
   z_stream d_stream;
-  dict_index_t *index = NULL;
+  dict_index_t *index = nullptr;
   rec_t **recs;  /*!< dense page directory, sorted by address */
   ulint n_dense; /* number of user records on the page */
   ulint trx_id_col = ULINT_UNDEFINED;
@@ -1506,7 +1506,7 @@ ibool page_zip_decompress_low(
   }
 
   index = page_zip_fields_decode(page + PAGE_ZIP_START, d_stream.next_out,
-                                 page_is_leaf(page) ? &trx_id_col : NULL,
+                                 page_is_leaf(page) ? &trx_id_col : nullptr,
                                  fil_page_get_type(page) == FIL_PAGE_RTREE);
 
   if (UNIV_UNLIKELY(!index)) {

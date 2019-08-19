@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class Query_result_union : public Query_result_interceptor {
   TABLE *table;
 
   Query_result_union()
-      : Query_result_interceptor(), m_rows_in_table(0), table(0) {}
+      : Query_result_interceptor(), m_rows_in_table(0), table(nullptr) {}
   bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
     Do prepare() if preparation has been postponed until column type

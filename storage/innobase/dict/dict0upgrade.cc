@@ -127,14 +127,14 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
       dd::Foreign_key_element *fk_col_obj = fk_obj->add_element();
 
       const char *foreign_col = foreign->foreign_col_names[i];
-      ut_ad(foreign_col != NULL);
+      ut_ad(foreign_col != nullptr);
       const dd::Column *column = dd_table->get_column(
           dd::String_type(foreign_col, strlen(foreign_col)));
-      ut_ad(column != NULL);
+      ut_ad(column != nullptr);
       fk_col_obj->set_column(column);
 
       const char *referenced_col = foreign->referenced_col_names[i];
-      ut_ad(referenced_col != NULL);
+      ut_ad(referenced_col != nullptr);
 
       DBUG_EXECUTE_IF("dd_upgrade",
                       ib::info(ER_IB_MSG_230)
@@ -186,7 +186,7 @@ static dd::Tablespace *dd_upgrade_get_tablespace(
 
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(ib_table->flags));
-    if (ib_table->tablespace == NULL) return (ts_obj);
+    if (ib_table->tablespace == nullptr) return (ts_obj);
     tablespace_name.assign(ib_table->tablespace());
   }
   ut_ad(tablespace_name.length() < MAX_FULL_NAME_LEN);
@@ -386,8 +386,8 @@ static bool dd_upgrade_match_cols(const TABLE *srv_table,
       if (!col_obj->is_se_hidden()) {
         /* Match col object and field */
         Field *field = dd_upgrade_get_field(srv_table, ib_col_name);
-        ut_ad(field != NULL);
-        ut_ad(ib_col != NULL);
+        ut_ad(field != nullptr);
+        ut_ad(ib_col != nullptr);
         bool failure = dd_upgrade_match_single_col(field, ib_col);
         if (failure) {
           ib::error(ER_IB_MSG_245) << "Column " << col_obj->name()
@@ -498,7 +498,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
     KEY_PART_INFO *key_part = key->key_part + i;
 
     Field *field = srv_table->field[key_part->field->field_index];
-    if (field == NULL) ut_error;
+    if (field == nullptr) ut_error;
 
     const char *field_name = key_part->field->field_name;
     dict_field_t *idx_field = index->get_field(i);
@@ -669,8 +669,8 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t *index,
 static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                                   dd::Table *dd_table, TABLE *srv_table) {
   /* Check for auto inc */
-  const char *auto_inc_index_name = NULL;
-  const char *auto_inc_col_name = NULL;
+  const char *auto_inc_index_name = nullptr;
+  const char *auto_inc_col_name = nullptr;
 
   bool has_auto_inc = dd_upgrade_check_for_autoinc(
       srv_table, auto_inc_index_name, auto_inc_col_name);
@@ -767,7 +767,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                           << " from server for table: " << part_table->name;);
 
       for (dict_index_t *index = UT_LIST_GET_FIRST(part_table->indexes);
-           index != NULL; index = UT_LIST_GET_NEXT(indexes, index)) {
+           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
         if (strcmp(part_index->name().c_str(), index->name()) == 0) {
           uint64_t read_auto_inc = 0;
           dd_upgrade_process_index(part_index, index, dd_space_id, has_auto_inc,
@@ -841,14 +841,14 @@ So we rename FTS tablespace files
 bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                       dd::Table *dd_table, TABLE *srv_table) {
   char norm_name[FN_REFLEN];
-  dict_table_t *ib_table = NULL;
+  dict_table_t *ib_table = nullptr;
 
   /* 2 * NAME_CHAR_LEN is for dbname and tablename, 5 assumes max bytes
   for charset, + 2 is for path separator and +1 is for NULL. */
   char buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
   bool truncated;
 
-  build_table_filename(buf, sizeof(buf), db_name, table_name, NULL, 0,
+  build_table_filename(buf, sizeof(buf), db_name, table_name, nullptr, 0,
                        &truncated);
 
   if (truncated || !normalize_table_name(norm_name, buf)) {
@@ -867,7 +867,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   ib_table =
       dict_table_open_on_name(norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
 
-  if (ib_table == NULL) {
+  if (ib_table == nullptr) {
     ib::error(ER_IB_MSG_258)
         << "Table " << norm_name << " is not found in InnoDB dictionary";
     return (true);
@@ -965,7 +965,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                         << " from server for table: " << ib_table->name;);
 
     for (dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
-         index != NULL; index = UT_LIST_GET_NEXT(indexes, index)) {
+         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
       if (strcmp(dd_index->name().c_str(), index->name()) == 0) {
         if (!dd_index->is_hidden()) {
           failure = dd_upgrade_match_index(srv_table, index);
@@ -1103,8 +1103,8 @@ int dd_upgrade_tablespace(THD *thd) {
   "FTS", followed by the table id. */
   std::regex fts_regex("\\S+FTS_[a-f0-9]{16,16}_\\S+");
 
-  for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES); rec != NULL;
-       rec = dict_getnext_system(&pcur, &mtr)) {
+  for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES);
+       rec != nullptr; rec = dict_getnext_system(&pcur, &mtr)) {
     const char *err_msg;
     space_id_t space;
     const char *name;

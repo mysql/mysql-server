@@ -487,8 +487,8 @@ ulint rec_get_converted_size_comp_prefix(
     ulint *extra)              /*!< out: extra size */
 {
   ut_ad(dict_table_is_comp(index->table));
-  return (rec_get_converted_size_comp_prefix_low(index, fields, n_fields, NULL,
-                                                 extra, nullptr, false));
+  return (rec_get_converted_size_comp_prefix_low(
+      index, fields, n_fields, nullptr, extra, nullptr, false));
 }
 
 /** Determines the size of a data tuple in ROW_FORMAT=COMPACT.
@@ -532,7 +532,7 @@ ulint rec_get_converted_size_comp(
   }
 
   return (size + rec_get_converted_size_comp_prefix_low(
-                     index, fields, n_fields, NULL, extra, &status, false));
+                     index, fields, n_fields, nullptr, extra, &status, false));
 }
 
 /** Sets the value of the ith field SQL null bit of an old-style record. */
@@ -702,7 +702,7 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
   const dtype_t *type;
   byte *end;
   byte *nulls;
-  byte *lens = NULL;
+  byte *lens = nullptr;
   ulint len;
   ulint i;
   ulint n_node_ptr_field;
@@ -731,7 +731,7 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
       temp = false;
     }
   } else {
-    ut_ad(v_entry == NULL);
+    ut_ad(v_entry == nullptr);
     ut_ad(num_v == 0);
     nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 
@@ -777,7 +777,7 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
 
   for (i = 0; i < n_fields; i++) {
     const dict_field_t *ifield;
-    dict_col_t *col = NULL;
+    dict_col_t *col = nullptr;
 
     field = &fields[i];
 
@@ -938,7 +938,7 @@ static rec_t *rec_convert_dtuple_to_rec_new(
   rec = buf + extra_size;
 
   instant = rec_convert_dtuple_to_rec_comp(
-      rec, index, dtuple->fields, dtuple->n_fields, NULL, status, false);
+      rec, index, dtuple->fields, dtuple->n_fields, nullptr, status, false);
 
   /* Set the info bits of the record */
   rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
@@ -966,9 +966,9 @@ rec_t *rec_convert_dtuple_to_rec(
 {
   rec_t *rec;
 
-  ut_ad(buf != NULL);
-  ut_ad(index != NULL);
-  ut_ad(dtuple != NULL);
+  ut_ad(buf != nullptr);
+  ut_ad(index != nullptr);
+  ut_ad(dtuple != nullptr);
   ut_ad(dtuple_validate(dtuple));
   ut_ad(dtuple_check_typed(dtuple));
 
@@ -983,7 +983,7 @@ rec_t *rec_convert_dtuple_to_rec(
   because if it comes from UPDATE, the fields of dtuple may be less than
   the on from index itself. */
   if (!index->has_instant_cols()) {
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     ulint offsets_[REC_OFFS_NORMAL_SIZE];
     const ulint *offsets;
     ulint i;
@@ -1109,7 +1109,7 @@ static rec_t *rec_copy_prefix_to_buf_old(
 
   prefix_len = area_start + area_end;
 
-  if ((*buf == NULL) || (*buf_size < prefix_len)) {
+  if ((*buf == nullptr) || (*buf_size < prefix_len)) {
     ut_free(*buf);
     *buf_size = prefix_len;
     *buf = static_cast<byte *>(ut_malloc_nokey(prefix_len));
@@ -1165,7 +1165,7 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
       /* infimum or supremum record: no sense to copy anything */
     default:
       ut_error;
-      return (NULL);
+      return (nullptr);
   }
 
   ut_d(uint16_t non_default_fields =)
@@ -1231,7 +1231,7 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
 
   prefix_len += rec - (lens + 1);
 
-  if ((*buf == NULL) || (*buf_size < prefix_len)) {
+  if ((*buf == nullptr) || (*buf_size < prefix_len)) {
     ut_free(*buf);
     *buf_size = prefix_len;
     *buf = static_cast<byte *>(ut_malloc_nokey(prefix_len));
@@ -1518,7 +1518,7 @@ void rec_print_mbr_rec(
 {
   ut_ad(rec);
   ut_ad(offsets);
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   if (!rec_offs_comp(offsets)) {
     rec_print_mbr_old(file, rec);
@@ -1583,7 +1583,7 @@ void rec_print_new(
 {
   ut_ad(rec);
   ut_ad(offsets);
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
 #ifdef UNIV_DEBUG
   if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
@@ -1619,7 +1619,7 @@ void rec_print(FILE *file,                /*!< in: file where to print */
     rec_print_old(file, rec);
     return;
   } else {
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     ulint offsets_[REC_OFFS_NORMAL_SIZE];
     rec_offs_init(offsets_);
 
@@ -1642,7 +1642,7 @@ void rec_print(std::ostream &o, const rec_t *rec, ulint info,
   const ulint comp = rec_offs_comp(offsets);
   const ulint n = rec_offs_n_fields(offsets);
 
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   o << (comp ? "COMPACT RECORD" : "RECORD") << "(info_bits=" << info << ", "
     << n << " fields): {";
@@ -1688,9 +1688,9 @@ void rec_print(std::ostream &o, const rec_t *rec, ulint info,
 @param[in]	r	record to display
 @return	the output stream */
 std::ostream &operator<<(std::ostream &o, const rec_index_print &r) {
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint *offsets =
-      rec_get_offsets(r.m_rec, r.m_index, NULL, ULINT_UNDEFINED, &heap);
+      rec_get_offsets(r.m_rec, r.m_index, nullptr, ULINT_UNDEFINED, &heap);
   rec_print(o, r.m_rec, rec_get_info_bits(r.m_rec, rec_offs_comp(offsets)),
             offsets);
   mem_heap_free(heap);
@@ -1715,7 +1715,7 @@ trx_id_t rec_get_trx_id(const rec_t *rec,          /*!< in: record */
   ulint trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
   const byte *trx_id;
   ulint len;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);

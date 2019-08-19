@@ -786,8 +786,8 @@ static void *compress_gtid_table(void *p_thd) {
     deinit_thd(thd);
   }
   my_thread_end();
-  my_thread_exit(0);
-  return 0;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 }  // extern "C"
 

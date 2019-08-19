@@ -111,8 +111,8 @@ Group_member_info::Group_member_info(Group_member_info &other)
 Group_member_info::Group_member_info(const uchar *data, size_t len,
                                      PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
-      gcs_member_id(NULL),
-      member_version(NULL),
+      gcs_member_id(nullptr),
+      member_version(nullptr),
       unreachable(false),
       lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES),
       default_table_encryption(false),
@@ -745,7 +745,7 @@ bool Group_member_info_manager::is_member_info_present(
 
 Group_member_info *Group_member_info_manager::get_group_member_info(
     const string &uuid) {
-  Group_member_info *member = NULL;
+  Group_member_info *member = nullptr;
   mysql_mutex_lock(&update_lock);
 
   map<string, Group_member_info *>::iterator it;
@@ -756,8 +756,8 @@ Group_member_info *Group_member_info_manager::get_group_member_info(
     member = (*it).second;
   }
 
-  Group_member_info *member_copy = NULL;
-  if (member != NULL) {
+  Group_member_info *member_copy = nullptr;
+  if (member != nullptr) {
     member_copy = new Group_member_info(*member);
   }
 
@@ -768,7 +768,7 @@ Group_member_info *Group_member_info_manager::get_group_member_info(
 
 Group_member_info *Group_member_info_manager::get_group_member_info_by_index(
     int idx) {
-  Group_member_info *member = NULL;
+  Group_member_info *member = nullptr;
 
   mysql_mutex_lock(&update_lock);
 
@@ -780,8 +780,8 @@ Group_member_info *Group_member_info_manager::get_group_member_info_by_index(
     }
   }
 
-  Group_member_info *member_copy = NULL;
-  if (member != NULL) {
+  Group_member_info *member_copy = nullptr;
+  if (member != nullptr) {
     member_copy = new Group_member_info(*member);
   }
   mysql_mutex_unlock(&update_lock);
@@ -812,7 +812,7 @@ Member_version Group_member_info_manager::get_group_lowest_online_version() {
 Group_member_info *
 Group_member_info_manager::get_group_member_info_by_member_id(
     Gcs_member_identifier idx) {
-  Group_member_info *member = NULL;
+  Group_member_info *member = nullptr;
 
   mysql_mutex_lock(&update_lock);
 
@@ -845,7 +845,7 @@ vector<Group_member_info *> *Group_member_info_manager::get_all_members() {
 std::list<Gcs_member_identifier>
     *Group_member_info_manager::get_online_members_with_guarantees(
         const Gcs_member_identifier &exclude_member) {
-  std::list<Gcs_member_identifier> *online_members = NULL;
+  std::list<Gcs_member_identifier> *online_members = nullptr;
   mysql_mutex_lock(&update_lock);
 
   for (map<string, Group_member_info *>::iterator it = members->begin();
@@ -1067,7 +1067,7 @@ void Group_member_info_manager::encode(vector<uchar> *to_encode) {
 
 vector<Group_member_info *> *Group_member_info_manager::decode(
     const uchar *to_decode, size_t length) {
-  vector<Group_member_info *> *decoded_members = NULL;
+  vector<Group_member_info *> *decoded_members = nullptr;
 
   Group_member_info_manager_message *group_info_message =
       new Group_member_info_manager_message();
@@ -1110,7 +1110,7 @@ Group_member_info *Group_member_info_manager::get_primary_member_info() {
   mysql_mutex_lock(&update_lock);
   map<string, Group_member_info *>::iterator it;
 
-  Group_member_info *member_copy = NULL;
+  Group_member_info *member_copy = nullptr;
   for (it = members->begin(); it != members->end(); it++) {
     Group_member_info *info = (*it).second;
     if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
@@ -1119,7 +1119,7 @@ Group_member_info *Group_member_info_manager::get_primary_member_info() {
   }
   mysql_mutex_unlock(&update_lock);
 
-  DBUG_ASSERT(member_copy == NULL || member_copy->in_primary_mode());
+  DBUG_ASSERT(member_copy == nullptr || member_copy->in_primary_mode());
 
   return member_copy;
 }
@@ -1210,7 +1210,7 @@ Group_member_info_manager_message::Group_member_info_manager_message(
 
 Group_member_info_manager_message::Group_member_info_manager_message(
     Group_member_info *member_info)
-    : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE), members(NULL) {
+    : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE), members(nullptr) {
   DBUG_TRACE;
   members = new vector<Group_member_info *>();
   members->push_back(member_info);

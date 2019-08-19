@@ -169,7 +169,7 @@ void compute_digest_hash(const sql_digest_storage *digest_storage,
 */
 void compute_digest_text(const sql_digest_storage *digest_storage,
                          String *digest_text) {
-  DBUG_ASSERT(digest_storage != NULL);
+  DBUG_ASSERT(digest_storage != nullptr);
   uint byte_count = digest_storage->m_byte_count;
   String *digest_output = digest_text;
   uint tok = 0;
@@ -198,7 +198,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
       get_charset(digest_storage->m_charset_number, MYF(0));
   const CHARSET_INFO *to_cs = &my_charset_utf8_bin;
 
-  if (from_cs == NULL) {
+  if (from_cs == nullptr) {
     /*
       Can happen, as we do dirty reads on digest_storage,
       which can be written to in another thread.
@@ -379,7 +379,7 @@ static inline void peek_last_three_tokens(
 
 sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
                                    Lexer_yystype *yylval) {
-  sql_digest_storage *digest_storage = NULL;
+  sql_digest_storage *digest_storage = nullptr;
 
   digest_storage = &state->m_digest_storage;
 
@@ -388,7 +388,7 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
     if END token is received.
   */
   if (digest_storage->m_full || token == END_OF_INPUT) {
-    return NULL;
+    return nullptr;
   }
 
   /*
@@ -621,7 +621,7 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
 
 sql_digest_state *digest_reduce_token(sql_digest_state *state, uint token_left,
                                       uint token_right) {
-  sql_digest_storage *digest_storage = NULL;
+  sql_digest_storage *digest_storage = nullptr;
 
   digest_storage = &state->m_digest_storage;
 
@@ -629,7 +629,7 @@ sql_digest_state *digest_reduce_token(sql_digest_state *state, uint token_left,
     Stop collecting further tokens if digest storage is full.
   */
   if (digest_storage->m_full) {
-    return NULL;
+    return nullptr;
   }
 
   uint last_token;

@@ -43,17 +43,18 @@ static bool verbose;
 #include "mysys/my_handler_errors.h"
 
 static struct my_option my_long_options[] = {
-    {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-    {"info", 'I', "Synonym for --help.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"silent", 's', "Only print the error message.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"help", '?', "Displays this help and exits.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"info", 'I', "Synonym for --help.", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"silent", 's', "Only print the error message.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v', "Print error code and message (default).", &verbose,
-     &verbose, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-    {"version", 'V', "Displays version information and exits.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &verbose, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Displays version information and exits.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   print_version();
@@ -128,7 +129,7 @@ typedef struct {
 static st_error global_error_names[] = {
 #include <mysqld_ername.h>
 
-    {0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}};
 
 /**
   Lookup an error by code in the global_error_names array.
@@ -143,14 +144,14 @@ int get_ER_error_msg_by_code(uint code, const char **name_ptr,
 
   /* handle "global errors" */
   if ((code >= EE_ERROR_FIRST) && (code <= EE_ERROR_LAST)) {
-    *name_ptr = NULL;
+    *name_ptr = nullptr;
     *msg_ptr = globerrs[code - EE_ERROR_FIRST];
     return 1;
   }
 
   tmp_error = &global_error_names[0];
 
-  while (tmp_error->name != NULL) {
+  while (tmp_error->name != nullptr) {
     if (tmp_error->code == code) {
       *name_ptr = tmp_error->name;
       *msg_ptr = tmp_error->text;
@@ -170,7 +171,7 @@ int get_ER_error_msg_by_code(uint code, const char **name_ptr,
 int get_ER_error_msg_by_symbol(const char *symbol) {
   st_error *tmp_error = &global_error_names[0];
 
-  while (tmp_error->name != NULL) {
+  while (tmp_error->name != nullptr) {
     if (0 == strcmp(tmp_error->name, symbol)) return tmp_error->code;
     tmp_error++;
   }
@@ -228,7 +229,7 @@ int main(int argc, char *argv[]) {
   int error, code, found;
   const char *msg;
   const char *name;
-  char *unknown_error = 0;
+  char *unknown_error = nullptr;
 #if defined(_WIN32)
   bool skip_win_message = 0;
 #endif
@@ -247,7 +248,7 @@ int main(int argc, char *argv[]) {
 
       On Solaris 2.8 it might return NULL
     */
-    if ((msg = strerror(10000)) == NULL) msg = "Unknown Error";
+    if ((msg = strerror(10000)) == nullptr) msg = "Unknown Error";
 
     /*
       Allocate a buffer for unknown_error since strerror always returns

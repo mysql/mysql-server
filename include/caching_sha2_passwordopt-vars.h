@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,11 @@
 
 #include "mysql.h"
 
-static char *opt_server_public_key = 0;
+static char *opt_server_public_key = nullptr;
 static bool opt_get_server_public_key = false;
 
 static void set_server_public_key(MYSQL *mysql,
-                                  const char *server_public_key = NULL) {
+                                  const char *server_public_key = nullptr) {
   if (server_public_key && *server_public_key)
     mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, server_public_key);
   else if (opt_server_public_key && *opt_server_public_key)
@@ -38,7 +38,7 @@ static void set_server_public_key(MYSQL *mysql,
 }
 
 static void set_get_server_public_key_option(
-    MYSQL *mysql, const bool *get_server_public_key = NULL) {
+    MYSQL *mysql, const bool *get_server_public_key = nullptr) {
   mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
                 get_server_public_key ? get_server_public_key
                                       : &opt_get_server_public_key);

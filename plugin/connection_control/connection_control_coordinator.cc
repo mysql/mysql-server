@@ -37,7 +37,7 @@ namespace connection_control {
 void Connection_event_coordinator::reset() {
   m_subscribers.clear();
   for (uint i = (uint)STAT_CONNECTION_DELAY_TRIGGERED; i < (uint)STAT_LAST; ++i)
-    m_status_vars_subscription[i] = 0;
+    m_status_vars_subscription[i] = nullptr;
 }
 
 /**
@@ -69,13 +69,13 @@ bool Connection_event_coordinator::register_event_subscriber(
   std::vector<opt_connection_control>::iterator sys_vars_it;
   std::vector<stats_connection_control>::iterator status_vars_it;
 
-  DBUG_ASSERT(subscriber != 0);
+  DBUG_ASSERT(subscriber != nullptr);
 
   if (status_vars) {
     for (status_vars_it = status_vars->begin();
          status_vars_it != status_vars->end(); ++status_vars_it) {
       if (*status_vars_it >= STAT_LAST ||
-          m_status_vars_subscription[*status_vars_it] != 0) {
+          m_status_vars_subscription[*status_vars_it] != nullptr) {
         /*
           Either an invalid status variable is specified or
           someone has already subscribed for status variable

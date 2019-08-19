@@ -382,7 +382,7 @@ void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
   // Gather table information
   std::vector<Trans_table_info> table_info_holder;
   for (; open_tables != nullptr; open_tables = open_tables->next) {
-    Trans_table_info table_info = {0, 0, 0, false};
+    Trans_table_info table_info = {nullptr, 0, 0, false};
 
     if (open_tables->no_replicate) {
       continue;
@@ -1071,12 +1071,12 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
       select_lex_elem = select_lex_elem->next_select();
     }
 
-    if (!is_udf && all_tables == 0x00) {
+    if (!is_udf && all_tables == nullptr) {
       // SELECT that don't use tables and isn't a UDF
       hold_command = false;
     }
 
-    if (hold_command && all_tables != 0x00) {
+    if (hold_command && all_tables != nullptr) {
       // SELECT that use tables
       bool is_perf_schema_table = false;
       bool is_process_list = false;

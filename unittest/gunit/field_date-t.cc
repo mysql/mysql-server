@@ -64,7 +64,7 @@ const type_conversion_status FieldDateTest::nozero_expected_status[] = {
 class Mock_field_date : public Field_newdate {
  public:
   Mock_field_date()
-      : Field_newdate(0,                          // ptr_arg
+      : Field_newdate(nullptr,                    // ptr_arg
                       &Field::dummy_null_buffer,  // null_ptr_arg
                       1,                          // null_bit_arg
                       Field::NONE,                // auto_flags_arg

@@ -230,12 +230,12 @@ class Sql_cmd_set_role : public Sql_cmd {
   Sql_cmd_set_role(role_enum role_type_arg,
                    const List<LEX_USER> *except_roles_arg)
       : role_type(role_type_arg),
-        role_list(NULL),
+        role_list(nullptr),
         except_roles(except_roles_arg) {
     DBUG_ASSERT(role_type == role_enum::ROLE_NONE ||
                 role_type == role_enum::ROLE_DEFAULT ||
                 role_type == role_enum::ROLE_ALL);
-    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || except_roles == nullptr);
   }
   explicit Sql_cmd_set_role(const List<LEX_USER> *role_arg)
       : role_type(role_enum::ROLE_NAME), role_list(role_arg) {}
@@ -392,7 +392,7 @@ class Sql_cmd_alter_instance : public Sql_cmd {
   explicit Sql_cmd_alter_instance(
       enum alter_instance_action_enum alter_instance_action_arg)
       : alter_instance_action(alter_instance_action_arg),
-        alter_instance(NULL) {}
+        alter_instance(nullptr) {}
 
   virtual bool execute(THD *thd);
   virtual enum_sql_command sql_command_code() const {

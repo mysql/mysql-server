@@ -291,7 +291,7 @@ class Deadlock_detection_visitor : public MDL_wait_for_graph_visitor {
  public:
   Deadlock_detection_visitor(MDL_context *start_node_arg)
       : m_start_node(start_node_arg),
-        m_victim(NULL),
+        m_victim(nullptr),
         m_current_search_depth(0),
         m_found_deadlock(false) {}
   virtual bool enter_node(MDL_context *node);
@@ -395,7 +395,7 @@ bool Deadlock_detection_visitor::inspect_edge(MDL_context *node) {
 */
 
 void Deadlock_detection_visitor::opt_change_victim_to(MDL_context *new_victim) {
-  if (m_victim == NULL ||
+  if (m_victim == nullptr ||
       m_victim->get_deadlock_weight() >= new_victim->get_deadlock_weight()) {
     /* Swap victims, unlock the old one. */
     MDL_context *tmp = m_victim;
@@ -1171,7 +1171,7 @@ void MDL_map::destroy() {
 */
 
 MDL_lock *MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned) {
-  MDL_lock *lock = NULL;
+  MDL_lock *lock = nullptr;
 
   if (is_lock_object_singleton(mdl_key)) {
     /*
@@ -1210,7 +1210,7 @@ MDL_lock *MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned) {
   lock = static_cast<MDL_lock *>(
       lf_hash_search(&m_locks, pins, mdl_key->ptr(), mdl_key->length()));
 
-  if (lock == NULL || lock == MY_LF_ERRPTR) {
+  if (lock == nullptr || lock == MY_LF_ERRPTR) {
     lf_hash_search_unpin(pins);
     *pinned = false;  // Avoid warnings on older compilers.
     return lock;
@@ -1240,16 +1240,16 @@ MDL_lock *MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned) {
 
 MDL_lock *MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
                                   bool *pinned) {
-  MDL_lock *lock = NULL;
+  MDL_lock *lock = nullptr;
 
-  while ((lock = find(pins, mdl_key, pinned)) == NULL) {
+  while ((lock = find(pins, mdl_key, pinned)) == nullptr) {
     /*
       MDL_lock for key isn't present in hash, try to insert new object.
       This can fail due to concurrent inserts.
     */
     int rc = lf_hash_insert(&m_locks, pins, mdl_key);
     if (rc == -1) /* If OOM. */
-      return NULL;
+      return nullptr;
     else if (rc == 0) {
       /*
         New MDL_lock object is not used yet. So we need to
@@ -1260,7 +1260,7 @@ MDL_lock *MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
   }
   if (lock == MY_LF_ERRPTR) {
     /* If OOM in lf_hash_search. */
-    return NULL;
+    return nullptr;
   }
 
   return lock;
@@ -1313,7 +1313,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
   MDL_lock *lock = static_cast<MDL_lock *>(lf_hash_random_match(
       &m_locks, pins, &mdl_lock_match_unused, ctx->get_random()));
 
-  if (lock == NULL || lock == MY_LF_ERRPTR) {
+  if (lock == nullptr || lock == MY_LF_ERRPTR) {
     /*
       We were unlucky and no unused objects were found. This can happen,
       for example, if our random dive into LF_HASH was close to the tail
@@ -1424,11 +1424,11 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
 */
 
 MDL_context::MDL_context()
-    : m_owner(NULL),
+    : m_owner(nullptr),
       m_needs_thr_lock_abort(false),
       m_force_dml_deadlock_weight(false),
-      m_waiting_for(NULL),
-      m_pins(NULL),
+      m_waiting_for(nullptr),
+      m_pins(nullptr),
       m_rand_state(UINT_MAX32) {
   mysql_prlock_init(key_MDL_context_LOCK_waiting_for, &m_LOCK_waiting_for);
 }
@@ -1459,7 +1459,7 @@ void MDL_context::destroy() {
 
 bool MDL_context::fix_pins() {
   if (!m_pins) m_pins = mdl_locks.get_pins();
-  return (m_pins == NULL);
+  return (m_pins == nullptr);
 }
 
 /**
@@ -1503,7 +1503,7 @@ void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
   key.mdl_key_init(mdl_namespace, db_arg, name_arg);
   type = mdl_type_arg;
   duration = mdl_duration_arg;
-  ticket = NULL;
+  ticket = nullptr;
   m_src_file = src_file;
   m_src_line = src_line;
 }
@@ -1527,7 +1527,7 @@ void MDL_request::init_by_key_with_source(const MDL_key *key_arg,
   key.mdl_key_init(key_arg);
   type = mdl_type_arg;
   duration = mdl_duration_arg;
-  ticket = NULL;
+  ticket = nullptr;
   m_src_file = src_file;
   m_src_line = src_line;
 }
@@ -1558,7 +1558,7 @@ void MDL_request::init_by_part_key_with_source(
                    db_length_arg);
   type = mdl_type_arg;
   duration = mdl_duration_arg;
-  ticket = NULL;
+  ticket = nullptr;
   m_src_file = src_file;
   m_src_line = src_line;
 }
@@ -1665,7 +1665,7 @@ MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
 
 void MDL_ticket::destroy(MDL_ticket *ticket) {
   mysql_mdl_destroy(ticket->m_psi);
-  ticket->m_psi = NULL;
+  ticket->m_psi = nullptr;
 
   delete ticket;
 }
@@ -1729,7 +1729,7 @@ uint MDL_ticket::get_deadlock_weight() const {
 /** Construct an empty wait slot. */
 
 MDL_wait::MDL_wait() : m_wait_status(WS_EMPTY) {
-  mysql_mutex_init(key_MDL_wait_LOCK_wait_status, &m_LOCK_wait_status, NULL);
+  mysql_mutex_init(key_MDL_wait_LOCK_wait_status, &m_LOCK_wait_status, nullptr);
   mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status);
 }
 
@@ -1800,12 +1800,12 @@ MDL_wait::enum_wait_status MDL_wait::timed_wait(
 
   owner->ENTER_COND(&m_COND_wait_status, &m_LOCK_wait_status, wait_state_name,
                     &old_stage);
-  thd_wait_begin(NULL, THD_WAIT_META_DATA_LOCK);
+  thd_wait_begin(nullptr, THD_WAIT_META_DATA_LOCK);
   while (!m_wait_status && !owner->is_killed() && !is_timeout(wait_result)) {
     wait_result = mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                        abs_timeout);
   }
-  thd_wait_end(NULL);
+  thd_wait_end(nullptr);
 
   if (m_wait_status == WS_EMPTY) {
     /*
@@ -2152,15 +2152,15 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy = {
       Scoped locks doesn't require notification of owners of conflicting
       locks for any type of requests. Hence 'm_needs_notification' is NULL.
     */
-    NULL,
+    nullptr,
     /*
       For the same reason, 'm_notify_conflicting_locks' is NULL for scoped
       locks.
     */
-    NULL,
+    nullptr,
     &MDL_lock::scoped_lock_fast_path_granted_bitmap,
     /* Scoped locks never require connection check. */
-    NULL};
+    nullptr};
 
 /**
   Strategy instance for per-object locks.
@@ -2419,7 +2419,7 @@ bool MDL_lock::can_grant_lock(enum_mdl_type type_arg,
               ticket->is_incompatible_when_granted(type_arg))
             break;
         }
-        if (ticket == NULL) /* Incompatible locks are our own. */
+        if (ticket == nullptr) /* Incompatible locks are our own. */
           can_grant = true;
       }
     } else {
@@ -2458,7 +2458,7 @@ inline MDL_context *MDL_lock::get_lock_owner() const {
   MDL_ticket *ticket;
 
   if ((ticket = it++)) return ticket->get_ctx();
-  return NULL;
+  return nullptr;
 }
 
 /** Remove a ticket from waiting or pending queue and wakeup up waiters. */
@@ -2800,10 +2800,10 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   bool force_slow;
   bool pinned;
 
-  DBUG_ASSERT(mdl_request->ticket == NULL);
+  DBUG_ASSERT(mdl_request->ticket == nullptr);
 
   /* Don't take chances in production. */
-  mdl_request->ticket = NULL;
+  mdl_request->ticket = nullptr;
   mysql_mutex_assert_not_owner(&LOCK_open);
 
   /*
@@ -2835,7 +2835,7 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
          mdl_request->duration == MDL_EXPLICIT) &&
         clone_ticket(mdl_request)) {
       /* Clone failed. */
-      mdl_request->ticket = NULL;
+      mdl_request->ticket = nullptr;
       return true;
     }
     return false;
@@ -2879,7 +2879,7 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   */
   if (!unobtrusive_lock_increment) materialize_fast_path_locks();
 
-  DBUG_ASSERT(ticket->m_psi == NULL);
+  DBUG_ASSERT(ticket->m_psi == nullptr);
   ticket->m_psi = mysql_mdl_create(
       ticket, key, mdl_request->type, mdl_request->duration,
       MDL_ticket::PENDING, mdl_request->m_src_file, mdl_request->m_src_line);
@@ -3181,7 +3181,7 @@ bool MDL_context::clone_ticket(MDL_request *mdl_request) {
                                     )))
     return true;
 
-  DBUG_ASSERT(ticket->m_psi == NULL);
+  DBUG_ASSERT(ticket->m_psi == nullptr);
   ticket->m_psi = mysql_mdl_create(
       ticket, &mdl_request->key, mdl_request->type, mdl_request->duration,
       MDL_ticket::PENDING, mdl_request->m_src_file, mdl_request->m_src_line);
@@ -3408,9 +3408,9 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
   PSI_metadata_locker_state state;
-  PSI_metadata_locker *locker = NULL;
+  PSI_metadata_locker *locker = nullptr;
 
-  if (ticket->m_psi != NULL) {
+  if (ticket->m_psi != nullptr) {
     locker = PSI_METADATA_CALL(start_metadata_wait)(&state, ticket->m_psi,
                                                     __FILE__, __LINE__);
   }
@@ -3470,7 +3470,7 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   done_waiting_for();
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_METADATA_CALL(end_metadata_wait)(locker, 0);
   }
 #endif
@@ -3617,7 +3617,7 @@ err:
   /* Reset lock requests back to its initial state. */
   for (p_req = sort_buf.begin(); p_req != sort_buf.begin() + num_acquired;
        p_req++) {
-    (*p_req)->ticket = NULL;
+    (*p_req)->ticket = nullptr;
   }
   return true;
 }
@@ -4309,7 +4309,7 @@ bool MDL_context::owns_equal_or_stronger_lock(const MDL_key *mdl_key,
   MDL_REQUEST_INIT_BY_KEY(&mdl_request, mdl_key, mdl_type, MDL_TRANSACTION);
   MDL_ticket *ticket = find_ticket(&mdl_request, &not_used);
 
-  DBUG_ASSERT(ticket == NULL || ticket->m_lock);
+  DBUG_ASSERT(ticket == nullptr || ticket->m_lock);
 
   return ticket;
 }
@@ -4339,7 +4339,7 @@ bool MDL_context::owns_equal_or_stronger_lock(
                    MDL_TRANSACTION);
   MDL_ticket *ticket = find_ticket(&mdl_request, &not_used);
 
-  DBUG_ASSERT(ticket == NULL || ticket->m_lock);
+  DBUG_ASSERT(ticket == nullptr || ticket->m_lock);
 
   return ticket;
 }
@@ -4356,7 +4356,7 @@ bool MDL_context::owns_equal_or_stronger_lock(
 
 bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
                                   MDL_context_visitor *visitor) {
-  MDL_lock *lock = NULL;
+  MDL_lock *lock = nullptr;
   MDL_context *owner;
   bool pinned;
 
@@ -4367,7 +4367,7 @@ retry:
     return true;
 
   /* No MDL_lock object, no owner, nothing to visit. */
-  if (lock == NULL) return false;
+  if (lock == nullptr) return false;
 
   mysql_prlock_rdlock(&lock->m_rwlock);
 
@@ -4431,13 +4431,13 @@ void MDL_context::rollback_to_savepoint(const MDL_savepoint &mdl_savepoint) {
 
 void MDL_context::release_transactional_locks() {
   DBUG_TRACE;
-  release_locks_stored_before(MDL_STATEMENT, NULL);
-  release_locks_stored_before(MDL_TRANSACTION, NULL);
+  release_locks_stored_before(MDL_STATEMENT, nullptr);
+  release_locks_stored_before(MDL_TRANSACTION, nullptr);
 }
 
 void MDL_context::release_statement_locks() {
   DBUG_TRACE;
-  release_locks_stored_before(MDL_STATEMENT, NULL);
+  release_locks_stored_before(MDL_STATEMENT, nullptr);
 }
 
 /**

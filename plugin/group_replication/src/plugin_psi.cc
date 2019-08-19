@@ -498,7 +498,7 @@ static PSI_stage_info *all_group_replication_stages_keys[] = {
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
                                                size_t mutex_count) {
   const char *category = "group_rpl";
-  if (mutexes != NULL) {
+  if (mutexes != nullptr) {
     mysql_mutex_register(category, mutexes, static_cast<int>(mutex_count));
   }
 }
@@ -506,7 +506,7 @@ void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
 void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
                                               size_t cond_count) {
   const char *category = "group_rpl";
-  if (conds != NULL) {
+  if (conds != nullptr) {
     mysql_cond_register(category, conds, static_cast<int>(cond_count));
   }
 }
@@ -514,7 +514,7 @@ void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
 void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
                                                 size_t thread_count) {
   const char *category = "group_rpl";
-  if (threads != NULL) {
+  if (threads != nullptr) {
     mysql_thread_register(category, threads, static_cast<int>(thread_count));
   }
 }

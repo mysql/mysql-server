@@ -569,7 +569,7 @@ struct PFS_error_single_stat {
 struct PFS_error_stat {
   PFS_error_single_stat *m_stat;
 
-  PFS_error_stat() { m_stat = NULL; }
+  PFS_error_stat() { m_stat = nullptr; }
 
   const PFS_error_single_stat *get_stat(uint error_index) const {
     return &m_stat[error_index];
@@ -598,17 +598,17 @@ struct PFS_error_stat {
   }
 
   inline void cleanup(PFS_builtin_memory_class *memory_class) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
     PFS_FREE_ARRAY(memory_class, max_server_errors + 1,
                    sizeof(PFS_error_single_stat), m_stat);
-    m_stat = NULL;
+    m_stat = nullptr;
   }
 
   inline void reset() {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
@@ -618,7 +618,7 @@ struct PFS_error_stat {
   }
 
   inline void aggregate_count(int error_index, int error_operation) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
@@ -627,7 +627,7 @@ struct PFS_error_stat {
   }
 
   inline void aggregate(const PFS_error_single_stat *stat, uint error_index) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
@@ -636,7 +636,7 @@ struct PFS_error_stat {
   }
 
   inline void aggregate(const PFS_error_stat *stat) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
@@ -1239,7 +1239,7 @@ struct PFS_memory_shared_stat {
     if ((m_alloc_count_capacity >= 1) && (m_alloc_size_capacity >= size)) {
       m_alloc_count_capacity--;
       m_alloc_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();
@@ -1271,7 +1271,7 @@ struct PFS_memory_shared_stat {
     m_free_size += old_size;
 
     if (new_size == old_size) {
-      return NULL;
+      return nullptr;
     }
 
     if (new_size > old_size) {
@@ -1281,7 +1281,7 @@ struct PFS_memory_shared_stat {
 
       if (m_alloc_size_capacity >= size_delta) {
         m_alloc_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1294,7 +1294,7 @@ struct PFS_memory_shared_stat {
 
       if (m_free_size_capacity >= size_delta) {
         m_free_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1317,7 +1317,7 @@ struct PFS_memory_shared_stat {
     if ((m_free_count_capacity >= 1) && (m_free_size_capacity >= size)) {
       m_free_count_capacity--;
       m_free_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();
@@ -1390,7 +1390,7 @@ struct PFS_memory_shared_stat {
     }
 
     if (!has_remaining) {
-      return NULL;
+      return nullptr;
     }
 
     delta_buffer->m_alloc_count_delta = remaining_alloc_count;
@@ -1479,7 +1479,7 @@ struct PFS_memory_safe_stat {
     if ((m_alloc_count_capacity >= 1) && (m_alloc_size_capacity >= size)) {
       m_alloc_count_capacity--;
       m_alloc_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();
@@ -1511,7 +1511,7 @@ struct PFS_memory_safe_stat {
     m_free_size += old_size;
 
     if (new_size == old_size) {
-      return NULL;
+      return nullptr;
     }
 
     if (new_size > old_size) {
@@ -1521,7 +1521,7 @@ struct PFS_memory_safe_stat {
 
       if (m_alloc_size_capacity >= size_delta) {
         m_alloc_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1534,7 +1534,7 @@ struct PFS_memory_safe_stat {
 
       if (m_free_size_capacity >= size_delta) {
         m_free_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1557,7 +1557,7 @@ struct PFS_memory_safe_stat {
     if ((m_free_count_capacity >= 1) && (m_free_size_capacity >= size)) {
       m_free_count_capacity--;
       m_free_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();

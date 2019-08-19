@@ -70,7 +70,7 @@ class Connection_acceptor_socket : public xpl::iface::Connection_acceptor {
 
       const int error_code = m_system_interface.get_socket_errno();
       if (error_code != SOCKET_EINTR && error_code != SOCKET_EAGAIN)
-        return NULL;
+        return nullptr;
     }
 
     const bool is_tcpip = (accept_address.ss_family == AF_INET ||
@@ -145,7 +145,7 @@ bool Socket_events::listen(
             socket_event);
   event_base_set(m_evbase, &socket_event->ev);
 
-  return 0 == event_add(&socket_event->ev, NULL);
+  return 0 == event_add(&socket_event->ev, nullptr);
 }
 
 /** Register a callback to be executed in a fixed time interval.

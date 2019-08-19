@@ -379,7 +379,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
         correspond to a SQL command so we pretend that they are SQLCOM_SELECT.
       */
       Opt_trace_start ots(thd, m_lex->query_tables, SQLCOM_SELECT,
-                          &m_lex->var_list, NULL, 0, this,
+                          &m_lex->var_list, nullptr, 0, this,
                           thd->variables.character_set_client);
       Opt_trace_object trace_command(&thd->opt_trace);
       Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
@@ -418,7 +418,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
       }
       thd_proc_info(thd, "closing tables");
       close_thread_tables(thd);
-      thd_proc_info(thd, 0);
+      thd_proc_info(thd, nullptr);
 
       if (!thd->in_sub_stmt) {
         if (thd->transaction_rollback_request) {
@@ -451,8 +451,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
     */
     m_lex_query_tables_own_last = m_lex->query_tables_own_last;
     m_prelocking_tables = *m_lex_query_tables_own_last;
-    *m_lex_query_tables_own_last = NULL;
-    m_lex->mark_as_requiring_prelocking(NULL);
+    *m_lex_query_tables_own_last = nullptr;
+    m_lex->mark_as_requiring_prelocking(nullptr);
   }
 
   /* Rollback changes to the item tree during execution. */
@@ -539,7 +539,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   String sql_query;
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
-  SQL_I_List<Item_trigger_field> *next_trig_list_bkp = NULL;
+  SQL_I_List<Item_trigger_field> *next_trig_list_bkp = nullptr;
   sql_query.set_charset(system_charset_info);
 
   get_query(&sql_query);
@@ -550,7 +550,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
     // here in the normal life.
     DBUG_ASSERT(false);
     my_error(ER_UNKNOWN_ERROR, MYF(0));
-    return NULL;
+    return nullptr;
   }
 
   if (m_trig_field_list.elements)
@@ -581,7 +581,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   Parser_state parser_state;
 
   if (parser_state.init(thd, sql_query.c_ptr(), sql_query.length()))
-    return NULL;
+    return nullptr;
 
   // Switch THD's item list. It is used to remember the newly created set
   // of Items during parsing. We should clean those items after each execution.
@@ -602,9 +602,9 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
   // Parse the just constructed SELECT-statement.
 
-  thd->m_digest = NULL;
-  thd->m_statement_psi = NULL;
-  bool parsing_failed = parse_sql(thd, &parser_state, NULL);
+  thd->m_digest = nullptr;
+  thd->m_statement_psi = nullptr;
+  bool parsing_failed = parse_sql(thd, &parser_state, nullptr);
   thd->m_digest = parent_digest;
   thd->m_statement_psi = parent_locker;
 
@@ -628,7 +628,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
       DBUG_ASSERT(t);
 
-      if (!t) return NULL;  // Don't take chances in production.
+      if (!t) return nullptr;  // Don't take chances in production.
 
       for (Item_trigger_field *trg_fld = sp->m_cur_instr_trig_field_items.first;
            trg_fld; trg_fld = trg_fld->next_trg_field) {
@@ -652,8 +652,8 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
   // Restore THD::lex.
 
-  thd->lex->sphead = NULL;
-  thd->lex->set_sp_current_parsing_ctx(NULL);
+  thd->lex->sphead = nullptr;
+  thd->lex->set_sp_current_parsing_ctx(nullptr);
 
   LEX *expr_lex = thd->lex;
   thd->lex = lex_saved;
@@ -665,7 +665,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
   // That's it.
 
-  return parsing_failed ? NULL : expr_lex;
+  return parsing_failed ? nullptr : expr_lex;
 }
 
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
@@ -692,7 +692,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       the observer method will be invoked to push an error into
       the error stack.
     */
-    Reprepare_observer *stmt_reprepare_observer = NULL;
+    Reprepare_observer *stmt_reprepare_observer = nullptr;
 
     /*
       Meta-data versions are stored in the LEX-object on the first execution.
@@ -766,7 +766,7 @@ void sp_lex_instr::set_lex(LEX *lex, bool is_lex_owner) {
 
   m_lex = lex;
   m_is_lex_owner = is_lex_owner;
-  m_lex_query_tables_own_last = NULL;
+  m_lex_query_tables_own_last = nullptr;
 
   if (m_lex) m_lex->sp_lex_in_use = true;
 }
@@ -775,13 +775,13 @@ void sp_lex_instr::free_lex() {
   if (!m_is_lex_owner || !m_lex) return;
 
   /* Prevent endless recursion. */
-  m_lex->sphead = NULL;
+  m_lex->sphead = nullptr;
   lex_end(m_lex);
   delete (st_lex_local *)m_lex;
 
-  m_lex = NULL;
+  m_lex = nullptr;
   m_is_lex_owner = false;
-  m_lex_query_tables_own_last = NULL;
+  m_lex_query_tables_own_last = nullptr;
 }
 
 void sp_lex_instr::cleanup_before_parsing(THD *thd) {
@@ -953,8 +953,8 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
 
   bool rc = mysql_execute_command(thd);
 
-  thd->lex->set_sp_current_parsing_ctx(NULL);
-  thd->lex->sphead = NULL;
+  thd->lex->set_sp_current_parsing_ctx(nullptr);
+  thd->lex->sphead = nullptr;
   thd->m_statement_psi = statement_psi_saved;
 
   *nextp = get_ip() + 1;
@@ -978,7 +978,7 @@ bool sp_instr_set::exec_core(THD *thd, uint *nextp) {
 
   /* Failed to evaluate the value. Reset the variable to NULL. */
 
-  if (thd->sp_runtime_ctx->set_variable(thd, m_offset, 0)) {
+  if (thd->sp_runtime_ctx->set_variable(thd, m_offset, nullptr)) {
     /* If this also failed, let's abort. */
     my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
   }
@@ -1057,13 +1057,13 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
         m_trigger_field, &m_trigger_field->next_trg_field);
   }
 
-  return m_value_item == NULL || m_trigger_field == NULL;
+  return m_value_item == nullptr || m_trigger_field == nullptr;
 }
 
 void sp_instr_set_trigger_field::cleanup_before_parsing(THD *thd) {
   sp_lex_instr::cleanup_before_parsing(thd);
 
-  m_trigger_field = NULL;
+  m_trigger_field = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1324,7 +1324,7 @@ sp_instr_hpush_jump::sp_instr_hpush_jump(uint ip, sp_pcontext *ctx,
 
 sp_instr_hpush_jump::~sp_instr_hpush_jump() {
   m_handler->condition_values.empty();
-  m_handler = NULL;
+  m_handler = nullptr;
 }
 
 void sp_instr_hpush_jump::add_condition(sp_condition_value *condition_value) {

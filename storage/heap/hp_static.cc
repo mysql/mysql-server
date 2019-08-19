@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 
-LIST *heap_open_list = 0, *heap_share_list = 0;
+LIST *heap_open_list = nullptr, *heap_share_list = nullptr;
 
 PSI_memory_key hp_key_memory_HP_SHARE;
 PSI_memory_key hp_key_memory_HP_INFO;

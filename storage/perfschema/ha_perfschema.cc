@@ -102,7 +102,7 @@ class Table;
 template <class T>
 class List;
 
-handlerton *pfs_hton = NULL;
+handlerton *pfs_hton = nullptr;
 
 #define PFS_ENABLED() \
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
@@ -1306,7 +1306,7 @@ static PFS_engine_table_share *find_table_share(const char *db,
   DBUG_TRACE;
 
   if (compare_database_names(db, PERFORMANCE_SCHEMA_str.str) != 0) {
-    return NULL;
+    return nullptr;
   }
 
   PFS_engine_table_share *result;
@@ -1386,7 +1386,7 @@ static int pfs_init_func(void *p) {
 static int pfs_done_func(void *) {
   DBUG_TRACE;
 
-  pfs_hton = NULL;
+  pfs_hton = nullptr;
 
   PFS_engine_table_share::delete_all_locks();
 
@@ -1489,19 +1489,19 @@ mysql_declare_plugin(perfschema)
   "Performance Schema",
   PLUGIN_LICENSE_GPL,
   pfs_init_func,                                /* Plugin Init */
-  NULL,                                         /* Plugin Check uninstall */
+  nullptr,                                         /* Plugin Check uninstall */
   pfs_done_func,                                /* Plugin Deinit */
   0x0001 /* 0.1 */,
   pfs_status_vars,                              /* status variables */
-  NULL,                                         /* system variables */
-  NULL,                                         /* config options */
+  nullptr,                                         /* system variables */
+  nullptr,                                         /* config options */
   0,                                            /* flags */
 }
 mysql_declare_plugin_end;
 /* clang-format on */
 
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
-    : handler(hton, share), m_table_share(NULL), m_table(NULL) {}
+    : handler(hton, share), m_table_share(nullptr), m_table(nullptr) {}
 
 ha_perfschema::~ha_perfschema() {}
 
@@ -1517,7 +1517,7 @@ int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
     return HA_ERR_NO_SUCH_TABLE;
   }
 
-  thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
+  thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, nullptr);
   ref_length = m_table_share->m_ref_length;
 
   /* Only for table added by plugin/components */
@@ -1537,9 +1537,9 @@ int ha_perfschema::close(void) {
     dec_ref_count(m_table_share);
   }
 
-  m_table_share = NULL;
+  m_table_share = nullptr;
   delete m_table;
-  m_table = NULL;
+  m_table = nullptr;
 
   return 0;
 }
@@ -1553,7 +1553,7 @@ int ha_perfschema::write_row(uchar *buf) {
   }
 
   DBUG_ASSERT(m_table_share);
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   }
   ha_statistic_increment(&System_status_var::ha_write_count);
@@ -1604,16 +1604,16 @@ int ha_perfschema::rnd_init(bool scan) {
   DBUG_TRACE;
 
   DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+  DBUG_ASSERT(m_table_share->m_open_table != nullptr);
 
   stats.records = 0;
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   } else {
     m_table->reset_position();
   }
 
-  if (m_table != NULL) {
+  if (m_table != nullptr) {
     m_table->rnd_init(scan);
   }
 
@@ -1625,7 +1625,7 @@ int ha_perfschema::rnd_end(void) {
   DBUG_TRACE;
   DBUG_ASSERT(m_table);
   delete m_table;
-  m_table = NULL;
+  m_table = nullptr;
   return 0;
 }
 
@@ -1786,7 +1786,7 @@ ulong ha_perfschema::index_flags(uint, uint, bool) const {
   const PFS_engine_table_share *tmp;
 
   lock_pfs_external_table_shares();
-  if (m_table_share != NULL) {
+  if (m_table_share != nullptr) {
     tmp = m_table_share;
   } else {
     tmp = find_table_share(table_share->db.str, table_share->table_name.str);
@@ -1813,9 +1813,9 @@ int ha_perfschema::index_init(uint idx, bool sorted) {
   DBUG_TRACE;
 
   DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+  DBUG_ASSERT(m_table_share->m_open_table != nullptr);
 
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   } else {
     m_table->reset_position();
@@ -1837,7 +1837,7 @@ int ha_perfschema::index_end() {
   DBUG_ASSERT(m_table);
   DBUG_ASSERT(active_index != MAX_KEY);
   delete m_table;
-  m_table = NULL;
+  m_table = nullptr;
   active_index = MAX_KEY;
   return 0;
 }
@@ -1855,9 +1855,9 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   }
 
   DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+  DBUG_ASSERT(m_table_share->m_open_table != nullptr);
 
-  if (m_table == NULL) {
+  if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   } else {
     m_table->reset_position();
@@ -1866,9 +1866,9 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
 
-  DBUG_ASSERT(table != NULL);
-  DBUG_ASSERT(table->s != NULL);
-  DBUG_ASSERT(table->s->key_info != NULL);
+  DBUG_ASSERT(table != nullptr);
+  DBUG_ASSERT(table->s != nullptr);
+  DBUG_ASSERT(table->s->key_info != nullptr);
   KEY *key_infos = table->s->key_info;
 
   int result =
@@ -1924,7 +1924,7 @@ int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
 }
 
 bool ha_perfschema::is_executed_by_slave() const {
-  DBUG_ASSERT(table != NULL);
-  DBUG_ASSERT(table->in_use != NULL);
+  DBUG_ASSERT(table != nullptr);
+  DBUG_ASSERT(table->in_use != nullptr);
   return table->in_use->slave_thread;
 }

@@ -242,7 +242,7 @@ TEST_F(JsonDomTest, BasicTest) {
   /* Object access: key look-up */
   EXPECT_EQ(enum_json_type::J_OBJECT, elt->json_type());
   Json_object *const object_elt = down_cast<Json_object *>(elt);
-  EXPECT_TRUE(object_elt != NULL);
+  EXPECT_TRUE(object_elt != nullptr);
   const Json_dom *const elt2 = object_elt->get(std::string("key1"));
   EXPECT_EQ(std::string("null"), format(elt2));
 
@@ -336,7 +336,7 @@ TEST_F(JsonDomTest, BasicTest) {
   const char *encoded = "vrr+yg==";
   char *buff = new char[static_cast<size_t>(
       base64_needed_decoded_length(static_cast<int>(std::strlen(encoded))))];
-  EXPECT_EQ(4, base64_decode(encoded, std::strlen(encoded), buff, NULL, 0));
+  EXPECT_EQ(4, base64_decode(encoded, std::strlen(encoded), buff, nullptr, 0));
   EXPECT_EQ(0xCAFEBABE, uint4korr(buff));
   delete[] buff;
 

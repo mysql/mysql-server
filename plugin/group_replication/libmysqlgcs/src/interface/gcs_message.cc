@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,15 +48,15 @@ Gcs_message_data::Gcs_message_data()
 
 Gcs_message_data::Gcs_message_data(const uint32_t header_capacity,
                                    const uint64_t payload_capacity)
-    : m_header(NULL),
-      m_header_slider(NULL),
+    : m_header(nullptr),
+      m_header_slider(nullptr),
       m_header_len(0),
       m_header_capacity(header_capacity),
-      m_payload(NULL),
-      m_payload_slider(NULL),
+      m_payload(nullptr),
+      m_payload_slider(nullptr),
       m_payload_len(0),
       m_payload_capacity(payload_capacity),
-      m_buffer(NULL),
+      m_buffer(nullptr),
       m_buffer_len(0),
       m_owner(true) {
   m_buffer_len = header_capacity + payload_capacity + get_encode_header_size();
@@ -67,15 +67,15 @@ Gcs_message_data::Gcs_message_data(const uint32_t header_capacity,
 }
 
 Gcs_message_data::Gcs_message_data(const uint64_t data_len)
-    : m_header(NULL),
-      m_header_slider(NULL),
+    : m_header(nullptr),
+      m_header_slider(nullptr),
       m_header_len(0),
       m_header_capacity(0),
-      m_payload(NULL),
-      m_payload_slider(NULL),
+      m_payload(nullptr),
+      m_payload_slider(nullptr),
       m_payload_len(0),
       m_payload_capacity(0),
-      m_buffer(NULL),
+      m_buffer(nullptr),
       m_buffer_len(data_len),
       m_owner(true) {
   m_buffer = static_cast<uchar *>(malloc(sizeof(uchar) * m_buffer_len));
@@ -165,7 +165,7 @@ bool Gcs_message_data::encode(uchar **buffer, uint64_t *buffer_len) const {
   assert(get_encode_size() > 0);
   assert(get_encode_size() == m_buffer_len);
 
-  if (buffer == NULL || buffer_len == NULL) {
+  if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
         "Buffer to return information on encoded data or encoded data "
         "size is not properly configured.");
@@ -193,7 +193,7 @@ bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len) const {
   uint64_t encoded_size = get_encode_size();
   unsigned char *slider = buffer;
 
-  if (buffer == NULL || buffer_len == NULL) {
+  if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
         "Buffer to return information on encoded data or encoded data "
         "size is not properly configured.");
@@ -241,7 +241,7 @@ bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len) const {
 bool Gcs_message_data::decode(const uchar *data, uint64_t data_len) {
   uchar *slider = m_buffer;
 
-  if (data == NULL || data_len == 0 || m_buffer == 0) {
+  if (data == nullptr || data_len == 0 || m_buffer == nullptr) {
     MYSQL_GCS_LOG_ERROR(
         "Buffer to decode information from is not properly configured.");
     return true;
@@ -299,14 +299,14 @@ bool Gcs_message_data::decode(const uchar *data, uint64_t data_len) {
 Gcs_message::Gcs_message(const Gcs_member_identifier &origin,
                          const Gcs_group_identifier &destination,
                          Gcs_message_data *message_data)
-    : m_origin(NULL), m_destination(NULL), m_data(NULL) {
+    : m_origin(nullptr), m_destination(nullptr), m_data(nullptr) {
   init(&origin, &destination, message_data);
 }
 
 Gcs_message::Gcs_message(const Gcs_member_identifier &origin,
                          Gcs_message_data *message_data)
-    : m_origin(NULL), m_destination(NULL), m_data(NULL) {
-  init(&origin, NULL, message_data);
+    : m_origin(nullptr), m_destination(nullptr), m_data(nullptr) {
+  init(&origin, nullptr, message_data);
 }
 
 Gcs_message::~Gcs_message() {
@@ -330,13 +330,13 @@ Gcs_message_data &Gcs_message::get_message_data() const { return *m_data; }
 void Gcs_message::init(const Gcs_member_identifier *origin,
                        const Gcs_group_identifier *destination,
                        Gcs_message_data *message_data) {
-  if (origin != NULL)
+  if (origin != nullptr)
     m_origin = new Gcs_member_identifier(origin->get_member_id());
 
-  if (destination != NULL)
+  if (destination != nullptr)
     m_destination = new Gcs_group_identifier(destination->get_group_id());
 
-  if (message_data != NULL)
+  if (message_data != nullptr)
     m_data = message_data;
   else
     assert(false);

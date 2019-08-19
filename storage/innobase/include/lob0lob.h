@@ -483,7 +483,7 @@ struct ref_t {
 
     buf_block_t *block = mtr->memo_contains_page_flagged(
         m_ref, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);
-    ut_ad(block != NULL);
+    ut_ad(block != nullptr);
     return (true);
   }
 
@@ -650,12 +650,12 @@ class BtrContext {
  public:
   /** Default Constructor */
   BtrContext()
-      : m_mtr(NULL),
-        m_pcur(NULL),
-        m_index(NULL),
-        m_rec(NULL),
-        m_offsets(NULL),
-        m_block(NULL),
+      : m_mtr(nullptr),
+        m_pcur(nullptr),
+        m_index(nullptr),
+        m_rec(nullptr),
+        m_offsets(nullptr),
+        m_block(nullptr),
         m_op(OPCODE_UNKNOWN),
         m_btr_page_no(FIL_NULL) {}
 
@@ -670,10 +670,10 @@ class BtrContext {
         m_block(block),
         m_op(OPCODE_UNKNOWN),
         m_btr_page_no(FIL_NULL) {
-    ut_ad(m_pcur == NULL || rec_offs_validate());
-    ut_ad(m_block == NULL || m_rec == NULL ||
+    ut_ad(m_pcur == nullptr || rec_offs_validate());
+    ut_ad(m_block == nullptr || m_rec == nullptr ||
           m_block->frame == page_align(m_rec));
-    ut_ad(m_pcur == NULL || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
   }
 
   /** Constructor **/
@@ -687,9 +687,9 @@ class BtrContext {
         m_block(block),
         m_op(op),
         m_btr_page_no(FIL_NULL) {
-    ut_ad(m_pcur == NULL || rec_offs_validate());
+    ut_ad(m_pcur == nullptr || rec_offs_validate());
     ut_ad(m_block->frame == page_align(m_rec));
-    ut_ad(m_pcur == NULL || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
   }
 
   /** Copy Constructor **/
@@ -731,7 +731,7 @@ class BtrContext {
     page_zip_des_t *page_zip = get_page_zip();
 
     if (page_zip) {
-      ref.set_owner(val, NULL);
+      ref.set_owner(val, nullptr);
       page_zip_write_blob_ptr(page_zip, m_rec, m_index, m_offsets, i, m_mtr);
     } else {
       ref.set_owner(val, m_mtr);
@@ -797,7 +797,7 @@ class BtrContext {
   /** Get the clustered index record pointer.
   @return clustered index record pointer. */
   rec_t *rec() const {
-    ut_ad(m_pcur == NULL || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
     return (m_rec);
   }
 
@@ -987,7 +987,7 @@ class BtrContext {
   /** Validate the record offsets array.
   @return true if validation succeeds, false otherwise. */
   bool rec_offs_validate() const {
-    if (m_rec != NULL) {
+    if (m_rec != nullptr) {
       ut_ad(::rec_offs_validate(m_rec, m_index, m_offsets));
     }
     return (true);
@@ -1319,7 +1319,7 @@ struct zReader {
 struct Reader {
   /** Constructor. */
   Reader(const ReadContext &ctx)
-      : m_rctx(ctx), m_cur_block(NULL), m_copied_len(0) {}
+      : m_rctx(ctx), m_cur_block(nullptr), m_copied_len(0) {}
 
   /** Fetch the complete or prefix of the uncompressed LOB data.
   @return bytes of LOB data fetched. */
@@ -1374,7 +1374,7 @@ struct DeleteContext : public BtrContext {
   @return true if valid, false otherwise. */
   bool validate_blobref() const {
     rec_t *clust_rec = rec();
-    if (clust_rec != NULL) {
+    if (clust_rec != nullptr) {
       const byte *v2 =
           btr_rec_get_field_ref(clust_rec, get_offsets(), m_field_no);
 

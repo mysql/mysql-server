@@ -67,7 +67,7 @@ Plugin_table table_os_global_by_type::m_table_def(
 PFS_engine_table_share table_os_global_by_type::m_share = {
     &pfs_truncatable_acl,
     table_os_global_by_type::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_os_global_by_type::delete_all_rows,
     table_os_global_by_type::get_row_count,
     sizeof(pos_os_global_by_type),
@@ -159,7 +159,7 @@ int table_os_global_by_type::rnd_next(void) {
         for (; has_more_share; m_pos.m_index_2++) {
           table_share = global_table_share_container.get(m_pos.m_index_2,
                                                          &has_more_share);
-          if (table_share != NULL) {
+          if (table_share != nullptr) {
             make_table_row(table_share);
             m_next_pos.set_after(&m_pos);
             return 0;
@@ -173,7 +173,7 @@ int table_os_global_by_type::rnd_next(void) {
         for (; has_more_program; m_pos.m_index_2++) {
           pfs_program =
               global_program_container.get(m_pos.m_index_2, &has_more_program);
-          if (pfs_program != NULL) {
+          if (pfs_program != nullptr) {
             make_program_row(pfs_program);
             m_next_pos.set_after(&m_pos);
             return 0;
@@ -195,7 +195,7 @@ int table_os_global_by_type::rnd_pos(const void *pos) {
     case pos_os_global_by_type::VIEW_TABLE: {
       PFS_table_share *table_share;
       table_share = global_table_share_container.get(m_pos.m_index_2);
-      if (table_share != NULL) {
+      if (table_share != nullptr) {
         make_table_row(table_share);
         return 0;
       }
@@ -203,7 +203,7 @@ int table_os_global_by_type::rnd_pos(const void *pos) {
     case pos_os_global_by_type::VIEW_PROGRAM: {
       PFS_program *pfs_program;
       pfs_program = global_program_container.get(m_pos.m_index_2);
-      if (pfs_program != NULL) {
+      if (pfs_program != nullptr) {
         make_program_row(pfs_program);
         return 0;
       }
@@ -234,7 +234,7 @@ int table_os_global_by_type::index_next(void) {
         for (; has_more_share; m_pos.m_index_2++) {
           table_share = global_table_share_container.get(m_pos.m_index_2,
                                                          &has_more_share);
-          if (table_share != NULL) {
+          if (table_share != nullptr) {
             if (m_opened_index->match(table_share)) {
               make_table_row(table_share);
               m_next_pos.set_after(&m_pos);
@@ -250,7 +250,7 @@ int table_os_global_by_type::index_next(void) {
         for (; has_more_program; m_pos.m_index_2++) {
           pfs_program =
               global_program_container.get(m_pos.m_index_2, &has_more_program);
-          if (pfs_program != NULL) {
+          if (pfs_program != nullptr) {
             if (m_opened_index->match(pfs_program)) {
               make_program_row(pfs_program);
               m_next_pos.set_after(&m_pos);
@@ -307,7 +307,7 @@ int table_os_global_by_type::make_table_row(PFS_table_share *share) {
     PFS_table_iterator it = global_table_container.iterate();
     PFS_table *table = it.scan_next();
 
-    while (table != NULL) {
+    while (table != nullptr) {
       if (table->m_share == share) {
         /*
           If the opened table handle is for this table share,

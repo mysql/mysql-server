@@ -78,7 +78,7 @@ class Connection_handler_manager {
   */
   Connection_handler_manager(Connection_handler *connection_handler)
       : m_connection_handler(connection_handler),
-        m_saved_connection_handler(NULL),
+        m_saved_connection_handler(nullptr),
         m_saved_thread_handling(0),
         m_aborted_connects(0),
         m_connection_errors_max_connection(0) {}
@@ -135,7 +135,7 @@ class Connection_handler_manager {
     Singleton method to return an instance of this class.
   */
   static Connection_handler_manager *get_instance() {
-    DBUG_ASSERT(m_instance != NULL);
+    DBUG_ASSERT(m_instance != nullptr);
     return m_instance;
   }
 

@@ -170,7 +170,7 @@ Item_func_buffer_strategy::Item_func_buffer_strategy(const POS &pos,
     : Item_str_func(pos, ilist) {
   // Here we want to use the String::set(const char*, ..) version.
   const char *pbuf = tmp_buffer;
-  tmp_value.set(pbuf, 0, NULL);
+  tmp_value.set(pbuf, 0, nullptr);
 }
 
 bool Item_func_buffer_strategy::resolve_type(THD *) {
@@ -186,7 +186,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   String *strat_name = args[0]->val_str_ascii(&str);
   if ((null_value = args[0]->null_value)) {
     DBUG_ASSERT(maybe_null);
-    return NULL;
+    return nullptr;
   }
 
   // Get the NULL-terminated ascii string.
@@ -228,7 +228,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
       double val = args[1]->val_real();
       if ((null_value = args[1]->null_value)) {
         DBUG_ASSERT(maybe_null);
-        return NULL;
+        return nullptr;
       }
       if (val <= 0) {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
@@ -373,7 +373,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
   num_strats = arg_count - 2;
   for (uint i = 2; i < arg_count; i++) {
     strategies[i - 2] = args[i]->val_str(&strat_bufs[i]);
-    if (strategies[i - 2] == NULL || args[i]->null_value) return error_str();
+    if (strategies[i - 2] == nullptr || args[i]->null_value) return error_str();
   }
 
   /*
@@ -437,7 +437,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
       after the simplification operation.
      */
     const bool use_buffer = !obj->is_alloced();
-    if (simplify_multi_geometry(obj, (use_buffer ? &m_tmp_geombuf : NULL)) &&
+    if (simplify_multi_geometry(obj, (use_buffer ? &m_tmp_geombuf : nullptr)) &&
         use_buffer)
       obj = &m_tmp_geombuf;
 
@@ -664,7 +664,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
       If the result geometry is a multi-geometry or geometry collection that has
       only one component, extract that component as result.
     */
-    simplify_multi_geometry(str_result, NULL);
+    simplify_multi_geometry(str_result, nullptr);
   } catch (...) {
     had_except = true;
     handle_gis_exception("st_buffer");

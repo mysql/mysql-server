@@ -140,7 +140,7 @@ static char *init_syms(udf_func *tmp, char *nm) {
     if (!opt_allow_suspicious_udfs) return nm;
     LogErr(WARNING_LEVEL, ER_FAILED_TO_FIND_DL_ENTRY, nm);
   }
-  return 0;
+  return nullptr;
 }
 
 static PSI_memory_key key_memory_udf_mem;
@@ -232,7 +232,7 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  iterator = init_table_iterator(new_thd, table, NULL, false,
+  iterator = init_table_iterator(new_thd, table, nullptr, false,
                                  /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) goto end;
   while (!(error = iterator->Read())) {
@@ -269,7 +269,7 @@ void udf_read_functions_table() {
     }
 
     void *dl = find_udf_dl(tmp->dl);
-    if (dl == NULL) {
+    if (dl == nullptr) {
       char dlpath[FN_REFLEN];
       strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl, NullS);
       (void)unpack_filename(dlpath, dlpath);
@@ -321,7 +321,7 @@ void udf_unload_udfs() {
         for (auto it2 = std::next(it1); it2 != udf_hash->end(); ++it2) {
           udf_func *tmp = it2->second;
           if (udf->dlhandle == tmp->dlhandle)
-            tmp->dlhandle = 0;  // Already closed
+            tmp->dlhandle = nullptr;  // Already closed
         }
         dlclose(udf->dlhandle);
       }
@@ -413,10 +413,10 @@ void free_udf(udf_func *udf) {
 /* This is only called if using_udf_functions != 0 */
 
 udf_func *find_udf(const char *name, size_t length, bool mark_used) {
-  udf_func *udf = 0;
+  udf_func *udf = nullptr;
   DBUG_TRACE;
 
-  if (!initialized) return NULL;
+  if (!initialized) return nullptr;
 
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
@@ -438,17 +438,17 @@ udf_func *find_udf(const char *name, size_t length, bool mark_used) {
 static void *find_udf_dl(const char *dl) {
   DBUG_TRACE;
 
-  if (!dl) return 0;
+  if (!dl) return nullptr;
   /*
     Because only the function name is hashed, we have to search trough
     all rows to find the dl.
   */
   for (const auto &key_and_value : *udf_hash) {
     udf_func *udf = key_and_value.second;
-    if (udf->dl && !strcmp(dl, udf->dl) && udf->dlhandle != NULL)
+    if (udf->dl && !strcmp(dl, udf->dl) && udf->dlhandle != nullptr)
       return udf->dlhandle;
   }
-  return 0;
+  return nullptr;
 }
 
 /* Assume that name && dl is already allocated */
@@ -574,7 +574,7 @@ static bool udf_end_transaction(THD *thd, bool rollback, udf_func *udf,
 
 bool mysql_create_function(THD *thd, udf_func *udf) {
   bool error = true;
-  void *dl = 0;
+  void *dl = nullptr;
   int new_dl = 0;
   TABLE *table;
 
@@ -778,8 +778,8 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
 bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc) {
   mysql_rwlock_wrlock(&THR_LOCK_udf);
 
-  DBUG_ASSERT(ufunc->dl == NULL);
-  DBUG_ASSERT(ufunc->dlhandle == NULL);
+  DBUG_ASSERT(ufunc->dl == nullptr);
+  DBUG_ASSERT(ufunc->dlhandle == nullptr);
 
   auto res = udf_hash->emplace(to_string(ufunc->name), ufunc);
   if (!res.second)
@@ -799,7 +799,7 @@ udf_func *mysql_udf_registration_imp::alloc_udf(const char *name,
   udf_func *ufunc;
 
   ufunc = (udf_func *)mem.Alloc(sizeof(udf_func));
-  if (!ufunc) return NULL;
+  if (!ufunc) return nullptr;
   memset(ufunc, 0, sizeof(udf_func));
   ufunc->name.str = strdup_root(&mem, name);
   ufunc->name.length = strlen(name);
@@ -848,7 +848,7 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
 
 DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
                    (const char *name, int *was_present)) {
-  udf_func *udf = NULL;
+  udf_func *udf = nullptr;
 
   if (was_present) *was_present = 0;
   mysql_rwlock_wrlock(&THR_LOCK_udf);
@@ -864,10 +864,10 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
       udf_hash->erase(it);
       using_udf_functions = !udf_hash->empty();
     } else  // error
-      udf = NULL;
+      udf = nullptr;
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
-  return udf != NULL ? false : true;
+  return udf != nullptr ? false : true;
 }
 
 void udf_hash_rlock(void) { mysql_rwlock_rdlock(&THR_LOCK_udf); }

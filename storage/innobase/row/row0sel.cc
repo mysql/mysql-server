@@ -183,7 +183,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
   const byte *clust_field;
   ulint n;
   ulint i;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint clust_offsets_[REC_OFFS_NORMAL_SIZE];
   ulint sec_offsets_[REC_OFFS_SMALL_SIZE];
   ulint *clust_offs = clust_offsets_;
@@ -235,14 +235,14 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       v_col = reinterpret_cast<const dict_v_col_t *>(col);
 
       row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
-                      NULL, NULL, NULL, &ext, heap);
+                      nullptr, nullptr, nullptr, &ext, heap);
 
       vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, heap,
-                                           NULL, thr_get_trx(thr)->mysql_thd,
-                                           thr->prebuilt->m_mysql_table, NULL,
-                                           NULL, NULL);
+                                           nullptr, thr_get_trx(thr)->mysql_thd,
+                                           thr->prebuilt->m_mysql_table,
+                                           nullptr, nullptr, nullptr);
 
-      if (vfield == NULL) {
+      if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
          * read-uncommited isolation and value (like json function)
          * depends on an externally stored lob (like json) which
@@ -356,7 +356,7 @@ sel_node_t *sel_node_create(
   node->common.type = QUE_NODE_SELECT;
   node->state = SEL_NODE_OPEN;
 
-  node->plans = NULL;
+  node->plans = nullptr;
 
   return (node);
 }
@@ -368,7 +368,7 @@ void sel_node_free_private(sel_node_t *node) /*!< in: select node struct */
   ulint i;
   plan_t *plan;
 
-  if (node->plans != NULL) {
+  if (node->plans != nullptr) {
     for (i = 0; i < node->n_tables; i++) {
       plan = sel_node_get_nth_plan(node, i);
 
@@ -407,11 +407,11 @@ void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
 {
   que_node_t *exp;
 
-  if (var == NULL) {
+  if (var == nullptr) {
     return;
   }
 
-  for (exp = node->select_list; var != 0;
+  for (exp = node->select_list; var != nullptr;
        var = static_cast<sym_node_t *>(que_node_get_next(var))) {
     ut_ad(exp);
 
@@ -431,7 +431,7 @@ void sel_reset_aggregate_vals(sel_node_t *node) /*!< in: select node */
   ut_ad(node->is_aggregate);
 
   for (func_node = static_cast<func_node_t *>(node->select_list);
-       func_node != 0;
+       func_node != nullptr;
        func_node = static_cast<func_node_t *>(que_node_get_next(func_node))) {
     eval_node_set_int_val(func_node, 0);
   }
@@ -450,7 +450,7 @@ void row_sel_copy_input_variable_vals(sel_node_t *node) /*!< in: select node */
   while (var) {
     eval_node_copy_val(var, var->alias);
 
-    var->indirection = NULL;
+    var->indirection = nullptr;
 
     var = UT_LIST_GET_NEXT(col_var_list, var);
   }
@@ -481,7 +481,7 @@ static void row_sel_fetch_columns(
   }
 
   while (column) {
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     ibool needs_copy;
 
     field_no = column->field_nos[index_type];
@@ -549,7 +549,7 @@ static void sel_col_prefetch_buf_alloc(
   for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
     sel_buf = column->prefetch_buf + i;
 
-    sel_buf->data = NULL;
+    sel_buf->data = nullptr;
     sel_buf->len = 0;
     sel_buf->val_buf_size = 0;
   }
@@ -661,7 +661,7 @@ void sel_enqueue_prefetched_row(plan_t *plan) /*!< in: plan node for a table */
 
   ut_ad(pos < SEL_MAX_N_PREFETCH);
 
-  for (column = UT_LIST_GET_FIRST(plan->columns); column != 0;
+  for (column = UT_LIST_GET_FIRST(plan->columns); column != nullptr;
        column = UT_LIST_GET_NEXT(col_var_list, column)) {
     if (!column->copy_val) {
       /* There is no sense to push pointers to database
@@ -723,7 +723,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_build_prev_vers(
 
   err = row_vers_build_for_consistent_read(rec, mtr, index, offsets, read_view,
                                            offset_heap, *old_vers_heap,
-                                           old_vers, NULL, nullptr);
+                                           old_vers, nullptr, nullptr);
   return (err);
 }
 
@@ -770,7 +770,7 @@ ibool row_sel_test_end_conds(
   /* All conditions in end_conds are comparisons of a column to an
   expression */
 
-  for (cond = UT_LIST_GET_FIRST(plan->end_conds); cond != 0;
+  for (cond = UT_LIST_GET_FIRST(plan->end_conds); cond != nullptr;
        cond = UT_LIST_GET_NEXT(cond_list, cond)) {
     /* Evaluate the left side of the comparison, i.e., get the
     column value if there is an indirection */
@@ -831,12 +831,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_get_clust_rec(
   rec_t *clust_rec;
   rec_t *old_vers;
   dberr_t err;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
 
-  *out_rec = NULL;
+  *out_rec = nullptr;
 
   offsets = rec_get_offsets(rec, btr_pcur_get_btr_cur(&plan->pcur)->index,
                             offsets, ULINT_UNDEFINED, &heap);
@@ -902,7 +902,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_get_clust_rec(
     /* This is a non-locking consistent read: if necessary, fetch
     a previous version of the record */
 
-    old_vers = NULL;
+    old_vers = nullptr;
 
     if (!lock_clust_rec_cons_read_sees(clust_rec, index, offsets,
                                        node->read_view)) {
@@ -916,7 +916,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_get_clust_rec(
 
       clust_rec = old_vers;
 
-      if (clust_rec == NULL) {
+      if (clust_rec == nullptr) {
         goto func_exit;
       }
     }
@@ -986,7 +986,7 @@ dberr_t sel_set_rtr_rec_lock(btr_pcur_t *pcur, const rec_t *first_rec,
                              select_mode sel_mode, ulint mode, ulint type,
                              que_thr_t *thr, mtr_t *mtr) {
   matched_rec_t *match = pcur->m_btr_cur.rtr_info->matches;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   dberr_t err = DB_SUCCESS;
   trx_t *trx = thr_get_trx(thr);
   buf_block_t *cur_block = btr_pcur_get_block(pcur);
@@ -1028,7 +1028,7 @@ retry:
       trx->error_state = err;
       que_thr_stop_for_mysql(thr);
       thr->lock_state = QUE_THR_LOCK_ROW;
-      if (row_mysql_handle_errors(&err, trx, thr, NULL)) {
+      if (row_mysql_handle_errors(&err, trx, thr, nullptr)) {
         thr->lock_state = QUE_THR_LOCK_NOLOCK;
         mtr_start(mtr);
 
@@ -1044,7 +1044,7 @@ retry:
         page_id_t page_id(dict_index_get_space(index), page_no);
 
         cur_block = buf_page_get_gen(
-            page_id, dict_table_page_size(index->table), RW_X_LATCH, NULL,
+            page_id, dict_table_page_size(index->table), RW_X_LATCH, nullptr,
             Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
       } else {
         mtr_start(mtr);
@@ -1133,7 +1133,7 @@ lock_match:
 
 func_end:
   rw_lock_x_unlock(&(match->block.lock));
-  if (heap != NULL) {
+  if (heap != nullptr) {
     mem_heap_free(heap);
   }
 
@@ -1381,7 +1381,7 @@ static ulint row_sel_try_search_shortcut(
 {
   dict_index_t *index;
   rec_t *rec;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   ulint ret;
@@ -1499,7 +1499,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   to the next non-clustered record */
   ulint found_flag;
   dberr_t err;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -1793,7 +1793,7 @@ skip_lock:
           goto lock_wait_or_error;
         }
 
-        if (old_vers == NULL) {
+        if (old_vers == nullptr) {
           /* The record does not exist
           in our read view. Skip it, but
           first attempt to determine
@@ -1884,7 +1884,7 @@ skip_lock:
 
     cost_counter++;
 
-    if (clust_rec == NULL) {
+    if (clust_rec == nullptr) {
       /* The record did not exist in the read view */
       ut_ad(consistent_read);
 
@@ -2128,7 +2128,7 @@ func_exit:
     rw_lock_s_unlock(btr_get_search_latch(index));
   }
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     mem_heap_free(heap);
   }
   return (err);
@@ -2167,10 +2167,10 @@ que_thr_t *row_sel_step(que_thr_t *thr) /*!< in: query thread */
       /* Assign a read view for the query */
       trx_assign_read_view(thr_get_trx(thr));
 
-      if (thr_get_trx(thr)->read_view != NULL) {
+      if (thr_get_trx(thr)->read_view != nullptr) {
         node->read_view = thr_get_trx(thr)->read_view;
       } else {
-        node->read_view = NULL;
+        node->read_view = nullptr;
       }
 
     } else {
@@ -2183,7 +2183,7 @@ que_thr_t *row_sel_step(que_thr_t *thr) /*!< in: query thread */
         i_lock_mode = LOCK_IS;
       }
 
-      for (table_node = node->table_list; table_node != 0;
+      for (table_node = node->table_list; table_node != nullptr;
            table_node =
                static_cast<sym_node_t *>(que_node_get_next(table_node))) {
         dberr_t err = lock_table(0, table_node->table, i_lock_mode, thr);
@@ -2194,7 +2194,7 @@ que_thr_t *row_sel_step(que_thr_t *thr) /*!< in: query thread */
           trx = thr_get_trx(thr);
           trx->error_state = err;
 
-          return (NULL);
+          return (nullptr);
         }
       }
     }
@@ -2228,7 +2228,7 @@ que_thr_t *row_sel_step(que_thr_t *thr) /*!< in: query thread */
   if (err != DB_SUCCESS) {
     thr_get_trx(thr)->error_state = err;
 
-    return (NULL);
+    return (nullptr);
   }
 
   return (thr);
@@ -2278,7 +2278,7 @@ que_thr_t *fetch_step(que_thr_t *thr) /*!< in: query thread */
 
     thr_get_trx(thr)->error_state = DB_ERROR;
 
-    return (NULL);
+    return (nullptr);
   }
 
   thr->run_node = sel_node;
@@ -2577,7 +2577,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
   byte *ptr;
 #ifdef UNIV_DEBUG
   const dict_field_t *field =
-      templ->is_virtual ? NULL : index->get_field(field_no);
+      templ->is_virtual ? nullptr : index->get_field(field_no);
 
   bool clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
@@ -3087,7 +3087,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     if ((index->is_clustered() && !clust_templ_for_sec) ||
         prebuilt->fts_doc_id_in_read_set) {
       prebuilt->fts_doc_id =
-          fts_get_doc_id_from_rec(prebuilt->table, rec, index, NULL);
+          fts_get_doc_id_from_rec(prebuilt->table, rec, index, nullptr);
     }
   }
 
@@ -3188,7 +3188,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
   dberr_t err;
   trx_t *trx;
 
-  *out_rec = NULL;
+  *out_rec = nullptr;
   trx = thr_get_trx(thr);
 
   row_build_row_ref_in_tuple(prebuilt->clust_ref, rec, sec_index, *offsets,
@@ -3224,7 +3224,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
       /* The page could be deallocated (by rollback etc.) */
       if (!rtr_info->matches->valid) {
         mutex_exit(&rtr_info->matches->rtr_match_mutex);
-        clust_rec = NULL;
+        clust_rec = nullptr;
 
         err = DB_SUCCESS;
         goto func_exit;
@@ -3233,14 +3233,14 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
 
       if (rec_get_deleted_flag(rec, dict_table_is_comp(sec_index->table)) &&
           prebuilt->select_lock_type == LOCK_NONE) {
-        clust_rec = NULL;
+        clust_rec = nullptr;
 
         err = DB_SUCCESS;
         goto func_exit;
       }
 
       if (rec != btr_pcur_get_rec(prebuilt->pcur)) {
-        clust_rec = NULL;
+        clust_rec = nullptr;
 
         err = DB_SUCCESS;
         goto func_exit;
@@ -3251,7 +3251,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
       page_id_t page_id(dict_index_get_space(sec_index), page_no);
 
       buf_block_t *block = buf_page_get_gen(
-          page_id, dict_table_page_size(sec_index->table), RW_NO_LATCH, NULL,
+          page_id, dict_table_page_size(sec_index->table), RW_NO_LATCH, nullptr,
           Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
 
       mem_heap_t *heap = mem_heap_create(256);
@@ -3266,7 +3266,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
 
       ut_ad(low_match < dtuple_get_n_fields_cmp(tuple));
       mem_heap_free(heap);
-      clust_rec = NULL;
+      clust_rec = nullptr;
 
       err = DB_SUCCESS;
       goto func_exit;
@@ -3305,7 +3305,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
       ut_ad(0);
     }
 
-    clust_rec = NULL;
+    clust_rec = nullptr;
 
     err = DB_SUCCESS;
     goto func_exit;
@@ -3336,7 +3336,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
     /* This is a non-locking consistent read: if necessary, fetch
     a previous version of the record */
 
-    old_vers = NULL;
+    old_vers = nullptr;
 
     /* If the isolation level allows reading of uncommitted data,
     then we never look for an earlier version */
@@ -3378,7 +3378,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
         }
       }
 
-      if (old_vers == NULL) {
+      if (old_vers == nullptr) {
         goto err_exit;
       }
 
@@ -3411,7 +3411,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
       if (err != DB_SUCCESS) {
         goto err_exit;
       } else if (!rec_equal) {
-        clust_rec = NULL;
+        clust_rec = nullptr;
       }
     }
 
@@ -3864,7 +3864,7 @@ static ICP_RESULT row_search_idx_cond_check(
       this until we have fetched the clustered index record. */
       if (!prebuilt->need_to_access_clustered ||
           prebuilt->index->is_clustered()) {
-        if (!row_sel_store_mysql_rec(mysql_rec, prebuilt, rec, NULL, FALSE,
+        if (!row_sel_store_mysql_rec(mysql_rec, prebuilt, rec, nullptr, FALSE,
                                      prebuilt->index, offsets, false, nullptr,
                                      nullptr)) {
           ut_ad(prebuilt->index->is_clustered());
@@ -3933,7 +3933,7 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
   }
 
   if (handler->compare_key_in_buffer(mysql_rec) > 0) {
-    if (record_buffer != NULL) {
+    if (record_buffer != nullptr) {
       record_buffer->set_out_of_range(true);
     }
 
@@ -3997,12 +3997,12 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
   btr_pcur_t *pcur = prebuilt->pcur;
   Row_sel_get_clust_rec_for_mysql row_sel_get_clust_rec_for_mysql;
 
-  const rec_t *result_rec = NULL;
-  const rec_t *clust_rec = NULL;
+  const rec_t *result_rec = nullptr;
+  const rec_t *clust_rec = nullptr;
 
   dberr_t err = DB_SUCCESS;
 
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -4019,7 +4019,7 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
   mtr = &index->last_sel_cur->mtr;
 
   /* Step-1: Build the select graph. */
-  if (direction == 0 && prebuilt->sel_graph == NULL) {
+  if (direction == 0 && prebuilt->sel_graph == nullptr) {
     row_prebuild_sel_graph(prebuilt);
   }
 
@@ -4085,7 +4085,7 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     } else {
       /* Restore the cursor for reading next record from cache
       information. */
-      ut_ad(index->last_sel_cur->rec != NULL);
+      ut_ad(index->last_sel_cur->rec != nullptr);
       pcur->m_btr_cur.page_cur.rec = index->last_sel_cur->rec;
       pcur->m_btr_cur.page_cur.block = index->last_sel_cur->block;
 
@@ -4154,9 +4154,9 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     /* Get the clustered index. We always need clustered index
     record for snapshort verification. */
     if (index != clust_index) {
-      err =
-          row_sel_get_clust_rec_for_mysql(prebuilt, index, rec, thr, &clust_rec,
-                                          &offsets, &heap, NULL, mtr, nullptr);
+      err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec, thr,
+                                            &clust_rec, &offsets, &heap,
+                                            nullptr, mtr, nullptr);
 
       if (err != DB_SUCCESS) {
         break;
@@ -4195,9 +4195,9 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
 
       mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
 
-    } else if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, NULL, TRUE,
-                                        clust_index, offsets, false, nullptr,
-                                        nullptr)) {
+    } else if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, nullptr,
+                                        TRUE, clust_index, offsets, false,
+                                        nullptr, nullptr)) {
       err = DB_ERROR;
       break;
     }
@@ -4222,7 +4222,7 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     index->last_sel_cur->release();
   }
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     mem_heap_free(heap);
   }
   return (err);
@@ -4428,12 +4428,12 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   on the primary index. */
   bool clust_templ_for_sec;
   que_thr_t *thr;
-  const rec_t *prev_rec = NULL;
-  const rec_t *rec = NULL;
-  byte *end_range_cache = NULL;
-  const dtuple_t *prev_vrow = NULL;
-  const dtuple_t *vrow = NULL;
-  const rec_t *result_rec = NULL;
+  const rec_t *prev_rec = nullptr;
+  const rec_t *rec = nullptr;
+  byte *end_range_cache = nullptr;
+  const dtuple_t *prev_vrow = nullptr;
+  const dtuple_t *vrow = nullptr;
+  const rec_t *result_rec = nullptr;
   const rec_t *clust_rec;
   Row_sel_get_clust_rec_for_mysql row_sel_get_clust_rec_for_mysql;
   dberr_t err = DB_SUCCESS;
@@ -4450,13 +4450,13 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   ulint next_offs;
   ibool same_user_rec = FALSE;
   mtr_t mtr;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   ulint sec_offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *sec_offsets = nullptr;
   ibool table_lock_waited = FALSE;
-  byte *next_buf = 0;
+  byte *next_buf = nullptr;
   bool spatial_search = false;
   ulint end_loop = 0;
 
@@ -4521,7 +4521,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       record_buffer->reset();
     }
 
-    if (prebuilt->sel_graph == NULL) {
+    if (prebuilt->sel_graph == nullptr) {
       /* Build a dummy select query graph */
       row_prebuild_sel_graph(prebuilt);
     }
@@ -4681,8 +4681,9 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
             }
           }
 
-          if (!row_sel_store_mysql_rec(buf, prebuilt, rec, NULL, FALSE, index,
-                                       offsets, false, nullptr, nullptr)) {
+          if (!row_sel_store_mysql_rec(buf, prebuilt, rec, nullptr, FALSE,
+                                       index, offsets, false, nullptr,
+                                       nullptr)) {
             /* Only fresh inserts may contain
             incomplete externally stored
             columns. Pretend that such
@@ -4760,7 +4761,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
   if (prebuilt->table->skip_gap_locks() ||
       (trx->skip_gap_locks() && prebuilt->select_lock_type != LOCK_NONE &&
-       trx->mysql_thd != NULL && thd_is_select(trx->mysql_thd))) {
+       trx->mysql_thd != nullptr && thd_is_select(trx->mysql_thd))) {
     /* It is a plain locking SELECT and the isolation
     level is low: do not lock gaps */
 
@@ -4943,7 +4944,7 @@ rec_loop:
     and neither can a record lock be placed on it: we skip such
     a record. */
 
-    prev_rec = NULL;
+    prev_rec = nullptr;
     goto next_rec;
   }
 
@@ -4955,12 +4956,12 @@ rec_loop:
     passed to InnoDB when there is no ICP and number of
     loops in row_search_mvcc for rows found but not
     reporting due to search views etc. */
-    if (prev_rec != NULL && !prebuilt->innodb_api &&
-        prebuilt->m_mysql_handler->end_range != NULL &&
+    if (prev_rec != nullptr && !prebuilt->innodb_api &&
+        prebuilt->m_mysql_handler->end_range != nullptr &&
         prebuilt->idx_cond == false && end_loop >= 100) {
       dict_index_t *key_index = prebuilt->index;
 
-      if (end_range_cache == NULL) {
+      if (end_range_cache == nullptr) {
         end_range_cache =
             static_cast<byte *>(ut_malloc_nokey(prebuilt->mysql_row_len));
       }
@@ -5022,7 +5023,7 @@ rec_loop:
     /* A page supremum record cannot be in the result set: skip
     it now that we have placed a possible lock on it */
 
-    prev_rec = NULL;
+    prev_rec = nullptr;
     goto next_rec;
   }
 
@@ -5073,7 +5074,7 @@ rec_loop:
 
       btr_pcur_move_to_last_on_page(pcur, &mtr);
 
-      prev_rec = NULL;
+      prev_rec = nullptr;
       goto next_rec;
     }
   }
@@ -5095,7 +5096,7 @@ rec_loop:
           << ", index " << index->name << " of table " << index->table->name
           << ". We try to skip the record.";
 
-      prev_rec = NULL;
+      prev_rec = nullptr;
       goto next_rec;
     }
   }
@@ -5240,9 +5241,9 @@ rec_loop:
         }
 
         /* The following call returns 'offsets' associated with 'old_vers' */
-        row_sel_build_committed_vers_for_mysql(clust_index, prebuilt, rec,
-                                               &offsets, &heap, &old_vers,
-                                               need_vrow ? &vrow : NULL, &mtr);
+        row_sel_build_committed_vers_for_mysql(
+            clust_index, prebuilt, rec, &offsets, &heap, &old_vers,
+            need_vrow ? &vrow : nullptr, &mtr);
 
         /* Check whether it was a deadlock or not, if not
         a deadlock and the transaction had to wait then
@@ -5270,7 +5271,7 @@ rec_loop:
             ut_error;
         }
 
-        if (old_vers == NULL) {
+        if (old_vers == nullptr) {
           /* The row was not yet committed */
 
           goto next_rec;
@@ -5317,14 +5318,14 @@ rec_loop:
         /* The following call returns 'offsets' associated with 'old_vers' */
         err = row_sel_build_prev_vers_for_mysql(
             trx->read_view, clust_index, prebuilt, rec, &offsets, &heap,
-            &old_vers, need_vrow ? &vrow : NULL, &mtr,
+            &old_vers, need_vrow ? &vrow : nullptr, &mtr,
             prebuilt->get_lob_undo());
 
         if (err != DB_SUCCESS) {
           goto lock_wait_or_error;
         }
 
-        if (old_vers == NULL) {
+        if (old_vers == nullptr) {
           /* The row did not exist yet in
           the read view */
 
@@ -5441,10 +5442,10 @@ rec_loop:
     built for a consistent read. */
     err = row_sel_get_clust_rec_for_mysql(
         prebuilt, index, rec, thr, &clust_rec, &offsets, &heap,
-        need_vrow ? &vrow : NULL, &mtr, prebuilt->get_lob_undo());
+        need_vrow ? &vrow : nullptr, &mtr, prebuilt->get_lob_undo());
     switch (err) {
       case DB_SUCCESS:
-        if (clust_rec == NULL) {
+        if (clust_rec == nullptr) {
           /* The record did not exist in the read view */
           ut_ad(prebuilt->select_lock_type == LOCK_NONE ||
                 dict_index_is_spatial(index));
@@ -5455,7 +5456,7 @@ rec_loop:
       case DB_SKIP_LOCKED:
         goto next_rec;
       case DB_SUCCESS_LOCKED_REC:
-        ut_a(clust_rec != NULL);
+        ut_a(clust_rec != nullptr);
         if (trx->allow_semi_consistent()) {
           /* Note that the clustered index record
           was locked. */
@@ -5465,7 +5466,7 @@ rec_loop:
         err = DB_SUCCESS;
         break;
       default:
-        vrow = NULL;
+        vrow = nullptr;
         goto lock_wait_or_error;
     }
 
@@ -5533,11 +5534,12 @@ rec_loop:
       }
 
       clust_row = row_build(ROW_COPY_DATA, clust_index, clust_rec, offsets,
-                            NULL, NULL, NULL, &ext, heap);
+                            nullptr, nullptr, nullptr, &ext, heap);
       index_entry = row_build_index_entry(clust_row, ext, index, heap);
       rtr_get_mbr_from_tuple(index_entry, &clust_mbr);
 
-      index_offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+      index_offsets =
+          rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
       rtr_get_mbr_from_rec(rec, index_offsets, &index_mbr);
 
       if (mbr_equal_cmp(index->rtr_srs.get(), &clust_mbr, &index_mbr)) {
@@ -5609,7 +5611,7 @@ rec_loop:
                                    offsets, false, nullptr, nullptr)) {
         if (next_buf == buf) {
           ut_a(prebuilt->n_fetch_cached == 0);
-          next_buf = 0;
+          next_buf = nullptr;
         }
 
         /* Only fresh inserts may contain incomplete
@@ -5749,12 +5751,12 @@ idx_cond_failed:
 
 next_rec:
 
-  if (end_loop >= 99 && need_vrow && vrow == NULL && prev_rec != NULL) {
+  if (end_loop >= 99 && need_vrow && vrow == nullptr && prev_rec != nullptr) {
     if (!heap) {
       heap = mem_heap_create(100);
     }
 
-    prev_vrow = NULL;
+    prev_vrow = nullptr;
     row_sel_fill_vrow(prev_rec, index, &prev_vrow, heap);
   } else {
     prev_vrow = vrow;
@@ -5769,7 +5771,7 @@ next_rec:
   did_semi_consistent_read = FALSE;
   std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
 
-  vrow = NULL;
+  vrow = nullptr;
 
   /*-------------------------------------------------------------*/
   /* PHASE 5: Move the cursor to the next index record */
@@ -5870,7 +5872,7 @@ lock_table_wait:
 
   thr->lock_state = QUE_THR_LOCK_ROW;
 
-  if (row_mysql_handle_errors(&err, trx, thr, NULL)) {
+  if (row_mysql_handle_errors(&err, trx, thr, nullptr)) {
     /* It was a lock wait, and it ended */
 
     thr->lock_state = QUE_THR_LOCK_NOLOCK;
@@ -5942,7 +5944,7 @@ normal_return:
       err = DB_SUCCESS;
     }
 
-  } else if (next_buf != 0) {
+  } else if (next_buf != nullptr) {
     /* We may or may not have enqueued some buffers to the
     pre-fetch queue, but we definitely wrote to the record
     buffer passed to use by MySQL. */
@@ -5963,11 +5965,11 @@ normal_return:
 func_exit:
   trx->op_info = "";
 
-  if (end_range_cache != NULL) {
+  if (end_range_cache != nullptr) {
     ut_free(end_range_cache);
   }
 
-  if (heap != NULL) {
+  if (heap != nullptr) {
     mem_heap_free(heap);
   }
 
@@ -6138,7 +6140,7 @@ static ib_uint64_t row_search_autoinc_read_column(
   ulint len;
   const byte *data;
   ib_uint64_t value;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
 
@@ -6186,7 +6188,7 @@ static const rec_t *row_search_get_max_rec(dict_index_t *index, mtr_t *mtr) {
     if (page_rec_is_user_rec(rec)) {
       break;
     } else {
-      rec = NULL;
+      rec = nullptr;
     }
     btr_pcur_move_before_first_on_page(&pcur);
   } while (btr_pcur_move_to_prev(&pcur, mtr));
@@ -6218,7 +6220,7 @@ dberr_t row_search_max_autoinc(
 
     rec = row_search_get_max_rec(index, &mtr);
 
-    if (rec != NULL) {
+    if (rec != nullptr) {
       ibool unsigned_type = (dfield->col->prtype & DATA_UNSIGNED);
 
       *value = row_search_autoinc_read_column(index, rec, 0, dfield->col->mtype,
@@ -6291,7 +6293,8 @@ bool row_search_table_stats(const char *db_name, const char *tbl_name,
 
   for (; move == true; move = btr_pcur_move_to_next(&pcur, &mtr)) {
     rec = btr_pcur_get_rec(&pcur);
-    offsets = rec_get_offsets(rec, clust_index, NULL, ULINT_UNDEFINED, &heap);
+    offsets =
+        rec_get_offsets(rec, clust_index, nullptr, ULINT_UNDEFINED, &heap);
 
     if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
       continue;
@@ -6371,7 +6374,8 @@ bool row_search_index_stats(const char *db_name, const char *tbl_name,
 
   for (; move == true; move = btr_pcur_move_to_next(&pcur, &mtr)) {
     rec = btr_pcur_get_rec(&pcur);
-    offsets = rec_get_offsets(rec, clust_index, NULL, ULINT_UNDEFINED, &heap);
+    offsets =
+        rec_get_offsets(rec, clust_index, nullptr, ULINT_UNDEFINED, &heap);
 
     if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
       continue;

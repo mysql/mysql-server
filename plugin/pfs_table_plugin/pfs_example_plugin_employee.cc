@@ -82,12 +82,12 @@ Machine_Record machine_array[] =
 /* clang-format off */
 
 /* Global handles */
-SERVICE_TYPE(registry) *r = NULL;
-my_h_service h_ret_table_svc = NULL;
-SERVICE_TYPE(pfs_plugin_table) *table_svc = NULL;
+SERVICE_TYPE(registry) *r = nullptr;
+my_h_service h_ret_table_svc = nullptr;
+SERVICE_TYPE(pfs_plugin_table) *table_svc = nullptr;
 
 /* Collection of table shares to be added to performance schema */
-PFS_engine_table_share_proxy* share_list[4]= {NULL, NULL, NULL, NULL};
+PFS_engine_table_share_proxy* share_list[4]= {nullptr, nullptr, nullptr, nullptr};
 unsigned int share_list_count= 4;
 
 /* Mutex info definitions for the table mutexes */
@@ -154,18 +154,18 @@ error:
 void
 release_service_handles()
 {
-  if (r != NULL)
+  if (r != nullptr)
   {
-    if (h_ret_table_svc != NULL)
+    if (h_ret_table_svc != nullptr)
     {
       /* Release pfs_plugin_table and pfs_plugin_table services */
       r->release(h_ret_table_svc);
-      h_ret_table_svc = NULL;
-      table_svc = NULL;
+      h_ret_table_svc = nullptr;
+      table_svc = nullptr;
     }
     /* Release registry service */
     mysql_plugin_registry_release(r);
-    r = NULL;
+    r = nullptr;
   }
 }
 
@@ -374,7 +374,7 @@ pfs_example_plugin_employee_check(void *)
 {
   DBUG_TRACE;
 
-  if (table_svc != NULL)
+  if (table_svc != nullptr)
   {
     if (table_svc->delete_tables(&share_list[0], share_list_count))
     {
@@ -402,7 +402,7 @@ pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
    * Call delete_tables function of pfs_plugin_table service to
    * delete plugin tables from performance schema
    */
-  if (table_svc != NULL)
+  if (table_svc != nullptr)
   {
     if (table_svc->delete_tables(&share_list[0], share_list_count))
     {
@@ -450,9 +450,9 @@ mysql_declare_plugin(pfs_example_plugin_employee)
   pfs_example_plugin_employee_init,   /* Plugin Init      */
   pfs_example_plugin_employee_check,  /* Plugin Check uninstall */
   pfs_example_plugin_employee_deinit, /* Plugin Deinit    */
-  0x0100 /* 1.0 */, NULL,             /* status variables */
-  NULL,                               /* system variables */
-  NULL,                               /* config options   */
+  0x0100 /* 1.0 */, nullptr,             /* status variables */
+  nullptr,                               /* system variables */
+  nullptr,                               /* config options   */
   PLUGIN_OPT_ALLOW_EARLY,             /* flags            */
 }
 mysql_declare_plugin_end;

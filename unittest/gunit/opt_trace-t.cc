@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ static void do_check_json_compliance(const char *str, size_t length) {
       "json.loads(s, 'utf-8')\"";
   // Send the trace to this new process' stdin:
   FILE *fd = popen(python_cmd, "w");
-  ASSERT_TRUE(NULL != fd);
+  ASSERT_TRUE(nullptr != fd);
   ASSERT_NE(0U, length);  // empty is not compliant
   ASSERT_EQ(1U, fwrite(str, length, 1, fd));
   int rc = pclose(fd);
@@ -478,7 +478,7 @@ void make_one_trace(Opt_trace_context *trace, const char *name, long offset,
 void do_check(Opt_trace_context *trace, const char **names) {
   Opt_trace_iterator it(trace);
   Opt_trace_info info;
-  for (const char **name = names; *name != NULL; name++) {
+  for (const char **name = names; *name != nullptr; name++) {
     ASSERT_FALSE(it.at_end());
     it.get_value(&info);
     const size_t name_len = strlen(*name);
@@ -493,17 +493,17 @@ void do_check(Opt_trace_context *trace, const char **names) {
 /** Test offset/limit variables */
 TEST_F(TraceContentTest, Offset) {
   make_one_trace(&trace, "100", -1 /* offset */, 1 /* limit */);
-  const char *expected_traces0[] = {"100", NULL};
+  const char *expected_traces0[] = {"100", nullptr};
   check(trace, expected_traces0);
   make_one_trace(&trace, "101", -1, 1);
   /* 101 should have overwritten 100 */
-  const char *expected_traces1[] = {"101", NULL};
+  const char *expected_traces1[] = {"101", nullptr};
   check(trace, expected_traces1);
   make_one_trace(&trace, "102", -1, 1);
-  const char *expected_traces2[] = {"102", NULL};
+  const char *expected_traces2[] = {"102", nullptr};
   check(trace, expected_traces2);
   trace.reset();
-  const char *expected_traces_empty[] = {NULL};
+  const char *expected_traces_empty[] = {nullptr};
   check(trace, expected_traces_empty);
   make_one_trace(&trace, "103", -3, 2);
   make_one_trace(&trace, "104", -3, 2);
@@ -512,7 +512,7 @@ TEST_F(TraceContentTest, Offset) {
   make_one_trace(&trace, "107", -3, 2);
   make_one_trace(&trace, "108", -3, 2);
   make_one_trace(&trace, "109", -3, 2);
-  const char *expected_traces3[] = {"107", "108", NULL};
+  const char *expected_traces3[] = {"107", "108", nullptr};
   check(trace, expected_traces3);
   trace.reset();
   check(trace, expected_traces_empty);
@@ -523,20 +523,20 @@ TEST_F(TraceContentTest, Offset) {
   make_one_trace(&trace, "114", 3, 2);
   make_one_trace(&trace, "115", 3, 2);
   make_one_trace(&trace, "116", 3, 2);
-  const char *expected_traces10[] = {"113", "114", NULL};
+  const char *expected_traces10[] = {"113", "114", nullptr};
   check(trace, expected_traces10);
   trace.reset();
   check(trace, expected_traces_empty);
   make_one_trace(&trace, "117", 0, 1);
   make_one_trace(&trace, "118", 0, 1);
   make_one_trace(&trace, "119", 0, 1);
-  const char *expected_traces17[] = {"117", NULL};
+  const char *expected_traces17[] = {"117", nullptr};
   check(trace, expected_traces17);
   trace.reset();
   make_one_trace(&trace, "120", 0, 0);
   make_one_trace(&trace, "121", 0, 0);
   make_one_trace(&trace, "122", 0, 0);
-  const char *expected_traces20[] = {NULL};
+  const char *expected_traces20[] = {nullptr};
   check(trace, expected_traces20);
   EXPECT_FALSE(oom);
 }
@@ -736,14 +736,14 @@ TEST_F(TraceContentTest, OOMinPurge) {
 
   DBUG_SET("-d,opt_trace_oom_in_purge");
   // 122 could not purge 119, so we should see 119 and 120
-  const char *expected_traces3[] = {"119", "120", NULL};
+  const char *expected_traces3[] = {"119", "120", nullptr};
   check(trace, expected_traces3);
   EXPECT_TRUE(oom);
 
   // Back to normal:
   oom = false;
   make_one_trace(&trace, "123", -3, 2);  // purge succeeds
-  const char *expected_traces4[] = {"121", "122", NULL};
+  const char *expected_traces4[] = {"121", "122", nullptr};
   check(trace, expected_traces4);
   EXPECT_FALSE(oom);
 }

@@ -36,7 +36,7 @@ int PFS_plugin_table_index::init(PSI_table_handle *plugin_table, uint idx,
   int ret;
   m_idx = idx;
 
-  if (unlikely(m_st_table->index_init == NULL)) {
+  if (unlikely(m_st_table->index_init == nullptr)) {
     return 0;
   }
 
@@ -47,7 +47,7 @@ int PFS_plugin_table_index::init(PSI_table_handle *plugin_table, uint idx,
 
 void PFS_plugin_table_index::read_key(const uchar *key, uint key_len,
                                       enum ha_rkey_function find_flag) {
-  if (unlikely(m_st_table->index_read == NULL)) {
+  if (unlikely(m_st_table->index_read == nullptr)) {
     return;
   }
 
@@ -57,7 +57,7 @@ void PFS_plugin_table_index::read_key(const uchar *key, uint key_len,
 }
 
 int PFS_plugin_table_index::index_next(PSI_table_handle *table) {
-  if (unlikely(m_st_table->index_next == NULL)) {
+  if (unlikely(m_st_table->index_next == nullptr)) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -69,7 +69,7 @@ PFS_engine_table *table_plugin_table::create(PFS_engine_table_share *share) {
 }
 
 table_plugin_table::table_plugin_table(PFS_engine_table_share *share)
-    : PFS_engine_table(share, NULL),
+    : PFS_engine_table(share, nullptr),
       m_share(share),
       m_table_lock(share->m_thr_lock_ptr) {
   this->m_st_table = &share->m_st_table;
@@ -79,28 +79,28 @@ table_plugin_table::table_plugin_table(PFS_engine_table_share *share)
 }
 
 void table_plugin_table::reset_position(void) {
-  if (unlikely(m_st_table->reset_position == NULL)) {
+  if (unlikely(m_st_table->reset_position == nullptr)) {
     return;
   }
   m_st_table->reset_position(this->plugin_table_handle);
 }
 
 int table_plugin_table::rnd_init(bool scan) {
-  if (unlikely(m_st_table->rnd_next == NULL)) {
+  if (unlikely(m_st_table->rnd_next == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }
   return m_st_table->rnd_init(this->plugin_table_handle, scan);
 }
 
 int table_plugin_table::rnd_next(void) {
-  if (unlikely(m_st_table->rnd_next == NULL)) {
+  if (unlikely(m_st_table->rnd_next == nullptr)) {
     return HA_ERR_END_OF_FILE;
   }
   return m_st_table->rnd_next(this->plugin_table_handle);
 }
 
 int table_plugin_table::rnd_pos(const void *pos) {
-  if (unlikely(m_st_table->rnd_pos == NULL)) {
+  if (unlikely(m_st_table->rnd_pos == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }
   set_position(pos);
@@ -109,7 +109,7 @@ int table_plugin_table::rnd_pos(const void *pos) {
 
 int table_plugin_table::index_init(uint idx, bool sorted) {
   int ret = 0;
-  PFS_plugin_table_index *result = NULL;
+  PFS_plugin_table_index *result = nullptr;
 
   /* Create an index instance for plugin table */
   result = new PFS_plugin_table_index(m_st_table);
@@ -130,7 +130,7 @@ int table_plugin_table::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
   int result = 0;
 
-  if (unlikely(m_st_table->read_column_value == NULL)) {
+  if (unlikely(m_st_table->read_column_value == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -154,7 +154,7 @@ int table_plugin_table::read_row_values(TABLE *table, unsigned char *buf,
 }
 
 int table_plugin_table::delete_all_rows(void) {
-  if (unlikely(m_share->m_delete_all_rows == NULL)) {
+  if (unlikely(m_share->m_delete_all_rows == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -166,7 +166,7 @@ int table_plugin_table::update_row_values(TABLE *table, const unsigned char *,
   Field *f;
   int result = 0;
 
-  if (unlikely(m_st_table->update_column_value == NULL)) {
+  if (unlikely(m_st_table->update_column_value == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -186,7 +186,7 @@ int table_plugin_table::update_row_values(TABLE *table, const unsigned char *,
 
 int table_plugin_table::delete_row_values(TABLE *, const unsigned char *,
                                           Field **) {
-  if (unlikely(m_st_table->delete_row_values == NULL)) {
+  if (unlikely(m_st_table->delete_row_values == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }
 

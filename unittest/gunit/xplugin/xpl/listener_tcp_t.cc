@@ -142,7 +142,7 @@ class Listener_tcp_testsuite : public Test {
     result.ai_protocol = 0;
     result.ai_addrlen = sizeof(in6);
     result.ai_addr = reinterpret_cast<sockaddr *>(&in6);
-    result.ai_next = NULL;
+    result.ai_next = nullptr;
 
     return result;
   }
@@ -156,7 +156,7 @@ class Listener_tcp_testsuite : public Test {
     result.ai_protocol = 0;
     result.ai_addrlen = sizeof(in4);
     result.ai_addr = reinterpret_cast<sockaddr *>(&in4);
-    result.ai_next = NULL;
+    result.ai_next = nullptr;
 
     return result;
   }

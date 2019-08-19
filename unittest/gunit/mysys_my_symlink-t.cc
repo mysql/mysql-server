@@ -35,7 +35,7 @@ namespace mysys_my_symlink {
 #if !defined(_WIN32)
 TEST(Mysys, MysysMySymlink) {
   char filename[FN_REFLEN];
-  int fd = create_temp_file(filename, NULL, "gunit_mysys_symlink",
+  int fd = create_temp_file(filename, nullptr, "gunit_mysys_symlink",
                             O_CREAT | O_WRONLY, KEEP_FILE, MYF(MY_WME));
   EXPECT_GT(fd, 0);
 

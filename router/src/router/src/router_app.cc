@@ -115,7 +115,7 @@ std::string MySQLRouter::find_full_path(const std::string &argv0) {
     // Program was found via PATH lookup by the shell, so we
     // try to find the program in one of the PATH dirs
     std::string path(std::getenv("PATH"));
-    char *last = NULL;
+    char *last = nullptr;
     char *p = strtok_r(&path[0], path_sep.c_str(), &last);
     while (p) {
       std::string tmp(std::string(p) + dir_sep + argv0);
@@ -124,7 +124,7 @@ std::string MySQLRouter::find_full_path(const std::string &argv0) {
         mysql_harness::Path path2(path1.real_path());
         return path2.str();
       }
-      p = strtok_r(NULL, path_sep.c_str(), &last);
+      p = strtok_r(nullptr, path_sep.c_str(), &last);
     }
   }
 #endif

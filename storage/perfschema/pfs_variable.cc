@@ -63,11 +63,11 @@ bool Find_THD_variable::operator()(THD *thd) {
 
 template <class Var_type>
 PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
-    : m_safe_thd(NULL),
-      m_unsafe_thd(NULL),
+    : m_safe_thd(nullptr),
+      m_unsafe_thd(nullptr),
       m_current_thd(current_thd),
-      m_pfs_thread(NULL),
-      m_pfs_client(NULL),
+      m_pfs_thread(nullptr),
+      m_pfs_client(nullptr),
       m_thd_finder(),
       m_cache(PSI_INSTRUMENT_ME),
       m_initialized(false),
@@ -81,9 +81,9 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
 
 PFS_system_variable_cache::PFS_system_variable_cache(bool external_init)
     : PFS_variable_cache<System_variable>(external_init),
-      m_mem_thd(NULL),
-      m_mem_thd_save(NULL),
-      m_mem_sysvar_ptr(NULL) {}
+      m_mem_thd(nullptr),
+      m_mem_thd_save(nullptr),
+      m_mem_sysvar_ptr(nullptr) {}
 
 /**
   Build a sorted list of all system variables from the system variable hash.
@@ -195,7 +195,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
   int ret = 1;
 
   m_unsafe_thd = unsafe_thd;
-  m_safe_thd = NULL;
+  m_safe_thd = nullptr;
   m_materialized = false;
   m_cache.clear();
 
@@ -212,7 +212,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+  if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     DEBUG_SYNC(m_current_thd, "materialize_session_variable_array_THD_locked");
     for (Show_var_array::iterator show_var = m_show_var_array.begin();
          show_var->value && (show_var != m_show_var_array.end()); show_var++) {
@@ -236,7 +236,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
   Allocate and assign mem_root for system variable materialization.
 */
 void PFS_system_variable_cache::set_mem_root(void) {
-  if (m_mem_sysvar_ptr == NULL) {
+  if (m_mem_sysvar_ptr == nullptr) {
     init_sql_alloc(PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE,
                    0);
     m_mem_sysvar_ptr = &m_mem_sysvar;
@@ -254,8 +254,8 @@ void PFS_system_variable_cache::clear_mem_root(void) {
   if (m_mem_sysvar_ptr) {
     free_root(&m_mem_sysvar, MYF(MY_MARK_BLOCKS_FREE));
     *m_mem_thd = m_mem_thd_save; /* restore original mem_root */
-    m_mem_thd = NULL;
-    m_mem_thd_save = NULL;
+    m_mem_thd = nullptr;
+    m_mem_thd_save = nullptr;
   }
 }
 
@@ -266,11 +266,11 @@ void PFS_system_variable_cache::clear_mem_root(void) {
 void PFS_system_variable_cache::free_mem_root(void) {
   if (m_mem_sysvar_ptr) {
     free_root(&m_mem_sysvar, MYF(0));
-    m_mem_sysvar_ptr = NULL;
+    m_mem_sysvar_ptr = nullptr;
     if (m_mem_thd && m_mem_thd_save) {
       *m_mem_thd = m_mem_thd_save; /* restore original mem_root */
-      m_mem_thd = NULL;
-      m_mem_thd_save = NULL;
+      m_mem_thd = nullptr;
+      m_mem_thd_save = nullptr;
     }
   }
 }
@@ -299,7 +299,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(pfs_thread)) != NULL) {
+  if ((m_safe_thd = get_THD(pfs_thread)) != nullptr) {
     for (Show_var_array::iterator show_var = m_show_var_array.begin();
          show_var->value && (show_var != m_show_var_array.end()); show_var++) {
       sys_var *value = (sys_var *)show_var->value;
@@ -348,7 +348,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread,
   DBUG_ASSERT(m_initialized);
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(pfs_thread)) != NULL) {
+  if ((m_safe_thd = get_THD(pfs_thread)) != nullptr) {
     SHOW_VAR *show_var = &m_show_var_array.at(index);
 
     if (show_var && show_var->value && (show_var != m_show_var_array.end())) {
@@ -380,7 +380,7 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd) {
   int ret = 1;
 
   m_unsafe_thd = unsafe_thd;
-  m_safe_thd = NULL;
+  m_safe_thd = nullptr;
   m_materialized = false;
   m_cache.clear();
 
@@ -397,7 +397,7 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+  if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     for (Show_var_array::iterator show_var = m_show_var_array.begin();
          show_var->value && (show_var != m_show_var_array.end()); show_var++) {
       sys_var *value = (sys_var *)show_var->value;
@@ -432,7 +432,7 @@ int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd) {
   int ret = 1;
 
   m_unsafe_thd = unsafe_thd;
-  m_safe_thd = NULL;
+  m_safe_thd = nullptr;
   m_materialized = false;
   m_cache.clear();
 
@@ -449,7 +449,7 @@ int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+  if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     for (Show_var_array::iterator show_var = m_show_var_array.begin();
          show_var->value && (show_var != m_show_var_array.end()); show_var++) {
       /* Resolve value, convert to text, add to cache. */
@@ -478,7 +478,7 @@ int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd) {
 int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd) {
   int ret = 1;
   m_unsafe_thd = unsafe_thd;
-  m_safe_thd = NULL;
+  m_safe_thd = nullptr;
   m_materialized = false;
   m_cache.clear();
 
@@ -486,7 +486,7 @@ int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd) {
   mysql_mutex_lock(&LOCK_plugin_delete);
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+  if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
     if (pv) {
       vector<st_persist_var> *persist_variables = pv->get_persisted_variables();
@@ -544,12 +544,12 @@ int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd) {
   Empty placeholder.
 */
 System_variable::System_variable()
-    : m_name(NULL),
+    : m_name(nullptr),
       m_name_length(0),
       m_value_length(0),
       m_type(SHOW_UNDEF),
       m_scope(0),
-      m_charset(NULL),
+      m_charset(nullptr),
       m_source(enum_variable_source::COMPILED),
       m_path_length(0),
       m_min_value_length(0),
@@ -571,12 +571,12 @@ System_variable::System_variable()
 */
 System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var,
                                  enum_var_type query_scope)
-    : m_name(NULL),
+    : m_name(nullptr),
       m_name_length(0),
       m_value_length(0),
       m_type(SHOW_UNDEF),
       m_scope(0),
-      m_charset(NULL),
+      m_charset(nullptr),
       m_source(enum_variable_source::COMPILED),
       m_path_length(0),
       m_min_value_length(0),
@@ -598,12 +598,12 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var,
   GLOBAL and SESSION system variable.
 */
 System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var)
-    : m_name(NULL),
+    : m_name(nullptr),
       m_name_length(0),
       m_value_length(0),
       m_type(SHOW_UNDEF),
       m_scope(0),
-      m_charset(NULL),
+      m_charset(nullptr),
       m_source(enum_variable_source::COMPILED),
       m_path_length(0),
       m_min_value_length(0),
@@ -626,7 +626,7 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var)
 */
 void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
                            enum_var_type query_scope) {
-  if (show_var == NULL || show_var->name == NULL) {
+  if (show_var == nullptr || show_var->name == nullptr) {
     return;
   }
 
@@ -645,7 +645,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   mysql_mutex_lock(&LOCK_global_system_variables);
 
   sys_var *system_var = (sys_var *)show_var->value;
-  DBUG_ASSERT(system_var != NULL);
+  DBUG_ASSERT(system_var != nullptr);
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
   m_scope = system_var->scope();
@@ -653,7 +653,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   /* Get the value of the system variable. */
   const char *value;
   value = get_one_variable_ext(current_thread, target_thd, show_var,
-                               query_scope, show_var_type, NULL, &m_charset,
+                               query_scope, show_var_type, nullptr, &m_charset,
                                m_value_str, &m_value_length);
 
   m_value_length = std::min(m_value_length, size_t{SHOW_VAR_FUNC_BUFF_SIZE});
@@ -676,7 +676,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   Get sys_var value from global/session and then convert to string.
 */
 void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
-  if (show_var == NULL || show_var->name == NULL) {
+  if (show_var == nullptr || show_var->name == nullptr) {
     return;
   }
 
@@ -693,7 +693,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
   mysql_mutex_lock(&LOCK_global_system_variables);
 
   sys_var *system_var = (sys_var *)show_var->value;
-  DBUG_ASSERT(system_var != NULL);
+  DBUG_ASSERT(system_var != nullptr);
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
   m_scope = system_var->scope();
@@ -766,7 +766,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
 PFS_status_variable_cache::PFS_status_variable_cache(bool external_init)
     : PFS_variable_cache<Status_variable>(external_init),
       m_show_command(false),
-      m_sum_client_status(NULL) {
+      m_sum_client_status(nullptr) {
   /* Determine if the originating query is a SHOW command. */
   m_show_command = (m_current_thd->lex->sql_command == SQLCOM_SHOW_STATUS);
 }
@@ -1004,7 +1004,7 @@ bool PFS_status_variable_cache::init_show_var_array(enum_var_type scope,
       /* Expand nested sub array. The name is used as a prefix. */
       expand_show_var_array((SHOW_VAR *)show_var.value, show_var.name, strict);
     } else {
-      show_var.name = make_show_var_name(NULL, show_var.name);
+      show_var.name = make_show_var_name(nullptr, show_var.name);
       m_show_var_array.push_back(show_var);
     }
   }
@@ -1058,7 +1058,7 @@ char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
                                                     const char *name,
                                                     char *name_buf,
                                                     size_t buf_len) {
-  DBUG_ASSERT(name_buf != NULL);
+  DBUG_ASSERT(name_buf != nullptr);
   char *prefix_end = name_buf;
 
   if (prefix && *prefix) {
@@ -1113,7 +1113,7 @@ bool PFS_status_variable_cache::do_initialize_session(void) {
 System_status_var *PFS_status_variable_cache::set_status_vars(void) {
   System_status_var *status_vars;
   if (m_safe_thd == m_current_thd &&
-      m_current_thd->initial_status_var != NULL) {
+      m_current_thd->initial_status_var != nullptr) {
     status_vars = m_current_thd->initial_status_var;
   } else {
     status_vars = &m_safe_thd->status_var;
@@ -1179,7 +1179,7 @@ int PFS_status_variable_cache::do_materialize_global(void) {
 */
 int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
   int ret = 1;
-  DBUG_ASSERT(unsafe_thd != NULL);
+  DBUG_ASSERT(unsafe_thd != nullptr);
 
   m_unsafe_thd = unsafe_thd;
   m_materialized = false;
@@ -1200,7 +1200,7 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+  if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1228,7 +1228,7 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
 */
 int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
   int ret = 1;
-  DBUG_ASSERT(unsafe_thd != NULL);
+  DBUG_ASSERT(unsafe_thd != nullptr);
 
   m_unsafe_thd = unsafe_thd;
   m_materialized = false;
@@ -1249,7 +1249,7 @@ int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
+  if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1277,7 +1277,7 @@ int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
 */
 int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   int ret = 1;
-  DBUG_ASSERT(pfs_thread != NULL);
+  DBUG_ASSERT(pfs_thread != nullptr);
 
   m_pfs_thread = pfs_thread;
   m_materialized = false;
@@ -1292,7 +1292,7 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   DBUG_ASSERT(m_initialized);
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd = get_THD(pfs_thread)) != NULL) {
+  if ((m_safe_thd = get_THD(pfs_thread)) != nullptr) {
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1321,7 +1321,7 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   NOTE: Requires that init_show_var_array() has already been called.
 */
 int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client) {
-  DBUG_ASSERT(pfs_client != NULL);
+  DBUG_ASSERT(pfs_client != nullptr);
   System_status_var status_totals;
 
   m_pfs_client = pfs_client;
@@ -1436,7 +1436,7 @@ Status_variable::Status_variable(const SHOW_VAR *show_var,
       m_value_length(0),
       m_type(SHOW_UNDEF),
       m_scope(SHOW_SCOPE_UNDEF),
-      m_charset(NULL),
+      m_charset(nullptr),
       m_initialized(false) {
   init(show_var, status_vars, query_scope);
 }
@@ -1449,7 +1449,7 @@ Status_variable::Status_variable(const SHOW_VAR *show_var,
 void Status_variable::init(const SHOW_VAR *show_var,
                            System_status_var *status_vars,
                            enum_var_type query_scope) {
-  if (show_var == NULL || show_var->name == NULL) {
+  if (show_var == nullptr || show_var->name == nullptr) {
     return;
   }
   m_name = show_var->name;
@@ -1524,7 +1524,7 @@ void reset_pfs_status_stats() {
 */
 void system_variable_warning(void) {
   THD *thd = current_thd;
-  DBUG_ASSERT(thd != NULL);
+  DBUG_ASSERT(thd != nullptr);
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
   push_warning(thd, ER_SYSVAR_CHANGE_DURING_QUERY);
 }
@@ -1535,7 +1535,7 @@ void system_variable_warning(void) {
 */
 void status_variable_warning(void) {
   THD *thd = current_thd;
-  DBUG_ASSERT(thd != NULL);
+  DBUG_ASSERT(thd != nullptr);
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
   push_warning(thd, ER_GLOBSTAT_CHANGE_DURING_QUERY);
 }

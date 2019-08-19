@@ -1272,7 +1272,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   digits = (int)(str - beg);
 
   /* Continue to accumulate into ulonglong */
-  for (dot = NULL, ull = ul; str < end; str++) {
+  for (dot = nullptr, ull = ul; str < end; str++) {
     if ((ch = (uchar)(*str - '0')) < 10) {
       if (ull < CUTOFF || (ull == CUTOFF && ch <= CUTLIM)) {
         ull = ull * 10 + ch;
@@ -1510,7 +1510,7 @@ size_t my_strxfrm_pad(const CHARSET_INFO *cs, uchar *str, uchar *frmend,
 }
 
 MY_CHARSET_HANDLER my_charset_8bit_handler = {my_cset_init_8bit,
-                                              NULL, /* ismbchar      */
+                                              nullptr, /* ismbchar      */
                                               my_mbcharlen_8bit, /* mbcharlen */
                                               my_numchars_8bit,
                                               my_charpos_8bit,
@@ -1539,7 +1539,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler = {my_cset_init_8bit,
 
 MY_CHARSET_HANDLER my_charset_ascii_handler = {
     my_cset_init_8bit,
-    NULL,              /* ismbchar      */
+    nullptr,           /* ismbchar      */
     my_mbcharlen_8bit, /* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,

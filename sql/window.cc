@@ -103,11 +103,11 @@ static void append_to_back(ORDER **first_next, ORDER *column) {
 }
 
 ORDER *Window::first_partition_by() const {
-  return m_partition_by != NULL ? m_partition_by->value.first : NULL;
+  return m_partition_by != nullptr ? m_partition_by->value.first : nullptr;
 }
 
 ORDER *Window::first_order_by() const {
-  return m_order_by != NULL ? m_order_by->value.first : NULL;
+  return m_order_by != nullptr ? m_order_by->value.first : nullptr;
 }
 
 bool Window::check_window_functions(THD *thd, SELECT_LEX *select) {
@@ -1342,7 +1342,7 @@ void Window::reset_execution_state(Reset_level level) {
       {
         for (auto it : {m_partition_by, m_order_by}) {
           if (it != nullptr) {
-            for (ORDER *o = it->value.first; o != NULL; o = o->next)
+            for (ORDER *o = it->value.first; o != nullptr; o = o->next)
               o->item = &o->item_ptr;
           }
         }

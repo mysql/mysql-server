@@ -51,7 +51,7 @@ buf_block_t *BaseInserter::alloc_blob_page() {
                                 alloc_mtr, 1)) {
     alloc_mtr->commit();
     m_err = DB_OUT_OF_FILE_SPACE;
-    return (NULL);
+    return (nullptr);
   }
 
   m_cur_blob_block = btr_page_alloc(m_ctx->index(), hint_page_no, FSP_NO_DIR, 0,

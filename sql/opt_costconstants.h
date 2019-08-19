@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -361,9 +361,9 @@ class Cost_model_se_info {
 
   void set_cost_constants(SE_cost_constants *cost_constants,
                           unsigned int storage_class) {
-    DBUG_ASSERT(cost_constants != NULL);
+    DBUG_ASSERT(cost_constants != nullptr);
     DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
-    DBUG_ASSERT(m_se_cost_constants[storage_class] == NULL);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] == nullptr);
 
     m_se_cost_constants[storage_class] = cost_constants;
   }
@@ -379,7 +379,7 @@ class Cost_model_se_info {
   const SE_cost_constants *get_cost_constants(
       unsigned int storage_class) const {
     DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
-    DBUG_ASSERT(m_se_cost_constants[storage_class] != NULL);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] != nullptr);
 
     return m_se_cost_constants[storage_class];
   }
@@ -394,7 +394,7 @@ class Cost_model_se_info {
 
   SE_cost_constants *get_cost_constants(unsigned int storage_class) {
     DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
-    DBUG_ASSERT(m_se_cost_constants[storage_class] != NULL);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] != nullptr);
 
     return m_se_cost_constants[storage_class];
   }

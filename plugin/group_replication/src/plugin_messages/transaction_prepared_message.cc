@@ -26,9 +26,9 @@
 Transaction_prepared_message::Transaction_prepared_message(const rpl_sid *sid,
                                                            rpl_gno gno)
     : Plugin_gcs_message(CT_TRANSACTION_PREPARED_MESSAGE),
-      m_sid_specified(sid != NULL ? true : false),
+      m_sid_specified(sid != nullptr ? true : false),
       m_gno(gno) {
-  if (sid != NULL) {
+  if (sid != nullptr) {
     m_sid = *sid;
   }
 }
@@ -85,7 +85,7 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
 }
 
 const rpl_sid *Transaction_prepared_message::get_sid() {
-  return m_sid_specified ? &m_sid : NULL;
+  return m_sid_specified ? &m_sid : nullptr;
 }
 
 rpl_gno Transaction_prepared_message::get_gno() { return m_gno; }

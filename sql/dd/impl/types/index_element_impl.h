@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
         m_length(-1),
         m_order(Index_element::ORDER_ASC),
         m_hidden(false),
-        m_index(NULL),
-        m_column(NULL) {}
+        m_index(nullptr),
+        m_column(nullptr) {}
 
   Index_element_impl(Index_impl *index, Column *column)
       : m_ordinal_position(0),
@@ -146,7 +146,7 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
 
  public:
   static Index_element_impl *restore_item(Index_impl *index) {
-    return new (std::nothrow) Index_element_impl(index, NULL);
+    return new (std::nothrow) Index_element_impl(index, nullptr);
   }
 
   static Index_element_impl *clone(const Index_element_impl &other,

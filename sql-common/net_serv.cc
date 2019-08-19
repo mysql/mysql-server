@@ -110,7 +110,7 @@ void net_extension_free(NET *net) {
     }
     mysql_compress_context_deinit(&ext->compress_ctx);
     my_free(ext);
-    net->extension = 0;
+    net->extension = nullptr;
 #endif
   }
 }
@@ -128,7 +128,7 @@ bool my_net_init(NET *net, Vio *vio) {
     return true;
   net->buff_end = net->buff + net->max_packet;
   net->error = 0;
-  net->return_status = 0;
+  net->return_status = nullptr;
   net->pkt_nr = net->compress_pkt_nr = 0;
   net->write_pos = net->read_pos = net->buff;
   net->last_error[0] = 0;
@@ -169,7 +169,7 @@ void net_end(NET *net) {
   net_extension_free(net);
 #endif
   my_free(net->buff);
-  net->buff = 0;
+  net->buff = nullptr;
 }
 
 void net_claim_memory_ownership(NET *net) { my_claim(net->buff); }
@@ -566,7 +566,7 @@ static int begin_packet_write_state(NET *net, uchar command,
     ++vec;
 
     /* Second packet, our optional prefix (if any). */
-    if (packet_num == 0 && optional_prefix != NULL) {
+    if (packet_num == 0 && optional_prefix != nullptr) {
       (*vec).iov_base = const_cast<uchar *>(optional_prefix);
       (*vec).iov_len = prefix_len;
       ++vec;
@@ -715,7 +715,8 @@ done:
 */
 net_async_status my_net_write_nonblocking(NET *net, const uchar *packet,
                                           size_t len, bool *res) {
-  return net_write_command_nonblocking(net, COM_END, packet, len, NULL, 0, res);
+  return net_write_command_nonblocking(net, COM_END, packet, len, nullptr, 0,
+                                       res);
 }
 
 /**
@@ -1117,7 +1118,7 @@ static uchar *compress_packet(NET *net, const uchar *packet, size_t *length) {
   compr_packet = (uchar *)my_malloc(key_memory_NET_compress_packet,
                                     *length + header_length, MYF(MY_WME));
 
-  if (compr_packet == NULL) return NULL;
+  if (compr_packet == nullptr) return nullptr;
 
   memcpy(compr_packet + header_length, packet, *length);
 
@@ -1176,7 +1177,7 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
 
   const bool do_compress = net->compress;
   if (do_compress) {
-    if ((packet = compress_packet(net, packet, &length)) == NULL) {
+    if ((packet = compress_packet(net, packet, &length)) == nullptr) {
       net->error = 2;
       net->last_errno = ER_OUT_OF_RESOURCES;
       /* In the server, allocation failure raises a error. */
@@ -1294,10 +1295,10 @@ static bool net_read_packet_header(NET *net) {
 
   server_extension = static_cast<NET_SERVER *>(net->extension);
 
-  if (server_extension != NULL && server_extension->m_user_data != nullptr) {
+  if (server_extension != nullptr && server_extension->m_user_data != nullptr) {
     void *user_data = server_extension->m_user_data;
-    DBUG_ASSERT(server_extension->m_before_header != NULL);
-    DBUG_ASSERT(server_extension->m_after_header != NULL);
+    DBUG_ASSERT(server_extension->m_before_header != nullptr);
+    DBUG_ASSERT(server_extension->m_after_header != nullptr);
 
     server_extension->m_before_header(net, user_data, count);
     rc = net_read_raw_loop(net, count);

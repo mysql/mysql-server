@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,7 +67,7 @@ int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
     return (err);
   }
 
-  blobref.update(m_ctx->space(), m_cur_blob_page_no, FIL_PAGE_NEXT, NULL);
+  blobref.update(m_ctx->space(), m_cur_blob_page_no, FIL_PAGE_NEXT, nullptr);
 
   /* After writing the first blob page, update the blob reference. */
   if (!m_ctx->is_bulk()) {
@@ -278,7 +278,7 @@ dberr_t zInserter::prepare() {
   heap, hoping to avoid memory fragmentation. */
   m_heap = mem_heap_create(250000);
 
-  if (m_heap == NULL) {
+  if (m_heap == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
 

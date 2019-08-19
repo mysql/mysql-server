@@ -77,7 +77,7 @@ class BG_result_buf_mgr {
   typedef Prealloced_array<void *, 64> Prealloced_buffers;
 
  public:
-  BG_result_buf_mgr() : bg_result_buf(NULL), bg_results(PSI_INSTRUMENT_ME) {}
+  BG_result_buf_mgr() : bg_result_buf(nullptr), bg_results(PSI_INSTRUMENT_ME) {}
 
   ~BG_result_buf_mgr() {
     free_intermediate_result_buffers();
@@ -87,7 +87,7 @@ class BG_result_buf_mgr {
   void add_buffer(void *buf) { bg_results.insert_unique(buf); }
 
   void forget_buffer(void *buf) {
-    if (bg_result_buf == buf) bg_result_buf = NULL;
+    if (bg_result_buf == buf) bg_result_buf = nullptr;
     bg_results.erase_unique(buf);
   }
 
@@ -103,7 +103,7 @@ class BG_result_buf_mgr {
   // Free the final result buffer, should be called after the result used.
   void free_result_buffer() {
     gis_wkb_raw_free(bg_result_buf);
-    bg_result_buf = NULL;
+    bg_result_buf = nullptr;
   }
 
   void set_result_buffer(void *buf) {

@@ -108,7 +108,7 @@ static inline struct PSI_sp_locker *inline_mysql_start_sp(
 }
 
 static inline void inline_mysql_end_sp(PSI_sp_locker *locker) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_SP_CALL(end_sp)(locker);
   }
 }

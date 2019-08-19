@@ -1830,38 +1830,55 @@ static const MY_UNICASE_CHARACTER cAC[256] = {
     {0xACFF, 0xACFF, 0x003F}};
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_euckr[256] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, cA3,  NULL, cA5,  NULL, cA7, /* A */
-    cA8,  cA9,  NULL, NULL, cAC,  NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, cA3,
+    nullptr, cA5,     nullptr, cA7, /* A */
+    cA8,     cA9,     nullptr, nullptr, cAC,     nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr};
 
 static const MY_UNICASE_INFO my_caseinfo_euckr = {0xFFFF,
                                                   my_caseinfo_pages_euckr};
@@ -9411,7 +9428,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {
     my_propagate_simple};
 
 static MY_CHARSET_HANDLER my_charset_handler = {
-    NULL, /* init */
+    nullptr, /* init */
     ismbchar_euc_kr,
     mbcharlen_euc_kr,
     my_numchars_mb,
@@ -9447,18 +9464,18 @@ CHARSET_INFO my_charset_euckr_korean_ci = {
     "euckr",                        /* cs name    */
     "euckr_korean_ci",              /* name */
     "",                             /* comment    */
-    NULL,                           /* tailoring */
-    NULL,                           /* coll_param */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
-    NULL,               /* uca          */
-    NULL,               /* tab_to_uni   */
-    NULL,               /* tab_from_uni */
+    nullptr,            /* uca          */
+    nullptr,            /* tab_to_uni   */
+    nullptr,            /* tab_from_uni */
     &my_caseinfo_euckr, /* caseinfo     */
-    NULL,               /* state_map    */
-    NULL,               /* ident_map    */
+    nullptr,            /* state_map    */
+    nullptr,            /* ident_map    */
     1,                  /* strxfrm_multiply */
     1,                  /* caseup_multiply  */
     1,                  /* casedn_multiply  */
@@ -9482,18 +9499,18 @@ CHARSET_INFO my_charset_euckr_bin = {
     "euckr",                        /* cs name    */
     "euckr_bin",                    /* name */
     "",                             /* comment    */
-    NULL,                           /* tailoring */
-    NULL,                           /* coll_param */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
-    NULL,               /* sort_order   */
-    NULL,               /* uca          */
-    NULL,               /* tab_to_uni   */
-    NULL,               /* tab_from_uni */
+    nullptr,            /* sort_order   */
+    nullptr,            /* uca          */
+    nullptr,            /* tab_to_uni   */
+    nullptr,            /* tab_from_uni */
     &my_caseinfo_euckr, /* caseinfo     */
-    NULL,               /* state_map    */
-    NULL,               /* ident_map    */
+    nullptr,            /* state_map    */
+    nullptr,            /* ident_map    */
     1,                  /* strxfrm_multiply */
     1,                  /* caseup_multiply  */
     1,                  /* casedn_multiply  */

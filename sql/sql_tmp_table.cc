@@ -138,7 +138,7 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
       This field will belong to an internal temporary table, it cannot be
       generated.
     */
-    new_field->gcol_info = NULL;
+    new_field->gcol_info = nullptr;
     new_field->stored_in_db = true;
   }
   return new_field;
@@ -169,7 +169,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
                                          Func_ptr_array *copy_func,
                                          bool modify_item) {
   bool maybe_null = item->maybe_null;
-  Field *new_field = NULL;
+  Field *new_field = nullptr;
 
   switch (item->result_type()) {
     case REAL_RESULT:
@@ -215,7 +215,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
     default:
       // This case should never be choosen
       DBUG_ASSERT(0);
-      new_field = 0;
+      new_field = nullptr;
       break;
   }
   if (new_field) new_field->init(table);
@@ -309,9 +309,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields, bool make_copy_field,
                         bool copy_result_field) {
   DBUG_TRACE;
-  Field *result = NULL;
+  Field *result = nullptr;
   Item::Type orig_type = type;
-  Item *orig_item = 0;
+  Item *orig_item = nullptr;
 
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM) {
@@ -335,7 +335,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         create_tmp_field_from_field() can't be used for tmp field creation.
       */
       if (field->maybe_null && !field->field->maybe_null()) {
-        result = create_tmp_field_from_item(item, table, NULL, modify_item);
+        result = create_tmp_field_from_item(item, table, nullptr, modify_item);
         if (!result) break;
         *from_field = field->field;
       } else if (table_cant_handle_bit_fields &&
@@ -348,7 +348,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         result = create_tmp_field_from_field(
             thd, (*from_field = field->field),
             orig_item ? orig_item->item_name.ptr() : item->item_name.ptr(),
-            table, modify_item ? field : NULL);
+            table, modify_item ? field : nullptr);
         if (!result) break;
       }
       if (orig_type == Item::REF_ITEM && orig_modify)
@@ -375,8 +375,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
           copy_func->push_back(Func_ptr(item));
         }
 
-        result = create_tmp_field_from_field(
-            thd, sp_result_field, item_func_sp->item_name.ptr(), table, NULL);
+        result = create_tmp_field_from_field(thd, sp_result_field,
+                                             item_func_sp->item_name.ptr(),
+                                             table, nullptr);
         if (!result) break;
         if (modify_item) item->set_result_field(result);
         break;
@@ -429,7 +430,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         }
 
         result = create_tmp_field_from_item(
-            item, table, (make_copy_field ? NULL : copy_func), modify_item);
+            item, table, (make_copy_field ? nullptr : copy_func), modify_item);
         result->flags |= copy_result_field ? FIELD_IS_MARKED : 0;
       }
       break;
@@ -498,26 +499,27 @@ void Cache_temp_engine_properties::init(THD *thd) {
   plugin_ref db_plugin;
 
   // Cache HEAP engine's
-  db_plugin = ha_lock_engine(0, heap_hton);
-  handler = get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, heap_hton);
+  db_plugin = ha_lock_engine(nullptr, heap_hton);
+  handler =
+      get_new_handler((TABLE_SHARE *)nullptr, false, thd->mem_root, heap_hton);
   HEAP_MAX_KEY_LENGTH = handler->max_key_length();
   HEAP_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   HEAP_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
-  plugin_unlock(0, db_plugin);
+  plugin_unlock(nullptr, db_plugin);
   // Cache TempTable engine's
-  db_plugin = ha_lock_engine(0, temptable_hton);
-  handler =
-      get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, temptable_hton);
+  db_plugin = ha_lock_engine(nullptr, temptable_hton);
+  handler = get_new_handler((TABLE_SHARE *)nullptr, false, thd->mem_root,
+                            temptable_hton);
   TEMPTABLE_MAX_KEY_LENGTH = handler->max_key_length();
   TEMPTABLE_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   TEMPTABLE_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
-  plugin_unlock(0, db_plugin);
+  plugin_unlock(nullptr, db_plugin);
   // Cache INNODB engine's
-  db_plugin = ha_lock_engine(0, innodb_hton);
-  handler =
-      get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, innodb_hton);
+  db_plugin = ha_lock_engine(nullptr, innodb_hton);
+  handler = get_new_handler((TABLE_SHARE *)nullptr, false, thd->mem_root,
+                            innodb_hton);
   INNODB_MAX_KEY_LENGTH = handler->max_key_length();
   /*
     For ha_innobase::max_supported_key_part_length(), the returned value
@@ -532,7 +534,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   INNODB_MAX_KEY_PART_LENGTH = 3072;
   INNODB_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
-  plugin_unlock(0, db_plugin);
+  plugin_unlock(nullptr, db_plugin);
 }
 
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH = 0;
@@ -621,8 +623,8 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   for (i = 0; i < table->s->blob_fields; i++) blob_field[i]++;
   // Insert field
   table->field[-1] = field;
-  default_field[-1] = NULL;
-  from_field[-1] = NULL;
+  default_field[-1] = nullptr;
+  from_field[-1] = nullptr;
   field->table = table;
   field->orig_table = table;
   field->field_index = 0;
@@ -776,7 +778,7 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
                       (uint8)1 << (*null_count & 7));
     (*null_count)++;
   } else
-    field->move_field(pos, (uchar *)0, 0);
+    field->move_field(pos, (uchar *)nullptr, 0);
   if (field->type() == MYSQL_TYPE_BIT) {
     /* We have to reserve place for extra bits among null bits */
     ((Field_bit *)field)
@@ -872,7 +874,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               static_cast<bool>(group)));
   if (group) {
     if (!param->allow_group_via_temp_table)
-      group = 0;  // Can't use group key
+      group = nullptr;  // Can't use group key
     else
       for (ORDER *tmp = group; tmp; tmp = tmp->next) {
         /*
@@ -909,7 +911,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
   void *rawmem = own_root.Alloc(sizeof(Func_ptr_array));
-  if (!rawmem) return NULL; /* purecov: inspected */
+  if (!rawmem) return nullptr; /* purecov: inspected */
   Func_ptr_array *copy_func = new (rawmem) Func_ptr_array(&own_root);
   copy_func->reserve(copy_func_count);
 
@@ -924,7 +926,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           (group && !unique_constraint_via_hash_field ? param->group_length
                                                       : 0),
           &bitmaps, bitmap_buffer_size(field_count + 1) * 3, NullS)) {
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
   }
 
   try {
@@ -970,7 +972,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   Item *item;
   Field **tmp_from_field = from_field;
   while ((item = li++)) {
-    Field *new_field = NULL;
+    Field *new_field = nullptr;
     Item::Type type = item->type();
     const bool is_sum_func =
         type == Item::SUM_FUNC_ITEM && !item->m_is_window_function;
@@ -1029,10 +1031,10 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       for (i = 0; i < arg_count; i++) {
         Item *arg = sum_item->get_arg(i);
         if (is_sum_func && !arg->const_item()) {
-          new_field =
-              create_tmp_field(thd, table, arg, arg->type(), copy_func,
-                               tmp_from_field, &default_field[fieldnr],
-                               group != 0, not_all_columns, distinct, false);
+          new_field = create_tmp_field(thd, table, arg, arg->type(), copy_func,
+                                       tmp_from_field, &default_field[fieldnr],
+                                       group != nullptr, not_all_columns,
+                                       distinct, false);
           if (!new_field) goto err;  // Should be OOM
           tmp_from_field++;
           reclength += new_field->pack_length();
@@ -1093,8 +1095,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               : create_tmp_field(
                     thd, table, item, type, copy_func, tmp_from_field,
                     &default_field[fieldnr],
-                    group != 0,  // (1)
-                    !force_copy_fields && (not_all_columns || group != 0),
+                    group != nullptr,  // (1)
+                    !force_copy_fields && (not_all_columns || group != nullptr),
                     item->marker == Item::MARKER_BIT ||
                         param->bit_fields_as_long,  //(2)
                     force_copy_fields,
@@ -1187,7 +1189,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   DBUG_ASSERT(field_count >= (uint)(reg_field - table->field));
   field_count = fieldnr;
 
-  *reg_field = 0;
+  *reg_field = nullptr;
   *blob_field = 0;  // End marker
   share->fields = field_count;
   share->blob_fields = blob_count;
@@ -1232,9 +1234,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           param->group_parts;
       keyinfo->actual_key_parts = keyinfo->user_defined_key_parts;
       share->key_parts = keyinfo->user_defined_key_parts;
-      keyinfo->rec_per_key = 0;
+      keyinfo->rec_per_key = nullptr;
       // keyinfo->algorithm is set later, when storage engine is known
-      keyinfo->set_rec_per_key_array(NULL, NULL);
+      keyinfo->set_rec_per_key_array(nullptr, nullptr);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
       keyinfo->name = "<group_key>";
       ORDER *cur_group = group;
@@ -1539,7 +1541,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     hash_key->actual_flags = hash_key->flags = HA_NULL_ARE_EQUAL;
     hash_key->actual_key_parts = hash_key->usable_key_parts = 1;
     hash_key->user_defined_key_parts = 1;
-    hash_key->set_rec_per_key_array(NULL, NULL);
+    hash_key->set_rec_per_key_array(nullptr, nullptr);
     hash_key->algorithm = table->file->get_default_index_algorithm();
     hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     if (distinct)
@@ -1569,7 +1571,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 err:
   thd->mem_root = mem_root_save;
   free_tmp_table(thd, table); /* purecov: inspected */
-  return NULL;                /* purecov: inspected */
+  return nullptr;             /* purecov: inspected */
 }
 
 /**
@@ -1646,14 +1648,14 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
           &group_buff,
           (!unique_constraint_via_hash_field ? uniq_tuple_length_arg : 0),
           &bitmaps, bitmap_buffer_size(1) * 3, NullS)) {
-    return NULL;
+    return nullptr;
   }
 
   /* STEP 3: Create TABLE description */
   new (table) TABLE;
   memset(reg_field, 0, sizeof(Field *) * 3);
-  table->init_tmp_table(thd, share, &own_root, NULL, "weedout-tmp", reg_field,
-                        blob_field, false);
+  table->init_tmp_table(thd, share, &own_root, nullptr, "weedout-tmp",
+                        reg_field, blob_field, false);
 
   mem_root_save = thd->mem_root;
   thd->mem_root = &share->mem_root;
@@ -1688,16 +1690,16 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     */
     field = new (thd->mem_root) Field_varstring(
         uniq_tuple_length_arg, false, "rowids", share, &my_charset_bin);
-    if (!field) return 0;
+    if (!field) return nullptr;
     field->table = table;
     field->auto_flags = Field::NONE;
     field->flags = (NOT_NULL_FLAG | BINARY_FLAG | NO_DEFAULT_VALUE_FLAG);
     field->reset_fields();
     field->init(table);
-    field->orig_table = NULL;
+    field->orig_table = nullptr;
     *(reg_field++) = field;
     *blob_field = 0;
-    *reg_field = 0;
+    *reg_field = nullptr;
 
     field->field_index = share->fields;
     share->fields++;
@@ -1772,7 +1774,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     table->key_info->usable_key_parts = 1;
     table->key_info->actual_key_parts = table->key_info->user_defined_key_parts;
     share->key_parts = table->key_info->user_defined_key_parts;
-    table->key_info->set_rec_per_key_array(NULL, NULL);
+    table->key_info->set_rec_per_key_array(nullptr, nullptr);
     table->key_info->algorithm = table->file->get_default_index_algorithm();
     table->key_info->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     table->key_info->name = "weedout_key";
@@ -1792,7 +1794,7 @@ err:
   thd->mem_root = mem_root_save;
   table->file->ha_index_or_rnd_end();
   free_tmp_table(thd, table); /* purecov: inspected */
-  return NULL;                /* purecov: inspected */
+  return nullptr;             /* purecov: inspected */
 }
 
 /****************************************************************************/
@@ -1861,12 +1863,12 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                         &reg_field, (field_count + 1) * sizeof(Field *),
                         &blob_field, (field_count + 1) * sizeof(uint), &bitmaps,
                         bitmap_buffer_size(field_count) * 3, NullS))
-    return 0;
+    return nullptr;
 
   new (table) TABLE;
   new (share) TABLE_SHARE;
-  table->init_tmp_table(thd, share, m_root, NULL, alias, reg_field, blob_field,
-                        is_virtual);
+  table->init_tmp_table(thd, share, m_root, nullptr, alias, reg_field,
+                        blob_field, is_virtual);
 
   /* Create all fields and calculate the total length of record */
   List_iterator_fast<Create_field> it(field_list);
@@ -1890,7 +1892,7 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
 
     reg_field++;
   }
-  *reg_field = NULL;                 /* mark the end of the list */
+  *reg_field = nullptr;              /* mark the end of the list */
   share->blob_field[blob_count] = 0; /* mark the end of the list */
   share->blob_fields = blob_count;
 
@@ -1940,7 +1942,7 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
   return table;
 error:
   for (reg_field = table->field; *reg_field; ++reg_field) destroy(*reg_field);
-  return 0;
+  return nullptr;
 }
 
 /**
@@ -2027,15 +2029,15 @@ static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
 
   if (use_tmp_disk_storage_engine(table, select_options, force_disk_table,
                                   mem_engine)) {
-    share->db_plugin = ha_lock_engine(0, innodb_hton);
+    share->db_plugin = ha_lock_engine(nullptr, innodb_hton);
   } else {
     share->db_plugin = nullptr;
     switch (mem_engine) {
       case TMP_TABLE_TEMPTABLE:
-        share->db_plugin = ha_lock_engine(0, temptable_hton);
+        share->db_plugin = ha_lock_engine(nullptr, temptable_hton);
         break;
       case TMP_TABLE_MEMORY:
-        share->db_plugin = ha_lock_engine(0, heap_hton);
+        share->db_plugin = ha_lock_engine(nullptr, heap_hton);
         break;
     }
     DBUG_ASSERT(share->db_plugin != nullptr);
@@ -2254,7 +2256,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
   TABLE_SHARE *const share = table->s;
 #ifndef DBUG_OFF
   for (uint i = 0; i < share->fields; i++)
-    DBUG_ASSERT(table->field[i]->gcol_info == NULL &&
+    DBUG_ASSERT(table->field[i]->gcol_info == nullptr &&
                 table->field[i]->stored_in_db);
 #endif
   thd->inc_status_created_tmp_tables();
@@ -2325,7 +2327,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
   }
 
   destroy(entry->file);
-  entry->file = NULL;
+  entry->file = nullptr;
 
   /* free blobs */
   for (Field **ptr = entry->field; *ptr; ptr++) (*ptr)->mem_free();
@@ -2336,7 +2338,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
   DBUG_ASSERT(entry->s->ref_count() >= 1);
   if (entry->s->decrement_ref_count() == 0)  // no more TABLE objects
   {
-    plugin_unlock(0, entry->s->db_plugin);
+    plugin_unlock(nullptr, entry->s->db_plugin);
     /*
       In create_tmp_table(), the share's memroot is allocated inside own_root
       and is then made a copy of own_root, so it is inside its memory blocks,
@@ -2699,8 +2701,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
   }  // End of tables-processing loop
 
-  plugin_unlock(0, old_plugin);
-  share.db_plugin = my_plugin_lock(0, &share.db_plugin);
+  plugin_unlock(nullptr, old_plugin);
+  share.db_plugin = my_plugin_lock(nullptr, &share.db_plugin);
   *old_share = std::move(share);
 
   /*

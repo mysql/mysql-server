@@ -124,7 +124,7 @@ class ut_chrono_t {
 
   /** Resets the chrono (records the current time in it). */
   void reset() {
-    gettimeofday(&m_tv, NULL);
+    gettimeofday(&m_tv, nullptr);
 
     getrusage(RUSAGE_SELF, &m_ru);
   }
@@ -137,7 +137,7 @@ class ut_chrono_t {
 
     getrusage(RUSAGE_SELF, &ru_now);
 
-    gettimeofday(&tv_now, NULL);
+    gettimeofday(&tv_now, nullptr);
 
 #ifndef timersub
 #define timersub(a, b, r)                       \

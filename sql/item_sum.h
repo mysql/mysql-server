@@ -514,7 +514,7 @@ class Item_sum : public Item_result_field {
   }
 
   Item_sum(Item *a)
-      : m_window(NULL),
+      : m_window(nullptr),
         m_window_resolved(false),
         next_sum(nullptr),
         allow_group_via_temp_table(true),
@@ -642,7 +642,7 @@ class Item_sum : public Item_result_field {
 
   /* Initialization of distinct related members */
   void init_aggregator() {
-    aggr = NULL;
+    aggr = nullptr;
     with_distinct = false;
     force_copy_fields = false;
   }
@@ -855,9 +855,9 @@ class Aggregator_distinct : public Aggregator {
  public:
   Aggregator_distinct(Item_sum *sum)
       : Aggregator(sum),
-        table(NULL),
-        tmp_table_param(NULL),
-        tree(NULL),
+        table(nullptr),
+        tmp_table_param(nullptr),
+        tree(nullptr),
         const_distinct(NOT_CONST),
         use_distinct_values(false) {}
   ~Aggregator_distinct() override;
@@ -1577,9 +1577,9 @@ class Item_sum_hybrid : public Item_sum {
   Item_sum_hybrid(Item *item_par, bool is_min)
       : Item_sum(item_par),
         m_is_min(is_min),
-        value(0),
-        arg_cache(0),
-        cmp(0),
+        value(nullptr),
+        arg_cache(nullptr),
+        cmp(nullptr),
         hybrid_type(INT_RESULT),
         was_values(true),
         m_nulls_first(false),
@@ -1593,9 +1593,9 @@ class Item_sum_hybrid : public Item_sum {
   Item_sum_hybrid(const POS &pos, Item *item_par, bool is_min, PT_window *w)
       : Item_sum(pos, item_par, w),
         m_is_min(is_min),
-        value(0),
-        arg_cache(0),
-        cmp(0),
+        value(nullptr),
+        arg_cache(nullptr),
+        cmp(nullptr),
         hybrid_type(INT_RESULT),
         was_values(true),
         m_nulls_first(false),
@@ -1610,7 +1610,7 @@ class Item_sum_hybrid : public Item_sum {
       : Item_sum(thd, item),
         m_is_min(item->m_is_min),
         value(item->value),
-        arg_cache(0),
+        arg_cache(nullptr),
         hybrid_type(item->hybrid_type),
         was_values(item->was_values),
         m_nulls_first(item->m_nulls_first),
@@ -1897,7 +1897,7 @@ class Item_udf_sum : public Item_sum {
 
  public:
   Item_udf_sum(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
-      : Item_sum(pos, opt_list, NULL), udf(udf_arg) {
+      : Item_sum(pos, opt_list, nullptr), udf(udf_arg) {
     allow_group_via_temp_table = false;
   }
   Item_udf_sum(THD *thd, Item_udf_sum *item)

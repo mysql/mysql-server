@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,7 +345,7 @@ int64 base64_decode(const char *src_base, size_t len, void *dst,
   decoder.state = 0;
   if (!my_base64_decoder_skip_spaces(&decoder)) decoder.error = 1;
 
-  if (end_ptr != NULL) *end_ptr = decoder.src;
+  if (end_ptr != nullptr) *end_ptr = decoder.src;
 
   return decoder.error ? -1 : (int)(d - (char *)dst);
 }

@@ -36,7 +36,7 @@ using std::string;
 static void *launch_handler_thread(void *arg) {
   Group_partition_handling *handler = (Group_partition_handling *)arg;
   handler->partition_thread_handler();
-  return 0;
+  return nullptr;
 }
 
 Group_partition_handling::Group_partition_handling(

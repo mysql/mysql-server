@@ -96,7 +96,7 @@ Plugin_table table_esms_by_digest::m_table_def(
 PFS_engine_table_share table_esms_by_digest::m_share = {
     &pfs_truncatable_acl,
     table_esms_by_digest::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_by_digest::delete_all_rows,
     table_esms_by_digest::get_row_count,
     sizeof(PFS_simple_index),
@@ -145,7 +145,7 @@ void table_esms_by_digest::reset_position(void) {
 int table_esms_by_digest::rnd_next(void) {
   PFS_statements_digest_stat *digest_stat;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -165,7 +165,7 @@ int table_esms_by_digest::rnd_next(void) {
 int table_esms_by_digest::rnd_pos(const void *pos) {
   PFS_statements_digest_stat *digest_stat;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -182,7 +182,7 @@ int table_esms_by_digest::rnd_pos(const void *pos) {
 }
 
 int table_esms_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esms_by_digest *result = NULL;
+  PFS_index_esms_by_digest *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_digest);
   m_opened_index = result;
@@ -193,7 +193,7 @@ int table_esms_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 int table_esms_by_digest::index_next(void) {
   PFS_statements_digest_stat *digest_stat;
 
-  if (statements_digest_stat_array == NULL) {
+  if (statements_digest_stat_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 

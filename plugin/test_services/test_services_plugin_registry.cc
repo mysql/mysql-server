@@ -95,10 +95,10 @@ static my_h_service h_my_svc =
 static bool test_plugin_registry(MYSQL_PLUGIN p MY_ATTRIBUTE((unused))) {
   bool result = false;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
-  my_h_service h_reg = NULL;
-  my_h_service h_ret_svc = NULL;
+  my_h_service h_reg = nullptr;
+  my_h_service h_ret_svc = nullptr;
   int int_result = -1;
-  SERVICE_TYPE(registry_registration) *reg = NULL;
+  SERVICE_TYPE(registry_registration) *reg = nullptr;
   SERVICE_TYPE(test_services_plugin_registry_service) * ret;
 
   enum { IDLE, REG_ACQUIRED, MY_SVC_REGISTERED, MY_SVC_ACQUIRED } state = IDLE;
@@ -285,11 +285,11 @@ mysql_declare_plugin(test_services_plugin_registry){
     "test the plugin registry services",
     PLUGIN_LICENSE_GPL,
     test_services_plugin_init,   /* Plugin Init */
-    NULL,                        /* Plugin Check uninstall */
+    nullptr,                     /* Plugin Check uninstall */
     test_services_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

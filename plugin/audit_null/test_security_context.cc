@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,12 @@
 #include <string.h>
 
 static MYSQL_THDVAR_STR(get_field, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Get specified security context field.", NULL, NULL,
-                        NULL);
+                        "Get specified security context field.", nullptr,
+                        nullptr, nullptr);
 
 static MYSQL_THDVAR_STR(get_value, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Get specified security context field value.", NULL,
-                        NULL, NULL);
+                        "Get specified security context field value.", nullptr,
+                        nullptr, nullptr);
 
 /**
   Tests the security context service
@@ -62,11 +62,11 @@ static int test_security_context_notify(MYSQL_THD thd,
   int result = 0;
   const char *get_field = (const char *)THDVAR(thd, get_field);
   const char *get_value = (const char *)THDVAR(thd, get_value);
-  MYSQL_LEX_CSTRING field_value = {NULL, 0};
+  MYSQL_LEX_CSTRING field_value = {nullptr, 0};
   MYSQL_SECURITY_CONTEXT orig_thd_ctx;
   MYSQL_SECURITY_CONTEXT new_thd_ctx;
 
-  if (get_field == NULL) {
+  if (get_field == nullptr) {
     return 0;
   }
 
@@ -86,8 +86,8 @@ static int test_security_context_notify(MYSQL_THD thd,
       }
     }
 
-    THDVAR(thd, get_field) = 0;
-    THDVAR(thd, get_value) = 0;
+    THDVAR(thd, get_field) = nullptr;
+    THDVAR(thd, get_value) = nullptr;
 
     return result;
   }
@@ -97,13 +97,13 @@ static int test_security_context_notify(MYSQL_THD thd,
     result = 1;
   }
 
-  if (result == 0 && get_value != NULL &&
+  if (result == 0 && get_value != nullptr &&
       strcmp(field_value.str, get_value) != 0) {
     result = 1;
   }
 
-  THDVAR(thd, get_field) = 0;
-  THDVAR(thd, get_value) = 0;
+  THDVAR(thd, get_field) = nullptr;
+  THDVAR(thd, get_value) = nullptr;
 
   return result;
 }
@@ -112,7 +112,7 @@ static int test_security_context_notify(MYSQL_THD thd,
 
 static struct st_mysql_audit test_security_context_descriptor = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version    */
-    NULL,                          /* release_thd function */
+    nullptr,                       /* release_thd function */
     test_security_context_notify,  /* notify function      */
     {
         0,
@@ -129,7 +129,7 @@ static struct st_mysql_audit test_security_context_descriptor = {
 
 static SYS_VAR *system_variables[] = {
 
-    MYSQL_SYSVAR(get_field), MYSQL_SYSVAR(get_value), NULL};
+    MYSQL_SYSVAR(get_field), MYSQL_SYSVAR(get_value), nullptr};
 
 /** Plugin declaration */
 
@@ -140,12 +140,12 @@ mysql_declare_plugin(test_security_context){
     "Oracle Corp",                     /* author                          */
     "Test security context service",   /* description                     */
     PLUGIN_LICENSE_GPL,
-    NULL,             /* init function (when loaded)     */
-    NULL,             /* check uninstall function        */
-    NULL,             /* deinit function (when unloaded) */
+    nullptr,          /* init function (when loaded)     */
+    nullptr,          /* check uninstall function        */
+    nullptr,          /* deinit function (when unloaded) */
     0x0001,           /* version                         */
-    NULL,             /* status variables                */
+    nullptr,          /* status variables                */
     system_variables, /* system variables                */
-    NULL,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

@@ -79,7 +79,7 @@ int ha_blackhole::open(const char *name, int, uint, const dd::Table *) {
 
   if (!(share = get_share(name))) return HA_ERR_OUT_OF_MEM;
 
-  thr_lock_data_init(&share->lock, &lock, NULL);
+  thr_lock_data_init(&share->lock, &lock, nullptr);
   return 0;
 }
 
@@ -102,14 +102,14 @@ int ha_blackhole::write_row(uchar *) {
 int ha_blackhole::update_row(const uchar *, uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL) return 0;
+  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
   return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_blackhole::delete_row(const uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL) return 0;
+  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -122,7 +122,7 @@ int ha_blackhole::rnd_next(uchar *) {
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -190,7 +190,7 @@ int ha_blackhole::index_read_map(uchar *, const uchar *, key_part_map,
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -202,7 +202,7 @@ int ha_blackhole::index_read_idx_map(uchar *, uint, const uchar *, key_part_map,
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -213,7 +213,7 @@ int ha_blackhole::index_read_last_map(uchar *, const uchar *, key_part_map) {
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == NULL)
+  if (is_slave_applier(thd) && thd->query().str == nullptr)
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -346,11 +346,11 @@ mysql_declare_plugin(blackhole){
     "/dev/null storage engine (anything you write to it disappears)",
     PLUGIN_LICENSE_GPL,
     blackhole_init, /* Plugin Init */
-    NULL,           /* Plugin check uninstall */
+    nullptr,        /* Plugin check uninstall */
     blackhole_fini, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

@@ -56,8 +56,8 @@ Plugin_table table_user_defined_functions::m_table_def(
 PFS_engine_table_share table_user_defined_functions::m_share = {
     &pfs_readonly_acl,
     table_user_defined_functions::create,
-    NULL, /* write_row */
-    NULL, /* delete all rows */
+    nullptr, /* write_row */
+    nullptr, /* delete all rows */
     table_user_defined_functions::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
@@ -81,9 +81,9 @@ bool PFS_index_user_defined_functions_by_name::match(
 PFS_engine_table *table_user_defined_functions::create(
     PFS_engine_table_share *) {
   table_user_defined_functions *t = new table_user_defined_functions();
-  if (t != NULL) {
+  if (t != nullptr) {
     THD *thd = current_thd;
-    DBUG_ASSERT(thd != NULL);
+    DBUG_ASSERT(thd != nullptr);
     t->materialize(thd);
   }
   return t;
@@ -99,9 +99,9 @@ ha_rows table_user_defined_functions::get_row_count(void) {
 
 table_user_defined_functions::table_user_defined_functions()
     : PFS_engine_table(&m_share, &m_pos),
-      m_all_rows(NULL),
+      m_all_rows(nullptr),
       m_row_count(0),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(0),
       m_next_pos(0) {}
 
@@ -122,7 +122,7 @@ void table_user_defined_functions::materialize(THD *thd) {
   uint size;
   struct udf_materialize_state_s state;
 
-  DBUG_ASSERT(m_all_rows == NULL);
+  DBUG_ASSERT(m_all_rows == nullptr);
   DBUG_ASSERT(m_row_count == 0);
 
   udf_hash_rlock();
@@ -134,7 +134,7 @@ void table_user_defined_functions::materialize(THD *thd) {
 
   state.rows = (row_user_defined_functions *)thd->alloc(
       size * sizeof(row_user_defined_functions));
-  if (state.rows == NULL) {
+  if (state.rows == nullptr) {
     /* Out of memory, this thread will error out. */
     goto end;
   }
@@ -162,7 +162,7 @@ int table_user_defined_functions::make_row(const udf_func *entry,
                                        sizeof("decimal") - 1};
 
   /* keep in sync with Item_udftype */
-  static const char *udf_types[] = {NULL,  // invalid value
+  static const char *udf_types[] = {nullptr,  // invalid value
                                     "function", "aggregate"};
   static uint udf_type_lengths[] = {
       0,  // invalid value
@@ -212,7 +212,7 @@ int table_user_defined_functions::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 
@@ -227,7 +227,7 @@ int table_user_defined_functions::rnd_pos(const void *pos) {
 }
 
 int table_user_defined_functions::index_init(uint idx, bool) {
-  PFS_index_user_defined_functions *result = NULL;
+  PFS_index_user_defined_functions *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -253,7 +253,7 @@ int table_user_defined_functions::index_next(void) {
     }
   }
 
-  m_row = NULL;
+  m_row = nullptr;
 
   return HA_ERR_END_OF_FILE;
 }

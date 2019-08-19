@@ -162,7 +162,7 @@ bool Collations::populate(THD *thd) const {
   // therefore be deleted from the DD since they are not supported anymore.
   for (std::set<Object_id>::const_iterator del_it = prev_coll_ids.begin();
        del_it != prev_coll_ids.end(); ++del_it) {
-    const Collation *del_coll = NULL;
+    const Collation *del_coll = nullptr;
     if (thd->dd_client()->acquire(*del_it, &del_coll)) return true;
 
     DBUG_ASSERT(del_coll);

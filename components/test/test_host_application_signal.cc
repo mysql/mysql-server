@@ -46,11 +46,11 @@ static long long test_shutdown_signal_udf(UDF_INIT *, UDF_ARGS *args,
         break;
       case 0:
         mysql_service_host_application_signal->signal(
-            HOST_APPLICATION_SIGNAL_SHUTDOWN, NULL);
+            HOST_APPLICATION_SIGNAL_SHUTDOWN, nullptr);
         break;
       case 2:
         mysql_service_host_application_signal->signal(
-            HOST_APPLICATION_SIGNAL_LAST, NULL);
+            HOST_APPLICATION_SIGNAL_LAST, nullptr);
         break;
     }
   } else
@@ -61,8 +61,8 @@ static long long test_shutdown_signal_udf(UDF_INIT *, UDF_ARGS *args,
 static mysql_service_status_t init() {
   if (mysql_service_udf_registration->udf_register(
           "test_shutdown_signal", INT_RESULT,
-          reinterpret_cast<Udf_func_any>(test_shutdown_signal_udf), NULL,
-          NULL)) {
+          reinterpret_cast<Udf_func_any>(test_shutdown_signal_udf), nullptr,
+          nullptr)) {
     fprintf(stderr, "Can't register the test_shutdown_signal UDF\n");
     return 1;
   }

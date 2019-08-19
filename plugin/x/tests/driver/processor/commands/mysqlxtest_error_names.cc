@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,15 +35,15 @@
 namespace mysqlxtest {
 
 static Error_entry global_error_names[] = {
-    {"<No error>", static_cast<int>(-1), "", NULL, NULL, 0},
-    {"ER_SUCCESS", static_cast<int>(0), "Success", NULL, NULL, 0},
+    {"<No error>", static_cast<int>(-1), "", nullptr, nullptr, 0},
+    {"ER_SUCCESS", static_cast<int>(0), "Success", nullptr, nullptr, 0},
 #ifndef IN_DOXYGEN
 #include <mysqlclient_ername.h>
 #include <mysqld_ername.h>
 
 #include "plugin/x/generated/mysqlx_ername.h"
 #endif /* IN_DOXYGEN */
-    {0, 0, 0, NULL, NULL, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}};
 
 namespace {
 
@@ -78,7 +78,7 @@ int try_to_interpret_text_as_error_code(
   if (error_code >= CR_X_ERROR_FIRST && error_code <= CR_X_ERROR_LAST)
     return error_code;
 
-  if (NULL == get_error_entry_by_id(error_code)) {
+  if (nullptr == get_error_entry_by_id(error_code)) {
     throw std::logic_error("Error code is unknown, got " +
                            xpl::to_string(error_code));
   }
@@ -94,7 +94,7 @@ int get_error_code_by_text(const std::string &error_name_or_code) {
     const mysqlxtest::Error_entry *entry =
         mysqlxtest::get_error_entry_by_name(error_name_or_code);
 
-    if (NULL == entry) {
+    if (nullptr == entry) {
       throw std::logic_error("Error name not found: \"" + error_name_or_code +
                              "\"");
     }
@@ -114,7 +114,7 @@ const Error_entry *get_error_entry_by_id(const int error_code) {
     ++error;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 const Error_entry *get_error_entry_by_name(const std::string &name) {
@@ -126,7 +126,7 @@ const Error_entry *get_error_entry_by_name(const std::string &name) {
     ++error;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace mysqlxtest

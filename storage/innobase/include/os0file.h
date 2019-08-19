@@ -735,9 +735,9 @@ class IORequest {
 
   /** Clear all encryption related flags */
   void clear_encrypted() {
-    m_encryption.m_key = NULL;
+    m_encryption.m_key = nullptr;
     m_encryption.m_klen = 0;
-    m_encryption.m_iv = NULL;
+    m_encryption.m_iv = nullptr;
     m_encryption.m_type = Encryption::NONE;
   }
 

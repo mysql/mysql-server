@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ TEST(Mysys, Base64) {
 
     /* Decode */
     dst = (char *)malloc(base64_needed_decoded_length(strlen(str)));
-    dst_len = base64_decode(str, strlen(str), dst, NULL, 0);
+    dst_len = base64_decode(str, strlen(str), dst, nullptr, 0);
     EXPECT_EQ(dst_len, src_len) << "Comparing lengths";
 
     cmp = memcmp(src, dst, src_len);

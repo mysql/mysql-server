@@ -114,13 +114,13 @@ static inline struct PSI_table_locker *inline_mysql_start_table_lock_wait(
     PSI_table_locker_state *state, struct PSI_table *psi,
     enum PSI_table_lock_operation op, ulong flags, const char *src_file,
     int src_line) {
-  if (psi != NULL) {
+  if (psi != nullptr) {
     struct PSI_table_locker *locker;
     locker = PSI_TABLE_CALL(start_table_lock_wait)(state, psi, op, flags,
                                                    src_file, src_line);
     return locker;
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -129,13 +129,13 @@ static inline struct PSI_table_locker *inline_mysql_start_table_lock_wait(
 */
 static inline void inline_mysql_end_table_lock_wait(
     struct PSI_table_locker *locker) {
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_TABLE_CALL(end_table_lock_wait)(locker);
   }
 }
 
 static inline void inline_mysql_unlock_table(struct PSI_table *table) {
-  if (table != NULL) {
+  if (table != nullptr) {
     PSI_TABLE_CALL(unlock_table)(table);
   }
 }

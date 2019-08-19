@@ -32,7 +32,7 @@ long set_persist_only_variable(
 
   DBUG_EXECUTE_IF("group_replication_var_persist_error", { return 1; });
 
-  DBUG_ASSERT(command_interface != NULL);
+  DBUG_ASSERT(command_interface != nullptr);
 
   error = command_interface->set_persist_only_variable(name, value);
 

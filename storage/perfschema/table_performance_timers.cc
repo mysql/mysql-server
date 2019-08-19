@@ -60,8 +60,8 @@ Plugin_table table_performance_timers::m_table_def(
 PFS_engine_table_share table_performance_timers::m_share = {
     &pfs_readonly_acl,
     table_performance_timers::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_performance_timers::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
@@ -81,7 +81,10 @@ ha_rows table_performance_timers::get_row_count(void) {
 }
 
 table_performance_timers::table_performance_timers()
-    : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_row(nullptr),
+      m_pos(0),
+      m_next_pos(0) {
   int index;
 
   index = (int)TIMER_NAME_CYCLE - FIRST_TIMER_NAME;
@@ -116,7 +119,7 @@ int table_performance_timers::rnd_next(void) {
     m_next_pos.set_after(&m_pos);
     result = 0;
   } else {
-    m_row = NULL;
+    m_row = nullptr;
     result = HA_ERR_END_OF_FILE;
   }
 

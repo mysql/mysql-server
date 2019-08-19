@@ -80,16 +80,16 @@ static void lock_wait_table_release_slot(
   See comments in lock_wait_release_thread_if_suspended() for more details. */
 
   ut_ad(slot->in_use);
-  ut_ad(slot->thr != NULL);
-  ut_ad(slot->thr->slot != NULL);
+  ut_ad(slot->thr != nullptr);
+  ut_ad(slot->thr->slot != nullptr);
   ut_ad(slot->thr->slot == slot);
 
   /* Must be within the array boundaries. */
   ut_ad(slot >= lock_sys->waiting_threads);
   ut_ad(slot < upper);
 
-  slot->thr->slot = NULL;
-  slot->thr = NULL;
+  slot->thr->slot = nullptr;
+  slot->thr = nullptr;
   slot->in_use = FALSE;
 
   /* This operation is guarded by lock_wait_mutex_enter/exit and we don't care
@@ -145,8 +145,8 @@ static srv_slot_t *lock_wait_table_reserve_slot(
       slot->thr = thr;
       slot->thr->slot = slot;
 
-      if (slot->event == NULL) {
-        slot->event = os_event_create(0);
+      if (slot->event == nullptr) {
+        slot->event = os_event_create(nullptr);
         ut_a(slot->event);
       }
 
@@ -205,7 +205,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 
   trx = thr_get_trx(thr);
 
-  if (trx->mysql_thd != 0) {
+  if (trx->mysql_thd != nullptr) {
     DEBUG_SYNC_C("lock_wait_suspend_thread_enter");
   }
 
@@ -409,9 +409,9 @@ static void lock_wait_release_thread_if_suspended(que_thr_t *thr) {
   lock_wait_release_thread_if_suspended, so we don't need to do anything in this
   case - trx will simply not go to sleep. */
   ut_ad(thr->state == QUE_THR_RUNNING);
-  ut_ad(trx->lock.wait_lock == NULL);
+  ut_ad(trx->lock.wait_lock == nullptr);
 
-  if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
+  if (thr->slot != nullptr && thr->slot->in_use && thr->slot->thr == thr) {
     if (trx->lock.was_chosen_as_deadlock_victim) {
       trx->error_state = DB_DEADLOCK;
       trx->lock.was_chosen_as_deadlock_victim = false;
@@ -496,7 +496,7 @@ static void lock_wait_check_and_cancel(
 
     trx_mutex_enter(trx);
 
-    if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
+    if (trx->lock.wait_lock != nullptr && !trx_is_high_priority(trx)) {
       ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
       lock_cancel_waiting_and_release(trx->lock.wait_lock, false);

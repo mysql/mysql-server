@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -190,16 +190,16 @@ ok:
 UNIV_INLINE
 bool trx_is_redo_rseg_updated(const trx_t *trx) /*!< in: transaction */
 {
-  return (trx->rsegs.m_redo.insert_undo != 0 ||
-          trx->rsegs.m_redo.update_undo != 0);
+  return (trx->rsegs.m_redo.insert_undo != nullptr ||
+          trx->rsegs.m_redo.update_undo != nullptr);
 }
 
 /** Check if noredo rseg is modified for insert/update. */
 UNIV_INLINE
 bool trx_is_temp_rseg_updated(const trx_t *trx) /*!< in: transaction */
 {
-  return (trx->rsegs.m_noredo.insert_undo != 0 ||
-          trx->rsegs.m_noredo.update_undo != 0);
+  return (trx->rsegs.m_noredo.insert_undo != nullptr ||
+          trx->rsegs.m_noredo.update_undo != nullptr);
 }
 
 /** Check if redo/noredo rseg is modified for insert/update. */
@@ -213,7 +213,8 @@ bool trx_is_rseg_updated(const trx_t *trx) /*!< in: transaction */
 UNIV_INLINE
 bool trx_is_rseg_assigned(const trx_t *trx) /*!< in: transaction */
 {
-  return (trx->rsegs.m_redo.rseg != NULL || trx->rsegs.m_noredo.rseg != NULL);
+  return (trx->rsegs.m_redo.rseg != nullptr ||
+          trx->rsegs.m_noredo.rseg != nullptr);
 }
 
 /**
@@ -229,7 +230,7 @@ trx_t *trx_reference(trx_t *trx, bool do_ref_count) {
 
   if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
     trx_mutex_exit(trx);
-    trx = NULL;
+    trx = nullptr;
   } else if (do_ref_count) {
     ut_ad(trx->n_ref >= 0);
     ++trx->n_ref;
@@ -259,7 +260,7 @@ void trx_release_reference(trx_t *trx) {
 @return the transaction's read view or NULL if one not assigned. */
 UNIV_INLINE
 ReadView *trx_get_read_view(trx_t *trx) {
-  return (!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+  return (!MVCC::is_view_active(trx->read_view) ? nullptr : trx->read_view);
 }
 
 /**
@@ -267,7 +268,7 @@ ReadView *trx_get_read_view(trx_t *trx) {
 @return the transaction's read view or NULL if one not assigned. */
 UNIV_INLINE
 const ReadView *trx_get_read_view(const trx_t *trx) {
-  return (!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+  return (!MVCC::is_view_active(trx->read_view) ? nullptr : trx->read_view);
 }
 
 /**
@@ -275,7 +276,7 @@ const ReadView *trx_get_read_view(const trx_t *trx) {
 @return true if the transaction is a high priority transaction.*/
 UNIV_INLINE
 bool trx_is_high_priority(const trx_t *trx) {
-  if (trx->mysql_thd == NULL) {
+  if (trx->mysql_thd == nullptr) {
     return (false);
   }
 
@@ -295,34 +296,34 @@ const trx_t *trx_arbitrate(const trx_t *requestor, const trx_t *holder) {
   locks on user tables. They don't have an associated MySQL session
   instance. */
 
-  if (requestor->mysql_thd == NULL) {
+  if (requestor->mysql_thd == nullptr) {
     ut_ad(!trx_is_high_priority(requestor));
 
     if (trx_is_high_priority(holder)) {
       return (requestor);
     } else {
-      return (NULL);
+      return (nullptr);
     }
 
-  } else if (holder->mysql_thd == NULL) {
+  } else if (holder->mysql_thd == nullptr) {
     ut_ad(!trx_is_high_priority(holder));
 
     if (trx_is_high_priority(requestor)) {
       return (holder);
     }
 
-    return (NULL);
+    return (nullptr);
   }
 
   const THD *victim =
       thd_trx_arbitrate(requestor->mysql_thd, holder->mysql_thd);
 
-  ut_ad(victim == NULL || victim == requestor->mysql_thd ||
+  ut_ad(victim == nullptr || victim == requestor->mysql_thd ||
         victim == holder->mysql_thd);
 
-  if (victim != NULL) {
+  if (victim != nullptr) {
     return (victim == requestor->mysql_thd ? requestor : holder);
   }
 
-  return (NULL);
+  return (nullptr);
 }

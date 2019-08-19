@@ -35,7 +35,7 @@
 class Mock_field_timestamp : public Field_timestamp {
   void initialize() {
     table = new Fake_TABLE(this);
-    EXPECT_FALSE(table == NULL) << "Out of memory";
+    EXPECT_FALSE(table == nullptr) << "Out of memory";
     ptr = table->record[0] + 1;
     set_null_ptr(table->record[0], 1);
   }
@@ -44,9 +44,9 @@ class Mock_field_timestamp : public Field_timestamp {
   bool store_timestamp_called;
 
   Mock_field_timestamp(uchar auto_flags_arg)
-      : Field_timestamp(NULL,            // ptr_arg
+      : Field_timestamp(nullptr,         // ptr_arg
                         0,               // len_arg
-                        NULL,            // null_ptr_arg
+                        nullptr,         // null_ptr_arg
                         '\0',            // null_bit_arg
                         auto_flags_arg,  // auto_flags_arg
                         ""),             // field_name_arg
@@ -55,7 +55,7 @@ class Mock_field_timestamp : public Field_timestamp {
   }
 
   Mock_field_timestamp()
-      : Field_timestamp(NULL, 0, NULL, '\0', NONE, ""),
+      : Field_timestamp(nullptr, 0, nullptr, '\0', NONE, ""),
         store_timestamp_called(false) {
     initialize();
   }

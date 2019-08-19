@@ -518,7 +518,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
       !!from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
       !!from->get_info(&temp_checkpoint_seqno, 0UL) ||
       !!from->get_info(&nbytes, 0UL) ||
-      !!from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
+      !!from->get_info(buffer, (size_t)nbytes, (uchar *)nullptr) ||
       /* default is empty string */
       !!from->get_info(channel, sizeof(channel), ""))
     return true;
@@ -772,10 +772,10 @@ TABLE *mts_move_temp_table_to_entry(TABLE *table, THD *thd,
     DBUG_ASSERT(table == thd->temporary_tables);
 
     thd->temporary_tables = table->next;
-    if (thd->temporary_tables) table->next->prev = 0;
+    if (thd->temporary_tables) table->next->prev = nullptr;
   }
   table->next = entry->temporary_tables;
-  table->prev = 0;
+  table->prev = nullptr;
   if (table->next) table->next->prev = table;
   entry->temporary_tables = table;
 
@@ -1184,7 +1184,7 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
           from the hash, that is either due to stop or extra size of the hash.
         */
         DBUG_ASSERT(usage_partition >= 0);
-        DBUG_ASSERT(this->info_thd->temporary_tables == 0);
+        DBUG_ASSERT(this->info_thd->temporary_tables == nullptr);
         DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
 
         if (entry->worker != this)  // Coordinator is waiting
@@ -1658,7 +1658,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
 
   thd->server_id = ev->server_id;
   thd->set_time();
-  thd->lex->set_current_select(0);
+  thd->lex->set_current_select(nullptr);
   if (!ev->common_header->when.tv_sec)
     ev->common_header->when.tv_sec = static_cast<long>(my_time(0));
   ev->thd = thd;  // todo: assert because up to this point, ev->thd == 0

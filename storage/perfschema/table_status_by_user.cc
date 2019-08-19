@@ -65,7 +65,7 @@ Plugin_table table_status_by_user::m_table_def(
 PFS_engine_table_share table_status_by_user::m_share = {
     &pfs_truncatable_acl,
     table_status_by_user::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_status_by_user::delete_all_rows,
     table_status_by_user::get_row_count,
     sizeof(pos_t),
@@ -121,7 +121,7 @@ table_status_by_user::table_status_by_user()
       m_status_cache(true),
       m_pos(),
       m_next_pos(),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_status_by_user::reset_position(void) {
   m_pos.reset();
@@ -158,7 +158,7 @@ int table_status_by_user::rnd_next(void) {
 
     if (m_status_cache.materialize_user(pfs_user) == 0) {
       const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
-      if (stat_var != NULL) {
+      if (stat_var != nullptr) {
         /* If make_row() fails, get the next user. */
         if (!make_row(pfs_user, stat_var)) {
           m_next_pos.set_after(&m_pos);
@@ -183,7 +183,7 @@ int table_status_by_user::rnd_pos(const void *pos) {
 
   if (m_status_cache.materialize_user(pfs_user) == 0) {
     const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
-    if (stat_var != NULL) {
+    if (stat_var != nullptr) {
       return make_row(pfs_user, stat_var);
     }
   }
@@ -200,7 +200,7 @@ int table_status_by_user::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
       sizeof(table_status_by_user_context));
   new (m_context) table_status_by_user_context(status_version, false);
 
-  PFS_index_status_by_user *result = NULL;
+  PFS_index_status_by_user *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_status_by_user);
   m_opened_index = result;
@@ -224,13 +224,13 @@ int table_status_by_user::index_next(void) {
     PFS_user *pfs_user =
         global_user_container.get(m_pos.m_index_1, &has_more_user);
 
-    if (pfs_user != NULL) {
+    if (pfs_user != nullptr) {
       if (m_opened_index->match(pfs_user)) {
         if (m_status_cache.materialize_user(pfs_user) == 0) {
           const Status_variable *stat_var;
           do {
             stat_var = m_status_cache.get(m_pos.m_index_2);
-            if (stat_var != NULL) {
+            if (stat_var != nullptr) {
               if (m_opened_index->match(stat_var)) {
                 if (!make_row(pfs_user, stat_var)) {
                   m_next_pos.set_after(&m_pos);
@@ -239,7 +239,7 @@ int table_status_by_user::index_next(void) {
               }
               m_pos.m_index_2++;
             }
-          } while (stat_var != NULL);
+          } while (stat_var != nullptr);
         }
       }
     }

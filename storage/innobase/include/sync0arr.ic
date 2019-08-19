@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,10 +64,10 @@ sync_array_t *sync_array_get_and_reserve_cell(
     ulint line,         /*!< in: line where requested */
     sync_cell_t **cell) /*!< out: the cell reserved, never NULL */
 {
-  sync_array_t *sync_arr = NULL;
+  sync_array_t *sync_arr = nullptr;
 
-  *cell = NULL;
-  for (ulint i = 0; i < sync_array_size && *cell == NULL; ++i) {
+  *cell = nullptr;
+  for (ulint i = 0; i < sync_array_size && *cell == nullptr; ++i) {
     /* Although the sync_array is get in a random way currently,
     we still try at most sync_array_size times, in case any
     of the sync_array we get is full */
@@ -78,7 +78,7 @@ sync_array_t *sync_array_get_and_reserve_cell(
   /* This won't be true every time, for the loop above may execute
   more than srv_sync_array_size times to reserve a cell.
   But an assertion here makes the code more solid. */
-  ut_a(*cell != NULL);
+  ut_a(*cell != nullptr);
 
   return (sync_arr);
 }

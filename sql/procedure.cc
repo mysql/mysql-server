@@ -28,14 +28,14 @@
 #include "sql/my_decimal.h"
 
 my_decimal *Item_proc_string::val_decimal(my_decimal *decimal_value) {
-  if (null_value) return 0;
+  if (null_value) return nullptr;
   str2my_decimal(E_DEC_FATAL_ERROR, str_value.ptr(), str_value.length(),
                  str_value.charset(), decimal_value);
   return (decimal_value);
 }
 
 my_decimal *Item_proc_int::val_decimal(my_decimal *decimal_value) {
-  if (null_value) return 0;
+  if (null_value) return nullptr;
   int2my_decimal(E_DEC_FATAL_ERROR, value, unsigned_flag, decimal_value);
   return (decimal_value);
 }

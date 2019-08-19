@@ -65,7 +65,7 @@ Plugin_table table_status_by_account::m_table_def(
 PFS_engine_table_share table_status_by_account::m_share = {
     &pfs_truncatable_acl,
     table_status_by_account::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_status_by_account::delete_all_rows,
     table_status_by_account::get_row_count,
     sizeof(pos_t),
@@ -125,7 +125,7 @@ table_status_by_account::table_status_by_account()
       m_status_cache(true),
       m_pos(),
       m_next_pos(),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_status_by_account::reset_position(void) {
   m_pos.reset();
@@ -163,7 +163,7 @@ int table_status_by_account::rnd_next(void) {
 
     if (m_status_cache.materialize_account(pfs_account) == 0) {
       const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
-      if (stat_var != NULL) {
+      if (stat_var != nullptr) {
         /* If make_row() fails, get the next account. */
         if (!make_row(pfs_account, stat_var)) {
           m_next_pos.set_after(&m_pos);
@@ -188,7 +188,7 @@ int table_status_by_account::rnd_pos(const void *pos) {
 
   if (m_status_cache.materialize_account(pfs_account) == 0) {
     const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
-    if (stat_var != NULL) {
+    if (stat_var != nullptr) {
       return make_row(pfs_account, stat_var);
     }
   }
@@ -206,7 +206,7 @@ int table_status_by_account::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
       sizeof(table_status_by_account_context));
   new (m_context) table_status_by_account_context(status_version, false);
 
-  PFS_index_status_by_account *result = NULL;
+  PFS_index_status_by_account *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_status_by_account);
   m_opened_index = result;
@@ -230,13 +230,13 @@ int table_status_by_account::index_next(void) {
     PFS_account *pfs_account =
         global_account_container.get(m_pos.m_index_1, &has_more_account);
 
-    if (pfs_account != NULL) {
+    if (pfs_account != nullptr) {
       if (m_opened_index->match(pfs_account)) {
         if (m_status_cache.materialize_account(pfs_account) == 0) {
           const Status_variable *stat_var;
           do {
             stat_var = m_status_cache.get(m_pos.m_index_2);
-            if (stat_var != NULL) {
+            if (stat_var != nullptr) {
               if (m_opened_index->match(stat_var)) {
                 if (!make_row(pfs_account, stat_var)) {
                   m_next_pos.set_after(&m_pos);
@@ -245,7 +245,7 @@ int table_status_by_account::index_next(void) {
               }
               m_pos.m_index_2++;
             }
-          } while (stat_var != NULL);
+          } while (stat_var != nullptr);
         }
       }
     }

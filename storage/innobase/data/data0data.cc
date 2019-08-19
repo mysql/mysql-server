@@ -62,8 +62,8 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   ulint i;
   int cmp;
 
-  ut_ad(tuple1 != NULL);
-  ut_ad(tuple2 != NULL);
+  ut_ad(tuple1 != nullptr);
+  ut_ad(tuple2 != nullptr);
   ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
   ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
   ut_ad(dtuple_check_typed(tuple1));
@@ -432,7 +432,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   ulint local_prefix_len;
 
   if (!index->is_clustered()) {
-    return NULL;
+    return nullptr;
   }
 
   if (!dict_table_has_atomic_blobs(index->table)) {
@@ -523,7 +523,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       mem_heap_free(heap);
 
-      return NULL;
+      return nullptr;
     }
 
     /* Move data from field longest_i to big rec vector.
@@ -586,8 +586,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
       upd_field_t upd_field;
       upd_field.field_no = longest_i;
       upd_field.orig_len = 0;
-      upd_field.exp = NULL;
-      upd_field.old_v_val = NULL;
+      upd_field.exp = nullptr;
+      upd_field.old_v_val = nullptr;
       upd_field.ext_in_old = dfield_is_ext(dfield);
       dfield_copy(&upd_field.new_val, dfield->clone(upd->heap));
       upd->append(upd_field);
@@ -669,7 +669,7 @@ dfield_t *dfield_t::clone(mem_heap_t *heap) {
     obj->data = obj + 1;
     memcpy(obj->data, data, len);
   } else {
-    obj->data = 0;
+    obj->data = nullptr;
   }
 
   return (obj);

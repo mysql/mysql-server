@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ template <typename T>
 template <typename K>
 Cache_element<T> *Shared_multi_map<T>::use_if_present(const K &key) {
   mysql_mutex_assert_owner(&m_lock);
-  Cache_element<T> *e = NULL;
+  Cache_element<T> *e = nullptr;
   // Look up in the appropriate map and get the element.
   m_map<K>()->get(key, &e);
 
@@ -65,7 +65,7 @@ Cache_element<T> *Shared_multi_map<T>::use_if_present(const K &key) {
     e->use();
     return e;
   }
-  return NULL;
+  return nullptr;
 }
 
 // Remove an element from the map.
@@ -74,7 +74,7 @@ void Shared_multi_map<T>::remove(Cache_element<T> *element, Autolocker *lock) {
   mysql_mutex_assert_owner(&m_lock);
 
 #ifndef DBUG_OFF
-  Cache_element<T> *e = NULL;
+  Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
 
   // The element must be present, and its usage must be 1 (this thread).
@@ -287,14 +287,14 @@ void Shared_multi_map<T>::put(const K *key, const T *object,
       m_map<K>()->set_miss_handled(*key);
       mysql_cond_broadcast(&m_miss_handled);
     }
-    DBUG_ASSERT(*element == NULL);
+    DBUG_ASSERT(*element == nullptr);
     return;
   }
 
 #ifndef DBUG_OFF
   // The new object instance may not be present in the map.
   m_map<const T *>()->get(object, element);
-  DBUG_ASSERT(*element == NULL);
+  DBUG_ASSERT(*element == nullptr);
 #endif
 
   // Get a new element, either from the pool, or by allocating a new one.
@@ -392,7 +392,7 @@ void Shared_multi_map<T>::release(Cache_element<T> *element) {
 
 #ifndef DBUG_OFF
   // The object must be present, and its usage must be > 0.
-  Cache_element<T> *e = NULL;
+  Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
   DBUG_ASSERT(e == element);
   DBUG_ASSERT(e->usage() > 0);
@@ -446,7 +446,7 @@ void Shared_multi_map<T>::replace(Cache_element<T> *element, const T *object) {
 
 #ifndef DBUG_OFF
   // The object must be present, and its usage must be 1 (this thread).
-  Cache_element<T> *e = NULL;
+  Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
   DBUG_ASSERT(e == element);
   DBUG_ASSERT(e->usage() == 1);

@@ -61,9 +61,9 @@ static const char *sep =
 /* Only effective at start od mysqld by setting it as option --loose-...  */
 int nb_sessions;
 static MYSQL_SYSVAR_INT(nb_sessions, nb_sessions, PLUGIN_VAR_RQCMDARG,
-                        "number of sessions", NULL, NULL, 1, 1, 500, 0);
+                        "number of sessions", nullptr, nullptr, 1, 1, 500, 0);
 
-static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(nb_sessions), NULL};
+static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(nb_sessions), nullptr};
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -76,7 +76,7 @@ static void test_session_open(void *) {
   DBUG_TRACE;
 
   MYSQL_SESSION sessions[MAX_SESSIONS];
-  void *plugin_ctx = NULL;
+  void *plugin_ctx = nullptr;
 
   WRITE_VAL("nb_sessions = %d\n", nb_sessions);
   /* Open sessions: Must pass */
@@ -96,7 +96,7 @@ static void test_session(void *) {
   DBUG_TRACE;
 
   MYSQL_SESSION sessions[MAX_SESSIONS];
-  void *plugin_ctx = NULL;
+  void *plugin_ctx = nullptr;
   bool session_ret = false;
 
   WRITE_VAL("nb_sessions = %d\n", nb_sessions);
@@ -157,7 +157,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -186,7 +186,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_session_service_plugin_init(void *p MY_ATTRIBUTE((unused))) {
@@ -250,11 +250,11 @@ mysql_declare_plugin(test_daemon){
     "Test session service in deinit",
     PLUGIN_LICENSE_GPL,
     test_session_service_plugin_init,   /* Plugin Init      */
-    NULL,                               /* Plugin Check uninstall    */
+    nullptr,                            /* Plugin Check uninstall    */
     test_session_service_plugin_deinit, /* Plugin Deinit    */
     0x0100,                             /* 1.0              */
-    NULL,                               /* status variables */
+    nullptr,                            /* status variables */
     test_services_sysvars,              /* system variables */
-    NULL,                               /* config options   */
+    nullptr,                            /* config options   */
     0,                                  /* flags            */
 } mysql_declare_plugin_end;

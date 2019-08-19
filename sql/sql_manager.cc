@@ -98,7 +98,7 @@ static void *handle_manager(void *arg MY_ATTRIBUTE((unused))) {
     manager_thread_in_use = false;
   }  // Can't use DBUG_RETURN after my_thread_end
   my_thread_end();
-  return (NULL);
+  return (nullptr);
 }
 }  // extern "C"
 
@@ -109,8 +109,9 @@ void start_handle_manager() {
   if (flush_time && flush_time != ~(ulong)0L) {
     my_thread_handle hThread;
     int error;
-    if ((error = mysql_thread_create(key_thread_handle_manager, &hThread,
-                                     &connection_attrib, handle_manager, 0)))
+    if ((error =
+             mysql_thread_create(key_thread_handle_manager, &hThread,
+                                 &connection_attrib, handle_manager, nullptr)))
       LogErr(WARNING_LEVEL, ER_CANT_CREATE_HANDLE_MGR_THREAD, error);
   }
 }

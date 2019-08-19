@@ -128,7 +128,7 @@ Plugin_table table_tlws_by_table::m_table_def(
 PFS_engine_table_share table_tlws_by_table::m_share = {
     &pfs_truncatable_acl,
     table_tlws_by_table::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_tlws_by_table::delete_all_rows,
     table_tlws_by_table::get_row_count,
     sizeof(PFS_simple_index),
@@ -196,11 +196,11 @@ int table_tlws_by_table::rnd_next(void) {
       global_table_share_container.iterate(m_pos.m_index);
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       m_next_pos.set_after(&m_pos);
       return make_row(pfs);
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -211,7 +211,7 @@ int table_tlws_by_table::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_table_share_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -219,7 +219,7 @@ int table_tlws_by_table::rnd_pos(const void *pos) {
 }
 
 int table_tlws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_tlws_by_table *result = NULL;
+  PFS_index_tlws_by_table *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_tlws_by_table);
   m_opened_index = result;
@@ -234,7 +234,7 @@ int table_tlws_by_table::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_share; m_pos.next()) {
     share = global_table_share_container.get(m_pos.m_index, &has_more_share);
 
-    if (share != NULL) {
+    if (share != nullptr) {
       if (m_opened_index->match(share)) {
         if (!make_row(share)) {
           m_next_pos.set_after(&m_pos);

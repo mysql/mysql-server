@@ -148,13 +148,13 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
   bool allocated;
 
   /* The caller doesn't know what to expect */
-  if (dst == NULL) {
+  if (dst == nullptr) {
     /* Add a safety margin of an additional 50% */
     ulint n_bytes = header.m_original_size + (header.m_original_size / 2);
 
     dst = reinterpret_cast<byte *>(ut_malloc_nokey(n_bytes));
 
-    if (dst == NULL) {
+    if (dst == nullptr) {
       return (DB_OUT_OF_MEMORY);
     }
 

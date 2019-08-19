@@ -201,7 +201,7 @@ class Item_subselect : public Item_result_field {
   bool change_engine(subselect_engine *eng) {
     old_engine = engine;
     engine = eng;
-    return eng == 0;
+    return eng == nullptr;
   }
 
   /*
@@ -256,7 +256,7 @@ class Item_singlerow_subselect : public Item_subselect {
  public:
   Item_singlerow_subselect(SELECT_LEX *select_lex);
   Item_singlerow_subselect()
-      : Item_subselect(), value(0), row(0), no_rows(false) {}
+      : Item_subselect(), value(nullptr), row(nullptr), no_rows(false) {}
 
   void cleanup() override;
   subs_type substype() const override { return SINGLEROW_SUBS; }
@@ -392,14 +392,14 @@ class Item_exists_subselect : public Item_subselect {
         value(false),
         exec_method(EXEC_UNSPECIFIED),
         sj_convert_priority(0),
-        embedding_join_nest(NULL) {}
+        embedding_join_nest(nullptr) {}
 
   explicit Item_exists_subselect(const POS &pos)
       : super(pos),
         value(false),
         exec_method(EXEC_UNSPECIFIED),
         sj_convert_priority(0),
-        embedding_join_nest(NULL) {}
+        embedding_join_nest(nullptr) {}
 
   trans_res select_transformer(THD *, SELECT_LEX *) override {
     exec_method = EXEC_EXISTS;
@@ -571,7 +571,7 @@ class Item_in_subselect : public Item_exists_subselect {
   }
 
   bool *get_cond_guard(int i) {
-    return pushed_cond_guards ? pushed_cond_guards + i : NULL;
+    return pushed_cond_guards ? pushed_cond_guards + i : nullptr;
   }
   void set_cond_guard_var(int i, bool v) {
     if (pushed_cond_guards) pushed_cond_guards[i] = v;
@@ -584,17 +584,17 @@ class Item_in_subselect : public Item_exists_subselect {
 
   Item_in_subselect()
       : Item_exists_subselect(),
-        left_expr(NULL),
-        left_expr_cache(NULL),
+        left_expr(nullptr),
+        left_expr_cache(nullptr),
         left_expr_cache_filled(false),
         need_expr_cache(true),
-        m_injected_left_expr(NULL),
-        optimizer(NULL),
+        m_injected_left_expr(nullptr),
+        optimizer(nullptr),
         was_null(false),
         abort_on_null(false),
-        in2exists_info(NULL),
-        pushed_cond_guards(NULL),
-        upper_item(NULL) {}
+        in2exists_info(nullptr),
+        pushed_cond_guards(nullptr),
+        upper_item(nullptr) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 
@@ -808,7 +808,7 @@ class subselect_indexsubquery_engine : public subselect_engine {
  public:
   subselect_indexsubquery_engine(QEP_TAB *tab_arg, Item_subselect *subs,
                                  Item *where, Item *having_arg)
-      : subselect_engine(subs, 0),
+      : subselect_engine(subs, nullptr),
         tab(tab_arg),
         cond(where),
         having(having_arg) {}
@@ -878,10 +878,10 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
  public:
   subselect_hash_sj_engine(Item_subselect *in_predicate,
                            subselect_iterator_engine *old_engine)
-      : subselect_indexsubquery_engine(NULL, in_predicate, NULL, NULL),
+      : subselect_indexsubquery_engine(nullptr, in_predicate, nullptr, nullptr),
         is_materialized(false),
         materialize_engine(old_engine),
-        tmp_param(NULL) {}
+        tmp_param(nullptr) {}
   ~subselect_hash_sj_engine() override;
 
   bool setup(THD *thd, List<Item> *tmp_columns);

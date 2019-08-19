@@ -444,7 +444,7 @@ mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
 
 /*static*/
 const char *MySQLSession::ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept {
-  const char *text = NULL;
+  const char *text = nullptr;
 
   // The better way would be to do away with text variable and return kSslMode*
   // directly from each case. Unfortunately, Clang 3.4 doesn't like it:

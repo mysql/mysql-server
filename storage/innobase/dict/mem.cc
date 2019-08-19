@@ -116,7 +116,7 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 #endif /* !UNIV_HOTBACKUP */
 
   ut_free(table->name.m_name);
-  table->name.m_name = NULL;
+  table->name.m_name = nullptr;
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
@@ -130,12 +130,12 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  if (table->s_cols != NULL) {
+  if (table->s_cols != nullptr) {
     UT_DELETE(table->s_cols);
   }
 
 #ifndef UNIV_HOTBACKUP
-  if (table->temp_prebuilt != NULL) {
+  if (table->temp_prebuilt != nullptr) {
     ut_ad(table->is_intrinsic());
     UT_DELETE(table->temp_prebuilt);
   }
@@ -260,7 +260,7 @@ dict_table_t *dict_mem_table_create(
     table->fts = fts_create(table);
     table->fts->cache = fts_cache_create(table);
   } else {
-    table->fts = NULL;
+    table->fts = nullptr;
   }
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {

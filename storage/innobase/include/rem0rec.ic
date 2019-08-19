@@ -148,7 +148,7 @@ const rec_t *rec_get_next_ptr_const(
   field_value = mach_read_from_2(rec - REC_NEXT);
 
   if (field_value == 0) {
-    return (NULL);
+    return (nullptr);
   }
 
   if (comp) {
@@ -615,7 +615,7 @@ UNIV_INLINE
 ulint rec_offs_comp(
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   return (*rec_offs_base(offsets) & REC_OFFS_COMPACT);
 }
 
@@ -626,7 +626,7 @@ UNIV_INLINE
 ulint rec_offs_any_extern(
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   return (*rec_offs_base(offsets) & REC_OFFS_EXTERNAL);
 }
 
@@ -638,10 +638,10 @@ const byte *rec_offs_any_null_extern(
     const ulint *offsets) /*!< in: rec_get_offsets(rec) */
 {
   ulint i;
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   if (!rec_offs_any_extern(offsets)) {
-    return (NULL);
+    return (nullptr);
   }
 
   for (i = 0; i < rec_offs_n_fields(offsets); i++) {
@@ -657,7 +657,7 @@ const byte *rec_offs_any_null_extern(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Returns nonzero if the extern bit is set in nth field of rec.
@@ -667,7 +667,7 @@ ulint rec_offs_nth_extern(
     const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
     ulint n)              /*!< in: nth field */
 {
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   ut_ad(n < rec_offs_n_fields(offsets));
   return (rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL);
 }
@@ -679,7 +679,7 @@ ulint rec_offs_nth_sql_null(
     const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
     ulint n)              /*!< in: nth field */
 {
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   ut_ad(n < rec_offs_n_fields(offsets));
   return (rec_offs_base(offsets)[1 + n] & REC_OFFS_SQL_NULL);
 }
@@ -688,7 +688,7 @@ ulint rec_offs_nth_sql_null(
 @return nonzero if default bit is set */
 UNIV_INLINE
 ulint rec_offs_nth_default(const ulint *offsets, ulint n) {
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   ut_ad(n < rec_offs_n_fields(offsets));
   return (rec_offs_base(offsets)[1 + n] & REC_OFFS_DEFAULT);
 }
@@ -700,7 +700,7 @@ ulint rec_offs_nth_size(
     const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
     ulint n)              /*!< in: nth field */
 {
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   ut_ad(n < rec_offs_n_fields(offsets));
   if (!n) {
     return (rec_offs_base(offsets)[1 + n] & REC_OFFS_MASK);
@@ -881,7 +881,7 @@ void rec_set_nth_field(
   ulint len2;
 
   ut_ad(rec);
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   if (len == UNIV_SQL_NULL) {
     if (!rec_offs_nth_sql_null(offsets, n)) {
@@ -931,7 +931,7 @@ ulint rec_offs_data_size(
 {
   ulint size;
 
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   size = rec_offs_base(offsets)[rec_offs_n_fields(offsets)] & REC_OFFS_MASK;
   ut_ad(size < UNIV_PAGE_SIZE);
   return (size);
@@ -946,7 +946,7 @@ ulint rec_offs_extra_size(
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
   ulint size;
-  ut_ad(rec_offs_validate(NULL, NULL, offsets));
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   size = *rec_offs_base(offsets) & ~(REC_OFFS_COMPACT | REC_OFFS_EXTERNAL);
   ut_ad(size < UNIV_PAGE_SIZE);
   return (size);
@@ -969,7 +969,7 @@ byte *rec_get_end(
     const rec_t *rec,     /*!< in: pointer to record */
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
   return (const_cast<rec_t *>(rec + rec_offs_data_size(offsets)));
 }
 
@@ -980,7 +980,7 @@ byte *rec_get_start(
     const rec_t *rec,     /*!< in: pointer to record */
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
   return (const_cast<rec_t *>(rec - rec_offs_extra_size(offsets)));
 }
 #endif /* UNIV_DEBUG */
@@ -995,9 +995,9 @@ rec_t *rec_copy(void *buf, const rec_t *rec, const ulint *offsets) {
   ulint extra_len;
   ulint data_len;
 
-  ut_ad(rec != NULL);
-  ut_ad(buf != NULL);
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec != nullptr);
+  ut_ad(buf != nullptr);
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
   ut_ad(rec_validate(rec, offsets));
 
   extra_len = rec_offs_extra_size(offsets);
@@ -1060,7 +1060,7 @@ ulint rec_get_converted_size(
   if (dict_table_is_comp(index->table)) {
     return (rec_get_converted_size_comp(
         index, dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK,
-        dtuple->fields, dtuple->n_fields, NULL));
+        dtuple->fields, dtuple->n_fields, nullptr));
   }
 
   data_size = dtuple_get_data_size(dtuple, 0);
@@ -1124,7 +1124,7 @@ ulint rec_fold(const rec_t *rec, const ulint *offsets, ulint n_fields,
   ulint len;
   ulint n_fields_rec;
 
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
   ut_ad(rec_validate(rec, offsets));
   ut_ad(n_fields > 0 || n_bytes > 0);
 

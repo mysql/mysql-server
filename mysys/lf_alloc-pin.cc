@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,7 +179,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox) {
       /* the stack of free elements is empty */
       pins = pinbox->pins_in_array.fetch_add(1) + 1;
       if (unlikely(pins >= LF_PINBOX_MAX_PINS)) {
-        return 0;
+        return nullptr;
       }
       /*
         note that the first allocated element has index 1 (pins==1).
@@ -187,7 +187,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox) {
       */
       el = (LF_PINS *)lf_dynarray_lvalue(&pinbox->pinarray, pins);
       if (unlikely(!el)) {
-        return 0;
+        return nullptr;
       }
       break;
     }
@@ -224,7 +224,7 @@ void lf_pinbox_put_pins(LF_PINS *pins) {
     /* This thread should not hold any pin. */
     int i;
     for (i = 0; i < LF_PINBOX_PINS; i++) {
-      DBUG_ASSERT(pins->pin[i] == 0);
+      DBUG_ASSERT(pins->pin[i] == nullptr);
     }
   }
 #endif /* DBUG_OFF */
@@ -330,7 +330,7 @@ static void lf_pinbox_real_free(LF_PINS *pins) {
   /* Store info about current purgatory. */
   struct st_match_and_save_arg arg = {pins, pinbox, pins->purgatory};
   /* Reset purgatory. */
-  pins->purgatory = NULL;
+  pins->purgatory = nullptr;
   pins->purgatory_count = 0;
 
   lf_dynarray_iterate(&pinbox->pinarray, match_and_save, &arg);
@@ -395,7 +395,7 @@ static void alloc_free(void *v_first, void *v_last, void *v_allocator) {
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
                     lf_allocator_func *ctor, lf_allocator_func *dtor) {
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset, alloc_free, allocator);
-  allocator->top = 0;
+  allocator->top = nullptr;
   allocator->mallocs = 0;
   allocator->element_size = size;
   allocator->constructor = ctor;
@@ -425,7 +425,7 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator) {
     node = tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);
-  allocator->top = 0;
+  allocator->top = nullptr;
 }
 
 /*

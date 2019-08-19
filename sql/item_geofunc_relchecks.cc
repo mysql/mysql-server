@@ -187,10 +187,10 @@ longlong Item_func_spatial_rel::val_int() {
   DBUG_ASSERT(fixed == 1);
   String tmp_value1;
   String tmp_value2;
-  String *res1 = NULL;
-  String *res2 = NULL;
+  String *res1 = nullptr;
+  String *res2 = nullptr;
   Geometry_buffer buffer1, buffer2;
-  Geometry *g1 = NULL, *g2 = NULL;
+  Geometry *g1 = nullptr, *g2 = nullptr;
   int tres = 0;
   bool had_except = false;
   bool had_error = false;
@@ -266,9 +266,10 @@ exit:
 template <typename Coordsys>
 int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2) {
   String gcbuf;
-  Geometry *tmpg = NULL;
+  Geometry *tmpg = nullptr;
   int tres = 0;
-  const typename BG_geometry_collection::Geometry_list *gv1 = NULL, *gv2 = NULL;
+  const typename BG_geometry_collection::Geometry_list *gv1 = nullptr,
+                                                       *gv2 = nullptr;
   BG_geometry_collection bggc1, bggc2;
   bool empty1 = is_empty_geocollection(g1);
   bool empty2 = is_empty_geocollection(g2);
@@ -367,7 +368,7 @@ int Item_func_spatial_rel::geocol_relcheck_intersect_disjoint(
 
   DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
               functype() == SP_INTERSECTS_FUNC);
-  const BG_geometry_collection::Geometry_list *gv = NULL, *gvr = NULL;
+  const BG_geometry_collection::Geometry_list *gv = nullptr, *gvr = nullptr;
 
   if (gv1->size() > gv2->size()) {
     gv = gv2;

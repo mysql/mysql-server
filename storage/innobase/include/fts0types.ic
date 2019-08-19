@@ -150,9 +150,9 @@ ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
                                ulint len) {
   int char_len;
 
-  ut_ad(!(str == NULL && len > 0));
+  ut_ad(!(str == nullptr && len > 0));
 
-  if (str == NULL || len == 0) {
+  if (str == nullptr || len == 0) {
     return 0;
   }
 

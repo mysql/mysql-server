@@ -78,8 +78,8 @@ class Query_result_delete final : public Query_result_interceptor {
  public:
   Query_result_delete()
       : Query_result_interceptor(),
-        tempfiles(NULL),
-        tables(NULL),
+        tempfiles(nullptr),
+        tables(nullptr),
         delete_table_count(0),
         found_rows(0),
         deleted_rows(0),

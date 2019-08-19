@@ -55,7 +55,7 @@
 #define HASH_STRING_SEPARATOR "½"
 
 const char *transaction_write_set_hashing_algorithms[] = {"OFF", "MURMUR32",
-                                                          "XXHASH64", 0};
+                                                          "XXHASH64", nullptr};
 
 const char *get_write_set_algorithm_string(unsigned int algorithm) {
   switch (algorithm) {

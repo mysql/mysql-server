@@ -65,13 +65,13 @@ void Plugin_system_variables::registry_callback(
 const char *Plugin_system_variables::get_system_variable_impl(
     const char *cnf_option, const char *env_variable,
     const char *compile_option) {
-  if (NULL != cnf_option) {
+  if (nullptr != cnf_option) {
     return cnf_option;
   }
 
-  const char *variable_from_env = env_variable ? getenv(env_variable) : NULL;
+  const char *variable_from_env = env_variable ? getenv(env_variable) : nullptr;
 
-  if (NULL != variable_from_env) return variable_from_env;
+  if (nullptr != variable_from_env) return variable_from_env;
 
   return compile_option;
 }
@@ -82,23 +82,23 @@ void Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(
   const char *result =
       get_system_variable_impl(cnf_option, env_variable, compile_option);
 
-  if (NULL != result)
+  if (nullptr != result)
     cnf_option = my_strdup(PSI_NOT_INSTRUMENTED, const_cast<char *>(result),
                            MYF(MY_WME));
   else
-    cnf_option = NULL;
+    cnf_option = nullptr;
 
-  if (NULL != value_old) my_free(value_old);
+  if (nullptr != value_old) my_free(value_old);
 }
 
 Ssl_config::Ssl_config()
-    : ssl_key(NULL),
-      ssl_ca(NULL),
-      ssl_capath(NULL),
-      ssl_cert(NULL),
-      ssl_cipher(NULL),
-      ssl_crl(NULL),
-      ssl_crlpath(NULL),
+    : ssl_key(nullptr),
+      ssl_ca(nullptr),
+      ssl_capath(nullptr),
+      ssl_cert(nullptr),
+      ssl_cipher(nullptr),
+      ssl_crl(nullptr),
+      ssl_crlpath(nullptr),
       m_null_char(0) {}
 
 bool Ssl_config::is_configured() const {

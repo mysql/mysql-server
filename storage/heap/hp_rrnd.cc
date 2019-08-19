@@ -56,6 +56,6 @@ int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
   info->current_record = info->next_block = pos->record_no;
 
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
-  info->current_hash_ptr = 0; /* Can't use rnext */
+  info->current_hash_ptr = nullptr; /* Can't use rnext */
   return 0;
 } /* heap_rrnd */

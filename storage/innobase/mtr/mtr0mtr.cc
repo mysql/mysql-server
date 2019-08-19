@@ -91,7 +91,7 @@ struct Find {
   /** Constructor */
   Find(const void *object, ulint type)
       : m_slot(), m_type(type), m_object(object) {
-    ut_a(object != NULL);
+    ut_a(object != nullptr);
   }
 
   /** @return false if the object was found. */
@@ -120,7 +120,7 @@ struct Find_page {
   @param[in]	ptr	pointer to within a page frame
   @param[in]	flags	MTR_MEMO flags to look for */
   Find_page(const void *ptr, ulint flags)
-      : m_ptr(ptr), m_flags(flags), m_slot(NULL) {
+      : m_ptr(ptr), m_flags(flags), m_slot(nullptr) {
     /* We can only look for page-related flags. */
     ut_ad(!(flags &
             ~(MTR_MEMO_PAGE_S_FIX | MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX |
@@ -132,9 +132,9 @@ struct Find_page {
   @retval	false	if a page was found
   @retval	true	if the iteration should continue */
   bool operator()(mtr_memo_slot_t *slot) {
-    ut_ad(m_slot == NULL);
+    ut_ad(m_slot == nullptr);
 
-    if (!(m_flags & slot->type) || slot->object == NULL) {
+    if (!(m_flags & slot->type) || slot->object == nullptr) {
       return (true);
     }
 
@@ -151,7 +151,7 @@ struct Find_page {
 
   /** @return the slot that was found */
   mtr_memo_slot_t *get_slot() const {
-    ut_ad(m_slot != NULL);
+    ut_ad(m_slot != nullptr);
     return (m_slot);
   }
   /** @return the block that was found */
@@ -206,14 +206,14 @@ static void memo_slot_release(mtr_memo_slot_t *slot) {
 #endif /* UNIV_DEBUG */
   }
 
-  slot->object = NULL;
+  slot->object = nullptr;
 }
 
 /** Release the latches and blocks acquired by the mini-transaction. */
 struct Release_all {
   /** @return true always. */
   bool operator()(mtr_memo_slot_t *slot) const {
-    if (slot->object != NULL) {
+    if (slot->object != nullptr) {
       memo_slot_release(slot);
     }
 
@@ -225,7 +225,7 @@ struct Release_all {
 struct Debug_check {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
-    ut_a(slot->object == NULL);
+    ut_a(slot->object == nullptr);
     return (true);
   }
 };
@@ -257,7 +257,7 @@ struct Add_dirty_blocks_to_flush_list {
 
   /** @return true always. */
   bool operator()(mtr_memo_slot_t *slot) const {
-    if (slot->object != NULL) {
+    if (slot->object != nullptr) {
       if (slot->type == MTR_MEMO_PAGE_X_FIX ||
           slot->type == MTR_MEMO_PAGE_SX_FIX) {
         add_dirty_page_to_flush_list(slot);
@@ -310,7 +310,7 @@ class mtr_t::Command {
   }
 
   /** Destructor */
-  ~Command() { ut_ad(m_impl == 0); }
+  ~Command() { ut_ad(m_impl == nullptr); }
 
   /** Write the redo log record, add dirty pages to the flush list and
   release the resources. */
@@ -438,7 +438,7 @@ void mtr_t::start(bool sync, bool read_only) {
   m_impl.m_made_dirty = false;
   m_impl.m_n_log_recs = 0;
   m_impl.m_state = MTR_STATE_ACTIVE;
-  m_impl.m_flush_observer = NULL;
+  m_impl.m_flush_observer = nullptr;
 
   ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
@@ -464,7 +464,7 @@ void mtr_t::Command::release_resources() {
 
   m_impl->m_state = MTR_STATE_COMMITTED;
 
-  m_impl = 0;
+  m_impl = nullptr;
 }
 
 /** Commit a mini-transaction. */
@@ -725,7 +725,7 @@ buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
   Iterate<Find_page> iterator(check);
 
   return (m_impl.m_memo.for_each_block_in_reverse(iterator)
-              ? NULL
+              ? nullptr
               : check.get_block());
 }
 
@@ -734,7 +734,7 @@ buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
 void mtr_t::memo_modify_page(const byte *ptr) {
   buf_block_t *block = memo_contains_page_flagged(
       ptr, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);
-  ut_ad(block != NULL);
+  ut_ad(block != nullptr);
 
   if (!memo_contains(get_memo(), block, MTR_MEMO_MODIFY)) {
     memo_push(block, MTR_MEMO_MODIFY);

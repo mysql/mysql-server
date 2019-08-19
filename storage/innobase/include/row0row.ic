@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,7 +50,7 @@ ulint row_get_trx_id_offset(
   ulint len;
 
   ut_ad(index->is_clustered());
-  ut_ad(rec_offs_validate(NULL, index, offsets));
+  ut_ad(rec_offs_validate(nullptr, index, offsets));
 
   pos = index->get_sys_col_pos(DATA_TRX_ID);
 
@@ -150,7 +150,7 @@ void row_build_row_ref_fast(
   ulint field_no;
   ulint i;
 
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
   ut_ad(!rec_offs_any_extern(offsets));
   ref_len = dtuple_get_n_fields(ref);
 

@@ -574,7 +574,7 @@ static bool emit_init(UDF_INIT *initd, UDF_ARGS *args, char *message) {
 static mysql_service_status_t init() {
   return mysql_service_udf_registration->udf_register(
       "audit_api_message_emit_udf", STRING_RESULT, (Udf_func_any)emit,
-      (Udf_func_init)emit_init, NULL);
+      (Udf_func_init)emit_init, nullptr);
 }
 
 /**

@@ -860,7 +860,7 @@ struct big_rec_t {
   /** Constructor.
   @param[in]	max	the capacity of the array of fields. */
   explicit big_rec_t(const ulint max)
-      : heap(0), capacity(max), n_fields(0), fields(0) {}
+      : heap(nullptr), capacity(max), n_fields(0), fields(nullptr) {}
 
   /** Append one big_rec_field_t object to the end of array of fields */
   void append(const big_rec_field_t &field) {

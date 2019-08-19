@@ -582,7 +582,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   /* prepare select to resolve all fields */
   lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
-  if (unit->prepare(thd, 0, 0, 0)) {
+  if (unit->prepare(thd, nullptr, 0, 0)) {
     /*
       some errors from prepare are reported to user, if is not then
       it will be checked after err: label
@@ -632,7 +632,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     corresponding column. In that case, return an error for CREATE VIEW.
    */
   {
-    Item *report_item = NULL;
+    Item *report_item = nullptr;
     /*
        This will hold the intersection of the priviliges on all columns in the
        view.
@@ -699,7 +699,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(STRING_WITH_LEN("VIEW "));
     /* Test if user supplied a db (ie: we did not use thd->db) */
     if (views->db && views->db[0] &&
-        (thd->db().str == NULL || strcmp(views->db, thd->db().str))) {
+        (thd->db().str == nullptr || strcmp(views->db, thd->db().str))) {
       append_identifier(thd, &buff, views->db, views->db_length);
       buff.append('.');
     }
@@ -1040,7 +1040,7 @@ class Make_view_tracker {
     }
     if (*result && view_ref->is_view()) {
       delete view_ref->view_query();
-      view_ref->set_view_query(NULL);  // view_ref is no longer a VIEW
+      view_ref->set_view_query(nullptr);  // view_ref is no longer a VIEW
     }
   }
 
@@ -1110,7 +1110,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
 
   // Prepare default values for old format
   view_ref->view_suid = true;
-  view_ref->definer.user.str = view_ref->definer.host.str = 0;
+  view_ref->definer.user.str = view_ref->definer.host.str = nullptr;
   view_ref->definer.user.length = view_ref->definer.host.length = 0;
 
   DBUG_ASSERT(share->view_object);
@@ -1263,7 +1263,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   // Needed for correct units markup for EXPLAIN
   view_lex->explain_format = old_lex->explain_format;
 
-  if (thd->m_digest != NULL)
+  if (thd->m_digest != nullptr)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
   /*
@@ -1354,7 +1354,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     view_no_suid.db = view_ref->db;
     view_no_suid.table_name = view_ref->table_name;
 
-    DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
+    DBUG_ASSERT(view_tables == nullptr || view_tables->security_ctx == nullptr);
 
     if (check_table_access(thd, SELECT_ACL, view_tables, false, UINT_MAX,
                            true) ||
@@ -1392,7 +1392,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     Apply necessary updates to the tables underlying this view.
     view_tables_tail points to last table after this loop.
   */
-  TABLE_LIST *view_tables_tail = NULL;
+  TABLE_LIST *view_tables_tail = nullptr;
   for (TABLE_LIST *tbl = view_tables; tbl;
        tbl = (view_tables_tail = tbl)->next_global) {
     // Make sure this table is not substituted with a temporary table
@@ -1459,7 +1459,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   const bool view_is_mergeable =
       view_ref->algorithm != VIEW_ALGORITHM_TEMPTABLE &&
       view_lex->unit->is_mergeable();
-  TABLE_LIST *view_main_select_tables = NULL;
+  TABLE_LIST *view_main_select_tables = nullptr;
 
   if (view_is_mergeable) {
     /*
@@ -1652,7 +1652,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
     return true;
   }
 
-  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout, 0))
+  if (lock_table_names(thd, views, nullptr, thd->variables.lock_wait_timeout,
+                       0))
     return true;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -1813,7 +1814,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view,
   */
   if ((!view->is_view() && !view->belong_to_view) ||
       thd->lex->sql_command == SQLCOM_INSERT ||
-      thd->lex->select_lex->select_limit == 0)
+      thd->lex->select_lex->select_limit == nullptr)
     return false; /* it is normal table or query without LIMIT */
 
   TABLE *const table = table_ref->table;
@@ -1920,7 +1921,7 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view) {
 
   for (Field_translator *entry = trans; entry < trans_end; entry++) {
     Item_field *fld = entry->item->field_for_view_update();
-    if (fld == NULL) {
+    if (fld == nullptr) {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->name);
       return true;
     }

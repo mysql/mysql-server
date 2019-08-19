@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ void sp_cache_clear(sp_cache **cp) {
 
   if (c) {
     delete c;
-    *cp = NULL;
+    *cp = nullptr;
   }
 }
 
@@ -152,7 +152,7 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp) {
 
 sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name) {
   sp_cache *c = *cp;
-  if (!c) return NULL;
+  if (!c) return nullptr;
   return c->lookup(name->m_qname.str, name->m_qname.length);
 }
 
@@ -187,7 +187,7 @@ void sp_cache_invalidate() {
 void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp) {
   if ((*sp)->sp_cache_version() < sp_cache_version() && !(*sp)->is_invoked()) {
     (*cp)->remove(*sp);
-    *sp = NULL;
+    *sp = nullptr;
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -412,7 +412,7 @@ int my_xml_parse(MY_XML_PARSER *p, const char *str, size_t len) {
       }
 
       if (lex == MY_XML_SLASH) {
-        if (MY_XML_OK != my_xml_leave(p, NULL, 0)) return MY_XML_ERROR;
+        if (MY_XML_OK != my_xml_leave(p, nullptr, 0)) return MY_XML_ERROR;
         lex = my_xml_scan(p, &a);
       }
 
@@ -422,12 +422,12 @@ int my_xml_parse(MY_XML_PARSER *p, const char *str, size_t len) {
           sprintf(p->errstr, "%s unexpected ('?' wanted)", lex2str(lex));
           return MY_XML_ERROR;
         }
-        if (MY_XML_OK != my_xml_leave(p, NULL, 0)) return MY_XML_ERROR;
+        if (MY_XML_OK != my_xml_leave(p, nullptr, 0)) return MY_XML_ERROR;
         lex = my_xml_scan(p, &a);
       }
 
       if (exclam) {
-        if (MY_XML_OK != my_xml_leave(p, NULL, 0)) return MY_XML_ERROR;
+        if (MY_XML_OK != my_xml_leave(p, nullptr, 0)) return MY_XML_ERROR;
       }
 
       if (lex != MY_XML_GT) {
@@ -467,7 +467,7 @@ void my_xml_parser_create(MY_XML_PARSER *p) {
 void my_xml_parser_free(MY_XML_PARSER *p) {
   if (p->attr.buffer) {
     my_str_free(p->attr.buffer);
-    p->attr.buffer = NULL;
+    p->attr.buffer = nullptr;
   }
 }
 

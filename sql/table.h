@@ -2631,7 +2631,7 @@ struct TABLE_LIST {
   Item *join_cond() const { return m_join_cond; }
   void set_join_cond(Item *val) {
     // If optimization has started, it's too late to change m_join_cond.
-    DBUG_ASSERT(m_join_cond_optim == NULL || m_join_cond_optim == (Item *)1);
+    DBUG_ASSERT(m_join_cond_optim == nullptr || m_join_cond_optim == (Item *)1);
     m_join_cond = val;
   }
   Item *join_cond_optim() const { return m_join_cond_optim; }
@@ -2640,7 +2640,7 @@ struct TABLE_LIST {
       Either we are setting to "empty", or there must pre-exist a
       permanent condition.
     */
-    DBUG_ASSERT(cond == NULL || cond == (Item *)1 || m_join_cond != NULL);
+    DBUG_ASSERT(cond == nullptr || cond == (Item *)1 || m_join_cond != nullptr);
     m_join_cond_optim = cond;
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
@@ -2702,16 +2702,16 @@ struct TABLE_LIST {
   bool prepare_replace_filter(THD *thd);
 
   /// Return true if this represents a named view
-  bool is_view() const { return view != NULL; }
+  bool is_view() const { return view != nullptr; }
 
   /// Return true if this represents a derived table (an unnamed view)
-  bool is_derived() const { return derived != NULL && view == NULL; }
+  bool is_derived() const { return derived != nullptr && view == nullptr; }
 
   /// Return true if this represents a named view or a derived table
-  bool is_view_or_derived() const { return derived != NULL; }
+  bool is_view_or_derived() const { return derived != nullptr; }
 
   /// Return true if this represents a table function
-  bool is_table_function() const { return table_function != NULL; }
+  bool is_table_function() const { return table_function != nullptr; }
   /**
      @returns true if this is a recursive reference inside the definition of a
      recursive CTE.
@@ -2816,7 +2816,7 @@ struct TABLE_LIST {
       DBUG_ASSERT(is_merged());  // Cannot be a materialized view
       return leaf_tables_count() > 1;
     } else {
-      DBUG_ASSERT(nested_join == NULL);  // Must be a base table
+      DBUG_ASSERT(nested_join == nullptr);  // Must be a base table
       return false;
     }
   }
@@ -2855,7 +2855,7 @@ struct TABLE_LIST {
 
   /// Return the valid LEX object for a view.
   LEX *view_query() const {
-    DBUG_ASSERT(view != NULL && view != (LEX *)1);
+    DBUG_ASSERT(view != nullptr && view != (LEX *)1);
     return view;
   }
 
@@ -2984,7 +2984,7 @@ struct TABLE_LIST {
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  const char *get_db_name() const { return view != NULL ? view_db.str : db; }
+  const char *get_db_name() const { return view != nullptr ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -2993,7 +2993,7 @@ struct TABLE_LIST {
      respectively.
    */
   const char *get_table_name() const {
-    return view != NULL ? view_name.str : table_name;
+    return view != nullptr ? view_name.str : table_name;
   }
   int fetch_number_of_rows();
   bool update_derived_keys(THD *, Field *, Item **, uint, bool *);
@@ -3027,7 +3027,7 @@ struct TABLE_LIST {
   */
 
   TABLE_LIST *outer_join_nest() const {
-    if (!embedding) return NULL;
+    if (!embedding) return nullptr;
     if (embedding->is_sj_nest()) return embedding->embedding;
     return embedding;
   }
@@ -3567,11 +3567,11 @@ class Field_iterator_table : public Field_iterator {
   Field **ptr;
 
  public:
-  Field_iterator_table() : ptr(0) {}
+  Field_iterator_table() : ptr(nullptr) {}
   void set(TABLE_LIST *table) { ptr = table->table->field; }
   void set_table(TABLE *table) { ptr = table->field; }
   void next() { ptr++; }
-  bool end_of_fields() { return *ptr == 0; }
+  bool end_of_fields() { return *ptr == nullptr; }
   const char *name();
   Item *create_item(THD *thd);
   Field *field() { return *ptr; }
@@ -3586,14 +3586,14 @@ class Field_iterator_view : public Field_iterator {
   TABLE_LIST *view;
 
  public:
-  Field_iterator_view() : ptr(0), array_end(0) {}
+  Field_iterator_view() : ptr(nullptr), array_end(nullptr) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
   bool end_of_fields() { return ptr == array_end; }
   const char *name();
   Item *create_item(THD *thd);
   Item **item_ptr() { return &ptr->item; }
-  Field *field() { return 0; }
+  Field *field() { return nullptr; }
   inline Item *item() { return ptr->item; }
   Field_translator *field_translator() { return ptr; }
 };
@@ -3608,7 +3608,7 @@ class Field_iterator_natural_join : public Field_iterator {
   Natural_join_column *cur_column_ref;
 
  public:
-  Field_iterator_natural_join() : cur_column_ref(NULL) {}
+  Field_iterator_natural_join() : cur_column_ref(nullptr) {}
   ~Field_iterator_natural_join() {}
   void set(TABLE_LIST *table);
   void next();
@@ -3642,7 +3642,7 @@ class Field_iterator_table_ref : public Field_iterator {
   void set_field_iterator();
 
  public:
-  Field_iterator_table_ref() : field_it(NULL) {}
+  Field_iterator_table_ref() : field_it(nullptr) {}
   void set(TABLE_LIST *table);
   void next();
   bool end_of_fields() {
@@ -3685,7 +3685,7 @@ static inline my_bitmap_map *dbug_tmp_use_all_columns(
 #ifndef DBUG_OFF
   return tmp_use_all_columns(table, bitmap);
 #else
-  return 0;
+  return nullptr;
 #endif
 }
 
@@ -4006,10 +4006,10 @@ inline bool can_call_position(const TABLE *table) {
 class FRM_context {
  public:
   FRM_context()
-      : default_part_db_type(NULL),
+      : default_part_db_type(nullptr),
         null_field_first(false),
         stored_fields(0),
-        view_def(NULL),
+        view_def(nullptr),
         frm_version(0),
         fieldnames() {}
 

@@ -57,7 +57,7 @@ static t_test_status test_status;
 /* declaration of status variable for plugin */
 static SHOW_VAR test_services_status[] = {
     {"test_services_status", (char *)&test_status, SHOW_INT, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
 /* SQL variables to control test execution                     */
 /* SQL variables to switch on/off test of services, default=on */
@@ -65,11 +65,11 @@ static SHOW_VAR test_services_status[] = {
 static int with_log_message_val = 0;
 static MYSQL_SYSVAR_INT(with_log_message, with_log_message_val,
                         PLUGIN_VAR_RQCMDARG,
-                        "Switch on/off test of log message service", NULL, NULL,
-                        1, 0, 1, 0);
+                        "Switch on/off test of log message service", nullptr,
+                        nullptr, 1, 0, 1, 0);
 
 static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(with_log_message),
-                                           NULL};
+                                           nullptr};
 
 /* The test cases for the log_message service. */
 static int test_log_plugin_error() {
@@ -115,7 +115,7 @@ static void *test_services(void *p MY_ATTRIBUTE((unused))) {
                  "Test services return code: %d", ret);
   }
 
-  return 0;
+  return nullptr;
 }
 
 /* Creates the plugin context "con", which holds a pointer to the thread. */
@@ -169,11 +169,11 @@ mysql_declare_plugin(test_daemon){
     "Test services with thread",
     PLUGIN_LICENSE_GPL,
     test_services_plugin_init,   /* Plugin Init */
-    NULL,                        /* Plugin Check uninstall */
+    nullptr,                     /* Plugin Check uninstall */
     test_services_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
     test_services_status,  /* status variables                */
     test_services_sysvars, /* system variables                */
-    NULL,                  /* config options                  */
+    nullptr,               /* config options                  */
     0,                     /* flags                           */
 } mysql_declare_plugin_end;

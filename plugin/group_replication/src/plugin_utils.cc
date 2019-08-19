@@ -79,7 +79,7 @@ void log_primary_member_details() {
     group_member_mgr->get_primary_member_uuid(primary_member_uuid);
     Group_member_info *primary_member_info =
         group_member_mgr->get_group_member_info(primary_member_uuid);
-    if (primary_member_info != NULL) {
+    if (primary_member_info != nullptr) {
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port());

@@ -124,15 +124,15 @@ const char *srv_main_thread_op_info = "";
 /* The following three are dir paths which are catenated before file
 names, where the file name itself may also contain a path */
 
-char *srv_data_home = NULL;
+char *srv_data_home = nullptr;
 
 /* The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
-char *srv_innodb_directories = NULL;
+char *srv_innodb_directories = nullptr;
 
 /** Undo tablespace directories.  This can be multiple paths
 separated by ';' and can also be absolute paths. */
-char *srv_undo_dir = NULL;
+char *srv_undo_dir = nullptr;
 
 /** The number of implicit undo tablespaces to use for rollback
 segments. */
@@ -217,7 +217,7 @@ static os_event_t srv_master_thread_disabled_event;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
-char *srv_log_group_home_dir = NULL;
+char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
 bool srv_redo_log_encrypt = false;
@@ -733,7 +733,7 @@ struct srv_sys_t {
                                              activity */
 };
 
-static srv_sys_t *srv_sys = NULL;
+static srv_sys_t *srv_sys = nullptr;
 
 /** Event to signal the monitor thread. */
 os_event_t srv_monitor_event;
@@ -887,7 +887,7 @@ static srv_thread_type srv_slot_get_type(
 static srv_slot_t *srv_reserve_slot(
     srv_thread_type type) /*!< in: type of the thread */
 {
-  srv_slot_t *slot = 0;
+  srv_slot_t *slot = nullptr;
 
   srv_sys_mutex_enter();
 
@@ -1113,27 +1113,27 @@ static void srv_init(void) {
     for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
       srv_slot_t *slot = &srv_sys->sys_threads[i];
 
-      slot->event = os_event_create(0);
+      slot->event = os_event_create(nullptr);
 
       slot->in_use = false;
 
       ut_a(slot->event);
     }
 
-    srv_error_event = os_event_create(0);
+    srv_error_event = os_event_create(nullptr);
 
-    srv_monitor_event = os_event_create(0);
+    srv_monitor_event = os_event_create(nullptr);
 
-    srv_buf_dump_event = os_event_create(0);
+    srv_buf_dump_event = os_event_create(nullptr);
 
     buf_flush_event = os_event_create("buf_flush_event");
 
     UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
   }
 
-  srv_buf_resize_event = os_event_create(0);
+  srv_buf_resize_event = os_event_create(nullptr);
 
-  ut_d(srv_master_thread_disabled_event = os_event_create(0));
+  ut_d(srv_master_thread_disabled_event = os_event_create(nullptr));
 
   /* page_zip_stat_per_index_mutex is acquired from:
   1. page_zip_compress() (after SYNC_FSP)
@@ -1182,14 +1182,14 @@ void srv_free(void) {
 
 #ifdef UNIV_DEBUG
   os_event_destroy(srv_master_thread_disabled_event);
-  srv_master_thread_disabled_event = NULL;
+  srv_master_thread_disabled_event = nullptr;
 #endif /* UNIV_DEBUG */
 
   trx_i_s_cache_free(trx_i_s_cache);
 
   ut_free(srv_sys);
 
-  srv_sys = 0;
+  srv_sys = nullptr;
 
   if (srv_threads.m_page_cleaner_workers != nullptr) {
     for (size_t i = 0; i < srv_threads.m_page_cleaner_workers_n; ++i) {
@@ -1730,8 +1730,8 @@ loop:
         last_srv_print_monitor = TRUE;
       }
 
-      if (!srv_printf_innodb_monitor(stderr, MUTEX_NOWAIT(mutex_skipped), NULL,
-                                     NULL)) {
+      if (!srv_printf_innodb_monitor(stderr, MUTEX_NOWAIT(mutex_skipped),
+                                     nullptr, nullptr)) {
         mutex_skipped++;
       } else {
         /* Reset the counter */
@@ -1748,7 +1748,8 @@ loop:
       mutex_enter(&srv_monitor_file_mutex);
       rewind(srv_monitor_file);
       if (!srv_printf_innodb_monitor(srv_monitor_file,
-                                     MUTEX_NOWAIT(mutex_skipped), NULL, NULL)) {
+                                     MUTEX_NOWAIT(mutex_skipped), nullptr,
+                                     nullptr)) {
         mutex_skipped++;
       } else {
         mutex_skipped = 0;
@@ -1776,8 +1777,8 @@ void srv_error_monitor_thread() {
   os_thread_id_t waiter = os_thread_get_curr_id();
   os_thread_id_t old_waiter = waiter;
   /* the semaphore that is being waited for */
-  const void *sema = NULL;
-  const void *old_sema = NULL;
+  const void *sema = nullptr;
+  const void *old_sema = nullptr;
 
   ut_ad(!srv_read_only_mode);
 
@@ -2005,7 +2006,7 @@ static void srv_master_do_disabled_loop(void) {
 void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
                                              void *var_ptr, const void *save) {
   /* This method is protected by mutex, as every SET GLOBAL .. */
-  ut_ad(srv_master_thread_disabled_event != NULL);
+  ut_ad(srv_master_thread_disabled_event != nullptr);
 
   const bool disable = *static_cast<const bool *>(save);
 
@@ -2752,7 +2753,7 @@ static bool srv_purge_should_exit(
 /** Fetch and execute a task from the work queue.
  @return true if a task was executed */
 static bool srv_task_execute(void) {
-  que_thr_t *thr = NULL;
+  que_thr_t *thr = nullptr;
 
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
@@ -2769,13 +2770,13 @@ static bool srv_task_execute(void) {
 
   mutex_exit(&srv_sys->tasks_mutex);
 
-  if (thr != NULL) {
+  if (thr != nullptr) {
     que_run_threads(thr);
 
     os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
   }
 
-  return (thr != NULL);
+  return (thr != nullptr);
 }
 
 /** Worker thread that reads tasks from the work queue and executes them. */

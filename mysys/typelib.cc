@@ -198,35 +198,36 @@ TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from) {
   TYPELIB *to;
   uint i;
 
-  if (!from) return NULL;
+  if (!from) return nullptr;
 
-  if (!(to = (TYPELIB *)root->Alloc(sizeof(TYPELIB)))) return NULL;
+  if (!(to = (TYPELIB *)root->Alloc(sizeof(TYPELIB)))) return nullptr;
 
   if (!(to->type_names = (const char **)root->Alloc(
             (sizeof(char *) + sizeof(int)) * (from->count + 1))))
-    return NULL;
+    return nullptr;
   to->type_lengths = (unsigned int *)(to->type_names + from->count + 1);
   to->count = from->count;
   if (from->name) {
-    if (!(to->name = strdup_root(root, from->name))) return NULL;
+    if (!(to->name = strdup_root(root, from->name))) return nullptr;
   } else
-    to->name = NULL;
+    to->name = nullptr;
 
   for (i = 0; i < from->count; i++) {
     if (!(to->type_names[i] =
               strmake_root(root, from->type_names[i], from->type_lengths[i])))
-      return NULL;
+      return nullptr;
     to->type_lengths[i] = from->type_lengths[i];
   }
-  to->type_names[to->count] = NULL;
+  to->type_names[to->count] = nullptr;
   to->type_lengths[to->count] = 0;
 
   return to;
 }
 
-static const char *on_off_default_names[] = {"off", "on", "default", 0};
+static const char *on_off_default_names[] = {"off", "on", "default", nullptr};
 static TYPELIB on_off_default_typelib = {
-    array_elements(on_off_default_names) - 1, "", on_off_default_names, 0};
+    array_elements(on_off_default_names) - 1, "", on_off_default_names,
+    nullptr};
 
 /**
   Parse a TYPELIB name from the buffer
@@ -299,7 +300,7 @@ uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
   uint64_t flags_to_set = 0, flags_to_clear = 0, res;
   bool set_defaults = false;
 
-  *err_pos = 0; /* No error yet */
+  *err_pos = nullptr; /* No error yet */
   if (str != end) {
     const char *start = str;
     for (;;) {

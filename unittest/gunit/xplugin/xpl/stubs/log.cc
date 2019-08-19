@@ -36,4 +36,4 @@ log_item_type_mask log_line_item_types_seen(log_line *, log_item_type_mask) {
   return 0;
 }
 int log_line_submit(log_line *) { return 0; }
-const char *error_message_for_error_log(int) { return NULL; }
+const char *error_message_for_error_log(int) { return nullptr; }

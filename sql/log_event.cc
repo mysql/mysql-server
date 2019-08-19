@@ -3823,7 +3823,7 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
       data_buf(nullptr) {
   /* save the original thread id; we already know the server id */
   slave_proxy_id = thd_arg->variables.pseudo_thread_id;
-  common_header->set_is_valid(query != 0);
+  common_header->set_is_valid(query != nullptr);
 
   /*
   exec_time calculation has changed to use the same method that is used
@@ -4120,7 +4120,7 @@ Query_log_event::Query_log_event(
     return;
   }
 
-  common_header->set_is_valid(query != 0 && q_len > 0);
+  common_header->set_is_valid(query != nullptr && q_len > 0);
 }
 
 #ifndef MYSQL_SERVER
@@ -5518,7 +5518,7 @@ Rotate_log_event::Rotate_log_event(const char *new_log_ident_arg,
   if (flags & DUP_NAME)
     new_log_ident = my_strndup(key_memory_log_event, new_log_ident_arg,
                                ident_len, MYF(MY_WME));
-  common_header->set_is_valid(new_log_ident != 0);
+  common_header->set_is_valid(new_log_ident != nullptr);
   if (flags & RELAY_LOG) set_relay_log_event();
 }
 #endif  // MYSQL_SERVER
@@ -6754,7 +6754,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
     crash the server, so if fix fields fails, we just return with an
     error.
   */
-  if (e->fix_fields(thd, 0)) return 1;
+  if (e->fix_fields(thd, nullptr)) return 1;
 
   /*
     A variable can just be considered as a table with
@@ -6872,7 +6872,7 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg, const char *db_arg,
                 using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE
                             : Log_event::EVENT_STMT_CACHE,
                 Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
-  common_header->set_is_valid(block != 0);
+  common_header->set_is_valid(block != nullptr);
 }
 #endif  // MYSQL_SERVER
 
@@ -7224,7 +7224,7 @@ bool Execute_load_query_log_event::write_post_header_for_derived(
 #ifndef MYSQL_SERVER
 void Execute_load_query_log_event::print(
     FILE *file, PRINT_EVENT_INFO *print_event_info) const {
-  print(file, print_event_info, 0);
+  print(file, print_event_info, nullptr);
 }
 
 /**
@@ -7613,11 +7613,11 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     }
   } else {
     // Needed because bitmap_init() does not set it to null on failure
-    m_cols.bitmap = 0;
+    m_cols.bitmap = nullptr;
   }
 
   if (bitmap_init(&write_set_backup, nullptr, tbl_arg->s->fields)) {
-    write_set_backup.bitmap = 0; /* purecov: deadcode */
+    write_set_backup.bitmap = nullptr; /* purecov: deadcode */
   }
 
   /*
@@ -7713,7 +7713,7 @@ Rows_log_event::Rows_log_event(
       }
     } else {
       // Needed because bitmap_init() does not set it to null on failure
-      m_cols_ai.bitmap = 0;
+      m_cols_ai.bitmap = nullptr;
       common_header->set_is_valid(false);
       return;
     }
@@ -7739,7 +7739,7 @@ Rows_log_event::Rows_log_event(
   }
 
   if (bitmap_init(&write_set_backup, nullptr, m_cols.n_bits)) {
-    write_set_backup.bitmap = 0; /* purecov: deadcode */
+    write_set_backup.bitmap = nullptr; /* purecov: deadcode */
   }
 
   /*
@@ -7753,7 +7753,7 @@ Rows_log_event::Rows_log_event(
 Rows_log_event::~Rows_log_event() {
   if (m_cols.bitmap) {
     if (m_cols.bitmap == m_bitbuf)  // no my_malloc happened
-      m_cols.bitmap = 0;            // so no my_free in bitmap_free
+      m_cols.bitmap = nullptr;      // so no my_free in bitmap_free
     bitmap_free(&m_cols);           // To pair with bitmap_init().
   }
   if (this->m_local_cols_ai.bitmap != nullptr &&
@@ -10346,7 +10346,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
       Use the fact the key is db/0/table_name/0
     As we rely on this let's assert it.
   */
-  DBUG_ASSERT((tbl->s->db.str == 0) ||
+  DBUG_ASSERT((tbl->s->db.str == nullptr) ||
               (tbl->s->db.str[tbl->s->db.length] == 0));
   DBUG_ASSERT(tbl->s->table_name.str[tbl->s->table_name.length] == 0);
 
@@ -11701,7 +11701,7 @@ int Write_rows_log_event::do_after_row_operations(
 
     if (get_flags(STMT_END_F)) m_table->file->ha_release_auto_increment();
   }
-  m_table->next_number_field = 0;
+  m_table->next_number_field = nullptr;
   m_table->autoinc_field_has_explicit_non_null_value = false;
   if ((local_error = m_table->file->ha_end_bulk_insert())) {
     m_table->file->print_error(local_error, MYF(0));
@@ -12170,7 +12170,7 @@ void Update_rows_log_event::init(MY_BITMAP const *cols) {
 Update_rows_log_event::~Update_rows_log_event() {
   if (m_cols_ai.bitmap) {
     if (m_cols_ai.bitmap == m_bitbuf_ai)  // no my_malloc happened
-      m_cols_ai.bitmap = 0;               // so no my_free in bitmap_free
+      m_cols_ai.bitmap = nullptr;         // so no my_free in bitmap_free
     bitmap_free(&m_cols_ai);              // To pair with bitmap_init().
   }
 }
@@ -13056,7 +13056,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   }
   buf = buffer;
   // if buf is empty, is_valid will be false
-  common_header->set_is_valid(buf != 0);
+  common_header->set_is_valid(buf != nullptr);
 }
 
 int Previous_gtids_log_event::pack_info(Protocol *protocol) {

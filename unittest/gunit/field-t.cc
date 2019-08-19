@@ -67,7 +67,7 @@ class Mock_table : public TABLE {
  public:
   Mock_table(THD *thd) {
     null_row = false;
-    read_set = 0;
+    read_set = nullptr;
     in_use = thd;
   }
 };
@@ -101,7 +101,7 @@ class Mock_protocol : public Protocol {
   int shutdown(bool server_shutdown MY_ATTRIBUTE((unused)) = false) override {
     return 0;
   }
-  SSL_handle get_ssl() { return 0; }
+  SSL_handle get_ssl() { return nullptr; }
   void start_row() override {}
   bool end_row() override { return false; }
   bool connection_alive() const override { return false; }
@@ -220,7 +220,7 @@ TEST_F(FieldTest, FieldTimef) {
   EXPECT_EQ(0, field->store_time(&bigTime, 4));
   EXPECT_FALSE(field->get_date(&dateTime, 0));
 
-  make_datetime((Date_time_format *)0, &dateTime, &timeStr, 6);
+  make_datetime((Date_time_format *)nullptr, &dateTime, &timeStr, 6);
   // Skip 'yyyy-mm-dd ' since that will depend on current time zone.
   EXPECT_STREQ("03:45:45.555500", timeStr.c_ptr() + 11);
 
@@ -368,19 +368,19 @@ TEST_F(FieldTest, FieldTime) {
   compareMysqlTime(bigTime, t);
 }
 
-const char *type_names3[] = {"one", "two", "three", NULL};
+const char *type_names3[] = {"one", "two", "three", nullptr};
 unsigned int type_lengths3[] = {3U, 3U, 5U, 0U};
 TYPELIB tl3 = {3, "tl3", type_names3, type_lengths3};
 
-const char *type_names4[] = {"one", "two", "three", "four", NULL};
+const char *type_names4[] = {"one", "two", "three", "four", nullptr};
 unsigned int type_lengths4[] = {3U, 3U, 5U, 4U, 0U};
 TYPELIB tl4 = {4, "tl4", type_names4, type_lengths4};
 
 Field_set *FieldTest::create_field_set(TYPELIB *tl) {
   Field_set *f =
-      new (thd()->mem_root) Field_set(NULL,                 // ptr_arg
+      new (thd()->mem_root) Field_set(nullptr,              // ptr_arg
                                       42,                   // len_arg
-                                      NULL,                 // null_ptr_arg
+                                      nullptr,              // null_ptr_arg
                                       '\0',                 // null_bit_arg
                                       Field::NONE,          // auto_flags_arg
                                       "f1",                 // field_name_arg
@@ -539,7 +539,8 @@ static void test_integer_field(Field *field) {
 TEST_F(FieldTest, MakeSortKey) {
   {
     SCOPED_TRACE("Field_decimal");
-    Field_decimal fd(NULL, 64, NULL, '\0', Field::NONE, "", 0, false, false);
+    Field_decimal fd(nullptr, 64, nullptr, '\0', Field::NONE, "", 0, false,
+                     false);
     test_make_sort_key(&fd);
   }
   {
@@ -549,7 +550,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_tiny");
-    Field_tiny ft(NULL, 0, NULL, '\0', Field::NONE, "", false, true);
+    Field_tiny ft(nullptr, 0, nullptr, '\0', Field::NONE, "", false, true);
     test_make_sort_key(&ft);
   }
   {
@@ -564,19 +565,21 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_longlong");
-    Field_longlong fll(NULL, 64, NULL, '\0', Field::NONE, "", false, true);
+    Field_longlong fll(nullptr, 64, nullptr, '\0', Field::NONE, "", false,
+                       true);
     test_integer_field(&fll);
   }
   {
     SCOPED_TRACE("Field_float");
-    Field_float ff(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
+    Field_float ff(nullptr, 0, nullptr, '\0', Field::NONE, "", 0, false, false);
     float from = 0.0;
     uchar to[] = {128, 0, 0, 0};
     test_make_sort_key(&ff, reinterpret_cast<uchar *>(&from), to, 4);
   }
   {
     SCOPED_TRACE("Field_double");
-    Field_double fd(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
+    Field_double fd(nullptr, 0, nullptr, '\0', Field::NONE, "", 0, false,
+                    false);
     double from = 0.0;
     uchar expected[] = {128, 0, 0, 0, 0, 0, 0, 0};
     test_make_sort_key(&fd, reinterpret_cast<uchar *>(&from), expected, 8);
@@ -586,7 +589,7 @@ TEST_F(FieldTest, MakeSortKey) {
     CHARSET_INFO cs;
     cs.state = MY_CHARSET_UNDEFINED;  // Avoid valgrind warning.
     cs.mbmaxlen = 1;
-    Field_null fn(NULL, 0, Field::NONE, "", &cs);
+    Field_null fn(nullptr, 0, Field::NONE, "", &cs);
     EXPECT_TRUE(fn.real_maybe_null());
     EXPECT_TRUE(fn.is_null());
     test_make_sort_key(&fn);
@@ -598,7 +601,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_timestampf");
-    Field_timestampf ftsf(NULL, NULL, 0, Field::NONE, "",
+    Field_timestampf ftsf(nullptr, nullptr, 0, Field::NONE, "",
                           DATETIME_MAX_DECIMALS);
     test_make_sort_key(&ftsf);
   }
@@ -623,13 +626,13 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_datetime");
-    Field_datetime fdt(NULL, NULL, '\0', Field::NONE, NULL);
+    Field_datetime fdt(nullptr, nullptr, '\0', Field::NONE, nullptr);
     test_integer_field(&fdt);
   }
   {
     SCOPED_TRACE("Field_string");
     Mock_charset mock_charset;
-    Field_string fs(NULL, 0, NULL, '\0', Field::NONE, "", &mock_charset);
+    Field_string fs(nullptr, 0, nullptr, '\0', Field::NONE, "", &mock_charset);
     uchar to;
     fs.make_sort_key(&to, 666);
   }
@@ -638,7 +641,7 @@ TEST_F(FieldTest, MakeSortKey) {
     Mock_charset mock_charset;
     Fake_TABLE_SHARE fake_share(0);
     uchar ptr[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    Field_varstring fvs(ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
+    Field_varstring fvs(ptr, 0, 0, nullptr, '\0', Field::NONE, "", &fake_share,
                         &mock_charset);
     uchar to;
     fvs.make_sort_key(&to, 666);
@@ -654,8 +657,8 @@ TEST_F(FieldTest, MakeSortKey) {
     SCOPED_TRACE("Field_enum");
     for (int pack_length = 1; pack_length <= 8; ++pack_length)
       for (int key_length = 1; key_length <= 8; ++key_length) {
-        Field_enum fe(NULL, 0, NULL, '\0', Field::NONE, "", pack_length, NULL,
-                      &my_charset_bin);
+        Field_enum fe(nullptr, 0, nullptr, '\0', Field::NONE, "", pack_length,
+                      nullptr, &my_charset_bin);
         uchar from[] = {'1', '2', '3', '4', '5', '6', '7', '8'};
         uchar expected[] =
 #ifdef WORDS_BIGENDIAN
@@ -669,7 +672,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_bit");
-    Field_bit fb(NULL, 0, NULL, '\0', NULL, '\0', Field::NONE, "");
+    Field_bit fb(nullptr, 0, nullptr, '\0', nullptr, '\0', Field::NONE, "");
   }
 }
 

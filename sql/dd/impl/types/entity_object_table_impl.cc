@@ -63,7 +63,7 @@ bool Entity_object_table_impl::restore_object_from_record(
   */
   if (obj->impl()->restore_attributes(record) ||
       obj->impl()->restore_children(otx) || obj->impl()->validate()) {
-    *o = NULL;
+    *o = nullptr;
     return true;
   }
 

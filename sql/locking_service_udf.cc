@@ -45,9 +45,9 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
   initid->maybe_null = false;
   initid->decimals = 0;
   initid->max_length = 1;
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
   initid->const_item = false;
-  initid->extension = NULL;
+  initid->extension = nullptr;
 
   // At least three arguments - namespace, lock, timeout
   if (args->arg_count < 3) {
@@ -86,7 +86,7 @@ long long service_get_read_locks(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   long long timeout = *((long long *)args->args[args->arg_count - 1]);
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
-      NULL, lock_namespace, const_cast<const char **>(&args->args[1]),
+      nullptr, lock_namespace, const_cast<const char **>(&args->args[1]),
       args->arg_count - 2, LOCKING_SERVICE_READ, static_cast<ulong>(timeout));
 }
 
@@ -101,7 +101,7 @@ long long service_get_write_locks(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   long long timeout = *((long long *)args->args[args->arg_count - 1]);
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
-      NULL, lock_namespace, const_cast<const char **>(&args->args[1]),
+      nullptr, lock_namespace, const_cast<const char **>(&args->args[1]),
       args->arg_count - 2, LOCKING_SERVICE_WRITE,
       (timeout == -1 ? TIMEOUT_INF : static_cast<Timeout_type>(timeout)));
 }
@@ -111,9 +111,9 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->maybe_null = false;
   initid->decimals = 0;
   initid->max_length = 1;
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
   initid->const_item = false;
-  initid->extension = NULL;
+  initid->extension = nullptr;
 
   // Only one argument - lock_namespace (string)
   if (args->arg_count != 1) {
@@ -132,7 +132,7 @@ long long service_release_locks(UDF_INIT *, UDF_ARGS *args, unsigned char *,
                                 unsigned char *) {
   const char *lock_namespace = args->args[0];
   // For the UDF 1 == success, 0 == failure.
-  return !release_locking_service_locks(NULL, lock_namespace);
+  return !release_locking_service_locks(nullptr, lock_namespace);
 }
 
 }  // extern "C"

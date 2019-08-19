@@ -188,11 +188,11 @@ bool my_getopt_is_args_separator(const char *arg) {
   return (arg == args_separator);
 }
 
-const char *my_defaults_file = 0;
-const char *my_defaults_group_suffix = 0;
-const char *my_defaults_extra_file = 0;
+const char *my_defaults_file = nullptr;
+const char *my_defaults_group_suffix = nullptr;
+const char *my_defaults_extra_file = nullptr;
 
-static const char *my_login_path = 0;
+static const char *my_login_path = nullptr;
 
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
@@ -206,12 +206,12 @@ bool no_defaults = false;
 
 #define MAX_DEFAULT_DIRS 6
 #define DEFAULT_DIRS_SIZE (MAX_DEFAULT_DIRS + 1) /* Terminate with NULL */
-static const char **default_directories = NULL;
+static const char **default_directories = nullptr;
 
 #ifdef _WIN32
 static const char *f_extensions[] = {".ini", ".cnf", 0};
 #else
-static const char *f_extensions[] = {".cnf", 0};
+static const char *f_extensions[] = {".cnf", nullptr};
 #endif
 
 extern "C" {
@@ -290,7 +290,7 @@ static int fn_expand(const char *filename, char *result_buf) {
   DBUG_PRINT("enter", ("filename: %s, result_buf: %p", filename, result_buf));
   if (my_getwd(dir, sizeof(dir), MYF(0))) return 3;
   DBUG_PRINT("debug", ("dir: %s", dir));
-  if (fn_format(result_buf, filename, dir, "", flags) == NULL) return 2;
+  if (fn_format(result_buf, filename, dir, "", flags) == nullptr) return 2;
   DBUG_PRINT("return", ("result: %s", result_buf));
   return 0;
 }
@@ -403,7 +403,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
       group->count *= 2;
       group->type_names = extra_groups;
-      group->type_names[group->count] = 0;
+      group->type_names[group->count] = nullptr;
     }
   } else if (my_login_path && func == handle_default_option) {
     /* Handle --login_path= */
@@ -442,7 +442,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
     group->count += 1;
     group->type_names = extra_groups;
-    group->type_names[group->count] = 0;
+    group->type_names[group->count] = nullptr;
   }
 
   // If conf_file is an absolute path, we only read it
@@ -555,7 +555,7 @@ int get_defaults_options(int argc, char **argv, char **defaults,
                          char **extra_defaults, char **group_suffix,
                          char **login_path, bool found_no_defaults) {
   int org_argc = argc, prev_argc = 0, default_option_count = 0;
-  *defaults = *extra_defaults = *group_suffix = *login_path = 0;
+  *defaults = *extra_defaults = *group_suffix = *login_path = nullptr;
 
   while (argc >= 2 && argc != prev_argc) {
     /* Skip program name or previously handled argument */
@@ -682,7 +682,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   uint args_sep = my_getopt_use_args_separator ? 1 : 0;
   DBUG_TRACE;
 
-  if ((dirs = init_default_directories(alloc)) == NULL) goto err;
+  if ((dirs = init_default_directories(alloc)) == nullptr) goto err;
   /*
     Check if the user doesn't want any default option processing
     --no-defaults is always the first option
@@ -752,7 +752,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   if (*argc)
     memcpy((uchar *)(res + 1 + my_args.size() + args_sep),
            (char *)((*argv) + 1), (*argc - 1) * sizeof(char *));
-  res[my_args.size() + *argc + args_sep] = 0; /* last null */
+  res[my_args.size() + *argc + args_sep] = nullptr; /* last null */
 
   (*argc) += my_args.size() + args_sep;
   *argv = const_cast<char **>(res);
@@ -790,7 +790,7 @@ static int search_default_file(Process_option_func opt_handler,
                                void *handler_ctx, const char *dir,
                                const char *config_file, bool is_login_file) {
   const char **ext;
-  const char *empty_list[] = {"", 0};
+  const char *empty_list[] = {"", nullptr};
   bool have_ext = fn_ext(config_file)[0] != 0;
   const char **exts_to_use = have_ext ? empty_list : f_extensions;
 
@@ -842,7 +842,7 @@ static char *get_argument(const char *keyword, size_t kwlen, char *ptr,
   if (end <= ptr) {
     my_message_local(ERROR_LEVEL, EE_WRONG_DIRECTIVE_IN_CONFIG_FILE, keyword,
                      name, line);
-    return 0;
+    return nullptr;
   }
   return ptr;
 }
@@ -970,8 +970,8 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
             */
             if (it != default_paths.end()) default_paths[tmp] = it->second;
 
-            search_default_file_with_ext(opt_handler, handler_ctx, NULL, NULL,
-                                         tmp, recursion_level + 1,
+            search_default_file_with_ext(opt_handler, handler_ctx, nullptr,
+                                         nullptr, tmp, recursion_level + 1,
                                          is_login_file);
           }
         }
@@ -999,8 +999,8 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
             fn_format(tmp, ptr, "", "", MY_UNPACK_FILENAME | MY_SAFE_PATH))
           default_paths[tmp] = it->second;
 
-        search_default_file_with_ext(opt_handler, handler_ctx, NULL, NULL, ptr,
-                                     recursion_level + 1, is_login_file);
+        search_default_file_with_ext(opt_handler, handler_ctx, nullptr, nullptr,
+                                     ptr, recursion_level + 1, is_login_file);
       }
 
       continue;
@@ -1025,7 +1025,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
               std::min<size_t>((end - ptr) + 1, sizeof(curr_gr) - 1));
 
       /* signal that a new group is found */
-      opt_handler(handler_ctx, curr_gr, NULL, NULL);
+      opt_handler(handler_ctx, curr_gr, nullptr, nullptr);
 
       continue;
     }
@@ -1176,9 +1176,9 @@ static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
       return false;
 
     mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
-    if ((length = my_aes_decrypt(cipher, cipher_len, (unsigned char *)str,
-                                 my_key, LOGIN_KEY_LEN, my_aes_128_ecb, NULL)) <
-        0) {
+    if ((length =
+             my_aes_decrypt(cipher, cipher_len, (unsigned char *)str, my_key,
+                            LOGIN_KEY_LEN, my_aes_128_ecb, nullptr)) < 0) {
       /* Attempt to decrypt failed. */
       return false;
     }
@@ -1193,7 +1193,7 @@ static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
 }
 
 void my_print_default_files(const char *conf_file) {
-  const char *empty_list[] = {"", 0};
+  const char *empty_list[] = {"", nullptr};
   bool have_ext = fn_ext(conf_file)[0] != 0;
   const char **exts_to_use = have_ext ? empty_list : f_extensions;
   char name[FN_REFLEN];
@@ -1210,7 +1210,7 @@ void my_print_default_files(const char *conf_file) {
     MEM_ROOT alloc;
     init_alloc_root(key_memory_defaults, &alloc, 512, 0);
 
-    if ((dirs = init_default_directories(&alloc)) == NULL) {
+    if ((dirs = init_default_directories(&alloc)) == nullptr) {
       fputs("Internal error initializing default directories list", stdout);
     } else {
       for (; *dirs; dirs++) {
@@ -1547,7 +1547,7 @@ static const char **init_default_directories(MEM_ROOT *alloc) {
   int errors = 0;
 
   dirs = (const char **)alloc->Alloc(DEFAULT_DIRS_SIZE * sizeof(char *));
-  if (dirs == NULL) return NULL;
+  if (dirs == nullptr) return nullptr;
   memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 
 #ifdef _WIN32
@@ -1587,7 +1587,7 @@ static const char **init_default_directories(MEM_ROOT *alloc) {
   errors += add_directory(alloc, "~/", dirs);
 #endif
 
-  return (errors > 0 ? NULL : dirs);
+  return (errors > 0 ? nullptr : dirs);
 }
 
 /**

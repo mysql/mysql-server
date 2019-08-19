@@ -552,14 +552,14 @@ ib_uint64_t mach_u64_parse_compressed(const byte **ptr, const byte *end_ptr) {
   ib_uint64_t val = 0;
 
   if (end_ptr < *ptr + 5) {
-    *ptr = NULL;
+    *ptr = nullptr;
     return (val);
   }
 
   val = mach_read_next_compressed(ptr);
 
   if (end_ptr < *ptr + 4) {
-    *ptr = NULL;
+    *ptr = nullptr;
     return (val);
   }
 

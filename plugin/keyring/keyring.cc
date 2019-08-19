@@ -59,7 +59,7 @@ int check_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   int len = sizeof(buff);
   std::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
 
-  (*(const char **)save) = NULL;
+  (*(const char **)save) = nullptr;
   keyring_filename = value->val_str(value, buff, &len);
   mysql_rwlock_wrlock(&LOCK_keyring);
   if (create_keyring_dir_if_does_not_exist(keyring_filename)) {
@@ -83,7 +83,7 @@ int check_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   return (0);
 }
 
-static char *keyring_file_data_value = NULL;
+static char *keyring_file_data_value = nullptr;
 static MYSQL_SYSVAR_STR(
     data,                                              /* name       */
     keyring_file_data_value,                           /* value      */
@@ -96,11 +96,11 @@ static MYSQL_SYSVAR_STR(
 
 static MYSQL_SYSVAR_BOOL(open_mode, keyring_open_mode,
                          PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
-                         "Mode in which keyring file should be opened", NULL,
-                         NULL, true);
+                         "Mode in which keyring file should be opened", nullptr,
+                         nullptr, true);
 
 static SYS_VAR *keyring_file_system_variables[] = {
-    MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), NULL};
+    MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), nullptr};
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -143,7 +143,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     is_keys_container_initialized = true;
     return false;
   } catch (...) {
-    if (logger != NULL)
+    if (logger != nullptr)
       logger->log(ERROR_LEVEL, ER_KEYRING_INTERNAL_EXCEPTION_FAILED_FILE_INIT);
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return true;
@@ -190,10 +190,10 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
                                const char *user_id, size_t key_len) {
   try {
     std::unique_ptr<IKey> key_candidate(
-        new Key(key_id, key_type, user_id, NULL, 0));
+        new Key(key_id, key_type, user_id, nullptr, 0));
 
     std::unique_ptr<uchar[]> key(new uchar[key_len]);
-    if (key.get() == NULL) return true;
+    if (key.get() == nullptr) return true;
     memset(key.get(), 0, key_len);
     if (is_keys_container_initialized == false ||
         check_key_for_writing(key_candidate.get(), "generating") ||
@@ -203,7 +203,7 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
     return mysql_key_store(key_id, key_type, user_id, key.get(), key_len) ==
            true;
   } catch (...) {
-    if (logger != NULL)
+    if (logger != nullptr)
       logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_GENERATE_KEY);
     return true;
   }
@@ -251,11 +251,11 @@ mysql_declare_plugin(keyring_file){
     "store/fetch authentication data to/from a flat file", /*   description */
     PLUGIN_LICENSE_GPL,
     keyring_init,                  /*   init function (when loaded)     */
-    NULL,                          /*   check uninstall function        */
+    nullptr,                       /*   check uninstall function        */
     keyring_deinit,                /*   deinit function (when unloaded) */
     0x0100,                        /*   version                         */
-    NULL,                          /*   status variables                */
+    nullptr,                       /*   status variables                */
     keyring_file_system_variables, /*   system variables                */
-    NULL,
+    nullptr,
     PLUGIN_OPT_ALLOW_EARLY,
 } mysql_declare_plugin_end;

@@ -255,7 +255,7 @@ static inline int inline_mysql_rwlock_init(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   that->m_psi = PSI_RWLOCK_CALL(init_rwlock)(key, &that->m_rwlock);
 #else
-  that->m_psi = NULL;
+  that->m_psi = nullptr;
 #endif
   return native_rw_init(&that->m_rwlock);
 }
@@ -268,7 +268,7 @@ static inline int inline_mysql_prlock_init(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   that->m_psi = PSI_RWLOCK_CALL(init_rwlock)(key, &that->m_prlock);
 #else
-  that->m_psi = NULL;
+  that->m_psi = nullptr;
 #endif
   return rw_pr_init(&that->m_prlock);
 }
@@ -278,9 +278,9 @@ static inline int inline_mysql_rwlock_destroy(
     mysql_rwlock_t *that, const char *src_file MY_ATTRIBUTE((unused)),
     int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(that->m_psi);
-    that->m_psi = NULL;
+    that->m_psi = nullptr;
   }
 #endif
   return native_rw_destroy(&that->m_rwlock);
@@ -291,9 +291,9 @@ static inline int inline_mysql_prlock_destroy(
     mysql_prlock_t *that, const char *src_file MY_ATTRIBUTE((unused)),
     int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(that->m_psi);
-    that->m_psi = NULL;
+    that->m_psi = nullptr;
   }
 #endif
   return rw_pr_destroy(&that->m_prlock);
@@ -306,7 +306,7 @@ static inline int inline_mysql_rwlock_rdlock(
   int result;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
@@ -317,7 +317,7 @@ static inline int inline_mysql_rwlock_rdlock(
     result = native_rw_rdlock(&that->m_rwlock);
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
     }
 
@@ -338,7 +338,7 @@ static inline int inline_mysql_prlock_rdlock(
   int result;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
@@ -349,7 +349,7 @@ static inline int inline_mysql_prlock_rdlock(
     result = rw_pr_rdlock(&that->m_prlock);
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
     }
 
@@ -370,7 +370,7 @@ static inline int inline_mysql_rwlock_wrlock(
   int result;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
@@ -381,7 +381,7 @@ static inline int inline_mysql_rwlock_wrlock(
     result = native_rw_wrlock(&that->m_rwlock);
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
     }
 
@@ -402,7 +402,7 @@ static inline int inline_mysql_prlock_wrlock(
   int result;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
@@ -413,7 +413,7 @@ static inline int inline_mysql_prlock_wrlock(
     result = rw_pr_wrlock(&that->m_prlock);
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
     }
 
@@ -434,7 +434,7 @@ static inline int inline_mysql_rwlock_tryrdlock(
   int result;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
@@ -445,7 +445,7 @@ static inline int inline_mysql_rwlock_tryrdlock(
     result = native_rw_tryrdlock(&that->m_rwlock);
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, result);
     }
 
@@ -465,7 +465,7 @@ static inline int inline_mysql_rwlock_trywrlock(
   int result;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_rwlock_locker *locker;
     PSI_rwlock_locker_state state;
@@ -476,7 +476,7 @@ static inline int inline_mysql_rwlock_trywrlock(
     result = native_rw_trywrlock(&that->m_rwlock);
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, result);
     }
 
@@ -495,7 +495,7 @@ static inline int inline_mysql_rwlock_unlock(
     int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
   }
 #endif
@@ -509,7 +509,7 @@ static inline int inline_mysql_prlock_unlock(
     int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
   }
 #endif

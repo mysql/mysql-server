@@ -142,11 +142,11 @@ String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2) {
 
   uint errors;
   String *res = val_str_ascii(str);
-  if (!res) return 0;
+  if (!res) return nullptr;
 
   if ((null_value = str2->copy(res->ptr(), res->length(), &my_charset_latin1,
                                collation.collation, &errors)))
-    return 0;
+    return nullptr;
 
   return str2;
 }
@@ -166,7 +166,7 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   char buff[64];
   String *res, tmp(buff, sizeof(buff), &my_charset_bin);
   res = val_str(&tmp);
-  if (!res) return 0;
+  if (!res) return nullptr;
   (void)str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                        res->charset(), decimal_value);
   return decimal_value;
@@ -213,14 +213,14 @@ String *Item_func_md5::val_str_ascii(String *str) {
     if (str->alloc(32))  // Ensure that memory is free
     {
       null_value = true;
-      return 0;
+      return nullptr;
     }
     array_to_hex(str->ptr(), digest, MD5_HASH_SIZE);
     str->length((uint)32);
     return str;
   }
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -262,7 +262,7 @@ String *Item_func_sha::val_str_ascii(String *str) {
     }
   }
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_sha::resolve_type(THD *) {
@@ -288,13 +288,13 @@ String *Item_func_sha2::val_str_ascii(String *str) {
   String *input_string = args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
 
-  if (input_string == NULL) {
+  if (input_string == nullptr) {
     null_value = true;
-    return (String *)NULL;
+    return (String *)nullptr;
   }
 
   null_value = args[0]->null_value;
-  if (null_value) return NULL;
+  if (null_value) return nullptr;
 
   const unsigned char *input_ptr =
       pointer_cast<const unsigned char *>(input_string->ptr());
@@ -335,7 +335,7 @@ String *Item_func_sha2::val_str_ascii(String *str) {
             ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
             ER_THD(current_thd, ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
       null_value = true;
-      return NULL;
+      return nullptr;
   }
 
   /*
@@ -440,7 +440,7 @@ class iv_argument {
                                        uint arg_count, Item **args,
                                        const char *func_name, THD *thd,
                                        bool *error_generated) {
-    const unsigned char *iv_str = NULL;
+    const unsigned char *iv_str = nullptr;
 
     *error_generated = false;
 
@@ -452,13 +452,13 @@ class iv_argument {
           my_error(ER_AES_INVALID_IV, MYF(0), func_name,
                    (long long)MY_AES_IV_SIZE);
           *error_generated = true;
-          return NULL;
+          return nullptr;
         }
         iv_str = (unsigned char *)iv->ptr();
       } else {
         my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), func_name);
         *error_generated = true;
-        return NULL;
+        return nullptr;
       }
     } else {
       if (arg_count == 3) {
@@ -502,7 +502,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
     const unsigned char *iv_str =
         iv_arg.retrieve_iv_ptr((enum my_aes_opmode)aes_opmode, arg_count, args,
                                func_name(), thd, &null_value);
-    if (null_value) return NULL;
+    if (null_value) return nullptr;
 
     // Calculate result length
     aes_length =
@@ -524,7 +524,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
     }
   }
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_aes_encrypt::resolve_type(THD *thd) {
@@ -566,7 +566,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
     const unsigned char *iv_str =
         iv_arg.retrieve_iv_ptr((enum my_aes_opmode)aes_opmode, arg_count, args,
                                func_name(), thd, &null_value);
-    if (null_value) return NULL;
+    if (null_value) return nullptr;
     str_value.set_charset(&my_charset_bin);
     if (!str_value.alloc(sptr->length()))  // Ensure that memory is free
     {
@@ -585,7 +585,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
   }
   // Bad parameters. No memory or bad data will all go here
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_aes_decrypt::resolve_type(THD *) {
@@ -621,20 +621,20 @@ String *Item_func_random_bytes::val_str(String *) {
   ulonglong n_bytes = args[0]->val_uint();
   null_value = args[0]->null_value;
 
-  if (null_value) return NULL;
+  if (null_value) return nullptr;
 
   str_value.set_charset(&my_charset_bin);
 
   if (n_bytes == 0 || n_bytes > MAX_RANDOM_BYTES_BUFFER) {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "length", func_name());
     null_value = true;
-    return NULL;
+    return nullptr;
   }
 
   if (str_value.alloc(n_bytes)) {
     my_error(ER_OUTOFMEMORY, n_bytes);
     null_value = true;
-    return NULL;
+    return nullptr;
   }
 
   str_value.set_charset(&my_charset_bin);
@@ -643,7 +643,7 @@ String *Item_func_random_bytes::val_str(String *) {
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), func_name(),
              "SSL library can't generate random bytes");
     null_value = true;
-    return NULL;
+    return nullptr;
   }
 
   str_value.length(n_bytes);
@@ -678,7 +678,7 @@ String *Item_func_to_base64::val_str_ascii(String *str) {
     if (too_long) {
       return push_packet_overflow_warning(current_thd, func_name());
     }
-    return 0;
+    return nullptr;
   }
   base64_encode(res->ptr(), (int)res->length(), tmp_value.ptr());
   DBUG_ASSERT(length > 0);
@@ -717,7 +717,7 @@ String *Item_func_from_base64::val_str(String *str) {
     if (too_long) {
       return push_packet_overflow_warning(current_thd, func_name());
     }
-    return 0;
+    return nullptr;
   }
   tmp_value.length((uint)length);
   null_value = false;
@@ -1069,13 +1069,13 @@ String *Item_func_reverse::val_str(String *str) {
   const char *ptr, *end;
   char *tmp;
 
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length()) return make_empty_result();
   if (tmp_value.alloced_length() < res->length() &&
       tmp_value.mem_realloc(res->length())) {
     null_value = true;
-    return 0;
+    return nullptr;
   }
   tmp_value.length(res->length());
   tmp_value.set_charset(res->charset());
@@ -1101,7 +1101,7 @@ String *Item_func_reverse::val_str(String *str) {
 
 bool Item_func_reverse::resolve_type(THD *) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   set_data_type_string(args[0]->max_char_length());
   return false;
 }
@@ -1282,7 +1282,7 @@ String *Item_str_conv::val_str(String *str) {
   String *res;
   if (!(res = args[0]->val_str(str))) {
     null_value = true; /* purecov: inspected */
-    return 0;          /* purecov: inspected */
+    return nullptr;    /* purecov: inspected */
   }
   null_value = false;
   if (multiply == 1) {
@@ -1312,7 +1312,7 @@ String *Item_str_conv::val_str(String *str) {
 bool Item_func_lower::resolve_type(THD *) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   multiply = collation.collation->casedn_multiply;
   converter = collation.collation->cset->casedn;
   set_data_type_string(args[0]->max_char_length() * multiply);
@@ -1322,7 +1322,7 @@ bool Item_func_lower::resolve_type(THD *) {
 bool Item_func_upper::resolve_type(THD *) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   multiply = collation.collation->caseup_multiply;
   converter = collation.collation->cset->caseup;
   set_data_type_string(args[0]->max_char_length() * multiply);
@@ -1337,7 +1337,8 @@ String *Item_func_left::val_str(String *str) {
   longlong length = args[1]->val_int();
   size_t char_pos;
 
-  if ((null_value = (args[0]->null_value || args[1]->null_value))) return 0;
+  if ((null_value = (args[0]->null_value || args[1]->null_value)))
+    return nullptr;
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   if ((length <= 0) && (!args[1]->unsigned_flag)) return make_empty_result();
@@ -1378,7 +1379,7 @@ String *Item_str_func::push_packet_overflow_warning(THD *thd,
 
 bool Item_func_left::resolve_type(THD *) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   left_right_max_length();
   return false;
 }
@@ -1390,7 +1391,7 @@ String *Item_func_right::val_str(String *str) {
   longlong length = args[1]->val_int();
 
   if ((null_value = (args[0]->null_value || args[1]->null_value)))
-    return 0; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   if ((length <= 0) && (!args[1]->unsigned_flag))
@@ -1408,7 +1409,7 @@ String *Item_func_right::val_str(String *str) {
 bool Item_func_right::resolve_type(THD *) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   left_right_max_length();
   return false;
 }
@@ -1425,7 +1426,7 @@ String *Item_func_substr::val_str(String *str) {
 
   if ((null_value = (args[0]->null_value || args[1]->null_value ||
                      (arg_count == 3 && args[2]->null_value))))
-    return 0; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   /* Negative or zero length, will return empty string. */
   if ((arg_count == 3) && (length <= 0) &&
@@ -1461,7 +1462,7 @@ bool Item_func_substr::resolve_type(THD *) {
 
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
 
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   if (args[1]->const_item()) {
     longlong start = args[1]->val_int();
     if (args[1]->null_value) goto end;
@@ -1511,7 +1512,7 @@ String *Item_func_substr_index::val_str(String *str) {
   if (args[0]->null_value || args[1]->null_value ||
       args[2]->null_value) {  // string and/or delim are null
     null_value = true;
-    return 0;
+    return nullptr;
   }
   null_value = false;
   size_t delimiter_length = delimiter->length();
@@ -1632,7 +1633,7 @@ String *Item_func_trim::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
 
   String *res = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return NULL;
+  if ((null_value = args[0]->null_value)) return nullptr;
 
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), system_charset_info);
@@ -1644,7 +1645,7 @@ String *Item_func_trim::val_str(String *str) {
 
   if (arg_count == 2) {
     remove_str = args[1]->val_str(&tmp);
-    if ((null_value = args[1]->null_value)) return NULL;
+    if ((null_value = args[1]->null_value)) return nullptr;
     if (remove_str->needs_conversion(collation.collation)) {
       remove_converted.copy(remove_str->ptr(), remove_str->length(),
                             remove_str->charset(), collation.collation,
@@ -1770,7 +1771,7 @@ static const char *trim_func_name(Item_func_trim::TRIM_MODE mode) {
     case Item_func_trim::TRIM_RTRIM:
       return "rtrim";
   }
-  return NULL;
+  return nullptr;
 }
 
 void Item_func_trim::print(const THD *thd, String *str,
@@ -1789,7 +1790,7 @@ void Item_func_trim::print(const THD *thd, String *str,
       mode_name = "trailing ";
       break;
     default:
-      mode_name = NULL;
+      mode_name = nullptr;
       break;
   }
   if (mode_name) {
@@ -1836,9 +1837,9 @@ bool Item_func_database::itemize(Parse_context *pc, Item **res) {
 String *Item_func_database::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   THD *thd = current_thd;
-  if (thd->db().str == NULL) {
+  if (thd->db().str == nullptr) {
     null_value = true;
-    return 0;
+    return nullptr;
   } else
     str->copy(thd->db().str, thd->db().length, system_charset_info);
   return str;
@@ -1851,7 +1852,7 @@ String *Item_func_database::val_str(String *str) {
 */
 bool Item_func_user::init(const char *user, const char *host) {
   DBUG_ASSERT(fixed == 1);
-  DBUG_ASSERT(host != 0);
+  DBUG_ASSERT(host != nullptr);
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user) {
     const CHARSET_INFO *cs = str_value.charset();
@@ -1905,7 +1906,7 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref) {
 bool Item_func_soundex::resolve_type(THD *) {
   uint32 char_length = args[0]->max_char_length();
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   char_length = max(char_length, 4U);
   set_data_type_string(char_length);
   tmp_value.set_charset(collation.collation);
@@ -1954,7 +1955,8 @@ String *Item_func_soundex::val_str(String *str) {
   uint nchars;
   int rc;
 
-  if ((null_value = args[0]->null_value)) return 0; /* purecov: inspected */
+  if ((null_value = args[0]->null_value))
+    return nullptr; /* purecov: inspected */
 
   if (tmp_value.alloc(
           max(res->length(), static_cast<size_t>(4 * cs->mbminlen))))
@@ -2067,7 +2069,7 @@ bool Item_func_format::resolve_type(THD *) {
   set_data_type_string(char_length + max_sep_count + decimals,
                        default_charset());
   if (arg_count == 3)
-    locale = args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
+    locale = args[2]->basic_const_item() ? get_locale(args[2]) : nullptr;
   else
     locale = &my_locale_en_US; /* Two arguments */
   return reject_geometry_args(arg_count, args, this);
@@ -2091,7 +2093,7 @@ String *Item_func_format::val_str_ascii(String *str) {
   dec = (int)args[1]->val_int();
   if (args[1]->null_value) {
     null_value = true;
-    return NULL;
+    return nullptr;
   }
 
   lc = locale ? locale : get_locale(args[2]);
@@ -2104,13 +2106,15 @@ String *Item_func_format::val_str_ascii(String *str) {
       args[0]->result_type() == INT_RESULT) {
     my_decimal dec_val, rnd_dec, *res;
     res = args[0]->val_decimal(&dec_val);
-    if ((null_value = args[0]->null_value)) return 0; /* purecov: inspected */
+    if ((null_value = args[0]->null_value))
+      return nullptr; /* purecov: inspected */
     my_decimal_round(E_DEC_FATAL_ERROR, res, dec, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length = str->length();
   } else {
     double nr = args[0]->val_real();
-    if ((null_value = args[0]->null_value)) return 0; /* purecov: inspected */
+    if ((null_value = args[0]->null_value))
+      return nullptr; /* purecov: inspected */
     nr = my_double_round(nr, (longlong)dec, false, false);
     str->set_real(nr, dec, &my_charset_numeric);
     if (!std::isfinite(nr)) return str;
@@ -2228,7 +2232,7 @@ String *Item_func_elt::val_str(String *str) {
   null_value = true;
   if ((tmp = (uint)args[0]->val_int()) == 0 || args[0]->null_value ||
       tmp >= arg_count)
-    return NULL;
+    return nullptr;
 
   String *result = args[tmp]->val_str(str);
   if (result) result->set_charset(collation.collation);
@@ -2281,10 +2285,10 @@ String *Item_func_make_set::val_str(String *str) {
   ulonglong bits;
   bool first_found = false;
   Item **ptr = args;
-  String *result = NULL;
+  String *result = nullptr;
 
   bits = item->val_int();
-  if ((null_value = item->null_value)) return NULL;
+  if ((null_value = item->null_value)) return nullptr;
 
   if (arg_count < 64) bits &= ((ulonglong)1 << arg_count) - 1;
 
@@ -2304,7 +2308,7 @@ String *Item_func_make_set::val_str(String *str) {
           }
         } else {
           if (result != &tmp_str) {  // Copy data to tmp_str
-            if (tmp_str.alloc((result != NULL ? result->length() : 0) +
+            if (tmp_str.alloc((result != nullptr ? result->length() : 0) +
                               res->length() + 1) ||
                 tmp_str.copy(*result))
               return make_empty_result();
@@ -2317,13 +2321,13 @@ String *Item_func_make_set::val_str(String *str) {
       }
     }
   }
-  if (result == NULL) return make_empty_result();
+  if (result == nullptr) return make_empty_result();
   return result;
 }
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg) {
   Item *new_item = item->transform(transformer, arg);
-  if (!new_item) return 0;
+  if (!new_item) return nullptr;
 
   /*
     THD::change_item_tree() should be called only if the tree was
@@ -2387,7 +2391,7 @@ inline String *alloc_buffer(String *res, String *str, String *tmp_value,
       str->length(length);
       return str;
     }
-    if (tmp_value->alloc(length)) return 0;
+    if (tmp_value->alloc(length)) return nullptr;
     (void)tmp_value->copy(*res);
     tmp_value->length(length);
     return tmp_value;
@@ -2398,7 +2402,7 @@ inline String *alloc_buffer(String *res, String *str, String *tmp_value,
 
 bool Item_func_repeat::resolve_type(THD *thd) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
-  DBUG_ASSERT(collation.collation != NULL);
+  DBUG_ASSERT(collation.collation != nullptr);
   if (args[1]->const_item()) {
     /* must be longlong to avoid truncation */
     longlong count = args[1]->val_int();
@@ -2682,7 +2686,7 @@ String *Item_func_uuid_to_bin::val_str(String *str) {
   null_value = true;
 
   String *res = args[0]->val_str(str);
-  if (!res || args[0]->null_value) return NULL;
+  if (!res || args[0]->null_value) return nullptr;
 
   if (binary_log::Uuid::parse(res->ptr(), res->length(), m_bin_buf)) goto err;
 
@@ -2708,7 +2712,7 @@ err:
   ErrConvString err(res);
   my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
 
-  return NULL;
+  return nullptr;
 }
 
 bool Item_func_bin_to_uuid::resolve_type(THD *) {
@@ -2723,7 +2727,7 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str) {
   null_value = true;
 
   String *res = args[0]->val_str(str);
-  if (!res || args[0]->null_value) return NULL;
+  if (!res || args[0]->null_value) return nullptr;
 
   if (res->length() != binary_log::Uuid::BYTE_LENGTH) goto err;
 
@@ -2757,7 +2761,7 @@ err:
   ErrConvString err(res);
   my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
 
-  return NULL;
+  return nullptr;
 }
 
 longlong Item_func_is_uuid::val_int() {
@@ -2887,7 +2891,7 @@ String *Item_func_conv::val_str(String *str) {
       abs(to_base) < 2 || abs(from_base) > 36 || abs(from_base) < 2 ||
       !(res->length())) {
     null_value = true;
-    return NULL;
+    return nullptr;
   }
   null_value = false;
   unsigned_flag = !(from_base < 0);
@@ -2941,16 +2945,16 @@ String *Item_func_conv::val_str(String *str) {
 
 String *Item_func_conv_charset::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
-  if (use_cached_value) return null_value ? 0 : &str_value;
+  if (use_cached_value) return null_value ? nullptr : &str_value;
   String *arg = args[0]->val_str(str);
   uint dummy_errors;
   if (!arg) {
     null_value = true;
-    return 0;
+    return nullptr;
   }
   null_value = tmp_value.copy(arg->ptr(), arg->length(), arg->charset(),
                               conv_charset, &dummy_errors);
-  return null_value ? 0
+  return null_value ? nullptr
                     : check_well_formed_result(&tmp_value,
                                                false,  // send warning
                                                true);  // truncate
@@ -2976,7 +2980,7 @@ bool Item_func_set_collation::itemize(Parse_context *pc, Item **res) {
   THD *thd = pc->thd;
   args[1] = new (pc->mem_root) Item_string(
       collation_string.str, collation_string.length, thd->charset());
-  if (args[1] == NULL) return true;
+  if (args[1] == nullptr) return true;
 
   return super::itemize(pc, res);
 }
@@ -2984,7 +2988,7 @@ bool Item_func_set_collation::itemize(Parse_context *pc, Item **res) {
 String *Item_func_set_collation::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   str = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   str->set_charset(collation.collation);
   return str;
 }
@@ -3069,7 +3073,7 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res) {
     if (args[0]->itemize(pc, &args[0])) return true;
     args[0] = new (pc->mem_root)
         Item_typecast_char(args[0], num_codepoints, &my_charset_bin);
-    if (args[0] == NULL) return true;
+    if (args[0] == nullptr) return true;
   }
   return super::itemize(pc, res);
 }
@@ -3092,7 +3096,7 @@ bool Item_func_weight_string::resolve_type(THD *) {
   flags = my_strxfrm_flag_normalize(flags);
   field = args[0]->type() == FIELD_ITEM && args[0]->is_temporal()
               ? ((Item_field *)(args[0]))->field
-              : (Field *)NULL;
+              : (Field *)nullptr;
   /*
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
@@ -3209,7 +3213,7 @@ String *Item_func_hex::val_str_ascii(String *str) {
     /* Return hex of signed longlong value */
     longlong dec = args[0]->val_int();
 
-    if ((null_value = args[0]->null_value)) return 0;
+    if ((null_value = args[0]->null_value)) return nullptr;
 
     char ans[65], *ptr;
     if (!(ptr = longlong2str(dec, ans, 16)) ||
@@ -3222,7 +3226,7 @@ String *Item_func_hex::val_str_ascii(String *str) {
   res = args[0]->val_str(str);
   if (!res || tmp_value.alloc(res->length() * 2 + 1)) {
     null_value = true;
-    return 0;
+    return nullptr;
   }
   null_value = false;
   tmp_value.length(res->length() * 2);
@@ -3244,7 +3248,7 @@ String *Item_func_unhex::val_str(String *str) {
 
   res = args[0]->val_str(str);
   // For a NULL input value return NULL without any warning
-  if (args[0]->null_value) return NULL;
+  if (args[0]->null_value) return nullptr;
   if (!res || tmp_value.alloc(length = (1 + res->length()) / 2)) goto err;
 
   from = res->ptr();
@@ -3276,7 +3280,7 @@ err:
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",
                       err.c_ptr_safe(), func_name());
 
-  return NULL;
+  return nullptr;
 }
 
 #ifndef DBUG_OFF
@@ -3306,7 +3310,7 @@ String *Item_func_like_range::val_str(String *str) {
 
 err:
   null_value = true;
-  return 0;
+  return nullptr;
 }
 #endif
 
@@ -3530,7 +3534,7 @@ String *Item_func_export_set::val_str(String *str) {
   const ulonglong the_set = (ulonglong)args[0]->val_int();
   const String *yes = args[1]->val_str(&yes_buf);
   const String *no = args[2]->val_str(&no_buf);
-  const String *sep = NULL;
+  const String *sep = nullptr;
 
   ulonglong num_set_values = 64;
   str->length(0);
@@ -3589,7 +3593,7 @@ String *Item_func_export_set::val_str(String *str) {
     if (ix != num_separators) str->append(*sep);
   }
 
-  if (str->ptr() == NULL) return make_empty_result();
+  if (str->ptr() == nullptr) return make_empty_result();
 
   return str;
 }
@@ -3779,7 +3783,7 @@ ret:
 
 null:
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 /**
@@ -3844,7 +3848,7 @@ String *Item_func_compress::val_str(String *str) {
 
   if (!(res = args[0]->val_str(str))) {
     null_value = true;
-    return 0;
+    return nullptr;
   }
   null_value = false;
   if (res->is_empty()) return res;
@@ -3864,7 +3868,7 @@ String *Item_func_compress::val_str(String *str) {
   if (((new_size + 5) <= res->length()) ||
       buffer.mem_realloc(new_size + 4 + 1)) {
     null_value = true;
-    return 0;
+    return nullptr;
   }
 
   body = ((Byte *)buffer.ptr()) + 4;
@@ -3877,7 +3881,7 @@ String *Item_func_compress::val_str(String *str) {
                  err == Z_MEM_ERROR ? ER_THD(current_thd, ER_ZLIB_Z_MEM_ERROR)
                                     : ER_THD(current_thd, ER_ZLIB_Z_BUF_ERROR));
     null_value = true;
-    return 0;
+    return nullptr;
   }
 
   int4store(buffer.ptr(), res->length() & 0x3FFFFFFF);
@@ -3941,7 +3945,7 @@ String *Item_func_uncompress::val_str(String *str) {
 
 err:
   null_value = true;
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -4132,12 +4136,12 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
     args[*]->null_value to ensure that them are updated when
     this function is executed inside a stored procedure.
   */
-  if ((str1 = args[0]->val_str_ascii(&buf1)) != NULL &&
-      (charp1 = str1->c_ptr_safe()) != NULL &&
-      (str2 = args[1]->val_str_ascii(&buf2)) != NULL &&
-      (charp2 = str2->c_ptr_safe()) != NULL && !args[0]->null_value &&
+  if ((str1 = args[0]->val_str_ascii(&buf1)) != nullptr &&
+      (charp1 = str1->c_ptr_safe()) != nullptr &&
+      (str2 = args[1]->val_str_ascii(&buf2)) != nullptr &&
+      (charp2 = str2->c_ptr_safe()) != nullptr && !args[0]->null_value &&
       !args[1]->null_value) {
-    Sid_map sid_map(NULL /*no rwlock*/);
+    Sid_map sid_map(nullptr /*no rwlock*/);
     // compute sets while holding locks
     Gtid_set set1(&sid_map, charp1, &status);
     if (status == RETURN_STATUS_OK) {
@@ -4156,7 +4160,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
     }
   }
   null_value = true;
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -4849,7 +4853,7 @@ String *Item_func_convert_cpu_id_mask::val_str(String *str) {
 
 void Item_func_current_role::cleanup() {
   if (value_cache_set) {
-    value_cache.set((char *)NULL, 0, system_charset_info);
+    value_cache.set((char *)nullptr, 0, system_charset_info);
     value_cache_set = false;
   }
 }
@@ -4899,7 +4903,7 @@ String *Item_func_roles_graphml::val_str(String *) {
 
 void Item_func_roles_graphml::cleanup() {
   if (value_cache_set) {
-    value_cache.set((char *)NULL, 0, system_charset_info);
+    value_cache.set((char *)nullptr, 0, system_charset_info);
     value_cache_set = false;
   }
 }

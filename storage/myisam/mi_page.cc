@@ -51,7 +51,7 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
     info->last_keypage = HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
     set_my_errno(HA_ERR_CRASHED);
-    return 0;
+    return nullptr;
   }
   info->last_keypage = page;
   page_size = mi_getint(tmp);
@@ -62,7 +62,7 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t page,
     info->last_keypage = HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
     set_my_errno(HA_ERR_CRASHED);
-    tmp = 0;
+    tmp = nullptr;
   }
   return tmp;
 } /* _mi_fetch_keypage */

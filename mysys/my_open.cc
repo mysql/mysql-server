@@ -143,7 +143,7 @@ int my_close(File fd, myf MyFlags) {
 File my_register_filename(File fd, const char *FileName,
                           enum file_type type_of_file,
                           uint error_message_number, myf MyFlags) {
-  char *dup_filename = NULL;
+  char *dup_filename = nullptr;
   DBUG_TRACE;
   if ((int)fd >= MY_FILE_MIN) {
     if ((uint)fd >= my_file_limit) {
@@ -157,7 +157,7 @@ File my_register_filename(File fd, const char *FileName,
 #endif
     } else {
       dup_filename = my_strdup(key_memory_my_file_info, FileName, MyFlags);
-      if (dup_filename != NULL) {
+      if (dup_filename != nullptr) {
         mysql_mutex_lock(&THR_LOCK_open);
         my_file_info[fd].name = dup_filename;
         my_file_opened++;

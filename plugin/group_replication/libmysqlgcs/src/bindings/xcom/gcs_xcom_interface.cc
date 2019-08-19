@@ -51,7 +51,7 @@ using std::map;
 using std::string;
 using std::vector;
 
-Gcs_interface *Gcs_xcom_interface::interface_reference_singleton = NULL;
+Gcs_interface *Gcs_xcom_interface::interface_reference_singleton = nullptr;
 
 Gcs_xcom_config::Gcs_xcom_config()
     : config_id_(null_synode), xcom_nodes_(), event_horizon_(0) {}
@@ -144,7 +144,7 @@ void cb_xcom_debugger(const char *format, ...)
 int cb_xcom_debugger_check(const int64_t options);
 
 Gcs_interface *Gcs_xcom_interface::get_interface() {
-  if (interface_reference_singleton == NULL) {
+  if (interface_reference_singleton == nullptr) {
 #ifdef SAFE_MUTEX
     /*
       Must invoke this function in order for safe mutexes to be used when GCS is
@@ -160,10 +160,10 @@ Gcs_interface *Gcs_xcom_interface::get_interface() {
 }
 
 void Gcs_xcom_interface::cleanup() {
-  if (interface_reference_singleton != NULL &&
+  if (interface_reference_singleton != nullptr &&
       !interface_reference_singleton->is_initialized()) {
     delete interface_reference_singleton;
-    interface_reference_singleton = NULL;
+    interface_reference_singleton = nullptr;
   }
 
   cleanup_thread_ssl_resources();
@@ -176,22 +176,22 @@ void Gcs_xcom_interface::cleanup_thread_ssl_resources() {
 Gcs_xcom_interface::Gcs_xcom_interface()
     : m_group_interfaces(),
       m_xcom_configured_groups(),
-      m_node_address(NULL),
+      m_node_address(nullptr),
       m_xcom_peers(),
       m_is_initialized(false),
       m_boot(false),
-      m_socket_util(NULL),
+      m_socket_util(nullptr),
       m_gcs_xcom_app_cfg(),
       m_initialization_parameters(),
-      m_default_sink(NULL),
-      m_default_logger(NULL),
-      m_default_debugger(NULL),
+      m_default_sink(nullptr),
+      m_default_logger(nullptr),
+      m_default_debugger(nullptr),
       m_ip_whitelist(),
       m_ssl_init_state(-1),
       m_wait_for_ssl_init_cond(),
       m_wait_for_ssl_init_mutex() {
   // Initialize random seed
-  srand(static_cast<unsigned int>(time(0)));
+  srand(static_cast<unsigned int>(time(nullptr)));
 
   My_xp_util::init_time();
 }
@@ -200,10 +200,10 @@ Gcs_xcom_interface::~Gcs_xcom_interface() {}
 
 enum_gcs_error Gcs_xcom_interface::initialize_logging(
     const std::string *debug_file, const std::string *debug_path) {
-  assert(m_default_sink == NULL);
+  assert(m_default_sink == nullptr);
 
 #ifndef XCOM_STANDALONE
-  if (debug_file != NULL && debug_path != NULL)
+  if (debug_file != nullptr && debug_path != nullptr)
     m_default_sink =
         new Gcs_async_buffer(new Gcs_file_sink(*debug_file, *debug_path));
   else
@@ -216,7 +216,7 @@ enum_gcs_error Gcs_xcom_interface::initialize_logging(
     return GCS_NOK;
   /* purecov: end */
 
-  if (Gcs_debug_manager::get_debugger() == NULL) {
+  if (Gcs_debug_manager::get_debugger() == nullptr) {
     m_default_debugger = new Gcs_default_debugger(m_default_sink);
     if (Gcs_debug_manager::initialize(m_default_debugger))
       /* purecov: begin inspected */
@@ -226,7 +226,7 @@ enum_gcs_error Gcs_xcom_interface::initialize_logging(
                            << m_default_sink->get_information(););
   }
 
-  if (Gcs_log_manager::get_logger() == NULL) {
+  if (Gcs_log_manager::get_logger() == nullptr) {
     /* purecov: begin tested */
     m_default_logger = new Gcs_default_logger(m_default_sink);
     if (Gcs_log_manager::initialize(m_default_logger)) return GCS_NOK;
@@ -248,26 +248,26 @@ enum_gcs_error Gcs_xcom_interface::initialize_logging(
 enum_gcs_error Gcs_xcom_interface::finalize_logging() {
   Gcs_log_manager::finalize();
 
-  if (m_default_logger != NULL) {
+  if (m_default_logger != nullptr) {
     /* purecov: begin inspected */
     m_default_logger->finalize();
     delete m_default_logger;
-    m_default_logger = NULL;
+    m_default_logger = nullptr;
     /* purecov: end */
   }
 
   Gcs_debug_manager::finalize();
 
-  if (m_default_debugger != NULL) {
+  if (m_default_debugger != nullptr) {
     m_default_debugger->finalize();
     delete m_default_debugger;
-    m_default_debugger = NULL;
+    m_default_debugger = nullptr;
   }
 
-  if (m_default_sink != NULL) {
+  if (m_default_sink != nullptr) {
     m_default_sink->finalize();
     delete m_default_sink;
-    m_default_sink = NULL;
+    m_default_sink = nullptr;
   }
 
   return GCS_OK;
@@ -275,7 +275,7 @@ enum_gcs_error Gcs_xcom_interface::finalize_logging() {
 
 enum_gcs_error Gcs_xcom_interface::initialize(
     const Gcs_interface_parameters &interface_params) {
-  const std::string *ip_whitelist_str = NULL;
+  const std::string *ip_whitelist_str = nullptr;
   Gcs_interface_parameters validated_params;
 
   if (is_initialized()) return GCS_OK;
@@ -287,7 +287,7 @@ enum_gcs_error Gcs_xcom_interface::initialize(
   last_accepted_xcom_config.reset();
 
   m_wait_for_ssl_init_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_interface_m_wait_for_ssl_init_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_interface_m_wait_for_ssl_init_mutex, nullptr);
   m_wait_for_ssl_init_cond.init(
       key_GCS_COND_Gcs_xcom_interface_m_wait_for_ssl_init_cond);
 
@@ -378,7 +378,7 @@ err:
   m_gcs_xcom_app_cfg.deinit();
   Gcs_xcom_utils::deinit_net();
   delete m_socket_util;
-  m_socket_util = NULL;
+  m_socket_util = nullptr;
   /*
    Clear logging here. This should be done in case of failure
    on initialize.
@@ -398,7 +398,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   Gcs_interface_parameters validated_params;
   map<std::string, gcs_xcom_group_interfaces *>::const_iterator
       registered_group;
-  Gcs_xcom_control *xcom_control = NULL;
+  Gcs_xcom_control *xcom_control = nullptr;
 
   // Error! Interface still not initialized or finalize has already been invoked
   if (!is_initialized()) return GCS_NOK;
@@ -462,7 +462,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
       validated_params.get_parameter("join_sleep_time");
 
   // Mandatory
-  if (group_name_str == NULL) {
+  if (group_name_str == nullptr) {
     MYSQL_GCS_LOG_ERROR("The group_name parameter was not specified.")
     return GCS_NOK;
   }
@@ -481,7 +481,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   {
     Gcs_group_identifier group_id(*group_name_str);
     xcom_control = (Gcs_xcom_control *)get_control_session(group_id);
-    if (((bootstrap_group_str != NULL) || (local_node_str != NULL)) &&
+    if (((bootstrap_group_str != nullptr) || (local_node_str != nullptr)) &&
         xcom_control->belongs_to_group()) {
       /* Node still in the group */
       MYSQL_GCS_LOG_ERROR("Member is still in the group while trying to"
@@ -496,7 +496,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
     Perform reconfiguration, since we are all good to go
     ---------------------------------------------------------------
    */
-  if (bootstrap_group_str != NULL) {
+  if (bootstrap_group_str != nullptr) {
     // Changing bootstrap_group
     bool received_boot_param = bootstrap_group_str->compare("on") == 0 ||
                                bootstrap_group_str->compare("true") == 0;
@@ -507,7 +507,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
     reconfigured |= true;
   }
 
-  if (local_node_str != NULL) {
+  if (local_node_str != nullptr) {
     /* purecov: begin tested */
     // Changing local_node
     set_node_address(*local_node_str);
@@ -517,7 +517,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
     /* purecov: end */
   }
 
-  if (peer_nodes_str != NULL) {
+  if (peer_nodes_str != nullptr) {
     // Changing peer_nodes
     // Clear current nodes
     clear_peer_nodes();
@@ -529,7 +529,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
     reconfigured |= true;
   }
 
-  if (poll_spin_loops_str != NULL && poll_spin_loops_str->size() > 0) {
+  if (poll_spin_loops_str != nullptr && poll_spin_loops_str->size() > 0) {
     m_gcs_xcom_app_cfg.set_poll_spin_loops(
         (unsigned int)atoi(poll_spin_loops_str->c_str()));
 
@@ -564,7 +564,7 @@ void cleanup_xcom() {
 }
 
 void Gcs_xcom_interface::finalize_xcom() {
-  Gcs_group_identifier *group_identifier = NULL;
+  Gcs_group_identifier *group_identifier = nullptr;
   map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_it;
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
@@ -585,7 +585,7 @@ void Gcs_xcom_interface::finalize_xcom() {
 }
 
 void Gcs_xcom_interface::make_gcs_leave_group_on_error() {
-  Gcs_group_identifier *group_identifier = NULL;
+  Gcs_group_identifier *group_identifier = nullptr;
   map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_it;
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
@@ -607,13 +607,13 @@ enum_gcs_error Gcs_xcom_interface::finalize() {
   // Finalize and delete the engine
   gcs_engine->finalize(cleanup_xcom);
   delete gcs_engine;
-  gcs_engine = NULL;
+  gcs_engine = nullptr;
 
   m_is_initialized = false;
 
   // Delete references...
   delete m_node_address;
-  m_node_address = NULL;
+  m_node_address = nullptr;
 
   clean_group_references();
 
@@ -623,10 +623,10 @@ enum_gcs_error Gcs_xcom_interface::finalize() {
 
   // Delete the proxy
   delete s_xcom_proxy;
-  s_xcom_proxy = NULL;
+  s_xcom_proxy = nullptr;
 
   delete m_socket_util;
-  m_socket_util = NULL;
+  m_socket_util = nullptr;
 
   Gcs_xcom_utils::deinit_net();
 
@@ -651,14 +651,14 @@ Gcs_control_interface *Gcs_xcom_interface::get_control_session(
     const Gcs_group_identifier &group_identifier) {
   gcs_xcom_group_interfaces *group_if = get_group_interfaces(group_identifier);
 
-  return group_if == NULL ? NULL : group_if->control_interface;
+  return group_if == nullptr ? nullptr : group_if->control_interface;
 }
 
 Gcs_communication_interface *Gcs_xcom_interface::get_communication_session(
     const Gcs_group_identifier &group_identifier) {
   gcs_xcom_group_interfaces *group_if = get_group_interfaces(group_identifier);
 
-  return group_if == NULL ? NULL : group_if->communication_interface;
+  return group_if == nullptr ? nullptr : group_if->communication_interface;
 }
 
 /* purecov: begin deadcode */
@@ -666,7 +666,7 @@ Gcs_statistics_interface *Gcs_xcom_interface::get_statistics(
     const Gcs_group_identifier &group_identifier) {
   gcs_xcom_group_interfaces *group_if = get_group_interfaces(group_identifier);
 
-  return group_if == NULL ? NULL : group_if->statistics_interface;
+  return group_if == nullptr ? nullptr : group_if->statistics_interface;
 }
 /* purecov: end */
 
@@ -674,19 +674,19 @@ Gcs_group_management_interface *Gcs_xcom_interface::get_management_session(
     const Gcs_group_identifier &group_identifier) {
   gcs_xcom_group_interfaces *group_if = get_group_interfaces(group_identifier);
 
-  return group_if == NULL ? NULL : group_if->management_interface;
+  return group_if == nullptr ? nullptr : group_if->management_interface;
 }
 
 gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
     const Gcs_group_identifier &group_identifier) {
-  if (!is_initialized()) return NULL;
+  if (!is_initialized()) return nullptr;
 
   // Try and retrieve already instantiated group interfaces for a certain group
   map<std::string, gcs_xcom_group_interfaces *>::const_iterator
       registered_group;
   registered_group = m_group_interfaces.find(group_identifier.get_group_id());
 
-  gcs_xcom_group_interfaces *group_interface = NULL;
+  gcs_xcom_group_interfaces *group_interface = nullptr;
   if (registered_group == m_group_interfaces.end()) {
     /*
       Retrieve some initialization parameters.
@@ -818,7 +818,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   /*
     Whether the proxy should be created or not.
   */
-  bool create_proxy = (s_xcom_proxy == NULL ? true : false);
+  bool create_proxy = (s_xcom_proxy == nullptr ? true : false);
 
   /*
     Since initializing XCom is actually joining the group itself, one shall
@@ -864,13 +864,13 @@ bool Gcs_xcom_interface::initialize_xcom(
   MYSQL_GCS_LOG_DEBUG("Configured Bootstrap: %s", bootstrap_group_str->c_str())
 
   // configure poll spin loops
-  if (poll_spin_loops_str != NULL) {
+  if (poll_spin_loops_str != nullptr) {
     m_gcs_xcom_app_cfg.set_poll_spin_loops(
         (unsigned int)atoi(poll_spin_loops_str->c_str()));
   }
 
   // configure cache size
-  if (xcom_cache_size_str != NULL) {
+  if (xcom_cache_size_str != nullptr) {
     m_gcs_xcom_app_cfg.set_xcom_cache_size(
         (uint64_t)atoll(xcom_cache_size_str->c_str()));
     MYSQL_GCS_LOG_DEBUG("Configured XCom cache size: %s",
@@ -910,7 +910,7 @@ bool Gcs_xcom_interface::initialize_xcom(
 
   // Setup the processing engine
   gcs_engine = new Gcs_xcom_engine();
-  gcs_engine->initialize(NULL);
+  gcs_engine->initialize(nullptr);
 
   const std::string *ssl_mode_str = interface_params.get_parameter("ssl_mode");
   const std::string *ssl_fips_mode_str =
@@ -960,19 +960,19 @@ bool Gcs_xcom_interface::initialize_xcom(
         interface_params.get_parameter("tls_ciphersuites");
 
     Gcs_xcom_proxy::ssl_parameters ssl_configuration = {
-        server_key_file ? server_key_file->c_str() : NULL,
-        server_cert_file ? server_cert_file->c_str() : NULL,
-        client_key_file ? client_key_file->c_str() : NULL,
-        client_cert_file ? client_cert_file->c_str() : NULL,
-        ca_file ? ca_file->c_str() : NULL,
-        ca_path ? ca_path->c_str() : NULL,
-        crl_file ? crl_file->c_str() : NULL,
-        crl_path ? crl_path->c_str() : NULL,
-        cipher ? cipher->c_str() : NULL,
+        server_key_file ? server_key_file->c_str() : nullptr,
+        server_cert_file ? server_cert_file->c_str() : nullptr,
+        client_key_file ? client_key_file->c_str() : nullptr,
+        client_cert_file ? client_cert_file->c_str() : nullptr,
+        ca_file ? ca_file->c_str() : nullptr,
+        ca_path ? ca_path->c_str() : nullptr,
+        crl_file ? crl_file->c_str() : nullptr,
+        crl_path ? crl_path->c_str() : nullptr,
+        cipher ? cipher->c_str() : nullptr,
     };
     Gcs_xcom_proxy::tls_parameters tls_configuration = {
-        tls_version ? tls_version->c_str() : NULL,
-        tls_ciphersuites ? tls_ciphersuites->c_str() : NULL};
+        tls_version ? tls_version->c_str() : nullptr,
+        tls_ciphersuites ? tls_ciphersuites->c_str() : nullptr};
     s_xcom_proxy->xcom_set_ssl_parameters(ssl_configuration, tls_configuration);
 
     m_wait_for_ssl_init_mutex.lock();
@@ -998,13 +998,13 @@ bool Gcs_xcom_interface::initialize_xcom(
 
 error:
   /* purecov: begin deadcode */
-  assert(s_xcom_proxy != NULL);
-  assert(gcs_engine != NULL);
+  assert(s_xcom_proxy != nullptr);
+  assert(gcs_engine != nullptr);
   s_xcom_proxy->xcom_set_ssl_mode(0);      /* SSL_DISABLED */
   s_xcom_proxy->xcom_set_ssl_fips_mode(0); /* SSL_FIPS_MODE_OFF */
 
   delete m_node_address;
-  m_node_address = NULL;
+  m_node_address = nullptr;
 
   clear_peer_nodes();
 
@@ -1016,15 +1016,15 @@ error:
   */
   if (create_proxy) {
     delete s_xcom_proxy;
-    s_xcom_proxy = NULL;
+    s_xcom_proxy = nullptr;
   }
 
   /*
     Finalize and delete the processing engine.
   */
-  gcs_engine->finalize(NULL);
+  gcs_engine->finalize(nullptr);
   delete gcs_engine;
-  gcs_engine = NULL;
+  gcs_engine = nullptr;
 
   return true;
   /* purecov: end */
@@ -1055,7 +1055,7 @@ void Gcs_xcom_interface::clear_peer_nodes() {
 
 void Gcs_xcom_interface::set_xcom_group_information(
     const std::string &group_id) {
-  Gcs_group_identifier *old_s = NULL;
+  Gcs_group_identifier *old_s = nullptr;
   Gcs_group_identifier *new_s = new Gcs_group_identifier(group_id);
   u_long xcom_group_id = Gcs_xcom_utils::build_xcom_group_id(*new_s);
 
@@ -1064,7 +1064,7 @@ void Gcs_xcom_interface::set_xcom_group_information(
       "group: XCom Group Id=%lu Name=%s",
       xcom_group_id, group_id.c_str())
 
-  if ((old_s = get_xcom_group_information(xcom_group_id)) != NULL) {
+  if ((old_s = get_xcom_group_information(xcom_group_id)) != nullptr) {
     assert(*new_s == *old_s);
     delete new_s;
   } else {
@@ -1074,7 +1074,7 @@ void Gcs_xcom_interface::set_xcom_group_information(
 
 Gcs_group_identifier *Gcs_xcom_interface::get_xcom_group_information(
     const u_long xcom_group_id) {
-  Gcs_group_identifier *retval = NULL;
+  Gcs_group_identifier *retval = nullptr;
 
   map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_finder;
 
@@ -1179,7 +1179,7 @@ enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
   enum_gcs_error ret = GCS_NOK;
   const std::string *non_member_expel_timeout_ptr =
       p.get_parameter("non_member_expel_timeout");
-  if (non_member_expel_timeout_ptr != NULL) {
+  if (non_member_expel_timeout_ptr != nullptr) {
     mgr->set_non_member_expel_timeout_seconds(static_cast<unsigned long>(
         atoi(non_member_expel_timeout_ptr->c_str())));
     ret = GCS_OK;
@@ -1191,7 +1191,7 @@ enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
 
   const std::string *member_expel_timeout_ptr =
       p.get_parameter("member_expel_timeout");
-  if (member_expel_timeout_ptr != NULL) {
+  if (member_expel_timeout_ptr != nullptr) {
     mgr->set_member_expel_timeout_seconds(
         static_cast<unsigned long>(atoi(member_expel_timeout_ptr->c_str())));
     ret = GCS_OK;
@@ -1203,7 +1203,7 @@ enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
 
   const std::string *suspicions_processing_period_ptr =
       p.get_parameter("suspicions_processing_period");
-  if (suspicions_processing_period_ptr != NULL) {
+  if (suspicions_processing_period_ptr != nullptr) {
     mgr->set_suspicions_processing_period(static_cast<unsigned int>(
         atoi(suspicions_processing_period_ptr->c_str())));
     ret = GCS_OK;
@@ -1295,7 +1295,7 @@ void do_cb_xcom_receive_data(synode_no message_id,
   Gcs_group_identifier *destination =
       intf->get_xcom_group_information(message_id.group_id);
 
-  if (destination == NULL) {
+  if (destination == nullptr) {
     // It means that the group is not configured at all...
     MYSQL_GCS_LOG_WARN("Rejecting this message. Group still not configured.")
     return;
@@ -1417,7 +1417,7 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
   Gcs_group_identifier *destination =
       intf->get_xcom_group_information(message_id.group_id);
 
-  if (destination == NULL) {
+  if (destination == nullptr) {
     // It means that the group is not configured at all...
     MYSQL_GCS_LOG_WARN("Rejecting this view. Group still not configured.")
     delete xcom_nodes;
@@ -1560,10 +1560,10 @@ void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
 void do_cb_xcom_receive_local_view(synode_no message_id,
                                    Gcs_xcom_nodes *xcom_nodes,
                                    synode_no max_synode) {
-  Gcs_xcom_interface *gcs = NULL;
-  Gcs_control_interface *ctrl = NULL;
-  Gcs_xcom_control *xcom_ctrl = NULL;
-  Gcs_group_identifier *destination = NULL;
+  Gcs_xcom_interface *gcs = nullptr;
+  Gcs_control_interface *ctrl = nullptr;
+  Gcs_xcom_control *xcom_ctrl = nullptr;
+  Gcs_group_identifier *destination = nullptr;
 
   if (!(gcs = static_cast<Gcs_xcom_interface *>(
             Gcs_xcom_interface::get_interface())))

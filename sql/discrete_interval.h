@@ -56,10 +56,10 @@ class Discrete_interval {
     interval_max = (val == ULLONG_MAX) ? val : start + val * incr;
   }
   Discrete_interval(ulonglong start, ulonglong val, ulonglong incr)
-      : next(NULL) {
+      : next(nullptr) {
     replace(start, val, incr);
   }
-  Discrete_interval() : next(NULL) { replace(0, 0, 0); }
+  Discrete_interval() : next(nullptr) { replace(0, 0, 0); }
   ulonglong minimum() const { return interval_min; }
   ulonglong values() const { return interval_values; }
   ulonglong maximum() const { return interval_max; }
@@ -114,9 +114,9 @@ class Discrete_intervals_list {
   uint elements;                              ///< number of elements
   void operator=(Discrete_intervals_list &);  // prevent use of this
   bool append(Discrete_interval *new_interval) {
-    if (unlikely(new_interval == NULL)) return true;
+    if (unlikely(new_interval == nullptr)) return true;
     DBUG_PRINT("info", ("adding new auto_increment interval"));
-    if (head == NULL)
+    if (head == nullptr)
       head = current = new_interval;
     else
       tail->next = new_interval;
@@ -139,7 +139,7 @@ class Discrete_intervals_list {
 
  public:
   Discrete_intervals_list()
-      : head(NULL), tail(NULL), current(NULL), elements(0) {}
+      : head(nullptr), tail(nullptr), current(nullptr), elements(0) {}
   void empty() {
     if (head) {
       // first element, not on heap, should not be delete-d; start with next:
@@ -152,7 +152,7 @@ class Discrete_intervals_list {
         i = next;
       }
     }
-    head = tail = current = NULL;
+    head = tail = current = nullptr;
     elements = 0;
   }
   void swap(Discrete_intervals_list *other) {
@@ -162,7 +162,7 @@ class Discrete_intervals_list {
   }
   const Discrete_interval *get_next() {
     const Discrete_interval *tmp = current;
-    if (current != NULL) current = current->next;
+    if (current != nullptr) current = current->next;
     return tmp;
   }
   ~Discrete_intervals_list() { empty(); }
@@ -177,7 +177,7 @@ class Discrete_intervals_list {
   */
   bool append(ulonglong start, ulonglong val, ulonglong incr) {
     // If there are no intervals, add one.
-    if (head == NULL) {
+    if (head == nullptr) {
       first_interval.replace(start, val, incr);
       return append(&first_interval);
     }

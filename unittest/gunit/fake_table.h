@@ -137,7 +137,7 @@ class Fake_TABLE : public TABLE {
     null_row = '\0';
     read_set = &read_set_struct;
     write_set = &write_set_struct;
-    next_number_field = NULL;  // No autoinc column
+    next_number_field = nullptr;  // No autoinc column
     pos_in_table_list = &table_list;
     pos_in_table_list->select_lex =
         new (&mem_root) SELECT_LEX(&mem_root, nullptr, nullptr);
@@ -171,7 +171,7 @@ class Fake_TABLE : public TABLE {
 
   Fake_TABLE(List<Field> fields)
       : table_share(fields.elements),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     List_iterator<Field> it(fields);
     int nbr_fields = 0;
@@ -181,14 +181,14 @@ class Fake_TABLE : public TABLE {
 
   Fake_TABLE(Field *column)
       : table_share(1),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     add(column, 0);
   }
 
   Fake_TABLE(Field *column1, Field *column2)
       : table_share(2),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     add(column1, 0);
     add(column2, 1);
@@ -196,7 +196,7 @@ class Fake_TABLE : public TABLE {
 
   Fake_TABLE(Field *column1, Field *column2, Field *column3)
       : table_share(3),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     add(column1, 0);
     add(column2, 1);
@@ -231,7 +231,7 @@ class Fake_TABLE : public TABLE {
   */
   Fake_TABLE(std::initializer_list<int> column_values, bool are_nullable = true)
       : table_share(column_values.size()),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     field = m_field_array;
     initialize();
     for (size_t i = 0; i < column_values.size(); ++i) {

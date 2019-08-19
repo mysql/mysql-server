@@ -1471,7 +1471,7 @@ bool TemptableAggregateIterator::Init() {
           }
         }
       }
-      if (create_ondisk_from_heap(thd(), table(), error, false, NULL)) {
+      if (create_ondisk_from_heap(thd(), table(), error, false, nullptr)) {
         end_unique_index.commit();
         return true;  // Not a table_is_full error.
       }

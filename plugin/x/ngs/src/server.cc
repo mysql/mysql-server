@@ -267,7 +267,7 @@ void Server::on_accept(xpl::iface::Connection_acceptor &connection_acceptor) {
 
   ::Vio *vio = connection_acceptor.accept();
 
-  if (NULL == vio) {
+  if (nullptr == vio) {
     m_delegate->did_reject_client(
         xpl::iface::Server_delegate::Reject_reason::k_accept_error);
 

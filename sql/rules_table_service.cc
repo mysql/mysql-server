@@ -69,12 +69,12 @@ static void add_column(MY_BITMAP *map, Cursor::column_id column) {
 
 Cursor::Cursor(THD *mysql_thd)
     : m_thd(mysql_thd),
-      m_table_list(NULL),
+      m_table_list(nullptr),
       m_is_finished(true),
       m_table_is_malformed(true) {
   m_table_list = new TABLE_LIST(db_name, strlen(db_name), table_name,
                                 strlen(table_name), "alias", TL_WRITE_DEFAULT);
-  if (m_table_list == NULL) return;  // Error
+  if (m_table_list == nullptr) return;  // Error
 
   m_table_list->updating = true;
 
@@ -83,7 +83,7 @@ Cursor::Cursor(THD *mysql_thd)
     return;  // Error
 
   TABLE *table = m_table_list->table;
-  if (table == NULL) return;  // Error
+  if (table == nullptr) return;  // Error
 
   m_pattern_column = field_index("pattern");
   m_pattern_database_column = field_index("pattern_database");
@@ -107,7 +107,7 @@ Cursor::Cursor(THD *mysql_thd)
       reference to it.
     */
     delete m_table_list;
-    m_table_list = NULL;
+    m_table_list = nullptr;
     m_table_is_malformed = true;
     return;  // Error
   } else
@@ -135,7 +135,7 @@ Cursor::Cursor(THD *mysql_thd)
 const char *Cursor::fetch_string(int fieldno) {
   Field **fields = m_table_list->table->field;
   Field *field = fields[fieldno];
-  if (field->is_null()) return NULL;
+  if (field->is_null()) return nullptr;
   String value_buf;
   String *value = field->val_str(&value_buf);
   size_t length = value->length();
@@ -162,7 +162,7 @@ void Cursor::set(int colno, const char *str, size_t length) {
   Field *field = table->field[colno];
 
   const CHARSET_INFO *charset = &my_charset_utf8_unicode_ci;
-  if (str == NULL)
+  if (str == nullptr)
     field->set_null(0);
   else {
     field->store(str, length, charset);
@@ -180,7 +180,7 @@ bool Cursor::had_serious_read_error() const {
 }
 
 Cursor::~Cursor() {
-  if (m_table_list != NULL && m_table_list->table != NULL)
+  if (m_table_list != nullptr && m_table_list->table != nullptr)
     m_table_list->table->file->ha_rnd_end();
   delete m_table_list;
 }

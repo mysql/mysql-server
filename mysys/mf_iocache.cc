@@ -138,7 +138,7 @@ static void init_functions(IO_CACHE *info) {
       break;
     case SEQ_READ_APPEND:
       info->read_function = _my_b_seq_read;
-      info->write_function = 0; /* Force a core if used */
+      info->write_function = nullptr; /* Force a core if used */
       break;
     default:
       info->read_function = info->share ? _my_b_read_r : _my_b_read;
@@ -189,10 +189,10 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   info->file_key = file_key;
   info->type = TYPE_NOT_SET; /* Don't set it until mutex are created */
   info->pos_in_file = seek_offset;
-  info->pre_close = info->pre_read = info->post_read = 0;
-  info->arg = 0;
+  info->pre_close = info->pre_read = info->post_read = nullptr;
+  info->arg = nullptr;
   info->alloced_buffer = false;
-  info->buffer = 0;
+  info->buffer = nullptr;
   info->seek_not_done = false;
 
   if (file >= 0) {
@@ -214,7 +214,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   }
 
   info->disk_writes = 0;
-  info->share = 0;
+  info->share = nullptr;
 
   if (!cachesize && !(cachesize = my_default_record_cache_size))
     return 1; /* No cache requested */
@@ -252,7 +252,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       if (cachesize == min_cache) flags |= (myf)MY_WME;
 
       if ((info->buffer = (uchar *)my_malloc(key_memory_IO_CACHE, buffer_block,
-                                             flags)) != 0) {
+                                             flags)) != nullptr) {
         info->write_buffer = info->buffer;
         if (type == SEQ_READ_APPEND)
           info->write_buffer = info->buffer + cachesize;
@@ -635,14 +635,14 @@ void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
   cshare->total_threads = num_threads;
   cshare->error = 0; /* Initialize. */
   cshare->buffer = read_cache->buffer;
-  cshare->read_end = NULL; /* See function comment of lock_io_cache(). */
-  cshare->pos_in_file = 0; /* See function comment of lock_io_cache(). */
+  cshare->read_end = nullptr; /* See function comment of lock_io_cache(). */
+  cshare->pos_in_file = 0;    /* See function comment of lock_io_cache(). */
   cshare->source_cache = write_cache; /* Can be NULL. */
 
   read_cache->share = cshare;
   read_cache->read_function = _my_b_read_r;
-  read_cache->current_pos = NULL;
-  read_cache->current_end = NULL;
+  read_cache->current_pos = nullptr;
+  read_cache->current_end = nullptr;
 
   if (write_cache) write_cache->share = cshare;
 }
@@ -684,12 +684,12 @@ void remove_io_thread(IO_CACHE *cache) {
   DBUG_PRINT("io_cache_share", ("remaining threads: %u", total));
 
   /* Detach from share. */
-  cache->share = NULL;
+  cache->share = nullptr;
 
   /* If the writer goes, let the readers know. */
   if (cache == cshare->source_cache) {
     DBUG_PRINT("io_cache_share", ("writer leaves"));
-    cshare->source_cache = NULL;
+    cshare->source_cache = nullptr;
   }
 
   /* If all threads are waiting for me to join the lock, wake them. */
@@ -1521,14 +1521,14 @@ int end_io_cache(IO_CACHE *info) {
 
   if ((pre_close = info->pre_close)) {
     (*pre_close)(info);
-    info->pre_close = 0;
+    info->pre_close = nullptr;
   }
   if (info->alloced_buffer) {
     info->alloced_buffer = false;
     if (info->file != -1) /* File doesn't exist */
       error = my_b_flush_io_cache(info, 1);
     my_free(info->buffer);
-    info->buffer = info->read_pos = (uchar *)0;
+    info->buffer = info->read_pos = (uchar *)nullptr;
   }
   if (info->m_encryptor != nullptr) delete info->m_encryptor;
   if (info->m_decryptor != nullptr) delete info->m_decryptor;

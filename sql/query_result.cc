@@ -126,7 +126,7 @@ sql_exchange::sql_exchange(const char *name, bool flag,
   line.line_term =
       filetype == FILETYPE_CSV ? &default_line_term : &default_xml_row_term;
   field.escaped = &default_escaped;
-  cs = NULL;
+  cs = nullptr;
 }
 
 bool sql_exchange::escaped_given(void) {
@@ -723,7 +723,7 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
        */
       Item_func_set_user_var *suv =
           new Item_func_set_user_var(mv->name, item, true);
-      if (suv->fix_fields(thd, 0)) return true;
+      if (suv->fix_fields(thd, nullptr)) return true;
       suv->save_item_result(item);
       if (suv->update()) return true;
     }

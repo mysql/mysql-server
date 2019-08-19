@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,9 +81,9 @@ class Data_packet : public Packet {
   Data_packet(const uchar *data, ulong len,
               enum_group_replication_consistency_level consistency_level =
                   GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
-              std::list<Gcs_member_identifier> *online_members = NULL)
+              std::list<Gcs_member_identifier> *online_members = nullptr)
       : Packet(DATA_PACKET_TYPE),
-        payload(NULL),
+        payload(nullptr),
         len(len),
         m_consistency_level(consistency_level),
         m_online_members(online_members) {
@@ -138,9 +138,9 @@ class Pipeline_event {
                  int modifier = UNDEFINED_EVENT_MODIFIER,
                  enum_group_replication_consistency_level consistency_level =
                      GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
-                 std::list<Gcs_member_identifier> *online_members = NULL)
+                 std::list<Gcs_member_identifier> *online_members = nullptr)
       : packet(base_packet),
-        log_event(NULL),
+        log_event(nullptr),
         event_context(modifier),
         format_descriptor(fde_event),
         m_consistency_level(consistency_level),
@@ -163,8 +163,8 @@ class Pipeline_event {
                  int modifier = UNDEFINED_EVENT_MODIFIER,
                  enum_group_replication_consistency_level consistency_level =
                      GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
-                 std::list<Gcs_member_identifier> *online_members = NULL)
-      : packet(NULL),
+                 std::list<Gcs_member_identifier> *online_members = nullptr)
+      : packet(nullptr),
         log_event(base_event),
         event_context(modifier),
         format_descriptor(fde_event),
@@ -173,10 +173,10 @@ class Pipeline_event {
         m_online_members_memory_ownership(true) {}
 
   ~Pipeline_event() {
-    if (packet != NULL) {
+    if (packet != nullptr) {
       delete packet;
     }
-    if (log_event != NULL) {
+    if (log_event != nullptr) {
       delete log_event;
     }
     if (m_online_members_memory_ownership) {
@@ -208,7 +208,7 @@ class Pipeline_event {
       @retval !=0    error on conversion
   */
   int get_LogEvent(Log_event **out_event) {
-    if (log_event == NULL)
+    if (log_event == nullptr)
       if (int error = convert_packet_to_log_event())
         return error; /* purecov: inspected */
     *out_event = log_event;
@@ -244,7 +244,7 @@ class Pipeline_event {
       @retval !=0    error on conversion
   */
   int get_Packet(Data_packet **out_packet) {
-    if (packet == NULL)
+    if (packet == nullptr)
       if (int error = convert_log_event_to_packet())
         return error; /* purecov: inspected */
     *out_packet = packet;
@@ -258,7 +258,7 @@ class Pipeline_event {
     @return the pipeline event type
   */
   Log_event_type get_event_type() {
-    if (packet != NULL)
+    if (packet != nullptr)
       return (Log_event_type)packet->payload[EVENT_TYPE_OFFSET];
     else
       return log_event->get_type_code();
@@ -292,13 +292,13 @@ class Pipeline_event {
     is reset, consistency level belongs to the transaction.
   */
   void reset_pipeline_event() {
-    if (packet != NULL) {
-      delete packet; /* purecov: inspected */
-      packet = NULL; /* purecov: inspected */
+    if (packet != nullptr) {
+      delete packet;    /* purecov: inspected */
+      packet = nullptr; /* purecov: inspected */
     }
-    if (log_event != NULL) {
+    if (log_event != nullptr) {
       delete log_event;
-      log_event = NULL;
+      log_event = nullptr;
     }
     event_context = UNDEFINED_EVENT_MODIFIER;
   }
@@ -355,7 +355,7 @@ class Pipeline_event {
     }
 
     delete packet;
-    packet = NULL;
+    packet = nullptr;
 
     return binlog_read_error.has_error();
   }
@@ -381,7 +381,7 @@ class Pipeline_event {
                              ostream.length());
 
     delete log_event;
-    log_event = NULL;
+    log_event = nullptr;
 
     return error;
   }
@@ -531,7 +531,7 @@ class Pipeline_action {
 */
 class Event_handler {
  public:
-  Event_handler() : next_in_pipeline(NULL) {}
+  Event_handler() : next_in_pipeline(nullptr) {}
 
   virtual ~Event_handler() {}
 
@@ -636,9 +636,9 @@ class Event_handler {
   */
   static void get_handler_by_role(Event_handler *pipeline, int role,
                                   Event_handler **event_handler) {
-    *event_handler = NULL;
+    *event_handler = nullptr;
 
-    if (pipeline == NULL) return; /* purecov: inspected */
+    if (pipeline == nullptr) return; /* purecov: inspected */
 
     Event_handler *pipeline_iter = pipeline;
     while (pipeline_iter) {
@@ -688,10 +688,10 @@ class Event_handler {
   */
   int terminate_pipeline() {
     int error = 0;
-    while (next_in_pipeline != NULL) {
+    while (next_in_pipeline != nullptr) {
       Event_handler *pipeline_iter = this;
-      Event_handler *temp_handler = NULL;
-      while (pipeline_iter->next_in_pipeline != NULL) {
+      Event_handler *temp_handler = nullptr;
+      while (pipeline_iter->next_in_pipeline != nullptr) {
         temp_handler = pipeline_iter;
         pipeline_iter = pipeline_iter->next_in_pipeline;
       }
@@ -699,7 +699,7 @@ class Event_handler {
         error = 1;  // report an error, but try to finish the job /* purecov:
                     // inspected */
       delete temp_handler->next_in_pipeline;
-      temp_handler->next_in_pipeline = NULL;
+      temp_handler->next_in_pipeline = nullptr;
     }
     this->terminate();
     return error;

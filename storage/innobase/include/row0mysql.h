@@ -395,7 +395,7 @@ to release and reacquire dict_operation_lock
 @param[in,out]	handler		intrinsic temporary table handle, or NULL
 @return error code or DB_SUCCESS */
 dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
-                                 dict_table_t *handler = NULL);
+                                 dict_table_t *handler = nullptr);
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
@@ -403,7 +403,7 @@ data dictionary will remain locked.
 @param[in,out]	trx		data dictionary transaction
 @return error code or DB_SUCCESS */
 inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
-  return (row_drop_table_for_mysql(name, trx, true, NULL));
+  return (row_drop_table_for_mysql(name, trx, true, nullptr));
 }
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding

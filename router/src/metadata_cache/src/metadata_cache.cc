@@ -407,8 +407,8 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
                                           int timeout) {
   log_debug("Waiting for failover to happen in '%s' for %is",
             replicaset_name.c_str(), timeout);
-  time_t stime = std::time(NULL);
-  while (std::time(NULL) - stime <= timeout) {
+  time_t stime = std::time(nullptr);
+  while (std::time(nullptr) - stime <= timeout) {
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
       if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {

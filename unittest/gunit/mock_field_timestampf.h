@@ -29,7 +29,7 @@
 class Mock_field_timestampf : public Field_timestampf {
   void initialize() {
     table = new Fake_TABLE(this);
-    EXPECT_FALSE(table == NULL) << "Out of memory";
+    EXPECT_FALSE(table == nullptr) << "Out of memory";
     ptr = table->record[0] + 1;
     set_null_ptr(table->record[0], 1);
   }

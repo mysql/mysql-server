@@ -43,7 +43,7 @@ using std::vector;
 #define MAX_ALTER_STR_SIZE 128 * 1024
 #define KEY_PARTITIONING_CHANGED_STR "KEY () partitioning changed"
 
-static MYSQL *sock = 0;
+static MYSQL *sock = nullptr;
 static bool opt_alldbs = false, opt_check_only_changed = false,
             opt_extended = false, opt_databases = false, opt_fast = false,
             opt_medium_check = false, opt_quick = false, opt_all_in_1 = false,
@@ -150,7 +150,7 @@ static string escape_db_table_name(string src, size_t dot_pos) {
 }
 
 static int process_all_tables_in_db(string database) {
-  MYSQL_RES *res = NULL;
+  MYSQL_RES *res = nullptr;
   MYSQL_ROW row;
   uint num_columns;
 
@@ -432,8 +432,8 @@ Program::Program()
       m_process_all_dbs(false),
       m_fix_table_names(false),
       m_fix_db_names(false),
-      m_connection(NULL),
-      m_error_callback(NULL) {}
+      m_connection(nullptr),
+      m_error_callback(nullptr) {}
 
 int Program::check_databases(MYSQL *connection, vector<string> databases) {
   this->m_connection = connection;

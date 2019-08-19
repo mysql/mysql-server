@@ -79,7 +79,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
   partition_info *clone = new (thd->mem_root) partition_info(*this);
   if (!clone) {
     mem_alloc_error(sizeof(partition_info));
-    return NULL;
+    return nullptr;
   }
   new (&(clone->read_partitions)) MY_BITMAP;
   new (&(clone->lock_partitions)) MY_BITMAP;
@@ -94,7 +94,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
         new (thd->mem_root) partition_element(*part);
     if (!part_clone) {
       mem_alloc_error(sizeof(partition_element));
-      return NULL;
+      return nullptr;
     }
 
     /* Explicitly copy the tablespace name, use the thd->mem_root. */
@@ -125,7 +125,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
           new (thd->mem_root) partition_element(*subpart);
       if (!subpart_clone) {
         mem_alloc_error(sizeof(partition_element));
-        return NULL;
+        return nullptr;
       }
 
       /* Explicitly copy the tablespace name, use the thd->mem_root. */
@@ -145,7 +145,7 @@ partition_info *partition_info::get_full_clone(THD *thd) {
   partition_info *clone;
   DBUG_TRACE;
   clone = get_clone(thd);
-  if (!clone) return NULL;
+  if (!clone) return nullptr;
   memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
   memcpy(&clone->lock_partitions, &lock_partitions, sizeof(lock_partitions));
   clone->bitmaps_are_initialized = bitmaps_are_initialized;
@@ -486,12 +486,12 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
   if (copy_default_values) restore_record(table, s->default_values);
 
   if (fields.elements || !values.elements) {
-    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL,
+    if (fill_record(thd, table, fields, values, &full_part_field_set, nullptr,
                     false))
       return true;
   } else {
     if (fill_record(thd, table, table->field, values, &full_part_field_set,
-                    NULL, false))
+                    nullptr, false))
       return true;
   }
 
@@ -549,7 +549,7 @@ char *partition_info::create_default_partition_names(uint num_parts_arg,
   uint i = 0;
   DBUG_TRACE;
 
-  if (likely(ptr != 0)) {
+  if (likely(ptr != nullptr)) {
     do {
       sprintf(move_ptr, "p%u", (start_no + i));
       move_ptr += MAX_PART_NAME_SIZE;
@@ -610,7 +610,7 @@ char *partition_info::create_default_subpartition_name(uint subpart_no,
   char *ptr = (char *)sql_calloc(size_alloc);
   DBUG_TRACE;
 
-  if (likely(ptr != NULL)) {
+  if (likely(ptr != nullptr)) {
     snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   } else {
     mem_alloc_error(size_alloc);
@@ -682,7 +682,7 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
   i = 0;
   do {
     partition_element *part_elem = new (*THR_MALLOC) partition_element();
-    if (likely(part_elem != 0 && (!partitions.push_back(part_elem)))) {
+    if (likely(part_elem != nullptr && (!partitions.push_back(part_elem)))) {
       part_elem->engine_type = default_engine_type;
       part_elem->partition_name = default_name;
       default_name += MAX_PART_NAME_SIZE;
@@ -745,7 +745,7 @@ bool partition_info::set_up_default_subpartitions(
     do {
       partition_element *subpart_elem =
           new (*THR_MALLOC) partition_element(part_elem);
-      if (likely(subpart_elem != 0 &&
+      if (likely(subpart_elem != nullptr &&
                  (!part_elem->subpartitions.push_back(subpart_elem)))) {
         char *ptr =
             create_default_subpartition_name(j, part_elem->partition_name);
@@ -829,7 +829,7 @@ char *partition_info::find_duplicate_field() {
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -877,7 +877,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
       return part_elem;
     }
   } while (++i < num_parts);
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -1110,12 +1110,12 @@ bool partition_info::check_range_constants(THD *thd) {
 
   if (column_list) {
     part_column_list_val *loc_range_col_array;
-    part_column_list_val *current_largest_col_val = NULL;
+    part_column_list_val *current_largest_col_val = nullptr;
     uint num_column_values = part_field_list.elements;
     uint size_entries = sizeof(part_column_list_val) * num_column_values;
     range_col_array =
         (part_column_list_val *)sql_calloc(num_parts * size_entries);
-    if (unlikely(range_col_array == NULL)) {
+    if (unlikely(range_col_array == nullptr)) {
       mem_alloc_error(num_parts * size_entries);
       goto end;
     }
@@ -1147,7 +1147,7 @@ bool partition_info::check_range_constants(THD *thd) {
 
     range_int_array =
         (longlong *)(*THR_MALLOC)->Alloc(num_parts * sizeof(longlong));
-    if (unlikely(range_int_array == NULL)) {
+    if (unlikely(range_int_array == nullptr)) {
       mem_alloc_error(num_parts * sizeof(longlong));
       goto end;
     }
@@ -1292,7 +1292,7 @@ bool partition_info::check_list_constants(THD *thd) {
                      ? (num_column_values * sizeof(part_column_list_val))
                      : sizeof(LIST_PART_ENTRY);
   ptr = sql_calloc((num_list_values + 1) * size_entries);
-  if (unlikely(ptr == NULL)) {
+  if (unlikely(ptr == nullptr)) {
     mem_alloc_error(num_list_values * size_entries);
     goto end;
   }
@@ -1380,7 +1380,7 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem) {
     if (part_elem->index_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING, WARN_OPTION_IGNORED,
                           ER_THD(thd, WARN_OPTION_IGNORED), "INDEX DIRECTORY");
-    part_elem->data_file_name = part_elem->index_file_name = NULL;
+    part_elem->data_file_name = part_elem->index_file_name = nullptr;
   }
 }
 
@@ -1425,14 +1425,14 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     if (!list_of_part_fields) {
       DBUG_ASSERT(part_expr);
       err = part_expr->walk(&Item::check_partition_func_processor,
-                            enum_walk::POSTFIX, NULL);
+                            enum_walk::POSTFIX, nullptr);
     }
 
     /* Check for sub partition expression. */
     if (!err && is_sub_partitioned() && !list_of_subpart_fields) {
       DBUG_ASSERT(subpart_expr);
       err = subpart_expr->walk(&Item::check_partition_func_processor,
-                               enum_walk::POSTFIX, NULL);
+                               enum_walk::POSTFIX, nullptr);
     }
 
     if (err) {
@@ -1507,7 +1507,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       partition_element *part_elem = part_it++;
       warn_if_dir_in_part_elem(thd, part_elem);
       if (!is_sub_partitioned()) {
-        if (part_elem->engine_type == NULL) {
+        if (part_elem->engine_type == nullptr) {
           num_parts_not_set++;
           part_elem->engine_type = default_engine_type;
         }
@@ -1540,8 +1540,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
             my_error(ER_TOO_LONG_IDENT, MYF(0));
             goto end;
           }
-          if (sub_elem->engine_type == NULL) {
-            if (part_elem->engine_type != NULL)
+          if (sub_elem->engine_type == nullptr) {
+            if (part_elem->engine_type != nullptr)
               sub_elem->engine_type = part_elem->engine_type;
             else {
               sub_elem->engine_type = default_engine_type;
@@ -1565,7 +1565,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           goto end;
         }
 
-        if (part_elem->engine_type == NULL) {
+        if (part_elem->engine_type == nullptr) {
           if (num_subparts_not_set == 0)
             part_elem->engine_type = sub_elem->engine_type;
           else {
@@ -1770,7 +1770,7 @@ bool partition_info::set_up_charset_field_preps() {
         part_field_buffers[i++] = field_buf;
       }
     }
-    part_charset_field_array[i] = NULL;
+    part_charset_field_array[i] = nullptr;
   }
   if (is_sub_partitioned() && !list_of_subpart_fields &&
       check_part_func_fields(subpart_field_array, false)) {
@@ -1793,7 +1793,7 @@ bool partition_info::set_up_charset_field_preps() {
     ptr = subpart_field_array;
     i = 0;
     while ((field = *(ptr++))) {
-      uchar *field_buf = NULL;
+      uchar *field_buf = nullptr;
 
       if (!field_is_partition_charset(field)) continue;
       size = field->pack_length();
@@ -1801,7 +1801,7 @@ bool partition_info::set_up_charset_field_preps() {
       subpart_charset_field_array[i] = field;
       subpart_field_buffers[i++] = field_buf;
     }
-    subpart_charset_field_array[i] = NULL;
+    subpart_charset_field_array[i] = nullptr;
   }
   return false;
 error:
@@ -2008,7 +2008,7 @@ part_column_list_val *Parser_partition_info::add_column_value() {
     if (!reorganize_into_single_field_col_val() && !init_column_part()) {
       return add_column_value();
     }
-    return NULL;
+    return nullptr;
   }
   if (part_info->column_list) {
     my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
@@ -2018,7 +2018,7 @@ part_column_list_val *Parser_partition_info::add_column_value() {
     else
       my_error(ER_TOO_MANY_VALUES_ERROR, MYF(0), "LIST");
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -2048,7 +2048,7 @@ void Parser_partition_info::init_col_val(part_column_list_val *col_val,
       curr_list_val->unsigned_flag = false;
     if (!curr_list_val->unsigned_flag) curr_part_elem->signed_flag = true;
   }
-  col_val->part_info = NULL;
+  col_val->part_info = nullptr;
 }
 
 /**
@@ -2078,18 +2078,18 @@ bool Parser_partition_info::add_column_list_value(THD *thd, Item *item) {
     }
   }
 
-  context->table_list = 0;
+  context->table_list = nullptr;
   if (part_info->column_list)
     thd->where = "field list";
   else
     thd->where = "partition function";
 
   if (item->walk(&Item::check_partition_func_processor, enum_walk::POSTFIX,
-                 NULL)) {
+                 nullptr)) {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     return true;
   }
-  if (item->fix_fields(thd, (Item **)0) ||
+  if (item->fix_fields(thd, (Item **)nullptr) ||
       ((context->table_list = save_list), false) || (!item->const_item())) {
     context->table_list = save_list;
     thd->where = save_where;
@@ -2281,7 +2281,7 @@ Item *partition_info::get_column_item(Item *item, Field *field) {
       item->collation.collation != field->charset()) {
     if (!(item = convert_charset_partition_constant(item, field->charset()))) {
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-      return NULL;
+      return nullptr;
     }
   }
   return item;
@@ -2318,9 +2318,9 @@ bool partition_info::fix_column_value_functions(THD *thd, part_elem_value *val,
     col_val->part_info = this;
     col_val->partition_id = part_id;
     if (col_val->max_value)
-      col_val->column_value.field_image = NULL;
+      col_val->column_value.field_image = nullptr;
     else {
-      col_val->column_value.field_image = NULL;
+      col_val->column_value.field_image = nullptr;
       if (!col_val->null_value) {
         uchar *val_ptr;
         uint len = field->pack_length();
@@ -2693,7 +2693,7 @@ static bool has_same_column_order(List<Create_field> *create_list,
                                   Field **field_array) {
   Field **f_ptr;
   List_iterator_fast<Create_field> new_field_it;
-  Create_field *new_field = NULL;
+  Create_field *new_field = nullptr;
   new_field_it.init(*create_list);
 
   for (f_ptr = field_array; *f_ptr; f_ptr++) {
@@ -2742,13 +2742,14 @@ void partition_info::print_debug(const char *str MY_ATTRIBUTE((unused)),
 bool has_external_data_or_index_dir(partition_info &pi) {
   List_iterator<partition_element> part_it(pi.partitions);
   for (partition_element *part = part_it++; part; part = part_it++) {
-    if (part->data_file_name != NULL || part->index_file_name != NULL) {
+    if (part->data_file_name != nullptr || part->index_file_name != nullptr) {
       return true;
     }
     List_iterator<partition_element> subpart_it(part->subpartitions);
     for (const partition_element *subpart = subpart_it++; subpart;
          subpart = subpart_it++) {
-      if (subpart->data_file_name != NULL || subpart->index_file_name != NULL) {
+      if (subpart->data_file_name != nullptr ||
+          subpart->index_file_name != nullptr) {
         return true;
       }
     }

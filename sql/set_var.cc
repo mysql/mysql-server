@@ -109,13 +109,13 @@ bool get_sysvar_source(const char *name, uint length,
   return ret;
 }
 
-sys_var_chain all_sys_vars = {NULL, NULL};
+sys_var_chain all_sys_vars = {nullptr, nullptr};
 
 int sys_var_init() {
   DBUG_TRACE;
 
   /* Must be already initialized. */
-  DBUG_ASSERT(system_charset_info != NULL);
+  DBUG_ASSERT(system_charset_info != nullptr);
 
   system_variable_hash = new collation_unordered_map<string, sys_var *>(
       system_charset_info, PSI_INSTRUMENT_ME);
@@ -229,7 +229,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func, const char *substitute,
                  int parse_flag)
-    : next(0),
+    : next(nullptr),
       binlog_status(binlog_status_arg),
       flags(flags_arg),
       m_parse_flag(parse_flag),
@@ -405,7 +405,7 @@ void sys_var::set_user_host(THD *thd) {
 }
 
 void sys_var::do_deprecated_warning(THD *thd) {
-  if (deprecation_substitute != NULL) {
+  if (deprecation_substitute != nullptr) {
     char buf1[NAME_CHAR_LEN + 3];
     strxnmov(buf1, sizeof(buf1) - 1, "@@", name.str, 0);
 
@@ -463,7 +463,7 @@ Item *sys_var::copy_value(THD *thd) {
     default:
       DBUG_ASSERT(0);
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -504,7 +504,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v) {
     char buf[64];
 
     my_gcvt(v, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buf)) - 1, buf,
-            NULL);
+            nullptr);
 
     if (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) {
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
@@ -537,7 +537,7 @@ static my_old_conv old_conv[] = {{"cp1251_koi8", "cp1251"},
                                  {"koi8_cp1251", "koi8r"},
                                  {"win1251ukr_koi8_ukr", "win1251ukr"},
                                  {"koi8_ukr_win1251ukr", "koi8u"},
-                                 {NULL, NULL}};
+                                 {nullptr, nullptr}};
 
 const CHARSET_INFO *get_old_charset_by_name(const char *name) {
   my_old_conv *conv;
@@ -546,7 +546,7 @@ const CHARSET_INFO *get_old_charset_by_name(const char *name) {
     if (!my_strcasecmp(&my_charset_latin1, name, conv->old_name))
       return get_charset_by_csname(conv->new_name, MY_CS_PRIMARY, MYF(0));
   }
-  return NULL;
+  return nullptr;
 }
 
 /****************************************************************************
@@ -659,7 +659,7 @@ ulonglong get_system_variable_hash_version(void) {
 */
 bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
                         enum enum_var_type query_scope, bool strict) {
-  DBUG_ASSERT(show_var_array != NULL);
+  DBUG_ASSERT(show_var_array != nullptr);
   DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
   int count = system_variable_hash->size();
 
@@ -734,7 +734,7 @@ sys_var *intern_find_sys_var(const char *str, size_t length) {
                         string(str, length ? length : strlen(str)));
 
   /* Don't show non-visible variables. */
-  if (var && var->not_visible()) return NULL;
+  if (var && var->not_visible()) return nullptr;
 
   return var;
 }
@@ -790,7 +790,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   }
   if (!error) {
     /* At this point SET statement is considered a success. */
-    Persisted_variables_cache *pv = NULL;
+    Persisted_variables_cache *pv = nullptr;
     it.rewind();
     while ((var = it++)) {
       set_var *setvar = dynamic_cast<set_var *>(var);
@@ -864,7 +864,7 @@ set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
 
   @sa set_var::resolve
 */
-char *sys_var_persist_only_admin_x509_subject = NULL;
+char *sys_var_persist_only_admin_x509_subject = nullptr;
 
 /**
   Checks if a THD can set non-persist variables
@@ -888,9 +888,9 @@ char *sys_var_persist_only_admin_x509_subject = NULL;
 */
 static bool can_persist_non_persistent_var(THD *thd, sys_var *var,
                                            enum_var_type setvar_type) {
-  SSL *ssl = NULL;
-  X509 *cert = NULL;
-  char *ptr = NULL;
+  SSL *ssl = nullptr;
+  X509 *cert = nullptr;
+  char *ptr = nullptr;
   bool result = false;
 
   /* Bail off if no subject is set */
@@ -915,7 +915,7 @@ static bool can_persist_non_persistent_var(THD *thd, sys_var *var,
   cert = SSL_get_peer_certificate(ssl);
   if (!cert) goto done;
 
-  ptr = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+  ptr = X509_NAME_oneline(X509_get_subject_name(cert), nullptr, 0);
   if (!ptr) goto done;
 
   result = !strcmp(sys_var_persist_only_admin_x509_subject, ptr);
@@ -1139,7 +1139,7 @@ int set_var_user::resolve(THD *thd) {
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return user_var_item->fix_fields(thd, NULL) ? -1 : 0;
+  return user_var_item->fix_fields(thd, nullptr) ? -1 : 0;
 }
 
 int set_var_user::check(THD *) {
@@ -1167,7 +1167,7 @@ int set_var_user::light_check(THD *thd) {
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return (user_var_item->fix_fields(thd, (Item **)0));
+  return (user_var_item->fix_fields(thd, (Item **)nullptr));
 }
 
 int set_var_user::update(THD *thd) {
@@ -1179,7 +1179,7 @@ int set_var_user::update(THD *thd) {
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-        ->mark_as_changed(thd, NULL);
+        ->mark_as_changed(thd, nullptr);
   return 0;
 }
 
@@ -1254,10 +1254,10 @@ int set_var_password::update(THD *thd) {
 }
 
 void set_var_password::print(const THD *thd, String *str) {
-  if (user->user.str != NULL && user->user.length > 0) {
+  if (user->user.str != nullptr && user->user.length > 0) {
     str->append(STRING_WITH_LEN("PASSWORD FOR "));
     append_identifier(thd, str, user->user.str, user->user.length);
-    if (user->host.str != NULL && user->host.length > 0) {
+    if (user->host.str != nullptr && user->host.length > 0) {
       str->append(STRING_WITH_LEN("@"));
       append_identifier(thd, str, user->host.str, user->host.length);
     }
@@ -1311,7 +1311,7 @@ int set_var_collation_client::update(THD *thd) {
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-        ->mark_as_changed(thd, NULL);
+        ->mark_as_changed(thd, nullptr);
   thd->protocol_text->init(thd);
   thd->protocol_binary->init(thd);
   return 0;

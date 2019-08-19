@@ -258,7 +258,7 @@ Archive_share::Archive_share() {
 }
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), share(NULL), bulk_insert(false) {
+    : handler(hton, table_arg), share(nullptr), bulk_insert(false) {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
@@ -442,7 +442,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc) {
     if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY))) {
       delete tmp_share;
       *rc = my_errno() ? my_errno() : HA_ERR_CRASHED;
-      tmp_share = NULL;
+      tmp_share = nullptr;
       goto err;
     }
     stats.auto_increment_value = archive_tmp.auto_increment + 1;
@@ -546,7 +546,7 @@ int ha_archive::open(const char *name, int, uint open_options,
 
   if (!record_buffer) return HA_ERR_OUT_OF_MEM;
 
-  thr_lock_data_init(&share->lock, &lock, NULL);
+  thr_lock_data_init(&share->lock, &lock, nullptr);
 
   DBUG_PRINT("ha_archive", ("archive table was crashed %s",
                             rc == HA_ERR_CRASHED_ON_USAGE ? "yes" : "no"));
@@ -783,7 +783,7 @@ unsigned int ha_archive::pack_row(uchar *record, azio_stream *writer) {
 */
 int ha_archive::write_row(uchar *buf) {
   int rc;
-  uchar *read_buf = NULL;
+  uchar *read_buf = nullptr;
   ulonglong temp_auto;
   uchar *record = table->record[0];
   DBUG_TRACE;
@@ -1560,14 +1560,14 @@ archive_record_buffer *ha_archive::create_record_buffer(unsigned int length) {
   if (!(r = (archive_record_buffer *)my_malloc(az_key_memory_record_buffer,
                                                sizeof(archive_record_buffer),
                                                MYF(MY_WME)))) {
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
   }
   r->length = (int)length;
 
   if (!(r->buffer = (uchar *)my_malloc(az_key_memory_record_buffer, r->length,
                                        MYF(MY_WME)))) {
     my_free(r);
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
   }
 
   return r;
@@ -1601,11 +1601,11 @@ mysql_declare_plugin(archive){
     "Archive storage engine",
     PLUGIN_LICENSE_GPL,
     archive_db_init, /* Plugin Init */
-    NULL,            /* Plugin check uninstall */
-    NULL,            /* Plugin Deinit */
+    nullptr,         /* Plugin check uninstall */
+    nullptr,         /* Plugin Deinit */
     0x0300 /* 3.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

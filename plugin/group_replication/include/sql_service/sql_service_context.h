@@ -31,7 +31,7 @@
 class Sql_service_context : public Sql_service_context_base {
  public:
   Sql_service_context(Sql_resultset *rset) : resultset(rset) {
-    if (rset != NULL) resultset->clear();
+    if (rset != nullptr) resultset->clear();
   }
 
   ~Sql_service_context() {}

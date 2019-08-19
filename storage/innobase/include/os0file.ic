@@ -53,7 +53,7 @@ pfs_os_file_t pfs_os_file_create_simple_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
     bool read_only, bool *success, const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
 
   /* register a file open or creation depending on "create_mode" */
@@ -64,10 +64,11 @@ pfs_os_file_t pfs_os_file_create_simple_func(
 
   file.m_file = os_file_create_simple_func(name, create_mode, access_type,
                                            read_only, success);
-  file.m_psi = NULL;
+  file.m_psi = nullptr;
 
   /* Regsiter psi value for the file */
-  register_pfs_file_open_end(locker, file, (*success == TRUE ? success : 0));
+  register_pfs_file_open_end(locker, file,
+                             (*success == TRUE ? success : nullptr));
 
   return (file);
 }
@@ -95,7 +96,7 @@ pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
     bool read_only, bool *success, const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
 
   /* register a file open or creation depending on "create_mode" */
@@ -107,8 +108,9 @@ pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
   file = os_file_create_simple_no_error_handling_func(
       name, create_mode, access_type, read_only, success);
 
-  file.m_psi = NULL;
-  register_pfs_file_open_end(locker, file, (*success == TRUE ? success : 0));
+  file.m_psi = nullptr;
+  register_pfs_file_open_end(locker, file,
+                             (*success == TRUE ? success : nullptr));
 
   return (file);
 }
@@ -140,7 +142,7 @@ pfs_os_file_t pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
                                       ulint type, bool read_only, bool *success,
                                       const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
 
   /* register a file open or creation depending on "create_mode" */
@@ -152,8 +154,9 @@ pfs_os_file_t pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
   file =
       os_file_create_func(name, create_mode, purpose, type, read_only, success);
 
-  file.m_psi = NULL;
-  register_pfs_file_open_end(locker, file, (*success == TRUE ? success : 0));
+  file.m_psi = nullptr;
+  register_pfs_file_open_end(locker, file,
+                             (*success == TRUE ? success : nullptr));
 
   return (file);
 }
@@ -169,7 +172,7 @@ UNIV_INLINE
 bool pfs_os_file_close_func(pfs_os_file_t file, const char *src_file,
                             uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   /* register the file close */
   register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CLOSE, src_file,
@@ -211,7 +214,7 @@ dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                         ulint n, bool read_only, fil_node_t *m1, void *m2,
                         const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
@@ -247,7 +250,7 @@ dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
                               pfs_os_file_t file, void *buf, os_offset_t offset,
                               ulint n, const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
@@ -280,7 +283,7 @@ dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
                                          pfs_os_file_t file, void *buf, ulint n,
                                          const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
@@ -356,7 +359,7 @@ dberr_t pfs_os_file_read_no_error_handling_func(IORequest &type,
                                                 ulint *o, const char *src_file,
                                                 uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ, src_file,
                              src_line);
@@ -391,17 +394,17 @@ dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
     os_offset_t offset, ulint n, ulint *o, const char *src_file,
     ulint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, file,
                                                             PSI_FILE_READ);
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
   }
   dberr_t result = os_file_read_no_error_handling_func(
       type, file_name, OS_FILE_FROM_FD(file), buf, offset, n, o);
 
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(end_file_wait)(locker, n);
   }
 
@@ -428,7 +431,7 @@ dberr_t pfs_os_file_write_func(IORequest &type, const char *name,
                                os_offset_t offset, ulint n,
                                const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_WRITE, src_file,
                              src_line);
@@ -462,17 +465,17 @@ dberr_t pfs_os_file_write_int_fd_func(IORequest &type, const char *name,
                                       os_offset_t offset, ulint n,
                                       const char *src_file, ulint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, file,
                                                             PSI_FILE_WRITE);
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
   }
   dberr_t result =
       os_file_write_func(type, name, OS_FILE_FROM_FD(file), buf, offset, n);
 
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(end_file_wait)(locker, n);
   }
 
@@ -493,7 +496,7 @@ UNIV_INLINE
 bool pfs_os_file_flush_func(pfs_os_file_t file, const char *src_file,
                             uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_SYNC, src_file,
                              src_line);
@@ -522,7 +525,7 @@ bool pfs_os_file_rename_func(mysql_pfs_key_t key, const char *oldpath,
 
 {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, newpath,
                                  src_file, src_line);
@@ -547,7 +550,7 @@ UNIV_INLINE
 bool pfs_os_file_delete_func(mysql_pfs_key_t key, const char *name,
                              const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_close_begin(&state, locker, key, PSI_FILE_DELETE, name,
                                 src_file, src_line);
@@ -575,7 +578,7 @@ bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key, const char *name,
                                        bool *exist, const char *src_file,
                                        uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_close_begin(&state, locker, key, PSI_FILE_DELETE, name,
                                 src_file, src_line);

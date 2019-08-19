@@ -102,8 +102,8 @@ bool Raw_record_set::next(Raw_record *&r) {
   int rc;
 
   if (!m_current_record) {
-    m_current_record = NULL;
-    r = NULL;
+    m_current_record = nullptr;
+    r = nullptr;
     return false;
   }
 
@@ -115,16 +115,16 @@ bool Raw_record_set::next(Raw_record *&r) {
 
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
-    m_current_record = NULL;
-    r = NULL;
+    m_current_record = nullptr;
+    r = nullptr;
     return false;
   }
 
   // Got unexpected error.
   if (rc) {
     m_table->file->print_error(rc, MYF(0));
-    m_current_record = NULL;
-    r = NULL;
+    m_current_record = nullptr;
+    r = nullptr;
     return true;
   }
 

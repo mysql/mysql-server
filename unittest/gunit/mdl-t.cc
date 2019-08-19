@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ const ulong long_timeout = (ulong)3600L * 24L * 365L;
 
 class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
  protected:
-  MDLTest() : m_null_ticket(NULL), m_null_request(NULL) {}
+  MDLTest() : m_null_ticket(nullptr), m_null_request(nullptr) {}
 
   static void SetUpTestCase() {
     /* Save original and install our custom error hook. */
@@ -127,7 +127,7 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
 
   virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) {
-    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 
   // A utility member for testing single lock requests.
@@ -177,7 +177,7 @@ class MDL_thread : public Thread, public Test_MDL_context_owner {
   virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) {
     if (in_use)
-      in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+      in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
     else if (m_enable_release_on_notify && m_release_locks)
       m_release_locks->notify();
   }
@@ -468,7 +468,7 @@ TEST_F(MDLTest, ConcurrentShared) {
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
-                        NULL, NULL);
+                        nullptr, nullptr);
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -495,7 +495,7 @@ TEST_F(MDLTest, ConcurrentSharedExclusive) {
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
-                        NULL, NULL);
+                        nullptr, nullptr);
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -528,7 +528,7 @@ TEST_F(MDLTest, ConcurrentExclusiveShared) {
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, &lock_grabbed,
-                        &release_locks, NULL, NULL);
+                        &release_locks, nullptr, nullptr);
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -572,7 +572,7 @@ TEST_F(MDLTest, ConcurrentUpgrade) {
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
-                        NULL, NULL);
+                        nullptr, nullptr);
   mdl_thread.enable_release_on_notify();
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
@@ -592,7 +592,7 @@ TEST_F(MDLTest, UpgradableConcurrency) {
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED_UPGRADABLE, &lock_grabbed,
-                        &release_locks, NULL, NULL);
+                        &release_locks, nullptr, nullptr);
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -632,7 +632,7 @@ TEST_F(MDLTest, SharedWriteLowPrioCompatibility) {
   Notification lock_grabbed;
   Notification release_lock;
   MDL_thread mdl_thread(table_name1, MDL_SHARED_WRITE_LOW_PRIO, &lock_grabbed,
-                        &release_lock, NULL, NULL);
+                        &release_lock, nullptr, nullptr);
   uint i;
 
   // Start thread which will acquire SWLP lock and pause.
@@ -664,7 +664,7 @@ TEST_F(MDLTest, SharedWriteLowPrioCompatibility) {
     Notification second_grabbed;
     Notification second_release;
     MDL_thread mdl_thread2(table_name1, compatible[i], &second_grabbed,
-                           &second_release, NULL, NULL);
+                           &second_release, nullptr, nullptr);
 
     // Start thread that will acquire one of locks from compatible list
     mdl_thread2.start();
@@ -689,7 +689,7 @@ TEST_F(MDLTest, SharedWriteLowPrioCompatibility) {
     Notification third_grabbed;
     Notification third_release;
     MDL_thread mdl_thread3(table_name1, incompatible[i], &third_grabbed,
-                           &third_release, NULL, NULL);
+                           &third_release, nullptr, nullptr);
 
     // Start thread that will acquire one of locks from incompatible list
     mdl_thread3.start();
@@ -714,9 +714,9 @@ TEST_F(MDLTest, SharedWriteLowPrioCompatibility) {
     Notification fourth_release;
     Notification fifth_blocked;
     MDL_thread mdl_thread4(table_name1, MDL_SHARED_WRITE, &fourth_grabbed,
-                           &fourth_release, NULL, NULL);
-    MDL_thread mdl_thread5(table_name1, higher_prio[i], NULL, NULL,
-                           &fifth_blocked, NULL);
+                           &fourth_release, nullptr, nullptr);
+    MDL_thread mdl_thread5(table_name1, higher_prio[i], nullptr, nullptr,
+                           &fifth_blocked, nullptr);
 
     // Acquire SW lock on the table.
     mdl_thread4.start();
@@ -749,11 +749,11 @@ TEST_F(MDLTest, SharedWriteLowPrioCompatibility) {
     Notification eighth_blocked;
     Notification eighth_release;
     MDL_thread mdl_thread6(table_name1, MDL_EXCLUSIVE, &sixth_grabbed,
-                           &sixth_release, NULL, NULL);
-    MDL_thread mdl_thread7(table_name1, higher_prio[i], &seventh_grabbed, NULL,
-                           &seventh_blocked, NULL);
-    MDL_thread mdl_thread8(table_name1, MDL_SHARED_WRITE_LOW_PRIO, NULL,
-                           &eighth_release, &eighth_blocked, NULL);
+                           &sixth_release, nullptr, nullptr);
+    MDL_thread mdl_thread7(table_name1, higher_prio[i], &seventh_grabbed,
+                           nullptr, &seventh_blocked, nullptr);
+    MDL_thread mdl_thread8(table_name1, MDL_SHARED_WRITE_LOW_PRIO, nullptr,
+                           &eighth_release, &eighth_blocked, nullptr);
 
     // Acquire X lock on the table.
     mdl_thread6.start();
@@ -799,7 +799,7 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
   Notification lock_grabbed;
   Notification release_lock;
   MDL_thread mdl_thread(table_name1, MDL_SHARED_READ_ONLY, &lock_grabbed,
-                        &release_lock, NULL, NULL);
+                        &release_lock, nullptr, nullptr);
   uint i;
 
   // Start thread which will acquire SRO lock and pause.
@@ -831,7 +831,7 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
     Notification second_grabbed;
     Notification second_release;
     MDL_thread mdl_thread2(table_name1, compatible[i], &second_grabbed,
-                           &second_release, NULL, NULL);
+                           &second_release, nullptr, nullptr);
 
     // Start thread that will acquire one of locks from compatible list
     mdl_thread2.start();
@@ -856,7 +856,7 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
     Notification third_grabbed;
     Notification third_release;
     MDL_thread mdl_thread3(table_name1, incompatible[i], &third_grabbed,
-                           &third_release, NULL, NULL);
+                           &third_release, nullptr, nullptr);
 
     // Start thread that will acquire one of locks from incompatible list
     mdl_thread3.start();
@@ -881,9 +881,9 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
     Notification fourth_release;
     Notification fifth_blocked;
     MDL_thread mdl_thread4(table_name1, MDL_SHARED_READ_ONLY, &fourth_grabbed,
-                           &fourth_release, NULL, NULL);
-    MDL_thread mdl_thread5(table_name1, higher_prio[i], NULL, NULL,
-                           &fifth_blocked, NULL);
+                           &fourth_release, nullptr, nullptr);
+    MDL_thread mdl_thread5(table_name1, higher_prio[i], nullptr, nullptr,
+                           &fifth_blocked, nullptr);
 
     // Acquire SRO lock on the table.
     mdl_thread4.start();
@@ -909,9 +909,9 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
   Notification sixth_release;
   Notification seventh_blocked;
   MDL_thread mdl_thread6(table_name1, MDL_SHARED_READ_ONLY, &sixth_grabbed,
-                         &sixth_release, NULL, NULL);
-  MDL_thread mdl_thread7(table_name1, MDL_SHARED_WRITE_LOW_PRIO, NULL, NULL,
-                         &seventh_blocked, NULL);
+                         &sixth_release, nullptr, nullptr);
+  MDL_thread mdl_thread7(table_name1, MDL_SHARED_WRITE_LOW_PRIO, nullptr,
+                         nullptr, &seventh_blocked, nullptr);
 
   // Acquire SRO lock on the table.
   mdl_thread6.start();
@@ -944,11 +944,11 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
     Notification tenth_blocked;
     Notification tenth_release;
     MDL_thread mdl_thread8(table_name1, MDL_EXCLUSIVE, &eighth_grabbed,
-                           &eighth_release, NULL, NULL);
-    MDL_thread mdl_thread9(table_name1, higher_prio[i], &nineth_grabbed, NULL,
-                           &nineth_blocked, NULL);
-    MDL_thread mdl_thread10(table_name1, MDL_SHARED_READ_ONLY, NULL,
-                            &tenth_release, &tenth_blocked, NULL);
+                           &eighth_release, nullptr, nullptr);
+    MDL_thread mdl_thread9(table_name1, higher_prio[i], &nineth_grabbed,
+                           nullptr, &nineth_blocked, nullptr);
+    MDL_thread mdl_thread10(table_name1, MDL_SHARED_READ_ONLY, nullptr,
+                            &tenth_release, &tenth_blocked, nullptr);
 
     // Acquire X lock on the table.
     mdl_thread8.start();
@@ -983,9 +983,9 @@ TEST_F(MDLTest, SharedReadOnlyCompatibility) {
   Notification eleventh_release;
   Notification twelveth_blocked;
   MDL_thread mdl_thread11(table_name1, MDL_SHARED_WRITE, &eleventh_grabbed,
-                          &eleventh_release, NULL, NULL);
-  MDL_thread mdl_thread12(table_name1, MDL_SHARED_READ_ONLY, NULL, NULL,
-                          &twelveth_blocked, NULL);
+                          &eleventh_release, nullptr, nullptr);
+  MDL_thread mdl_thread12(table_name1, MDL_SHARED_READ_ONLY, nullptr, nullptr,
+                          &twelveth_blocked, nullptr);
 
   // Acquire SW lock on the table.
   mdl_thread11.start();
@@ -1889,11 +1889,11 @@ TEST_F(MDLTest, ConcurrentSharedExclusiveShared) {
   Notification second_shared_grabbed;
   Notification second_shared_blocked;
   MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_shared_grabbed,
-                         &first_shared_release, NULL, NULL);
+                         &first_shared_release, nullptr, nullptr);
   MDL_thread mdl_thread2(table_name1, MDL_EXCLUSIVE, &exclusive_grabbed,
-                         &exclusive_release, &exclusive_blocked, NULL);
-  MDL_thread mdl_thread3(table_name1, MDL_SHARED, &second_shared_grabbed, NULL,
-                         &second_shared_blocked, NULL);
+                         &exclusive_release, &exclusive_blocked, nullptr);
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED, &second_shared_grabbed,
+                         nullptr, &second_shared_blocked, nullptr);
 
   /* Start thread which will acquire S lock. */
   mdl_thread1.start();
@@ -1947,9 +1947,9 @@ TEST_F(MDLTest, ConcurrentExclusiveExclusive) {
   Notification second_exclusive_blocked;
   Notification second_exclusive_grabbed;
   MDL_thread mdl_thread1(table_name1, MDL_EXCLUSIVE, &first_exclusive_grabbed,
-                         &first_exclusive_release, NULL, NULL);
+                         &first_exclusive_release, nullptr, nullptr);
   MDL_thread mdl_thread2(table_name1, MDL_EXCLUSIVE, &second_exclusive_grabbed,
-                         NULL, &second_exclusive_blocked, NULL);
+                         nullptr, &second_exclusive_blocked, nullptr);
 
   /* Start thread which will acquire X lock. */
   mdl_thread1.start();
@@ -1983,11 +1983,11 @@ TEST_F(MDLTest, ConcurrentSharedSharedExclusive) {
   Notification exclusive_blocked;
   Notification exclusive_grabbed;
   MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_shared_grabbed,
-                         &first_shared_release, NULL, NULL);
+                         &first_shared_release, nullptr, nullptr);
   MDL_thread mdl_thread2(table_name1, MDL_SHARED, &second_shared_grabbed,
-                         &second_shared_release, NULL, NULL);
-  MDL_thread mdl_thread3(table_name1, MDL_EXCLUSIVE, &exclusive_grabbed, NULL,
-                         &exclusive_blocked, NULL);
+                         &second_shared_release, nullptr, nullptr);
+  MDL_thread mdl_thread3(table_name1, MDL_EXCLUSIVE, &exclusive_grabbed,
+                         nullptr, &exclusive_blocked, nullptr);
 
   /* Start two threads which will acquire S locks. */
   mdl_thread1.start();
@@ -2078,8 +2078,8 @@ TEST_F(MDLTest, SelfConflict) {
 TEST_F(MDLTest, CloneSharedExclusive) {
   MDL_ticket *initial_ticket;
   Notification lock_blocked;
-  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, NULL, NULL, &lock_blocked,
-                        NULL);
+  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, nullptr, nullptr,
+                        &lock_blocked, nullptr);
 
   /* Acquire SHARED lock, it will be acquired using "fast path" algorithm. */
   MDL_REQUEST_INIT(&m_request, MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
@@ -2118,8 +2118,8 @@ TEST_F(MDLTest, CloneSharedExclusive) {
 TEST_F(MDLTest, CloneExclusiveShared) {
   MDL_ticket *initial_ticket;
   Notification lock_blocked;
-  MDL_thread mdl_thread(table_name1, MDL_SHARED, NULL, NULL, &lock_blocked,
-                        NULL);
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, nullptr, nullptr,
+                        &lock_blocked, nullptr);
 
   /* Acquire EXCLUSIVE lock, counter of "obtrusive" locks is increased. */
   MDL_REQUEST_INIT(&m_request, MDL_key::TABLE, db_name, table_name1,
@@ -2166,9 +2166,10 @@ TEST_F(MDLTest, NotifyScenarios) {
   Notification first_shared_grabbed, first_shared_release;
   Notification first_shared_released, first_exclusive_grabbed;
   MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_shared_grabbed,
-                         &first_shared_release, NULL, &first_shared_released);
+                         &first_shared_release, nullptr,
+                         &first_shared_released);
   MDL_thread mdl_thread2(table_name1, MDL_EXCLUSIVE, &first_exclusive_grabbed,
-                         NULL, NULL, NULL);
+                         nullptr, nullptr, nullptr);
 
   /* Acquire S lock which will be granted using "fast path". */
   mdl_thread1.enable_release_on_notify();
@@ -2202,9 +2203,10 @@ TEST_F(MDLTest, NotifyScenarios) {
   Notification second_shared_grabbed, second_shared_release;
   Notification second_shared_released, second_exclusive_grabbed;
   MDL_thread mdl_thread3(table_name1, MDL_SHARED, &second_shared_grabbed,
-                         &second_shared_release, NULL, &second_shared_released);
+                         &second_shared_release, nullptr,
+                         &second_shared_released);
   MDL_thread mdl_thread4(table_name1, MDL_EXCLUSIVE, &second_exclusive_grabbed,
-                         NULL, NULL, NULL);
+                         nullptr, nullptr, nullptr);
 
   /*
     In order for notification to work properly context should be marked
@@ -2259,8 +2261,8 @@ TEST_F(MDLTest, UpgradeScenarios) {
   */
   Notification first_blocked;
   Notification first_release;
-  MDL_thread mdl_thread1(table_name1, MDL_SHARED, NULL, &first_release,
-                         &first_blocked, NULL);
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, nullptr, &first_release,
+                         &first_blocked, nullptr);
   mdl_thread1.start();
   first_blocked.wait_for_notification();
 
@@ -2273,8 +2275,8 @@ TEST_F(MDLTest, UpgradeScenarios) {
 
   /* Check that we can acquire S lock. */
   Notification second_grabbed;
-  MDL_thread mdl_thread2(table_name1, MDL_SHARED, &second_grabbed, NULL, NULL,
-                         NULL);
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED, &second_grabbed, nullptr,
+                         nullptr, nullptr);
   mdl_thread2.start();
   second_grabbed.wait_for_notification();
 
@@ -2302,8 +2304,8 @@ TEST_F(MDLTest, UpgradeScenarios) {
   */
   Notification third_blocked;
   Notification third_grabbed;
-  MDL_thread mdl_thread3(table_name1, MDL_EXCLUSIVE, &third_grabbed, NULL,
-                         &third_blocked, NULL);
+  MDL_thread mdl_thread3(table_name1, MDL_EXCLUSIVE, &third_grabbed, nullptr,
+                         &third_blocked, nullptr);
   mdl_thread3.start();
   third_blocked.wait_for_notification();
 
@@ -2340,8 +2342,8 @@ TEST_F(MDLTest, UpgradeScenarios) {
   */
   Notification fourth_blocked;
   Notification fourth_release;
-  MDL_thread mdl_thread4(table_name1, MDL_SHARED, NULL, &fourth_release,
-                         &fourth_blocked, NULL);
+  MDL_thread mdl_thread4(table_name1, MDL_SHARED, nullptr, &fourth_release,
+                         &fourth_blocked, nullptr);
   mdl_thread4.start();
   fourth_blocked.wait_for_notification();
 
@@ -2354,8 +2356,8 @@ TEST_F(MDLTest, UpgradeScenarios) {
 
   /* Check that we can acquire S lock. */
   Notification fifth_grabbed;
-  MDL_thread mdl_thread5(table_name1, MDL_SHARED, &fifth_grabbed, NULL, NULL,
-                         NULL);
+  MDL_thread mdl_thread5(table_name1, MDL_SHARED, &fifth_grabbed, nullptr,
+                         nullptr, nullptr);
   mdl_thread5.start();
   fifth_grabbed.wait_for_notification();
 
@@ -2373,8 +2375,8 @@ TEST_F(MDLTest, UpgradeScenarios) {
 
 TEST_F(MDLTest, Deadlock) {
   Notification lock_blocked;
-  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, NULL, NULL, &lock_blocked,
-                        NULL);
+  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE, nullptr, nullptr,
+                        &lock_blocked, nullptr);
 
   /* Acquire SR lock which will be granted using "fast path". */
   MDL_REQUEST_INIT(&m_request, MDL_key::TABLE, db_name, table_name1,
@@ -2410,8 +2412,8 @@ TEST_F(MDLTest, Deadlock) {
 
 TEST_F(MDLTest, DowngradeShared) {
   Notification lock_grabbed;
-  MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, NULL, NULL,
-                        NULL);
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, nullptr,
+                        nullptr, nullptr);
 
   /* Acquire global IX lock first to satisfy MDL asserts. */
   EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
@@ -2452,15 +2454,16 @@ TEST_F(MDLTest, RescheduleSharedNoWrite) {
   Notification second_shared_write_grabbed;
 
   MDL_thread mdl_thread1(table_name1, MDL_SHARED, &shared_grabbed,
-                         &shared_release, NULL, NULL);
+                         &shared_release, nullptr, nullptr);
   MDL_thread mdl_thread2(table_name1, MDL_SHARED_WRITE,
                          &first_shared_write_grabbed,
-                         &first_shared_write_release, NULL, NULL);
+                         &first_shared_write_release, nullptr, nullptr);
   MDL_thread mdl_thread3(table_name1, MDL_SHARED_NO_WRITE,
-                         &shared_no_write_grabbed, NULL,
-                         &shared_no_write_blocked, NULL);
+                         &shared_no_write_grabbed, nullptr,
+                         &shared_no_write_blocked, nullptr);
   MDL_thread mdl_thread4(table_name1, MDL_SHARED_WRITE,
-                         &second_shared_write_grabbed, NULL, NULL, NULL);
+                         &second_shared_write_grabbed, nullptr, nullptr,
+                         nullptr);
 
   /* Start thread which will acquire S lock. */
   mdl_thread1.start();
@@ -2503,11 +2506,11 @@ TEST_F(MDLTest, ConcurrentSharedTryExclusive) {
   Notification first_grabbed, second_grabbed, third_grabbed;
   Notification first_release, second_release;
   MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_grabbed,
-                         &first_release, NULL, NULL);
+                         &first_release, nullptr, nullptr);
   MDL_thread mdl_thread2(table_name1, MDL_SHARED, &second_grabbed,
-                         &second_release, NULL, NULL);
-  MDL_thread mdl_thread3(table_name1, MDL_SHARED, &third_grabbed, NULL, NULL,
-                         NULL);
+                         &second_release, nullptr, nullptr);
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED, &third_grabbed, nullptr,
+                         nullptr, nullptr);
 
   /* Start the first thread which will acquire S lock. */
   mdl_thread1.start();
@@ -2573,11 +2576,11 @@ TEST_F(MDLTest, UnusedConcurrentThree) {
       third_grabbed, third_release;
 
   MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_grabbed,
-                         &first_release, NULL, NULL);
+                         &first_release, nullptr, nullptr);
   MDL_thread mdl_thread2(table_name2, MDL_SHARED, &second_grabbed,
-                         &second_release, NULL, NULL);
+                         &second_release, nullptr, nullptr);
   MDL_thread mdl_thread3(table_name3, MDL_SHARED_UPGRADABLE, &third_grabbed,
-                         &third_release, NULL, NULL);
+                         &third_release, nullptr, nullptr);
 
   mdl_locks_unused_locks_low_water = 0;
 
@@ -2654,7 +2657,7 @@ TEST_F(MDLTest, UnusedConcurrentMany) {
         */
         ((i % TABLES < 2) && (i % TABLES == i)) ? MDL_SHARED_UPGRADABLE
                                                 : MDL_SHARED,
-        &group_a_grabbed[i], &group_a_release, NULL, NULL);
+        &group_a_grabbed[i], &group_a_release, nullptr, nullptr);
 
   for (i = 0; i < THREADS; ++i)
     mdl_thread_group_b[i] = new MDL_thread(
@@ -2666,7 +2669,7 @@ TEST_F(MDLTest, UnusedConcurrentMany) {
         */
         ((i % TABLES < 2) && (i % TABLES == i)) ? MDL_SHARED_UPGRADABLE
                                                 : MDL_SHARED,
-        &group_b_grabbed[i], &group_b_release, NULL, NULL);
+        &group_b_grabbed[i], &group_b_release, nullptr, nullptr);
 
   mdl_locks_unused_locks_low_water = 0;
 
@@ -3689,7 +3692,7 @@ TEST_F(MDLTest, ForceDMLDeadlockWeight) {
 
 class MDLTestContextVisitor : public MDL_context_visitor {
  public:
-  MDLTestContextVisitor() : m_visited_ctx(NULL) {}
+  MDLTestContextVisitor() : m_visited_ctx(nullptr) {}
   virtual void visit_context(const MDL_context *ctx) { m_visited_ctx = ctx; }
   const MDL_context *get_visited_ctx() { return m_visited_ctx; }
 
@@ -3705,15 +3708,15 @@ TEST_F(MDLTest, FindLockOwner) {
   Notification first_grabbed, first_release;
   Notification second_blocked, second_grabbed, second_release;
   MDL_thread thread1(table_name1, MDL_EXCLUSIVE, &first_grabbed, &first_release,
-                     NULL, NULL);
+                     nullptr, nullptr);
   MDL_thread thread2(table_name1, MDL_EXCLUSIVE, &second_grabbed,
-                     &second_release, &second_blocked, NULL);
+                     &second_release, &second_blocked, nullptr);
   MDL_key mdl_key(MDL_key::TABLE, db_name, table_name1);
 
   /* There should be no lock owner before we have started any threads. */
   MDLTestContextVisitor visitor1;
   EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor1));
-  const MDL_context *null_context = NULL;
+  const MDL_context *null_context = nullptr;
   EXPECT_EQ(null_context, visitor1.get_visited_ctx());
 
   /*
@@ -3987,7 +3990,7 @@ TEST_F(MDLHtonNotifyTest, NotifyAcquireFail) {
 
   // Acquire S lock on the table in another thread.
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_lock,
-                        NULL, NULL);
+                        nullptr, nullptr);
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -4092,7 +4095,7 @@ TEST_F(MDLHtonNotifyTest, NotifyUpgrade) {
   // Acquire S lock on the table in another thread.
   Notification lock_grabbed, release_lock;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_lock,
-                        NULL, NULL);
+                        nullptr, nullptr);
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 

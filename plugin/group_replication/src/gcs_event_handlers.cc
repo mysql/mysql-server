@@ -79,7 +79,7 @@ void Plugin_gcs_events_handler::on_message_received(
           message.get_message_data().get_payload());
 
   const std::string message_origin = message.get_origin().get_member_id();
-  Plugin_gcs_message *processed_message = NULL;
+  Plugin_gcs_message *processed_message = nullptr;
 
   switch (message_type) {
     case Plugin_gcs_message::CT_TRANSACTION_MESSAGE:
@@ -182,13 +182,14 @@ void Plugin_gcs_events_handler::handle_transactional_message(
           ->increment_transactions_delivered_during_recovery();
     }
 
-    const unsigned char *payload_data = NULL;
+    const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(
         message.get_message_data().get_payload(), &payload_data, &payload_size);
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size),
-                                 GROUP_REPLICATION_CONSISTENCY_EVENTUAL, NULL);
+                                 GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+                                 nullptr);
   } else {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DISCARDED);
@@ -208,7 +209,7 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
           ->increment_transactions_delivered_during_recovery();
     }
 
-    const unsigned char *payload_data = NULL;
+    const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(
         message.get_message_data().get_payload(), &payload_data, &payload_size);
@@ -234,7 +235,7 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
 
 void Plugin_gcs_events_handler::handle_transaction_prepared_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER);
     return;
@@ -255,7 +256,7 @@ void Plugin_gcs_events_handler::handle_transaction_prepared_message(
 
 void Plugin_gcs_events_handler::handle_sync_before_execution_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER);
     return;
@@ -275,7 +276,7 @@ void Plugin_gcs_events_handler::handle_sync_before_execution_message(
 
 void Plugin_gcs_events_handler::handle_certifier_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return;                                           /* purecov: inspected */
@@ -284,7 +285,7 @@ void Plugin_gcs_events_handler::handle_certifier_message(
   Certifier_interface *certifier =
       this->applier_module->get_certification_handler()->get_certifier();
 
-  const unsigned char *payload_data = NULL;
+  const unsigned char *payload_data = nullptr;
   size_t payload_size = 0;
   Plugin_gcs_message::get_first_payload_item_raw_data(
       message.get_message_data().get_payload(), &payload_data, &payload_size);
@@ -343,7 +344,7 @@ void Plugin_gcs_events_handler::handle_recovery_message(
   } else {
     Group_member_info *member_info =
         group_member_mgr->get_group_member_info(member_uuid);
-    if (member_info != NULL) {
+    if (member_info != nullptr) {
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEM_ONLINE,
                    member_info->get_hostname().c_str(),
                    member_info->get_port());
@@ -383,7 +384,7 @@ void Plugin_gcs_events_handler::handle_recovery_message(
 
 void Plugin_gcs_events_handler::handle_stats_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return;                                           /* purecov: inspected */
@@ -397,7 +398,7 @@ void Plugin_gcs_events_handler::handle_stats_message(
 
 void Plugin_gcs_events_handler::handle_single_primary_message(
     Plugin_gcs_message *processed_message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return;                                           /* purecov: inspected */
@@ -424,7 +425,7 @@ void Plugin_gcs_events_handler::handle_single_primary_message(
 
 void Plugin_gcs_events_handler::handle_group_action_message(
     const Gcs_message &message) const {
-  if (group_action_coordinator == NULL) {
+  if (group_action_coordinator == nullptr) {
     LogPluginErr(
         ERROR_LEVEL,
         ER_GRP_RPL_MISSING_GRP_RPL_ACTION_COORDINATOR); /* purecov: inspected */
@@ -474,8 +475,8 @@ void Plugin_gcs_events_handler::on_suspicions(
       Group_member_info *member_info =
           group_member_mgr->get_group_member_info_by_member_id(member);
 
-      if (member_info == NULL)  // Trying to update a non-existing member
-        continue;               /* purecov: inspected */
+      if (member_info == nullptr)  // Trying to update a non-existing member
+        continue;                  /* purecov: inspected */
 
       uit = std::find(tmp_unreachable.begin(), tmp_unreachable.end(), member);
       if (uit != tmp_unreachable.end()) {
@@ -575,7 +576,7 @@ void Plugin_gcs_events_handler::get_hosts_from_view(
         group_member_mgr->get_group_member_info_by_member_id((*all_members_it));
     all_members_it++;
 
-    if (member_info == NULL) continue;
+    if (member_info == nullptr) continue;
 
     hosts_string << member_info->get_hostname() << ":"
                  << member_info->get_port();
@@ -711,7 +712,7 @@ void Plugin_gcs_events_handler::on_view_changed(
   if (!is_leaving) {
     std::string view_id_representation = "";
     Gcs_view *view = gcs_module->get_current_view();
-    if (view != NULL) {
+    if (view != nullptr) {
       view_id_representation = view->get_view_id().get_representation();
       delete view;
     }
@@ -1113,11 +1114,11 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
     const uchar *data = exchanged_data_it->second->get_payload();
     size_t length = exchanged_data_it->second->get_payload_length();
     Gcs_member_identifier *member_id = exchanged_data_it->first;
-    if (data == NULL) {
+    if (data == nullptr) {
       /* purecov: begin inspected */
       Group_member_info *member_info =
           group_member_mgr->get_group_member_info_by_member_id(*member_id);
-      if (member_info != NULL) {
+      if (member_info != nullptr) {
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM,
                      member_info->get_hostname().c_str(),
                      member_info->get_port());
@@ -1266,7 +1267,7 @@ void Plugin_gcs_events_handler::update_member_status(
     Group_member_info *member_info =
         group_member_mgr->get_group_member_info_by_member_id(member);
 
-    if (member_info == NULL) {
+    if (member_info == nullptr) {
       // Trying to update a non-existing member
       continue;
     }
@@ -1439,10 +1440,10 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
 int Plugin_gcs_events_handler::compare_member_transaction_sets() const {
   int result = 0;
 
-  Sid_map local_sid_map(NULL);
-  Sid_map group_sid_map(NULL);
-  Gtid_set local_member_set(&local_sid_map, NULL);
-  Gtid_set group_set(&group_sid_map, NULL);
+  Sid_map local_sid_map(nullptr);
+  Sid_map group_sid_map(nullptr);
+  Gtid_set local_member_set(&local_sid_map, nullptr);
+  Gtid_set group_set(&group_sid_map, nullptr);
 
   std::vector<Group_member_info *> *all_members =
       group_member_mgr->get_all_members();

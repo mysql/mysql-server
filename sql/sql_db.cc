@@ -107,7 +107,7 @@
 const char *del_exts[] = {".frm", ".BAK", ".TMD", ".opt",
                           ".OLD", ".cfg", ".SDI", NullS};
 static TYPELIB deletable_extentions = {array_elements(del_exts) - 1, "del_exts",
-                                       del_exts, NULL};
+                                       del_exts, nullptr};
 
 static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
                                                     const char *path);
@@ -149,7 +149,7 @@ bool get_default_db_collation(THD *thd, const char *db_name,
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj = NULL;
+  const dd::Schema *sch_obj = nullptr;
 
   if (mdl_handler.ensure_locked(db_name) ||
       thd->dd_client()->acquire(db_name, &sch_obj))
@@ -320,7 +320,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   // already exists.
   MY_STAT stat_info;
   bool schema_dir_exists =
-      (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != NULL);
+      (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != nullptr);
   if (thd->is_dd_system_thread() &&
       (!opt_initialize || dd::upgrade_57::in_progress()) &&
       dd::get_dictionary()->is_dd_schema_name(db)) {
@@ -460,7 +460,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   // Update schema.
   if (thd->dd_client()->update(schema)) return true;
 
-  ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB, thd->query().str,
+  ha_binlog_log_query(thd, nullptr, LOGCOM_ALTER_DB, thd->query().str,
                       thd->query().length, db, "");
 
   if (write_db_cmd_to_binlog(thd, db, true)) return true;
@@ -543,7 +543,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
   ulong deleted_tables = 0;
   bool error = false;
   char path[2 * FN_REFLEN + 16];
-  TABLE_LIST *tables = NULL;
+  TABLE_LIST *tables = nullptr;
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
   bool dropped_non_atomic = false;
@@ -624,7 +624,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     }
 
     /* Lock all tables and stored routines about to be dropped. */
-    if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
+    if (lock_table_names(thd, tables, nullptr, thd->variables.lock_wait_timeout,
                          0) ||
         rm_table_do_discovery_and_lock_fk_tables(thd, tables) ||
         lock_check_constraint_names(thd, tables) ||
@@ -889,7 +889,7 @@ found_other_files:
 
 static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
                            TABLE_LIST **tables) {
-  TABLE_LIST *tot_list = 0, **tot_list_next_local, **tot_list_next_global;
+  TABLE_LIST *tot_list = nullptr, **tot_list_next_local, **tot_list_next_global;
   DBUG_TRACE;
 
   tot_list_next_local = tot_list_next_global = &tot_list;
@@ -1069,7 +1069,7 @@ static void mysql_change_db_impl(THD *thd, const LEX_CSTRING &new_db_name,
                                  const CHARSET_INFO *new_db_charset) {
   /* 1. Change current database in THD. */
 
-  if (new_db_name.str == NULL) {
+  if (new_db_name.str == nullptr) {
     /*
       THD::set_db() does all the job -- it frees previous database name and
       sets the new one.
@@ -1126,7 +1126,7 @@ static void backup_current_db_name(THD *thd, LEX_STRING *saved_db_name) {
   if (!thd->db().str) {
     /* No current (default) database selected. */
 
-    saved_db_name->str = NULL;
+    saved_db_name->str = nullptr;
     saved_db_name->length = 0;
   } else {
     strmake(saved_db_name->str, thd->db().str, saved_db_name->length - 1);
@@ -1224,7 +1224,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
   Security_context *sctx = thd->security_context();
   ulong db_access = sctx->current_db_access();
-  const CHARSET_INFO *db_default_cl = NULL;
+  const CHARSET_INFO *db_default_cl = nullptr;
 
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
@@ -1234,7 +1234,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("name: '%s'", new_db_name.str));
 
-  if (new_db_name.str == NULL || new_db_name.length == 0) {
+  if (new_db_name.str == nullptr || new_db_name.length == 0) {
     if (force_switch) {
       /*
         This can happen only if we're switching the current database back
@@ -1275,7 +1275,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                                     new_db_name.length, MYF(MY_WME));
   new_db_file_name.length = new_db_name.length;
 
-  if (new_db_file_name.str == NULL) return true; /* the error is set */
+  if (new_db_file_name.str == nullptr) return true; /* the error is set */
 
   /*
     NOTE: if check_db_name() fails, we should throw an error in any case,
@@ -1381,7 +1381,7 @@ done:
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-        ->mark_as_changed(thd, NULL);
+        ->mark_as_changed(thd, nullptr);
   return false;
 }
 

@@ -168,7 +168,7 @@ bool PTI_table_wild::itemize(Parse_context *pc, Item **item) {
                ? nullptr
                : schema;
   *item = new (pc->mem_root) Item_field(POS(), schema, table, "*");
-  if (*item == NULL || (*item)->itemize(pc, item)) return true;
+  if (*item == nullptr || (*item)->itemize(pc, item)) return true;
   pc->select->with_wild++;
   return false;
 }
@@ -179,7 +179,7 @@ bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
     return true;
 
   *res = (*boolfunc2creator)(false)->create(left, right);
-  return *res == NULL;
+  return *res == nullptr;
 }
 
 bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res) {
@@ -210,7 +210,7 @@ bool PTI_function_call_nonkeyword_sysdate::itemize(Parse_context *pc,
     *res = new (pc->mem_root) Item_func_sysdate_local(dec);
   else
     *res = new (pc->mem_root) Item_func_now_local(dec);
-  if (*res == NULL) return true;
+  if (*res == nullptr) return true;
   lex->safe_to_cache_query = false;
 
   return false;
@@ -246,7 +246,7 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc,
   if (super::itemize(pc, res)) return true;
 
   THD *thd = pc->thd;
-  udf = 0;
+  udf = nullptr;
   if (using_udf_functions && (udf = find_udf(ident.str, ident.length)) &&
       udf->type == UDFTYPE_AGGREGATE) {
     pc->select->in_sum_expr++;
@@ -279,7 +279,7 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc,
       *res = builder->create_func(thd, ident, opt_udf_expr_list);
     }
   }
-  return *res == NULL || (*res)->itemize(pc, res);
+  return *res == nullptr || (*res)->itemize(pc, res);
 }
 
 bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res) {
@@ -307,7 +307,7 @@ bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res) {
   Create_qfunc *builder = find_qualified_function_builder(pc->thd);
   DBUG_ASSERT(builder);
   *res = builder->create(pc->thd, db, func, true, opt_expr_list);
-  return *res == NULL || (*res)->itemize(pc, res);
+  return *res == nullptr || (*res)->itemize(pc, res);
 }
 
 bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
@@ -323,13 +323,13 @@ bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
 bool PTI_singlerow_subselect::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res) || subselect->contextualize(pc)) return true;
   *res = new (pc->mem_root) Item_singlerow_subselect(subselect->value());
-  return *res == NULL;
+  return *res == nullptr;
 }
 
 bool PTI_exists_subselect::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res) || subselect->contextualize(pc)) return true;
   *res = new (pc->mem_root) Item_exists_subselect(subselect->value());
-  return *res == NULL;
+  return *res == nullptr;
 }
 
 bool PTI_handle_sql2003_note184_exception::itemize(Parse_context *pc,
@@ -338,7 +338,7 @@ bool PTI_handle_sql2003_note184_exception::itemize(Parse_context *pc,
       right->itemize(pc, &right))
     return true;
   *res = handle_sql2003_note184_exception(pc, left, is_negation, right);
-  return *res == NULL;
+  return *res == nullptr;
 }
 
 bool PTI_expr_with_alias::itemize(Parse_context *pc, Item **res) {
@@ -389,9 +389,9 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
     } else {
       *res = new (pc->mem_root) Item_ref(POS(), NullS, NullS, ident.str);
     }
-    if (*res == NULL || (*res)->itemize(pc, res)) return true;
+    if (*res == nullptr || (*res)->itemize(pc, res)) return true;
   }
-  return *res == NULL;
+  return *res == nullptr;
 }
 
 bool PTI_simple_ident_q_3d::itemize(Parse_context *pc, Item **res) {
@@ -448,7 +448,8 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
     Item_trigger_field *trg_fld = new (pc->mem_root)
         Item_trigger_field(POS(), new_row ? TRG_NEW_ROW : TRG_OLD_ROW, field,
                            SELECT_ACL, read_only);
-    if (trg_fld == NULL || trg_fld->itemize(pc, (Item **)&trg_fld)) return true;
+    if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
+      return true;
     DBUG_ASSERT(trg_fld->type() == TRIGGER_FIELD_ITEM);
 
     /*

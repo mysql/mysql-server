@@ -135,14 +135,14 @@ TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioFail) {
 
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioNullSiteDef) {
   xcom_proto incoming = x_1_4;
-  int result = is_new_node_eligible_for_ipv6(incoming, NULL);
+  int result = is_new_node_eligible_for_ipv6(incoming, nullptr);
 
   ASSERT_EQ(result, 0);
 }
 
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioVersionSame) {
   xcom_proto incoming = my_xcom_version;
-  int result = is_new_node_eligible_for_ipv6(incoming, NULL);
+  int result = is_new_node_eligible_for_ipv6(incoming, nullptr);
 
   ASSERT_EQ(result, 0);
 }
@@ -159,7 +159,7 @@ TEST_F(XcomBase, GetSynodeAppDataNotCached) {
 
   synode_app_data_array result;
   result.synode_app_data_array_len = 0;
-  result.synode_app_data_array_val = NULL;
+  result.synode_app_data_array_val = nullptr;
 
   auto error_code = ::xcom_get_synode_app_data(&synodes, &result);
   ASSERT_EQ(error_code, XCOM_GET_SYNODE_APP_DATA_NOT_CACHED);
@@ -177,7 +177,7 @@ TEST_F(XcomBase, GetSynodeAppDataNotDecided) {
 
   synode_app_data_array result;
   result.synode_app_data_array_len = 0;
-  result.synode_app_data_array_val = NULL;
+  result.synode_app_data_array_val = nullptr;
 
   /* Add the synode to the cache, but it is undecided. */
   get_cache(synode);
@@ -198,7 +198,7 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
 
   synode_app_data_array result;
   result.synode_app_data_array_len = 0;
-  result.synode_app_data_array_val = NULL;
+  result.synode_app_data_array_val = nullptr;
 
   /* Add the synode to the cache, and set it as decided. */
   char const *const payload = "Message in a bottle";
@@ -895,7 +895,7 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
   blob two_uuids[] = {uuid, uuid};
   node_address *identity = ::new_node_address_uuid(2, two_names, two_uuids);
   need_boot->op = need_boot_op;
-  if (identity != NULL) {
+  if (identity != nullptr) {
     need_boot->a = new_app_data();
     need_boot->a->body.c_t = xcom_boot_type;
     init_node_list(2, identity, &need_boot->a->body.app_u_u.nodes);

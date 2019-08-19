@@ -32,7 +32,7 @@ using namespace Mysql::Tools::Dump;
 Mysql::Tools::Base::Mysql_query_runner *
 Single_transaction_connection_provider::create_new_runner(
     std::function<bool(const Mysql::Tools::Base::Message_data &)> *) {
-  Mysql::Tools::Base::Mysql_query_runner *runner = NULL;
+  Mysql::Tools::Base::Mysql_query_runner *runner = nullptr;
   std::lock_guard<std::mutex> lock(m_pool_mutex);
   if (m_runner_pool.size() > 0) {
     runner = m_runner_pool.back();

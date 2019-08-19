@@ -82,7 +82,7 @@ void mysql_dynamic_loader_scheme_file_imp::deinit() {
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
                    (const char *urn, mysql_component_t **out_data)) {
   try {
-    if (urn == NULL) {
+    if (urn == nullptr) {
       return true;
     }
 
@@ -99,7 +99,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
 
     /* Omit scheme prefix to get filename. */
     const char *file = strstr(urn, "://");
-    if (file == NULL) {
+    if (file == nullptr) {
       return true;
     }
     /* Offset by "://" */
@@ -113,7 +113,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
 
     /* Open library. */
     void *handle = dlopen(file_name.c_str(), RTLD_NOW);
-    if (handle == NULL) {
+    if (handle == nullptr) {
       return true;
     }
     auto guard_library = create_scope_guard([&handle]() {
@@ -124,7 +124,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
     /* Look for "list_components" function. */
     list_components_func list_func = reinterpret_cast<list_components_func>(
         dlsym(handle, "list_components"));
-    if (list_func == NULL) {
+    if (list_func == nullptr) {
       return true;
     }
 

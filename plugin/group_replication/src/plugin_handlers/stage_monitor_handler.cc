@@ -48,7 +48,7 @@ int Plugin_stage_monitor_handler::terminate_stage_monitor() {
 
   service_running = false;
 
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if (!(registry = get_plugin_registry())) {
     DBUG_ASSERT(0); /* purecov: inspected */
     return 1;       /* purecov: inspected */
@@ -63,7 +63,7 @@ int Plugin_stage_monitor_handler::initialize_stage_monitor() {
 
   DBUG_ASSERT(!service_running);
 
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if (!(registry = get_plugin_registry())) {
     return 1; /* purecov: inspected */
   }

@@ -1455,7 +1455,7 @@ static void init_slave_skip_errors() {
   DBUG_TRACE;
   DBUG_ASSERT(!use_slave_mask);  // not already initialized
 
-  if (bitmap_init(&slave_error_mask, 0, MAX_SLAVE_ERROR)) {
+  if (bitmap_init(&slave_error_mask, nullptr, MAX_SLAVE_ERROR)) {
     fprintf(stderr, "Badly out of memory, please check your system status\n");
     exit(MYSQLD_ABORT_EXIT);
   }
@@ -1757,7 +1757,7 @@ static int terminate_slave_thread(THD *thd, mysql_mutex_t *term_lock,
       return ER_SLAVE_CHANNEL_NOT_RUNNING;
     }
   }
-  DBUG_ASSERT(thd != 0);
+  DBUG_ASSERT(thd != nullptr);
   THD_CHECK_SENTRY(thd);
 
   /*
@@ -2558,7 +2558,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
       (master_row = mysql_fetch_row(master_res))) {
     mysql_mutex_lock(&mi->data_lock);
     mi->clock_diff_with_master =
-        (long)(time((time_t *)0) - strtoul(master_row[0], 0, 10));
+        (long)(time((time_t *)nullptr) - strtoul(master_row[0], nullptr, 10));
     DBUG_EXECUTE_IF("dbug.mts.force_clock_diff_eq_0",
                     mi->clock_diff_with_master = 0;);
     mysql_mutex_unlock(&mi->data_lock);
@@ -2607,7 +2607,8 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_ID")) &&
       (master_res = mysql_store_result(mysql)) &&
       (master_row = mysql_fetch_row(master_res))) {
-    if ((::server_id == (mi->master_id = strtoul(master_row[0], 0, 10))) &&
+    if ((::server_id ==
+         (mi->master_id = strtoul(master_row[0], nullptr, 10))) &&
         !mi->rli->replicate_same_server_id) {
       errmsg =
           "The slave I/O thread stops because master and slave have equal \
@@ -3416,7 +3417,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
       else
         protocol->store_null();
     } else {
-      long time_diff = ((long)(time(0) - mi->rli->last_master_timestamp) -
+      long time_diff = ((long)(time(nullptr) - mi->rli->last_master_timestamp) -
                         mi->clock_diff_with_master);
       /*
         Apparently on some systems time_diff can be <0. Here are possible
@@ -3860,7 +3861,7 @@ static int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
                            : (thd_type == SLAVE_THD_SQL)
                                  ? SYSTEM_THREAD_SLAVE_SQL
                                  : SYSTEM_THREAD_SLAVE_IO;
-  thd->get_protocol_classic()->init_net(0);
+  thd->get_protocol_classic()->init_net(nullptr);
   thd->slave_thread = true;
   thd->enable_slow_log = opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
@@ -4292,7 +4293,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
   thd->server_id = ev->server_id;  // use the original server id for logging
   thd->unmasked_server_id = ev->common_header->unmasked_server_id;
   thd->set_time();  // time the query
-  thd->lex->set_current_select(0);
+  thd->lex->set_current_select(nullptr);
   if (!ev->common_header->when.tv_sec)
     my_micro_time_to_timeval(my_micro_time(), &ev->common_header->when);
   ev->thd = thd;  // because up to this point, ev->thd == 0
@@ -5670,8 +5671,8 @@ ignore_log_space_limit=%d",
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  my_thread_exit(0);
-  return (0);  // Avoid compiler warnings
+  my_thread_exit(nullptr);
+  return (nullptr);  // Avoid compiler warnings
 }
 
 /*
@@ -5916,8 +5917,8 @@ err:
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  my_thread_exit(0);
-  return 0;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 }  // extern "C"
 
@@ -6383,7 +6384,7 @@ err:
   if (error && w) {
     // Free the current submode object
     delete w->current_mts_submode;
-    w->current_mts_submode = 0;
+    w->current_mts_submode = nullptr;
     delete w;
     /*
       Any failure after array inserted must follow with deletion
@@ -6600,7 +6601,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
     Slave_worker *w = rli->workers.back();
     // Free the current submode object
     delete w->current_mts_submode;
-    w->current_mts_submode = 0;
+    w->current_mts_submode = nullptr;
     rli->workers.pop_back();
     delete w;
   }
@@ -7031,7 +7032,7 @@ extern "C" void *handle_slave_sql(void *arg) {
              llstr(rli->get_group_master_log_pos(), llbuff));
 
     delete rli->current_mts_submode;
-    rli->current_mts_submode = 0;
+    rli->current_mts_submode = nullptr;
     rli->clear_mts_recovery_groups();
 
     /*
@@ -7093,7 +7094,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       to avoid unneeded position re-init
     */
     thd->temporary_tables =
-        0;  // remove tempation from destructor to close them
+        nullptr;  // remove tempation from destructor to close them
     // destructor will not free it, because we are weird
     thd->get_protocol_classic()->end_net();
     DBUG_ASSERT(rli->info_thd == thd);
@@ -7138,8 +7139,8 @@ extern "C" void *handle_slave_sql(void *arg) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  my_thread_exit(0);
-  return 0;  // Avoid compiler warnings
+  my_thread_exit(nullptr);
+  return nullptr;  // Avoid compiler warnings
 }
 
 /**
@@ -7989,19 +7990,21 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
   enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
   if (mi->ssl) {
     /* The channel is configured to use SSL */
-    mysql_ssl_set(mysql, mi->ssl_key[0] ? mi->ssl_key : 0,
-                  mi->ssl_cert[0] ? mi->ssl_cert : 0,
-                  mi->ssl_ca[0] ? mi->ssl_ca : 0,
-                  mi->ssl_capath[0] ? mi->ssl_capath : 0,
-                  mi->ssl_cipher[0] ? mi->ssl_cipher : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_ssl_set(mysql, mi->ssl_key[0] ? mi->ssl_key : nullptr,
+                  mi->ssl_cert[0] ? mi->ssl_cert : nullptr,
+                  mi->ssl_ca[0] ? mi->ssl_ca : nullptr,
+                  mi->ssl_capath[0] ? mi->ssl_capath : nullptr,
+                  mi->ssl_cipher[0] ? mi->ssl_cipher : nullptr);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL,
+                  mi->ssl_crl[0] ? mi->ssl_crl : nullptr);
     mysql_options(mysql, MYSQL_OPT_TLS_VERSION,
-                  mi->tls_version[0] ? mi->tls_version : 0);
-    mysql_options(
-        mysql, MYSQL_OPT_TLS_CIPHERSUITES,
-        mi->tls_ciphersuites.first ? 0 : mi->tls_ciphersuites.second.c_str());
+                  mi->tls_version[0] ? mi->tls_version : nullptr);
+    mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES,
+                  mi->tls_ciphersuites.first
+                      ? nullptr
+                      : mi->tls_ciphersuites.second.c_str());
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
-                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
+                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : nullptr);
     if (mi->ssl_verify_server_cert)
       ssl_mode = SSL_MODE_VERIFY_IDENTITY;
     else if (mi->ssl_ca[0] || mi->ssl_capath[0])
@@ -8084,8 +8087,9 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
                  "_client_replication_channel_name", mi->get_channel());
   while (!(slave_was_killed = io_slave_killed(thd, mi)) &&
          (reconnect ? mysql_reconnect(mysql) != 0
-                    : mysql_real_connect(mysql, mi->host, user, password, 0,
-                                         mi->port, 0, client_flag) == 0)) {
+                    : mysql_real_connect(mysql, mi->host, user, password,
+                                         nullptr, mi->port, nullptr,
+                                         client_flag) == nullptr)) {
     /*
        SHOW SLAVE STATUS will display the number of retries which
        would be real retry counts instead of mi->retry_count for

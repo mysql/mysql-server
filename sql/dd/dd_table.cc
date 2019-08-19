@@ -1257,7 +1257,7 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
 
     // Acquire tablespace.
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Tablespace *ts_obj = NULL;
+    const dd::Tablespace *ts_obj = nullptr;
     if (thd->dd_client()->acquire(tablespace_name, &ts_obj)) {
       // acquire() always fails with a error being reported.
       return true;
@@ -1368,8 +1368,8 @@ static bool add_part_col_vals(partition_info *part_info,
       //  Store in value in utf8 string format.
       String val_str;
       DBUG_ASSERT(!col_val->item_expression->null_value);
-      if (expr_to_string(&val_str, col_val->item_expression, NULL, field_name,
-                         create_info,
+      if (expr_to_string(&val_str, col_val->item_expression, nullptr,
+                         field_name, create_info,
                          const_cast<List<Create_field> *>(&create_fields))) {
         return true;
       }
@@ -1625,7 +1625,7 @@ static bool fill_dd_partition_from_create_info(
             part_obj->set_description_utf8(
                 String_type(part_desc_str.ptr(), part_desc_str.length()));
 
-            DBUG_ASSERT(list_it++ == NULL);
+            DBUG_ASSERT(list_it++ == nullptr);
           } else {
             dd::Partition_value *val_obj = part_obj->add_value();
             if (part_elem->max_value) {
@@ -2376,7 +2376,7 @@ std::unique_ptr<dd::Table> create_tmp_table(
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      sch_obj.name(), create_info, create_fields,
-                                     keyinfo, keys, keys_onoff, NULL, 0,
+                                     keyinfo, keys, keys_onoff, nullptr, 0,
                                      check_cons_spec, file))
     return nullptr;
 
@@ -2396,12 +2396,12 @@ bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
 
   // Tables exist if they can be acquired.
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Abstract_table *tab_obj = NULL;
+  const dd::Abstract_table *tab_obj = nullptr;
   if (client->acquire(schema_name, name, &tab_obj)) {
     // Error is reported by the dictionary subsystem.
     return true;
   }
-  *exists = (tab_obj != NULL);
+  *exists = (tab_obj != nullptr);
 
   return false;
 }
@@ -2522,13 +2522,13 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   // Get hold of the dd::Table object.
-  const dd::Table *table = NULL;
+  const dd::Table *table = nullptr;
   if (thd->dd_client()->acquire(schema_name, table_name, &table)) {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
-  if (table == NULL) {
+  if (table == nullptr) {
     my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
     return true;
   }
@@ -2683,7 +2683,7 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
   }
 
   // Acquire the tablespace engine hton.
-  handlerton *hton = NULL;
+  handlerton *hton = nullptr;
   Tablespace_type space_type = Tablespace_type::SPACE_TYPE_IMPLICIT;
   // If the engine is not found, my_error() has already been called
   if (dd::table_storage_engine(thd, tsp, &hton)) return true;

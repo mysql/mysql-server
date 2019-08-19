@@ -131,12 +131,12 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                     mysql_sys_var_update_func update_func, void *check_arg,
                     void *variable_value)) {
   try {
-    struct sys_var_chain chain = {NULL, NULL};
+    struct sys_var_chain chain = {nullptr, nullptr};
     sys_var *sysvar MY_ATTRIBUTE((unused));
     char *com_sys_var_name, *optname;
     int com_sys_var_len;
-    SYS_VAR *opt = NULL;
-    my_option *opts = NULL;
+    SYS_VAR *opt = nullptr;
+    my_option *opts = nullptr;
     bool ret = true;
     int opt_error;
     int *argc;
@@ -337,7 +337,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       argc = get_remaining_argc();
       argv = get_remaining_argv();
     }
-    opt_error = handle_options(argc, argv, opts, NULL);
+    opt_error = handle_options(argc, argv, opts, nullptr);
     /* Add back the program name handle_options removes */
     (*argc)++;
     (*argv)--;
@@ -352,7 +352,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     sysvar = reinterpret_cast<sys_var *>(
         new sys_var_pluginvar(&chain, com_sys_var_name, opt));
 
-    if (sysvar == NULL) {
+    if (sysvar == nullptr) {
       LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
       goto end;
     }
@@ -421,9 +421,9 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   show->value = (char *)system_var;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  const char *variable_value =
-      get_one_variable(current_thd, show, OPT_GLOBAL, show->type, NULL, &fromcs,
-                       variable_data_buffer, &out_variable_data_length);
+  const char *variable_value = get_one_variable(
+      current_thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
+      variable_data_buffer, &out_variable_data_length);
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*

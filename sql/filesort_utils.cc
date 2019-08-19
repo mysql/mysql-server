@@ -54,8 +54,8 @@ namespace {
  */
 inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len) {
   DBUG_ASSERT(len > 0);
-  DBUG_ASSERT(s1 != NULL);
-  DBUG_ASSERT(s2 != NULL);
+  DBUG_ASSERT(s1 != nullptr);
+  DBUG_ASSERT(s2 != nullptr);
   do {
     if (*s1++ != *s2++) return *--s1 < *--s2;
   } while (--len != 0);

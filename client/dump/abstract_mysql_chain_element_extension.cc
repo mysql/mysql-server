@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ Abstract_mysql_chain_element_extension::Abstract_mysql_chain_element_extension(
     : m_connection_provider(connection_provider),
       m_message_handler(message_handler),
       m_options(options),
-      m_charset(options->get_program()->get_current_charset() != NULL
+      m_charset(options->get_program()->get_current_charset() != nullptr
                     ? options->get_program()->get_current_charset()
                     : get_charset_by_csname(MYSQL_UNIVERSAL_CLIENT_CHARSET,
                                             MY_CS_PRIMARY, MYF(MY_WME))) {}

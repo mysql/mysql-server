@@ -398,7 +398,8 @@ bool Protocol_callback::flush() { return false; }
 */
 bool Protocol_callback::send_eof(uint server_status, uint warn_count) {
   if (callbacks.handle_ok)
-    callbacks.handle_ok(callbacks_ctx, server_status, warn_count, 0, 0, NULL);
+    callbacks.handle_ok(callbacks_ctx, server_status, warn_count, 0, 0,
+                        nullptr);
   return false;
 }
 

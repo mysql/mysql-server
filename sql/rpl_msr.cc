@@ -87,7 +87,7 @@ Master_info *Multisource_info::get_mi(const char *channel_name) {
 
   m_channel_map_lock->assert_some_lock();
 
-  DBUG_ASSERT(channel_name != 0);
+  DBUG_ASSERT(channel_name != nullptr);
 
   mi_map::iterator it;
   replication_channel_map::iterator map_it;
@@ -102,11 +102,11 @@ Master_info *Multisource_info::get_mi(const char *channel_name) {
       it == map_it->second.end()) {
     map_it = rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
     if (map_it == rep_channel_map.end()) {
-      return 0;
+      return nullptr;
     }
     it = map_it->second.find(channel_name);
     if (it == map_it->second.end()) {
-      return 0;
+      return nullptr;
     }
   }
 
@@ -121,7 +121,7 @@ void Multisource_info::delete_mi(const char *channel_name) {
   Master_info *mi = nullptr;
   mi_map::iterator it;
 
-  DBUG_ASSERT(channel_name != 0);
+  DBUG_ASSERT(channel_name != nullptr);
 
   replication_channel_map::iterator map_it;
   map_it = rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
@@ -147,7 +147,7 @@ void Multisource_info::delete_mi(const char *channel_name) {
   DBUG_ASSERT(index != -1);
 
   /* set the current index to  0  and decrease current_mi_count */
-  rpl_pfs_mi[index] = 0;
+  rpl_pfs_mi[index] = nullptr;
 #endif
 
   current_mi_count--;
@@ -191,7 +191,7 @@ bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi) {
 
   /* Point to this added mi in the rpl_pfs_mi*/
   for (uint i = 0; i < MAX_CHANNELS; i++) {
-    if (rpl_pfs_mi[i] == 0) {
+    if (rpl_pfs_mi[i] == nullptr) {
       rpl_pfs_mi[i] = mi;
       res = false;  // success
       break;
@@ -220,7 +220,7 @@ Master_info *Multisource_info::get_mi_at_pos(uint pos) {
 
   if (pos < MAX_CHANNELS) return rpl_pfs_mi[pos];
 
-  return 0;
+  return nullptr;
 }
 
 Rpl_filter *Rpl_channel_filters::create_filter(const char *channel_name) {
@@ -327,7 +327,7 @@ Rpl_filter *Rpl_channel_filters::get_channel_filter(const char *channel_name) {
   filter_map::iterator it;
   Rpl_filter *rpl_filter = nullptr;
 
-  DBUG_ASSERT(channel_name != 0);
+  DBUG_ASSERT(channel_name != nullptr);
 
   m_channel_to_filter_lock->rdlock();
   it = channel_to_filter.find(channel_name);

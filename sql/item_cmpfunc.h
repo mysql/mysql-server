@@ -471,7 +471,7 @@ class Item_in_optimizer final : public Item_bool_func {
  public:
   Item_in_optimizer(Item *a, Item_in_subselect *b)
       : Item_bool_func(a, reinterpret_cast<Item *>(b)),
-        cache(0),
+        cache(nullptr),
         save_cache(false),
         result_for_null_param(UNKNOWN) {
     set_subquery();
@@ -881,9 +881,9 @@ class Item_func_not_all : public Item_func_not {
 
   Item_func_not_all(Item *a)
       : Item_func_not(a),
-        test_sum_item(0),
-        test_sub_item(0),
-        subselect(0),
+        test_sum_item(nullptr),
+        test_sub_item(nullptr),
+        subselect(nullptr),
         abort_on_null(false),
         show(false) {}
   void apply_is_true() override { abort_on_null = true; }
@@ -1249,10 +1249,10 @@ class Item_func_interval final : public Item_int_func {
 
  public:
   Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
-                     Item *expr2, class PT_item_list *opt_expr_list = NULL)
+                     Item *expr2, class PT_item_list *opt_expr_list = nullptr)
       : super(pos, alloc_row(pos, mem_root, expr1, expr2, opt_expr_list)),
         row(down_cast<Item_row *>(args[0])),
-        intervals(0) {
+        intervals(nullptr) {
     allowed_arg_cols = 0;  // Fetch this value from first argument
   }
 
@@ -1852,7 +1852,7 @@ class Item_func_case final : public Item_func {
         else_expr_num(-1),
         cached_result_type(INT_RESULT),
         left_result_type(INT_RESULT),
-        case_item(0) {
+        case_item(nullptr) {
     null_on_null = false;
     ncases = list.elements;
     if (first_expr_arg) {
@@ -1924,7 +1924,7 @@ class Item_func_in final : public Item_func_opt_neg {
 
   Item_func_in(const POS &pos, PT_item_list *list, bool is_negation)
       : Item_func_opt_neg(pos, list, is_negation),
-        array(NULL),
+        array(nullptr),
         have_null(false),
         dep_subq_in_list(false) {
     memset(&cmp_items, 0, sizeof(cmp_items));
@@ -1947,10 +1947,10 @@ class Item_func_in final : public Item_func_opt_neg {
   void cleanup_arrays() {
     uint i;
     destroy(array);
-    array = 0;
+    array = nullptr;
     for (i = 0; i <= (uint)DECIMAL_RESULT + 1; i++) {
       destroy(cmp_items[i]);
-      cmp_items[i] = 0;
+      cmp_items[i] = nullptr;
     }
   }
 
@@ -2197,7 +2197,7 @@ class Item_func_like final : public Item_bool_func2 {
   Item_func_like(const POS &pos, Item *a, Item *b, Item *opt_escape_arg)
       : super(pos, a, b),
         escape_item(opt_escape_arg),
-        escape_used_in_parsing(opt_escape_arg != NULL),
+        escape_used_in_parsing(opt_escape_arg != nullptr),
         escape_evaluated(false) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
@@ -2394,7 +2394,10 @@ class Item_equal final : public Item_bool_func {
 
  public:
   inline Item_equal()
-      : Item_bool_func(), const_item(0), eval_item(0), cond_false(false) {}
+      : Item_bool_func(),
+        const_item(nullptr),
+        eval_item(nullptr),
+        cond_false(false) {}
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
@@ -2480,7 +2483,7 @@ class COND_EQUAL {
   COND_EQUAL *upper_levels;       /* multiple equalities of upper and levels */
   List<Item_equal> current_level; /* list of multiple equalities of
                                      the current and level           */
-  COND_EQUAL() { upper_levels = 0; }
+  COND_EQUAL() { upper_levels = nullptr; }
 };
 
 class Item_equal_iterator : public List_iterator_fast<Item_field> {

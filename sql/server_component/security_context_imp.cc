@@ -174,9 +174,9 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
                    (Security_context_handle ctx, const char *user,
                     const char *host, const char *ip, const char *db)) {
   try {
-    THD *tmp_thd = NULL;
+    THD *tmp_thd = nullptr;
     bool retval;
-    if (current_thd == NULL) {
+    if (current_thd == nullptr) {
       tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       if (!tmp_thd) return true;
     }
@@ -189,7 +189,7 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
 
     if (tmp_thd) {
       destroy_thd(tmp_thd);
-      tmp_thd = NULL;
+      tmp_thd = nullptr;
     }
     return retval;
   } catch (...) {

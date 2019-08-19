@@ -125,7 +125,7 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx) {
                               LF_DYNARRAY_LEVEL_LENGTH * sizeof(void *),
                               MYF(MY_WME | MY_ZEROFILL));
       if (unlikely(!alloc)) {
-        return (NULL);
+        return (nullptr);
       }
       if (atomic_compare_exchange_strong(ptr_ptr, &ptr, alloc)) {
         ptr = alloc;
@@ -145,7 +145,7 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx) {
                       std::max<uint>(array->size_of_element, sizeof(void *)),
                   MYF(MY_WME | MY_ZEROFILL)));
     if (unlikely(!alloc)) {
-      return (NULL);
+      return (nullptr);
     }
     /* reserve the space for free() address */
     data = alloc + sizeof(void *);
@@ -181,14 +181,14 @@ void *lf_dynarray_value(LF_DYNARRAY *array, uint idx) {
   idx -= dynarray_idxes_in_prev_levels[i];
   for (; i > 0; i--) {
     if (!(ptr = *ptr_ptr)) {
-      return (NULL);
+      return (nullptr);
     }
     ptr_ptr =
         ((std::atomic<void *> *)ptr) + idx / dynarray_idxes_in_prev_level[i];
     idx %= dynarray_idxes_in_prev_level[i];
   }
   if (!(ptr = *ptr_ptr)) {
-    return (NULL);
+    return (nullptr);
   }
   return ((uchar *)ptr) + array->size_of_element * idx;
 }

@@ -258,9 +258,9 @@ class Table_ident {
   Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
               const LEX_CSTRING &table_arg, bool force);
   Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
-      : db(db_arg), table(table_arg), sel(NULL), table_function(NULL) {}
+      : db(db_arg), table(table_arg), sel(nullptr), table_function(nullptr) {}
   Table_ident(const LEX_CSTRING &table_arg)
-      : table(table_arg), sel(NULL), table_function(NULL) {
+      : table(table_arg), sel(nullptr), table_function(nullptr) {
     db = NULL_CSTR;
   }
   /**
@@ -269,7 +269,7 @@ class Table_ident {
     Later, if there was an alias specified for the table, it will be set
     by add_table_to_list.
   */
-  Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(NULL) {
+  Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(nullptr) {
     db = EMPTY_CSTR; /* a subject to casedn_str */
     table = EMPTY_CSTR;
   }
@@ -280,7 +280,7 @@ class Table_ident {
     table, it will be set by add_table_to_list.
   */
   Table_ident(LEX_CSTRING &table_arg, Table_function *table_func_arg)
-      : table(table_arg), sel(NULL), table_function(table_func_arg) {
+      : table(table_arg), sel(nullptr), table_function(table_func_arg) {
     /* We must have a table name here as this is used with add_table_to_list */
     db = EMPTY_CSTR; /* a subject to casedn_str */
   }
@@ -704,9 +704,9 @@ class SELECT_LEX_UNIT {
     @return query block containing the global parameters
   */
   inline SELECT_LEX *global_parameters() const {
-    if (fake_select_lex != NULL)
+    if (fake_select_lex != nullptr)
       return fake_select_lex;
-    else if (saved_fake_select_lex != NULL)
+    else if (saved_fake_select_lex != nullptr)
       return saved_fake_select_lex;
     return first_select();
   }
@@ -1433,7 +1433,8 @@ class SELECT_LEX {
     @remark This function is currently unused.
   */
   bool is_single_grouped() const {
-    return m_agg_func_used && group_list.elements == 0 && m_having_cond == NULL;
+    return m_agg_func_used && group_list.elements == 0 &&
+           m_having_cond == nullptr;
   }
 
   /**
@@ -1456,7 +1457,7 @@ class SELECT_LEX {
   bool is_ordered() const { return order_list.elements > 0; }
 
   /// @return true if this query block has a LIMIT clause
-  bool has_limit() const { return select_limit != NULL; }
+  bool has_limit() const { return select_limit != nullptr; }
 
   bool has_explicit_limit_or_order() const {
     return explicit_limit || order_list.elements > 0;
@@ -1477,11 +1478,14 @@ class SELECT_LEX {
   bool add_item_to_list(Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
-  TABLE_LIST *add_table_to_list(
-      THD *thd, Table_ident *table, const char *alias, ulong table_options,
-      thr_lock_type flags = TL_UNLOCK, enum_mdl_type mdl_type = MDL_SHARED_READ,
-      List<Index_hint> *hints = 0, List<String> *partition_names = 0,
-      LEX_STRING *option = 0, Parse_context *pc = NULL);
+  TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table, const char *alias,
+                                ulong table_options,
+                                thr_lock_type flags = TL_UNLOCK,
+                                enum_mdl_type mdl_type = MDL_SHARED_READ,
+                                List<Index_hint> *hints = nullptr,
+                                List<String> *partition_names = nullptr,
+                                LEX_STRING *option = nullptr,
+                                Parse_context *pc = nullptr);
   TABLE_LIST *get_table_list() const { return table_list.first; }
   bool init_nested_join(THD *thd);
   TABLE_LIST *end_nested_join();
@@ -1513,7 +1517,7 @@ class SELECT_LEX {
   inline void init_order() {
     DBUG_ASSERT(order_list.elements == 0);
     order_list.elements = 0;
-    order_list.first = 0;
+    order_list.first = nullptr;
     order_list.next = &order_list.first;
   }
   /*
@@ -1522,7 +1526,7 @@ class SELECT_LEX {
     to LEX (LEX::unit & LEX::select, for other purposes use
     SELECT_LEX_UNIT::exclude_level()
   */
-  void cut_subtree() { slave = 0; }
+  void cut_subtree() { slave = nullptr; }
   bool test_limit();
   /**
     Get offset for LIMIT.
@@ -1791,7 +1795,7 @@ class SELECT_LEX {
   /// Set query block as returning no data
   /// @todo This may also be set when we have an always false WHERE clause
   void set_empty_query() {
-    DBUG_ASSERT(join == NULL);
+    DBUG_ASSERT(join == nullptr);
     m_empty_query = true;
   }
   /*
@@ -1873,7 +1877,7 @@ class SELECT_LEX {
   bool record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables);
   bool simplify_joins(THD *thd, mem_root_deque<TABLE_LIST *> *join_list,
                       bool top, bool in_sj, Item **new_conds,
-                      uint *changelog = NULL);
+                      uint *changelog = nullptr);
   /// Merge derived table into query block
  public:
   bool merge_derived(THD *thd, TABLE_LIST *derived_table);
@@ -1904,7 +1908,7 @@ class SELECT_LEX {
   }
 
   bool has_sj_candidates() const {
-    return sj_candidates != NULL && !sj_candidates->empty();
+    return sj_candidates != nullptr && !sj_candidates->empty();
   }
   bool is_in_select_list(Item *i);
 
@@ -1936,7 +1940,7 @@ class SELECT_LEX {
   bool prepare(THD *thd);
   bool prepare_values(THD *thd);
   bool optimize(THD *thd);
-  void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = NULL);
+  void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
   bool check_only_full_group_by(THD *thd);
 
   /// Merge name resolution context objects of a subquery into its parent
@@ -2009,7 +2013,7 @@ inline bool SELECT_LEX_UNIT::is_union() const {
 class Disable_semijoin_flattening {
  public:
   Disable_semijoin_flattening(SELECT_LEX *select_ptr, bool apply)
-      : select(NULL), saved_value() {
+      : select(nullptr), saved_value() {
     if (select_ptr && apply) {
       select = select_ptr;
       saved_value = select->semijoin_disallowed;
@@ -2196,13 +2200,13 @@ class Query_tables_list {
   }
   /* Return pointer to first not-own table in query-tables or 0 */
   TABLE_LIST *first_not_own_table() {
-    return (query_tables_own_last ? *query_tables_own_last : 0);
+    return (query_tables_own_last ? *query_tables_own_last : nullptr);
   }
   void chop_off_not_own_tables() {
     if (query_tables_own_last) {
-      *query_tables_own_last = 0;
+      *query_tables_own_last = nullptr;
       query_tables_last = query_tables_own_last;
-      query_tables_own_last = 0;
+      query_tables_own_last = nullptr;
     }
   }
 
@@ -3332,10 +3336,10 @@ struct LEX : public Query_tables_list {
     if (insert_update_values_map) {
       insert_update_values_map->clear();
       delete insert_update_values_map;
-      insert_update_values_map = NULL;
+      insert_update_values_map = nullptr;
     }
   }
-  bool has_values_map() const { return insert_update_values_map != NULL; }
+  bool has_values_map() const { return insert_update_values_map != nullptr; }
   std::map<Field *, Field *>::iterator begin_values_map() {
     return insert_update_values_map->begin();
   }
@@ -3549,7 +3553,7 @@ struct LEX : public Query_tables_list {
   /// Check if the current statement uses meta-data (uses a table or a stored
   /// routine).
   bool is_metadata_used() const {
-    return query_tables != NULL ||
+    return query_tables != nullptr ||
            (sroutines != nullptr && !sroutines->empty());
   }
 
@@ -3653,7 +3657,7 @@ struct LEX : public Query_tables_list {
   void set_uncacheable(SELECT_LEX *curr_select, uint8 cause) {
     safe_to_cache_query = false;
 
-    if (m_current_select == NULL) return;
+    if (m_current_select == nullptr) return;
     SELECT_LEX *sl;
     SELECT_LEX_UNIT *un;
     for (sl = curr_select, un = sl->master_unit(); un != unit;
@@ -3797,20 +3801,22 @@ struct LEX : public Query_tables_list {
 */
 class Yacc_state {
  public:
-  Yacc_state() : yacc_yyss(NULL), yacc_yyvs(NULL), yacc_yyls(NULL) { reset(); }
+  Yacc_state() : yacc_yyss(nullptr), yacc_yyvs(nullptr), yacc_yyls(nullptr) {
+    reset();
+  }
 
   void reset() {
-    if (yacc_yyss != NULL) {
+    if (yacc_yyss != nullptr) {
       my_free(yacc_yyss);
-      yacc_yyss = NULL;
+      yacc_yyss = nullptr;
     }
-    if (yacc_yyvs != NULL) {
+    if (yacc_yyvs != nullptr) {
       my_free(yacc_yyvs);
-      yacc_yyvs = NULL;
+      yacc_yyvs = nullptr;
     }
-    if (yacc_yyls != NULL) {
+    if (yacc_yyls != nullptr) {
       my_free(yacc_yyls);
-      yacc_yyls = NULL;
+      yacc_yyls = nullptr;
     }
     m_lock_type = TL_READ_DEFAULT;
     m_mdl_type = MDL_SHARED_READ;

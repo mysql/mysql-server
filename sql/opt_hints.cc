@@ -78,7 +78,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"RESOURCE_GROUP", false, false, false},
     {"SKIP_SCAN", false, false, false},
     {"HASH_JOIN", true, true, false},
-    {0, false, false, false}};
+    {nullptr, false, false, false}};
 
 /**
   Prefix for system generated query block name.
@@ -121,7 +121,7 @@ Opt_hints *Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
     const LEX_CSTRING *name = child_array[i]->get_name();
     if (name && !cmp_lex_string(name, name_arg, cs)) return child_array[i];
   }
-  return NULL;
+  return nullptr;
 }
 
 void Opt_hints::print(const THD *thd, String *str, enum_query_type query_type) {
@@ -186,7 +186,7 @@ PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   if (type == MAX_EXEC_TIME_HINT_ENUM) return max_exec_time;
 
   DBUG_ASSERT(0);
-  return NULL;
+  return nullptr;
 }
 
 void Opt_hints_global::print_irregular_hints(const THD *thd, String *str) {
@@ -195,10 +195,10 @@ void Opt_hints_global::print_irregular_hints(const THD *thd, String *str) {
 
 Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg, MEM_ROOT *mem_root_arg,
                            uint select_number_arg)
-    : Opt_hints(NULL, opt_hints_arg, mem_root_arg),
+    : Opt_hints(nullptr, opt_hints_arg, mem_root_arg),
       select_number(select_number_arg),
-      subquery_hint(NULL),
-      semijoin_hint(NULL),
+      subquery_hint(nullptr),
+      semijoin_hint(nullptr),
       join_order_hints(mem_root_arg),
       join_order_hints_ignored(0) {
   sys_name.str = buff;
@@ -212,7 +212,7 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
   if (type == SUBQUERY_HINT_ENUM) return subquery_hint;
 
   DBUG_ASSERT(0);
-  return NULL;
+  return nullptr;
 }
 
 Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr) {
@@ -223,7 +223,7 @@ Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr) {
   tr->opt_hints_qb = this;
 
   if (!tab)  // Tables not found
-    return NULL;
+    return nullptr;
 
   tab->adjust_key_hints(tr);
   return tab;
@@ -375,7 +375,7 @@ class Join_order_hint_handler {
 
  public:
   Join_order_hint_handler(JOIN *join_arg)
-      : join(join_arg), orig_dep_array(NULL) {}
+      : join(join_arg), orig_dep_array(nullptr) {}
 
   /**
     Allocates and initializes orig_dep_array.
@@ -546,7 +546,7 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
     return;  // Names of keys are not known for derived tables
 
   TABLE *table = tr->table;
-  keyinfo_array.resize(table->s->keys, NULL);
+  keyinfo_array.resize(table->s->keys, nullptr);
 
   for (Opt_hints **hint = child_array_ptr()->begin();
        hint < child_array_ptr()->end(); ++hint) {

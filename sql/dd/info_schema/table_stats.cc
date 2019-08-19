@@ -851,7 +851,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.item_list() == NULL);
+  DBUG_ASSERT(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
   /*

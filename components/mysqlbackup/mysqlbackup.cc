@@ -54,7 +54,7 @@ char *mysqlbackup_backup_id = nullptr;  // non-static is used in other files
 */
 bool have_backup_admin_privilege(void *opaque_thd) {
   // get the security context of the thread
-  Security_context_handle ctx = NULL;
+  Security_context_handle ctx = nullptr;
   if (mysql_service_mysql_thd_security_context->get(opaque_thd, &ctx) || !ctx) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -103,7 +103,7 @@ mysql_service_status_t unregister_udfs() {
 static SHOW_VAR mysqlbackup_status_variables[] = {
     {Backup_comp_constants::backup_component_version.c_str(),
      (char *)&mysqlbackup_component_version, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
-    {NULL, NULL, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 /**
   Register the server status variables defined by this component.
@@ -185,7 +185,7 @@ static void mysqlbackup_backup_id_update(MYSQL_THD, SYS_VAR *, void *var_ptr,
 */
 static bool register_system_variables() {
   STR_CHECK_ARG(str) str_arg;
-  str_arg.def_val = NULL;
+  str_arg.def_val = nullptr;
   if (mysql_service_component_sys_variable_register->register_variable(
           Backup_comp_constants::mysqlbackup.c_str(),
           Backup_comp_constants::backupid.c_str(),

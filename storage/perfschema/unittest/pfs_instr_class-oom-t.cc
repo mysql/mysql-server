@@ -74,8 +74,8 @@ static void test_oom() {
   param.m_table_share_sizing = 100;
   param.m_setup_object_sizing = 100;
 
-  pfs_thread.m_table_share_hash_pins = NULL;
-  pfs_thread.m_setup_object_hash_pins = NULL;
+  pfs_thread.m_table_share_hash_pins = nullptr;
+  pfs_thread.m_setup_object_hash_pins = nullptr;
 
   char db_name[] = "schema 1";
   char table_name[] = "table 1";
@@ -91,7 +91,7 @@ static void test_oom() {
   stub_alloc_always_fails = false;
   pfs_table_share =
       find_or_create_table_share(&pfs_thread, false, &table_share);
-  ok(pfs_table_share == NULL, "oom (pfs table share)");
+  ok(pfs_table_share == nullptr, "oom (pfs table share)");
   ok(global_table_share_container.m_lost == 1, "oom (table share)");
 
   cleanup_table_share();

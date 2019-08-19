@@ -470,8 +470,8 @@ SortingIterator::~SortingIterator() {
 void SortingIterator::CleanupAfterQuery() {
   m_fs_info.free_sort_buffer();
   my_free(m_fs_info.merge_chunks.array());
-  m_fs_info.merge_chunks = Merge_chunk_array(NULL, 0);
-  m_fs_info.addon_fields = NULL;
+  m_fs_info.merge_chunks = Merge_chunk_array(nullptr, 0);
+  m_fs_info.addon_fields = nullptr;
 }
 
 void SortingIterator::ReleaseBuffers() {
@@ -520,8 +520,8 @@ bool SortingIterator::Init() {
     the outer table is constant (so the inner one is first-non-const) and a
     window function requires sorting.
   */
-  qep_tab->set_quick(NULL);
-  if (!qep_tab->is_inner_table_of_outer_join()) qep_tab->set_condition(NULL);
+  qep_tab->set_quick(nullptr);
+  if (!qep_tab->is_inner_table_of_outer_join()) qep_tab->set_condition(nullptr);
 
   // Prepare the result iterator for actually reading the data. Read()
   // will proxy to it.

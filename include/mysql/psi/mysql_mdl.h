@@ -99,14 +99,14 @@ static inline PSI_metadata_lock *inline_mysql_mdl_create(
 
 static inline void inline_mysql_mdl_set_status(
     PSI_metadata_lock *psi, MDL_ticket::enum_psi_status mdl_status) {
-  if (psi != NULL) {
+  if (psi != nullptr) {
     PSI_METADATA_CALL(set_metadata_lock_status)(psi, mdl_status);
   }
 }
 
 static inline void inline_mysql_mdl_destroy(PSI_metadata_lock *psi,
                                             const char *, uint) {
-  if (psi != NULL) {
+  if (psi != nullptr) {
     PSI_METADATA_CALL(destroy_metadata_lock)(psi);
   }
 }

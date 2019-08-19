@@ -180,7 +180,7 @@ int table_setup_actors::rnd_next() {
   PFS_setup_actor_iterator it =
       global_setup_actor_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -194,7 +194,7 @@ int table_setup_actors::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_setup_actor_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -202,7 +202,7 @@ int table_setup_actors::rnd_pos(const void *pos) {
 }
 
 int table_setup_actors::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_setup_actors *result = NULL;
+  PFS_index_setup_actors *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_setup_actors);
   m_opened_index = result;
@@ -219,7 +219,7 @@ int table_setup_actors::index_next() {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -227,7 +227,7 @@ int table_setup_actors::index_next() {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

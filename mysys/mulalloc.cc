@@ -70,7 +70,7 @@ void *my_multi_malloc(PSI_memory_key key, myf myFlags, ...) {
   va_end(args);
 
   if (!(start = (char *)my_malloc(key, tot_length, myFlags)))
-    return 0; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   va_start(args, myFlags);
   res = start;

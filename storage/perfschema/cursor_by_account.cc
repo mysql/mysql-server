@@ -51,7 +51,7 @@ int cursor_by_account::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_account_iterator it = global_account_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -65,7 +65,7 @@ int cursor_by_account::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_account_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -80,7 +80,7 @@ int cursor_by_account::index_next() {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -88,7 +88,7 @@ int cursor_by_account::index_next() {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

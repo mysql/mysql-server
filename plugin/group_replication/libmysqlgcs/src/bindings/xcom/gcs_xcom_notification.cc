@@ -155,9 +155,9 @@ void *process_notification_thread(void *ptr_object) {
   Gcs_xcom_engine *engine = static_cast<Gcs_xcom_engine *>(ptr_object);
   engine->process();
 
-  My_xp_thread_util::exit(0);
+  My_xp_thread_util::exit(nullptr);
 
-  return NULL;
+  return nullptr;
 }
 
 Gcs_xcom_engine::Gcs_xcom_engine()
@@ -169,7 +169,7 @@ Gcs_xcom_engine::Gcs_xcom_engine()
   m_wait_for_notification_cond.init(
       key_GCS_COND_Gcs_xcom_engine_m_wait_for_notification_cond);
   m_wait_for_notification_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex, nullptr);
 }
 
 Gcs_xcom_engine::~Gcs_xcom_engine() {
@@ -182,20 +182,20 @@ void Gcs_xcom_engine::initialize(
   MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::initialize invoked!");
   assert(m_notification_queue.empty());
   assert(m_schedule);
-  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread, NULL,
+  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread, nullptr,
                          process_notification_thread, (void *)this);
 }
 
 void Gcs_xcom_engine::finalize(xcom_finalize_functor *functor) {
   MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::finalize invoked!");
   push(new Finalize_notification(this, functor));
-  m_engine_thread.join(NULL);
+  m_engine_thread.join(nullptr);
   assert(m_notification_queue.empty());
   assert(!m_schedule);
 }
 
 void Gcs_xcom_engine::process() {
-  Gcs_xcom_notification *notification = NULL;
+  Gcs_xcom_notification *notification = nullptr;
   bool stop = false;
 
   while (!stop) {
@@ -218,7 +218,7 @@ void Gcs_xcom_engine::process() {
 }
 
 void Gcs_xcom_engine::cleanup() {
-  Gcs_xcom_notification *notification = NULL;
+  Gcs_xcom_notification *notification = nullptr;
 
   m_wait_for_notification_mutex.lock();
   m_schedule = false;

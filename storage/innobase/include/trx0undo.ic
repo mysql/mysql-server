@@ -211,7 +211,7 @@ trx_undo_rec_t *trx_undo_page_get_prev_rec(
   start = trx_undo_page_get_start(undo_page, page_no, offset);
 
   if (start + undo_page == rec) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (undo_page + mach_read_from_2(rec - 2));
@@ -237,7 +237,7 @@ trx_undo_rec_t *trx_undo_page_get_next_rec(
   next = mach_read_from_2(rec);
 
   if (next == end) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (undo_page + next);
@@ -259,7 +259,7 @@ trx_undo_rec_t *trx_undo_page_get_last_rec(
   end = trx_undo_page_get_end(undo_page, page_no, offset);
 
   if (start == end) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (undo_page + mach_read_from_2(undo_page + end - 2));
@@ -281,7 +281,7 @@ trx_undo_rec_t *trx_undo_page_get_first_rec(
   end = trx_undo_page_get_end(undo_page, page_no, offset);
 
   if (start == end) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (undo_page + start);

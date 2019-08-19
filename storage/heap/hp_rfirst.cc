@@ -66,7 +66,7 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx) {
     }
     DBUG_ASSERT(0); /* TODO fix it */
     info->current_record = 0;
-    info->current_hash_ptr = 0;
+    info->current_hash_ptr = nullptr;
     info->update = HA_STATE_PREV_FOUND;
     return heap_rnext(info, record);
   }

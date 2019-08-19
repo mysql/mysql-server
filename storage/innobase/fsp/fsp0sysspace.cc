@@ -797,7 +797,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
                                       page_no_t *sum_new_sizes,
                                       lsn_t *flush_lsn) {
   dberr_t err = DB_SUCCESS;
-  fil_space_t *space = NULL;
+  fil_space_t *space = nullptr;
 
   ut_ad(!m_files.empty());
 

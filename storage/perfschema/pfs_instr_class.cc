@@ -73,7 +73,7 @@ std::atomic<uint32> pfs_unload_plugin_ref_count(0);
 /**
   PFS_INSTRUMENT option settings array
  */
-Pfs_instr_config_array *pfs_instr_config_array = NULL;
+Pfs_instr_config_array *pfs_instr_config_array = nullptr;
 
 static void configure_instr_class(PFS_instr_class *entry);
 
@@ -146,9 +146,9 @@ ulong transaction_class_max = 0;
 */
 ulong error_class_max = 0;
 
-PFS_mutex_class *mutex_class_array = NULL;
-PFS_rwlock_class *rwlock_class_array = NULL;
-PFS_cond_class *cond_class_array = NULL;
+PFS_mutex_class *mutex_class_array = nullptr;
+PFS_rwlock_class *rwlock_class_array = nullptr;
+PFS_cond_class *cond_class_array = nullptr;
 
 /**
   Current number or elements in thread_class_array.
@@ -159,7 +159,7 @@ PFS_cond_class *cond_class_array = NULL;
 static std::atomic<uint32> thread_class_dirty_count{0};
 static std::atomic<uint32> thread_class_allocated_count{0};
 
-static PFS_thread_class *thread_class_array = NULL;
+static PFS_thread_class *thread_class_array = nullptr;
 
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
@@ -190,22 +190,22 @@ static bool table_share_hash_inited = false;
 static std::atomic<uint32> file_class_dirty_count{0};
 static std::atomic<uint32> file_class_allocated_count{0};
 
-PFS_file_class *file_class_array = NULL;
+PFS_file_class *file_class_array = nullptr;
 
 static std::atomic<uint32> stage_class_dirty_count{0};
 static std::atomic<uint32> stage_class_allocated_count{0};
 
-static PFS_stage_class *stage_class_array = NULL;
+static PFS_stage_class *stage_class_array = nullptr;
 
 static std::atomic<uint32> statement_class_dirty_count{0};
 static std::atomic<uint32> statement_class_allocated_count{0};
 
-static PFS_statement_class *statement_class_array = NULL;
+static PFS_statement_class *statement_class_array = nullptr;
 
 static std::atomic<uint32> socket_class_dirty_count{0};
 static std::atomic<uint32> socket_class_allocated_count{0};
 
-static PFS_socket_class *socket_class_array = NULL;
+static PFS_socket_class *socket_class_array = nullptr;
 
 static std::atomic<uint32> memory_class_dirty_count{0};
 static std::atomic<uint32> memory_class_allocated_count{0};
@@ -295,15 +295,15 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
   cond_class_max = cond_class_sizing;
   mutex_class_lost = rwlock_class_lost = cond_class_lost = 0;
 
-  mutex_class_array = NULL;
-  rwlock_class_array = NULL;
-  cond_class_array = NULL;
+  mutex_class_array = nullptr;
+  rwlock_class_array = nullptr;
+  cond_class_array = nullptr;
 
   if (mutex_class_max > 0) {
     mutex_class_array = PFS_MALLOC_ARRAY(
         &builtin_memory_mutex_class, mutex_class_max, sizeof(PFS_mutex_class),
         PFS_mutex_class, MYF(MY_ZEROFILL));
-    if (unlikely(mutex_class_array == NULL)) {
+    if (unlikely(mutex_class_array == nullptr)) {
       return 1;
     }
   }
@@ -312,7 +312,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
     rwlock_class_array = PFS_MALLOC_ARRAY(
         &builtin_memory_rwlock_class, rwlock_class_max,
         sizeof(PFS_rwlock_class), PFS_rwlock_class, MYF(MY_ZEROFILL));
-    if (unlikely(rwlock_class_array == NULL)) {
+    if (unlikely(rwlock_class_array == nullptr)) {
       return 1;
     }
   }
@@ -321,7 +321,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
     cond_class_array = PFS_MALLOC_ARRAY(&builtin_memory_cond_class,
                                         cond_class_max, sizeof(PFS_cond_class),
                                         PFS_cond_class, MYF(MY_ZEROFILL));
-    if (unlikely(cond_class_array == NULL)) {
+    if (unlikely(cond_class_array == nullptr)) {
       return 1;
     }
   }
@@ -333,7 +333,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
 void cleanup_sync_class(void) {
   unsigned int i;
 
-  if (mutex_class_array != NULL) {
+  if (mutex_class_array != nullptr) {
     for (i = 0; i < mutex_class_max; i++) {
       my_free(mutex_class_array[i].m_documentation);
     }
@@ -341,10 +341,10 @@ void cleanup_sync_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_mutex_class, mutex_class_max,
                  sizeof(PFS_mutex_class), mutex_class_array);
-  mutex_class_array = NULL;
+  mutex_class_array = nullptr;
   mutex_class_dirty_count = mutex_class_allocated_count = mutex_class_max = 0;
 
-  if (rwlock_class_array != NULL) {
+  if (rwlock_class_array != nullptr) {
     for (i = 0; i < rwlock_class_max; i++) {
       my_free(rwlock_class_array[i].m_documentation);
     }
@@ -352,11 +352,11 @@ void cleanup_sync_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_rwlock_class, rwlock_class_max,
                  sizeof(PFS_rwlock_class), rwlock_class_array);
-  rwlock_class_array = NULL;
+  rwlock_class_array = nullptr;
   rwlock_class_dirty_count = rwlock_class_allocated_count = rwlock_class_max =
       0;
 
-  if (cond_class_array != NULL) {
+  if (cond_class_array != nullptr) {
     for (i = 0; i < cond_class_max; i++) {
       my_free(cond_class_array[i].m_documentation);
     }
@@ -364,7 +364,7 @@ void cleanup_sync_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_cond_class, cond_class_max,
                  sizeof(PFS_cond_class), cond_class_array);
-  cond_class_array = NULL;
+  cond_class_array = nullptr;
   cond_class_dirty_count = cond_class_allocated_count = cond_class_max = 0;
 }
 
@@ -383,11 +383,11 @@ int init_thread_class(uint thread_class_sizing) {
     thread_class_array = PFS_MALLOC_ARRAY(
         &builtin_memory_thread_class, thread_class_max,
         sizeof(PFS_thread_class), PFS_thread_class, MYF(MY_ZEROFILL));
-    if (unlikely(thread_class_array == NULL)) {
+    if (unlikely(thread_class_array == nullptr)) {
       result = 1;
     }
   } else {
-    thread_class_array = NULL;
+    thread_class_array = nullptr;
   }
 
   return result;
@@ -397,7 +397,7 @@ int init_thread_class(uint thread_class_sizing) {
 void cleanup_thread_class(void) {
   unsigned int i;
 
-  if (thread_class_array != NULL) {
+  if (thread_class_array != nullptr) {
     for (i = 0; i < thread_class_max; i++) {
       my_free(thread_class_array[i].m_documentation);
     }
@@ -405,7 +405,7 @@ void cleanup_thread_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_thread_class, thread_class_max,
                  sizeof(PFS_thread_class), thread_class_array);
-  thread_class_array = NULL;
+  thread_class_array = nullptr;
   thread_class_dirty_count = thread_class_allocated_count = 0;
   thread_class_max = 0;
 }
@@ -433,9 +433,9 @@ static const uchar *table_share_hash_get_key(const uchar *entry,
   const PFS_table_share *share;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_table_share *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  DBUG_ASSERT(typed_entry != nullptr);
   share = *typed_entry;
-  DBUG_ASSERT(share != NULL);
+  DBUG_ASSERT(share != nullptr);
   *length = share->m_key.m_key_length;
   result = &share->m_key.m_hash_key[0];
   return reinterpret_cast<const uchar *>(result);
@@ -465,9 +465,9 @@ void cleanup_table_share_hash(void) {
   @returns The LF_HASH pins for the thread.
 */
 static LF_PINS *get_table_share_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_table_share_hash_pins == NULL)) {
+  if (unlikely(thread->m_table_share_hash_pins == nullptr)) {
     if (!table_share_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_table_share_hash_pins = lf_hash_get_pins(&table_share_hash);
   }
@@ -529,14 +529,14 @@ PFS_table_share_lock *PFS_table_share::find_lock_stat() const {
 */
 PFS_table_share_lock *PFS_table_share::find_or_create_lock_stat() {
   PFS_table_share_lock *pfs = this->m_race_lock_stat.load();
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return pfs;
   }
 
   /* (2) Create a lock stat */
   PFS_table_share_lock *new_pfs = create_table_share_lock_stat();
-  if (new_pfs == NULL) {
-    return NULL;
+  if (new_pfs == nullptr) {
+    return nullptr;
   }
   new_pfs->m_owner = this;
 
@@ -554,9 +554,9 @@ PFS_table_share_lock *PFS_table_share::find_or_create_lock_stat() {
 
 /** Destroy a table share lock instrumentation. */
 void PFS_table_share::destroy_lock_stat() {
-  PFS_table_share_lock *new_ptr = NULL;
+  PFS_table_share_lock *new_ptr = nullptr;
   PFS_table_share_lock *old_ptr = this->m_race_lock_stat.exchange(new_ptr);
-  if (old_ptr != NULL) {
+  if (old_ptr != nullptr) {
     release_table_share_lock_stat(old_ptr);
   }
 }
@@ -583,15 +583,15 @@ PFS_table_share_index *PFS_table_share::find_or_create_index_stat(
 
   /* (1) Atomic Load */
   PFS_table_share_index *pfs = this->m_race_index_stat[index].load();
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return pfs;
   }
 
   /* (2) Create an index stat */
   PFS_table_share_index *new_pfs =
       create_table_share_index_stat(server_share, index);
-  if (new_pfs == NULL) {
-    return NULL;
+  if (new_pfs == nullptr) {
+    return nullptr;
   }
   new_pfs->m_owner = this;
 
@@ -611,10 +611,10 @@ PFS_table_share_index *PFS_table_share::find_or_create_index_stat(
 /** Destroy table share index instrumentation. */
 void PFS_table_share::destroy_index_stats() {
   for (uint index = 0; index <= MAX_INDEXES; index++) {
-    PFS_table_share_index *new_ptr = NULL;
+    PFS_table_share_index *new_ptr = nullptr;
     PFS_table_share_index *old_ptr =
         this->m_race_index_stat[index].exchange(new_ptr);
-    if (old_ptr != NULL) {
+    if (old_ptr != nullptr) {
       release_table_share_index_stat(old_ptr);
     }
   }
@@ -644,12 +644,12 @@ int init_table_share_lock_stat(uint table_stat_sizing) {
   @return table share lock instrumentation, or NULL
 */
 PFS_table_share_lock *create_table_share_lock_stat() {
-  PFS_table_share_lock *pfs = NULL;
+  PFS_table_share_lock *pfs = nullptr;
   pfs_dirty_state dirty_state;
 
   /* Create a new record in table stat array. */
   pfs = global_table_share_lock_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     /* Reset the stats. */
     pfs->m_stat.reset();
 
@@ -662,7 +662,7 @@ PFS_table_share_lock *create_table_share_lock_stat() {
 
 /** Release a table share lock instrumentation. */
 void release_table_share_lock_stat(PFS_table_share_lock *pfs) {
-  pfs->m_owner = NULL;
+  pfs->m_owner = nullptr;
   global_table_share_lock_container.deallocate(pfs);
   return;
 }
@@ -691,14 +691,14 @@ int init_table_share_index_stat(uint index_stat_sizing) {
 */
 PFS_table_share_index *create_table_share_index_stat(
     const TABLE_SHARE *server_share, uint server_index) {
-  DBUG_ASSERT((server_share != NULL) || (server_index == MAX_INDEXES));
+  DBUG_ASSERT((server_share != nullptr) || (server_index == MAX_INDEXES));
 
-  PFS_table_share_index *pfs = NULL;
+  PFS_table_share_index *pfs = nullptr;
   pfs_dirty_state dirty_state;
 
   /* Create a new record in index stat array. */
   pfs = global_table_share_index_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     if (server_index == MAX_INDEXES) {
       pfs->m_key.m_name_length = 0;
     } else {
@@ -721,7 +721,7 @@ PFS_table_share_index *create_table_share_index_stat(
 
 /** Release a table share index instrumentation. */
 void release_table_share_index_stat(PFS_table_share_index *pfs) {
-  pfs->m_owner = NULL;
+  pfs->m_owner = nullptr;
   global_table_share_index_container.deallocate(pfs);
   return;
 }
@@ -746,11 +746,11 @@ int init_file_class(uint file_class_sizing) {
     file_class_array = PFS_MALLOC_ARRAY(&builtin_memory_file_class,
                                         file_class_max, sizeof(PFS_file_class),
                                         PFS_file_class, MYF(MY_ZEROFILL));
-    if (unlikely(file_class_array == NULL)) {
+    if (unlikely(file_class_array == nullptr)) {
       return 1;
     }
   } else {
-    file_class_array = NULL;
+    file_class_array = nullptr;
   }
 
   return result;
@@ -760,7 +760,7 @@ int init_file_class(uint file_class_sizing) {
 void cleanup_file_class(void) {
   unsigned int i;
 
-  if (file_class_array != NULL) {
+  if (file_class_array != nullptr) {
     for (i = 0; i < file_class_max; i++) {
       my_free(file_class_array[i].m_documentation);
     }
@@ -768,7 +768,7 @@ void cleanup_file_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_file_class, file_class_max,
                  sizeof(PFS_file_class), file_class_array);
-  file_class_array = NULL;
+  file_class_array = nullptr;
   file_class_dirty_count = file_class_allocated_count = 0;
   file_class_max = 0;
 }
@@ -788,11 +788,11 @@ int init_stage_class(uint stage_class_sizing) {
     stage_class_array = PFS_MALLOC_ARRAY(
         &builtin_memory_stage_class, stage_class_max, sizeof(PFS_stage_class),
         PFS_stage_class, MYF(MY_ZEROFILL));
-    if (unlikely(stage_class_array == NULL)) {
+    if (unlikely(stage_class_array == nullptr)) {
       return 1;
     }
   } else {
-    stage_class_array = NULL;
+    stage_class_array = nullptr;
   }
 
   return result;
@@ -802,7 +802,7 @@ int init_stage_class(uint stage_class_sizing) {
 void cleanup_stage_class(void) {
   unsigned int i;
 
-  if (stage_class_array != NULL) {
+  if (stage_class_array != nullptr) {
     for (i = 0; i < stage_class_max; i++) {
       my_free(stage_class_array[i].m_documentation);
     }
@@ -810,7 +810,7 @@ void cleanup_stage_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_stage_class, stage_class_max,
                  sizeof(PFS_stage_class), stage_class_array);
-  stage_class_array = NULL;
+  stage_class_array = nullptr;
   stage_class_dirty_count = stage_class_allocated_count = 0;
   stage_class_max = 0;
 }
@@ -830,11 +830,11 @@ int init_statement_class(uint statement_class_sizing) {
     statement_class_array = PFS_MALLOC_ARRAY(
         &builtin_memory_statement_class, statement_class_max,
         sizeof(PFS_statement_class), PFS_statement_class, MYF(MY_ZEROFILL));
-    if (unlikely(statement_class_array == NULL)) {
+    if (unlikely(statement_class_array == nullptr)) {
       return 1;
     }
   } else {
-    statement_class_array = NULL;
+    statement_class_array = nullptr;
   }
 
   return result;
@@ -844,7 +844,7 @@ int init_statement_class(uint statement_class_sizing) {
 void cleanup_statement_class(void) {
   unsigned int i;
 
-  if (statement_class_array != NULL) {
+  if (statement_class_array != nullptr) {
     for (i = 0; i < statement_class_max; i++) {
       my_free(statement_class_array[i].m_documentation);
     }
@@ -852,7 +852,7 @@ void cleanup_statement_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_statement_class, statement_class_max,
                  sizeof(PFS_statement_class), statement_class_array);
-  statement_class_array = NULL;
+  statement_class_array = nullptr;
   statement_class_dirty_count = statement_class_allocated_count = 0;
   statement_class_max = 0;
 }
@@ -872,11 +872,11 @@ int init_socket_class(uint socket_class_sizing) {
     socket_class_array = PFS_MALLOC_ARRAY(
         &builtin_memory_socket_class, socket_class_max,
         sizeof(PFS_socket_class), PFS_socket_class, MYF(MY_ZEROFILL));
-    if (unlikely(socket_class_array == NULL)) {
+    if (unlikely(socket_class_array == nullptr)) {
       return 1;
     }
   } else {
-    socket_class_array = NULL;
+    socket_class_array = nullptr;
   }
 
   return result;
@@ -886,7 +886,7 @@ int init_socket_class(uint socket_class_sizing) {
 void cleanup_socket_class(void) {
   unsigned int i;
 
-  if (socket_class_array != NULL) {
+  if (socket_class_array != nullptr) {
     for (i = 0; i < socket_class_max; i++) {
       my_free(socket_class_array[i].m_documentation);
     }
@@ -894,7 +894,7 @@ void cleanup_socket_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_socket_class, socket_class_max,
                  sizeof(PFS_socket_class), socket_class_array);
-  socket_class_array = NULL;
+  socket_class_array = nullptr;
   socket_class_dirty_count = socket_class_allocated_count = 0;
   socket_class_max = 0;
 }
@@ -936,7 +936,7 @@ void cleanup_memory_class(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_memory_class, memory_class_max,
                  sizeof(PFS_memory_class), memory_class_array);
-  memory_class_array = NULL;
+  memory_class_array = nullptr;
   memory_class_dirty_count = memory_class_allocated_count = 0;
   memory_class_max = 0;
 }
@@ -955,8 +955,8 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
   klass->m_timed = true;
   klass->m_type = class_type;
 
-  klass->m_documentation = NULL;
-  if (documentation != NULL) {
+  klass->m_documentation = nullptr;
+  if (documentation != nullptr) {
     /* PSI_DOCUMENT_ME is an empty string. */
     if (documentation[0] != '\0') {
       klass->m_documentation =
@@ -972,7 +972,7 @@ static void configure_instr_class(PFS_instr_class *entry) {
   uint match_length = 0; /* length of matching pattern */
 
   // May be NULL in unit tests
-  if (pfs_instr_config_array == NULL) {
+  if (pfs_instr_config_array == nullptr) {
     return;
   }
   Pfs_instr_config_array::iterator it = pfs_instr_config_array->begin();
@@ -1061,7 +1061,7 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
                      PFS_CLASS_MUTEX);
     entry->m_mutex_stat.reset();
     entry->m_event_name_index = mutex_class_start + index;
-    entry->m_singleton = NULL;
+    entry->m_singleton = nullptr;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
 
@@ -1131,7 +1131,7 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
                      PFS_CLASS_RWLOCK);
     entry->m_rwlock_stat.reset();
     entry->m_event_name_index = rwlock_class_start + index;
-    entry->m_singleton = NULL;
+    entry->m_singleton = nullptr;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
 
@@ -1177,7 +1177,7 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, info->m_flags,
                      info->m_volatility, info->m_documentation, PFS_CLASS_COND);
     entry->m_event_name_index = cond_class_start + index;
-    entry->m_singleton = NULL;
+    entry->m_singleton = nullptr;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
 
@@ -1272,7 +1272,7 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, info->m_flags,
                      info->m_volatility, info->m_documentation,
                      PFS_CLASS_THREAD);
-    entry->m_singleton = NULL;
+    entry->m_singleton = nullptr;
     entry->m_history = true;
 
     entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER);
@@ -1325,7 +1325,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, info->m_flags,
                      info->m_volatility, info->m_documentation, PFS_CLASS_FILE);
     entry->m_event_name_index = file_class_start + index;
-    entry->m_singleton = NULL;
+    entry->m_singleton = nullptr;
     entry->m_enabled = true; /* enabled by default */
     entry->m_timed = true;
 
@@ -1503,7 +1503,7 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
                      info->m_volatility, info->m_documentation,
                      PFS_CLASS_SOCKET);
     entry->m_event_name_index = socket_class_start + index;
-    entry->m_singleton = NULL;
+    entry->m_singleton = nullptr;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
 
@@ -1596,7 +1596,7 @@ PFS_instr_class *find_table_class(uint index) {
   if (index == 2) {
     return &global_table_lock_class;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe) {
@@ -1604,56 +1604,56 @@ PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe) {
              (&global_table_lock_class == unsafe))) {
     return unsafe;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_instr_class *find_idle_class(uint index) {
   if (index == 1) {
     return &global_idle_class;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe) {
   if (likely(&global_idle_class == unsafe)) {
     return unsafe;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_instr_class *find_metadata_class(uint index) {
   if (index == 1) {
     return &global_metadata_class;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe) {
   if (likely(&global_metadata_class == unsafe)) {
     return unsafe;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_error_class *find_error_class(uint index) {
   if (index == 1) {
     return &global_error_class;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_error_class *sanitize_error_class(PFS_error_class *unsafe) {
   if (likely(&global_error_class == unsafe)) {
     return unsafe;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_transaction_class *find_transaction_class(uint index) {
   if (index == 1) {
     return &global_transaction_class;
   }
-  return NULL;
+  return nullptr;
 }
 
 PFS_transaction_class *sanitize_transaction_class(
@@ -1661,7 +1661,7 @@ PFS_transaction_class *sanitize_transaction_class(
   if (likely(&global_transaction_class == unsafe)) {
     return unsafe;
   }
-  return NULL;
+  return nullptr;
 }
 
 static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share) {
@@ -1677,7 +1677,7 @@ static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share) {
 
   for (; index < key_count; key_info++, index++) {
     index_stat = pfs->find_index_stat(index);
-    if (index_stat != NULL) {
+    if (index_stat != nullptr) {
       len = strlen(key_info->name);
 
       if (len != index_stat->m_key.m_name_length) {
@@ -1706,9 +1706,9 @@ PFS_table_share *find_or_create_table_share(PFS_thread *thread, bool temporary,
   PFS_table_share_key key;
 
   LF_PINS *pins = get_table_share_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_table_share_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
   const char *schema_name = share->db.str;
@@ -1766,7 +1766,7 @@ search:
   }
 
   pfs = global_table_share_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_key = key;
     pfs->m_schema_name = &pfs->m_key.m_hash_key[1];
     pfs->m_schema_name_length = schema_name_length;
@@ -1798,17 +1798,17 @@ search:
       if (++retry_count > retry_max) {
         /* Avoid infinite loops */
         global_table_share_container.m_lost++;
-        return NULL;
+        return nullptr;
       }
       goto search;
     }
 
     /* OOM in lf_hash_insert */
     global_table_share_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void PFS_table_share::aggregate_io(void) {
@@ -1820,7 +1820,7 @@ void PFS_table_share::aggregate_io(void) {
   /* Aggregate stats for each index, if any */
   for (index = 0; index < safe_key_count; index++) {
     from_stat = find_index_stat(index);
-    if (from_stat != NULL) {
+    if (from_stat != nullptr) {
       sum_io.aggregate(&from_stat->m_stat);
       from_stat->m_stat.reset();
     }
@@ -1828,7 +1828,7 @@ void PFS_table_share::aggregate_io(void) {
 
   /* Aggregate stats for the table */
   from_stat = find_index_stat(MAX_INDEXES);
-  if (from_stat != NULL) {
+  if (from_stat != nullptr) {
     sum_io.aggregate(&from_stat->m_stat);
     from_stat->m_stat.reset();
   }
@@ -1846,14 +1846,14 @@ void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count) {
   /* Sum stats for each index, if any */
   for (index = 0; index < key_count; index++) {
     stat = find_index_stat(index);
-    if (stat != NULL) {
+    if (stat != nullptr) {
       stat->m_stat.sum(result);
     }
   }
 
   /* Sum stats for the table */
   stat = find_index_stat(MAX_INDEXES);
-  if (stat != NULL) {
+  if (stat != nullptr) {
     stat->m_stat.sum(result);
   }
 }
@@ -1861,7 +1861,7 @@ void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count) {
 void PFS_table_share::sum_lock(PFS_single_stat *result) {
   PFS_table_share_lock *lock_stat;
   lock_stat = find_lock_stat();
-  if (lock_stat != NULL) {
+  if (lock_stat != nullptr) {
     lock_stat->m_stat.sum(result);
   }
 }
@@ -1874,7 +1874,7 @@ void PFS_table_share::sum(PFS_single_stat *result, uint key_count) {
 void PFS_table_share::aggregate_lock(void) {
   PFS_table_share_lock *lock_stat;
   lock_stat = find_lock_stat();
-  if (lock_stat != NULL) {
+  if (lock_stat != nullptr) {
     global_table_lock_stat.aggregate(&lock_stat->m_stat);
     /* Reset lock stat. */
     lock_stat->m_stat.reset();
@@ -1900,7 +1900,7 @@ void drop_table_share(PFS_thread *thread, bool temporary,
                       const char *table_name, uint table_name_length) {
   PFS_table_share_key key;
   LF_PINS *pins = get_table_share_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return;
   }
   set_table_share_key(&key, temporary, schema_name, schema_name_length,

@@ -1077,9 +1077,9 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 				}
 			else
 				/* Can't grow it, we don't own it. */
-				b->yy_ch_buf = 0;
+                                b->yy_ch_buf = nullptr;
 
-			if ( ! b->yy_ch_buf )
+                        if ( ! b->yy_ch_buf )
 				YY_FATAL_ERROR(
 				"fatal error - scanner input buffer overflow" );
 
@@ -1377,9 +1377,9 @@ static void fts0b_load_buffer_state  (yyscan_t yyscanner)
 		return;
 
 	if ( b == YY_CURRENT_BUFFER ) /* Not sure if we should pop here. */
-		YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) 0;
+          YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) nullptr;
 
-	if ( b->yy_is_our_buffer )
+        if ( b->yy_is_our_buffer )
 		fts0bfree((void *) b->yy_ch_buf ,yyscanner );
 
 	fts0bfree((void *) b ,yyscanner );
@@ -1451,18 +1451,16 @@ static void fts0b_load_buffer_state  (yyscan_t yyscanner)
 void fts0bpush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-	if (new_buffer == NULL)
-		return;
+    if (new_buffer == nullptr) return;
 
-	fts0bensure_buffer_stack(yyscanner);
+    fts0bensure_buffer_stack(yyscanner);
 
-	/* This block is copied from fts0b_switch_to_buffer. */
-	if ( YY_CURRENT_BUFFER )
-		{
-		/* Flush out information for old buffer. */
-		*yyg->yy_c_buf_p = yyg->yy_hold_char;
-		YY_CURRENT_BUFFER_LVALUE->yy_buf_pos = yyg->yy_c_buf_p;
-		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
+    /* This block is copied from fts0b_switch_to_buffer. */
+    if (YY_CURRENT_BUFFER) {
+      /* Flush out information for old buffer. */
+      *yyg->yy_c_buf_p = yyg->yy_hold_char;
+      YY_CURRENT_BUFFER_LVALUE->yy_buf_pos = yyg->yy_c_buf_p;
+      YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
 
 	/* Only push if top exists. Otherwise, replace top. */
@@ -1486,8 +1484,8 @@ void fts0bpop_buffer_state (yyscan_t yyscanner)
 		return;
 
 	fts0b_delete_buffer(YY_CURRENT_BUFFER ,yyscanner);
-	YY_CURRENT_BUFFER_LVALUE = NULL;
-	if (yyg->yy_buffer_stack_top > 0)
+        YY_CURRENT_BUFFER_LVALUE = nullptr;
+        if (yyg->yy_buffer_stack_top > 0)
 		--yyg->yy_buffer_stack_top;
 
 	if (YY_CURRENT_BUFFER) {
@@ -1557,17 +1555,17 @@ YY_BUFFER_STATE fts0b_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
 	     base[size-2] != YY_END_OF_BUFFER_CHAR ||
 	     base[size-1] != YY_END_OF_BUFFER_CHAR )
 		/* They forgot to leave room for the EOB's. */
-		return 0;
+                return nullptr;
 
-	b = (YY_BUFFER_STATE) fts0balloc(sizeof( struct yy_buffer_state ) ,yyscanner );
+        b = (YY_BUFFER_STATE) fts0balloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in fts0b_scan_buffer()" );
 
 	b->yy_buf_size = size - 2;	/* "- 2" to take care of EOB's */
 	b->yy_buf_pos = b->yy_ch_buf = base;
 	b->yy_is_our_buffer = 0;
-	b->yy_input_file = 0;
-	b->yy_n_chars = b->yy_buf_size;
+        b->yy_input_file = nullptr;
+        b->yy_n_chars = b->yy_buf_size;
 	b->yy_is_interactive = 0;
 	b->yy_at_bol = 1;
 	b->yy_fill_buffer = 0;
@@ -1812,17 +1810,17 @@ void fts0bset_debug (int  bdebug , yyscan_t yyscanner)
 int fts0blex_init(yyscan_t* ptr_yy_globals)
 
 {
-    if (ptr_yy_globals == NULL){
-        errno = EINVAL;
-        return 1;
-    }
+  if (ptr_yy_globals == nullptr) {
+    errno = EINVAL;
+    return 1;
+  }
 
-    *ptr_yy_globals = (yyscan_t) fts0balloc ( sizeof( struct yyguts_t ), NULL );
+  *ptr_yy_globals = (yyscan_t)fts0balloc(sizeof(struct yyguts_t), nullptr);
 
-    if (*ptr_yy_globals == NULL){
-        errno = ENOMEM;
-        return 1;
-    }
+  if (*ptr_yy_globals == nullptr) {
+    errno = ENOMEM;
+    return 1;
+  }
 
     /* By setting to 0xAA, we expose bugs in yy_init_globals. Leave at 0x00 for releases. */
     memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
@@ -1845,18 +1843,18 @@ int fts0blex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals )
 
     fts0bset_extra (yy_user_defined, &dummy_yyguts);
 
-    if (ptr_yy_globals == NULL){
-        errno = EINVAL;
-        return 1;
+    if (ptr_yy_globals == nullptr) {
+      errno = EINVAL;
+      return 1;
     }
-	
+
     *ptr_yy_globals = (yyscan_t) fts0balloc ( sizeof( struct yyguts_t ), &dummy_yyguts );
-	
-    if (*ptr_yy_globals == NULL){
-        errno = ENOMEM;
-        return 1;
+
+    if (*ptr_yy_globals == nullptr) {
+      errno = ENOMEM;
+      return 1;
     }
-    
+
     /* By setting to 0xAA, we expose bugs in
     yy_init_globals. Leave at 0x00 for releases. */
     memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
@@ -1873,24 +1871,24 @@ static int yy_init_globals (yyscan_t yyscanner)
      * This function is called from fts0blex_destroy(), so don't allocate here.
      */
 
-    yyg->yy_buffer_stack = 0;
+    yyg->yy_buffer_stack = nullptr;
     yyg->yy_buffer_stack_top = 0;
     yyg->yy_buffer_stack_max = 0;
-    yyg->yy_c_buf_p = (char *) 0;
+    yyg->yy_c_buf_p = (char *)nullptr;
     yyg->yy_init = 0;
     yyg->yy_start = 0;
 
     yyg->yy_start_stack_ptr = 0;
     yyg->yy_start_stack_depth = 0;
-    yyg->yy_start_stack =  NULL;
+    yyg->yy_start_stack = nullptr;
 
 /* Defined in main.c */
 #ifdef YY_STDINIT
     yyin = stdin;
     yyout = stdout;
 #else
-    yyin = (FILE *) 0;
-    yyout = (FILE *) 0;
+  yyin = (FILE *)nullptr;
+  yyout = (FILE *)nullptr;
 #endif
 
     /* For future reference: Set errno on error, since we are called by
@@ -1907,26 +1905,26 @@ int fts0blex_destroy  (yyscan_t yyscanner)
     /* Pop the buffer stack, destroying each element. */
 	while(YY_CURRENT_BUFFER){
 		fts0b_delete_buffer(YY_CURRENT_BUFFER ,yyscanner );
-		YY_CURRENT_BUFFER_LVALUE = NULL;
-		fts0bpop_buffer_state(yyscanner);
+                YY_CURRENT_BUFFER_LVALUE = nullptr;
+                fts0bpop_buffer_state(yyscanner);
 	}
 
 	/* Destroy the stack itself. */
 	fts0bfree(yyg->yy_buffer_stack ,yyscanner);
-	yyg->yy_buffer_stack = NULL;
+        yyg->yy_buffer_stack = nullptr;
 
-    /* Destroy the start condition stack. */
+        /* Destroy the start condition stack. */
         fts0bfree(yyg->yy_start_stack ,yyscanner );
-        yyg->yy_start_stack = NULL;
+        yyg->yy_start_stack = nullptr;
 
-    /* Reset the globals. This is important in a non-reentrant scanner so the next time
-     * fts0blex() is called, initialization will occur. */
-    yy_init_globals( yyscanner);
+        /* Reset the globals. This is important in a non-reentrant scanner so
+         * the next time fts0blex() is called, initialization will occur. */
+        yy_init_globals(yyscanner);
 
-    /* Destroy the main struct (reentrant only). */
-    fts0bfree ( yyscanner , yyscanner );
-    yyscanner = NULL;
-    return 0;
+        /* Destroy the main struct (reentrant only). */
+        fts0bfree(yyscanner, yyscanner);
+        yyscanner = nullptr;
+        return 0;
 }
 
 /*

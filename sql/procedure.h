@@ -118,7 +118,7 @@ class Item_proc_string : public Item_proc {
     return get_time_from_string(ltime);
   }
   String *val_str(String *) override {
-    return null_value ? (String *)0 : &str_value;
+    return null_value ? (String *)nullptr : &str_value;
   }
   my_decimal *val_decimal(my_decimal *) override;
 };

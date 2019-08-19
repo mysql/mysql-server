@@ -93,11 +93,11 @@ bool mi_dynmap_file(MI_INFO *info, my_off_t size) {
       upon a write if no physical memory is available.
   */
   info->s->file_map = (uchar *)my_mmap(
-      0, (size_t)size,
+      nullptr, (size_t)size,
       info->s->mode == O_RDONLY ? PROT_READ : PROT_READ | PROT_WRITE,
       MAP_SHARED | MAP_NORESERVE, info->dfile, 0L);
   if (info->s->file_map == (uchar *)MAP_FAILED) {
-    info->s->file_map = NULL;
+    info->s->file_map = nullptr;
     return true;
   }
 #if defined(HAVE_MADVISE)
@@ -129,7 +129,7 @@ int mi_munmap_file(MI_INFO *info) {
     return ret;
   info->s->file_read = mi_nommap_pread;
   info->s->file_write = mi_nommap_pwrite;
-  info->s->file_map = 0;
+  info->s->file_map = nullptr;
   info->s->mmaped_length = 0;
   return 0;
 }
@@ -1025,7 +1025,7 @@ bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *rec_buff,
       to += length;
   }
   if (packed_length !=
-          (uint)(to - rec_buff) + (info->s->calc_checksum != NULL) ||
+          (uint)(to - rec_buff) + (info->s->calc_checksum != nullptr) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
   if (with_checksum && ((uchar)info->checksum != (uchar)*to)) {
@@ -1232,7 +1232,7 @@ void _mi_store_blob_length(uchar *pos, uint pack_length, uint length) {
 int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf) {
   int block_of_record;
   uint b_type, left_length = 0;
-  uchar *to = NULL;
+  uchar *to = nullptr;
   MI_BLOCK_INFO block_info;
   File file;
   DBUG_TRACE;
@@ -1336,7 +1336,7 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 
   /* Don't let the compare destroy blobs that may be in use */
   rec_buff = info->rec_buff;
-  if (info->s->base.blobs) info->rec_buff = 0;
+  if (info->s->base.blobs) info->rec_buff = nullptr;
   error = _mi_read_dynamic_record(info, pos, old_record);
   if (!error)
     error = mi_unique_comp(def, record, old_record, def->null_are_equal);
@@ -1481,7 +1481,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf, my_off_t filepos,
                                 bool skip_deleted_blocks) {
   int block_of_record, info_read, save_errno;
   uint left_len, b_type;
-  uchar *to = NULL;
+  uchar *to = nullptr;
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share = info->s;
   DBUG_TRACE;

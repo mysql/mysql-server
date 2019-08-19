@@ -399,7 +399,7 @@ void Listener_unix_socket::close_listener() {
       m_state.set_and_return_old(iface::Listener::State::k_stopped))
     return;
 
-  if (NULL == m_unix_socket) return;
+  if (nullptr == m_unix_socket) return;
 
   const bool should_unlink_unix_socket =
       INVALID_SOCKET != m_unix_socket->get_socket_fd();

@@ -179,10 +179,10 @@ Key_use *Optimize_table_order::find_best_ref(
     const double prefix_rowcount, bool *found_condition,
     table_map *ref_depend_map, uint *used_key_parts) {
   // Skip finding best_ref if quick object is forced by hint.
-  if (tab->quick() && tab->quick()->forced_by_hint) return NULL;
+  if (tab->quick() && tab->quick()->forced_by_hint) return nullptr;
 
   // Return value - will point to Key_use of the index with cheapest ref access
-  Key_use *best_ref = NULL;
+  Key_use *best_ref = nullptr;
 
   /*
     Cost of using best_ref; used to determine if ref access on another
@@ -771,7 +771,7 @@ double Optimize_table_order::calculate_scan_cost(
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_COND_FANOUT_FILTER)) {
     const float const_cond_filter = calculate_condition_filter(
-        tab, NULL, 0, static_cast<double>(tab->found_records), !disable_jbuf,
+        tab, nullptr, 0, static_cast<double>(tab->found_records), !disable_jbuf,
         true, *trace_access_scan);
 
     /*
@@ -999,7 +999,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   Opt_trace_array trace_paths(trace, "considered_access_paths");
 
   // The 'ref' access method with lowest cost as found by find_best_ref()
-  Key_use *best_ref = NULL;
+  Key_use *best_ref = nullptr;
 
   table_map ref_depend_map = 0;
   uint used_key_parts = 0;
@@ -1146,7 +1146,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     trace_access_scan.add("resulting_rows", rows_after_filtering);
     trace_access_scan.add("cost", scan_total_cost);
 
-    if (best_ref == NULL ||
+    if (best_ref == nullptr ||
         (scan_total_cost <
          best_read_cost +
              cost_model->row_evaluate_cost(prefix_rowcount * rows_fetched))) {
@@ -1166,18 +1166,18 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
           therefore 'false'.
         */
         const float full_filter = calculate_condition_filter(
-            tab, NULL, ~remaining_tables & ~excluded_tables,
+            tab, nullptr, ~remaining_tables & ~excluded_tables,
             static_cast<double>(tab->found_records), false, false,
             trace_access_scan);
         filter_effect = static_cast<float>(std::min(
             1.0, tab->found_records * full_filter / rows_after_filtering));
       }
-      best_ref = NULL;
+      best_ref = nullptr;
       best_uses_jbuf = !disable_jbuf;
       ref_depend_map = 0;
     }
 
-    trace_access_scan.add("chosen", best_ref == NULL);
+    trace_access_scan.add("chosen", best_ref == nullptr);
   }
 
   /*
@@ -1273,7 +1273,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         (is_join_buffering ||                        // 2a
          remaining_tables != 0 ||                    // 2b
          tab->join()->select_lex->master_unit()->outer_select() !=
-             NULL ||                                    // 2c
+             nullptr ||                                 // 2c
          !tab->join()->select_lex->sj_nests.empty() ||  // 2d
          ((tab->join()->order || tab->join()->group_list) &&
           tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||  // 2e
@@ -1789,7 +1789,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
         pos->read_cost = cost;
         pos->rows_fetched = rowcount;
         pos->loosescan_parts = max_keypart + 1;
-        pos->key = NULL;
+        pos->key = nullptr;
         trace_cov_scan.add("chosen", true);
       }
     } else
@@ -1809,7 +1809,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
       // this is ok because idx == join->const_tables
       pos->rows_fetched = rows2double(tab->quick()->records);
       pos->loosescan_parts = quick_max_keypart + 1;
-      pos->key = NULL;
+      pos->key = nullptr;
       trace_range.add("chosen", true);
     }
   }
@@ -1991,7 +1991,7 @@ bool Optimize_table_order::choose_table_order() {
       best_access_path() et al. when no filtering effect is possible.
     */
     join->where_cond->walk(&Item::add_field_to_cond_set_processor,
-                           enum_walk::POSTFIX, NULL);
+                           enum_walk::POSTFIX, nullptr);
   }
 
   Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
@@ -2370,7 +2370,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
     best_idx = idx;
     JOIN_TAB *pos = join->best_ref[best_idx];
     while (pos && best_table != pos) pos = join->best_ref[++best_idx];
-    DBUG_ASSERT((pos != NULL));  // should always find 'best_table'
+    DBUG_ASSERT((pos != nullptr));  // should always find 'best_table'
     /*
       Maintain '#rows-sorted' order of 'best_ref[]':
        - Shift 'best_ref[]' to make first position free.
@@ -2755,7 +2755,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       POSITION *const position = join->positions + idx;
 
       // If optimizing a sj-mat nest, tables in this plan must be in nest:
-      DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
+      DBUG_ASSERT(emb_sjm_nest == nullptr || emb_sjm_nest == s->emb_sj_nest);
 
       deps_lateral.restore();  // as we "popped" the previously-tried table
 
@@ -2843,7 +2843,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
             3) and, There is a 1::1 relation between those tables
         */
         if (prune_level == 1 &&             // 1)
-            position->key != NULL &&        // 2)
+            position->key != nullptr &&     // 2)
             position->rows_fetched <= 1.0)  // 3)
         {
           /*
@@ -3093,7 +3093,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       }
       POSITION *const position = join->positions + idx;
 
-      DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
+      DBUG_ASSERT(emb_sjm_nest == nullptr || emb_sjm_nest == s->emb_sj_nest);
 
       deps_lateral.restore();
 
@@ -3672,7 +3672,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     // LooseScan: May use join buffering for all tables after last inner table.
     for (no_jbuf_before = last_tab; no_jbuf_before > first_tab;
          no_jbuf_before--) {
-      if (positions[no_jbuf_before].table->emb_sj_nest != NULL)
+      if (positions[no_jbuf_before].table->emb_sj_nest != nullptr)
         break;  // Encountered the last inner table.
     }
     no_jbuf_before++;
@@ -4080,7 +4080,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
     within a semi-join nest have emb_sj_nest != NULL, which triggers several
     of the actions inside this function.
   */
-  DBUG_ASSERT(emb_sjm_nest == NULL);
+  DBUG_ASSERT(emb_sjm_nest == nullptr);
 
   // remaining_tables include the current one:
   DBUG_ASSERT(remaining_tables & new_join_tab->table_ref->map());
@@ -4287,7 +4287,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
       } else {
         // Stage 3: Accept outer dependent and non-dependent tables:
         DBUG_ASSERT(emb_sj_nest != first_emb_sj_nest);
-        if (emb_sj_nest != NULL) pos->first_loosescan_table = MAX_TABLES;
+        if (emb_sj_nest != nullptr) pos->first_loosescan_table = MAX_TABLES;
       }
     }
 
@@ -4318,7 +4318,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
           emb_sj_nest->nested_join->sj_corr_tables) &&  // (5)
         (remaining_tables_incl &
          emb_sj_nest->nested_join->sj_depends_on) &&       // (6)
-        new_join_tab->keyuse() != NULL &&                  // (7)
+        new_join_tab->keyuse() != nullptr &&               // (7)
         !new_join_tab->table_ref->uses_materialization())  // (8)
     {
       // start considering using LooseScan strategy
@@ -4393,7 +4393,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
       The simple way to model this is to remove SJM-SCAN(...) fanout once
       we reach the point #2.
     */
-    if (pos->sjm_scan_need_tables && emb_sj_nest != NULL &&
+    if (pos->sjm_scan_need_tables && emb_sj_nest != nullptr &&
         emb_sj_nest !=
             join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
       /*
@@ -4439,7 +4439,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
     The optimizer does not support that we have inner tables from more
     than one semi-join nest within the table range.
   */
-  if (pos->sjm_scan_need_tables && emb_sj_nest != NULL &&
+  if (pos->sjm_scan_need_tables && emb_sj_nest != nullptr &&
       emb_sj_nest !=
           join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
     pos->sjm_scan_need_tables = 0;

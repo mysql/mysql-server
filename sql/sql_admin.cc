@@ -163,10 +163,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     share = get_table_share(thd, table_list->db, table_list->table_name, key,
                             key_length, false);
     mysql_mutex_unlock(&LOCK_open);
-    if (share == NULL) return 0;  // Can't open frm file
+    if (share == nullptr) return 0;  // Can't open frm file
 
     if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, false,
-                              NULL)) {
+                              nullptr)) {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
@@ -219,8 +219,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       to close it, but leave it protected by exclusive metadata lock.
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN)) goto end;
-    close_all_tables_for_name(thd, table_list->table->s, false, NULL);
-    table_list->table = 0;
+    close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
+    table_list->table = nullptr;
   }
   /*
     After this point we have an exclusive metadata lock on our table
@@ -257,7 +257,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   }
 
 end:
-  thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+  thd->locked_tables_list.unlink_all_closed_tables(thd, nullptr, 0);
   if (table == &tmp_table) {
     mysql_mutex_lock(&LOCK_open);
     closefrm(table, true);  // Free allocated memory
@@ -581,7 +581,7 @@ static bool mysql_admin_table(
     privilege checking. Clear all references to closed tables.
   */
   close_thread_tables(thd);
-  for (table = tables; table; table = table->next_local) table->table = NULL;
+  for (table = tables; table; table = table->next_local) table->table = nullptr;
 
   /*
     This statement will be written to the binary log even if it fails.
@@ -618,9 +618,9 @@ static bool mysql_admin_table(
     {
       TABLE_LIST *save_next_global, *save_next_local;
       save_next_global = table->next_global;
-      table->next_global = 0;
+      table->next_global = nullptr;
       save_next_local = table->next_local;
-      table->next_local = 0;
+      table->next_local = nullptr;
       select->table_list.first = table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
@@ -630,7 +630,7 @@ static bool mysql_admin_table(
       */
       lex->query_tables = table;
       lex->query_tables_last = &table->next_global;
-      lex->query_tables_own_last = 0;
+      lex->query_tables_own_last = nullptr;
       /*
         CHECK TABLE command is allowed for views as well. Check on alter flags
         to differentiate from ALTER TABLE...CHECK PARTITION on which view is not
@@ -722,7 +722,7 @@ static bool mysql_admin_table(
         If open_and_lock_tables() failed, close_thread_tables() will close
         the table and table->table can therefore be invalid.
       */
-      if (open_error) table->table = NULL;
+      if (open_error) table->table = nullptr;
 
       /*
         Under locked tables, we know that the table can be opened,
@@ -916,9 +916,9 @@ static bool mysql_admin_table(
           table_list->table has been closed and freed. Do not reference
           uninitialized data. open_tables() could fail.
         */
-        table->table = NULL;
+        table->table = nullptr;
         /* Same applies to MDL ticket. */
-        table->mdl_request.ticket = NULL;
+        table->mdl_request.ticket = nullptr;
 
         {
           // binlogging is done by caller if wanted
@@ -933,7 +933,7 @@ static bool mysql_admin_table(
         */
         if (thd->get_stmt_da()->is_ok())
           thd->get_stmt_da()->reset_diagnostics_area();
-        table->table = NULL;
+        table->table = nullptr;
         result_code = result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         goto send_result;
       }
@@ -1094,9 +1094,9 @@ static bool mysql_admin_table(
            table_list->table has been closed and freed. Do not reference
            uninitialized data. open_tables() could fail.
          */
-        table->table = NULL;
+        table->table = nullptr;
         /* Same applies to MDL ticket. */
-        table->mdl_request.ticket = NULL;
+        table->mdl_request.ticket = nullptr;
 
         DEBUG_SYNC(thd, "ha_admin_try_alter");
         protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
@@ -1116,7 +1116,7 @@ static bool mysql_admin_table(
         DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
         TABLE_LIST *save_next_local = table->next_local,
                    *save_next_global = table->next_global;
-        table->next_local = table->next_global = 0;
+        table->next_local = table->next_global = nullptr;
         {
           // binlogging is done by caller if wanted
           Disable_binlog_guard binlog_guard(thd);
@@ -1142,8 +1142,8 @@ static bool mysql_admin_table(
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
         /* Clear references to TABLE and MDL_ticket after releasing them. */
-        table->table = NULL;
-        table->mdl_request.ticket = NULL;
+        table->table = nullptr;
+        table->mdl_request.ticket = nullptr;
         if (!result_code)  // recreation went ok
         {
           DEBUG_SYNC(thd, "ha_admin_open_ltable");
@@ -1391,7 +1391,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
   const bool ret = mysql_admin_table(
       thd, tables, &check_opt, "assign_to_keycache", TL_READ_NO_INSERT, false,
-      false, 0, 0, &handler::assign_to_keycache, 0, m_alter_info, false);
+      false, 0, nullptr, &handler::assign_to_keycache, 0, m_alter_info, false);
   return ret;
 }
 
@@ -1417,8 +1417,8 @@ bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
   */
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
   const bool ret = mysql_admin_table(
-      thd, tables, 0, "preload_keys", TL_READ_NO_INSERT, false, false, 0, 0,
-      &handler::preload_keys, 0, m_alter_info, false);
+      thd, tables, nullptr, "preload_keys", TL_READ_NO_INSERT, false, false, 0,
+      nullptr, &handler::preload_keys, 0, m_alter_info, false);
   return ret;
 }
 
@@ -1531,8 +1531,8 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     res = handle_histogram_command(thd, first_table);
   } else {
     res = mysql_admin_table(thd, first_table, &thd->lex->check_opt, "analyze",
-                            lock_type, true, false, 0, 0, &handler::ha_analyze,
-                            0, m_alter_info, true);
+                            lock_type, true, false, 0, nullptr,
+                            &handler::ha_analyze, 0, m_alter_info, true);
   }
 
   /* ! we write after unlocking the table */
@@ -1560,7 +1560,7 @@ bool Sql_cmd_check_table::execute(THD *thd) {
   thd->enable_slow_log = opt_log_slow_admin_statements;
 
   res = mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
-                          lock_type, false, false, HA_OPEN_FOR_REPAIR, 0,
+                          lock_type, false, false, HA_OPEN_FOR_REPAIR, nullptr,
                           &handler::ha_check, 1, m_alter_info, true);
 
   thd->lex->select_lex->table_list.first = first_table;
@@ -1582,7 +1582,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
   res = (specialflag & SPECIAL_NO_NEW_FUNC)
             ? mysql_recreate_table(thd, first_table, true)
             : mysql_admin_table(thd, first_table, &thd->lex->check_opt,
-                                "optimize", TL_WRITE, true, false, 0, 0,
+                                "optimize", TL_WRITE, true, false, 0, nullptr,
                                 &handler::ha_optimize, 0, m_alter_info, true);
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog) {
@@ -1704,7 +1704,7 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
   } else {
     res = alter_instance->execute();
     delete alter_instance;
-    alter_instance = NULL;
+    alter_instance = nullptr;
   }
 
   return res;
@@ -1942,9 +1942,9 @@ bool Sql_cmd_create_role::execute(THD *thd) {
     The below is a hack to make mysql_create_user() behave
     correctly.
   */
-  thd->lex->ssl_cipher = 0;
-  thd->lex->x509_issuer = 0;
-  thd->lex->x509_subject = 0;
+  thd->lex->ssl_cipher = nullptr;
+  thd->lex->x509_issuer = nullptr;
+  thd->lex->x509_subject = nullptr;
   thd->lex->ssl_type = SSL_TYPE_NOT_SPECIFIED;
   thd->lex->alter_password.account_locked = true;
   thd->lex->alter_password.update_account_locked_column = true;
@@ -1967,7 +1967,7 @@ bool Sql_cmd_create_role::execute(THD *thd) {
     role->alter_status.update_password_expired_fields = true;
     role->alter_status.use_default_password_lifetime = true;
     role->alter_status.update_password_expired_column = true;
-    role->auth.str = 0;
+    role->auth.str = nullptr;
     role->auth.length = 0;
     role->has_password_generator = false;
   }
@@ -2072,10 +2072,11 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
 
 bool Sql_cmd_show_grants::execute(THD *thd) {
   DBUG_TRACE;
-  bool show_mandatory_roles = (for_user == 0);
-  bool have_using_clause = (using_users != 0 && using_users->elements > 0);
+  bool show_mandatory_roles = (for_user == nullptr);
+  bool have_using_clause =
+      (using_users != nullptr && using_users->elements > 0);
 
-  if (for_user == 0 || for_user->user.str == 0) {
+  if (for_user == nullptr || for_user->user.str == nullptr) {
     /* SHOW PRIVILEGE FOR CURRENT_USER */
     LEX_USER current_user;
     get_default_definer(thd, &current_user);

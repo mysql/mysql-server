@@ -971,7 +971,7 @@ dberr_t BtrBulk::insert(dtuple_t *tuple, ulint level) {
   if (page_bulk->needExt(tuple, rec_size)) {
     /* The record is so big that we have to store some fields
     externally on separate database pages */
-    big_rec = dtuple_convert_big_rec(m_index, 0, tuple, &n_ext);
+    big_rec = dtuple_convert_big_rec(m_index, nullptr, tuple, &n_ext);
     if (big_rec == nullptr) {
       return (DB_TOO_BIG_RECORD);
     }

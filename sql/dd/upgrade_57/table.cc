@@ -250,7 +250,7 @@ static File_option trg_file_parameters[] = {
     {{STRING_WITH_LEN("created")},
      my_offsetof_upgrade(struct Trg_file_data, created_timestamps),
      FILE_OPTIONS_ULLLIST},
-    {{0, 0}, 0, FILE_OPTIONS_STRING}};
+    {{nullptr, 0}, 0, FILE_OPTIONS_STRING}};
 
 static File_option sql_modes_parameters = {
     {STRING_WITH_LEN("sql_modes")},
@@ -445,7 +445,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
     LEX_CSTRING body_utf8 = {tmp_body_utf8, strlen(tmp_body_utf8)};
 
     // Allocate space to hold username and hostname.
-    char *pos = NULL;
+    char *pos = nullptr;
     if (!(pos = static_cast<char *>(mem_root->Alloc(USERNAME_LENGTH + 1)))) {
       LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "User");
       return true;
@@ -641,7 +641,7 @@ class Table_upgrade_guard {
 
   ~Table_upgrade_guard() {
     m_thd->variables.sql_mode = m_sql_mode;
-    m_thd->work_part_info = 0;
+    m_thd->work_part_info = nullptr;
 
     // Free item list for partitions
     if (m_table->s->m_part_info) free_items(m_table->s->m_part_info->item_list);
@@ -771,7 +771,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
 
   // Backup
   thd->lex->select_lex = &select;
-  thd->lex->query_tables = NULL;
+  thd->lex->query_tables = nullptr;
   thd->lex->sroutines_list.save_and_clear(&saved_sroutines_list);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -872,7 +872,7 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   // Switch off modes which can prevent normal parsing of VIEW.
   Sql_mode_parse_guard parse_guard(thd);
 
-  String full_view_definition((char *)0, 0, m_connection_cl);
+  String full_view_definition((char *)nullptr, 0, m_connection_cl);
   create_alter_view_stmt(thd, view_ref, &full_view_definition, db_name,
                          view_name, m_connection_cl);
 
@@ -953,7 +953,7 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
 
   // Prepare default values for old format
   table_list.view_suid = true;
-  table_list.definer.user.str = table_list.definer.host.str = 0;
+  table_list.definer.user.str = table_list.definer.host.str = nullptr;
   table_list.definer.user.length = table_list.definer.host.length = 0;
 
   if (frm_context.view_def->parse(
@@ -1206,7 +1206,7 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
       Disable_gtid_state_update_guard disabler(thd);
 
       // Ordering of Triggers is taken care above, pass dummy arguments here.
-      LEX_CSTRING anchor_trigger_name{0, 0};
+      LEX_CSTRING anchor_trigger_name{nullptr, 0};
       if (dd::create_trigger(thd, t, enum_trigger_order_type::TRG_ORDER_NONE,
                              anchor_trigger_name)) {
         trans_rollback_stmt(thd);
@@ -1606,7 +1606,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   uint key_count;
 
   // Foreign keys are handled at later stage by retrieving info from SE.
-  FOREIGN_KEY *dummy_fk_key_info = NULL;
+  FOREIGN_KEY *dummy_fk_key_info = nullptr;
   uint dummy_fk_key_count = 0;
 
   /* Suppress key length errors if this is a white listed table. */
@@ -1712,7 +1712,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   }
   bootstrap_error_handler.set_log_error(true);
 
-  FOREIGN_KEY *fk_key_info_buffer = NULL;
+  FOREIGN_KEY *fk_key_info_buffer = nullptr;
   uint fk_number = 0;
   Sql_check_constraint_spec_list cc_spec_list_unused(thd->mem_root);
 

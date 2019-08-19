@@ -35,7 +35,7 @@ class zInserter : private BaseInserter {
  public:
   /** Constructor.
   @param[in]	ctx	blob operation context. */
-  zInserter(InsertContext *ctx) : BaseInserter(ctx), m_heap(NULL) {}
+  zInserter(InsertContext *ctx) : BaseInserter(ctx), m_heap(nullptr) {}
 
   /** Destructor. */
   ~zInserter();
@@ -191,7 +191,7 @@ class zInserter : private BaseInserter {
 };
 
 inline zInserter::~zInserter() {
-  if (m_heap != NULL) {
+  if (m_heap != nullptr) {
     mem_heap_free(m_heap);
   }
 }

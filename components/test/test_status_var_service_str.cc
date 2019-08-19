@@ -48,7 +48,8 @@ static char char_variable_value[] =
 static SHOW_VAR char_variable[] = {
     {"test_str_component.char_variable", (char *)&char_variable_value,
      SHOW_CHAR, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /**

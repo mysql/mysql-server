@@ -100,15 +100,15 @@ class TranxNodeAllocator {
   TranxNodeAllocator(uint reserved_nodes)
       : reserved_blocks(reserved_nodes / BLOCK_TRANX_NODES +
                         (reserved_nodes % BLOCK_TRANX_NODES > 1 ? 2 : 1)),
-        first_block(NULL),
-        last_block(NULL),
-        current_block(NULL),
+        first_block(nullptr),
+        last_block(nullptr),
+        current_block(nullptr),
         last_node(-1),
         block_num(0) {}
 
   ~TranxNodeAllocator() {
     Block *block = first_block;
-    while (block != NULL) {
+    while (block != nullptr) {
       Block *next = block->next;
       free_block(block);
       block = next;
@@ -132,17 +132,17 @@ class TranxNodeAllocator {
       last_node = -1;
     }
 
-    if (current_block == NULL && allocate_block()) {
+    if (current_block == nullptr && allocate_block()) {
       current_block = block;
       if (current_block) last_node = BLOCK_TRANX_NODES - 1;
-      return NULL;
+      return nullptr;
     }
 
     trx_node = &(current_block->nodes[++last_node]);
     trx_node->log_name_[0] = '\0';
     trx_node->log_pos_ = 0;
-    trx_node->next_ = 0;
-    trx_node->hash_next_ = 0;
+    trx_node->next_ = nullptr;
+    trx_node->hash_next_ = nullptr;
     trx_node->n_waiters = 0;
     return trx_node;
   }
@@ -169,7 +169,7 @@ class TranxNodeAllocator {
    */
   int free_nodes_before(TranxNode *node) {
     Block *block;
-    Block *prev_block = NULL;
+    Block *prev_block = nullptr;
 
     block = first_block;
     while (block != current_block->next) {
@@ -181,7 +181,7 @@ class TranxNodeAllocator {
           last_block->next = first_block;
           first_block = block;
           last_block = prev_block;
-          last_block->next = NULL;
+          last_block->next = nullptr;
           free_blocks();
         }
         return 0;
@@ -245,9 +245,9 @@ class TranxNodeAllocator {
     Block *block = (Block *)my_malloc(key_ss_memory_TranxNodeAllocator_block,
                                       sizeof(Block), MYF(0));
     if (block) {
-      block->next = NULL;
+      block->next = nullptr;
 
-      if (first_block == NULL)
+      if (first_block == nullptr)
         first_block = block;
       else
         last_block->next = block;
@@ -286,17 +286,17 @@ class TranxNodeAllocator {
     'current_block'.
    */
   void free_blocks() {
-    if (current_block == NULL || current_block->next == NULL) return;
+    if (current_block == nullptr || current_block->next == nullptr) return;
 
     /* One free Block is always kept behind the current block */
     Block *block = current_block->next->next;
-    while (block_num > reserved_blocks && block != NULL) {
+    while (block_num > reserved_blocks && block != nullptr) {
       Block *next = block->next;
       free_block(block);
       block = next;
     }
     current_block->next->next = block;
-    if (block == NULL) last_block = current_block->next;
+    if (block == nullptr) last_block = current_block->next;
   }
 };
 
@@ -383,7 +383,7 @@ class ActiveTranx : public Trace {
    *   True :  If there are no nodes
    *   False:  othewise
    */
-  bool is_empty() { return (trx_front_ == NULL); }
+  bool is_empty() { return (trx_front_ == nullptr); }
 };
 
 /**
@@ -429,7 +429,7 @@ struct AckInfo {
  */
 class AckContainer : public Trace {
  public:
-  AckContainer() : m_ack_array(NULL), m_size(0), m_empty_slot(0) {}
+  AckContainer() : m_ack_array(nullptr), m_size(0), m_empty_slot(0) {}
   ~AckContainer() {
     if (m_ack_array) my_free(m_ack_array);
   }
@@ -549,7 +549,7 @@ class AckContainer : public Trace {
   */
   AckInfo *minAck(const char *log_file_name, my_off_t log_file_pos) {
     unsigned int i;
-    AckInfo *ackinfo = NULL;
+    AckInfo *ackinfo = nullptr;
 
     for (i = 0; i < m_size; i++) {
       if (m_ack_array[i].less_than(log_file_name, log_file_pos))
@@ -820,10 +820,10 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
     if (rpl_semi_sync_master_wait_for_slave_count == 1)
       reportReplyBinlog(log_file_name, log_file_pos);
     else {
-      const AckInfo *ackinfo = NULL;
+      const AckInfo *ackinfo = nullptr;
 
       ackinfo = ack_container_.insert(server_id, log_file_name, log_file_pos);
-      if (ackinfo != NULL)
+      if (ackinfo != nullptr)
         reportReplyBinlog(ackinfo->binlog_name, ackinfo->binlog_pos);
     }
     unlock();

@@ -127,7 +127,7 @@ struct st_plugin_ctx {
   st_plugin_ctx() { reset(); }
 
   void reset() {
-    resultcs = NULL;
+    resultcs = nullptr;
     server_status = 0;
     current_col = 0;
     warn_count = 0;
@@ -456,7 +456,7 @@ static void sql_handle_error(void *ctx, uint sql_errno,
 
 static void sql_shutdown(void *, int shutdown_server) {
   DBUG_TRACE;
-  int *crashme = NULL;
+  int *crashme = nullptr;
   *crashme = 0;
   if (shutdown_server) WRITE_STR("SERVER IS SHUTTING DOWN!!!\n");
 }
@@ -611,7 +611,7 @@ static void *test_sql_threaded_wrapper(void *param) {
 
   srv_session_deinit_thread();
 
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -686,11 +686,11 @@ mysql_declare_plugin(test_daemon){
     "Test SQL shutdown",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init      */
-    NULL,                           /* Plugin Check uninstall    */
+    nullptr,                        /* Plugin Check uninstall    */
     test_sql_service_plugin_deinit, /* Plugin Deinit    */
     0x0100,                         /* 1.0              */
-    NULL,                           /* status variables */
-    NULL,                           /* system variables */
-    NULL,                           /* config options   */
+    nullptr,                        /* status variables */
+    nullptr,                        /* system variables */
+    nullptr,                        /* config options   */
     0,                              /* flags            */
 } mysql_declare_plugin_end;

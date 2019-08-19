@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -61,13 +61,13 @@ rwlock_scoped_lock::rwlock_scoped_lock(mysql_rwlock_t *lock,
 */
 rwlock_scoped_lock::rwlock_scoped_lock(rwlock_scoped_lock &&lock)
     : m_lock(lock.m_lock) {
-  lock.m_lock = NULL;
+  lock.m_lock = nullptr;
 }
 
 rwlock_scoped_lock::~rwlock_scoped_lock() {
   /* If lock is NULL, then lock was set to remain locked when going out of
     scope or was moved to other object. */
-  if (m_lock != NULL) {
+  if (m_lock != nullptr) {
     mysql_rwlock_unlock(m_lock);
   }
 }

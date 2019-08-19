@@ -144,53 +144,53 @@ static void test_no_registration() {
 #endif
 
   mutex = find_mutex_class(0);
-  ok(mutex == NULL, "no mutex key 0");
+  ok(mutex == nullptr, "no mutex key 0");
   mutex = find_mutex_class(1);
-  ok(mutex == NULL, "no mutex key 1");
+  ok(mutex == nullptr, "no mutex key 1");
   mutex = find_mutex_class(9999);
-  ok(mutex == NULL, "no mutex key 9999");
+  ok(mutex == nullptr, "no mutex key 9999");
 
   rwlock = find_rwlock_class(0);
-  ok(rwlock == NULL, "no rwlock key 0");
+  ok(rwlock == nullptr, "no rwlock key 0");
   rwlock = find_rwlock_class(1);
-  ok(rwlock == NULL, "no rwlock key 1");
+  ok(rwlock == nullptr, "no rwlock key 1");
   rwlock = find_rwlock_class(9999);
-  ok(rwlock == NULL, "no rwlock key 9999");
+  ok(rwlock == nullptr, "no rwlock key 9999");
 
   cond = find_cond_class(0);
-  ok(cond == NULL, "no cond key 0");
+  ok(cond == nullptr, "no cond key 0");
   cond = find_cond_class(1);
-  ok(cond == NULL, "no cond key 1");
+  ok(cond == nullptr, "no cond key 1");
   cond = find_cond_class(9999);
-  ok(cond == NULL, "no cond key 9999");
+  ok(cond == nullptr, "no cond key 9999");
 
   thread = find_thread_class(0);
-  ok(thread == NULL, "no thread key 0");
+  ok(thread == nullptr, "no thread key 0");
   thread = find_thread_class(1);
-  ok(thread == NULL, "no thread key 1");
+  ok(thread == nullptr, "no thread key 1");
   thread = find_thread_class(9999);
-  ok(thread == NULL, "no thread key 9999");
+  ok(thread == nullptr, "no thread key 9999");
 
   file = find_file_class(0);
-  ok(file == NULL, "no file key 0");
+  ok(file == nullptr, "no file key 0");
   file = find_file_class(1);
-  ok(file == NULL, "no file key 1");
+  ok(file == nullptr, "no file key 1");
   file = find_file_class(9999);
-  ok(file == NULL, "no file key 9999");
+  ok(file == nullptr, "no file key 9999");
 
   socket = find_socket_class(0);
-  ok(socket == NULL, "no socket key 0");
+  ok(socket == nullptr, "no socket key 0");
   socket = find_socket_class(1);
-  ok(socket == NULL, "no socket key 1");
+  ok(socket == nullptr, "no socket key 1");
   socket = find_socket_class(9999);
-  ok(socket == NULL, "no socket key 9999");
+  ok(socket == nullptr, "no socket key 9999");
 
   memory = find_memory_class(0);
-  ok(memory == NULL, "no memory key 0");
+  ok(memory == nullptr, "no memory key 0");
   memory = find_memory_class(1);
-  ok(memory == NULL, "no memory key 1");
+  ok(memory == nullptr, "no memory key 1");
   memory = find_memory_class(9999);
-  ok(memory == NULL, "no memory key 9999");
+  ok(memory == nullptr, "no memory key 9999");
 
   cleanup_sync_class();
   cleanup_thread_class();
@@ -237,13 +237,13 @@ static void test_mutex_registration() {
   ok(mutex_class_lost == 2, "lost 2 mutex");
 
   mutex = find_mutex_class(0);
-  ok(mutex == NULL, "no key 0");
+  ok(mutex == nullptr, "no key 0");
   mutex = find_mutex_class(3);
-  ok(mutex != NULL, "found key 3");
+  ok(mutex != nullptr, "found key 3");
   ok(strncmp(mutex->m_name, "M-3", 3) == 0, "key 3 is M-3");
   ok(mutex->m_name_length == 3, "name length 3");
   mutex = find_mutex_class(9999);
-  ok(mutex == NULL, "no key 9999");
+  ok(mutex == nullptr, "no key 9999");
 
   cleanup_sync_class();
 }
@@ -280,13 +280,13 @@ static void test_rwlock_registration() {
   ok(key == 5, "RW-5 re registered");
 
   rwlock = find_rwlock_class(0);
-  ok(rwlock == NULL, "no key 0");
+  ok(rwlock == nullptr, "no key 0");
   rwlock = find_rwlock_class(3);
-  ok(rwlock != NULL, "found key 3");
+  ok(rwlock != nullptr, "found key 3");
   ok(strncmp(rwlock->m_name, "RW-3", 4) == 0, "key 3 is RW-3");
   ok(rwlock->m_name_length == 4, "name length 4");
   rwlock = find_rwlock_class(9999);
-  ok(rwlock == NULL, "no key 9999");
+  ok(rwlock == nullptr, "no key 9999");
 
   cleanup_sync_class();
 }
@@ -323,13 +323,13 @@ static void test_cond_registration() {
   ok(key == 5, "C-5 re registered");
 
   cond = find_cond_class(0);
-  ok(cond == NULL, "no key 0");
+  ok(cond == nullptr, "no key 0");
   cond = find_cond_class(3);
-  ok(cond != NULL, "found key 3");
+  ok(cond != nullptr, "found key 3");
   ok(strncmp(cond->m_name, "C-3", 3) == 0, "key 3 is C-3");
   ok(cond->m_name_length == 3, "name length 3");
   cond = find_cond_class(9999);
-  ok(cond == NULL, "no key 9999");
+  ok(cond == nullptr, "no key 9999");
 
   cleanup_sync_class();
 }
@@ -366,13 +366,13 @@ static void test_thread_registration() {
   ok(key == 5, "Thread-5 re registered");
 
   thread = find_thread_class(0);
-  ok(thread == NULL, "no key 0");
+  ok(thread == nullptr, "no key 0");
   thread = find_thread_class(3);
-  ok(thread != NULL, "found key 3");
+  ok(thread != nullptr, "found key 3");
   ok(strncmp(thread->m_name, "Thread-3", 8) == 0, "key 3 is Thread-3");
   ok(thread->m_name_length == 8, "name length 8");
   thread = find_thread_class(9999);
-  ok(thread == NULL, "no key 9999");
+  ok(thread == nullptr, "no key 9999");
 
   cleanup_thread_class();
 }
@@ -409,13 +409,13 @@ static void test_file_registration() {
   ok(key == 5, "File-5 re registered");
 
   file = find_file_class(0);
-  ok(file == NULL, "no key 0");
+  ok(file == nullptr, "no key 0");
   file = find_file_class(3);
-  ok(file != NULL, "found key 3");
+  ok(file != nullptr, "found key 3");
   ok(strncmp(file->m_name, "File-3", 6) == 0, "key 3 is File-3");
   ok(file->m_name_length == 6, "name length 6");
   file = find_file_class(9999);
-  ok(file == NULL, "no key 9999");
+  ok(file == nullptr, "no key 9999");
 
   cleanup_file_class();
 }
@@ -457,13 +457,13 @@ static void test_socket_registration() {
   ok(socket_class_lost == 2, "lost 2 socket");
 
   socket = find_socket_class(0);
-  ok(socket == NULL, "no key 0");
+  ok(socket == nullptr, "no key 0");
   socket = find_socket_class(3);
-  ok(socket != NULL, "found key 3");
+  ok(socket != nullptr, "found key 3");
   ok(strncmp(socket->m_name, "Socket-3", 8) == 0, "key 3 is Socket-3");
   ok(socket->m_name_length == 8, "name length 3");
   socket = find_socket_class(9999);
-  ok(socket == NULL, "no key 9999");
+  ok(socket == nullptr, "no key 9999");
 
   cleanup_socket_class();
 }
@@ -574,13 +574,13 @@ static void test_memory_registration() {
   ok(memory_class_lost == 2, "lost 2 memory");
 
   memory = find_memory_class(0);
-  ok(memory == NULL, "no key 0");
+  ok(memory == nullptr, "no key 0");
   memory = find_memory_class(3);
-  ok(memory != NULL, "found key 3");
+  ok(memory != nullptr, "found key 3");
   ok(strncmp(memory->m_name, "Memory-3", 8) == 0, "key 3 is Memory-3");
   ok(memory->m_name_length == 8, "name length 3");
   memory = find_memory_class(9999);
-  ok(memory == NULL, "no key 9999");
+  ok(memory == nullptr, "no key 9999");
 
   cleanup_memory_class();
 }
@@ -689,39 +689,39 @@ static void test_instruments_reset() {
   ok(socket_key == 3, "socket registered");
 
   mutex_1 = find_mutex_class(1);
-  ok(mutex_1 != NULL, "mutex key 1");
+  ok(mutex_1 != nullptr, "mutex key 1");
   mutex_2 = find_mutex_class(2);
-  ok(mutex_2 != NULL, "mutex key 2");
+  ok(mutex_2 != nullptr, "mutex key 2");
   mutex_3 = find_mutex_class(3);
-  ok(mutex_3 != NULL, "mutex key 3");
+  ok(mutex_3 != nullptr, "mutex key 3");
 
   rwlock_1 = find_rwlock_class(1);
-  ok(rwlock_1 != NULL, "rwlock key 1");
+  ok(rwlock_1 != nullptr, "rwlock key 1");
   rwlock_2 = find_rwlock_class(2);
-  ok(rwlock_2 != NULL, "rwlock key 2");
+  ok(rwlock_2 != nullptr, "rwlock key 2");
   rwlock_3 = find_rwlock_class(3);
-  ok(rwlock_3 != NULL, "rwlock key 3");
+  ok(rwlock_3 != nullptr, "rwlock key 3");
 
   cond_1 = find_cond_class(1);
-  ok(cond_1 != NULL, "cond key 1");
+  ok(cond_1 != nullptr, "cond key 1");
   cond_2 = find_cond_class(2);
-  ok(cond_2 != NULL, "cond key 2");
+  ok(cond_2 != nullptr, "cond key 2");
   cond_3 = find_cond_class(3);
-  ok(cond_3 != NULL, "cond key 3");
+  ok(cond_3 != nullptr, "cond key 3");
 
   file_1 = find_file_class(1);
-  ok(file_1 != NULL, "file key 1");
+  ok(file_1 != nullptr, "file key 1");
   file_2 = find_file_class(2);
-  ok(file_2 != NULL, "file key 2");
+  ok(file_2 != nullptr, "file key 2");
   file_3 = find_file_class(3);
-  ok(file_3 != NULL, "file key 3");
+  ok(file_3 != nullptr, "file key 3");
 
   socket_1 = find_socket_class(1);
-  ok(socket_1 != NULL, "socket key 1");
+  ok(socket_1 != nullptr, "socket key 1");
   socket_2 = find_socket_class(2);
-  ok(socket_2 != NULL, "socket key 2");
+  ok(socket_2 != nullptr, "socket key 2");
   socket_3 = find_socket_class(3);
-  ok(socket_3 != NULL, "socket key 3");
+  ok(socket_3 != nullptr, "socket key 3");
 
 #ifdef LATER
   set_wait_stat(mutex_1);

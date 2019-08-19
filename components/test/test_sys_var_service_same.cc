@@ -60,7 +60,7 @@ static const char *policy_names[] = {"LOW", "MEDIUM", "STRONG", NullS};
 
 static TYPE_LIB password_policy_typelib_t = {array_elements(policy_names) - 1,
                                              "password_policy_typelib_t",
-                                             policy_names, NULL};
+                                             policy_names, nullptr};
 static ulong enum_variable_value;
 static char *str_variable_value;
 static int int_variable_value;
@@ -93,14 +93,14 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   int_arg.blk_sz = 0;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "int_sys_var", PLUGIN_VAR_INT,
-          "Registering int sys_variable", NULL, NULL, (void *)&int_arg,
+          "Registering int sys_variable", nullptr, nullptr, (void *)&int_arg,
           (void *)&int_variable_value)) {
     WRITE_LOG("%s\n", "int register_variable failed.");
   }
 
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "int_sys_var", PLUGIN_VAR_INT,
-          "Registering int sys_variable", NULL, NULL, (void *)&int_arg,
+          "Registering int sys_variable", nullptr, nullptr, (void *)&int_arg,
           (void *)&int_variable_value)) {
     WRITE_LOG("%s\n", "int register_variable failed.");
   }
@@ -113,7 +113,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "uint_sys_var",
           PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED, "Registering uint sys_variable",
-          NULL, NULL, (void *)&uint_arg, (void *)&uint_variable_value)) {
+          nullptr, nullptr, (void *)&uint_arg, (void *)&uint_variable_value)) {
     WRITE_LOG("%s\n", "uint register_variable failed.");
   }
 
@@ -124,7 +124,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   long_arg.blk_sz = 0;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "long_sys_var", PLUGIN_VAR_LONG,
-          "Registering long sys_variable", NULL, NULL, (void *)&long_arg,
+          "Registering long sys_variable", nullptr, nullptr, (void *)&long_arg,
           (void *)&long_variable_value)) {
     WRITE_LOG("%s\n", "long register_variable failed.");
   }
@@ -137,7 +137,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "ulong_sys_var",
           PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED,
-          "Registering unsigned long sys_variable", NULL, NULL,
+          "Registering unsigned long sys_variable", nullptr, nullptr,
           (void *)&ulong_arg, (void *)&ulong_variable_value)) {
     WRITE_LOG("%s\n", "ulong register_variable failed.");
   }
@@ -149,7 +149,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   longlong_arg.blk_sz = 0;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "longlong_sys_var", PLUGIN_VAR_LONGLONG,
-          "Registering longlong sys_variable", NULL, NULL,
+          "Registering longlong sys_variable", nullptr, nullptr,
           (void *)&longlong_arg, (void *)&longlong_variable_value)) {
     WRITE_LOG("%s\n", "longlong register_variable failed.");
   }
@@ -162,7 +162,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "ulonglong_sys_var",
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED,
-          "Registering unsigned longlong sys_variable", NULL, NULL,
+          "Registering unsigned longlong sys_variable", nullptr, nullptr,
           (void *)&ulonglong_arg, (void *)&ulonglong_variable_value)) {
     WRITE_LOG("%s\n", "unsigned longlong register_variable failed.");
   }
@@ -172,7 +172,7 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
 
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "bool_sys_var", PLUGIN_VAR_BOOL,
-          "Registering bool sys_variable", NULL, NULL, (void *)&bool_arg,
+          "Registering bool sys_variable", nullptr, nullptr, (void *)&bool_arg,
           (void *)&bool_variable_value)) {
     WRITE_LOG("%s\n", "register_variable failed.");
   }
@@ -182,16 +182,16 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   enum_arg.typelib = &password_policy_typelib_t;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "enum_sys_var", PLUGIN_VAR_ENUM,
-          "Registering enum sys_variable", NULL, NULL, (void *)&enum_arg,
+          "Registering enum sys_variable", nullptr, nullptr, (void *)&enum_arg,
           (void *)&enum_variable_value)) {
     WRITE_LOG("%s\n", "register_variable failed.");
   }
 
   STR_CHECK_ARG(str) str_arg;
-  str_arg.def_val = NULL;
+  str_arg.def_val = nullptr;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component", "str_sys_var", PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
-          "Registering string sys_variable", NULL, NULL, (void *)&str_arg,
+          "Registering string sys_variable", nullptr, nullptr, (void *)&str_arg,
           (void *)&str_variable_value)) {
     WRITE_LOG("%s\n", "register_variable failed.");
   }

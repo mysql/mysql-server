@@ -386,7 +386,7 @@ void MetadataRecover::apply() {
     mutex_exit(&dict_persist->mutex);
     mutex_exit(&dict_sys->mutex);
 
-    dd_table_close(table, NULL, NULL, false);
+    dd_table_close(table, nullptr, nullptr, false);
   }
 }
 
@@ -591,8 +591,8 @@ void recv_sys_init(ulint max_mem) {
 
 #ifndef UNIV_HOTBACKUP
   if (!srv_read_only_mode) {
-    recv_sys->flush_start = os_event_create(0);
-    recv_sys->flush_end = os_event_create(0);
+    recv_sys->flush_start = os_event_create(nullptr);
+    recv_sys->flush_end = os_event_create(nullptr);
   }
 #else  /* !UNIV_HOTBACKUP */
   recv_is_from_backup = true;
@@ -4049,7 +4049,7 @@ const byte *recv_dblwr_t::find_page(space_id_t space_id, page_no_t page_no) {
   typedef std::vector<const byte *, ut_allocator<const byte *>> matches_t;
 
   matches_t matches;
-  const byte *result = 0;
+  const byte *result = nullptr;
 
   for (auto i = pages.begin(); i != pages.end(); ++i) {
     if (page_get_space_id(*i) == space_id && page_get_page_no(*i) == page_no) {

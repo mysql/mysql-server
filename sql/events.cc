@@ -349,8 +349,8 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
   /* At create, one of them must be set */
   DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
 
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, false,
-                   false))
+  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, nullptr, nullptr,
+                   false, false))
     return true;
 
   // Acquire exclusive MDL lock.
@@ -484,15 +484,15 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
   if (parse_data->check_parse_data(thd) || parse_data->do_not_create)
     return true;
 
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, false,
-                   false))
+  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, nullptr, nullptr,
+                   false, false))
     return true;
 
   if (lock_object_name(thd, MDL_key::EVENT, parse_data->dbname.str,
                        parse_data->name.str))
     return true;
 
-  if (new_dbname != NULL) /* It's a rename */
+  if (new_dbname != nullptr) /* It's a rename */
   {
     /* Check that the new and the old names differ. */
     if (!sortcmp_lex_string(parse_data->dbname, *new_dbname,
@@ -508,7 +508,8 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       to tell the user that a database doesn't exist if they can not
       access it.
     */
-    if (check_access(thd, EVENT_ACL, new_dbname->str, NULL, NULL, false, false))
+    if (check_access(thd, EVENT_ACL, new_dbname->str, nullptr, nullptr, false,
+                     false))
       return true;
 
     //  Acquire mdl exclusive lock on target database name.
@@ -630,7 +631,7 @@ bool Events::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                         bool if_exists) {
   DBUG_TRACE;
 
-  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, false, false))
+  if (check_access(thd, EVENT_ACL, dbname.str, nullptr, nullptr, false, false))
     return true;
 
   // Acquire exclusive MDL lock.
@@ -842,7 +843,7 @@ bool Events::show_create_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s@%s", dbname.str, name.str));
 
-  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, false, false))
+  if (check_access(thd, EVENT_ACL, dbname.str, nullptr, nullptr, false, false))
     return true;
 
   // We must make sure the schema is released and unlocked in the right
@@ -955,9 +956,9 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
 end:
   if (res) {
     delete event_queue;
-    event_queue = NULL;
+    event_queue = nullptr;
     delete scheduler;
-    scheduler = NULL;
+    scheduler = nullptr;
   }
   delete thd;
 
@@ -979,9 +980,9 @@ void Events::deinit() {
 
   if (opt_event_scheduler != EVENTS_DISABLED) {
     delete scheduler;
-    scheduler = NULL; /* safety */
+    scheduler = nullptr; /* safety */
     delete event_queue;
-    event_queue = NULL; /* safety */
+    event_queue = nullptr; /* safety */
   }
 }
 

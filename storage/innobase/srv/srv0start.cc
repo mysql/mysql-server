@@ -417,7 +417,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
     }
 
     fsp_flags_set_encryption(log_space->flags);
-    err = fil_set_encryption(log_space->id, Encryption::AES, NULL, NULL);
+    err = fil_set_encryption(log_space->id, Encryption::AES, nullptr, nullptr);
     ut_ad(err == DB_SUCCESS);
   }
 
@@ -645,7 +645,7 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
   fil_space_t *space = fil_space_get(space_id);
   if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     fsp_flags_set_encryption(space->flags);
-    err = fil_set_encryption(space_id, Encryption::AES, NULL, NULL);
+    err = fil_set_encryption(space_id, Encryption::AES, nullptr, nullptr);
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_1075, space->name);
       return (err);
@@ -738,7 +738,7 @@ static dberr_t srv_undo_tablespace_fixup_57(space_id_t space_id) {
     fil_space_close(space_id);
 
     os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             NULL);
+                             nullptr);
 
     return (DB_TABLESPACE_DELETED);
   }
@@ -787,13 +787,14 @@ static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
     /* Flush any changes recovered in REDO */
     fil_flush(space_id);
     fil_space_close(space_id);
-    os_file_delete_if_exists(innodb_data_file_key, scanned_name.c_str(), NULL);
+    os_file_delete_if_exists(innodb_data_file_key, scanned_name.c_str(),
+                             nullptr);
 
   } else if (space_num < FSP_IMPLICIT_UNDO_TABLESPACES) {
     /* If there is any file with the implicit file name, delete it. */
     undo::Tablespace undo_space(undo::num2id(space_num, 0));
     os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             NULL);
+                             nullptr);
   }
 
   return (DB_SUCCESS);
@@ -827,7 +828,7 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
   first call to fixup did not know the filename.  Now that we know it, just
   delete any file with that name if it exists.  The dictionary claims it is
   an undo tablespace and there is a truncate log file present. */
-  os_file_delete_if_exists(innodb_data_file_key, file_name, NULL);
+  os_file_delete_if_exists(innodb_data_file_key, file_name, nullptr);
 
   /* Mark the space_id for this undo tablespace number as in-use. */
   undo::spaces->x_lock();
@@ -1362,7 +1363,7 @@ dberr_t srv_undo_tablespaces_upgrade() {
     fil_space_close(undo_space.id());
 
     os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             NULL);
+                             nullptr);
   }
 
   /* Remove the tracking of these undo tablespaces from TRX_SYS page and
@@ -1608,7 +1609,7 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
     ib::error(ER_IB_MSG_1100, tmp_space->name());
 
   } else if ((err = tmp_space->open_or_create(true, create_new_db,
-                                              &sum_of_new_sizes, NULL)) !=
+                                              &sum_of_new_sizes, nullptr)) !=
              DB_SUCCESS) {
     ib::error(ER_IB_MSG_1101, tmp_space->name());
 
@@ -1706,10 +1707,10 @@ void srv_shutdown_all_bg_threads() {
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
       /* e. Exit the i/o threads */
       if (!srv_read_only_mode) {
-        if (recv_sys->flush_start != NULL) {
+        if (recv_sys->flush_start != nullptr) {
           os_event_set(recv_sys->flush_start);
         }
-        if (recv_sys->flush_end != NULL) {
+        if (recv_sys->flush_end != nullptr) {
           os_event_set(recv_sys->flush_end);
         }
       }
@@ -1885,11 +1886,11 @@ dberr_t srv_start(bool create_new_db) {
   mtr_t mtr;
   purge_pq_t *purge_queue;
   char logfilename[10000];
-  char *logfile0 = NULL;
+  char *logfile0 = nullptr;
   size_t dirnamelen;
   unsigned i = 0;
 
-  DBUG_ASSERT(srv_dict_metadata == NULL);
+  DBUG_ASSERT(srv_dict_metadata == nullptr);
   /* Reset the start state. */
   srv_start_state = SRV_START_STATE_NONE;
 
@@ -2050,8 +2051,8 @@ dberr_t srv_start(bool create_new_db) {
         return (srv_init_abort(DB_ERROR));
       }
     } else {
-      srv_monitor_file_name = NULL;
-      srv_monitor_file = os_file_create_tmpfile(NULL);
+      srv_monitor_file_name = nullptr;
+      srv_monitor_file = os_file_create_tmpfile(nullptr);
 
       if (!srv_monitor_file) {
         return (srv_init_abort(DB_ERROR));
@@ -2060,7 +2061,7 @@ dberr_t srv_start(bool create_new_db) {
 
     mutex_create(LATCH_ID_SRV_MISC_TMPFILE, &srv_misc_tmpfile_mutex);
 
-    srv_misc_tmpfile = os_file_create_tmpfile(NULL);
+    srv_misc_tmpfile = os_file_create_tmpfile(nullptr);
 
     if (!srv_misc_tmpfile) {
       return (srv_init_abort(DB_ERROR));
@@ -2700,7 +2701,7 @@ files_checked:
   }
 
   /* Create the doublewrite buffer to a new tablespace */
-  if (buf_dblwr == NULL && !buf_dblwr_create()) {
+  if (buf_dblwr == nullptr && !buf_dblwr_create()) {
     return (srv_init_abort(DB_ERROR));
   }
 
@@ -2842,7 +2843,7 @@ struct metadata_applier {
   /** Visitor.
   @param[in]      table   table to visit */
   void operator()(dict_table_t *table) const {
-    ut_ad(dict_sys->dynamic_metadata != NULL);
+    ut_ad(dict_sys->dynamic_metadata != nullptr);
     ib_uint64_t autoinc = table->autoinc;
     dict_table_load_dynamic_metadata(table);
     /* For those tables which were not opened by
@@ -2861,10 +2862,10 @@ static void apply_dynamic_metadata() {
 
   dict_sys->for_each_table(applier);
 
-  if (srv_dict_metadata != NULL) {
+  if (srv_dict_metadata != nullptr) {
     srv_dict_metadata->apply();
     UT_DELETE(srv_dict_metadata);
-    srv_dict_metadata = NULL;
+    srv_dict_metadata = nullptr;
   }
 }
 
@@ -3536,7 +3537,7 @@ void srv_shutdown() {
   ibt::delete_pool_manager();
 
   if (srv_monitor_file) {
-    srv_monitor_file = 0;
+    srv_monitor_file = nullptr;
     if (srv_monitor_file_name) {
       unlink(srv_monitor_file_name);
       ut_free(srv_monitor_file_name);
@@ -3545,7 +3546,7 @@ void srv_shutdown() {
   }
 
   if (srv_misc_tmpfile) {
-    srv_misc_tmpfile = 0;
+    srv_misc_tmpfile = nullptr;
     mutex_free(&srv_misc_tmpfile_mutex);
   }
 
@@ -3597,7 +3598,7 @@ void srv_shutdown() {
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
                                       ulint max_len) {
   /* Make sure the data_dir_path is set. */
-  dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
+  dd_get_and_save_data_dir_path<dd::Table>(table, nullptr, false);
 
   std::string path = dict_table_get_datadir(table);
 

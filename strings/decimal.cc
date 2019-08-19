@@ -1045,7 +1045,7 @@ int double2decimal(double from, decimal_t *to) {
   int res;
   DBUG_TRACE;
   const char *end = buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE,
-                                   (int)sizeof(buff) - 1, buff, NULL);
+                                   (int)sizeof(buff) - 1, buff, nullptr);
   res = string2decimal(buff, to, &end);
   DBUG_PRINT("exit", ("res: %d", res));
   return res;
@@ -1912,7 +1912,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
         carry = 1;
       else /* short-circuit everything: from1 == from2 */
       {
-        if (to == 0) /* decimal_cmp() */
+        if (to == nullptr) /* decimal_cmp() */
           return 0;
         decimal_make_zero(to);
         return E_DEC_OK;
@@ -1920,7 +1920,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
     }
   }
 
-  if (to == 0) /* decimal_cmp() */
+  if (to == nullptr) /* decimal_cmp() */
     return carry == from1->sign ? 1 : -1;
 
   sanity(to);
@@ -2000,7 +2000,7 @@ int decimal_sub(const decimal_t *from1, const decimal_t *from2, decimal_t *to) {
 }
 
 int decimal_cmp(const decimal_t *from1, const decimal_t *from2) {
-  if (likely(from1->sign == from2->sign)) return do_sub(from1, from2, 0);
+  if (likely(from1->sign == from2->sign)) return do_sub(from1, from2, nullptr);
 
   // Reject negative zero, cfr. string2decimal()
   DBUG_ASSERT(!(decimal_is_zero(from1) && from1->sign));
@@ -2435,7 +2435,7 @@ done:
 
 int decimal_div(const decimal_t *from1, const decimal_t *from2, decimal_t *to,
                 int scale_incr) {
-  return do_div_mod(from1, from2, to, 0, scale_incr);
+  return do_div_mod(from1, from2, to, nullptr, scale_incr);
 }
 
 /*
@@ -2466,5 +2466,5 @@ int decimal_div(const decimal_t *from1, const decimal_t *from2, decimal_t *to,
 */
 
 int decimal_mod(const decimal_t *from1, const decimal_t *from2, decimal_t *to) {
-  return do_div_mod(from1, from2, 0, to, 0);
+  return do_div_mod(from1, from2, nullptr, to, 0);
 }

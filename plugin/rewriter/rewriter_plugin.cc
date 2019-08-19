@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ static SHOW_VAR rewriter_plugin_status_vars[] = {
     {PLUGIN_NAME "_number_reloads",
      pointer_cast<char *>(&status_var_number_reloads), SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_BOOL, SHOW_SCOPE_GLOBAL}};
+    {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL}};
 
 ///@}
 
@@ -131,7 +131,7 @@ static MYSQL_SYSVAR_INT(verbose,              // Name.
                         sys_var_verbose,      // Variable.
                         PLUGIN_VAR_NOCMDARG,  // Not a command-line argument.
                         "Tells " PLUGIN_NAME " how verbose it should be.",
-                        NULL,            // Check function.
+                        nullptr,         // Check function.
                         update_verbose,  // Update function.
                         1,               // Default value.
                         0,               // Min value.
@@ -143,13 +143,13 @@ static MYSQL_SYSVAR_BOOL(enabled,              // Name.
                          sys_var_enabled,      // Variable.
                          PLUGIN_VAR_NOCMDARG,  // Not a command-line argument.
                          "Whether queries should actually be rewritten.",
-                         NULL,            // Check function.
+                         nullptr,         // Check function.
                          update_enabled,  // Update function.
                          1                // Default value.
 );
 
 SYS_VAR *rewriter_plugin_sys_vars[] = {MYSQL_SYSVAR(verbose),
-                                       MYSQL_SYSVAR(enabled), NULL};
+                                       MYSQL_SYSVAR(enabled), nullptr};
 
 MYSQL_PLUGIN get_rewriter_plugin_info() { return plugin_info; }
 
@@ -164,7 +164,7 @@ static int rewriter_plugin_deinit(void *);
 /* Audit plugin descriptor */
 static struct st_mysql_audit rewrite_query_descriptor = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
-    NULL,                          /* release_thd()     */
+    nullptr,                       /* release_thd()     */
     rewrite_query_notify,          /* event_notify()    */
     {
         0,
@@ -184,12 +184,12 @@ mysql_declare_plugin(audit_log){
     " parse tree.",              /* description                   */
     PLUGIN_LICENSE_GPL,          /* license                       */
     rewriter_plugin_init,        /* plugin initializer            */
-    NULL,                        /* plugin check uninstall        */
+    nullptr,                     /* plugin check uninstall        */
     rewriter_plugin_deinit,      /* plugin deinitializer          */
     0x0002,                      /* version                       */
     rewriter_plugin_status_vars, /* status variables              */
     rewriter_plugin_sys_vars,    /* system variables              */
-    NULL,                        /* reserverd                     */
+    nullptr,                     /* reserverd                     */
     0                            /* flags                         */
 } mysql_declare_plugin_end;
 
@@ -236,7 +236,7 @@ static int rewriter_plugin_init(MYSQL_PLUGIN plugin_ref) {
 }
 
 static int rewriter_plugin_deinit(void *) {
-  plugin_info = NULL;
+  plugin_info = nullptr;
   delete rewriter;
   mysql_rwlock_destroy(&LOCK_table);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

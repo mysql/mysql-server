@@ -77,7 +77,7 @@ void trx_undof_page_add_undo_rec_log(
 
   log_ptr = mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN);
 
-  if (log_ptr == NULL) {
+  if (log_ptr == nullptr) {
     return;
   }
 
@@ -110,17 +110,17 @@ byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
   ulint first_free;
 
   if (end_ptr < ptr + 2) {
-    return (NULL);
+    return (nullptr);
   }
 
   len = mach_read_from_2(ptr);
   ptr += 2;
 
   if (end_ptr < ptr + len) {
-    return (NULL);
+    return (nullptr);
   }
 
-  if (page == NULL) {
+  if (page == nullptr) {
     return (ptr + len);
   }
 
@@ -259,7 +259,7 @@ static byte *trx_undo_log_v_idx(page_t *undo_page, const dict_table_t *table,
   ulint size = n_idx * (5 + 5) + 5 + 2 + (first_v_col ? 1 : 0);
 
   if (trx_undo_left(undo_page, ptr) < size) {
-    return (NULL);
+    return (nullptr);
   }
 
   if (first_v_col) {
@@ -317,7 +317,7 @@ static const byte *trx_undo_read_v_idx_low(const dict_table_t *table,
     ulint pos = mach_read_next_compressed(&ptr);
     const dict_index_t *index = clust_index->next();
 
-    while (index != NULL) {
+    while (index != nullptr) {
       /* Return if we find a matching index.
       TODO: in the future, it might be worth to add
       checks on other indexes */
@@ -415,7 +415,7 @@ static bool trx_undo_report_insert_virtual(page_t *undo_page,
   *ptr += 2;
 
   for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(table); col_no++) {
-    dfield_t *vfield = NULL;
+    dfield_t *vfield = nullptr;
 
     const dict_v_col_t *col = dict_table_get_nth_v_col(table, col_no);
 
@@ -432,7 +432,7 @@ static bool trx_undo_report_insert_virtual(page_t *undo_page,
       *ptr = trx_undo_log_v_idx(undo_page, table, col_no, *ptr, first_v_col);
       first_v_col = false;
 
-      if (*ptr == NULL) {
+      if (*ptr == nullptr) {
         return (false);
       }
 
@@ -642,7 +642,7 @@ byte *trx_undo_rec_get_col_val(const byte *ptr, const byte **field, ulint *len,
 
   switch (*len) {
     case UNIV_SQL_NULL:
-      *field = NULL;
+      *field = nullptr;
       break;
     case UNIV_EXTERN_STORAGE_FIELD:
       *orig_len = mach_read_next_compressed(&ptr);
@@ -895,7 +895,7 @@ static void trx_undo_get_mbr_from_ext(trx_t *trx, dict_index_t *index,
                                       double *mbr, const page_size_t &page_size,
                                       const byte *field, ulint *len,
                                       const dd::Spatial_reference_system *srs) {
-  uchar *dptr = NULL;
+  uchar *dptr = nullptr;
   ulint dlen;
   mem_heap_t *heap = mem_heap_create(100);
 
@@ -1385,7 +1385,7 @@ static ulint trx_undo_page_report_modify(
 
         ptr = trx_undo_log_v_idx(undo_page, table, fld->field_no, ptr,
                                  first_v_col);
-        if (ptr == NULL) {
+        if (ptr == nullptr) {
           return 0;
         }
         first_v_col = false;
@@ -1420,7 +1420,7 @@ static ulint trx_undo_page_report_modify(
             col->ord_part && !ignore_prefix &&
                     flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
                 ? ext_buf
-                : NULL,
+                : nullptr,
             prefix_len, dict_table_page_size(table), &field, &flen,
             dict_table_is_sdi(table->id), SPATIAL_UNKNOWN);
 
@@ -1511,7 +1511,7 @@ static ulint trx_undo_page_report_modify(
   if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
     byte *old_ptr = ptr;
     double mbr[SPDIMS * 2];
-    mem_heap_t *row_heap = NULL;
+    mem_heap_t *row_heap = nullptr;
 
     undo_ptr->update_undo->del_marks = TRUE;
 
@@ -1565,7 +1565,7 @@ static ulint trx_undo_page_report_modify(
           ptr = trx_undo_page_report_modify_ext(
               trx, index, ptr,
               flen < REC_ANTELOPE_MAX_INDEX_COL_LEN && !ignore_prefix ? ext_buf
-                                                                      : NULL,
+                                                                      : nullptr,
               prefix_len, dict_table_page_size(table), &field, &flen,
               dict_table_is_sdi(table->id), spatial_status);
         } else {
@@ -1595,7 +1595,7 @@ static ulint trx_undo_page_report_modify(
     }
 
     for (col_no = 0; col_no < dict_table_get_n_v_cols(table); col_no++) {
-      dfield_t *vfield = NULL;
+      dfield_t *vfield = nullptr;
 
       const dict_v_col_t *col = dict_table_get_nth_v_col(table, col_no);
 
@@ -1622,7 +1622,7 @@ static ulint trx_undo_page_report_modify(
 
         if (update) {
           ut_ad(!row);
-          if (update->old_vrow == NULL) {
+          if (update->old_vrow == nullptr) {
             flen = UNIV_SQL_NULL;
           } else {
             vfield = dtuple_get_nth_v_field(update->old_vrow, col->v_pos);
@@ -1820,8 +1820,8 @@ byte *trx_undo_update_rec_get_update(
           << n_fields << ", i = " << i << ", ptr " << ptr;
 
       ut_ad(0);
-      *upd = NULL;
-      return NULL;
+      *upd = nullptr;
+      return nullptr;
     }
 
     upd_field = upd_get_nth_field(update, i);
@@ -2099,10 +2099,10 @@ byte *trx_undo_parse_erase_page_end(
     page_t *page,                         /*!< in: page or NULL */
     mtr_t *mtr)                           /*!< in: mtr or NULL */
 {
-  ut_ad(ptr != NULL);
-  ut_ad(end_ptr != NULL);
+  ut_ad(ptr != nullptr);
+  ut_ad(end_ptr != nullptr);
 
-  if (page == NULL) {
+  if (page == nullptr) {
     return (ptr);
   }
 
@@ -2210,11 +2210,11 @@ dberr_t trx_undo_report_row_operation(
     case TRX_UNDO_INSERT_OP:
       undo = undo_ptr->insert_undo;
 
-      if (undo == NULL) {
+      if (undo == nullptr) {
         err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_INSERT);
         undo = undo_ptr->insert_undo;
 
-        if (undo == NULL) {
+        if (undo == nullptr) {
           /* Did not succeed */
           ut_ad(err != DB_SUCCESS);
           goto err_exit;
@@ -2228,11 +2228,11 @@ dberr_t trx_undo_report_row_operation(
 
       undo = undo_ptr->update_undo;
 
-      if (undo == NULL) {
+      if (undo == nullptr) {
         err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
         undo = undo_ptr->update_undo;
 
-        if (undo == NULL) {
+        if (undo == nullptr) {
           /* Did not succeed */
           ut_ad(err != DB_SUCCESS);
           goto err_exit;
@@ -2247,7 +2247,7 @@ dberr_t trx_undo_report_row_operation(
 
   undo_block = buf_page_get_gen(
       page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
-      buf_pool_is_obsolete(undo->withdraw_clock) ? NULL : undo->guess_block,
+      buf_pool_is_obsolete(undo->withdraw_clock) ? nullptr : undo->guess_block,
       Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
 
   buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
@@ -2352,8 +2352,8 @@ dberr_t trx_undo_report_row_operation(
 
     page_no = undo->last_page_no;
 
-    DBUG_EXECUTE_IF("ib_err_ins_undo_page_add_failure", undo_block = NULL;);
-  } while (undo_block != NULL);
+    DBUG_EXECUTE_IF("ib_err_ins_undo_page_add_failure", undo_block = nullptr;);
+  } while (undo_block != nullptr);
 
   ib_errf(
       trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_INNODB_UNDO_LOG_FULL,
@@ -2457,7 +2457,7 @@ bool trx_undo_prev_version_build(
     lob::undo_vers_t *lob_undo) {
   DBUG_TRACE;
 
-  trx_undo_rec_t *undo_rec = NULL;
+  trx_undo_rec_t *undo_rec = nullptr;
   dtuple_t *entry;
   trx_id_t rec_trx_id;
   ulint type;
@@ -2480,7 +2480,7 @@ bool trx_undo_prev_version_build(
 
   roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
 
-  *old_vers = NULL;
+  *old_vers = nullptr;
 
   if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
     /* The record rec is the first inserted version */
@@ -2545,8 +2545,8 @@ bool trx_undo_prev_version_build(
   ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
   ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id, roll_ptr,
-                                       info_bits, NULL, heap, &update, lob_undo,
-                                       type_cmpl);
+                                       info_bits, nullptr, heap, &update,
+                                       lob_undo, type_cmpl);
   ut_a(ptr);
 
   if (row_upd_changes_field_size_or_external(index, offsets, update)) {
@@ -2610,20 +2610,20 @@ bool trx_undo_prev_version_build(
 
     *old_vers = rec_copy(buf, rec, offsets);
     rec_offs_make_valid(*old_vers, index, offsets);
-    row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
+    row_upd_rec_in_place(*old_vers, index, offsets, update, nullptr);
   }
 
   /* Set the old value (which is the after image of an update) in the
   update vector to dtuple vrow */
   if (v_status & TRX_UNDO_GET_OLD_V_VALUE) {
-    row_upd_replace_vcol((dtuple_t *)*vrow, index->table, update, false, NULL,
-                         NULL);
+    row_upd_replace_vcol((dtuple_t *)*vrow, index->table, update, false,
+                         nullptr, nullptr);
   }
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   ut_a(!rec_offs_any_null_extern(
       *old_vers,
-      rec_get_offsets(*old_vers, index, NULL, ULINT_UNDEFINED, &heap)));
+      rec_get_offsets(*old_vers, index, nullptr, ULINT_UNDEFINED, &heap)));
 #endif  // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
   /* If vrow is not NULL it means that the caller is interested in the values of

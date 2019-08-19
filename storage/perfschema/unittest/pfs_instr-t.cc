@@ -168,51 +168,51 @@ static void test_no_instances() {
   rc = init_instruments(&param);
   ok(rc == 0, "no instances init");
 
-  mutex = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex == NULL, "no mutex");
+  mutex = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex == nullptr, "no mutex");
   ok(global_mutex_container.get_lost_counter() == 1, "lost 1");
-  mutex = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex == NULL, "no mutex");
+  mutex = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex == nullptr, "no mutex");
   ok(global_mutex_container.get_lost_counter() == 2, "lost 2");
 
-  rwlock = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock == NULL, "no rwlock");
+  rwlock = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock == nullptr, "no rwlock");
   ok(global_rwlock_container.m_lost == 1, "lost 1");
-  rwlock = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock == NULL, "no rwlock");
+  rwlock = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock == nullptr, "no rwlock");
   ok(global_rwlock_container.m_lost == 2, "lost 2");
 
-  cond = create_cond(&dummy_cond_class, NULL);
-  ok(cond == NULL, "no cond");
+  cond = create_cond(&dummy_cond_class, nullptr);
+  ok(cond == nullptr, "no cond");
   ok(global_cond_container.m_lost == 1, "lost 1");
-  cond = create_cond(&dummy_cond_class, NULL);
-  ok(cond == NULL, "no cond");
+  cond = create_cond(&dummy_cond_class, nullptr);
+  ok(cond == nullptr, "no cond");
   ok(global_cond_container.m_lost == 2, "lost 2");
 
-  thread = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread == NULL, "no thread");
+  thread = create_thread(&dummy_thread_class, nullptr, 0);
+  ok(thread == nullptr, "no thread");
   ok(global_thread_container.m_lost == 1, "lost 1");
-  thread = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread == NULL, "no thread");
+  thread = create_thread(&dummy_thread_class, nullptr, 0);
+  ok(thread == nullptr, "no thread");
   ok(global_thread_container.m_lost == 2, "lost 2");
 
   PFS_thread fake_thread;
-  fake_thread.m_filename_hash_pins = NULL;
+  fake_thread.m_filename_hash_pins = nullptr;
 
   file = find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file == NULL, "no file");
+  ok(file == nullptr, "no file");
   ok(global_file_container.m_lost == 1, "lost 1");
   file = find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file == NULL, "no file");
+  ok(file == nullptr, "no file");
   ok(global_file_container.m_lost == 2, "lost 2");
 
   init_file_hash(&param);
 
   file = find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file == NULL, "no file");
+  ok(file == nullptr, "no file");
   ok(global_file_container.m_lost == 3, "lost 3");
   file = find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file == NULL, "no file");
+  ok(file == nullptr, "no file");
   ok(global_file_container.m_lost == 4, "lost 4");
 
   char long_file_name[10000];
@@ -221,21 +221,21 @@ static void test_no_instances() {
 
   file = find_or_create_file(&fake_thread, &dummy_file_class, long_file_name,
                              size, true);
-  ok(file == NULL, "no file");
+  ok(file == nullptr, "no file");
   ok(global_file_container.m_lost == 5, "lost 5");
 
-  table = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table == NULL, "no table");
+  table = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table == nullptr, "no table");
   ok(global_table_container.m_lost == 1, "lost 1");
-  table = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table == NULL, "no table");
+  table = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table == nullptr, "no table");
   ok(global_table_container.m_lost == 2, "lost 2");
 
-  socket = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket == NULL, "no socket");
+  socket = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket == nullptr, "no socket");
   ok(global_socket_container.m_lost == 1, "lost 1");
-  socket = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket == NULL, "no socket");
+  socket = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket == nullptr, "no socket");
   ok(global_socket_container.m_lost == 2, "lost 2");
 
   /* No result to test, just make sure it does not crash */
@@ -340,72 +340,72 @@ static void test_with_instances() {
   dummy_table_share.m_enabled = true;
   dummy_table_share.m_timed = true;
 
-  mutex_1 = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex_1 != NULL, "mutex");
+  mutex_1 = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex_1 != nullptr, "mutex");
   ok(global_mutex_container.get_lost_counter() == 0, "not lost");
-  mutex_2 = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex_2 != NULL, "mutex");
+  mutex_2 = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex_2 != nullptr, "mutex");
   ok(global_mutex_container.get_lost_counter() == 0, "not lost");
-  mutex_2 = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex_2 == NULL, "no mutex");
+  mutex_2 = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex_2 == nullptr, "no mutex");
   ok(global_mutex_container.get_lost_counter() == 1, "lost 1");
   destroy_mutex(mutex_1);
-  mutex_2 = create_mutex(&dummy_mutex_class, NULL);
-  ok(mutex_2 != NULL, "mutex");
+  mutex_2 = create_mutex(&dummy_mutex_class, nullptr);
+  ok(mutex_2 != nullptr, "mutex");
   ok(global_mutex_container.get_lost_counter() == 1, "no new loss");
 
-  rwlock_1 = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock_1 != NULL, "rwlock");
+  rwlock_1 = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock_1 != nullptr, "rwlock");
   ok(global_rwlock_container.m_lost == 0, "not lost");
-  rwlock_2 = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock_2 != NULL, "rwlock");
+  rwlock_2 = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock_2 != nullptr, "rwlock");
   ok(global_rwlock_container.m_lost == 0, "not lost");
-  rwlock_2 = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock_2 == NULL, "no rwlock");
+  rwlock_2 = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock_2 == nullptr, "no rwlock");
   ok(global_rwlock_container.m_lost == 1, "lost 1");
   destroy_rwlock(rwlock_1);
-  rwlock_2 = create_rwlock(&dummy_rwlock_class, NULL);
-  ok(rwlock_2 != NULL, "rwlock");
+  rwlock_2 = create_rwlock(&dummy_rwlock_class, nullptr);
+  ok(rwlock_2 != nullptr, "rwlock");
   ok(global_rwlock_container.m_lost == 1, "no new loss");
 
-  cond_1 = create_cond(&dummy_cond_class, NULL);
-  ok(cond_1 != NULL, "cond");
+  cond_1 = create_cond(&dummy_cond_class, nullptr);
+  ok(cond_1 != nullptr, "cond");
   ok(global_cond_container.m_lost == 0, "not lost");
-  cond_2 = create_cond(&dummy_cond_class, NULL);
-  ok(cond_2 != NULL, "cond");
+  cond_2 = create_cond(&dummy_cond_class, nullptr);
+  ok(cond_2 != nullptr, "cond");
   ok(global_cond_container.m_lost == 0, "not lost");
-  cond_2 = create_cond(&dummy_cond_class, NULL);
-  ok(cond_2 == NULL, "no cond");
+  cond_2 = create_cond(&dummy_cond_class, nullptr);
+  ok(cond_2 == nullptr, "no cond");
   ok(global_cond_container.m_lost == 1, "lost 1");
   destroy_cond(cond_1);
-  cond_2 = create_cond(&dummy_cond_class, NULL);
-  ok(cond_2 != NULL, "cond");
+  cond_2 = create_cond(&dummy_cond_class, nullptr);
+  ok(cond_2 != nullptr, "cond");
   ok(global_cond_container.m_lost == 1, "no new loss");
 
-  thread_1 = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread_1 != NULL, "thread");
+  thread_1 = create_thread(&dummy_thread_class, nullptr, 0);
+  ok(thread_1 != nullptr, "thread");
   ok(global_thread_container.m_lost == 0, "not lost");
-  thread_2 = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread_2 != NULL, "thread");
+  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  ok(thread_2 != nullptr, "thread");
   ok(global_thread_container.m_lost == 0, "not lost");
-  thread_2 = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread_2 == NULL, "no thread");
+  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  ok(thread_2 == nullptr, "no thread");
   ok(global_thread_container.m_lost == 1, "lost 1");
   destroy_thread(thread_1);
-  thread_2 = create_thread(&dummy_thread_class, NULL, 0);
-  ok(thread_2 != NULL, "thread");
+  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  ok(thread_2 != nullptr, "thread");
   ok(global_thread_container.m_lost == 1, "no new loss");
 
   PFS_thread fake_thread;
-  fake_thread.m_filename_hash_pins = NULL;
+  fake_thread.m_filename_hash_pins = nullptr;
 
   file_1 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_1 == NULL, "no file");
+  ok(file_1 == nullptr, "no file");
   ok(global_file_container.m_lost == 1, "lost 1");
   file_1 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_1 == NULL, "no file");
+  ok(file_1 == nullptr, "no file");
   ok(global_file_container.m_lost == 2, "lost 2");
 
   init_file_hash(&param);
@@ -413,7 +413,7 @@ static void test_with_instances() {
 
   file_1 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy_A", 7, true);
-  ok(file_1 != NULL, "file");
+  ok(file_1 != nullptr, "file");
   ok(file_1->m_file_stat.m_open_count == 1, "open count 1");
   ok(global_file_container.m_lost == 0, "not lost");
   file_2 =
@@ -425,46 +425,46 @@ static void test_with_instances() {
   ok(file_1->m_file_stat.m_open_count == 1, "open count 1");
   file_2 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy_B", 7, true);
-  ok(file_2 != NULL, "file");
+  ok(file_2 != nullptr, "file");
   ok(global_file_container.m_lost == 0, "not lost");
   file_2 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy_C", 7, true);
-  ok(file_2 == NULL, "no file");
+  ok(file_2 == nullptr, "no file");
   ok(global_file_container.m_lost == 1, "lost");
   release_file(file_1);
   /* the file still exists, not destroyed */
   ok(file_1->m_file_stat.m_open_count == 0, "open count 0");
   file_2 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy_D", 7, true);
-  ok(file_2 == NULL, "no file");
+  ok(file_2 == nullptr, "no file");
   ok(global_file_container.m_lost == 2, "lost");
 
-  socket_1 = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket_1 != NULL, "socket");
+  socket_1 = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket_1 != nullptr, "socket");
   ok(global_socket_container.m_lost == 0, "not lost");
-  socket_2 = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket_2 != NULL, "socket");
+  socket_2 = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket_2 != nullptr, "socket");
   ok(global_socket_container.m_lost == 0, "not lost");
-  socket_2 = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket_2 == NULL, "no socket");
+  socket_2 = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket_2 == nullptr, "no socket");
   ok(global_socket_container.m_lost == 1, "lost 1");
   destroy_socket(socket_1);
-  socket_2 = create_socket(&dummy_socket_class, NULL, NULL, 0);
-  ok(socket_2 != NULL, "socket");
+  socket_2 = create_socket(&dummy_socket_class, nullptr, nullptr, 0);
+  ok(socket_2 != nullptr, "socket");
   ok(global_socket_container.m_lost == 1, "no new loss");
 
-  table_1 = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table_1 != NULL, "table");
+  table_1 = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table_1 != nullptr, "table");
   ok(global_table_container.m_lost == 0, "not lost");
-  table_2 = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table_2 != NULL, "table");
+  table_2 = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table_2 != nullptr, "table");
   ok(global_table_container.m_lost == 0, "not lost");
-  table_2 = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table_2 == NULL, "no table");
+  table_2 = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table_2 == nullptr, "no table");
   ok(global_table_container.m_lost == 1, "lost 1");
   destroy_table(table_1);
-  table_2 = create_table(&dummy_table_share, &fake_thread, NULL);
-  ok(table_2 != NULL, "table");
+  table_2 = create_table(&dummy_table_share, &fake_thread, nullptr);
+  ok(table_2 != nullptr, "table");
   ok(global_table_container.m_lost == 1, "no new loss");
 
   // TODO: test that cleanup works

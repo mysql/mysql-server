@@ -82,7 +82,7 @@ struct PFS_connection_slice {
 
   const PFS_single_stat *read_instr_class_waits_stats() const {
     if (!m_has_waits_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_waits_stats;
   }
@@ -102,7 +102,7 @@ struct PFS_connection_slice {
 
   const PFS_stage_stat *read_instr_class_stages_stats() const {
     if (!m_has_stages_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_stages_stats;
   }
@@ -122,7 +122,7 @@ struct PFS_connection_slice {
 
   const PFS_statement_stat *read_instr_class_statements_stats() const {
     if (!m_has_statements_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_statements_stats;
   }
@@ -142,7 +142,7 @@ struct PFS_connection_slice {
 
   const PFS_transaction_stat *read_instr_class_transactions_stats() const {
     if (!m_has_transactions_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_transactions_stats;
   }
@@ -162,7 +162,7 @@ struct PFS_connection_slice {
 
   const PFS_error_stat *read_instr_class_errors_stats() const {
     if (!m_has_errors_stats) {
-      return NULL;
+      return nullptr;
     }
     return m_instr_class_errors_stats;
   }

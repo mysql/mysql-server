@@ -91,7 +91,7 @@ Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
       m_removed(false),
       m_protocol_monitor(pmon),
       m_session_exit_mutex(KEY_mutex_x_client_session_exit),
-      m_msg_buffer(NULL),
+      m_msg_buffer(nullptr),
       m_msg_buffer_size(0),
       m_supports_expired_passwords(false) {
   snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));

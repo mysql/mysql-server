@@ -81,7 +81,7 @@ Plugin_table table_file_summary_by_event_name::m_table_def(
 PFS_engine_table_share table_file_summary_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_file_summary_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_file_summary_by_event_name::delete_all_rows,
     table_file_summary_by_event_name::get_row_count,
     sizeof(PFS_simple_index),
@@ -157,7 +157,7 @@ int table_file_summary_by_event_name::rnd_pos(const void *pos) {
 
 int table_file_summary_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_file_summary_by_event_name *result = NULL;
+  PFS_index_file_summary_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_file_summary_by_event_name);
   m_opened_index = result;
@@ -181,7 +181,7 @@ int table_file_summary_by_event_name::index_next(void) {
       }
       m_pos.next();
     }
-  } while (file_class != NULL);
+  } while (file_class != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

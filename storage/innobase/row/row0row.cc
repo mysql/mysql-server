@@ -104,7 +104,7 @@ dtuple_t *row_build_index_entry_low(
   }
 
   for (i = 0; i < entry_len + num_v; i++) {
-    const dict_field_t *ind_field = NULL;
+    const dict_field_t *ind_field = nullptr;
     const dict_col_t *col;
     ulint col_no = 0;
     dfield_t *dfield;
@@ -144,7 +144,7 @@ dtuple_t *row_build_index_entry_low(
     if (UNIV_UNLIKELY(dfield_get_type(dfield2)->mtype == DATA_MISSING)) {
       /* The field has not been initialized in the row.
       This should be from trx_undo_rec_get_partial_row(). */
-      return (NULL);
+      return (nullptr);
     }
 
 #ifdef UNIV_DEBUG
@@ -170,15 +170,15 @@ dtuple_t *row_build_index_entry_low(
       dfield_set_data(dfield, mbr, mbr_len);
 
       if (dfield2->data) {
-        uchar *dptr = NULL;
+        uchar *dptr = nullptr;
         ulint dlen = 0;
         ulint flen = 0;
         double tmp_mbr[SPDIMS * 2];
-        mem_heap_t *temp_heap = NULL;
+        mem_heap_t *temp_heap = nullptr;
 
         if (dfield_is_ext(dfield2)) {
           if (flag == ROW_BUILD_FOR_PURGE) {
-            byte *ptr = NULL;
+            byte *ptr = nullptr;
 
             spatial_status_t spatial_status;
             spatial_status = dfield_get_spatial_status(dfield2);
@@ -197,7 +197,7 @@ dtuple_t *row_build_index_entry_low(
               case SPATIAL_NONE:
                 /* Undo record is logged before
                 spatial index is created.*/
-                return (NULL);
+                return (nullptr);
 
               case SPATIAL_UNKNOWN:
                 ut_ad(0);
@@ -224,8 +224,8 @@ dtuple_t *row_build_index_entry_low(
           temp_heap = mem_heap_create(1000);
 
           const page_size_t page_size =
-              (ext != NULL) ? ext->page_size
-                            : dict_table_page_size(index->table);
+              (ext != nullptr) ? ext->page_size
+                               : dict_table_page_size(index->table);
 
           const dict_index_t *clust_index =
               (ext == nullptr ? index->table->first_index() : ext->index);
@@ -287,7 +287,7 @@ dtuple_t *row_build_index_entry_low(
       const byte *buf = row_ext_lookup(ext, col_no, &len);
       if (UNIV_LIKELY_NULL(buf)) {
         if (UNIV_UNLIKELY(buf == field_ref_zero)) {
-          return (NULL);
+          return (nullptr);
         }
         dfield_set_data(dfield, buf, len);
       }
@@ -363,17 +363,17 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   const byte *copy;
   dtuple_t *row;
   ulint n_ext_cols;
-  ulint *ext_cols = NULL; /* remove warning */
+  ulint *ext_cols = nullptr; /* remove warning */
   ulint len;
   byte *buf;
   ulint j;
-  mem_heap_t *tmp_heap = NULL;
+  mem_heap_t *tmp_heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   rec_offs_init(offsets_);
 
-  ut_ad(index != NULL);
-  ut_ad(rec != NULL);
-  ut_ad(heap != NULL);
+  ut_ad(index != nullptr);
+  ut_ad(rec != nullptr);
+  ut_ad(heap != nullptr);
   ut_ad(index->is_clustered());
   ut_ad(!trx_sys_mutex_own());
   ut_ad(!col_map || col_table);
@@ -393,7 +393,8 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   times, and the cursor restore can happen multiple times for single
   insert or update statement.  */
   ut_a(!rec_offs_any_null_extern(rec, offsets) ||
-       trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), NULL, false));
+       trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), nullptr,
+                        false));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
   if (type != ROW_COPY_POINTERS) {
@@ -428,7 +429,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
       col_table->get_col(i)->copy_type(
           dfield_get_type(dtuple_get_nth_field(row, i)));
     }
-  } else if (add_v != NULL) {
+  } else if (add_v != nullptr) {
     row = dtuple_create_with_vcol(
         heap, col_table->get_n_cols(),
         dict_table_get_n_v_cols(col_table) + add_v->n_v_col);
@@ -513,7 +514,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
     *ext = row_ext_create(index, j, ext_cols, index->table->flags, row,
                           dict_index_is_sdi(index), heap);
   } else {
-    *ext = NULL;
+    *ext = nullptr;
   }
 
   if (tmp_heap) {
@@ -564,7 +565,7 @@ dtuple_t *row_build(ulint type,                /*!< in: ROW_COPY_POINTERS or
                     mem_heap_t *heap)     /*!< in: memory heap from which
                                            the memory needed is allocated */
 {
-  return (row_build_low(type, index, rec, offsets, col_table, add_cols, NULL,
+  return (row_build_low(type, index, rec, offsets, col_table, add_cols, nullptr,
                         col_map, ext, heap));
 }
 
@@ -621,9 +622,9 @@ dtuple_t *row_rec_to_index_entry_low(
   ulint len;
   ulint rec_len;
 
-  ut_ad(rec != NULL);
-  ut_ad(heap != NULL);
-  ut_ad(index != NULL);
+  ut_ad(rec != nullptr);
+  ut_ad(heap != nullptr);
+  ut_ad(index != nullptr);
 
   /* Because this function may be invoked by row0merge.cc
   on a record whose header is in different format, the check
@@ -682,9 +683,9 @@ dtuple_t *row_rec_to_index_entry(
   const rec_t *copy_rec;
   DBUG_TRACE;
 
-  ut_ad(rec != NULL);
-  ut_ad(heap != NULL);
-  ut_ad(index != NULL);
+  ut_ad(rec != nullptr);
+  ut_ad(heap != nullptr);
+  ut_ad(index != nullptr);
   ut_ad(rec_offs_validate(rec, index, offsets));
 
   /* Take a copy of rec to heap */
@@ -731,14 +732,14 @@ dtuple_t *row_build_row_ref(
   byte *buf;
   ulint clust_col_prefix_len;
   ulint i;
-  mem_heap_t *tmp_heap = NULL;
+  mem_heap_t *tmp_heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
 
-  ut_ad(index != NULL);
-  ut_ad(rec != NULL);
-  ut_ad(heap != NULL);
+  ut_ad(index != nullptr);
+  ut_ad(rec != nullptr);
+  ut_ad(heap != nullptr);
   ut_ad(!index->is_clustered());
 
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &tmp_heap);
@@ -828,7 +829,7 @@ void row_build_row_ref_in_tuple(
   ulint pos;
   ulint clust_col_prefix_len;
   ulint i;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   rec_offs_init(offsets_);
 
@@ -953,7 +954,7 @@ rec_t *row_get_clust_rec(
 
   found = row_search_on_row_ref(&pcur, mode, table, ref, mtr);
 
-  clust_rec = found ? btr_pcur_get_rec(&pcur) : NULL;
+  clust_rec = found ? btr_pcur_get_rec(&pcur) : nullptr;
 
   mem_heap_free(heap);
 

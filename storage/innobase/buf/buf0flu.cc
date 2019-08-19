@@ -188,7 +188,7 @@ struct page_cleaner_t {
 #endif /* UNIV_DEBUG */
 };
 
-static page_cleaner_t *page_cleaner = NULL;
+static page_cleaner_t *page_cleaner = nullptr;
 
 #ifdef UNIV_DEBUG
 bool innodb_page_cleaner_disabled_debug;
@@ -264,23 +264,23 @@ static buf_page_t *buf_flush_insert_in_flush_rbt(
 {
   const ib_rbt_node_t *c_node;
   const ib_rbt_node_t *p_node;
-  buf_page_t *prev = NULL;
+  buf_page_t *prev = nullptr;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
   /* Insert this buffer into the rbt. */
   c_node = rbt_insert(buf_pool->flush_rbt, &bpage, &bpage);
-  ut_a(c_node != NULL);
+  ut_a(c_node != nullptr);
 
   /* Get the predecessor. */
   p_node = rbt_prev(buf_pool->flush_rbt, c_node);
 
-  if (p_node != NULL) {
+  if (p_node != nullptr) {
     buf_page_t **value;
     value = rbt_value(buf_page_t *, p_node);
     prev = *value;
-    ut_a(prev != NULL);
+    ut_a(prev != nullptr);
   }
 
   return (prev);
@@ -321,8 +321,8 @@ static int buf_flush_block_cmp(const void *p1, /*!< in: block1 */
   const buf_page_t *b1 = *(const buf_page_t **)p1;
   const buf_page_t *b2 = *(const buf_page_t **)p2;
 
-  ut_ad(b1 != NULL);
-  ut_ad(b2 != NULL);
+  ut_ad(b1 != nullptr);
+  ut_ad(b2 != nullptr);
 
 #ifdef UNIV_DEBUG
   buf_pool_t *buf_pool = buf_pool_from_bpage(b1);
@@ -359,7 +359,7 @@ void buf_flush_init_flush_rbt(void) {
 
     buf_flush_list_mutex_enter(buf_pool);
 
-    ut_ad(buf_pool->flush_rbt == NULL);
+    ut_ad(buf_pool->flush_rbt == nullptr);
 
     /* Create red black tree for speedy insertions in flush list. */
     buf_pool->flush_rbt = rbt_create(sizeof(buf_page_t *), buf_flush_block_cmp);
@@ -384,7 +384,7 @@ void buf_flush_free_flush_rbt(void) {
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
     rbt_free(buf_pool->flush_rbt);
-    buf_pool->flush_rbt = NULL;
+    buf_pool->flush_rbt = nullptr;
 
     buf_flush_list_mutex_exit(buf_pool);
   }
@@ -489,7 +489,7 @@ void buf_flush_insert_into_flush_list(
 
   /* If we are in the recovery then we need to update the flush
   red-black tree as well. */
-  if (buf_pool->flush_rbt != NULL) {
+  if (buf_pool->flush_rbt != nullptr) {
     ut_ad(lsn != 0);
     ut_ad(block->page.newest_modification != 0);
     buf_flush_list_mutex_exit(buf_pool);
@@ -540,7 +540,7 @@ void buf_flush_insert_into_flush_list(
   ut_ad(block->page.oldest_modification == 0);
   ut_ad(block->page.newest_modification >= lsn);
 
-  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL ||
+  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == nullptr ||
         buf_flush_list_order_validate(
             UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification, lsn));
 
@@ -617,7 +617,7 @@ void buf_flush_insert_sorted_into_flush_list(
   UNIV_MEM_ASSERT_RW(p, block->page.size.physical());
 #endif /* UNIV_DEBUG_VALGRIND */
 
-  prev_b = NULL;
+  prev_b = nullptr;
 
   /* For the most part when this function is called the flush_rbt
   should not be NULL. In a very rare boundary case it is possible
@@ -625,13 +625,13 @@ void buf_flush_insert_sorted_into_flush_list(
   before the last page was hooked up in the flush_list by the
   io-handler thread. In that case we'll just do a simple
   linear search in the else block. */
-  if (buf_pool->flush_rbt != NULL) {
+  if (buf_pool->flush_rbt != nullptr) {
     prev_b = buf_flush_insert_in_flush_rbt(&block->page);
 
   } else {
     b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-    while (b != NULL &&
+    while (b != nullptr &&
            b->oldest_modification > block->page.oldest_modification) {
       ut_ad(b->in_flush_list);
       prev_b = b;
@@ -639,7 +639,7 @@ void buf_flush_insert_sorted_into_flush_list(
     }
   }
 
-  if (prev_b == NULL) {
+  if (prev_b == nullptr) {
     UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
   } else {
     UT_LIST_INSERT_AFTER(buf_pool->flush_list, prev_b, &block->page);
@@ -760,7 +760,7 @@ void buf_flush_remove(buf_page_t *bpage) {
   }
 
   /* If the flush_rbt is active then delete from there as well. */
-  if (buf_pool->flush_rbt != NULL) {
+  if (buf_pool->flush_rbt != nullptr) {
     buf_flush_delete_from_flush_rbt(bpage);
   }
 
@@ -778,10 +778,10 @@ void buf_flush_remove(buf_page_t *bpage) {
 
   /* If there is an observer that want to know if the asynchronous
   flushing was done then notify it. */
-  if (bpage->flush_observer != NULL) {
+  if (bpage->flush_observer != nullptr) {
     bpage->flush_observer->notify_remove(buf_pool, bpage);
 
-    bpage->flush_observer = NULL;
+    bpage->flush_observer = nullptr;
   }
 
   buf_flush_list_mutex_exit(buf_pool);
@@ -802,7 +802,7 @@ void buf_flush_relocate_on_flush_list(
     buf_page_t *dpage) /*!< in/out: destination block */
 {
   buf_page_t *prev;
-  buf_page_t *prev_b = NULL;
+  buf_page_t *prev_b = nullptr;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   /* Must reside in the same buffer pool. */
@@ -817,7 +817,7 @@ void buf_flush_relocate_on_flush_list(
 
   /* If recovery is active we must swap the control blocks in
   the flush_rbt as well. */
-  if (buf_pool->flush_rbt != NULL) {
+  if (buf_pool->flush_rbt != nullptr) {
     buf_flush_delete_from_flush_rbt(bpage);
     prev_b = buf_flush_insert_in_flush_rbt(dpage);
   }
@@ -842,7 +842,7 @@ void buf_flush_relocate_on_flush_list(
 
   /* Just an extra check. Previous in flush_list
   should be the same control block as in flush_rbt. */
-  ut_a(buf_pool->flush_rbt == NULL || prev_b == prev);
+  ut_a(buf_pool->flush_rbt == nullptr || prev_b == prev);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   ut_a(buf_flush_validate_low(buf_pool));
@@ -854,7 +854,7 @@ void buf_flush_relocate_on_flush_list(
 /** Updates the flush system data structures when a write is completed.
 @param[in]	bpage	pointer to the block in question */
 void buf_flush_write_complete(buf_page_t *bpage) {
-  ut_ad(bpage != NULL);
+  ut_ad(bpage != nullptr);
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
   const buf_flush_t flush_type = buf_page_get_flush_type(bpage);
@@ -891,7 +891,7 @@ void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn,
                                    bool skip_lsn_check) {
   ut_a(size > 0);
 
-  BlockReporter reporter = BlockReporter(false, NULL, univ_page_size, false);
+  BlockReporter reporter = BlockReporter(false, nullptr, univ_page_size, false);
 
   const uint32_t checksum = reporter.calc_zip_checksum(
       page, size,
@@ -932,8 +932,9 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
                                 bool skip_checksum, bool skip_lsn_check) {
   ib_uint32_t checksum = BUF_NO_CHECKSUM_MAGIC;
 
-  ut_ad(block == NULL || block->frame == page);
-  ut_ad(block == NULL || page_zip_ == NULL || &block->page.zip == page_zip_);
+  ut_ad(block == nullptr || block->frame == page);
+  ut_ad(block == nullptr || page_zip_ == nullptr ||
+        &block->page.zip == page_zip_);
   ut_ad(page);
 
   if (page_zip_) {
@@ -998,7 +999,7 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
   if (skip_checksum) {
     mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
   } else {
-    if (block != NULL && UNIV_PAGE_SIZE == 16384) {
+    if (block != nullptr && UNIV_PAGE_SIZE == 16384) {
       /* The page type could be garbage in old files
       created before MySQL 5.5. Such files always
       had a page size of 16 kilobytes. */
@@ -1106,7 +1107,7 @@ buf_dblwr_flush_buffered_writes after we have posted a batch of writes!
 @param[in]	sync		true if sync IO request */
 static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
                                       bool sync) {
-  page_t *frame = NULL;
+  page_t *frame = nullptr;
 
 #ifdef UNIV_DEBUG
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
@@ -1188,7 +1189,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
       buf_flush_init_for_writing(
           reinterpret_cast<const buf_block_t *>(bpage),
           reinterpret_cast<const buf_block_t *>(bpage)->frame,
-          bpage->zip.data ? &bpage->zip : NULL, bpage->newest_modification,
+          bpage->zip.data ? &bpage->zip : nullptr, bpage->newest_modification,
           fsp_is_checksum_disabled(bpage->id.space()),
           false /* do not skip lsn check */);
       break;
@@ -1198,7 +1199,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
   Given the nature and load of temporary tablespace doublewrite buffer
   adds an overhead during flushing. */
 
-  if (!srv_use_doublewrite_buf || buf_dblwr == NULL || srv_read_only_mode ||
+  if (!srv_use_doublewrite_buf || buf_dblwr == nullptr || srv_read_only_mode ||
       fsp_is_system_temporary(bpage->id.space())) {
     ut_ad(!srv_read_only_mode || fsp_is_system_temporary(bpage->id.space()));
 
@@ -1275,12 +1276,12 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
   ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
   ibool flush;
-  rw_lock_t *rw_lock = NULL;
+  rw_lock_t *rw_lock = nullptr;
   bool no_fix_count = bpage->buf_fix_count == 0;
 
   if (!is_uncompressed) {
     flush = TRUE;
-    rw_lock = NULL;
+    rw_lock = nullptr;
   } else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST) ||
              (!no_fix_count &&
               srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE &&
@@ -1362,7 +1363,7 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
     Note: we set flush observer to a page with x-latch, so we can
     guarantee that notify_flush and notify_remove are called in pair
     with s-latch on a uncompressed page. */
-    if (bpage->flush_observer != NULL) {
+    if (bpage->flush_observer != nullptr) {
       bpage->flush_observer->notify_flush(buf_pool, bpage);
     }
 
@@ -1547,7 +1548,7 @@ static ulint buf_flush_try_neighbors(const page_id_t &page_id,
     /* We only want to flush pages from this buffer pool. */
     bpage = buf_page_hash_get_s_locked(buf_pool, cur_page_id, &hash_lock);
 
-    if (bpage == NULL) {
+    if (bpage == nullptr) {
       continue;
     }
 
@@ -1609,7 +1610,7 @@ static bool buf_flush_page_and_try_neighbors(buf_page_t *bpage,
 #endif /* UNIV_DEBUG */
 
   bool flushed;
-  BPageMutex *block_mutex = NULL;
+  BPageMutex *block_mutex = nullptr;
 
   ut_ad(flush_type != BUF_FLUSH_SINGLE_PAGE);
 
@@ -1693,7 +1694,7 @@ static ulint buf_free_from_unzip_LRU_list_batch(buf_pool_t *buf_pool,
 
   buf_block_t *block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
 
-  while (block != NULL && count < max && free_len < srv_LRU_scan_depth &&
+  while (block != nullptr && count < max && free_len < srv_LRU_scan_depth &&
          lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
     BPageMutex *block_mutex = buf_page_get_mutex(&block->page);
 
@@ -1749,7 +1750,7 @@ static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
   withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
   for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-       bpage != NULL && count + evict_count < max &&
+       bpage != nullptr && count + evict_count < max &&
        free_len < srv_LRU_scan_depth + withdraw_depth &&
        lru_len > BUF_LRU_MIN_LEN;
        ++scanned, bpage = buf_pool->lru_hp.get()) {
@@ -1791,7 +1792,7 @@ static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
     lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
   }
 
-  buf_pool->lru_hp.set(NULL);
+  buf_pool->lru_hp.set(nullptr);
 
   /* We keep track of all flushes happening as part of LRU
   flush. When estimating the desired rate at which flush_list
@@ -1864,7 +1865,7 @@ static ulint buf_do_flush_list_batch(buf_pool_t *buf_pool, ulint min_n,
   flush list must check the hazard pointer and if it is removing
   the same block then it must reset it. */
   for (buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-       count < min_n && bpage != NULL && len > 0 &&
+       count < min_n && bpage != nullptr && len > 0 &&
        bpage->oldest_modification < lsn_limit;
        bpage = buf_pool->flush_hp.get(), ++scanned) {
     buf_page_t *prev;
@@ -1885,7 +1886,7 @@ static ulint buf_do_flush_list_batch(buf_pool_t *buf_pool, ulint min_n,
     --len;
   }
 
-  buf_pool->flush_hp.set(NULL);
+  buf_pool->flush_hp.set(nullptr);
   buf_flush_list_mutex_exit(buf_pool);
 
   if (scanned) {
@@ -2024,7 +2025,7 @@ void buf_flush_wait_batch_end(buf_pool_t *buf_pool, /*!< buffer pool instance */
 {
   ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
-  if (buf_pool == NULL) {
+  if (buf_pool == nullptr) {
     ulint i;
 
     for (i = 0; i < srv_buf_pool_instances; ++i) {
@@ -2032,14 +2033,14 @@ void buf_flush_wait_batch_end(buf_pool_t *buf_pool, /*!< buffer pool instance */
 
       buf_pool = buf_pool_from_array(i);
 
-      thd_wait_begin(NULL, THD_WAIT_DISKIO);
+      thd_wait_begin(nullptr, THD_WAIT_DISKIO);
       os_event_wait(buf_pool->no_flush[type]);
-      thd_wait_end(NULL);
+      thd_wait_end(nullptr);
     }
   } else {
-    thd_wait_begin(NULL, THD_WAIT_DISKIO);
+    thd_wait_begin(nullptr, THD_WAIT_DISKIO);
     os_event_wait(buf_pool->no_flush[type]);
-    thd_wait_end(NULL);
+    thd_wait_end(nullptr);
   }
 }
 
@@ -2060,7 +2061,7 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
                         lsn_t lsn_limit, ulint *n_processed) {
   ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
-  if (n_processed != NULL) {
+  if (n_processed != nullptr) {
     *n_processed = 0;
   }
 
@@ -2072,7 +2073,7 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
 
   buf_flush_end(buf_pool, type);
 
-  if (n_processed != NULL) {
+  if (n_processed != nullptr) {
     *n_processed = page_count;
   }
 
@@ -2165,7 +2166,7 @@ bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   for (bpage = buf_pool->single_scan_itr.start(), scanned = 0, freed = false;
-       bpage != NULL; ++scanned, bpage = buf_pool->single_scan_itr.get()) {
+       bpage != nullptr; ++scanned, bpage = buf_pool->single_scan_itr.get()) {
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
     buf_page_t *prev = UT_LIST_GET_PREV(LRU, bpage);
@@ -2510,7 +2511,7 @@ static ulint page_cleaner_flush_pages_recommendation(ulint last_pages_in,
     ulint pages_for_lsn = 0;
 
     buf_flush_list_mutex_enter(buf_pool);
-    for (buf_page_t *b = UT_LIST_GET_LAST(buf_pool->flush_list); b != NULL;
+    for (buf_page_t *b = UT_LIST_GET_LAST(buf_pool->flush_list); b != nullptr;
          b = UT_LIST_GET_PREV(list, b)) {
       if (b->oldest_modification > target_lsn) {
         break;
@@ -2608,7 +2609,7 @@ bool buf_flush_page_cleaner_is_active() {
 /** Initialize page_cleaner.
 @param[in]	n_page_cleaners	Number of page cleaner threads to create */
 void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
-  ut_ad(page_cleaner == NULL);
+  ut_ad(page_cleaner == nullptr);
 
   page_cleaner =
       static_cast<page_cleaner_t *>(ut_zalloc_nokey(sizeof(*page_cleaner)));
@@ -2659,7 +2660,7 @@ static void buf_flush_page_cleaner_close(void) {
 
   ut_free(page_cleaner);
 
-  page_cleaner = NULL;
+  page_cleaner = nullptr;
 }
 
 /**
@@ -2726,7 +2727,7 @@ static ulint pc_flush_slot(void) {
   mutex_enter(&page_cleaner->mutex);
 
   if (page_cleaner->n_slots_requested > 0) {
-    page_cleaner_slot_t *slot = NULL;
+    page_cleaner_slot_t *slot = nullptr;
     ulint i;
 
     for (i = 0; i < page_cleaner->n_slots; i++) {
@@ -2868,7 +2869,7 @@ static bool buf_flush_page_cleaner_set_priority(int priority) {
 #ifdef UNIV_DEBUG
 /** Loop used to disable page cleaner threads. */
 static void buf_flush_page_cleaner_disabled_loop(void) {
-  ut_ad(page_cleaner != NULL);
+  ut_ad(page_cleaner != nullptr);
 
   if (!innodb_page_cleaner_disabled_debug) {
     /* We return to avoid entering and exiting mutex. */
@@ -2912,7 +2913,7 @@ It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
                                                   void *var_ptr,
                                                   const void *save) {
-  if (page_cleaner == NULL) {
+  if (page_cleaner == nullptr) {
     return;
   }
 
@@ -3005,7 +3006,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
   while (!srv_read_only_mode &&
          srv_shutdown_state.load() == SRV_SHUTDOWN_NONE &&
-         recv_sys->spaces != NULL) {
+         recv_sys->spaces != nullptr) {
     /* treat flushing requests during recovery. */
     ulint n_flushed_lru = 0;
     ulint n_flushed_list = 0;
@@ -3013,7 +3014,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     os_event_wait(recv_sys->flush_start);
 
     if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE ||
-        recv_sys->spaces == NULL) {
+        recv_sys->spaces == nullptr) {
       break;
     }
 
@@ -3294,7 +3295,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   considering end of that batch as a finish of our final
   sweep and we'll come out of the loop leaving behind dirty pages
   in the flush_list */
-  buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+  buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
   buf_flush_wait_LRU_batch_end();
 
   bool success;
@@ -3311,7 +3312,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
     n_flushed = n_flushed_lru + n_flushed_list;
 
-    buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+    buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
     buf_flush_wait_LRU_batch_end();
 
   } while (!success || n_flushed > 0);
@@ -3368,7 +3369,7 @@ void buf_flush_sync_all_buf_pools(void) {
   do {
     n_pages = 0;
     success = buf_flush_lists(ULINT_MAX, LSN_MAX, &n_pages);
-    buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+    buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
 
     if (!success) {
       MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
@@ -3417,7 +3418,7 @@ static ibool buf_flush_validate_low(
     buf_pool_t *buf_pool) /*!< in: Buffer pool instance */
 {
   buf_page_t *bpage;
-  const ib_rbt_node_t *rnode = NULL;
+  const ib_rbt_node_t *rnode = nullptr;
   Check check;
 
   ut_ad(buf_flush_list_mutex_own(buf_pool));
@@ -3429,11 +3430,11 @@ static ibool buf_flush_validate_low(
   /* If we are in recovery mode i.e.: flush_rbt != NULL
   then each block in the flush_list must also be present
   in the flush_rbt. */
-  if (buf_pool->flush_rbt != NULL) {
+  if (buf_pool->flush_rbt != nullptr) {
     rnode = rbt_first(buf_pool->flush_rbt);
   }
 
-  while (bpage != NULL) {
+  while (bpage != nullptr) {
     const lsn_t om = bpage->oldest_modification;
 
     ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
@@ -3450,26 +3451,26 @@ static ibool buf_flush_validate_low(
          buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
     ut_a(om > 0);
 
-    if (buf_pool->flush_rbt != NULL) {
+    if (buf_pool->flush_rbt != nullptr) {
       buf_page_t **prpage;
 
-      ut_a(rnode != NULL);
+      ut_a(rnode != nullptr);
       prpage = rbt_value(buf_page_t *, rnode);
 
-      ut_a(*prpage != NULL);
+      ut_a(*prpage != nullptr);
       ut_a(*prpage == bpage);
       rnode = rbt_next(buf_pool->flush_rbt, rnode);
     }
 
     bpage = UT_LIST_GET_NEXT(list, bpage);
 
-    ut_a(bpage == NULL ||
+    ut_a(bpage == nullptr ||
          buf_flush_list_order_validate(bpage->oldest_modification, om));
   }
 
   /* By this time we must have exhausted the traversal of
   flush_rbt (if active) as well. */
-  ut_a(rnode == NULL);
+  ut_a(rnode == nullptr);
 
   return (TRUE);
 }
@@ -3505,15 +3506,15 @@ ulint buf_pool_get_dirty_pages_count(
 
   buf_page_t *bpage;
 
-  for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list); bpage != 0;
+  for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list); bpage != nullptr;
        bpage = UT_LIST_GET_NEXT(list, bpage)) {
     ut_ad(buf_page_in_file(bpage) ||
           buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
     ut_ad(bpage->in_flush_list);
     ut_ad(bpage->oldest_modification > 0);
 
-    if ((observer != NULL && observer == bpage->flush_observer) ||
-        (observer == NULL && id == bpage->id.space())) {
+    if ((observer != nullptr && observer == bpage->flush_observer) ||
+        (observer == nullptr && id == bpage->id.space())) {
       ++count;
     }
   }
@@ -3599,7 +3600,7 @@ bool FlushObserver::check_interrupted() {
 void FlushObserver::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
   os_atomic_increment_ulint(&m_flushed->at(buf_pool->instance_no), 1);
 
-  if (m_stage != NULL) {
+  if (m_stage != nullptr) {
     m_stage->inc();
   }
 }
@@ -3620,7 +3621,7 @@ void FlushObserver::flush() {
   } else {
     buf_remove = BUF_REMOVE_FLUSH_WRITE;
 
-    if (m_stage != NULL) {
+    if (m_stage != nullptr) {
       ulint pages_to_flush = buf_flush_get_dirty_pages_count(m_space_id, this);
 
       m_stage->begin_phase_flush(pages_to_flush);

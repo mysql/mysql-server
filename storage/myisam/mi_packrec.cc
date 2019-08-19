@@ -761,7 +761,7 @@ static unpack_function_t get_unpack_function(MI_COLUMNDEF *rec) {
       return &uf_varchar2;
     case FIELD_LAST:
     default:
-      return 0; /* This should never happend */
+      return nullptr; /* This should never happend */
   }
 }
 
@@ -1405,7 +1405,7 @@ static uchar *_mi_mempack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
                                &info->blob_len);
     /* mi_alloc_rec_buff sets my_errno on error */
     if (!(mi_alloc_rec_buff(myisam, info->blob_len, rec_buff_p)))
-      return 0; /* not enough memory */
+      return nullptr; /* not enough memory */
     bit_buff->blob_pos = (uchar *)*rec_buff_p;
     bit_buff->blob_end = (uchar *)*rec_buff_p + info->blob_len;
   }

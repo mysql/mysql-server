@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,28 +37,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @retval true failure
 */
 DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_create,
-  (OBJECT_ITERATOR iterator,
-    METADATA_ITERATOR *out_iterator))
-{
-  try
-  {
-    *out_iterator= NULL;
+                   (OBJECT_ITERATOR iterator,
+                    METADATA_ITERATOR *out_iterator)) {
+  try {
+    *out_iterator = nullptr;
 
-    REGISTRY_TYPE::const_iterator& iter=
-      reinterpret_cast<ITERATOR_TYPE*>(iterator)->m_it;
-    if (iter == REGISTRY.cend())
-    {
+    REGISTRY_TYPE::const_iterator &iter =
+        reinterpret_cast<ITERATOR_TYPE *>(iterator)->m_it;
+    if (iter == REGISTRY.cend()) {
       return true;
     }
     /* This read lock on the whole registry will be held, until the iterator is
       released. */
-    *out_iterator= new METADATA_ITERATOR_TYPE{
-      iter->second->create_iterator(), rwlock_scoped_lock(&LOCK, false,
-        __FILE__, __LINE__) };
+    *out_iterator = new METADATA_ITERATOR_TYPE{
+        iter->second->create_iterator(),
+        rwlock_scoped_lock(&LOCK, false, __FILE__, __LINE__)};
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -72,13 +67,11 @@ DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_create,
   @retval true failure
 */
 DEFINE_METHOD(void, REGISTRY_IMP::metadata_iterator_release,
-  (METADATA_ITERATOR iterator))
-{
-  METADATA_ITERATOR_TYPE *iter=
-    reinterpret_cast<METADATA_ITERATOR_TYPE*>(iterator);
+              (METADATA_ITERATOR iterator)) {
+  METADATA_ITERATOR_TYPE *iter =
+      reinterpret_cast<METADATA_ITERATOR_TYPE *>(iterator);
 
-  if (!iter)
-    return;
+  if (!iter) return;
 
   delete iter;
 }
@@ -97,30 +90,24 @@ DEFINE_METHOD(void, REGISTRY_IMP::metadata_iterator_release,
     through all values already.
 */
 DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_get,
-  (METADATA_ITERATOR iterator, const char **out_name,
-    const char **out_value))
-{
-  try
-  {
-    *out_name= NULL;
-    *out_value= NULL;
+                   (METADATA_ITERATOR iterator, const char **out_name,
+                    const char **out_value)) {
+  try {
+    *out_name = nullptr;
+    *out_value = nullptr;
 
-    if (!iterator)
-      return true;
+    if (!iterator) return true;
 
-    my_metadata::const_iterator &iter=
-      reinterpret_cast<METADATA_ITERATOR_TYPE*>(iterator)->m_it;
+    my_metadata::const_iterator &iter =
+        reinterpret_cast<METADATA_ITERATOR_TYPE *>(iterator)->m_it;
 
-    if (!iter.is_at_end())
-    {
-      *out_name= iter->first.c_str();
-      *out_value= iter->second.c_str();
+    if (!iter.is_at_end()) {
+      *out_name = iter->first.c_str();
+      *out_value = iter->second.c_str();
 
       return false;
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -136,24 +123,18 @@ DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_get,
       element.
 */
 DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_next,
-  (METADATA_ITERATOR iterator))
-{
-  try
-  {
-    if (!iterator)
-      return true;
+                   (METADATA_ITERATOR iterator)) {
+  try {
+    if (!iterator) return true;
 
-    my_metadata::const_iterator &iter=
-      reinterpret_cast<METADATA_ITERATOR_TYPE*>(iterator)->m_it;
+    my_metadata::const_iterator &iter =
+        reinterpret_cast<METADATA_ITERATOR_TYPE *>(iterator)->m_it;
 
-    if (!iter.is_at_end())
-    {
+    if (!iter.is_at_end()) {
       ++iter;
       return iter.is_at_end();
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -168,20 +149,15 @@ DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_next,
   @retval true Invalid or reached one-past-last element.
 */
 DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_is_valid,
-  (METADATA_ITERATOR iterator))
-{
-  try
-  {
-    if (!iterator)
-      return true;
+                   (METADATA_ITERATOR iterator)) {
+  try {
+    if (!iterator) return true;
 
-    my_metadata::const_iterator &iter=
-      reinterpret_cast<METADATA_ITERATOR_TYPE*>(iterator)->m_it;
+    my_metadata::const_iterator &iter =
+        reinterpret_cast<METADATA_ITERATOR_TYPE *>(iterator)->m_it;
 
     return iter.is_at_end();
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -202,24 +178,19 @@ DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_iterator_is_valid,
     through all values already.
 */
 DEFINE_BOOL_METHOD(REGISTRY_IMP::metadata_get_value,
-  (OBJECT_ITERATOR iterator, const char *name, const char **out_value))
-{
-  try
-  {
-    *out_value= NULL;
+                   (OBJECT_ITERATOR iterator, const char *name,
+                    const char **out_value)) {
+  try {
+    *out_value = nullptr;
 
-    if (iterator == NULL)
-      return true;
+    if (iterator == nullptr) return true;
 
-    REGISTRY_TYPE::const_iterator& iter=
-      reinterpret_cast<ITERATOR_TYPE*>(iterator)->m_it;
-    if (iter == REGISTRY.cend())
-      return true;
+    REGISTRY_TYPE::const_iterator &iter =
+        reinterpret_cast<ITERATOR_TYPE *>(iterator)->m_it;
+    if (iter == REGISTRY.cend()) return true;
 
     return iter->second->get_value(name, out_value);
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }

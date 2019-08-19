@@ -172,9 +172,9 @@ my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
 my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *user, const char *host,
                                     const char *ip, const char *db) {
-  THD *tmp_thd = NULL;
+  THD *tmp_thd = nullptr;
   bool retval;
-  if (current_thd == NULL) {
+  if (current_thd == nullptr) {
     tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
     if (!tmp_thd) return true;
   }
@@ -185,7 +185,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
 
   if (tmp_thd) {
     destroy_thd(tmp_thd);
-    tmp_thd = NULL;
+    tmp_thd = nullptr;
   }
   return retval;
 }

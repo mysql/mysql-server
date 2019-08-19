@@ -92,7 +92,7 @@
 
 static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
-                                     bool *ret_cond_value = 0);
+                                     bool *ret_cond_value = nullptr);
 
 /**
   Prepare query block for optimization.
@@ -149,7 +149,7 @@ bool SELECT_LEX::prepare(THD *thd) {
   Prepare_error_tracker tracker(thd);
 
   DBUG_ASSERT(this == thd->lex->current_select());
-  DBUG_ASSERT(join == NULL);
+  DBUG_ASSERT(join == nullptr);
   DBUG_ASSERT(!thd->is_error());
 
   // If this query block is a table value constructor, a lot of the preparation
@@ -172,8 +172,9 @@ bool SELECT_LEX::prepare(THD *thd) {
         by forcing a materialization of the subquery.
       - All other cases inherit status of parent query block.
   */
-  allow_merge_derived = outer_select() == NULL || master_unit()->item == NULL ||
-                        (outer_select()->outer_select() == NULL
+  allow_merge_derived = outer_select() == nullptr ||
+                        master_unit()->item == nullptr ||
+                        (outer_select()->outer_select() == nullptr
                              ? parent_lex->sql_command == SQLCOM_SELECT
                              : outer_select()->allow_merge_derived);
 
@@ -191,7 +192,7 @@ bool SELECT_LEX::prepare(THD *thd) {
     properly.
   */
   const bool check_privs =
-      !thd->derived_tables_processing || master_unit()->item != NULL;
+      !thd->derived_tables_processing || master_unit()->item != nullptr;
   thd->mark_used_columns = check_privs ? MARK_COLUMNS_READ : MARK_COLUMNS_NONE;
   ulonglong want_privilege_saved = thd->want_privilege;
   thd->want_privilege = check_privs ? SELECT_ACL : 0;
@@ -287,7 +288,7 @@ bool SELECT_LEX::prepare(THD *thd) {
     // Simplify the having condition if it is a const item
     if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
         !m_having_cond->walk(&Item::is_non_const_over_literals,
-                             enum_walk::POSTFIX, NULL) &&
+                             enum_walk::POSTFIX, nullptr) &&
         simplify_const_condition(thd, &m_having_cond))
       return true;
 
@@ -438,7 +439,7 @@ bool SELECT_LEX::prepare(THD *thd) {
 
   if (has_sj_candidates() && flatten_subqueries(thd)) return true;
 
-  set_sj_candidates(NULL);
+  set_sj_candidates(nullptr);
 
   /*
     When reaching the top-most query block, or the next-to-top query block for
@@ -446,10 +447,10 @@ bool SELECT_LEX::prepare(THD *thd) {
     apply local transformations to this query block and all underlying query
     blocks.
   */
-  if ((outer_select() == NULL ||
+  if ((outer_select() == nullptr ||
        ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
          parent_lex->sql_command == SQLCOM_END) &&
-        outer_select()->outer_select() == NULL)) &&
+        outer_select()->outer_select() == nullptr)) &&
       !skip_local_transforms) {
     /*
       This code is invoked in the following cases:
@@ -776,7 +777,7 @@ bool Item_in_subselect::subquery_allows_materialization(
                       select_lex->select_number, "IN (SELECT)",
                       "materialization");
 
-  const char *cause = NULL;
+  const char *cause = nullptr;
   if (substype() != Item_subselect::IN_SUBS) {
     // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
     cause = "not an IN predicate";
@@ -859,7 +860,7 @@ bool Item_in_subselect::subquery_allows_materialization(
       }
     }
   }
-  DBUG_ASSERT(cause != NULL);
+  DBUG_ASSERT(cause != nullptr);
   trace_mat.add("possible", false).add_alnum("cause", cause);
   return false;
 }
@@ -951,10 +952,10 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
               !tables ||
               (context.table_list && context.first_name_resolution_table));
 
-  leaf_tables = NULL;
+  leaf_tables = nullptr;
   (void)make_leaf_tables(&leaf_tables, tables);
 
-  TABLE_LIST *first_select_table = NULL;
+  TABLE_LIST *first_select_table = nullptr;
   if (select_insert) {
     // "insert_table" is needed for remap_tables().
     thd->lex->insert_table = leaf_tables->top_table();
@@ -977,7 +978,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
         For INSERT ... SELECT command, restart numbering from zero for first
         leaf table from SELECT part of query.
       */
-      first_select_table = 0;
+      first_select_table = nullptr;
       tableno = 0;
     }
     if (tableno >= MAX_TABLES) {
@@ -997,7 +998,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
       tr->opt_hints_table = opt_hints_qb->adjust_table_hints(tr);
     }
 
-    if (table == NULL) continue;
+    if (table == nullptr) continue;
     table->pos_in_table_list = tr;
     tr->reset();
     if (tr->process_index_hints(thd, table)) return true;
@@ -1028,7 +1029,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
 
 void SELECT_LEX::remap_tables(THD *thd) {
   LEX *const lex = thd->lex;
-  TABLE_LIST *first_select_table = NULL;
+  TABLE_LIST *first_select_table = nullptr;
   if (lex->insert_table && lex->insert_table == leaf_tables->top_table()) {
     /*
       For INSERT ... SELECT command, restart numbering from zero for first
@@ -1140,7 +1141,7 @@ loop:
   if (!first_execution) {
     for (TABLE_LIST *tl = leaf_tables; tl; tl = tl->next_leaf) {
       if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
-          tl->table != NULL)
+          tl->table != nullptr)
         continue;
       if ((tl->is_table_function() ||
            (tl->is_derived() && tl->derived_unit()->m_lateral_deps)) ^
@@ -1426,7 +1427,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
     // Simplify the where condition if it's a const item
     if (m_where_cond->const_item() && !thd->lex->is_view_context_analysis() &&
         !m_where_cond->walk(&Item::is_non_const_over_literals,
-                            enum_walk::POSTFIX, NULL) &&
+                            enum_walk::POSTFIX, nullptr) &&
         simplify_const_condition(thd, &m_where_cond))
       return true;
 
@@ -1461,7 +1462,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
 
   for (TABLE_LIST *tr : *tables) {
     // Traverse join conditions recursively
-    if (tr->nested_join != NULL &&
+    if (tr->nested_join != nullptr &&
         setup_join_cond(thd, &tr->nested_join->join_list, in_update))
       return true;
 
@@ -1480,12 +1481,12 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
 
       if ((*ref)->const_item() && !thd->lex->is_view_context_analysis() &&
           !(*ref)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                        NULL) &&
+                        nullptr) &&
           simplify_const_condition(thd, ref, remove_cond))
         return true;
 
       resolve_place = SELECT_LEX::RESOLVE_NONE;
-      resolve_nest = NULL;
+      resolve_nest = nullptr;
     }
     if (in_update) {
       // Process CHECK OPTION
@@ -1510,7 +1511,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
 */
 
 void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
-  if (join_list == NULL) join_list = &top_join_list;
+  if (join_list == nullptr) join_list = &top_join_list;
   DBUG_TRACE;
   for (TABLE_LIST *table : *join_list) {
     NESTED_JOIN *nested_join;
@@ -1661,12 +1662,12 @@ bool SELECT_LEX::simplify_joins(THD *thd,
     PAREN_REMOVAL = 1 << 2,
     SEMIJOIN = 1 << 3
   };
-  uint changes = 0;       // To keep track of changes.
-  if (changelog == NULL)  // This is the top call.
+  uint changes = 0;          // To keep track of changes.
+  if (changelog == nullptr)  // This is the top call.
     changelog = &changes;
 
   NESTED_JOIN *nested_join;
-  TABLE_LIST *prev_table = 0;
+  TABLE_LIST *prev_table = nullptr;
   const bool straight_join = active_options() & SELECT_STRAIGHT_JOIN;
   DBUG_TRACE;
 
@@ -1799,7 +1800,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
           /* If join condition has a pending rollback in THD::change_list */
           thd->replace_rollback_place(cond);
         }
-        table->set_join_cond(NULL);
+        table->set_join_cond(nullptr);
       }
     }
 
@@ -1870,7 +1871,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
       // optimization and execution).
       if (*cond && (*cond)->const_item() &&
           !(*cond)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                         NULL)) {
+                         nullptr)) {
         bool cond_value = true;
         if (simplify_const_condition(thd, cond, false, &cond_value))
           return true;
@@ -1950,7 +1951,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
 */
 bool SELECT_LEX::record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables) {
   for (TABLE_LIST *table : *tables) {
-    if (table->nested_join == NULL) {
+    if (table->nested_join == nullptr) {
       if (table->join_cond()) outer_join |= table->map();
       continue;
     }
@@ -2163,7 +2164,7 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
     // Evaluate if the condition is on const expressions
     if (predicate->const_item() &&
         !(predicate)->walk(&Item::is_non_const_over_literals,
-                           enum_walk::POSTFIX, NULL)) {
+                           enum_walk::POSTFIX, nullptr)) {
       bool cond_value = true;
 
       /* Push ignore / strict error handler */
@@ -2528,7 +2529,7 @@ bool SELECT_LEX::decorrelate_join_conds(
 */
 bool SELECT_LEX::convert_subquery_to_semijoin(
     THD *thd, Item_exists_subselect *subq_pred) {
-  TABLE_LIST *emb_tbl_nest = NULL;
+  TABLE_LIST *emb_tbl_nest = nullptr;
   mem_root_deque<TABLE_LIST *> *emb_join_list = &top_join_list;
   DBUG_TRACE;
 
@@ -2554,7 +2555,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     Note that t2 may be a simple table or may itself be a join nest
     (e.g. in the case t1 LEFT JOIN (t2 JOIN t3))
   */
-  if (subq_pred->embedding_join_nest != NULL) {
+  if (subq_pred->embedding_join_nest != nullptr) {
     // Is this on inner side of an outer join?
     outer_join = subq_pred->embedding_join_nest->is_inner_table_of_outer_join();
 
@@ -2606,7 +2607,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       TABLE_LIST *const wrap_nest = TABLE_LIST::new_nested_join(
           thd->mem_root, "(sj-wrap)", outer_tbl->embedding,
           outer_tbl->join_list, this);
-      if (wrap_nest == NULL) return true;
+      if (wrap_nest == nullptr) return true;
 
       wrap_nest->nested_join->join_list.push_back(outer_tbl);
 
@@ -2640,7 +2641,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
       // There are item-rollback problems in this function: see bug#16926177
       wrap_nest->set_join_cond(outer_tbl->join_cond()->real_item());
-      outer_tbl->set_join_cond(NULL);
+      outer_tbl->set_join_cond(nullptr);
 
       for (auto li = wrap_nest->join_list->begin();
            li != wrap_nest->join_list->end(); ++li) {
@@ -2721,7 +2722,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     */
     TABLE_LIST *const wrap_nest = TABLE_LIST::new_nested_join(
         thd->mem_root, "(aj-left-nest)", emb_tbl_nest, emb_join_list, this);
-    if (wrap_nest == NULL) return true;
+    if (wrap_nest == nullptr) return true;
 
     // Go through tables of emb_join_list, insert them in wrap_nest
     for (TABLE_LIST *outer_tbl : *emb_join_list) {
@@ -2751,7 +2752,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   TABLE_LIST *const sj_nest = TABLE_LIST::new_nested_join(
       thd->mem_root, do_aj ? "(aj-nest)" : "(sj-nest)", emb_tbl_nest,
       emb_join_list, this);
-  if (sj_nest == NULL) return true; /* purecov: inspected */
+  if (sj_nest == nullptr) return true; /* purecov: inspected */
 
   NESTED_JOIN *const nested_join = sj_nest->nested_join;
 
@@ -2867,7 +2868,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     Item_subselect *left_subquery =
         (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
             ? static_cast<Item_subselect *>(in_subq_pred->left_expr)
-            : NULL;
+            : nullptr;
 
     if (left_subquery &&
         (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS)) {
@@ -2980,7 +2981,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   } else if (emb_tbl_nest) {
     // Inject semi-join condition into parent's join condition
     emb_tbl_nest->set_join_cond(and_items(emb_tbl_nest->join_cond(), sj_cond));
-    if (emb_tbl_nest->join_cond() == NULL) return true;
+    if (emb_tbl_nest->join_cond() == nullptr) return true;
     emb_tbl_nest->join_cond()->apply_is_true();
     if (!emb_tbl_nest->join_cond()->fixed &&
         emb_tbl_nest->join_cond()->fix_fields(thd,
@@ -2989,7 +2990,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   } else {
     // Inject semi-join condition into parent's WHERE condition
     m_where_cond = and_items(m_where_cond, sj_cond);
-    if (m_where_cond == NULL) return true;
+    if (m_where_cond == nullptr) return true;
     m_where_cond->apply_is_true();
     if (m_where_cond->fix_fields(thd, &m_where_cond)) return true;
   }
@@ -2997,7 +2998,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   Item *cond = emb_tbl_nest ? emb_tbl_nest->join_cond() : m_where_cond;
   if (cond && cond->const_item() &&
       !cond->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                  NULL)) {
+                  nullptr)) {
     bool cond_value = true;
     if (simplify_const_condition(thd, &cond, false, &cond_value)) return true;
     if (!cond_value) {
@@ -3155,7 +3156,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
       for (TABLE_LIST *leaf = derived_select->leaf_tables; leaf;
            leaf = leaf->next_leaf) {
         leaf->dep_tables <<= table_adjust;
-        if (leaf->next_leaf == NULL) {
+        if (leaf->next_leaf == nullptr) {
           leaf->next_leaf = (*tl)->next_leaf;
           break;
         }
@@ -3239,7 +3240,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
          lex->sql_command == SQLCOM_UPDATE ||
          lex->sql_command == SQLCOM_DELETE) &&
         !(master_unit()->is_union() || is_grouped() || is_distinct() ||
-          is_ordered() || get_table_list()->next_local != NULL)) {
+          is_ordered() || get_table_list()->next_local != nullptr)) {
       order_list.push_back(&derived_select->order_list);
       /*
         If at outer-most level (not within another derived table), ensure
@@ -3248,7 +3249,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
       */
       if (!thd->derived_tables_processing) {
         Mark_field mf(thd->mark_used_columns);
-        for (ORDER *o = derived_select->order_list.first; o != NULL;
+        for (ORDER *o = derived_select->order_list.first; o != nullptr;
              o = o->next)
           o->item[0]->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                            pointer_cast<uchar *>(&mf));
@@ -3412,7 +3413,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     SELECT_LEX *child_select = subq_item->unit->first_select();
 
     // Check that we proceeded bottom-up
-    DBUG_ASSERT(child_select->sj_candidates == NULL);
+    DBUG_ASSERT(child_select->sj_candidates == nullptr);
 
     bool dependent = subq_item->unit->uncacheable & UNCACHEABLE_DEPENDENT;
     subq_item->sj_convert_priority =
@@ -3472,7 +3473,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     bool cond_value = true;
     if (subq_where && subq_where->const_item() &&
         !subq_where->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                          NULL) &&
+                          nullptr) &&
         simplify_const_condition(thd, &subq_where, false, &cond_value))
       return true;
 
@@ -3505,7 +3506,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
             ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
             : down_cast<Item *>(new (thd->mem_root) Item_func_false());
     if (truth_item == nullptr) return true;
-    Item **tree = (subq_item->embedding_join_nest == NULL)
+    Item **tree = (subq_item->embedding_join_nest == nullptr)
                       ? &m_where_cond
                       : subq_item->embedding_join_nest->join_cond_ref();
     if (replace_subcondition(thd, tree, subq_item, truth_item, false))
@@ -3563,14 +3564,15 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     Item *substitute = subq_item->substitution;
     if (substitute == nullptr) continue;
     const bool do_fix_fields = !substitute->fixed;
-    const bool subquery_in_join_clause = subq_item->embedding_join_nest != NULL;
+    const bool subquery_in_join_clause =
+        subq_item->embedding_join_nest != nullptr;
 
     Item **tree = subquery_in_join_clause
                       ? (subq_item->embedding_join_nest->join_cond_ref())
                       : &m_where_cond;
     if (replace_subcondition(thd, tree, *subq, substitute, do_fix_fields))
       return true;
-    subq_item->substitution = NULL;
+    subq_item->substitution = nullptr;
   }
 
   sj_candidates->clear();
@@ -3601,7 +3603,7 @@ void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables,
   for (TABLE_LIST *tr : *tables) {
     if (tr->table && !tr->table->is_nullable() && (nullable || tr->outer_join))
       tr->table->set_nullable();
-    if (tr->nested_join == NULL) continue;
+    if (tr->nested_join == nullptr) continue;
     propagate_nullability(&tr->nested_join->join_list,
                           nullable || tr->outer_join);
   }
@@ -3665,13 +3667,13 @@ void SELECT_LEX::repoint_contexts_of_join_nests(
   @param inner  Subquery for which context objects are to be merged.
 */
 void SELECT_LEX::merge_contexts(SELECT_LEX *inner) {
-  for (Name_resolution_context *ctx = inner->first_context; ctx != NULL;
+  for (Name_resolution_context *ctx = inner->first_context; ctx != nullptr;
        ctx = ctx->next_context) {
     ctx->select_lex = this;
-    if (ctx->next_context == NULL) {
+    if (ctx->next_context == nullptr) {
       ctx->next_context = first_context;
       first_context = inner->first_context;
-      inner->first_context = NULL;
+      inner->first_context = nullptr;
       break;
     }
   }
@@ -3739,7 +3741,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(
       !agg_func_used() && !having_cond() && olap == UNSPECIFIED_OLAP_TYPE &&
       m_windows.elements == 0) {
     changelog |= REMOVE_GROUP;
-    for (ORDER *g = group_list.first; g != NULL; g = g->next) {
+    for (ORDER *g = group_list.first; g != nullptr; g = g->next) {
       if (*g->item == g->item_ptr) {
         Item::Cleanup_after_removal_context ctx(this);
         (*g->item)->walk(&Item::clean_up_after_removal,
@@ -3789,7 +3791,7 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
     order_list.empty();
     return;
   }
-  for (ORDER *o = order_list.first; o != NULL; o = o->next) {
+  for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
     if (*o->item == o->item_ptr) {
       Item::Cleanup_after_removal_context ctx(sl);
       (*o->item)->walk(&Item::clean_up_after_removal,
@@ -3878,7 +3880,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
   /* Check whether the resolved field is not ambiguos. */
   if (select_item != not_found_item) {
-    Item *view_ref = NULL;
+    Item *view_ref = nullptr;
     /*
       If we have found field not by its alias in select list but by its
       original field name, we should additionally check if we have conflict
@@ -3898,7 +3900,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
          order_item_type == Item::FIELD_ITEM) ||
         order_item_type == Item::REF_ITEM) {
       from_field =
-          find_field_in_tables(thd, (Item_ident *)order_item, tables, NULL,
+          find_field_in_tables(thd, (Item_ident *)order_item, tables, nullptr,
                                &view_ref, IGNORE_ERRORS, true, false);
       if (thd->is_error()) return true;
 
@@ -3937,7 +3939,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       if ((*order->item)->real_item() != *select_item)
         (*order->item)
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                   NULL);
+                   nullptr);
       order->item = &ref_item_array[counter];
       order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
@@ -4233,7 +4235,7 @@ static bool find_and_change_grouped_expr(
                             item->type() == Item::REF_ITEM) &&
                            down_cast<Item_ident *>(item)->is_alias_of_expr();
       Item_ref *new_item;
-      if (!(new_item = new Item_ref(&select->context, group->item, 0,
+      if (!(new_item = new Item_ref(&select->context, group->item, nullptr,
                                     item->item_name.ptr(), alias_of_expr)))
         return true; /* purecov: inspected */
 
@@ -4530,7 +4532,7 @@ bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
 */
 bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
                             TABLE *table) {
-  Field **fld = NULL;
+  Field **fld = nullptr;
   MY_BITMAP *bitmap = table->write_set;
   bool use_table_field = false;
   DBUG_TRACE;
@@ -4597,7 +4599,7 @@ void SELECT_LEX::delete_unused_merged_columns(
   DBUG_TRACE;
 
   for (TABLE_LIST *tl : *tables) {
-    if (tl->nested_join == NULL) continue;
+    if (tl->nested_join == nullptr) continue;
     if (tl->is_merged()) {
       for (Field_translator *transl = tl->field_translation;
            transl < tl->field_translation_end; transl++) {
@@ -4616,15 +4618,16 @@ void SELECT_LEX::delete_unused_merged_columns(
           is "used", but that has no practical meaning.)
         */
         if (!item->is_derived_used() &&
-            item->walk(&Item::propagate_derived_used, enum_walk::POSTFIX, NULL))
+            item->walk(&Item::propagate_derived_used, enum_walk::POSTFIX,
+                       nullptr))
           item->walk(&Item::propagate_set_derived_used,
-                     enum_walk::SUBQUERY_POSTFIX, NULL);
+                     enum_walk::SUBQUERY_POSTFIX, nullptr);
 
         if (!item->is_derived_used()) {
           Item::Cleanup_after_removal_context ctx(this);
           item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                      pointer_cast<uchar *>(&ctx));
-          transl->item = NULL;
+          transl->item = nullptr;
         }
       }
     }

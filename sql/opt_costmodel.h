@@ -2,7 +2,7 @@
 #define OPT_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,8 @@ class Cost_model_server {
   */
   enum enum_tmptable_type { MEMORY_TMPTABLE, DISK_TMPTABLE };
 
-  Cost_model_server() : m_cost_constants(NULL), m_server_cost_constants(NULL) {
+  Cost_model_server()
+      : m_cost_constants(nullptr), m_server_cost_constants(nullptr) {
 #if !defined(DBUG_OFF)
     m_initialized = false;
 #endif
@@ -228,7 +229,9 @@ class Cost_model_server {
 class Cost_model_table {
  public:
   Cost_model_table()
-      : m_cost_model_server(NULL), m_se_cost_constants(NULL), m_table(NULL) {
+      : m_cost_model_server(nullptr),
+        m_se_cost_constants(nullptr),
+        m_table(nullptr) {
 #if !defined(DBUG_OFF)
     m_initialized = false;
 #endif

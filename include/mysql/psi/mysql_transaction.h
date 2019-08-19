@@ -137,7 +137,7 @@ static inline struct PSI_transaction_locker *inline_mysql_start_transaction(
   PSI_transaction_locker *locker;
   locker = PSI_TRANSACTION_CALL(get_thread_transaction_locker)(
       state, xid, trxid, isolation_level, read_only, autocommit);
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(start_transaction)(locker, src_file, src_line);
   }
   return locker;
@@ -145,63 +145,63 @@ static inline struct PSI_transaction_locker *inline_mysql_start_transaction(
 
 static inline void inline_mysql_set_transaction_gtid(
     PSI_transaction_locker *locker, const void *sid, const void *gtid_spec) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(set_transaction_gtid)(locker, sid, gtid_spec);
   }
 }
 
 static inline void inline_mysql_set_transaction_xid(
     PSI_transaction_locker *locker, const void *xid, int xa_state) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(set_transaction_xid)(locker, xid, xa_state);
   }
 }
 
 static inline void inline_mysql_set_transaction_xa_state(
     PSI_transaction_locker *locker, int xa_state) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(set_transaction_xa_state)(locker, xa_state);
   }
 }
 
 static inline void inline_mysql_set_transaction_trxid(
     PSI_transaction_locker *locker, const ulonglong *trxid) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(set_transaction_trxid)(locker, trxid);
   }
 }
 
 static inline void inline_mysql_inc_transaction_savepoints(
     PSI_transaction_locker *locker, ulong count) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(inc_transaction_savepoints)(locker, count);
   }
 }
 
 static inline void inline_mysql_inc_transaction_rollback_to_savepoint(
     PSI_transaction_locker *locker, ulong count) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(inc_transaction_rollback_to_savepoint)(locker, count);
   }
 }
 
 static inline void inline_mysql_inc_transaction_release_savepoint(
     PSI_transaction_locker *locker, ulong count) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(inc_transaction_release_savepoint)(locker, count);
   }
 }
 
 static inline void inline_mysql_rollback_transaction(
     struct PSI_transaction_locker *locker) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(end_transaction)(locker, false);
   }
 }
 
 static inline void inline_mysql_commit_transaction(
     struct PSI_transaction_locker *locker) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_TRANSACTION_CALL(end_transaction)(locker, true);
   }
 }

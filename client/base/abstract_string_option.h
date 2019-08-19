@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ Abstract_string_option<T_type>::Abstract_string_option(
                                     description, (uint64)NULL),
       m_destination_value(value) {
   *value = Nullable<std::string>();
-  this->m_original_value = NULL;
+  this->m_original_value = nullptr;
 
   this->add_callback(new std::function<void(char *)>(
       std::bind(&Abstract_string_option<T_type>::string_callback, this,
@@ -95,7 +95,7 @@ T_type *Abstract_string_option<T_type>::set_value(std::string value) {
 
 template <typename T_type>
 void Abstract_string_option<T_type>::string_callback(char *argument) {
-  if (argument != NULL) {
+  if (argument != nullptr) {
     // Copy argument value from char* to destination string.
     *this->m_destination_value = Nullable<std::string>(this->m_original_value);
   } else {

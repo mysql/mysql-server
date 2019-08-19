@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,7 +71,7 @@ static fts_ast_node_t *fts_query_get_oper_node(
     MYSQL_FTPARSER_BOOLEAN_INFO *info, /*!< in: token info */
     fts_ast_state_t *state)            /*!< in/out: query parse state*/
 {
-  fts_ast_node_t *oper_node = NULL;
+  fts_ast_node_t *oper_node = nullptr;
 
   if (info->yesno > 0) {
     oper_node = fts_ast_create_node_oper(state, FTS_EXIST);
@@ -102,9 +102,9 @@ static int fts_query_add_word_for_parser(
 {
   fts_ast_state_t *state = static_cast<fts_ast_state_t *>(param->mysql_ftparam);
   fts_ast_node_t *cur_node = state->cur_node;
-  fts_ast_node_t *oper_node = NULL;
-  fts_ast_node_t *term_node = NULL;
-  fts_ast_node_t *node = NULL;
+  fts_ast_node_t *oper_node = nullptr;
+  fts_ast_node_t *term_node = nullptr;
+  fts_ast_node_t *node = nullptr;
 
   switch (info->type) {
     case FT_TOKEN_STOPWORD:
@@ -149,7 +149,7 @@ static int fts_query_add_word_for_parser(
 
       /* Set operator */
       oper_node = fts_query_get_oper_node(info, state);
-      if (oper_node != NULL) {
+      if (oper_node != nullptr) {
         node = fts_ast_create_node_list(state, oper_node);
         fts_ast_add_node(cur_node, node);
         node->go_up = true;
@@ -162,7 +162,7 @@ static int fts_query_add_word_for_parser(
         node = fts_ast_create_node_phrase_list(state);
       } else {
         /* Subexp list node */
-        node = fts_ast_create_node_subexp_list(state, NULL);
+        node = fts_ast_create_node_subexp_list(state, nullptr);
       }
 
       fts_ast_add_node(cur_node, node);
@@ -174,9 +174,9 @@ static int fts_query_add_word_for_parser(
       break;
 
     case FT_TOKEN_RIGHT_PAREN:
-      info->quot = 0;
+      info->quot = nullptr;
 
-      if (cur_node->up_node != NULL) {
+      if (cur_node->up_node != nullptr) {
         cur_node = cur_node->up_node;
 
         if (cur_node->go_up) {
@@ -216,10 +216,10 @@ static int fts_parse_query_internal(
   const CHARSET_INFO *cs = param->cs;
   uchar **start = reinterpret_cast<uchar **>(&query);
   uchar *end = reinterpret_cast<uchar *>(query + len);
-  FT_WORD w = {NULL, 0, 0};
+  FT_WORD w = {nullptr, 0, 0};
 
   info.prev = ' ';
-  info.quot = 0;
+  info.quot = nullptr;
   memset(&w, 0, sizeof(w));
   /* Note: We don't handle simple parser mode here,
   but user supplied plugin parser should handler it. */

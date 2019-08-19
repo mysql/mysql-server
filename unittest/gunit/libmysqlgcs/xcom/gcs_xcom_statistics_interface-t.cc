@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ TEST_F(XcomStatisticsTest, UpdateMessageReceivedTest) {
 
   EXPECT_EQ(message_length, xcom_stats_if->get_total_bytes_received());
   EXPECT_EQ(1, xcom_stats_if->get_total_messages_received());
-  EXPECT_GE(time(0), xcom_stats_if->get_last_message_timestamp());
+  EXPECT_GE(time(nullptr), xcom_stats_if->get_last_message_timestamp());
   EXPECT_EQ(message_length, xcom_stats_if->get_max_message_length());
   EXPECT_EQ(message_length, xcom_stats_if->get_min_message_length());
 }
@@ -81,7 +81,7 @@ TEST_F(XcomStatisticsTest, UpdateMessagesReceivedTest) {
             xcom_stats_if->get_total_bytes_received());
 
   EXPECT_EQ(2, xcom_stats_if->get_total_messages_received());
-  EXPECT_GE(time(0), xcom_stats_if->get_last_message_timestamp());
+  EXPECT_GE(time(nullptr), xcom_stats_if->get_last_message_timestamp());
   EXPECT_EQ(message_length_big, xcom_stats_if->get_max_message_length());
   EXPECT_EQ(message_length_small, xcom_stats_if->get_min_message_length());
 }

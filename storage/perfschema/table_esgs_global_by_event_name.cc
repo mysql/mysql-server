@@ -65,7 +65,7 @@ Plugin_table table_esgs_global_by_event_name::m_table_def(
 PFS_engine_table_share table_esgs_global_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_esgs_global_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esgs_global_by_event_name::delete_all_rows,
     table_esgs_global_by_event_name::get_row_count,
     sizeof(PFS_simple_index),
@@ -119,7 +119,7 @@ int table_esgs_global_by_event_name::rnd_init(bool) { return 0; }
 int table_esgs_global_by_event_name::rnd_next(void) {
   PFS_stage_class *stage_class;
 
-  if (global_instr_class_stages_array == NULL) {
+  if (global_instr_class_stages_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -139,7 +139,7 @@ int table_esgs_global_by_event_name::rnd_pos(const void *pos) {
 
   set_position(pos);
 
-  if (global_instr_class_stages_array == NULL) {
+  if (global_instr_class_stages_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -153,7 +153,7 @@ int table_esgs_global_by_event_name::rnd_pos(const void *pos) {
 
 int table_esgs_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool) {
-  PFS_index_esgs_global_by_event_name *result = NULL;
+  PFS_index_esgs_global_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esgs_global_by_event_name);
   m_opened_index = result;
@@ -164,7 +164,7 @@ int table_esgs_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
 int table_esgs_global_by_event_name::index_next(void) {
   PFS_stage_class *stage_class;
 
-  if (global_instr_class_stages_array == NULL) {
+  if (global_instr_class_stages_array == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -181,7 +181,7 @@ int table_esgs_global_by_event_name::index_next(void) {
       }
       m_pos.m_index++;
     }
-  } while (stage_class != NULL);
+  } while (stage_class != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

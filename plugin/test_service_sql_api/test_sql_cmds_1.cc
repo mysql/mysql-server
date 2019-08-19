@@ -145,7 +145,7 @@ struct st_send_field_n {
   enum_field_types type;
 };
 
-const CHARSET_INFO *sql_resultcs = NULL;
+const CHARSET_INFO *sql_resultcs = nullptr;
 uint sql_num_meta_rows = 0;
 uint sql_num_rows = 0;
 uint col_count = 0;
@@ -334,7 +334,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
 
   /* Session declarations */
   MYSQL_SESSION st_session;
-  void *plugin_ctx = NULL;
+  void *plugin_ctx = nullptr;
   bool session_ret = false;
   bool fail = false;
   COM_DATA cmd;
@@ -524,7 +524,7 @@ struct Test_data {
   Test_data() {
     ready = 0;
     native_cond_init(&cond);
-    native_mutex_init(&mutex, NULL);
+    native_mutex_init(&mutex, nullptr);
   }
 
   ~Test_data() {
@@ -581,7 +581,7 @@ static void *test_session_thread(Test_data *tdata) {
 
   srv_session_deinit_thread();
 
-  return NULL;
+  return nullptr;
 }
 
 static void session_error_cb(void *, unsigned int sql_errno,
@@ -802,11 +802,11 @@ mysql_declare_plugin(test_daemon){
     "Test sql service commands",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

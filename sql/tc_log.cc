@@ -149,7 +149,7 @@ int TC_LOG_MMAP::open(const char *opt_name) {
       goto err;
   }
 
-  data = (uchar *)my_mmap(0, (size_t)file_length, PROT_READ | PROT_WRITE,
+  data = (uchar *)my_mmap(nullptr, (size_t)file_length, PROT_READ | PROT_WRITE,
                           MAP_NOSYNC | MAP_SHARED, fd, 0);
   if (data == MAP_FAILED) {
     set_my_errno(errno);
@@ -177,7 +177,7 @@ int TC_LOG_MMAP::open(const char *opt_name) {
   pages[0].size = pages[0].free =
       (tc_log_page_size - TC_LOG_HEADER_SIZE) / sizeof(my_xid);
   pages[0].start = pages[0].end - pages[0].size;
-  pages[npages - 1].next = 0;
+  pages[npages - 1].next = nullptr;
   inited = 4;
 
   if (crashed && recover()) goto err;
@@ -193,7 +193,7 @@ int TC_LOG_MMAP::open(const char *opt_name) {
 
   inited = 6;
 
-  syncing = 0;
+  syncing = nullptr;
   active = pages;
   pool = pages + 1;
   pool_last_ptr = &pages[npages - 1].next;
@@ -462,7 +462,7 @@ void TC_LOG_MMAP::close() {
       // Fall through.
     case 4:
       for (i = 0; i < npages; i++) {
-        if (pages[i].ptr == 0) break;
+        if (pages[i].ptr == nullptr) break;
         mysql_cond_destroy(&pages[i].cond);
       }
       // Fall through.
@@ -528,7 +528,7 @@ bool TC_LOG::using_heuristic_recover() {
   if (tc_heuristic_recover == TC_HEURISTIC_NOT_USED) return false;
 
   LogErr(INFORMATION_LEVEL, ER_TC_HEURISTIC_RECOVERY_MODE);
-  if (ha_recover(0)) LogErr(ERROR_LEVEL, ER_TC_HEURISTIC_RECOVERY_FAILED);
+  if (ha_recover(nullptr)) LogErr(ERROR_LEVEL, ER_TC_HEURISTIC_RECOVERY_FAILED);
   LogErr(INFORMATION_LEVEL, ER_TC_RESTART_WITHOUT_TC_HEURISTIC_RECOVER);
   return true;
 }

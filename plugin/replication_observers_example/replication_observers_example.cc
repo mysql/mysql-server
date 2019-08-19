@@ -582,7 +582,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
   // check the server is initialized by checking if the default channel exists
   bool server_engine_ready = channel_is_active("", CHANNEL_NO_THD);
 
-  uchar *encoded_gtid_executed = NULL;
+  uchar *encoded_gtid_executed = nullptr;
   size_t length;
   get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
 
@@ -591,11 +591,11 @@ int validate_plugin_server_requirements(Trans_param *param) {
       encoded_gtid_set_to_string(encoded_gtid_executed, length);
 #endif
 
-  if (thread_attr != NULL && hostname != NULL && uuid != NULL && port > 0 &&
-      startup_pre_reqs.gtid_mode == 3 && server_engine_ready &&
-      encoded_gtid_executed != NULL
+  if (thread_attr != nullptr && hostname != nullptr && uuid != nullptr &&
+      port > 0 && startup_pre_reqs.gtid_mode == 3 && server_engine_ready &&
+      encoded_gtid_executed != nullptr
 #if !defined(DBUG_OFF)
-      && encoded_gtid_executed_string != NULL
+      && encoded_gtid_executed_string != nullptr
 #endif
   )
     success++;
@@ -683,7 +683,7 @@ int test_channel_service_interface() {
   DBUG_ASSERT(gno == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
 
   // Extract the applier id
-  long unsigned int *applier_id = NULL;
+  long unsigned int *applier_id = nullptr;
   channel_get_thread_id(interface_channel, CHANNEL_APPLIER_THREAD, &applier_id);
   DBUG_ASSERT(*applier_id > 0);
   my_free(applier_id);
@@ -733,7 +733,7 @@ int test_channel_service_interface() {
   DBUG_ASSERT(!error);
 
   // Extract the applier ids
-  applier_id = NULL;
+  applier_id = nullptr;
   int num_appliers = channel_get_thread_id(interface_channel,
                                            CHANNEL_APPLIER_THREAD, &applier_id);
   DBUG_ASSERT(num_appliers == 4);
@@ -758,7 +758,7 @@ int test_channel_service_interface() {
   DBUG_ASSERT(!exists);
 
   // Test the method to extract credentials - first a non existing channel
-  const char *user_arg = NULL;
+  const char *user_arg = nullptr;
   char user_pass[MAX_PASSWORD_LENGTH + 1];
   char *user_pass_pointer = user_pass;
   size_t password_size = sizeof(user_pass);
@@ -801,7 +801,7 @@ int test_channel_service_interface_io_thread() {
   DBUG_ASSERT(running);
 
   // Extract the receiver id
-  long unsigned int *thread_id = NULL;
+  long unsigned int *thread_id = nullptr;
   int num_threads = channel_get_thread_id(interface_channel,
                                           CHANNEL_RECEIVER_THREAD, &thread_id);
   DBUG_ASSERT(num_threads == 1);
@@ -1153,11 +1153,11 @@ mysql_declare_plugin(replication_observers_example){
     "Replication observer infrastructure example.",
     PLUGIN_LICENSE_GPL,
     replication_observers_example_plugin_init,   /* Plugin Init */
-    NULL,                                        /* Plugin Check uninstall */
+    nullptr,                                     /* Plugin Check uninstall */
     replication_observers_example_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

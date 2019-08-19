@@ -91,7 +91,7 @@ bool Index_element_impl::restore_attributes(const Raw_record &r) {
 
   m_hidden = r.read_bool(Index_column_usage::FIELD_HIDDEN);
 
-  return (m_column == NULL);
+  return (m_column == nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////

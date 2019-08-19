@@ -72,8 +72,8 @@ Plugin_table table_session_status::m_table_def(
 PFS_engine_table_share table_session_status::m_share = {
     &pfs_readonly_world_acl,
     table_session_status::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_session_status::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -100,7 +100,7 @@ table_session_status::table_session_status()
       m_status_cache(false),
       m_pos(0),
       m_next_pos(0),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_session_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -129,7 +129,7 @@ int table_session_status::rnd_next(void) {
        m_pos.next()) {
     if (m_status_cache.is_materialized()) {
       const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
-      if (status_var != NULL) {
+      if (status_var != nullptr) {
         /* If make_row() fails just get the next variable. */
         if (!make_row(status_var)) {
           m_next_pos.set_after(&m_pos);
@@ -152,7 +152,7 @@ int table_session_status::rnd_pos(const void *pos) {
 
   if (m_status_cache.is_materialized()) {
     const Status_variable *stat_var = m_status_cache.get(m_pos.m_index);
-    if (stat_var != NULL) {
+    if (stat_var != nullptr) {
       return make_row(stat_var);
     }
   }
@@ -170,7 +170,7 @@ int table_session_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
       sizeof(table_session_status_context));
   new (m_context) table_session_status_context(status_version, false);
 
-  PFS_index_session_status *result = NULL;
+  PFS_index_session_status *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_session_status);
   m_opened_index = result;
@@ -188,7 +188,7 @@ int table_session_status::index_next(void) {
        m_pos.next()) {
     if (m_status_cache.is_materialized()) {
       const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
-      if (status_var != NULL) {
+      if (status_var != nullptr) {
         if (m_opened_index->match(status_var)) {
           if (!make_row(status_var)) {
             m_next_pos.set_after(&m_pos);

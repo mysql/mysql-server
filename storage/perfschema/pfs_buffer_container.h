@@ -94,7 +94,7 @@ class PFS_buffer_default_array {
     value_type *pfs;
 
     if (m_full) {
-      return NULL;
+      return nullptr;
     }
 
     monotonic = m_monotonic.m_size_t++;
@@ -122,7 +122,7 @@ class PFS_buffer_default_array {
     }
 
     m_full = true;
-    return NULL;
+    return nullptr;
   }
 
   void deallocate(value_type *pfs) {
@@ -151,14 +151,14 @@ class PFS_buffer_default_allocator {
       : m_builtin_class(klass) {}
 
   int alloc_array(array_type *array) {
-    array->m_ptr = NULL;
+    array->m_ptr = nullptr;
     array->m_full = true;
     array->m_monotonic.m_size_t.store(0);
 
     if (array->m_max > 0) {
       array->m_ptr = PFS_MALLOC_ARRAY(m_builtin_class, array->m_max, sizeof(T),
                                       T, MYF(MY_ZEROFILL));
-      if (array->m_ptr == NULL) {
+      if (array->m_ptr == nullptr) {
         return 1;
       }
       array->m_full = false;
@@ -170,7 +170,7 @@ class PFS_buffer_default_allocator {
     DBUG_ASSERT(array->m_max > 0);
 
     PFS_FREE_ARRAY(m_builtin_class, array->m_max, sizeof(T), array->m_ptr);
-    array->m_ptr = NULL;
+    array->m_ptr = nullptr;
   }
 
  private:
@@ -403,7 +403,7 @@ class PFS_buffer_scalable_container {
     m_max_page_index.m_size_t.store(0);
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
-      m_pages[i] = NULL;
+      m_pages[i] = nullptr;
     }
 
     if (max_size == 0) {
@@ -432,7 +432,7 @@ class PFS_buffer_scalable_container {
     DBUG_ASSERT(0 < m_last_page_size);
     DBUG_ASSERT(m_last_page_size <= PFS_PAGE_SIZE);
 
-    native_mutex_init(&m_critical_section, NULL);
+    native_mutex_init(&m_critical_section, nullptr);
     return 0;
   }
 
@@ -448,10 +448,10 @@ class PFS_buffer_scalable_container {
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
-      if (page != NULL) {
+      if (page != nullptr) {
         m_allocator->free_array(page);
         delete page;
-        m_pages[i] = NULL;
+        m_pages[i] = nullptr;
       }
     }
     native_mutex_unlock(&m_critical_section);
@@ -474,7 +474,7 @@ class PFS_buffer_scalable_container {
   value_type *allocate(pfs_dirty_state *dirty_state) {
     if (m_full) {
       m_lost++;
-      return NULL;
+      return nullptr;
     }
 
     size_t index;
@@ -514,9 +514,9 @@ class PFS_buffer_scalable_container {
         /* Atomic Load, array= m_pages[index] */
         array = m_pages[index].load();
 
-        if (array != NULL) {
+        if (array != nullptr) {
           pfs = array->allocate(dirty_state);
-          if (pfs != NULL) {
+          if (pfs != nullptr) {
             /* Keep a pointer to the parent page, for deallocate(). */
             pfs->m_page = reinterpret_cast<PFS_opaque_container_page *>(array);
             return pfs;
@@ -552,7 +552,7 @@ class PFS_buffer_scalable_container {
       /* (2-a) Atomic Load, array= m_pages[current_page_count] */
       array = m_pages[current_page_count].load();
 
-      if (array == NULL) {
+      if (array == nullptr) {
         // ==================================================================
         // BEGIN CRITICAL SECTION -- buffer expand
         // ==================================================================
@@ -588,7 +588,7 @@ class PFS_buffer_scalable_container {
 
         array = m_pages[current_page_count].load();
 
-        if (array == NULL) {
+        if (array == nullptr) {
           /* (2-c) Found no page, allocate a new one */
           array = new array_type();
           builtin_memory_scalable_buffer.count_alloc(sizeof(array_type));
@@ -601,7 +601,7 @@ class PFS_buffer_scalable_container {
             builtin_memory_scalable_buffer.count_free(sizeof(array_type));
             m_lost++;
             native_mutex_unlock(&m_critical_section);
-            return NULL;
+            return nullptr;
           }
 
           /* Keep a pointer to this container, for static_deallocate(). */
@@ -621,9 +621,9 @@ class PFS_buffer_scalable_container {
         // ==================================================================
       }
 
-      DBUG_ASSERT(array != NULL);
+      DBUG_ASSERT(array != nullptr);
       pfs = array->allocate(dirty_state);
-      if (pfs != NULL) {
+      if (pfs != nullptr) {
         /* Keep a pointer to the parent page, for deallocate(). */
         pfs->m_page = reinterpret_cast<PFS_opaque_container_page *>(array);
         return pfs;
@@ -634,7 +634,7 @@ class PFS_buffer_scalable_container {
 
     m_lost++;
     m_full = true;
-    return NULL;
+    return nullptr;
   }
 
   void deallocate(value_type *safe_pfs) {
@@ -691,7 +691,7 @@ class PFS_buffer_scalable_container {
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
-      if (page != NULL) {
+      if (page != nullptr) {
         pfs = page->get_first();
         pfs_last = page->get_last();
 
@@ -713,7 +713,7 @@ class PFS_buffer_scalable_container {
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
-      if (page != NULL) {
+      if (page != nullptr) {
         pfs = page->get_first();
         pfs_last = page->get_last();
 
@@ -733,7 +733,7 @@ class PFS_buffer_scalable_container {
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
-      if (page != NULL) {
+      if (page != nullptr) {
         pfs = page->get_first();
         pfs_last = page->get_last();
 
@@ -772,11 +772,11 @@ class PFS_buffer_scalable_container {
 
     uint index_1 = index / PFS_PAGE_SIZE;
     array_type *page = m_pages[index_1];
-    if (page != NULL) {
+    if (page != nullptr) {
       uint index_2 = index % PFS_PAGE_SIZE;
 
       if (index_2 >= page->m_max) {
-        return NULL;
+        return nullptr;
       }
 
       value_type *pfs = page->m_ptr + index_2;
@@ -786,28 +786,28 @@ class PFS_buffer_scalable_container {
       }
     }
 
-    return NULL;
+    return nullptr;
   }
 
   value_type *get(uint index, bool *has_more) {
     if (index >= m_max) {
       *has_more = false;
-      return NULL;
+      return nullptr;
     }
 
     uint index_1 = index / PFS_PAGE_SIZE;
     array_type *page = m_pages[index_1];
 
-    if (page == NULL) {
+    if (page == nullptr) {
       *has_more = false;
-      return NULL;
+      return nullptr;
     }
 
     uint index_2 = index % PFS_PAGE_SIZE;
 
     if (index_2 >= page->m_max) {
       *has_more = false;
-      return NULL;
+      return nullptr;
     }
 
     *has_more = true;
@@ -817,7 +817,7 @@ class PFS_buffer_scalable_container {
       return pfs;
     }
 
-    return NULL;
+    return nullptr;
   }
 
   value_type *sanitize(value_type *unsafe) {
@@ -829,7 +829,7 @@ class PFS_buffer_scalable_container {
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
-      if (page != NULL) {
+      if (page != nullptr) {
         pfs = page->get_first();
         pfs_last = page->get_last();
 
@@ -842,7 +842,7 @@ class PFS_buffer_scalable_container {
       }
     }
 
-    return NULL;
+    return nullptr;
   }
 
   ulong m_lost;
@@ -869,9 +869,9 @@ class PFS_buffer_scalable_container {
     while (index_1 < PFS_PAGE_COUNT) {
       page = m_pages[index_1];
 
-      if (page == NULL) {
+      if (page == nullptr) {
         index = static_cast<uint>(m_max);
-        return NULL;
+        return nullptr;
       }
 
       pfs_first = page->get_first();
@@ -894,7 +894,7 @@ class PFS_buffer_scalable_container {
     }
 
     index = static_cast<uint>(m_max);
-    return NULL;
+    return nullptr;
   }
 
   bool m_initialized;
@@ -1096,7 +1096,7 @@ class PFS_partitioned_buffer_scalable_container {
     unpack_index(user_index, &partition_index, &sub_index);
 
     if (partition_index >= PFS_PARTITION_COUNT) {
-      return NULL;
+      return nullptr;
     }
 
     return m_partitions[partition_index]->get(sub_index);
@@ -1117,11 +1117,11 @@ class PFS_partitioned_buffer_scalable_container {
   }
 
   value_type *sanitize(value_type *unsafe) {
-    value_type *safe = NULL;
+    value_type *safe = nullptr;
 
     for (int i = 0; i < PFS_PARTITION_COUNT; i++) {
       safe = m_partitions[i]->sanitize(unsafe);
-      if (safe != NULL) {
+      if (safe != nullptr) {
         return safe;
       }
     }
@@ -1147,14 +1147,14 @@ class PFS_partitioned_buffer_scalable_container {
 
   value_type *scan_next(uint &partition_index, uint &sub_index,
                         uint *found_partition, uint *found_sub_index) {
-    value_type *record = NULL;
+    value_type *record = nullptr;
     DBUG_ASSERT(partition_index < PFS_PARTITION_COUNT);
 
     while (partition_index < PFS_PARTITION_COUNT) {
       sub_iterator_type sub_iterator =
           m_partitions[partition_index]->iterate(sub_index);
       record = sub_iterator.scan_next(found_sub_index);
-      if (record != NULL) {
+      if (record != nullptr) {
         *found_partition = partition_index;
         sub_index = *found_sub_index + 1;
         return record;
@@ -1167,7 +1167,7 @@ class PFS_partitioned_buffer_scalable_container {
     *found_partition = PFS_PARTITION_COUNT;
     *found_sub_index = 0;
     sub_index = 0;
-    return NULL;
+    return nullptr;
   }
 
   B *m_partitions[PFS_PARTITION_COUNT];

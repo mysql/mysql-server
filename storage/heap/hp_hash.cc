@@ -112,7 +112,7 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
   DBUG_TRACE;
   old_nextflag = nextflag;
   flag = 1;
-  prev_ptr = 0;
+  prev_ptr = nullptr;
 
   if (share->records) {
     pos = hp_find_hash(
@@ -132,7 +132,8 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
             if (pos->ptr_to_rec == info->current_ptr) {
               set_my_errno(HA_ERR_KEY_NOT_FOUND); /* If gpos == 0 */
               info->current_hash_ptr = prev_ptr;
-              return info->current_ptr = prev_ptr ? prev_ptr->ptr_to_rec : 0;
+              return info->current_ptr =
+                         prev_ptr ? prev_ptr->ptr_to_rec : nullptr;
             }
             prev_ptr = pos; /* Prev. record found */
             break;
@@ -156,14 +157,14 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
   if (nextflag == 2 && !info->current_ptr) {
     /* Do a previous from end */
     info->current_hash_ptr = prev_ptr;
-    return info->current_ptr = prev_ptr ? prev_ptr->ptr_to_rec : 0;
+    return info->current_ptr = prev_ptr ? prev_ptr->ptr_to_rec : nullptr;
   }
 
   if (old_nextflag && nextflag)
     set_my_errno(HA_ERR_RECORD_CHANGED); /* Didn't find old record */
   DBUG_PRINT("exit", ("Error: %d", my_errno()));
-  info->current_hash_ptr = 0;
-  return (info->current_ptr = 0);
+  info->current_hash_ptr = nullptr;
+  return (info->current_ptr = nullptr);
 }
 
 /*
@@ -183,8 +184,8 @@ uchar *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
   }
   set_my_errno(HA_ERR_KEY_NOT_FOUND);
   DBUG_PRINT("exit", ("Error: %d", my_errno()));
-  info->current_hash_ptr = 0;
-  return (info->current_ptr = 0);
+  info->current_hash_ptr = nullptr;
+  return (info->current_ptr = nullptr);
 }
 
 /*

@@ -39,11 +39,11 @@ class Mock_create_field : public Create_field {
     */
     DBUG_ASSERT(field_type == MYSQL_TYPE_TIMESTAMP ||
                 field_type == MYSQL_TYPE_TIMESTAMP2);
-    init(NULL,  // THD *thd
-         NULL,  // char *fld_name
+    init(nullptr,  // THD *thd
+         nullptr,  // char *fld_name
          field_type,
-         NULL,            // char *fld_length
-         NULL,            // char *fld_decimals,
+         nullptr,         // char *fld_length
+         nullptr,         // char *fld_decimals,
          0,               // uint fld_type_modifier
          insert_default,  // Item *fld_default_value,
          update_default,  // Item *fld_on_update_value,
@@ -53,9 +53,9 @@ class Mock_create_field : public Create_field {
             course. </sarcasm>
          */
          &m_lex_string,  // LEX_CSTRING *fld_comment,
-         NULL,           // char *fld_change,
-         NULL,           // List<String> *fld_interval_list,
-         NULL,           // const CHARSET_INFO *fld_charset,
+         nullptr,        // char *fld_change,
+         nullptr,        // List<String> *fld_interval_list,
+         nullptr,        // const CHARSET_INFO *fld_charset,
          false,          // bool has_explicit_collation,
          0,              // uint fld_geom_type
          nullptr,        // gcol info

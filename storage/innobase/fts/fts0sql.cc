@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,7 +64,7 @@ int fts_get_table_id(
 {
   int len;
 
-  ut_a(fts_table->table != NULL);
+  ut_a(fts_table->table != nullptr);
 
   switch (fts_table->type) {
     case FTS_COMMON_TABLE:
@@ -315,5 +315,5 @@ dberr_t fts_sql_commit(trx_t *trx) /*!< in: transaction */
  @return DB_SUCCESS or error code */
 dberr_t fts_sql_rollback(trx_t *trx) /*!< in: transaction */
 {
-  return (trx_rollback_to_savepoint(trx, NULL));
+  return (trx_rollback_to_savepoint(trx, nullptr));
 }

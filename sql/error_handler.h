@@ -45,7 +45,7 @@ class handler;
 */
 class Internal_error_handler {
  protected:
-  Internal_error_handler() : m_prev_internal_handler(NULL) {}
+  Internal_error_handler() : m_prev_internal_handler(nullptr) {}
 
   Internal_error_handler *prev_internal_handler() const {
     return m_prev_internal_handler;

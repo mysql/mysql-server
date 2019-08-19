@@ -78,8 +78,8 @@ PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
 #endif /* _WIN32 */
 
 /* from my_init */
-char *home_dir = 0;
-const char *my_progname = 0;
+char *home_dir = nullptr;
+const char *my_progname = nullptr;
 char curr_dir[FN_REFLEN] = {0}, home_dir_buff[FN_REFLEN] = {0};
 ulong my_stream_opened = 0, my_file_opened = 0, my_tmp_file_created = 0;
 ulong my_file_total_opened = 0;
@@ -93,8 +93,8 @@ struct st_my_file_info *my_file_info = my_file_info_default;
 ulong my_default_record_cache_size = RECORD_CACHE_SIZE;
 
 /* from my_malloc */
-USED_MEM *my_once_root_block = 0;     /* pointer to first block */
-uint my_once_extra = ONCE_ALLOC_INIT; /* Memory to alloc / block */
+USED_MEM *my_once_root_block = nullptr; /* pointer to first block */
+uint my_once_extra = ONCE_ALLOC_INIT;   /* Memory to alloc / block */
 
 /* from errors.c */
 void (*error_handler_hook)(uint error, const char *str,

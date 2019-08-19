@@ -68,9 +68,9 @@ static const uchar *setup_object_hash_get_key(const uchar *entry,
   const PFS_setup_object *setup_object;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_setup_object *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  DBUG_ASSERT(typed_entry != nullptr);
   setup_object = *typed_entry;
-  DBUG_ASSERT(setup_object != NULL);
+  DBUG_ASSERT(setup_object != nullptr);
   *length = setup_object->m_key.m_key_length;
   result = setup_object->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -98,9 +98,9 @@ void cleanup_setup_object_hash(void) {
 }
 
 static LF_PINS *get_setup_object_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_setup_object_hash_pins == NULL)) {
+  if (unlikely(thread->m_setup_object_hash_pins == nullptr)) {
     if (!setup_object_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_setup_object_hash_pins = lf_hash_get_pins(&setup_object_hash);
   }
@@ -131,12 +131,12 @@ static void set_setup_object_key(PFS_setup_object_key *key,
 int insert_setup_object(enum_object_type object_type, const String *schema,
                         const String *object, bool enabled, bool timed) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -144,7 +144,7 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   pfs_dirty_state dirty_state;
 
   pfs = global_setup_object_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     set_setup_object_key(&pfs->m_key, object_type, schema->ptr(),
                          schema->length(), object->ptr(), object->length());
     pfs->m_schema_name = &pfs->m_key.m_hash_key[1];
@@ -177,12 +177,12 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
 int delete_setup_object(enum_object_type object_type, const String *schema,
                         const String *object) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -223,12 +223,12 @@ class Proc_reset_setup_object : public PFS_buffer_processor<PFS_setup_object> {
 
 int reset_setup_object() {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -261,7 +261,7 @@ void lookup_setup_object(PFS_thread *thread, enum_object_type object_type,
   DBUG_ASSERT(object_type != OBJECT_TYPE_TEMPORARY_TABLE);
 
   LF_PINS *pins = get_setup_object_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     *enabled = false;
     *timed = false;
     return;

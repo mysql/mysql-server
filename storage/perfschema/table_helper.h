@@ -1120,7 +1120,7 @@ struct PFS_variable_value_row {
 
 struct PFS_user_variable_value_row {
  public:
-  PFS_user_variable_value_row() : m_value(NULL), m_value_length(0) {}
+  PFS_user_variable_value_row() : m_value(nullptr), m_value_length(0) {}
 
   PFS_user_variable_value_row(const PFS_user_variable_value_row &rhs) {
     make_row(rhs.m_value, rhs.m_value_length);
@@ -1663,7 +1663,7 @@ class PFS_key_object_type_enum : public PFS_engine_key {
 class PFS_key_object_instance : public PFS_engine_key {
  public:
   PFS_key_object_instance(const char *name)
-      : PFS_engine_key(name), m_identity(NULL) {}
+      : PFS_engine_key(name), m_identity(nullptr) {}
 
   virtual ~PFS_key_object_instance() {}
 

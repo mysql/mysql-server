@@ -73,7 +73,7 @@ static void *mysql_heartbeat(void *p) {
   while (true) {
     sleep(5);
 
-    result = time(NULL);
+    result = time(nullptr);
     localtime_r(&result, &tm_tmp);
     snprintf(buffer, sizeof(buffer),
              "Heartbeat at %02d%02d%02d %2d:%02d:%02d\n", tm_tmp.tm_year % 100,
@@ -82,7 +82,7 @@ static void *mysql_heartbeat(void *p) {
     my_write(con->heartbeat_file, (uchar *)buffer, strlen(buffer), MYF(0));
   }
 
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -110,7 +110,7 @@ static int daemon_example_plugin_init(void *p) {
   my_thread_attr_t attr; /* Thread attributes */
   char heartbeat_filename[FN_REFLEN];
   char buffer[HEART_STRING_BUFFER];
-  time_t result = time(NULL);
+  time_t result = time(nullptr);
   struct tm tm_tmp;
 
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
@@ -167,7 +167,7 @@ static int daemon_example_plugin_deinit(void *p) {
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
   struct mysql_heartbeat_context *con =
       (struct mysql_heartbeat_context *)plugin->data;
-  time_t result = time(NULL);
+  time_t result = time(nullptr);
   struct tm tm_tmp;
   void *dummy_retval;
 
@@ -207,11 +207,11 @@ mysql_declare_plugin(daemon_example){
     "Daemon example, creates a heartbeat beat file in mysql-heartbeat.log",
     PLUGIN_LICENSE_GPL,
     daemon_example_plugin_init,   /* Plugin Init */
-    NULL,                         /* Plugin Check uninstall */
+    nullptr,                      /* Plugin Check uninstall */
     daemon_example_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

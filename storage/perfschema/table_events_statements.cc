@@ -101,7 +101,7 @@ Plugin_table table_events_statements_current::m_table_def(
 PFS_engine_table_share table_events_statements_current::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_current::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_statements_current::delete_all_rows,
     table_events_statements_current::get_row_count,
     sizeof(pos_events_statements_current), /* ref length */
@@ -172,7 +172,7 @@ Plugin_table table_events_statements_history::m_table_def(
 PFS_engine_table_share table_events_statements_history::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_history::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_statements_history::delete_all_rows,
     table_events_statements_history::get_row_count,
     sizeof(pos_events_statements_history), /* ref length */
@@ -242,7 +242,7 @@ Plugin_table table_events_statements_history_long::m_table_def(
 PFS_engine_table_share table_events_statements_history_long::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_history_long::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_statements_history_long::delete_all_rows,
     table_events_statements_history_long::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -293,7 +293,7 @@ int table_events_statements_common::make_row_part_1(
 
   PFS_statement_class *unsafe = (PFS_statement_class *)statement->m_class;
   PFS_statement_class *klass = sanitize_statement_class(unsafe);
-  if (unlikely(klass == NULL)) {
+  if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -655,7 +655,7 @@ int table_events_statements_current::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       uint safe_events_statements_count = pfs_thread->m_events_statements_count;
 
       if (safe_events_statements_count == 0) {
@@ -687,7 +687,7 @@ int table_events_statements_current::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
+  if (pfs_thread != nullptr) {
     uint safe_events_statements_count = pfs_thread->m_events_statements_count;
 
     if (safe_events_statements_count == 0) {
@@ -706,7 +706,7 @@ int table_events_statements_current::rnd_pos(const void *pos) {
 
     statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
 
-    if (statement->m_class != NULL) {
+    if (statement->m_class != nullptr) {
       return make_row(pfs_thread, statement);
     }
   }
@@ -721,7 +721,7 @@ int table_events_statements_current::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           uint safe_events_statements_count =
@@ -739,7 +739,7 @@ int table_events_statements_current::index_next(void) {
           }
 
           statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
-          if (statement->m_class != NULL) {
+          if (statement->m_class != nullptr) {
             if (m_opened_index->match(statement)) {
               if (!make_row(pfs_thread, statement)) {
                 m_next_pos.set_after(&m_pos);
@@ -748,7 +748,7 @@ int table_events_statements_current::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (statement->m_class != NULL);
+        } while (statement->m_class != nullptr);
       }
     }
   }
@@ -826,7 +826,7 @@ int table_events_statements_history::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_pos.m_index_2 >= events_statements_history_per_thread) {
         /* This thread does not have more (full) history */
         continue;
@@ -840,7 +840,7 @@ int table_events_statements_history::rnd_next(void) {
 
       statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
 
-      if (statement->m_class != NULL) {
+      if (statement->m_class != nullptr) {
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
         return make_row(pfs_thread, statement);
@@ -859,7 +859,7 @@ int table_events_statements_history::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
+  if (pfs_thread != nullptr) {
     DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
 
     if (!pfs_thread->m_statements_history_full &&
@@ -868,7 +868,7 @@ int table_events_statements_history::rnd_pos(const void *pos) {
     }
 
     statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
-    if (statement->m_class != NULL) {
+    if (statement->m_class != nullptr) {
       return make_row(pfs_thread, statement);
     }
   }
@@ -887,7 +887,7 @@ int table_events_statements_history::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           if (m_pos.m_index_2 >= events_statements_history_per_thread) {
@@ -902,7 +902,7 @@ int table_events_statements_history::index_next(void) {
           }
 
           statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
-          if (statement->m_class != NULL) {
+          if (statement->m_class != nullptr) {
             if (m_opened_index->match(statement)) {
               if (!make_row(pfs_thread, statement)) {
                 m_next_pos.set_after(&m_pos);
@@ -911,7 +911,7 @@ int table_events_statements_history::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (statement->m_class != NULL);
+        } while (statement->m_class != nullptr);
       }
     }
   }
@@ -994,7 +994,7 @@ int table_events_statements_history_long::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next()) {
     statement = &events_statements_history_long_array[m_pos.m_index];
 
-    if (statement->m_class != NULL) {
+    if (statement->m_class != nullptr) {
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
       return make_row(statement);
@@ -1026,7 +1026,7 @@ int table_events_statements_history_long::rnd_pos(const void *pos) {
 
   statement = &events_statements_history_long_array[m_pos.m_index];
 
-  if (statement->m_class == NULL) {
+  if (statement->m_class == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 

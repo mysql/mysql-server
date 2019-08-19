@@ -48,7 +48,7 @@ byte *mlog_open(mtr_t *mtr, ulint size) {
 
   if (mtr_get_log_mode(mtr) == MTR_LOG_NONE ||
       mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (mtr->get_log()->open(size));
@@ -129,7 +129,7 @@ void mlog_catenate_ulint_compressed(mtr_t *mtr, /*!< in: mtr */
   log_ptr = mlog_open(mtr, 10);
 
   /* If no logging is requested, we may return now */
-  if (log_ptr == NULL) {
+  if (log_ptr == nullptr) {
     return;
   }
 
@@ -148,7 +148,7 @@ void mlog_catenate_ull_compressed(mtr_t *mtr,      /*!< in: mtr */
   log_ptr = mlog_open(mtr, 15);
 
   /* If no logging is requested, we may return now */
-  if (log_ptr == NULL) {
+  if (log_ptr == nullptr) {
     return;
   }
 

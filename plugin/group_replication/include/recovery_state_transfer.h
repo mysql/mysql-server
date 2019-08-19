@@ -99,15 +99,15 @@ class Recovery_state_transfer {
                                 bool ssl_verify_server_cert, char *tls_version,
                                 char *tls_ciphersuites) {
     recovery_use_ssl = use_ssl;
-    if (ssl_ca != NULL) set_recovery_ssl_ca(ssl_ca);
-    if (ssl_capath != NULL) set_recovery_ssl_capath(ssl_capath);
-    if (ssl_cert != NULL) set_recovery_ssl_cert(ssl_cert);
-    if (ssl_cipher != NULL) set_recovery_ssl_cipher(ssl_cipher);
-    if (ssl_key != NULL) set_recovery_ssl_key(ssl_key);
-    if (ssl_crl != NULL) set_recovery_ssl_crl(ssl_crl);
-    if (ssl_crlpath != NULL) set_recovery_ssl_crl(ssl_crlpath);
+    if (ssl_ca != nullptr) set_recovery_ssl_ca(ssl_ca);
+    if (ssl_capath != nullptr) set_recovery_ssl_capath(ssl_capath);
+    if (ssl_cert != nullptr) set_recovery_ssl_cert(ssl_cert);
+    if (ssl_cipher != nullptr) set_recovery_ssl_cipher(ssl_cipher);
+    if (ssl_key != nullptr) set_recovery_ssl_key(ssl_key);
+    if (ssl_crl != nullptr) set_recovery_ssl_crl(ssl_crl);
+    if (ssl_crlpath != nullptr) set_recovery_ssl_crl(ssl_crlpath);
     recovery_ssl_verify_server_cert = ssl_verify_server_cert;
-    if (tls_version != NULL) set_recovery_tls_version(tls_version);
+    if (tls_version != nullptr) set_recovery_tls_version(tls_version);
     set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
@@ -200,7 +200,7 @@ class Recovery_state_transfer {
 
   /** Set a public key file*/
   void set_recovery_public_key_path(const char *public_key_path) {
-    if (public_key_path != NULL) {
+    if (public_key_path != nullptr) {
       memcpy(recovery_public_key_path, public_key_path,
              strlen(public_key_path) + 1);
     }

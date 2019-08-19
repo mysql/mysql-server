@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class Queue {
  public:
   Queue() {
     elements = 0;
-    first = last = NULL;
+    first = last = nullptr;
   }
 
   void empty() {
@@ -106,13 +106,13 @@ class Queue {
 
     new_item->payload = payload;
 
-    if (first == NULL) first = new_item;
-    if (last != NULL) {
-      DBUG_ASSERT(last->next == NULL);
+    if (first == nullptr) first = new_item;
+    if (last != nullptr) {
+      DBUG_ASSERT(last->next == nullptr);
       last->next = new_item;
     }
     new_item->previous = last;
-    new_item->next = NULL;
+    new_item->next = nullptr;
     last = new_item;
 
     elements++;
@@ -120,18 +120,18 @@ class Queue {
 
   T *pop() {
     struct queue_item *old_item = first;
-    T *ret = NULL;
+    T *ret = nullptr;
 
-    if (first == NULL) {
+    if (first == nullptr) {
       DBUG_PRINT("warning", ("tried to pop nonexistent item from Queue"));
-      return NULL;
+      return nullptr;
     }
 
     ret = old_item->payload;
-    if (first->next != NULL)
-      first->next->previous = NULL;
+    if (first->next != nullptr)
+      first->next->previous = nullptr;
     else
-      last = NULL;
+      last = nullptr;
     first = first->next;
 
     my_free(old_item);
@@ -141,8 +141,8 @@ class Queue {
   }
 
   bool is_empty() {
-    DBUG_ASSERT(((elements > 0) && (first != NULL)) ||
-                ((elements == 0) || (first == NULL)));
+    DBUG_ASSERT(((elements > 0) && (first != nullptr)) ||
+                ((elements == 0) || (first == nullptr)));
     return (elements == 0);
   }
 

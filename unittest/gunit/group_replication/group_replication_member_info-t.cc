@@ -193,7 +193,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
   Group_member_info *retrieved_local_info =
       cluster_member_mgr->get_group_member_info(uuid_to_get);
 
-  ASSERT_TRUE(retrieved_local_info != NULL);
+  ASSERT_TRUE(retrieved_local_info != nullptr);
   ASSERT_EQ(retrieved_local_info->get_uuid(), uuid_to_get);
 
   delete retrieved_local_info;
@@ -238,7 +238,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest) {
   Group_member_info *retrieved_local_info =
       cluster_member_mgr->get_group_member_info(uuid_to_get);
 
-  ASSERT_TRUE(retrieved_local_info != NULL);
+  ASSERT_TRUE(retrieved_local_info != nullptr);
 
   ASSERT_EQ(local_node->get_port(), retrieved_local_info->get_port());
   ASSERT_EQ(local_node->get_hostname(), retrieved_local_info->get_hostname());
@@ -344,7 +344,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   Group_member_info *retrieved_local_info =
       cluster_member_mgr->get_group_member_info(uuid_to_get);
 
-  ASSERT_TRUE(retrieved_local_info != NULL);
+  ASSERT_TRUE(retrieved_local_info != nullptr);
   ASSERT_EQ(retrieved_local_info->get_uuid(), uuid_to_get);
 
   vector<uchar> *encoded = new vector<uchar>();
@@ -363,7 +363,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   delete retrieved_local_info;
   retrieved_local_info = cluster_member_mgr->get_group_member_info(uuid);
 
-  ASSERT_TRUE(retrieved_local_info != NULL);
+  ASSERT_TRUE(retrieved_local_info != nullptr);
 
   ASSERT_EQ(port, retrieved_local_info->get_port());
   ASSERT_EQ(hostname, retrieved_local_info->get_hostname());
@@ -375,7 +375,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   delete retrieved_local_info;
   retrieved_local_info = cluster_member_mgr->get_group_member_info(uuid_to_get);
 
-  ASSERT_TRUE(retrieved_local_info != NULL);
+  ASSERT_TRUE(retrieved_local_info != nullptr);
 
   ASSERT_EQ(local_node->get_port(), retrieved_local_info->get_port());
   ASSERT_EQ(local_node->get_hostname(), retrieved_local_info->get_hostname());

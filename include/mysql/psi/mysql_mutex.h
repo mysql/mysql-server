@@ -206,7 +206,7 @@ static inline int inline_mysql_mutex_init(
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   that->m_psi = PSI_MUTEX_CALL(init_mutex)(key, &that->m_mutex);
 #else
-  that->m_psi = NULL;
+  that->m_psi = nullptr;
 #endif
   return my_mutex_init(&that->m_mutex, attr
 #ifdef SAFE_MUTEX
@@ -220,9 +220,9 @@ static inline int inline_mysql_mutex_destroy(
     mysql_mutex_t *that, const char *src_file MY_ATTRIBUTE((unused)),
     uint src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_MUTEX_CALL(destroy_mutex)(that->m_psi);
-    that->m_psi = NULL;
+    that->m_psi = nullptr;
   }
 #endif
   return my_mutex_destroy(&that->m_mutex
@@ -239,7 +239,7 @@ static inline int inline_mysql_mutex_lock(
   int result;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_mutex_locker *locker;
     PSI_mutex_locker_state state;
@@ -255,7 +255,7 @@ static inline int inline_mysql_mutex_lock(
     );
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_MUTEX_CALL(end_mutex_wait)(locker, result);
     }
 
@@ -280,7 +280,7 @@ static inline int inline_mysql_mutex_trylock(
   int result;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     /* Instrumentation start */
     PSI_mutex_locker *locker;
     PSI_mutex_locker_state state;
@@ -296,7 +296,7 @@ static inline int inline_mysql_mutex_trylock(
     );
 
     /* Instrumentation end */
-    if (locker != NULL) {
+    if (locker != nullptr) {
       PSI_MUTEX_CALL(end_mutex_wait)(locker, result);
     }
 
@@ -321,7 +321,7 @@ static inline int inline_mysql_mutex_unlock(
   int result;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  if (that->m_psi != NULL) {
+  if (that->m_psi != nullptr) {
     PSI_MUTEX_CALL(unlock_mutex)(that->m_psi);
   }
 #endif

@@ -46,7 +46,7 @@ ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
   ulint val;
 
   if (*ptr >= end_ptr) {
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -59,14 +59,14 @@ ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
   ++*ptr;
 
   ib_uint64_t n = mach_parse_compressed(ptr, end_ptr);
-  if (*ptr == NULL) {
+  if (*ptr == nullptr) {
     return (0);
   }
 
   n <<= 32;
 
   n |= mach_parse_compressed(ptr, end_ptr);
-  if (*ptr == NULL) {
+  if (*ptr == nullptr) {
     return (0);
   }
 
@@ -82,7 +82,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
   ulint val;
 
   if (*ptr >= end_ptr) {
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -115,7 +115,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       *ptr += 2;
       return (static_cast<ib_uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -131,7 +131,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       *ptr += 3;
       return (static_cast<ib_uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -147,7 +147,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       *ptr += 4;
       return (static_cast<ib_uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -166,7 +166,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       return (static_cast<ib_uint32_t>(val));
     }
 
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -181,7 +181,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       *ptr += 2;
       return (static_cast<ib_uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -197,7 +197,7 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
       *ptr += 3;
       return (static_cast<ib_uint32_t>(val));
     }
-    *ptr = NULL;
+    *ptr = nullptr;
     return (0);
   }
 
@@ -217,6 +217,6 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
     return (static_cast<ib_uint32_t>(val));
   }
 
-  *ptr = NULL;
+  *ptr = nullptr;
   return (0);
 }

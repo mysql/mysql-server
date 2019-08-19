@@ -109,7 +109,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
     will be set to the value of the user variable.
     'rpl_semi_sync_slave = 0' means that it is not a semisync slave.
   */
-  get_user_var_int("rpl_semi_sync_slave", &semi_sync_slave, NULL);
+  get_user_var_int("rpl_semi_sync_slave", &semi_sync_slave, nullptr);
 
   if (semi_sync_slave != 0) {
     if (ack_receiver->add_slave(current_thd)) {
@@ -222,14 +222,14 @@ static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD thd,
 static MYSQL_SYSVAR_BOOL(
     enabled, rpl_semi_sync_master_enabled, PLUGIN_VAR_OPCMDARG,
     "Enable semi-synchronous replication master (disabled by default). ",
-    NULL,                               // check
+    nullptr,                            // check
     &fix_rpl_semi_sync_master_enabled,  // update
     0);
 
 static MYSQL_SYSVAR_ULONG(
     timeout, rpl_semi_sync_master_timeout, PLUGIN_VAR_OPCMDARG,
     "The timeout value (in ms) for semi-synchronous replication in the master",
-    NULL,                              // check
+    nullptr,                           // check
     fix_rpl_semi_sync_master_timeout,  // update
     10000, 0, ~0UL, 1);
 
@@ -237,20 +237,20 @@ static MYSQL_SYSVAR_BOOL(wait_no_slave, rpl_semi_sync_master_wait_no_slave,
                          PLUGIN_VAR_OPCMDARG,
                          "Wait until timeout when no semi-synchronous "
                          "replication slave available (enabled by default). ",
-                         NULL,                                     // check
+                         nullptr,                                  // check
                          &fix_rpl_semi_sync_master_wait_no_slave,  // update
                          1);
 
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
                           PLUGIN_VAR_OPCMDARG,
                           "The tracing level for semi-sync replication.",
-                          NULL,                                   // check
+                          nullptr,                                // check
                           &fix_rpl_semi_sync_master_trace_level,  // update
                           32, 0, ~0UL, 1);
 
 static const char *wait_point_names[] = {"AFTER_SYNC", "AFTER_COMMIT", NullS};
 static TYPELIB wait_point_typelib = {array_elements(wait_point_names) - 1, "",
-                                     wait_point_names, NULL};
+                                     wait_point_names, nullptr};
 static MYSQL_SYSVAR_ENUM(
     wait_point,                      /* name     */
     rpl_semi_sync_master_wait_point, /* var      */
@@ -265,8 +265,8 @@ static MYSQL_SYSVAR_ENUM(
     "replicated, even though the current session is still waiting for the "
     "commit "
     "to end successfully.",
-    NULL,               /* check()  */
-    NULL,               /* update() */
+    nullptr,            /* check()  */
+    nullptr,            /* update() */
     WAIT_AFTER_SYNC,    /* default  */
     &wait_point_typelib /* typelib  */
 );
@@ -278,7 +278,7 @@ static MYSQL_SYSVAR_UINT(
     "How many slaves the events should be replicated to. Semisynchronous "
     "replication master will wait until all events of the transaction are "
     "replicated to at least rpl_semi_sync_master_wait_for_slave_count slaves",
-    NULL,                                           /* check() */
+    nullptr,                                        /* check() */
     &fix_rpl_semi_sync_master_wait_for_slave_count, /* update */
     1, 1, 65535, 1);
 
@@ -289,7 +289,7 @@ static SYS_VAR *semi_sync_master_system_vars[] = {
     MYSQL_SYSVAR(trace_level),
     MYSQL_SYSVAR(wait_point),
     MYSQL_SYSVAR(wait_for_slave_count),
-    NULL,
+    nullptr,
 };
 static void fix_rpl_semi_sync_master_timeout(MYSQL_THD, SYS_VAR *, void *ptr,
                                              const void *val) {
@@ -423,7 +423,7 @@ static SHOW_VAR semi_sync_master_status_vars[] = {
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Rpl_semi_sync_master_net_avg_wait_time",
      (char *)&SHOW_FNAME(avg_net_wait_time), SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {NULL, NULL, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL},
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -584,11 +584,11 @@ mysql_declare_plugin(semi_sync_master){
     "Semi-synchronous replication master",
     PLUGIN_LICENSE_GPL,
     semi_sync_master_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     semi_sync_master_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
     semi_sync_master_status_vars, /* status variables */
     semi_sync_master_system_vars, /* system variables */
-    NULL,                         /* config options */
+    nullptr,                      /* config options */
     0,                            /* flags */
 } mysql_declare_plugin_end;

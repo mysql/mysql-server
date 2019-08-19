@@ -161,7 +161,7 @@ class ORDER_with_src {
   ORDER *operator->() const { return order; }
 
   void clean() {
-    order = NULL;
+    order = nullptr;
     src = ESC_none;
     flags = ESP_none;
   }
@@ -721,7 +721,7 @@ class JOIN {
   */
   bool send_row_on_empty_set() const {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-            group_list == NULL && !group_optimized_away &&
+            group_list == nullptr && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
 

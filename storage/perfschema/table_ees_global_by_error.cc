@@ -66,7 +66,7 @@ Plugin_table table_ees_global_by_error::m_table_def(
 PFS_engine_table_share table_ees_global_by_error::m_share = {
     &pfs_truncatable_acl,
     table_ees_global_by_error::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ees_global_by_error::delete_all_rows,
     table_ees_global_by_error::get_row_count,
     sizeof(pos_ees_global_by_error),
@@ -141,7 +141,7 @@ int table_ees_global_by_error::rnd_pos(const void *pos) {
 
 int table_ees_global_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
                                           bool) {
-  PFS_index_ees_global_by_error *result = NULL;
+  PFS_index_ees_global_by_error *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ees_global_by_error);
   m_opened_index = result;
@@ -183,7 +183,7 @@ int table_ees_global_by_error::make_row(int error_index) {
 int table_ees_global_by_error::read_row_values(TABLE *table, unsigned char *buf,
                                                Field **fields, bool read_all) {
   Field *f;
-  server_error *temp_error = NULL;
+  server_error *temp_error = nullptr;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

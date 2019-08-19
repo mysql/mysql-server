@@ -317,7 +317,7 @@ void do_test_f2d(double from, int ex) {
 
   res = double2decimal(from, &a);
   sprintf(s1, "%-40.*f => res=%d    ", DBL_DIG - 2, from, res);
-  print_decimal(&a, 0, res, ex, s1);
+  print_decimal(&a, nullptr, res, ex, s1);
 }
 
 void do_test_ull2d(ulonglong from, const char *orig, int ex) {

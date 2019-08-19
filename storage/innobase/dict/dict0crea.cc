@@ -104,7 +104,7 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
 
   DBUG_EXECUTE_IF("out_of_tablespace_disk", return (DB_OUT_OF_FILE_SPACE););
   /* Get a new space id. */
-  dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
+  dict_hdr_get_new_id(nullptr, nullptr, &space, nullptr, false);
   if (space == SPACE_UNKNOWN) {
     return (DB_ERROR);
   }
@@ -123,8 +123,8 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
     return DB_IO_ERROR;
   }
 
-  err = log_ddl->write_delete_space_log(trx, NULL, space, datafile->filepath(),
-                                        false, true);
+  err = log_ddl->write_delete_space_log(trx, nullptr, space,
+                                        datafile->filepath(), false, true);
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -197,7 +197,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
           dict_table_has_atomic_blobs(table));
 
     /* Get a new tablespace ID */
-    dict_hdr_get_new_id(NULL, NULL, &space, table, false);
+    dict_hdr_get_new_id(nullptr, nullptr, &space, table, false);
 
     DBUG_EXECUTE_IF("ib_create_table_fail_out_of_space_ids",
                     space = SPACE_UNKNOWN;);
@@ -290,7 +290,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
     is already built.  Just find the correct tablespace ID. */
 
     if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-      ut_ad(table->tablespace != NULL);
+      ut_ad(table->tablespace != nullptr);
 
       ut_ad(table->space == fil_space_get_id_by_name(table->tablespace()));
     } else if (table->is_temporary()) {
@@ -345,7 +345,7 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
       index->id = dd_upgrade_indexes_num++;
       ut_ad(index->id <= dd_get_total_indexes_num());
     } else {
-      dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+      dict_hdr_get_new_id(nullptr, &index->id, nullptr, table, false);
     }
 
   } else {
@@ -534,7 +534,7 @@ static bool dict_foreign_base_for_stored(const char *col_name,
       /** If the stored column can refer to virtual column
       or stored column then it can points to NULL. */
 
-      if (s_col.base_col[j] == NULL) {
+      if (s_col.base_col[j] == nullptr) {
         continue;
       }
 
@@ -559,7 +559,7 @@ bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
                                   const dict_table_t *table) {
   dict_foreign_t *foreign;
 
-  if (table->s_cols == NULL) {
+  if (table->s_cols == nullptr) {
     return (false);
   }
 
@@ -600,7 +600,7 @@ bool dict_foreigns_has_this_col(const dict_table_t *table,
   for (dict_foreign_set::const_iterator it = local_fk_set->begin();
        it != local_fk_set->end(); ++it) {
     foreign = *it;
-    ut_ad(foreign->id != NULL);
+    ut_ad(foreign->id != nullptr);
     ulint type = foreign->type;
 
     type &=
@@ -629,7 +629,7 @@ void dict_table_assign_new_id(dict_table_t *table, trx_t *trx) {
     to avoid confusion.*/
     table->id = ULINT_UNDEFINED;
   } else {
-    dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
+    dict_hdr_get_new_id(&table->id, nullptr, nullptr, table, false);
   }
 }
 
@@ -645,7 +645,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   /* This means the tablespace is evicted from cache */
   if (flags == UINT32_UNDEFINED) {
-    return (NULL);
+    return (nullptr);
   }
 
   ut_ad(fsp_flags_is_valid(flags));

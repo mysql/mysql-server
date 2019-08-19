@@ -81,8 +81,8 @@ Plugin_table table_threads::m_table_def(
 PFS_engine_table_share table_threads::m_share = {
     &pfs_updatable_acl,
     table_threads::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     cursor_by_thread::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
@@ -176,7 +176,7 @@ bool PFS_index_threads_by_resource_group::match(PFS_thread *pfs) {
 }
 
 int table_threads::index_init(uint idx, bool) {
-  PFS_index_threads *result = NULL;
+  PFS_index_threads *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -220,7 +220,7 @@ int table_threads::make_row(PFS_thread *pfs) {
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class = sanitize_thread_class(pfs->m_class);
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -313,7 +313,7 @@ int table_threads::make_row(PFS_thread *pfs) {
   m_row.m_start_time = pfs->m_start_time;
 
   stage_class = find_stage_class(pfs->m_stage);
-  if (stage_class != NULL) {
+  if (stage_class != nullptr) {
     m_row.m_processlist_state_ptr =
         stage_class->m_name + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
@@ -348,7 +348,7 @@ int table_threads::make_row(PFS_thread *pfs) {
 int table_threads::read_row_values(TABLE *table, unsigned char *buf,
                                    Field **fields, bool read_all) {
   Field *f;
-  const char *str = NULL;
+  const char *str = nullptr;
   int len = 0;
 
   /* Set the null bits */

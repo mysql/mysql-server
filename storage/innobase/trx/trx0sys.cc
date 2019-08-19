@@ -54,7 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 
 /** The transaction system */
-trx_sys_t *trx_sys = NULL;
+trx_sys_t *trx_sys = nullptr;
 
 /** Check whether transaction id is valid.
 @param[in]	id	transaction id to check
@@ -74,7 +74,7 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
         << " system-wide maximum.";
     ut_ad(0);
     THD *thd = current_thd;
-    if (thd != NULL) {
+    if (thd != nullptr) {
       char table_name[MAX_FULL_NAME_LEN + 1];
 
       innobase_format_name(table_name, sizeof(table_name), name.m_name);
@@ -142,7 +142,7 @@ void trx_sys_get_binlog_prepared(std::vector<trx_id_t> &trx_ids) {
     return;
   }
   /* Check and find binary log prepared transaction. */
-  for (auto trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != NULL;
+  for (auto trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
        trx = UT_LIST_GET_NEXT(trx_list, trx)) {
     assert_trx_in_rw_list(trx);
     if (trx_state_eq(trx, TRX_STATE_PREPARED) && trx_is_mysql_xa(trx)) {
@@ -419,7 +419,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   purge when we init the purge sub-system. Purge is responsible
   for freeing the binary heap. */
   purge_queue = UT_NEW_NOKEY(purge_pq_t());
-  ut_a(purge_queue != NULL);
+  ut_a(purge_queue != nullptr);
 
   if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
     /* Create the memory objects for all the rollback segments
@@ -468,7 +468,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   if (UT_LIST_GET_LEN(trx_sys->rw_trx_list) > 0) {
     const trx_t *trx;
 
-    for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != NULL;
+    for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
          trx = UT_LIST_GET_NEXT(trx_list, trx)) {
       ut_ad(trx->is_recovered);
       assert_trx_in_rw_list(trx);
@@ -501,7 +501,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
 
 /** Creates the trx_sys instance and initializes purge_queue and mutex. */
 void trx_sys_create(void) {
-  ut_ad(trx_sys == NULL);
+  ut_ad(trx_sys == nullptr);
 
   trx_sys = static_cast<trx_sys_t *>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
@@ -545,7 +545,7 @@ Shutdown/Close the transaction system. */
 void trx_sys_close(void) {
   ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
 
-  if (trx_sys == NULL) {
+  if (trx_sys == nullptr) {
     return;
   }
 
@@ -558,7 +558,7 @@ void trx_sys_close(void) {
   }
 
   sess_close(trx_dummy_sess);
-  trx_dummy_sess = NULL;
+  trx_dummy_sess = nullptr;
 
   trx_purge_sys_close();
 
@@ -568,7 +568,7 @@ void trx_sys_close(void) {
   /* Only prepared transactions may be left in the system. Free them. */
   ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
 
-  for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != NULL;
+  for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
        trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) {
     trx_free_prepared(trx);
   }
@@ -593,7 +593,7 @@ void trx_sys_close(void) {
 
   ut_free(trx_sys);
 
-  trx_sys = NULL;
+  trx_sys = nullptr;
 }
 
 /** @brief Convert an undo log to TRX_UNDO_PREPARED state on shutdown.
@@ -612,7 +612,7 @@ static void trx_undo_fake_prepared(const trx_t *trx, trx_undo_t *undo) {
   ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
   ut_ad(trx->is_recovered);
 
-  if (undo != NULL) {
+  if (undo != nullptr) {
     ut_ad(undo->state == TRX_UNDO_ACTIVE);
     undo->state = TRX_UNDO_PREPARED;
   }
@@ -632,7 +632,7 @@ ulint trx_sys_any_active_transactions(void) {
 
     if (total_trx > trx_sys->n_prepared_trx &&
         srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
-      for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != NULL;
+      for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
            trx = UT_LIST_GET_NEXT(trx_list, trx)) {
         if (!trx_state_eq(trx, TRX_STATE_ACTIVE) || !trx->is_recovered) {
           continue;
@@ -667,16 +667,16 @@ static bool trx_sys_validate_trx_list_low(
     trx_ut_list_t *trx_list) /*!< in: &trx_sys->rw_trx_list */
 {
   const trx_t *trx;
-  const trx_t *prev_trx = NULL;
+  const trx_t *prev_trx = nullptr;
 
   ut_ad(trx_sys_mutex_own());
 
   ut_ad(trx_list == &trx_sys->rw_trx_list);
 
-  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != NULL;
+  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
        prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
     check_trx_state(trx);
-    ut_a(prev_trx == NULL || prev_trx->id > trx->id);
+    ut_a(prev_trx == nullptr || prev_trx->id > trx->id);
   }
 
   return (true);

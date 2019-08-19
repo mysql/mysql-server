@@ -39,9 +39,9 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      Gcs_protocol_version version,
                                      const Gcs_xcom_synode_set &snapshot,
                                      const uchar *data, uint64_t data_size)
-    : m_view_id(NULL),
+    : m_view_id(nullptr),
       m_configuration_id(configuration_id),
-      m_data(NULL),
+      m_data(nullptr),
       m_data_size(0),
       m_snapshot(snapshot),
       m_version(version) {
@@ -57,9 +57,9 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
 
 Xcom_member_state::Xcom_member_state(Gcs_protocol_version version,
                                      const uchar *data, uint64_t data_size)
-    : m_view_id(NULL),
+    : m_view_id(nullptr),
       m_configuration_id(null_synode),
-      m_data(NULL),
+      m_data(nullptr),
       m_data_size(0),
       m_version(version) {
   decode(data, data_size);
@@ -99,7 +99,7 @@ bool Xcom_member_state::encode_header(uchar *buffer,
 
   MYSQL_GCS_LOG_TRACE("Encoding header for exchangeable data.")
 
-  if (buffer == NULL || buffer_len == NULL) {
+  if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
         "Buffer to return information on encoded data or encoded data "
         "size is not properly configured.");
@@ -117,7 +117,7 @@ bool Xcom_member_state::encode_header(uchar *buffer,
 
   *buffer_len = encoded_size;
 
-  if (m_view_id != NULL) {
+  if (m_view_id != nullptr) {
     fixed_view_id = htole64(m_view_id->get_fixed_part());
     monotonic_view_id = htole32(m_view_id->get_monotonic_part());
   }
@@ -310,7 +310,7 @@ Gcs_xcom_state_exchange::Gcs_xcom_state_exchange(
       m_member_states(),
       m_member_versions(),
       m_member_max_versions(),
-      m_group_name(NULL),
+      m_group_name(nullptr),
       m_local_information("none"),
       m_configuration_id(null_synode),
       m_ms_xcom_nodes() {}
@@ -385,7 +385,7 @@ void Gcs_xcom_state_exchange::reset() {
   m_awaited_vector.clear();
 
   delete m_group_name;
-  m_group_name = NULL;
+  m_group_name = nullptr;
 
   m_ms_xcom_nodes.clear_nodes();
 }
@@ -427,9 +427,9 @@ bool Gcs_xcom_state_exchange::state_exchange(
    */
   update_communication_channel(xcom_nodes);
 
-  if (m_group_name == NULL) m_group_name = new std::string(*group);
+  if (m_group_name == nullptr) m_group_name = new std::string(*group);
 
-  if (current_view != NULL) {
+  if (current_view != nullptr) {
     /*
       If a view has been already installed, disseminate this information
       to other members so that a member that is joining may learn about
@@ -510,8 +510,8 @@ bool Gcs_xcom_state_exchange::is_leaving() {
 enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
     const Gcs_xcom_view_identifier &proposed_view,
     std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data) {
-  uchar *buffer = NULL;
-  uchar *slider = NULL;
+  uchar *buffer = nullptr;
+  uchar *slider = nullptr;
   uint64_t buffer_len = 0;
   uint64_t exchangeable_header_len = 0;
   uint64_t exchangeable_data_len = 0;
@@ -524,7 +524,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
       xcom_communication->get_msg_pipeline().get_snapshot();
   Xcom_member_state member_state(proposed_view, m_configuration_id,
                                  Gcs_protocol_version::HIGHEST_KNOWN, snapshot,
-                                 NULL, 0);
+                                 nullptr, 0);
 
   /*
     The exchangeable_data may have a list with Gcs_message_data
@@ -564,7 +564,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   buffer_len = exchangeable_header_len + exchangeable_data_len +
                exchangeable_snapshot_len;
   buffer = slider = static_cast<uchar *>(malloc(buffer_len * sizeof(uchar)));
-  if (buffer == NULL) {
+  if (buffer == nullptr) {
     MYSQL_GCS_LOG_ERROR("Error allocating buffer to carry exchangeable data")
     return GCS_NOK;
   }
@@ -620,7 +620,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   Gcs_message_data *message_data = new Gcs_message_data(0, buffer_len);
   message_data->append_to_payload(buffer, buffer_len);
   free(buffer);
-  buffer = NULL;
+  buffer = nullptr;
 
   Gcs_group_identifier group_id(*m_group_name);
   Gcs_message message(m_local_information, group_id, message_data);
@@ -1044,7 +1044,7 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
       . If a view with a monotonic part equals to zero is chosen, this
         means that all views have the monotonic part equal to zero.
   */
-  Gcs_xcom_view_identifier *view_id = NULL;
+  Gcs_xcom_view_identifier *view_id = nullptr;
 
   std::map<Gcs_member_identifier, Xcom_member_state *>::iterator state_it;
   for (state_it = m_member_states.begin(); state_it != m_member_states.end();
@@ -1054,7 +1054,7 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
     if (view_id->get_monotonic_part() != 0) break;
   }
 
-  assert(view_id != NULL);
+  assert(view_id != nullptr);
   MYSQL_GCS_DEBUG_EXECUTE(for (state_it = m_member_states.begin();
                                state_it != m_member_states.end(); state_it++) {
     Gcs_xcom_view_identifier member_state_view =
@@ -1064,7 +1064,7 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
       the same value.
     */
     if (member_state_view.get_monotonic_part() != 0) {
-      if ((*view_id) != member_state_view) return NULL;
+      if ((*view_id) != member_state_view) return nullptr;
     }
   });
 
@@ -1078,17 +1078,19 @@ Gcs_xcom_view_change_control::Gcs_xcom_view_change_control()
       m_wait_for_view_cond(),
       m_wait_for_view_mutex(),
       m_joining_leaving_mutex(),
-      m_current_view(NULL),
+      m_current_view(nullptr),
       m_current_view_mutex(),
       m_belongs_to_group(false) {
   m_wait_for_view_cond.init(
       key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond);
   m_wait_for_view_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex,
+      nullptr);
   m_joining_leaving_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex,
+      nullptr);
   m_current_view_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex, nullptr);
 }
 
 Gcs_xcom_view_change_control::~Gcs_xcom_view_change_control() {
@@ -1113,10 +1115,10 @@ void Gcs_xcom_view_change_control::set_unsafe_current_view(Gcs_view *view) {
 /* purecov: end */
 
 Gcs_view *Gcs_xcom_view_change_control::get_current_view() {
-  Gcs_view *ret = NULL;
+  Gcs_view *ret = nullptr;
 
   m_current_view_mutex.lock();
-  if (m_current_view != NULL) ret = new Gcs_view(*m_current_view);
+  if (m_current_view != nullptr) ret = new Gcs_view(*m_current_view);
   m_current_view_mutex.unlock();
 
   return ret;

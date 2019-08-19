@@ -165,7 +165,7 @@ class Item_func_month final : public Item_func {
   }
   String *val_str(String *str) override {
     longlong nr = val_int();
-    if (null_value) return 0;
+    if (null_value) return nullptr;
     str->set(nr, collation.collation);
     return str;
   }
@@ -359,7 +359,7 @@ class Item_func_weekday : public Item_func {
   String *val_str(String *str) override {
     DBUG_ASSERT(fixed == 1);
     str->set(val_int(), &my_charset_bin);
-    return null_value ? 0 : str;
+    return null_value ? nullptr : str;
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_int(ltime, fuzzydate);

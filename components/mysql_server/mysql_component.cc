@@ -29,7 +29,7 @@ mysql_component::mysql_component(mysql_component_t *component_data,
                                  my_string urn)
     : m_component_data(component_data), m_urn(urn) {
   for (const mysql_metadata_ref_t *metadata_iterator = component_data->metadata;
-       metadata_iterator->key != NULL; ++metadata_iterator) {
+       metadata_iterator->key != nullptr; ++metadata_iterator) {
     this->set_value(metadata_iterator->key, metadata_iterator->value);
   }
 }
@@ -68,7 +68,7 @@ std::vector<const mysql_service_ref_t *>
 mysql_component::get_provided_services() const {
   std::vector<const mysql_service_ref_t *> res;
   for (mysql_service_ref_t *implementation_it = m_component_data->provides;
-       implementation_it->implementation != NULL; ++implementation_it) {
+       implementation_it->implementation != nullptr; ++implementation_it) {
     res.push_back(implementation_it);
   }
   return res;
@@ -84,7 +84,7 @@ mysql_component::get_required_services() const {
   std::vector<mysql_service_placeholder_ref_t *> res;
   for (mysql_service_placeholder_ref_t *implementation_it =
            m_component_data->requires;
-       implementation_it->name != NULL; ++implementation_it) {
+       implementation_it->name != nullptr; ++implementation_it) {
     res.push_back(implementation_it);
   }
   return res;

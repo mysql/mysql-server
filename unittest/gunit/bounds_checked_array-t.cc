@@ -62,7 +62,7 @@ TEST_F(BoundsCheckedArray, Empty) {
   EXPECT_EQ(sizeof(int), int_array.element_size());
   EXPECT_EQ(0U, int_array.size());
   EXPECT_TRUE(int_array.is_null());
-  int *pi = NULL;
+  int *pi = nullptr;
   EXPECT_EQ(pi, int_array.array());
 }
 
@@ -123,7 +123,7 @@ TEST_F(BoundsCheckedArray, Reset) {
   EXPECT_EQ(c_array, int_array.array());
   EXPECT_FALSE(int_array.is_null());
   int_array.reset();
-  int *pi = NULL;
+  int *pi = nullptr;
   EXPECT_EQ(pi, int_array.array());
   EXPECT_TRUE(int_array.is_null());
 }

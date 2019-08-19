@@ -3120,21 +3120,21 @@ class Alter_inplace_info {
         key_info_buffer(key_info_arg),
         key_count(key_count_arg),
         index_drop_count(0),
-        index_drop_buffer(NULL),
+        index_drop_buffer(nullptr),
         index_add_count(0),
-        index_add_buffer(NULL),
+        index_add_buffer(nullptr),
         index_rename_count(0),
         index_altered_visibility_count(0),
-        index_rename_buffer(NULL),
+        index_rename_buffer(nullptr),
         virtual_column_add_count(0),
         virtual_column_drop_count(0),
-        handler_ctx(NULL),
-        group_commit_ctx(NULL),
+        handler_ctx(nullptr),
+        group_commit_ctx(nullptr),
         handler_flags(0),
         modified_part_info(modified_part_info_arg),
         online(false),
         handler_trivial_ctx(0),
-        unsupported_reason(NULL) {}
+        unsupported_reason(nullptr) {}
 
   ~Alter_inplace_info() { destroy(handler_ctx); }
 
@@ -4217,31 +4217,31 @@ class handler {
  public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : table_share(share_arg),
-        table(0),
+        table(nullptr),
         estimation_rows_to_insert(0),
         ht(ht_arg),
-        ref(0),
+        ref(nullptr),
         range_scan_direction(RANGE_SCAN_ASC),
         in_range_check_pushed_down(false),
-        end_range(NULL),
+        end_range(nullptr),
         key_used_on_scan(MAX_KEY),
         active_index(MAX_KEY),
         ref_length(sizeof(my_off_t)),
-        ft_handler(0),
+        ft_handler(nullptr),
         inited(NONE),
         implicit_emptied(false),
-        pushed_cond(0),
-        pushed_idx_cond(NULL),
+        pushed_cond(nullptr),
+        pushed_idx_cond(nullptr),
         pushed_idx_cond_keyno(MAX_KEY),
         next_insert_id(0),
         insert_id_for_cur_row(0),
         auto_inc_intervals_count(0),
-        m_psi(NULL),
+        m_psi(nullptr),
         m_psi_batch_mode(PSI_BATCH_MODE_NONE),
         m_psi_numrows(0),
-        m_psi_locker(NULL),
+        m_psi_locker(nullptr),
         m_lock_type(F_UNLCK),
-        ha_share(NULL),
+        ha_share(nullptr),
         m_update_generated_read_fields(false),
         m_unique(nullptr) {
     DBUG_PRINT("info", ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -4249,9 +4249,9 @@ class handler {
   }
 
   virtual ~handler(void) {
-    DBUG_ASSERT(m_psi == NULL);
+    DBUG_ASSERT(m_psi == nullptr);
     DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
-    DBUG_ASSERT(m_psi_locker == NULL);
+    DBUG_ASSERT(m_psi_locker == nullptr);
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
@@ -4992,11 +4992,11 @@ class handler {
   int compare_key_icp(const key_range *range) const;
   int compare_key_in_buffer(const uchar *buf) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
-  void ft_end() { ft_handler = NULL; }
+  void ft_end() { ft_handler = nullptr; }
   virtual FT_INFO *ft_init_ext(uint flags MY_ATTRIBUTE((unused)),
                                uint inx MY_ATTRIBUTE((unused)),
                                String *key MY_ATTRIBUTE((unused))) {
-    return NULL;
+    return nullptr;
   }
   virtual FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
                                           Ft_hints *hints) {
@@ -5431,7 +5431,7 @@ class handler {
   */
   virtual const Item *cond_push(const Item *cond,
                                 bool other_tbls_ok MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(pushed_cond == NULL);
+    DBUG_ASSERT(pushed_cond == nullptr);
     return cond;
   }
 
@@ -5467,7 +5467,7 @@ class handler {
 
   /** Reset information about pushed index conditions */
   virtual void cancel_pushed_idx_cond() {
-    pushed_idx_cond = NULL;
+    pushed_idx_cond = nullptr;
     pushed_idx_cond_keyno = MAX_KEY;
     in_range_check_pushed_down = false;
   }
@@ -5482,13 +5482,13 @@ class handler {
     If this handler instance is part of a pushed join sequence
     returned TABLE instance being root of the pushed query?
   */
-  virtual const TABLE *member_of_pushed_join() const { return NULL; }
+  virtual const TABLE *member_of_pushed_join() const { return nullptr; }
 
   /**
     If this handler instance is a child in a pushed join sequence
     returned TABLE instance being my parent?
   */
-  virtual const TABLE *parent_of_pushed_join() const { return NULL; }
+  virtual const TABLE *parent_of_pushed_join() const { return nullptr; }
 
   int ha_index_read_pushed(uchar *buf, const uchar *key,
                            key_part_map keypart_map);
@@ -5857,7 +5857,7 @@ class handler {
       const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
       dd::Table *new_table_def MY_ATTRIBUTE((unused))) {
     /* Nothing to commit/rollback, mark all handlers committed! */
-    ha_alter_info->group_commit_ctx = NULL;
+    ha_alter_info->group_commit_ctx = nullptr;
     return false;
   }
 
@@ -6443,7 +6443,7 @@ class handler {
                                    const char **mv_data_ptr, ulong *mv_length);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
-  virtual Partition_handler *get_partition_handler() { return NULL; }
+  virtual Partition_handler *get_partition_handler() { return nullptr; }
 
   /**
   Set se_private_id and se_private_data during upgrade
@@ -6543,7 +6543,7 @@ int check_table_for_old_types(const TABLE *table, bool check_temporal_upgrade);
 
 class DsMrr_impl {
  public:
-  DsMrr_impl(handler *owner) : h(owner), table(NULL), h2(NULL) {}
+  DsMrr_impl(handler *owner) : h(owner), table(nullptr), h2(nullptr) {}
 
   ~DsMrr_impl() {
     /*
@@ -6552,7 +6552,7 @@ class DsMrr_impl {
       internally created temporary tables).
     */
     if (h2) reset();
-    DBUG_ASSERT(h2 == NULL);
+    DBUG_ASSERT(h2 == nullptr);
   }
 
  private:
@@ -6590,7 +6590,7 @@ class DsMrr_impl {
   */
 
   void init(TABLE *table_arg) {
-    DBUG_ASSERT(table_arg != NULL);
+    DBUG_ASSERT(table_arg != nullptr);
     table = table_arg;
   }
 
@@ -6649,7 +6649,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error);
 
 static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type) {
-  return (db_type == NULL) ? DB_TYPE_UNKNOWN : db_type->db_type;
+  return (db_type == nullptr) ? DB_TYPE_UNKNOWN : db_type->db_type;
 }
 
 const char *ha_resolve_storage_engine_name(const handlerton *db_type);

@@ -744,7 +744,7 @@ bool innobase_index_name_is_reserved(
 @return true if the table is intended to use a file_per_table tablespace. */
 UNIV_INLINE
 bool tablespace_is_file_per_table(const HA_CREATE_INFO *create_info) {
-  return (create_info->tablespace != NULL &&
+  return (create_info->tablespace != nullptr &&
           (0 ==
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
 }
@@ -755,7 +755,7 @@ or system tablespace.
 @return true if the table will use a shared general or system tablespace. */
 UNIV_INLINE
 bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
-  return (create_info->tablespace != NULL &&
+  return (create_info->tablespace != nullptr &&
           create_info->tablespace[0] != '\0' &&
           (0 !=
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
@@ -767,7 +767,8 @@ bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
 UNIV_INLINE
 bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
   return (
-      create_info->tablespace != NULL && create_info->tablespace[0] != '\0' &&
+      create_info->tablespace != nullptr &&
+      create_info->tablespace[0] != '\0' &&
       (0 !=
        strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)) &&
       (0 != strcmp(create_info->tablespace, dict_sys_t::s_temp_space_name)) &&
@@ -779,7 +780,7 @@ bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
 @return true if tablespace is a shared tablespace. */
 UNIV_INLINE
 bool is_shared_tablespace(const char *tablespace_name) {
-  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+  if (tablespace_name != nullptr && tablespace_name[0] != '\0' &&
       (strcmp(tablespace_name, dict_sys_t::s_file_per_table_name) != 0)) {
     return true;
   }

@@ -49,16 +49,19 @@ static unsigned int uint_variable_value = 0;
 SHOW_VAR int_variable[] = {
     {"test_int_component.int_variable", (char *)&int_variable_value, SHOW_INT,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 SHOW_VAR int_var_2[] = {
     {"int_var_2", (char *)&int_var_2_value, SHOW_INT, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 SHOW_VAR uint_variable[] = {
     {"test_int_component.uint_variable", (char *)&uint_variable_value, SHOW_INT,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /**

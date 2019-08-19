@@ -52,7 +52,9 @@ class Account_verification_handler;
 class Sql_data_context : public iface::Sql_session {
  public:
   Sql_data_context()
-      : m_mysql_session(NULL), m_last_sql_errno(0), m_password_expired(false) {}
+      : m_mysql_session(nullptr),
+        m_last_sql_errno(0),
+        m_password_expired(false) {}
 
   ~Sql_data_context() override;
 

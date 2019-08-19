@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,8 +63,8 @@ static const void *ha_storage_get(
               ,                    /* assertion */
               IS_FOUND);           /* search criteria */
 
-  if (node == NULL) {
-    return (NULL);
+  if (node == nullptr) {
+    return (nullptr);
   }
   /* else */
 
@@ -92,7 +92,7 @@ const void *ha_storage_put_memlim(
 
   /* check if data chunk is already present */
   data_copy = ha_storage_get(storage, data, data_len);
-  if (data_copy != NULL) {
+  if (data_copy != nullptr) {
     return (data_copy);
   }
 
@@ -100,7 +100,7 @@ const void *ha_storage_put_memlim(
 
   /* check if we are allowed to allocate data_len bytes */
   if (memlim > 0 && ha_storage_get_size(storage) + data_len > memlim) {
-    return (NULL);
+    return (nullptr);
   }
 
   /* we put the auxiliary node struct and the data itself in one

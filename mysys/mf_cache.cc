@@ -54,12 +54,12 @@ bool open_cached_file(IO_CACHE *cache, const char *dir, const char *prefix,
   DBUG_TRACE;
   cache->dir =
       dir ? my_strdup(key_memory_IO_CACHE, dir, MYF(cache_myflags & MY_WME))
-          : (char *)0;
+          : (char *)nullptr;
   cache->prefix = (prefix ? my_strdup(key_memory_IO_CACHE, prefix,
                                       MYF(cache_myflags & MY_WME))
-                          : (char *)0);
-  cache->file_name = 0;
-  cache->buffer = 0; /* Mark that not open */
+                          : (char *)nullptr);
+  cache->file_name = nullptr;
+  cache->buffer = nullptr; /* Mark that not open */
   if (!init_io_cache(cache, -1, cache_size, WRITE_CACHE, 0L, false,
                      MYF(cache_myflags | MY_NABP))) {
     return false;

@@ -26,7 +26,7 @@
 namespace binary_log {
 
 Rotate_event::Rotate_event(const char *buf, const Format_description_event *fde)
-    : Binary_log_event(&buf, fde), new_log_ident(0), flags(DUP_NAME) {
+    : Binary_log_event(&buf, fde), new_log_ident(nullptr), flags(DUP_NAME) {
   BAPI_ENTER("Rotate_event::Rotate_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
 #ifndef DBUG_OFF
@@ -54,7 +54,7 @@ Rotate_event::Rotate_event(const char *buf, const Format_description_event *fde)
   if (ident_len > FN_REFLEN - 1) ident_len = FN_REFLEN - 1;
 
   READER_TRY_SET(new_log_ident, strndup<const char *>, ident_len);
-  if (new_log_ident == 0)
+  if (new_log_ident == nullptr)
     READER_THROW("Invalid binary log file name in Rotate event");
 
   READER_CATCH_ERROR;

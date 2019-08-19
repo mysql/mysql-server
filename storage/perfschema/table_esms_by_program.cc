@@ -92,7 +92,7 @@ Plugin_table table_esms_by_program::m_table_def(
 PFS_engine_table_share table_esms_by_program::m_share = {
     &pfs_truncatable_acl,
     table_esms_by_program::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_by_program::delete_all_rows,
     table_esms_by_program::get_row_count,
     sizeof(PFS_simple_index),
@@ -155,7 +155,7 @@ int table_esms_by_program::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_program_iterator it = global_program_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -169,7 +169,7 @@ int table_esms_by_program::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_program_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -177,7 +177,7 @@ int table_esms_by_program::rnd_pos(const void *pos) {
 }
 
 int table_esms_by_program::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esms_by_program *result = NULL;
+  PFS_index_esms_by_program *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_program);
   m_opened_index = result;
@@ -192,7 +192,7 @@ int table_esms_by_program::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more_program; m_pos.next()) {
     pfs = global_program_container.get(m_pos.m_index, &has_more_program);
 
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);

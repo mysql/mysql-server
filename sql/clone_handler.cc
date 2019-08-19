@@ -120,8 +120,8 @@ int Clone_handler::init() {
 
   plugin_ref plugin;
 
-  plugin = my_plugin_lock_by_name(0, to_lex_cstring(m_plugin_name.c_str()),
-                                  MYSQL_CLONE_PLUGIN);
+  plugin = my_plugin_lock_by_name(
+      nullptr, to_lex_cstring(m_plugin_name.c_str()), MYSQL_CLONE_PLUGIN);
   if (plugin == nullptr) {
     m_plugin_handle = nullptr;
     LogErr(ERROR_LEVEL, ER_CLONE_PLUGIN_NOT_LOADED_TRACE);
@@ -129,7 +129,7 @@ int Clone_handler::init() {
   }
 
   m_plugin_handle = (Mysql_clone *)plugin_decl(plugin)->info;
-  plugin_unlock(0, plugin);
+  plugin_unlock(nullptr, plugin);
 
   if (opt_initialize) {
     /* Inform that database initialization in progress. */

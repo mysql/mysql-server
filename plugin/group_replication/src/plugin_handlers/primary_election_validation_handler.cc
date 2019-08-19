@@ -53,7 +53,7 @@ bool Primary_election_validation_handler::initialize_validation_structures() {
   validation_process_aborted = false;
   number_of_responses = 0;
   group_members_info.clear();
-  if (group_member_mgr != NULL) {
+  if (group_member_mgr != nullptr) {
     std::vector<Group_member_info *> *all_members_info =
         group_member_mgr->get_all_members();
     for (Group_member_info *member : *all_members_info) {

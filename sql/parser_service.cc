@@ -113,17 +113,17 @@ class Plugin_error_handler : public Internal_error_handler {
   Plugin_error_handler(THD *thd, sql_condition_handler_function handle_error,
                        void *state)
       : m_thd(thd),
-        m_message(NULL),
+        m_message(nullptr),
         m_handle_error(handle_error),
         m_state(state) {
-    if (handle_error != NULL) thd->push_internal_handler(this);
+    if (handle_error != nullptr) thd->push_internal_handler(this);
   }
 
   virtual bool handle_condition(THD *, uint sql_errno_u, const char *sqlstate,
                                 Sql_condition::enum_severity_level *,
                                 const char *msg) {
     int sql_errno = static_cast<int>(sql_errno_u);
-    if (m_handle_error != NULL)
+    if (m_handle_error != nullptr)
       return m_handle_error(sql_errno, sqlstate, msg, m_state) != 0;
     return false;
   }
@@ -131,7 +131,7 @@ class Plugin_error_handler : public Internal_error_handler {
   const char *get_message() { return m_message; }
 
   ~Plugin_error_handler() {
-    if (m_handle_error != NULL) m_thd->pop_internal_handler();
+    if (m_handle_error != nullptr) m_thd->pop_internal_handler();
   }
 };
 
@@ -142,11 +142,11 @@ MYSQL_THD mysql_parser_open_session() {
 
   // See create_thd()
   THD *thd = new (std::nothrow) THD;
-  if (thd == NULL) return NULL;
+  if (thd == nullptr) return nullptr;
 
   thd->security_context()->set_host_ptr(STRING_WITH_LEN(my_localhost));
   thd->lex = new LEX;
-  thd->lex->set_current_select(NULL);
+  thd->lex->set_current_select(nullptr);
 
   thd->variables.character_set_client = old_thd->variables.character_set_client;
 
@@ -196,8 +196,8 @@ void *parser_service_start_routine(void *arg) {
     delete tt;
   }
   my_thread_end();
-  my_thread_exit(0);
-  return 0;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 
 }  // namespace
@@ -215,13 +215,13 @@ void mysql_parser_start_thread(THD *thd, callback_function fun, void *arg,
 }
 
 void mysql_parser_join_thread(my_thread_handle *thread_id) {
-  my_thread_join(thread_id, NULL);
+  my_thread_join(thread_id, nullptr);
 }
 
 void mysql_parser_set_current_database(MYSQL_THD thd,
                                        const MYSQL_LEX_STRING db) {
   if (db.length == 0) {
-    LEX_CSTRING db_const = {NULL, 0};
+    LEX_CSTRING db_const = {nullptr, 0};
     thd->set_db(db_const);
   } else {
     LEX_CSTRING db_const = {db.str, db.length};
@@ -263,7 +263,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
   Plugin_error_handler error_handler(thd, handle_condition,
                                      condition_handler_state);
 
-  int parse_status = parse_sql(thd, &parser_state, NULL);
+  int parse_status = parse_sql(thd, &parser_state, nullptr);
 
   /*
     Handled conditions are thrown away at this point - they are supposedly
@@ -271,7 +271,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
     diagnostics area is not touched. It will contain any errors thrown by the
     parser.
   */
-  if (handle_condition != NULL) {
+  if (handle_condition != nullptr) {
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->get_stmt_da()->reset_condition_info(thd);
   }
@@ -306,7 +306,7 @@ int mysql_parser_get_statement_digest(MYSQL_THD thd, uchar *digest) {
                 "If you change the digest hash, PARSER_SERVICE_DIGEST_LENGTH "
                 "needs to adjust");
 
-  if (thd->m_digest == NULL) return true;
+  if (thd->m_digest == nullptr) return true;
   compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   return false;
 }
@@ -334,7 +334,7 @@ MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item) {
   static_cast<Item *>(item)->print(mysql_parser_current_session(), &str,
                                    QT_ORDINARY);
   MYSQL_LEX_STRING res = {new char[str.length()], 0};
-  if (res.str != NULL) {
+  if (res.str != nullptr) {
     res.length = str.length();
     std::copy(str.ptr(), str.ptr() + str.length(), res.str);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ TEST_F(ThreadManagerTest, TestTHDFindFunc) {
   testFunc2.set_search_value(6);
   thd = thd_manager->find_thd(&testFunc2);
   /* Find non existing thd with server_id value 6. Expected to return NULL. */
-  const THD *null_thd = NULL;
+  const THD *null_thd = nullptr;
   EXPECT_EQ(null_thd, thd);
 
   // Cleanup - Remove added THD.

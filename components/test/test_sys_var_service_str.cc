@@ -66,11 +66,11 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
   WRITE_LOG("%s\n", "test_component_sys_var_str init:");
 
   STR_CHECK_ARG(str) str_arg;
-  str_arg.def_val = NULL;
+  str_arg.def_val = nullptr;
   if (mysql_service_component_sys_variable_register->register_variable(
           "test_component_str", "str_sys_var",
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
-          "Registering string sys_variable", NULL, NULL, (void *)&str_arg,
+          "Registering string sys_variable", nullptr, nullptr, (void *)&str_arg,
           (void *)&str_variable_value)) {
     WRITE_LOG("%s\n", "register_variable failed.");
   }

@@ -643,7 +643,7 @@ const page_size_t dict_tf_get_page_size(uint32_t flags) {
 page sizes and a boolean indicating if the page is compressed */
 UNIV_INLINE
 const page_size_t dict_table_page_size(const dict_table_t *table) {
-  ut_ad(table != NULL);
+  ut_ad(table != nullptr);
 
   return (dict_tf_get_page_size(table->flags));
 }
@@ -661,7 +661,7 @@ void dict_table_x_lock_indexes(dict_table_t *table) /*!< in: table */
   ut_ad(mutex_own(&dict_sys->mutex));
 
   /* Loop through each index of the table and lock them */
-  for (index = table->first_index(); index != NULL; index = index->next()) {
+  for (index = table->first_index(); index != nullptr; index = index->next()) {
     rw_lock_x_lock(dict_index_get_lock(index));
   }
 }
@@ -675,7 +675,7 @@ void dict_table_x_unlock_indexes(dict_table_t *table) /*!< in: table */
   ut_a(table);
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  for (index = table->first_index(); index != NULL; index = index->next()) {
+  for (index = table->first_index(); index != nullptr; index = index->next()) {
     rw_lock_x_unlock(dict_index_get_lock(index));
   }
 }
@@ -742,7 +742,7 @@ include page no field.
 @return number of fields */
 UNIV_INLINE
 uint16_t dict_index_get_n_unique_in_tree_nonleaf(const dict_index_t *index) {
-  ut_ad(index != NULL);
+  ut_ad(index != nullptr);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
   ut_ad(index->cached);
 
@@ -1147,7 +1147,7 @@ dict_index_t *dict_table_get_index_on_first_col(
   ut_ad(col_index < table->n_cols);
 
   ulint non_v_col_index = col_index;
-  dict_col_t *column = NULL;
+  dict_col_t *column = nullptr;
 
   /** Decrement the col_index if the virtual column encountered
   before the col_index of the table. */
@@ -1163,7 +1163,7 @@ dict_index_t *dict_table_get_index_on_first_col(
 
   column = table->get_col(non_v_col_index);
 
-  for (dict_index_t *index = table->first_index(); index != NULL;
+  for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (index->fields[0].col == column) {
       return (index);
@@ -1264,7 +1264,7 @@ inline void dict_table_t::unlock() {
 @retval		false		if name is not "innodb_general" */
 inline bool dict_table_has_temp_general_tablespace_name(
     const char *tablespace_name) {
-  return (tablespace_name != NULL &&
+  return (tablespace_name != nullptr &&
           strncmp(tablespace_name, general_space_name,
                   strlen(general_space_name)) == 0);
 }
@@ -1331,16 +1331,16 @@ void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
 @param[in,out]	vc_templ	virtual column template */
 UNIV_INLINE
 void dict_free_vc_templ(dict_vcol_templ_t *vc_templ) {
-  if (vc_templ->vtempl != NULL) {
+  if (vc_templ->vtempl != nullptr) {
     ut_ad(vc_templ->n_v_col > 0);
     for (ulint i = 0; i < vc_templ->n_col + vc_templ->n_v_col; i++) {
-      if (vc_templ->vtempl[i] != NULL) {
+      if (vc_templ->vtempl[i] != nullptr) {
         ut_free(vc_templ->vtempl[i]);
       }
     }
     ut_free(vc_templ->default_rec);
     ut_free(vc_templ->vtempl);
-    vc_templ->vtempl = NULL;
+    vc_templ->vtempl = nullptr;
   }
 }
 

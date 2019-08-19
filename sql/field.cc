@@ -1393,9 +1393,9 @@ static size_t field_well_formed_copy_nchars(
    If the code point is out of ascii range, we only give user a warning
    in 5.7. Need to change to give a ERROR in future version.
   */
-  if ((to_cs->state & MY_CS_PUREASCII) && *well_formed_error_pos != NULL) {
+  if ((to_cs->state & MY_CS_PUREASCII) && *well_formed_error_pos != nullptr) {
     char tmp[32];
-    *well_formed_error_pos = NULL;
+    *well_formed_error_pos = nullptr;
     convert_to_printable(tmp, sizeof(tmp), from, from_length, from_cs, 6);
     push_warning_printf(
         current_thd, Sql_condition::SL_WARNING, ER_INVALID_CHARACTER_STRING,
@@ -1607,7 +1607,7 @@ String *Field::val_int_as_str(String *val_buffer, bool unsigned_val) const {
   size_t length;
   longlong value = val_int();
 
-  if (val_buffer->alloc(MY_INT64_NUM_DECIMAL_DIGITS)) return 0;
+  if (val_buffer->alloc(MY_INT64_NUM_DECIMAL_DIGITS)) return nullptr;
   length = (*cs->cset->longlong10_to_str)(cs, val_buffer->ptr(),
                                           MY_INT64_NUM_DECIMAL_DIGITS,
                                           unsigned_val ? 10 : -10, value);
@@ -1625,9 +1625,9 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
       m_is_tmp_nullable(false),
       m_is_tmp_null(false),
       m_check_for_truncated_fields_saved(CHECK_FIELD_IGNORE),
-      table(0),
-      orig_table(0),
-      table_name(0),
+      table(nullptr),
+      orig_table(nullptr),
+      table_name(nullptr),
       field_name(field_name_arg),
       field_length(length_arg),
       null_bit(null_bit_arg),
@@ -1635,7 +1635,7 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
       is_created_from_null_item(false),
       m_indexed(false),
       m_warnings_pushed(0),
-      gcol_info(0),
+      gcol_info(nullptr),
       stored_in_db(true),
       unsigned_flag(false),
       m_default_val_expr(nullptr)
@@ -2153,7 +2153,7 @@ bool Field::optimize_range(uint idx, uint part) const {
 Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
                         bool keep_type MY_ATTRIBUTE((unused))) const {
   Field *tmp = clone(root);
-  if (tmp == NULL) return 0;
+  if (tmp == nullptr) return nullptr;
 
   if (tmp->table && tmp->table->is_nullable()) tmp->flags &= ~NOT_NULL_FLAG;
   tmp->table = new_table;
@@ -2285,14 +2285,14 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
   */
-  const uchar *int_digits_tail_from = NULL;
+  const uchar *int_digits_tail_from = nullptr;
   /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
   uint int_digits_added_zeros = 0;
   /*
     Pointer used when digits move from the right of the '.' to the left
     of the '.'
   */
-  const uchar *frac_digits_head_end = NULL;
+  const uchar *frac_digits_head_end = nullptr;
   /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
   uint frac_digits_added_zeros = 0;
   uchar *pos, *tmp_left_pos, *tmp_right_pos;
@@ -2596,7 +2596,7 @@ type_conversion_status Field_decimal::store(double nr) {
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
 
   fyllchar = zerofill ? '0' : ' ';
-  length = my_fcvt(nr, dec, buff, NULL);
+  length = my_fcvt(nr, dec, buff, nullptr);
 
   if (length > field_length) {
     overflow(nr < 0.0);
@@ -4153,14 +4153,14 @@ String *Field_float::val_str(String *val_buffer,
   size_t len;
 
   if (dec >= DECIMAL_NOT_SPECIFIED)
-    len = my_gcvt(nr, MY_GCVT_ARG_FLOAT, to_length - 1, to, NULL);
+    len = my_gcvt(nr, MY_GCVT_ARG_FLOAT, to_length - 1, to, nullptr);
   else {
     /*
       We are safe here because the buffer length is 70, and
       fabs(float) < 10^39, dec < DECIMAL_NOT_SPECIFIED. So the resulting string
       will be not longer than 69 chars + terminating '\0'.
     */
-    len = my_fcvt(nr, dec, to, NULL);
+    len = my_fcvt(nr, dec, to, nullptr);
   }
   val_buffer->length((uint)len);
   if (zerofill) prepend_zeros(val_buffer);
@@ -4371,7 +4371,7 @@ longlong Field_double::val_int() const {
 warn : {
   char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
-  str = val_str(&tmp, 0);
+  str = val_str(&tmp, nullptr);
   ErrConvString err(str);
   push_warning_printf(
       current_thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
@@ -4413,9 +4413,9 @@ String *Field_double::val_str(String *val_buffer,
   size_t len;
 
   if (dec >= DECIMAL_NOT_SPECIFIED)
-    len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, to_length - 1, to, NULL);
+    len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, to_length - 1, to, nullptr);
   else
-    len = my_fcvt(nr, dec, to, NULL);
+    len = my_fcvt(nr, dec, to, nullptr);
 
   val_buffer->length((uint)len);
   if (zerofill) prepend_zeros(val_buffer);
@@ -4582,7 +4582,7 @@ type_conversion_status Field_temporal::store_lldiv_t(const lldiv_t *lld,
   if (error == TYPE_OK || error == TYPE_NOTE_TRUNCATED)
     error = store_internal_adjust_frac(&ltime, warnings);
   else if (!*warnings) {
-    DBUG_ASSERT(warnings != 0);  // Must be set by convert_number_to_TIME
+    DBUG_ASSERT(warnings != nullptr);  // Must be set by convert_number_to_TIME
     if (((*warnings & MYSQL_TIME_WARN_ZERO_DATE) != 0 ||
          (*warnings & MYSQL_TIME_WARN_ZERO_IN_DATE) != 0) &&
         !current_thd->is_strict_mode())
@@ -4773,7 +4773,7 @@ String *Field_temporal_with_date::val_str(String *val_buffer, String *) const {
     val_buffer->set_ascii(my_zero_datetime6, field_length);
     return val_buffer;
   }
-  make_datetime((Date_time_format *)0, &ltime, val_buffer, dec);
+  make_datetime((Date_time_format *)nullptr, &ltime, val_buffer, dec);
   return val_buffer;
 }
 
@@ -5311,7 +5311,7 @@ String *Field_time_common::val_str(
     DBUG_ASSERT(0);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
   }
-  make_time((Date_time_format *)0, &ltime, val_buffer, dec);
+  make_time((Date_time_format *)nullptr, &ltime, val_buffer, dec);
   return val_buffer;
 }
 
@@ -6048,7 +6048,7 @@ type_conversion_status Field_longstr::check_string_copy_error(
       ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "string", tmp,
       field_name, thd->get_stmt_da()->current_row_for_condition());
 
-  if (well_formed_error_pos != NULL) return TYPE_WARN_INVALID_STRING;
+  if (well_formed_error_pos != nullptr) return TYPE_WARN_INVALID_STRING;
 
   return TYPE_WARN_TRUNCATED;
 }
@@ -7625,8 +7625,8 @@ type_conversion_status Field_json::store(const char *from, size_t length,
   std::unique_ptr<Json_dom> dom(
       Json_dom::parse(s, ss, &parse_err, &err_offset));
 
-  if (dom.get() == NULL) {
-    if (parse_err != NULL) {
+  if (dom.get() == nullptr) {
+    if (parse_err != nullptr) {
       // Syntax error.
       invalid_text(parse_err, err_offset);
     }
@@ -8514,7 +8514,7 @@ uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
       DBUG_ASSERT(0);
   }
   MY_ASSERT_UNREACHABLE();
-  return NULL;
+  return nullptr;
 }
 
 const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
@@ -8540,7 +8540,7 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
       DBUG_ASSERT(0);
   }
   MY_ASSERT_UNREACHABLE();
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -8715,7 +8715,7 @@ type_conversion_status Field_bit::store(longlong nr, bool) {
   char buf[8];
 
   mi_int8store(buf, nr);
-  return store(buf, 8, NULL);
+  return store(buf, 8, nullptr);
 }
 
 type_conversion_status Field_bit::store_decimal(const my_decimal *val) {
@@ -9046,7 +9046,7 @@ Field_bit_as_char::Field_bit_as_char(uchar *ptr_arg, uint32 len_arg,
                                      uchar *null_ptr_arg, uchar null_bit_arg,
                                      uchar auto_flags_arg,
                                      const char *field_name_arg)
-    : Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, 0, 0,
+    : Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, nullptr, 0,
                 auto_flags_arg, field_name_arg) {
   flags |= UNSIGNED_FLAG;
   bit_len = 0;
@@ -9267,7 +9267,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
                   Nullable<gis::srid_t> srid, bool is_array) {
-  uchar *bit_ptr = NULL;
+  uchar *bit_ptr = nullptr;
   uchar bit_offset = 0;
   DBUG_ASSERT(mem_root);
 
@@ -9282,7 +9282,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
   }
 
   if (!maybe_null) {
-    null_pos = 0;
+    null_pos = nullptr;
     null_bit = 0;
   } else {
     null_bit = ((uchar)1) << null_bit;
@@ -9315,7 +9315,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
         break;
       default:
         DBUG_ASSERT(0);  // Shouldn't happen
-        return NULL;
+        return nullptr;
     }
     /*
       Field_json constructor expects number of bytes used to represent length
@@ -9479,7 +9479,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
     default:  // Impossible (Wrong version)
       break;
   }
-  return 0;
+  return nullptr;
 }
 
 static Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
@@ -9956,15 +9956,15 @@ void Field_typed_array::init(TABLE *table_arg) {
   m_conv_field = ::make_field(
       // Allocate conversion field in table's mem_root
       &table_arg->mem_root,
-      NULL,           // TABLE_SHARE, not needed
-      NULL,           // data buffer, isn't allocated yet
+      nullptr,        // TABLE_SHARE, not needed
+      nullptr,        // data buffer, isn't allocated yet
       fld_length,     // field_length
       &null_byte, 0,  // null_pos, nul_bit
       real_type(),    // field_type
       m_elt_charset,
       Field::GEOM_GEOMETRY,  // geom type
       Field::NONE,           // auto_flags
-      NULL,                  // itervals aren't supported in array
+      nullptr,               // itervals aren't supported in array
       field_name, real_maybe_null(),
       false,  // zerofill is meaningless with JSON
       unsigned_flag, m_elt_decimals,

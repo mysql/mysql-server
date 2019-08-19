@@ -301,7 +301,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
   }
 
   ret_mysql =
-      mysql_real_connect(mysql, host, user, passwd, nullptr, port, 0, 0);
+      mysql_real_connect(mysql, host, user, passwd, nullptr, port, nullptr, 0);
 
   if (ret_mysql == nullptr) {
     char err_buf[MYSYS_ERRMSG_SIZE + 64];

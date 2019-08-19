@@ -49,7 +49,7 @@ static void initialize_performance_schema_helper(PFS_global_param *param) {
   param->m_account_sizing = 1000;
   transaction_class_max = 0;
 
-  pfs_thread.m_account_hash_pins = NULL;
+  pfs_thread.m_account_hash_pins = nullptr;
 
   init_event_name_sizing(param);
   init_sync_class(param->m_mutex_class_sizing, param->m_rwlock_class_sizing,
@@ -105,7 +105,7 @@ static void test_oom() {
   stub_alloc_fails_after_count = 1;
   pfs_account = find_or_create_account(&pfs_thread, username, user_len,
                                        hostname, host_len);
-  ok(pfs_account == NULL, "oom (account)");
+  ok(pfs_account == nullptr, "oom (account)");
   ok(global_account_container.m_lost == 1, "lost (account)");
   shutdown_performance_schema();
 
@@ -116,7 +116,7 @@ static void test_oom() {
   stub_alloc_fails_after_count = 2;
   pfs_account = find_or_create_account(&pfs_thread, username, user_len,
                                        hostname, host_len);
-  ok(pfs_account == NULL, "oom (account waits)");
+  ok(pfs_account == nullptr, "oom (account waits)");
   ok(global_account_container.m_lost == 1, "lost (account waits)");
   shutdown_performance_schema();
 
@@ -127,7 +127,7 @@ static void test_oom() {
   stub_alloc_fails_after_count = 3;
   pfs_account = find_or_create_account(&pfs_thread, username, user_len,
                                        hostname, host_len);
-  ok(pfs_account == NULL, "oom (account stages)");
+  ok(pfs_account == nullptr, "oom (account stages)");
   ok(global_account_container.m_lost == 1, "lost (account stages)");
   shutdown_performance_schema();
 
@@ -138,7 +138,7 @@ static void test_oom() {
   stub_alloc_fails_after_count = 3;
   pfs_account = find_or_create_account(&pfs_thread, username, user_len,
                                        hostname, host_len);
-  ok(pfs_account == NULL, "oom (account statements)");
+  ok(pfs_account == nullptr, "oom (account statements)");
   ok(global_account_container.m_lost == 1, "lost (account statements)");
   shutdown_performance_schema();
 
@@ -149,7 +149,7 @@ static void test_oom() {
   stub_alloc_fails_after_count = 3;
   pfs_account = find_or_create_account(&pfs_thread, username, user_len,
                                        hostname, host_len);
-  ok(pfs_account == NULL, "oom (account transactions)");
+  ok(pfs_account == nullptr, "oom (account transactions)");
   ok(global_account_container.m_lost == 1, "lost (account transactions)");
   shutdown_performance_schema();
 
@@ -160,7 +160,7 @@ static void test_oom() {
   stub_alloc_fails_after_count = 3;
   pfs_account = find_or_create_account(&pfs_thread, username, user_len,
                                        hostname, host_len);
-  ok(pfs_account == NULL, "oom (account memory)");
+  ok(pfs_account == nullptr, "oom (account memory)");
   ok(global_account_container.m_lost == 1, "lost (account memory)");
   shutdown_performance_schema();
 }

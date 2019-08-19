@@ -574,7 +574,7 @@ class Wait_ticket {
   */
   int waitTicket(const K &key, ulong timeout = 0) {
     int error = 0;
-    CountDownLatch *cdl = NULL;
+    CountDownLatch *cdl = nullptr;
 
     mysql_mutex_lock(&lock);
 
@@ -590,7 +590,7 @@ class Wait_ticket {
       cdl = it->second;
     mysql_mutex_unlock(&lock);
 
-    if (cdl != NULL) {
+    if (cdl != nullptr) {
       cdl->wait(timeout);
       error = cdl->get_error() ? 1 : 0;
 
@@ -702,7 +702,7 @@ class Shared_writelock {
       : shared_write_lock(arg), write_lock_in_use(false) {
     DBUG_TRACE;
 
-    DBUG_ASSERT(arg != NULL);
+    DBUG_ASSERT(arg != nullptr);
 
     mysql_mutex_init(key_GR_LOCK_write_lock_protection, &write_lock,
                      MY_MUTEX_INIT_FAST);

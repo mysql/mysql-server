@@ -449,7 +449,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::unload,
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_create,
                    (my_h_component_iterator * out_iterator)) {
   try {
-    *out_iterator = NULL;
+    *out_iterator = nullptr;
 
     /* This read lock on whole component registry will be held, until the
       iterator is released. */
@@ -510,8 +510,8 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_get,
                    (my_h_component_iterator iterator, const char **out_name,
                     const char **out_urn)) {
   try {
-    *out_name = NULL;
-    *out_urn = NULL;
+    *out_name = nullptr;
+    *out_urn = nullptr;
 
     if (!iterator) return true;
 
@@ -692,7 +692,7 @@ bool mysql_dynamic_loader_imp::load_do_collect_services_provided(
     for (const mysql_service_ref_t *service_provided :
          loaded_component->get_provided_services()) {
       const char *dot_position = strchr(service_provided->name, '.');
-      if (dot_position == NULL) {
+      if (dot_position == nullptr) {
         services_provided.insert(my_string(service_provided->name));
       } else {
         /* Insert only part before the dot, which is only the service name,
@@ -816,7 +816,7 @@ bool mysql_dynamic_loader_imp::load_do_resolve_dependencies(
   auto guard = create_scope_guard([&acquired_services]() {
     for (my_h_service *service_storage : acquired_services) {
       mysql_registry_imp::release(*service_storage);
-      *service_storage = NULL;
+      *service_storage = nullptr;
     }
   });
 
@@ -864,7 +864,7 @@ bool mysql_dynamic_loader_imp::load_do_initialize_components(
 
   auto guard = create_scope_guard([&initialized_components]() {
     for (mysql_component *initialized_component : initialized_components) {
-      if (initialized_component->get_data()->deinit != NULL) {
+      if (initialized_component->get_data()->deinit != nullptr) {
         initialized_component->get_data()->deinit();
       }
     }
@@ -876,7 +876,7 @@ bool mysql_dynamic_loader_imp::load_do_initialize_components(
     /* Initialize component, move to main collection of components,
       add to temporary list of components registered, in case we need to
       unregister them on failure. */
-    if (loaded_component->get_data()->init != NULL &&
+    if (loaded_component->get_data()->init != nullptr &&
         loaded_component->get_data()->init()) {
       mysql_error_service_printf(ER_COMPONENTS_LOAD_CANT_INITIALIZE, MYF(0),
                                  loaded_component->name_c_str());
@@ -1165,7 +1165,7 @@ bool mysql_dynamic_loader_imp::unload_do_deinitialize_components(
   /* Release all Services that are used as dependencies, as there can be
     references to Services provided by other components to be unloaded. */
   for (mysql_component *component : components_to_unload) {
-    if (component->get_data()->deinit != NULL) {
+    if (component->get_data()->deinit != nullptr) {
       if (component->get_data()->deinit()) {
         /* In case of error we don't want to try to restore consistent state.
           This is arbitrary decision, rollback of this operation is possible,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Query_result {
   */
   double estimated_cost;
 
-  Query_result() : unit(NULL), estimated_rowcount(0), estimated_cost(0) {}
+  Query_result() : unit(nullptr), estimated_rowcount(0), estimated_cost(0) {}
   virtual ~Query_result() {}
 
   virtual bool needs_file_privilege() const { return false; }

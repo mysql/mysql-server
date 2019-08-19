@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ class Cache_element {
   struct Type_selector {};
 
   const T *const *get_key(Type_selector<const T *>) const {
-    return m_object ? &m_object : NULL;
+    return m_object ? &m_object : nullptr;
   }
 
   const typename T::Id_key *get_key(Type_selector<typename T::Id_key>) const {
@@ -140,7 +140,7 @@ class Cache_element {
  public:
   // Initialize an instance to having NULL pointers and 0 count.
   Cache_element()
-      : m_object(NULL),
+      : m_object(nullptr),
         m_ref_counter(0),
         m_id_key(),
         m_name_key(),
@@ -151,7 +151,7 @@ class Cache_element {
 
   // Initialize an existing instance.
   void init() {
-    m_object = NULL;
+    m_object = nullptr;
     m_ref_counter = 0;
     delete_keys();
   }
@@ -170,17 +170,17 @@ class Cache_element {
 
   // Get the id key.
   const typename T::Id_key *id_key() const {
-    return m_id_key.is_null ? NULL : &m_id_key.key;
+    return m_id_key.is_null ? nullptr : &m_id_key.key;
   }
 
   // Get the name key.
   const typename T::Name_key *name_key() const {
-    return m_name_key.is_null ? NULL : &m_name_key.key;
+    return m_name_key.is_null ? nullptr : &m_name_key.key;
   }
 
   // Get the aux key.
   const typename T::Aux_key *aux_key() const {
-    return m_aux_key.is_null ? NULL : &m_aux_key.key;
+    return m_aux_key.is_null ? nullptr : &m_aux_key.key;
   }
 
   /**

@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,12 @@
 #include "client/mysqltest/error_names.h"
 
 static st_error global_error_names[] = {
-    {"<No error>", static_cast<int>(-1), "", NULL, NULL, 0},
+    {"<No error>", static_cast<int>(-1), "", nullptr, nullptr, 0},
 #ifndef IN_DOXYGEN
 #include "mysqlclient_ername.h"
 #include "mysqld_ername.h"
 #endif /* IN_DOXYGEN */
-    {0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}};
 
 int get_errcode_from_name(std::string error_name) {
   for (st_error *error = global_error_names; error->name; error++) {

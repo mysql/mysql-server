@@ -86,7 +86,7 @@ static const LEX_CSTRING CONDITION_ITEM_NAMES[] = {
 
 bool Set_signal_information::set_item(enum_condition_item_name name,
                                       Item *item) {
-  if (m_item[name] != NULL) {
+  if (m_item[name] != nullptr) {
     my_error(ER_DUP_SIGNAL_SET, MYF(0), CONDITION_ITEM_NAMES[name].str);
     return true;
   }
@@ -109,7 +109,7 @@ void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond) {
   DBUG_ASSERT(cond);
 
   const char *sqlstate;
-  bool set_defaults = (m_cond != 0);
+  bool set_defaults = (m_cond != nullptr);
 
   if (set_defaults) {
     /*
@@ -156,8 +156,8 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
   size_t dummy_offset;
 
   src_str = src->ptr();
-  if (src_str == NULL) {
-    dst->set((const char *)NULL, 0, dst_cs);
+  if (src_str == nullptr) {
+    dst->set((const char *)nullptr, 0, dst_cs);
     return false;
   }
 
@@ -279,7 +279,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   for (j = 0; j < array_elements(map); j++) {
     item_enum = map[j].m_item;
     set = m_set_signal_information->m_item[item_enum];
-    if (set != NULL) {
+    if (set != nullptr) {
       member = &(cond->*map[j].m_member);
       name = &CONDITION_ITEM_NAMES[item_enum];
       if (assign_condition_item(cond->m_mem_root, name->str, thd, set, member))
@@ -292,7 +292,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   */
 
   set = m_set_signal_information->m_item[CIN_MESSAGE_TEXT];
-  if (set != NULL) {
+  if (set != nullptr) {
     if (set->is_null()) {
       thd->raise_error_printf(ER_WRONG_VALUE_FOR_VAR, "MESSAGE_TEXT", "NULL");
       goto end;
@@ -328,7 +328,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   }
 
   set = m_set_signal_information->m_item[CIN_MYSQL_ERRNO];
-  if (set != NULL) {
+  if (set != nullptr) {
     if (set->is_null()) {
       thd->raise_error_printf(ER_WRONG_VALUE_FOR_VAR, "MYSQL_ERRNO", "NULL");
       goto end;
@@ -381,7 +381,7 @@ bool Sql_cmd_signal::execute(THD *thd) {
   thd->set_row_count_func(0);
   thd->get_stmt_da()->reset_condition_info(thd);
 
-  DBUG_ASSERT(thd->lex->query_tables == NULL);
+  DBUG_ASSERT(thd->lex->query_tables == nullptr);
 
   eval_defaults(thd, &cond);
   if (eval_signal_informations(thd, &cond)) return true;
@@ -416,7 +416,7 @@ bool Sql_cmd_signal::execute(THD *thd) {
 */
 
 bool Sql_cmd_resignal::execute(THD *thd) {
-  sp_rcontext::Handler_call_frame *frame = NULL;
+  sp_rcontext::Handler_call_frame *frame = nullptr;
 
   DBUG_TRACE;
 
@@ -433,7 +433,7 @@ bool Sql_cmd_resignal::execute(THD *thd) {
   // allow set_error_status(), in raise_condition() or here.
   da->reset_diagnostics_area();
 
-  Sql_condition *raised = NULL;
+  Sql_condition *raised = nullptr;
 
   // RESIGNAL with signal_value.
   if (m_cond) {

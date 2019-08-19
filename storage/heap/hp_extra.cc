@@ -60,7 +60,7 @@ int heap_extra(HP_INFO *info, enum ha_extra_function function) {
 int heap_reset(HP_INFO *info) {
   info->lastinx = -1;
   info->current_record = (ulong)~0L;
-  info->current_hash_ptr = 0;
+  info->current_hash_ptr = nullptr;
   info->update = 0;
   info->next_block = 0;
   return 0;

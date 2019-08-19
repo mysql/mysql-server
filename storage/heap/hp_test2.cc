@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
 
   filename = "test2";
   filename2 = "test2_2";
-  file = file2 = 0;
+  file = file2 = nullptr;
   get_options(argc, argv);
 
   memset(&hp_create_info, 0, sizeof(hp_create_info));

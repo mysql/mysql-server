@@ -37,19 +37,19 @@
 Server_ids::Server_ids() : dynamic_ids(PSI_NOT_INSTRUMENTED) {}
 
 bool Server_ids::unpack_dynamic_ids(char *param_dynamic_ids) {
-  char *token = NULL, *last = NULL;
+  char *token = nullptr, *last = nullptr;
   uint num_items = 0;
 
   DBUG_TRACE;
 
   token = my_strtok_r(param_dynamic_ids, " ", &last);
 
-  if (token == NULL) return true;
+  if (token == nullptr) return true;
 
   num_items = atoi(token);
   for (uint i = 0; i < num_items; i++) {
-    token = my_strtok_r(NULL, " ", &last);
-    if (token == NULL)
+    token = my_strtok_r(nullptr, " ", &last);
+    if (token == nullptr)
       return true;
     else {
       ulong val = atol(token);

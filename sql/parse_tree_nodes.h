@@ -216,7 +216,7 @@ class PT_order_list : public Parse_tree_node {
  public:
   bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
-    for (ORDER *o = value.first; o != NULL; o = o->next) {
+    for (ORDER *o = value.first; o != nullptr; o = o->next) {
       if (static_cast<PT_order_expr *>(o)->contextualize(pc)) return true;
     }
     return false;
@@ -529,8 +529,8 @@ class PT_joined_table : public PT_table_reference {
         join_pos(join_pos_arg),
         m_type(type),
         tab2_node(tab2_node_arg),
-        tr1(NULL),
-        tr2(NULL) {
+        tr1(nullptr),
+        tr2(nullptr) {
     static_assert(is_single_bit(JTT_INNER), "not a single bit");
     static_assert(is_single_bit(JTT_STRAIGHT), "not a single bit");
     static_assert(is_single_bit(JTT_NATURAL), "not a single bit");
@@ -554,7 +554,7 @@ class PT_joined_table : public PT_table_reference {
 
   /// Adds the table reference as the right-hand side of this join.
   void add_rhs(PT_table_reference *table) {
-    DBUG_ASSERT(tab2_node == NULL);
+    DBUG_ASSERT(tab2_node == nullptr);
     tab2_node = table;
   }
 
@@ -565,7 +565,7 @@ class PT_joined_table : public PT_table_reference {
 
  protected:
   bool contextualize_tabs(Parse_context *pc) {
-    if (tr1 != NULL) return false;  // already done
+    if (tr1 != nullptr) return false;  // already done
 
     if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc))
       return true;
@@ -573,7 +573,7 @@ class PT_joined_table : public PT_table_reference {
     tr1 = tab1_node->value;
     tr2 = tab2_node->value;
 
-    if (tr1 == NULL || tr2 == NULL) {
+    if (tr1 == nullptr || tr2 == nullptr) {
       error(pc, join_pos);
       return true;
     }
@@ -625,7 +625,7 @@ class PT_joined_table_using : public PT_joined_table {
                         const POS &join_pos_arg, PT_joined_table_type type,
                         PT_table_reference *tab2_node_arg)
       : PT_joined_table_using(tab1_node_arg, join_pos_arg, type, tab2_node_arg,
-                              NULL) {}
+                              nullptr) {}
 
   bool contextualize(Parse_context *pc) override;
 };
@@ -1122,7 +1122,7 @@ class PT_transaction_characteristics : public Parse_tree_node {
 
   bool contextualize(Parse_context *pc) override {
     return (super::contextualize(pc) || head->contextualize(pc) ||
-            (opt_tail != NULL && opt_tail->contextualize(pc)));
+            (opt_tail != nullptr && opt_tail->contextualize(pc)));
   }
 };
 
@@ -1475,26 +1475,26 @@ class PT_query_specification : public PT_query_primary {
       const Query_options &options_arg, PT_item_list *item_list_arg,
       const Mem_root_array_YY<PT_table_reference *> &from_clause_arg,
       Item *opt_where_clause_arg)
-      : opt_hints(NULL),
+      : opt_hints(nullptr),
         options(options_arg),
         item_list(item_list_arg),
-        opt_into1(NULL),
+        opt_into1(nullptr),
         from_clause(from_clause_arg),
         opt_where_clause(opt_where_clause_arg),
-        opt_group_clause(NULL),
-        opt_having_clause(NULL),
-        opt_window_clause(NULL) {}
+        opt_group_clause(nullptr),
+        opt_having_clause(nullptr),
+        opt_window_clause(nullptr) {}
 
   explicit PT_query_specification(const Query_options &options_arg,
                                   PT_item_list *item_list_arg)
-      : opt_hints(NULL),
+      : opt_hints(nullptr),
         options(options_arg),
         item_list(item_list_arg),
-        opt_into1(NULL),
-        opt_where_clause(NULL),
-        opt_group_clause(NULL),
-        opt_having_clause(NULL),
-        opt_window_clause(NULL) {
+        opt_into1(nullptr),
+        opt_where_clause(nullptr),
+        opt_group_clause(nullptr),
+        opt_having_clause(nullptr),
+        opt_window_clause(nullptr) {
     from_clause.init_empty_const();
   }
 
@@ -1563,7 +1563,7 @@ class PT_query_expression final : public PT_query_primary {
       : PT_query_expression(nullptr, body, order, limit, locking_clauses) {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
-      : PT_query_expression(body, NULL, NULL, NULL) {}
+      : PT_query_expression(body, nullptr, nullptr, nullptr) {}
 
   bool contextualize(Parse_context *pc) override;
 
@@ -1621,7 +1621,7 @@ class PT_subquery : public Parse_tree_node {
   PT_subquery(POS p, PT_query_expression *query_expression)
       : qe(query_expression),
         pos(p),
-        select_lex(NULL),
+        select_lex(nullptr),
         m_is_derived_table(false) {}
 
   bool contextualize(Parse_context *pc) override;
@@ -1668,7 +1668,7 @@ class PT_select_stmt : public Parse_tree_root {
     @param sql_command The type of SQL command.
   */
   PT_select_stmt(enum_sql_command sql_command, PT_query_expression *qe)
-      : m_sql_command(sql_command), m_qe(qe), m_into(NULL) {}
+      : m_sql_command(sql_command), m_qe(qe), m_into(nullptr) {}
 
   /**
     Creates a SELECT command. Only SELECT commands can have into.
@@ -1679,7 +1679,7 @@ class PT_select_stmt : public Parse_tree_root {
   PT_select_stmt(PT_query_expression *qe, PT_into_destination *into)
       : m_sql_command(SQLCOM_SELECT), m_qe(qe), m_into(into) {}
 
-  PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, NULL) {}
+  PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, nullptr) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -1738,21 +1738,21 @@ class PT_delete final : public Parse_tree_root {
       : m_with_clause(with_clause_arg),
         opt_hints(opt_hints_arg),
         opt_delete_options(opt_delete_options_arg),
-        table_ident(NULL),
+        table_ident(nullptr),
         opt_table_alias(nullptr),
         table_list(table_list_arg),
-        opt_use_partition(NULL),
+        opt_use_partition(nullptr),
         join_table_list(join_table_list_arg),
         opt_where_clause(opt_where_clause_arg),
-        opt_order_clause(NULL),
-        opt_delete_limit_clause(NULL) {}
+        opt_order_clause(nullptr),
+        opt_delete_limit_clause(nullptr) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
  private:
   bool is_multitable() const {
-    DBUG_ASSERT((table_ident != NULL) ^ (table_list.size() > 0));
-    return table_ident == NULL;
+    DBUG_ASSERT((table_ident != nullptr) ^ (table_list.size() > 0));
+    return table_ident == nullptr;
   }
 
   bool add_table(Parse_context *pc, Table_ident *table);
@@ -1859,12 +1859,13 @@ class PT_insert final : public Parse_tree_root {
     // REPLACE statement can't have IGNORE flag:
     DBUG_ASSERT(!is_replace || !ignore);
     // REPLACE statement can't have ON DUPLICATE KEY UPDATE clause:
-    DBUG_ASSERT(!is_replace || opt_on_duplicate_column_list == NULL);
+    DBUG_ASSERT(!is_replace || opt_on_duplicate_column_list == nullptr);
     // INSERT/REPLACE ... SELECT can't have VALUES clause:
-    DBUG_ASSERT((row_value_list != NULL) ^ (insert_query_expression != NULL));
+    DBUG_ASSERT((row_value_list != nullptr) ^
+                (insert_query_expression != nullptr));
     // ON DUPLICATE KEY UPDATE: column and value arrays must have same sizes:
-    DBUG_ASSERT((opt_on_duplicate_column_list == NULL &&
-                 opt_on_duplicate_value_list == NULL) ||
+    DBUG_ASSERT((opt_on_duplicate_column_list == nullptr &&
+                 opt_on_duplicate_value_list == nullptr) ||
                 (opt_on_duplicate_column_list->elements() ==
                  opt_on_duplicate_value_list->elements()));
   }
@@ -1872,7 +1873,7 @@ class PT_insert final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override;
 
  private:
-  bool has_select() const { return insert_query_expression != NULL; }
+  bool has_select() const { return insert_query_expression != nullptr; }
 };
 
 class PT_call final : public Parse_tree_root {
@@ -2724,7 +2725,7 @@ class PT_column_def : public PT_table_element {
  public:
   PT_column_def(const LEX_STRING &field_ident, PT_field_def_base *field_def,
                 PT_table_constraint_def *opt_column_constraint,
-                const char *opt_place = NULL)
+                const char *opt_place = nullptr)
       : field_ident(field_ident),
         field_def(field_def),
         opt_column_constraint(opt_column_constraint),
@@ -2785,7 +2786,7 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
         opt_partitioning(opt_partitioning),
         on_duplicate(on_duplicate),
         opt_query_expression(opt_query_expression),
-        opt_like_clause(NULL) {}
+        opt_like_clause(nullptr) {}
   /**
     @param mem_root           MEM_ROOT to use for allocation
     @param is_temporary       True if @SQL{CREATE @B{TEMPORARY} %TABLE}.
@@ -2800,11 +2801,11 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
         is_temporary(is_temporary),
         only_if_not_exists(only_if_not_exists),
         table_name(table_name),
-        opt_table_element_list(NULL),
-        opt_create_table_options(NULL),
-        opt_partitioning(NULL),
+        opt_table_element_list(nullptr),
+        opt_create_table_options(nullptr),
+        opt_partitioning(nullptr),
         on_duplicate(On_duplicate::ERROR),
-        opt_query_expression(NULL),
+        opt_query_expression(nullptr),
         opt_like_clause(opt_like_clause) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
@@ -2835,9 +2836,10 @@ class PT_set_role : public Parse_tree_root {
 
  public:
   explicit PT_set_role(role_enum role_type,
-                       const List<LEX_USER> *opt_except_roles = NULL)
+                       const List<LEX_USER> *opt_except_roles = nullptr)
       : sql_cmd(role_type, opt_except_roles) {
-    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || opt_except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL ||
+                opt_except_roles == nullptr);
   }
   explicit PT_set_role(const List<LEX_USER> *roles) : sql_cmd(roles) {}
 
@@ -2913,7 +2915,7 @@ class PT_static_privilege final : public PT_role_or_privilege {
 
  public:
   PT_static_privilege(const POS &pos, uint grant,
-                      const Mem_root_array<LEX_CSTRING> *columns = NULL)
+                      const Mem_root_array<LEX_CSTRING> *columns = nullptr)
       : PT_role_or_privilege(pos), grant(grant), columns(columns) {}
 
   Privilege *get_privilege(THD *thd) override;
@@ -2973,7 +2975,7 @@ class PT_show_grants final : public Parse_tree_root {
   PT_show_grants(const LEX_USER *opt_for_user,
                  const List<LEX_USER> *opt_using_users)
       : sql_cmd(opt_for_user, opt_using_users) {
-    DBUG_ASSERT(opt_using_users == NULL || opt_for_user != NULL);
+    DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
   }
 
   Sql_cmd *make_cmd(THD *thd) override;
@@ -3524,7 +3526,7 @@ class PT_alter_table_partition_list_or_all
 
   bool contextualize(Table_ddl_parse_context *pc) override {
     DBUG_ASSERT(pc->alter_info->partition_names.is_empty());
-    if (m_opt_partition_list == NULL)
+    if (m_opt_partition_list == nullptr)
       pc->alter_info->flags |= Alter_info::ALTER_ALL_PARTITION;
     else
       pc->alter_info->partition_names = *m_opt_partition_list;

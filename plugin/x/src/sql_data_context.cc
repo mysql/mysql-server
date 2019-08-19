@@ -79,13 +79,14 @@ void Sql_data_context::deinit() {
     log_debug("sqlsession deinit: %p [%i]", m_mysql_session,
               srv_session_info_get_session_id(m_mysql_session));
     srv_session_close(m_mysql_session);
-    m_mysql_session = NULL;
+    m_mysql_session = nullptr;
   }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(delete_current_thread)();
 
-  PSI_thread *psi = PSI_THREAD_CALL(new_thread)(KEY_thread_x_worker, NULL, 0);
+  PSI_thread *psi =
+      PSI_THREAD_CALL(new_thread)(KEY_thread_x_worker, nullptr, 0);
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -101,7 +102,7 @@ bool Sql_data_context::kill() {
     log_debug("sqlsession init (for kill): %p [%i]", m_mysql_session,
               m_mysql_session ? srv_session_info_get_session_id(m_mysql_session)
                               : -1);
-    MYSQL_SESSION session = srv_session_open(kill_completion_handler, NULL);
+    MYSQL_SESSION session = srv_session_open(kill_completion_handler, nullptr);
     bool ok = false;
     if (session) {
       MYSQL_SECURITY_CONTEXT scontext;
@@ -112,7 +113,7 @@ bool Sql_data_context::kill() {
       } else {
         const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
-        if (security_context_lookup(scontext, user, host, NULL, NULL)) {
+        if (security_context_lookup(scontext, user, host, nullptr, nullptr)) {
           log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX, user);
         } else {
           COM_DATA data;
@@ -178,7 +179,8 @@ Sql_data_context::~Sql_data_context() {
 }
 
 void Sql_data_context::switch_to_local_user(const std::string &user) {
-  ngs::Error_code error = switch_to_user(user.c_str(), "localhost", NULL, NULL);
+  ngs::Error_code error =
+      switch_to_user(user.c_str(), "localhost", nullptr, nullptr);
   if (error) throw error;
 }
 
@@ -196,7 +198,7 @@ ngs::Error_code Sql_data_context::authenticate(
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();
 
-  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, NULL, NULL);
+  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);
 
   if (error) {
     const char *session_user = MYSQL_SESSION_USER;
@@ -284,7 +286,7 @@ bool Sql_data_context::is_acl_disabled() {
   MYSQL_LEX_CSTRING value{"", 0};
 
   if (get_security_context_value(get_thd(), "priv_user", &value)) {
-    return 0 != value.length && NULL != strstr(value.str, "skip-grants ");
+    return 0 != value.length && nullptr != strstr(value.str, "skip-grants ");
   }
 
   return false;

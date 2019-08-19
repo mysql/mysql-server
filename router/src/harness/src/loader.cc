@@ -199,7 +199,7 @@ static void register_fatal_signal_handler() {
   };
 
   for (const auto &sig : g_fatal_signals) {
-    (void)sigaction(sig, &sa, NULL);
+    (void)sigaction(sig, &sa, nullptr);
   }
 #endif
 }
@@ -1172,7 +1172,7 @@ bool Loader::visit(const std::string &designator,
       if (Plugin *plugin = plugins_.at(info.plugin).plugin) {
         for (auto required :
              make_range(plugin->requires, plugin->requires_length)) {
-          assert(required != NULL);
+          assert(required != nullptr);
           bool succeeded = visit(required, status, order);
           if (!succeeded) return false;
         }

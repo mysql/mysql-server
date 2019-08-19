@@ -51,16 +51,16 @@ LINE_BUFFER *batch_readline_init(ulong max_size, FILE *file) {
   if (my_fstat(fileno(file), &input_file_stat) ||
       MY_S_ISDIR(input_file_stat.st_mode) ||
       MY_S_ISBLK(input_file_stat.st_mode))
-    return 0;
+    return nullptr;
 #endif
 
   if (!(line_buff =
             (LINE_BUFFER *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(*line_buff),
                                      MYF(MY_WME | MY_ZEROFILL))))
-    return 0;
+    return nullptr;
   if (init_line_buffer(line_buff, my_fileno(file), batch_io_size, max_size)) {
     my_free(line_buff);
-    return 0;
+    return nullptr;
   }
   return line_buff;
 }
@@ -69,7 +69,7 @@ char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode) {
   char *pos;
   ulong out_length;
 
-  if (!(pos = intern_read_line(line_buff, &out_length))) return 0;
+  if (!(pos = intern_read_line(line_buff, &out_length))) return nullptr;
   if (out_length && pos[out_length - 1] == '\n') {
 #if defined(_WIN32)
     /*
@@ -110,10 +110,10 @@ LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, char *str) {
     if (!(line_buff =
               (LINE_BUFFER *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(*line_buff),
                                        MYF(MY_WME | MY_ZEROFILL))))
-      return 0;
+      return nullptr;
   if (init_line_buffer_from_string(line_buff, str)) {
     my_free(line_buff);
-    return 0;
+    return nullptr;
   }
   return line_buff;
 }
@@ -241,9 +241,9 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length) {
         string truncation.
       */
       if (!(length = fill_buffer(buffer))) {
-        if (buffer->eof) return 0;
+        if (buffer->eof) return nullptr;
       } else if (length == (size_t)-1)
-        return NULL;
+        return nullptr;
       else
         continue;
       pos--; /* break line here */

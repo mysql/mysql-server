@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Raw_record_set : private Raw_record {
  private:
   // Note: The 'key' supplied will be freed by Raw_record_set
   Raw_record_set(TABLE *table, Raw_key *key)
-      : Raw_record(table), m_key(key), m_current_record(NULL) {}
+      : Raw_record(table), m_key(key), m_current_record(nullptr) {}
 
   bool open();
 

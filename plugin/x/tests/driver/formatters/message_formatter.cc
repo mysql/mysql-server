@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -329,7 +329,7 @@ std::string message_to_text(const Message &message,
                             const bool show_message_name) {
   if (field_path.empty()) return message_to_text(message);
 
-  const FieldDescriptor *field_descriptor = NULL;
+  const FieldDescriptor *field_descriptor = nullptr;
   const Message *msg = &message;
   details::Fields fields = details::get_fields_array_from_path(field_path);
   std::size_t index_of_last_element = fields.size() - 1;

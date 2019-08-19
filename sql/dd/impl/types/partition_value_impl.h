@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
         m_null_value(false),
         m_list_num(0),
         m_column_num(0),
-        m_partition(NULL) {}
+        m_partition(nullptr) {}
 
   Partition_value_impl(Partition_impl *partition)
       : m_max_value(false),

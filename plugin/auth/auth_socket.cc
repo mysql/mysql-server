@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
   char buf[1024];
 
   /* no user name yet ? read the client handshake packet with the user name */
-  if (info->user_name == 0) {
+  if (info->user_name == nullptr) {
     if (vio->read_packet(vio, &pkt) < 0) return CR_ERROR;
   }
 
@@ -67,7 +67,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
 
   /* and find the socket user name for this uid */
   getpwuid_r(cred.uid, &pwd_buf, buf, sizeof(buf), &pwd);
-  if (pwd == NULL) return CR_ERROR;
+  if (pwd == nullptr) return CR_ERROR;
 
   /* fill in the external user name used */
   strncpy(info->external_user, pwd->pw_name, sizeof(info->external_user) - 1);
@@ -104,13 +104,13 @@ static int set_salt(const char *password MY_ATTRIBUTE((unused)),
 
 static struct st_mysql_auth socket_auth_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-    0,
+    nullptr,
     socket_auth,
     generate_auth_string_hash,
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 mysql_declare_plugin(socket_auth){
     MYSQL_AUTHENTICATION_PLUGIN,
@@ -119,12 +119,12 @@ mysql_declare_plugin(socket_auth){
     "Sergei Golubchik",
     "Unix Socket based authentication",
     PLUGIN_LICENSE_GPL,
-    NULL, /* Init */
-    NULL, /* Check uninstall */
-    NULL, /* Deinit */
+    nullptr, /* Init */
+    nullptr, /* Check uninstall */
+    nullptr, /* Deinit */
     0x0101,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0,
 } mysql_declare_plugin_end;

@@ -1,7 +1,7 @@
 #ifndef PARTITION_ELEMENT_INCLUDED
 #define PARTITION_ELEMENT_INCLUDED
 
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,12 +130,12 @@ class partition_element {
       : part_max_rows(0),
         part_min_rows(0),
         range_value(0),
-        partition_name(NULL),
-        tablespace_name(NULL),
-        part_comment(NULL),
-        data_file_name(NULL),
-        index_file_name(NULL),
-        engine_type(NULL),
+        partition_name(nullptr),
+        tablespace_name(nullptr),
+        part_comment(nullptr),
+        data_file_name(nullptr),
+        index_file_name(nullptr),
+        engine_type(nullptr),
         part_state(PART_NORMAL),
         nodegroup_id(UNDEF_NODEGROUP),
         has_null_value(false),
@@ -145,7 +145,7 @@ class partition_element {
       : part_max_rows(part_elem->part_max_rows),
         part_min_rows(part_elem->part_min_rows),
         range_value(0),
-        partition_name(NULL),
+        partition_name(nullptr),
         tablespace_name(part_elem->tablespace_name),
         part_comment(part_elem->part_comment),
         data_file_name(part_elem->data_file_name),

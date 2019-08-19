@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ static void handle_core_signal(int signo) {
 /* BAIL_OUT("Signal %d thrown", signo); */
 #ifdef HAVE_STACKTRACE
   fprintf(stderr, "Signal %d thrown, attempting backtrace.\n", signo);
-  my_print_stacktrace(NULL, 0);
+  my_print_stacktrace(nullptr, 0);
 #endif
   signal(signo, SIG_DFL);
   raise(signo);

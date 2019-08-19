@@ -169,20 +169,22 @@ class Recovery_module {
                                 bool ssl_verify_server_cert, char *tls_version,
                                 char *tls_ciphersuites) {
     recovery_state_transfer.set_recovery_use_ssl(use_ssl);
-    if (ssl_ca != NULL) recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
-    if (ssl_capath != NULL)
+    if (ssl_ca != nullptr) recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
+    if (ssl_capath != nullptr)
       recovery_state_transfer.set_recovery_ssl_capath(ssl_capath);
-    if (ssl_cert != NULL)
+    if (ssl_cert != nullptr)
       recovery_state_transfer.set_recovery_ssl_cert(ssl_cert);
-    if (ssl_cipher != NULL)
+    if (ssl_cipher != nullptr)
       recovery_state_transfer.set_recovery_ssl_cipher(ssl_cipher);
-    if (ssl_key != NULL) recovery_state_transfer.set_recovery_ssl_key(ssl_key);
-    if (ssl_crl != NULL) recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
-    if (ssl_crlpath != NULL)
+    if (ssl_key != nullptr)
+      recovery_state_transfer.set_recovery_ssl_key(ssl_key);
+    if (ssl_crl != nullptr)
+      recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
+    if (ssl_crlpath != nullptr)
       recovery_state_transfer.set_recovery_ssl_crlpath(ssl_crlpath);
     recovery_state_transfer.set_recovery_ssl_verify_server_cert(
         ssl_verify_server_cert);
-    if (tls_version != NULL)
+    if (tls_version != nullptr)
       recovery_state_transfer.set_recovery_tls_version(tls_version);
     recovery_state_transfer.set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
@@ -284,7 +286,7 @@ class Recovery_module {
 
   /** Set a public key file*/
   void set_recovery_public_key_path(const char *public_key_path) {
-    if (public_key_path != NULL)
+    if (public_key_path != nullptr)
       recovery_state_transfer.set_recovery_public_key_path(public_key_path);
   }
 

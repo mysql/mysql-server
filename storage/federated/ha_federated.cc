@@ -505,8 +505,8 @@ static int federated_db_init(void *p) {
     Support for transactions disabled until WL#2952 fixes it.
         We do it like this to avoid "defined but not used" compiler warnings.
   */
-  federated_hton->commit = 0;
-  federated_hton->rollback = 0;
+  federated_hton->commit = nullptr;
+  federated_hton->rollback = nullptr;
 
   if (mysql_mutex_init(fe_key_mutex_federated, &federated_mutex,
                        MY_MUTEX_INIT_FAST))
@@ -714,7 +714,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
   DBUG_TRACE;
 
   share->port = 0;
-  share->socket = 0;
+  share->socket = nullptr;
   DBUG_PRINT("info", ("share at %p", share));
   DBUG_PRINT("info", ("Length: %u", (uint)table->s->connect_string.length));
   DBUG_PRINT("info", ("String: '%.*s'", (int)table->s->connect_string.length,
@@ -815,7 +815,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
         user:@hostname:port/db/table
         Then password is a null string, so set to NULL
       */
-      if (share->password[0] == '\0') share->password = NULL;
+      if (share->password[0] == '\0') share->password = nullptr;
     } else
       share->username = share->username;
 
@@ -831,7 +831,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
       share->hostname[share->sport - share->hostname] = '\0';
       share->sport++;
       if (share->sport[0] == '\0')
-        share->sport = NULL;
+        share->sport = nullptr;
       else
         share->port = atoi(share->sport);
     }
@@ -852,7 +852,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
       If host is NULL or the string "localhost", a connection to the
       local host is assumed.
     */
-    if (share->hostname[0] == '\0') share->hostname = NULL;
+    if (share->hostname[0] == '\0') share->hostname = nullptr;
   }
 
   if (!share->port) {
@@ -880,10 +880,10 @@ error:
 
 ha_federated::ha_federated(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
-      mysql(0),
-      stored_result(0),
+      mysql(nullptr),
+      stored_result(nullptr),
       results(fe_key_memory_federated_share) {
-  trx_next = 0;
+  trx_next = nullptr;
   memset(&bulk_insert, 0, sizeof(bulk_insert));
 }
 
@@ -1261,7 +1261,8 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
                                          const key_range *end_key,
                                          bool from_records_in_range,
                                          bool eq_range_arg) {
-  bool both_not_null = (start_key != NULL && end_key != NULL) ? true : false;
+  bool both_not_null =
+      (start_key != nullptr && end_key != nullptr) ? true : false;
   uchar *ptr;
   uint remainder, length;
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
@@ -1271,13 +1272,13 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
   DBUG_TRACE;
 
   tmp.length(0);
-  if (start_key == NULL && end_key == NULL) return true;
+  if (start_key == nullptr && end_key == nullptr) return true;
 
   old_map = dbug_tmp_use_all_columns(table, table->write_set);
   for (uint i = 0; i <= 1; i++) {
     bool needs_quotes;
     KEY_PART_INFO *key_part;
-    if (ranges[i] == NULL) continue;
+    if (ranges[i] == nullptr) continue;
 
     if (both_not_null) {
       if (i > 0)
@@ -1446,7 +1447,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   Field **field;
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
-  FEDERATED_SHARE *share = NULL, tmp_share;
+  FEDERATED_SHARE *share = nullptr, tmp_share;
   MEM_ROOT mem_root;
   DBUG_TRACE;
 
@@ -1510,7 +1511,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
 
 error:
   mysql_mutex_unlock(&federated_mutex);
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -1562,9 +1563,9 @@ int ha_federated::open(const char *name, int, uint, const dd::Table *) {
   DBUG_TRACE;
 
   if (!(share = get_share(name, table))) return 1;
-  thr_lock_data_init(&share->lock, &lock, NULL);
+  thr_lock_data_init(&share->lock, &lock, nullptr);
 
-  DBUG_ASSERT(mysql == NULL);
+  DBUG_ASSERT(mysql == nullptr);
 
   ref_length = sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
@@ -1603,7 +1604,7 @@ int ha_federated::close(void) {
 
   /* Disconnect from mysql */
   mysql_close(mysql);
-  mysql = NULL;
+  mysql = nullptr;
 
   /*
     mysql_close() might return an error if a remote server's gone
@@ -1713,7 +1714,7 @@ int ha_federated::write_row(uchar *) {
   size_t tmp_length;
   int error = 0;
   bool use_bulk_insert;
-  bool auto_increment_update_required = (table->next_number_field != NULL);
+  bool auto_increment_update_required = (table->next_number_field != nullptr);
 
   /* The string containing the values to be added to the insert */
   String values_string(values_buffer, sizeof(values_buffer), &my_charset_bin);
@@ -1864,7 +1865,7 @@ void ha_federated::start_bulk_insert(ha_rows rows) {
 
   page_size = (uint)my_getpagesize();
 
-  if (init_dynamic_string(&bulk_insert, NULL, page_size, page_size)) return;
+  if (init_dynamic_string(&bulk_insert, nullptr, page_size, page_size)) return;
 
   bulk_insert.length = 0;
 }
@@ -2193,7 +2194,7 @@ int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   if (error) return error;
   error = index_read_map(buf, key, keypart_map, find_flag);
   if (!error && stored_result) {
-    uchar *dummy_arg = NULL;
+    uchar *dummy_arg = nullptr;
     position(dummy_arg);
   }
   int error1 = index_end();
@@ -2267,7 +2268,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   key_range range;
   DBUG_TRACE;
 
-  *result = 0;  // In case of errors
+  *result = nullptr;  // In case of errors
   index_string.length(0);
   sql_query.length(0);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
@@ -2277,7 +2278,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   range.key = key;
   range.length = key_len;
   range.flag = find_flag;
-  create_where_from_key(&index_string, &table->key_info[index], &range, NULL,
+  create_where_from_key(&index_string, &table->key_info[index], &range, nullptr,
                         false, false);
   sql_query.append(index_string);
 
@@ -2294,7 +2295,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   if ((retval = read_next(buf, *result))) {
     mysql_free_result(*result);
     results.pop_back();
-    *result = 0;
+    *result = nullptr;
     return retval;
   }
   return 0;
@@ -2339,7 +2340,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   String sql_query(sql_query_buffer, sizeof(sql_query_buffer), &my_charset_bin);
   DBUG_TRACE;
 
-  DBUG_ASSERT(!(start_key == NULL && end_key == NULL));
+  DBUG_ASSERT(!(start_key == nullptr && end_key == nullptr));
 
   sql_query.length(0);
   sql_query.append(share->select_query);
@@ -2470,7 +2471,7 @@ int ha_federated::rnd_next(uchar *buf) {
 int ha_federated::rnd_next_int(uchar *buf) {
   DBUG_TRACE;
 
-  if (stored_result == 0) {
+  if (stored_result == nullptr) {
     /*
       Return value of rnd_init is not always checked (see records.cc),
       so we can get here _even_ if there is _no_ pre-fetched result-set!
@@ -2625,7 +2626,7 @@ int ha_federated::info(uint flag) {
   char status_buf[FEDERATED_QUERY_BUFFER_SIZE];
   int error;
   uint error_code;
-  MYSQL_RES *result = 0;
+  MYSQL_RES *result = nullptr;
   MYSQL_ROW row;
   String status_query_string(status_buf, sizeof(status_buf), &my_charset_bin);
   DBUG_TRACE;
@@ -2666,16 +2667,16 @@ int ha_federated::info(uint flag) {
       index_file_length = ?
       delete_length = ?
     */
-    if (row[4] != NULL)
+    if (row[4] != nullptr)
       stats.records = (ha_rows)my_strtoll10(row[4], nullptr, &error);
-    if (row[5] != NULL)
+    if (row[5] != nullptr)
       stats.mean_rec_length = (ulong)my_strtoll10(row[5], nullptr, &error);
 
     stats.data_file_length = stats.records * stats.mean_rec_length;
 
-    if (row[12] != NULL)
+    if (row[12] != nullptr)
       stats.update_time = (ulong)my_strtoll10(row[12], nullptr, &error);
-    if (row[13] != NULL)
+    if (row[13] != nullptr)
       stats.check_time = (ulong)my_strtoll10(row[13], nullptr, &error);
 
     /*
@@ -2923,9 +2924,9 @@ int ha_federated::real_connect() {
   */
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  DBUG_ASSERT(mysql == NULL);
+  DBUG_ASSERT(mysql == nullptr);
 
-  if (!(mysql = mysql_init(NULL))) {
+  if (!(mysql = mysql_init(nullptr))) {
     remote_error_number = HA_ERR_OUT_OF_MEM;
     return -1;
   }
@@ -2948,7 +2949,7 @@ int ha_federated::real_connect() {
                           share->socket, 0)) {
     stash_remote_error();
     mysql_close(mysql);
-    mysql = NULL;
+    mysql = nullptr;
     my_error(ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0), remote_error_buf);
     remote_error_number = -1;
     return -1;
@@ -2969,7 +2970,7 @@ int ha_federated::real_connect() {
     sql_query.append(mysql_error(mysql));
     sql_query.append("'");
     mysql_close(mysql);
-    mysql = NULL;
+    mysql = nullptr;
     my_error(ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST, MYF(0), sql_query.ptr());
     remote_error_number = -1;
     return -1;
@@ -3056,7 +3057,7 @@ void ha_federated::free_result() {
   DBUG_TRACE;
   if (stored_result && !position_called) {
     mysql_free_result(stored_result);
-    stored_result = 0;
+    stored_result = nullptr;
     if (!results.empty()) results.pop_back();
   }
 }
@@ -3078,13 +3079,13 @@ static int federated_commit(handlerton *hton, THD *thd, bool all) {
 
   if (all) {
     int error = 0;
-    ha_federated *ptr, *old = NULL;
+    ha_federated *ptr, *old = nullptr;
     for (ptr = trx; ptr; old = ptr, ptr = ptr->trx_next) {
-      if (old) old->trx_next = NULL;
+      if (old) old->trx_next = nullptr;
       error = ptr->connection_commit();
       if (error && !return_val) return_val = error;
     }
-    thd_set_ha_data(thd, hton, NULL);
+    thd_set_ha_data(thd, hton, nullptr);
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -3098,13 +3099,13 @@ static int federated_rollback(handlerton *hton, THD *thd, bool all) {
 
   if (all) {
     int error = 0;
-    ha_federated *ptr, *old = NULL;
+    ha_federated *ptr, *old = nullptr;
     for (ptr = trx; ptr; old = ptr, ptr = ptr->trx_next) {
-      if (old) old->trx_next = NULL;
+      if (old) old->trx_next = nullptr;
       error = ptr->connection_rollback();
       if (error && !return_val) return_val = error;
     }
-    thd_set_ha_data(thd, hton, NULL);
+    thd_set_ha_data(thd, hton, nullptr);
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -3148,11 +3149,11 @@ mysql_declare_plugin(federated){
     "Federated MySQL storage engine",
     PLUGIN_LICENSE_GPL,
     federated_db_init, /* Plugin Init */
-    NULL,              /* Plugin check uninstall */
+    nullptr,           /* Plugin check uninstall */
     federated_done,    /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

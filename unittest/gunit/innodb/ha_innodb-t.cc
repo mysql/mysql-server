@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ TEST(hainnodb, innobaseconvertname) {
     memset(buf, 0, sizeof(buf));
 
     end = innobase_convert_name(buf, test_data[i].buf_size, test_data[i].in,
-                                test_data[i].in_len, NULL);
+                                test_data[i].in_len, nullptr);
 
     res_len = (size_t)(end - buf);
 

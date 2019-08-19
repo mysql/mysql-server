@@ -465,14 +465,14 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
 
   &builtin_memory_scalable_buffer,
 
-  NULL};
+  nullptr};
 
 PFS_builtin_memory_class*
 find_builtin_memory_class(PFS_builtin_memory_key key)
 {
   if (key == 0)
   {
-    return NULL;
+    return nullptr;
   }
 
   return all_builtin_memory[key - 1];

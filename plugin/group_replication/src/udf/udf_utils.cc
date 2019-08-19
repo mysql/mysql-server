@@ -162,7 +162,7 @@ bool validate_uuid_parameter(std::string &uuid, size_t length,
 
 bool throw_udf_error(const char *action_name, const char *error_message,
                      bool log_error) {
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if ((registry = get_plugin_registry())) {
     my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error(
         "mysql_runtime_error", registry);

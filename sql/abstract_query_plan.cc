@@ -44,31 +44,29 @@
 
 namespace AQP
 {
-  Join_plan::Join_plan(const JOIN* join)
-   : m_qep_tabs(join->qep_tab),
-     m_access_count(join->tables),
-     m_table_accesses(NULL)
-  {
-    /*
-      This combination is assumed not to appear. If it does, code must
-      be written to handle it.
-    */
-    DBUG_ASSERT(!m_qep_tabs[0].dynamic_range()
-                || (m_qep_tabs[0].type() == JT_ALL)
-                || (m_qep_tabs[0].quick() == NULL));
+Join_plan::Join_plan(const JOIN *join)
+    : m_qep_tabs(join->qep_tab),
+      m_access_count(join->tables),
+      m_table_accesses(nullptr) {
+  /*
+    This combination is assumed not to appear. If it does, code must
+    be written to handle it.
+  */
+  DBUG_ASSERT(!m_qep_tabs[0].dynamic_range() ||
+              (m_qep_tabs[0].type() == JT_ALL) ||
+              (m_qep_tabs[0].quick() == nullptr));
 
-    m_table_accesses= new (*THR_MALLOC) Table_access[m_access_count];
-    for(uint i= 0; i < m_access_count; i++)
-    {
-      m_table_accesses[i].m_join_plan= this; 
-      m_table_accesses[i].m_tab_no= i;
-    }
+  m_table_accesses = new (*THR_MALLOC) Table_access[m_access_count];
+  for (uint i = 0; i < m_access_count; i++) {
+    m_table_accesses[i].m_join_plan = this;
+    m_table_accesses[i].m_tab_no = i;
   }
+}
 
   Join_plan::~Join_plan()
   {
     destroy_array(m_table_accesses, m_access_count);
-    m_table_accesses= NULL;
+    m_table_accesses = nullptr;
   }
 
   /** Get the QEP_TAB of the n'th table access operation.*/
@@ -240,13 +238,12 @@ namespace AQP
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
     COND_EQUAL* const cond_equal = get_qep_tab()->join()->cond_equal;
-    if (cond_equal!=NULL)
-    {
-      return (field_item->item_equal != NULL)
-               ? field_item->item_equal
-               : field_item->find_item_equal(cond_equal);
+    if (cond_equal != nullptr) {
+      return (field_item->item_equal != nullptr)
+                 ? field_item->item_equal
+                 : field_item->find_item_equal(cond_equal);
     }
-    return NULL;
+    return nullptr;
   }
 
   /**
@@ -381,8 +378,7 @@ namespace AQP
       }
       else
       {
-        if (qep_tab->quick() != NULL)
-        {
+        if (qep_tab->quick() != nullptr) {
           QUICK_SELECT_I *quick= qep_tab->quick();
 
           /** QUICK_SELECT results in execution of MRR (Multi Range Read).
@@ -428,9 +424,7 @@ namespace AQP
             else
               m_access_type= AT_MULTI_MIXED;      // MRR w/ both range and unique keys
           }
-        }
-        else
-        {
+        } else {
           DBUG_PRINT("info", ("Operation %d is a table scan.", m_tab_no));
           m_access_type= AT_TABLE_SCAN;
         }
@@ -456,14 +450,12 @@ namespace AQP
   }
   // Table_access::compute_type_and_index()
 
-
   Table_access::Table_access()
-    :m_join_plan(NULL),
-     m_tab_no(0),
-     m_access_type(AT_VOID),
-     m_other_access_reason(NULL),
-     m_index_no(-1)
-  {}
+      : m_join_plan(nullptr),
+        m_tab_no(0),
+        m_access_type(AT_VOID),
+        m_other_access_reason(nullptr),
+        m_index_no(-1) {}
 
   /**
     Check if the results from this operation will joined with results 

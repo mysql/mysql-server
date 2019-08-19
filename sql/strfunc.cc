@@ -60,7 +60,7 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
   const CHARSET_INFO *strip = cs ? cs : &my_charset_latin1;
   const char *end = str + strip->cset->lengthsp(strip, str, length);
   ulonglong found = 0;
-  *err_pos = 0;  // No error yet
+  *err_pos = nullptr;  // No error yet
   *err_len = 0;
   if (str != end) {
     const char *start = str;

@@ -99,7 +99,8 @@ class Table_columns_view {
   template <typename U = ExclusionFilter>
   Table_columns_view(
       typename std::enable_if<std::is_same<
-          U, std::function<bool(TABLE const *, size_t)>>::value>::type * = 0);
+          U, std::function<bool(TABLE const *, size_t)>>::value>::type * =
+          nullptr);
   /**
     Constructor that takes the target `TABLE` object, only available when the
     predicate type is a lambda function.

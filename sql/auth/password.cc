@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,8 @@ extern "C" void my_make_scrambled_password(char *to, const char *password,
   char salt[CRYPT_SALT_LENGTH + 1];
 
   generate_user_salt(salt, CRYPT_SALT_LENGTH + 1);
-  my_crypt_genhash(to, CRYPT_MAX_PASSWORD_SIZE, password, pass_len, salt, 0);
+  my_crypt_genhash(to, CRYPT_MAX_PASSWORD_SIZE, password, pass_len, salt,
+                   nullptr);
 }
 #endif
 /**

@@ -67,7 +67,7 @@ Plugin_table table_ees_by_account_by_error::m_table_def(
 PFS_engine_table_share table_ees_by_account_by_error::m_share = {
     &pfs_truncatable_acl,
     table_ees_by_account_by_error::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ees_by_account_by_error::delete_all_rows,
     table_ees_by_account_by_error::get_row_count,
     sizeof(pos_ees_by_account_by_error),
@@ -137,7 +137,7 @@ int table_ees_by_account_by_error::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
-    if (account != NULL) {
+    if (account != nullptr) {
       for (; m_pos.has_more_error(); m_pos.next_error()) {
         if (!make_row(account, m_pos.m_index_2)) {
           m_next_pos.set_after(&m_pos);
@@ -156,7 +156,7 @@ int table_ees_by_account_by_error::rnd_pos(const void *pos) {
   set_position(pos);
 
   account = global_account_container.get(m_pos.m_index_1);
-  if (account != NULL) {
+  if (account != nullptr) {
     for (; m_pos.has_more_error(); m_pos.next_error()) {
       if (!make_row(account, m_pos.m_index_2)) {
         return 0;
@@ -169,7 +169,7 @@ int table_ees_by_account_by_error::rnd_pos(const void *pos) {
 
 int table_ees_by_account_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
                                               bool) {
-  PFS_index_ees_by_account_by_error *result = NULL;
+  PFS_index_ees_by_account_by_error *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ees_by_account_by_error);
   m_opened_index = result;
@@ -183,7 +183,7 @@ int table_ees_by_account_by_error::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
-    if (account != NULL) {
+    if (account != nullptr) {
       if (m_opened_index->match(account)) {
         for (; m_pos.has_more_error(); m_pos.next_error()) {
           if (m_opened_index->match_error_index(m_pos.m_index_2)) {
@@ -230,7 +230,7 @@ int table_ees_by_account_by_error::read_row_values(TABLE *table,
                                                    Field **fields,
                                                    bool read_all) {
   Field *f;
-  server_error *temp_error = NULL;
+  server_error *temp_error = nullptr;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);

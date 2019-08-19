@@ -7240,18 +7240,18 @@ CHARSET_INFO compiled_charsets[] = {
      "dec8",                     /* cset name     */
      "dec8_swedish_ci",          /* coll name     */
      "",                         /* comment       */
-     NULL,                       /* tailoring     */
-     NULL,                       /* coll_param    */
+     nullptr,                    /* tailoring     */
+     nullptr,                    /* coll_param    */
      ctype_dec8_swedish_ci,      /* ctype         */
      to_lower_dec8_swedish_ci,   /* lower         */
      to_upper_dec8_swedish_ci,   /* upper         */
      sort_order_dec8_swedish_ci, /* sort_order    */
-     NULL,                       /* uca           */
+     nullptr,                    /* uca           */
      to_uni_dec8_swedish_ci,     /* to_uni        */
-     NULL,                       /* from_uni      */
+     nullptr,                    /* from_uni      */
      &my_unicase_default,        /* caseinfo      */
-     NULL,                       /* state map     */
-     NULL,                       /* ident map     */
+     nullptr,                    /* state map     */
+     nullptr,                    /* ident map     */
      1,                          /* strxfrm_multiply*/
      1,                          /* caseup_multiply*/
      1,                          /* casedn_multiply*/
@@ -7273,18 +7273,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp850",                     /* cset name     */
      "cp850_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_cp850_general_ci,      /* ctype         */
      to_lower_cp850_general_ci,   /* lower         */
      to_upper_cp850_general_ci,   /* upper         */
      sort_order_cp850_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_cp850_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7306,18 +7306,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin1",                     /* cset name     */
      "latin1_german1_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin1_german1_ci,      /* ctype         */
      to_lower_latin1_german1_ci,   /* lower         */
      to_upper_latin1_german1_ci,   /* upper         */
      sort_order_latin1_german1_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin1_german1_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -7339,18 +7339,18 @@ CHARSET_INFO compiled_charsets[] = {
      "hp8",                     /* cset name     */
      "hp8_english_ci",          /* coll name     */
      "",                        /* comment       */
-     NULL,                      /* tailoring     */
-     NULL,                      /* coll_param    */
+     nullptr,                   /* tailoring     */
+     nullptr,                   /* coll_param    */
      ctype_hp8_english_ci,      /* ctype         */
      to_lower_hp8_english_ci,   /* lower         */
      to_upper_hp8_english_ci,   /* upper         */
      sort_order_hp8_english_ci, /* sort_order    */
-     NULL,                      /* uca           */
+     nullptr,                   /* uca           */
      to_uni_hp8_english_ci,     /* to_uni        */
-     NULL,                      /* from_uni      */
+     nullptr,                   /* from_uni      */
      &my_unicase_default,       /* caseinfo      */
-     NULL,                      /* state map     */
-     NULL,                      /* ident map     */
+     nullptr,                   /* state map     */
+     nullptr,                   /* ident map     */
      1,                         /* strxfrm_multiply*/
      1,                         /* caseup_multiply*/
      1,                         /* casedn_multiply*/
@@ -7372,18 +7372,18 @@ CHARSET_INFO compiled_charsets[] = {
      "koi8r",                     /* cset name     */
      "koi8r_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_koi8r_general_ci,      /* ctype         */
      to_lower_koi8r_general_ci,   /* lower         */
      to_upper_koi8r_general_ci,   /* upper         */
      sort_order_koi8r_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_koi8r_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7405,18 +7405,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin2",                     /* cset name     */
      "latin2_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin2_general_ci,      /* ctype         */
      to_lower_latin2_general_ci,   /* lower         */
      to_upper_latin2_general_ci,   /* upper         */
      sort_order_latin2_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin2_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -7438,18 +7438,18 @@ CHARSET_INFO compiled_charsets[] = {
      "swe7",                     /* cset name     */
      "swe7_swedish_ci",          /* coll name     */
      "",                         /* comment       */
-     NULL,                       /* tailoring     */
-     NULL,                       /* coll_param    */
+     nullptr,                    /* tailoring     */
+     nullptr,                    /* coll_param    */
      ctype_swe7_swedish_ci,      /* ctype         */
      to_lower_swe7_swedish_ci,   /* lower         */
      to_upper_swe7_swedish_ci,   /* upper         */
      sort_order_swe7_swedish_ci, /* sort_order    */
-     NULL,                       /* uca           */
+     nullptr,                    /* uca           */
      to_uni_swe7_swedish_ci,     /* to_uni        */
-     NULL,                       /* from_uni      */
+     nullptr,                    /* from_uni      */
      &my_unicase_default,        /* caseinfo      */
-     NULL,                       /* state map     */
-     NULL,                       /* ident map     */
+     nullptr,                    /* state map     */
+     nullptr,                    /* ident map     */
      1,                          /* strxfrm_multiply*/
      1,                          /* caseup_multiply*/
      1,                          /* casedn_multiply*/
@@ -7471,18 +7471,18 @@ CHARSET_INFO compiled_charsets[] = {
      "ascii",                     /* cset name     */
      "ascii_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_ascii_general_ci,      /* ctype         */
      to_lower_ascii_general_ci,   /* lower         */
      to_upper_ascii_general_ci,   /* upper         */
      sort_order_ascii_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_ascii_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7504,18 +7504,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1251",                       /* cset name     */
      "cp1251_bulgarian_ci",          /* coll name     */
      "",                             /* comment       */
-     NULL,                           /* tailoring     */
-     NULL,                           /* coll_param    */
+     nullptr,                        /* tailoring     */
+     nullptr,                        /* coll_param    */
      ctype_cp1251_bulgarian_ci,      /* ctype         */
      to_lower_cp1251_bulgarian_ci,   /* lower         */
      to_upper_cp1251_bulgarian_ci,   /* upper         */
      sort_order_cp1251_bulgarian_ci, /* sort_order    */
-     NULL,                           /* uca           */
+     nullptr,                        /* uca           */
      to_uni_cp1251_bulgarian_ci,     /* to_uni        */
-     NULL,                           /* from_uni      */
+     nullptr,                        /* from_uni      */
      &my_unicase_default,            /* caseinfo      */
-     NULL,                           /* state map     */
-     NULL,                           /* ident map     */
+     nullptr,                        /* state map     */
+     nullptr,                        /* ident map     */
      1,                              /* strxfrm_multiply*/
      1,                              /* caseup_multiply*/
      1,                              /* casedn_multiply*/
@@ -7537,18 +7537,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin1",                    /* cset name     */
      "latin1_danish_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_latin1_danish_ci,      /* ctype         */
      to_lower_latin1_danish_ci,   /* lower         */
      to_upper_latin1_danish_ci,   /* upper         */
      sort_order_latin1_danish_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_latin1_danish_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7570,18 +7570,18 @@ CHARSET_INFO compiled_charsets[] = {
      "hebrew",                     /* cset name     */
      "hebrew_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_hebrew_general_ci,      /* ctype         */
      to_lower_hebrew_general_ci,   /* lower         */
      to_upper_hebrew_general_ci,   /* upper         */
      sort_order_hebrew_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_hebrew_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -7603,18 +7603,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin7",                      /* cset name     */
      "latin7_estonian_cs",          /* coll name     */
      "",                            /* comment       */
-     NULL,                          /* tailoring     */
-     NULL,                          /* coll_param    */
+     nullptr,                       /* tailoring     */
+     nullptr,                       /* coll_param    */
      ctype_latin7_estonian_cs,      /* ctype         */
      to_lower_latin7_estonian_cs,   /* lower         */
      to_upper_latin7_estonian_cs,   /* upper         */
      sort_order_latin7_estonian_cs, /* sort_order    */
-     NULL,                          /* uca           */
+     nullptr,                       /* uca           */
      to_uni_latin7_estonian_cs,     /* to_uni        */
-     NULL,                          /* from_uni      */
+     nullptr,                       /* from_uni      */
      &my_unicase_default,           /* caseinfo      */
-     NULL,                          /* state map     */
-     NULL,                          /* ident map     */
+     nullptr,                       /* state map     */
+     nullptr,                       /* ident map     */
      1,                             /* strxfrm_multiply*/
      1,                             /* caseup_multiply*/
      1,                             /* casedn_multiply*/
@@ -7636,18 +7636,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin2",                       /* cset name     */
      "latin2_hungarian_ci",          /* coll name     */
      "",                             /* comment       */
-     NULL,                           /* tailoring     */
-     NULL,                           /* coll_param    */
+     nullptr,                        /* tailoring     */
+     nullptr,                        /* coll_param    */
      ctype_latin2_hungarian_ci,      /* ctype         */
      to_lower_latin2_hungarian_ci,   /* lower         */
      to_upper_latin2_hungarian_ci,   /* upper         */
      sort_order_latin2_hungarian_ci, /* sort_order    */
-     NULL,                           /* uca           */
+     nullptr,                        /* uca           */
      to_uni_latin2_hungarian_ci,     /* to_uni        */
-     NULL,                           /* from_uni      */
+     nullptr,                        /* from_uni      */
      &my_unicase_default,            /* caseinfo      */
-     NULL,                           /* state map     */
-     NULL,                           /* ident map     */
+     nullptr,                        /* state map     */
+     nullptr,                        /* ident map     */
      1,                              /* strxfrm_multiply*/
      1,                              /* caseup_multiply*/
      1,                              /* casedn_multiply*/
@@ -7669,18 +7669,18 @@ CHARSET_INFO compiled_charsets[] = {
      "koi8u",                     /* cset name     */
      "koi8u_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_koi8u_general_ci,      /* ctype         */
      to_lower_koi8u_general_ci,   /* lower         */
      to_upper_koi8u_general_ci,   /* upper         */
      sort_order_koi8u_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_koi8u_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7702,18 +7702,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1251",                       /* cset name     */
      "cp1251_ukrainian_ci",          /* coll name     */
      "",                             /* comment       */
-     NULL,                           /* tailoring     */
-     NULL,                           /* coll_param    */
+     nullptr,                        /* tailoring     */
+     nullptr,                        /* coll_param    */
      ctype_cp1251_ukrainian_ci,      /* ctype         */
      to_lower_cp1251_ukrainian_ci,   /* lower         */
      to_upper_cp1251_ukrainian_ci,   /* upper         */
      sort_order_cp1251_ukrainian_ci, /* sort_order    */
-     NULL,                           /* uca           */
+     nullptr,                        /* uca           */
      to_uni_cp1251_ukrainian_ci,     /* to_uni        */
-     NULL,                           /* from_uni      */
+     nullptr,                        /* from_uni      */
      &my_unicase_default,            /* caseinfo      */
-     NULL,                           /* state map     */
-     NULL,                           /* ident map     */
+     nullptr,                        /* state map     */
+     nullptr,                        /* ident map     */
      1,                              /* strxfrm_multiply*/
      1,                              /* caseup_multiply*/
      1,                              /* casedn_multiply*/
@@ -7735,18 +7735,18 @@ CHARSET_INFO compiled_charsets[] = {
      "greek",                     /* cset name     */
      "greek_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_greek_general_ci,      /* ctype         */
      to_lower_greek_general_ci,   /* lower         */
      to_upper_greek_general_ci,   /* upper         */
      sort_order_greek_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_greek_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7768,18 +7768,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1250",                     /* cset name     */
      "cp1250_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_cp1250_general_ci,      /* ctype         */
      to_lower_cp1250_general_ci,   /* lower         */
      to_upper_cp1250_general_ci,   /* upper         */
      sort_order_cp1250_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_cp1250_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -7801,18 +7801,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin2",                      /* cset name     */
      "latin2_croatian_ci",          /* coll name     */
      "",                            /* comment       */
-     NULL,                          /* tailoring     */
-     NULL,                          /* coll_param    */
+     nullptr,                       /* tailoring     */
+     nullptr,                       /* coll_param    */
      ctype_latin2_croatian_ci,      /* ctype         */
      to_lower_latin2_croatian_ci,   /* lower         */
      to_upper_latin2_croatian_ci,   /* upper         */
      sort_order_latin2_croatian_ci, /* sort_order    */
-     NULL,                          /* uca           */
+     nullptr,                       /* uca           */
      to_uni_latin2_croatian_ci,     /* to_uni        */
-     NULL,                          /* from_uni      */
+     nullptr,                       /* from_uni      */
      &my_unicase_default,           /* caseinfo      */
-     NULL,                          /* state map     */
-     NULL,                          /* ident map     */
+     nullptr,                       /* state map     */
+     nullptr,                       /* ident map     */
      1,                             /* strxfrm_multiply*/
      1,                             /* caseup_multiply*/
      1,                             /* casedn_multiply*/
@@ -7834,18 +7834,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1257",                        /* cset name     */
      "cp1257_lithuanian_ci",          /* coll name     */
      "",                              /* comment       */
-     NULL,                            /* tailoring     */
-     NULL,                            /* coll_param    */
+     nullptr,                         /* tailoring     */
+     nullptr,                         /* coll_param    */
      ctype_cp1257_lithuanian_ci,      /* ctype         */
      to_lower_cp1257_lithuanian_ci,   /* lower         */
      to_upper_cp1257_lithuanian_ci,   /* upper         */
      sort_order_cp1257_lithuanian_ci, /* sort_order    */
-     NULL,                            /* uca           */
+     nullptr,                         /* uca           */
      to_uni_cp1257_lithuanian_ci,     /* to_uni        */
-     NULL,                            /* from_uni      */
+     nullptr,                         /* from_uni      */
      &my_unicase_default,             /* caseinfo      */
-     NULL,                            /* state map     */
-     NULL,                            /* ident map     */
+     nullptr,                         /* state map     */
+     nullptr,                         /* ident map     */
      1,                               /* strxfrm_multiply*/
      1,                               /* caseup_multiply*/
      1,                               /* casedn_multiply*/
@@ -7867,18 +7867,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin5",                     /* cset name     */
      "latin5_turkish_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin5_turkish_ci,      /* ctype         */
      to_lower_latin5_turkish_ci,   /* lower         */
      to_upper_latin5_turkish_ci,   /* upper         */
      sort_order_latin5_turkish_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin5_turkish_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -7900,18 +7900,18 @@ CHARSET_INFO compiled_charsets[] = {
      "armscii8",                     /* cset name     */
      "armscii8_general_ci",          /* coll name     */
      "",                             /* comment       */
-     NULL,                           /* tailoring     */
-     NULL,                           /* coll_param    */
+     nullptr,                        /* tailoring     */
+     nullptr,                        /* coll_param    */
      ctype_armscii8_general_ci,      /* ctype         */
      to_lower_armscii8_general_ci,   /* lower         */
      to_upper_armscii8_general_ci,   /* upper         */
      sort_order_armscii8_general_ci, /* sort_order    */
-     NULL,                           /* uca           */
+     nullptr,                        /* uca           */
      to_uni_armscii8_general_ci,     /* to_uni        */
-     NULL,                           /* from_uni      */
+     nullptr,                        /* from_uni      */
      &my_unicase_default,            /* caseinfo      */
-     NULL,                           /* state map     */
-     NULL,                           /* ident map     */
+     nullptr,                        /* state map     */
+     nullptr,                        /* ident map     */
      1,                              /* strxfrm_multiply*/
      1,                              /* caseup_multiply*/
      1,                              /* casedn_multiply*/
@@ -7933,18 +7933,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp866",                     /* cset name     */
      "cp866_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_cp866_general_ci,      /* ctype         */
      to_lower_cp866_general_ci,   /* lower         */
      to_upper_cp866_general_ci,   /* upper         */
      sort_order_cp866_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_cp866_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -7966,18 +7966,18 @@ CHARSET_INFO compiled_charsets[] = {
      "keybcs2",                     /* cset name     */
      "keybcs2_general_ci",          /* coll name     */
      "",                            /* comment       */
-     NULL,                          /* tailoring     */
-     NULL,                          /* coll_param    */
+     nullptr,                       /* tailoring     */
+     nullptr,                       /* coll_param    */
      ctype_keybcs2_general_ci,      /* ctype         */
      to_lower_keybcs2_general_ci,   /* lower         */
      to_upper_keybcs2_general_ci,   /* upper         */
      sort_order_keybcs2_general_ci, /* sort_order    */
-     NULL,                          /* uca           */
+     nullptr,                       /* uca           */
      to_uni_keybcs2_general_ci,     /* to_uni        */
-     NULL,                          /* from_uni      */
+     nullptr,                       /* from_uni      */
      &my_unicase_default,           /* caseinfo      */
-     NULL,                          /* state map     */
-     NULL,                          /* ident map     */
+     nullptr,                       /* state map     */
+     nullptr,                       /* ident map     */
      1,                             /* strxfrm_multiply*/
      1,                             /* caseup_multiply*/
      1,                             /* casedn_multiply*/
@@ -7999,18 +7999,18 @@ CHARSET_INFO compiled_charsets[] = {
      "macce",                     /* cset name     */
      "macce_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_macce_general_ci,      /* ctype         */
      to_lower_macce_general_ci,   /* lower         */
      to_upper_macce_general_ci,   /* upper         */
      sort_order_macce_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_macce_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -8032,18 +8032,18 @@ CHARSET_INFO compiled_charsets[] = {
      "macroman",                     /* cset name     */
      "macroman_general_ci",          /* coll name     */
      "",                             /* comment       */
-     NULL,                           /* tailoring     */
-     NULL,                           /* coll_param    */
+     nullptr,                        /* tailoring     */
+     nullptr,                        /* coll_param    */
      ctype_macroman_general_ci,      /* ctype         */
      to_lower_macroman_general_ci,   /* lower         */
      to_upper_macroman_general_ci,   /* upper         */
      sort_order_macroman_general_ci, /* sort_order    */
-     NULL,                           /* uca           */
+     nullptr,                        /* uca           */
      to_uni_macroman_general_ci,     /* to_uni        */
-     NULL,                           /* from_uni      */
+     nullptr,                        /* from_uni      */
      &my_unicase_default,            /* caseinfo      */
-     NULL,                           /* state map     */
-     NULL,                           /* ident map     */
+     nullptr,                        /* state map     */
+     nullptr,                        /* ident map     */
      1,                              /* strxfrm_multiply*/
      1,                              /* caseup_multiply*/
      1,                              /* casedn_multiply*/
@@ -8065,18 +8065,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp852",                     /* cset name     */
      "cp852_general_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_cp852_general_ci,      /* ctype         */
      to_lower_cp852_general_ci,   /* lower         */
      to_upper_cp852_general_ci,   /* upper         */
      sort_order_cp852_general_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_cp852_general_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -8098,18 +8098,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin7",                     /* cset name     */
      "latin7_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin7_general_ci,      /* ctype         */
      to_lower_latin7_general_ci,   /* lower         */
      to_upper_latin7_general_ci,   /* upper         */
      sort_order_latin7_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin7_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8131,18 +8131,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin7",                     /* cset name     */
      "latin7_general_cs",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin7_general_cs,      /* ctype         */
      to_lower_latin7_general_cs,   /* lower         */
      to_upper_latin7_general_cs,   /* upper         */
      sort_order_latin7_general_cs, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin7_general_cs,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8164,18 +8164,18 @@ CHARSET_INFO compiled_charsets[] = {
      "macce",             /* cset name     */
      "macce_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_macce_bin,     /* ctype         */
      to_lower_macce_bin,  /* lower         */
      to_upper_macce_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_macce_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8197,18 +8197,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1250",                      /* cset name     */
      "cp1250_croatian_ci",          /* coll name     */
      "",                            /* comment       */
-     NULL,                          /* tailoring     */
-     NULL,                          /* coll_param    */
+     nullptr,                       /* tailoring     */
+     nullptr,                       /* coll_param    */
      ctype_cp1250_croatian_ci,      /* ctype         */
      to_lower_cp1250_croatian_ci,   /* lower         */
      to_upper_cp1250_croatian_ci,   /* upper         */
      sort_order_cp1250_croatian_ci, /* sort_order    */
-     NULL,                          /* uca           */
+     nullptr,                       /* uca           */
      to_uni_cp1250_croatian_ci,     /* to_uni        */
-     NULL,                          /* from_uni      */
+     nullptr,                       /* from_uni      */
      &my_unicase_default,           /* caseinfo      */
-     NULL,                          /* state map     */
-     NULL,                          /* ident map     */
+     nullptr,                       /* state map     */
+     nullptr,                       /* ident map     */
      1,                             /* strxfrm_multiply*/
      1,                             /* caseup_multiply*/
      1,                             /* casedn_multiply*/
@@ -8230,18 +8230,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin1",                     /* cset name     */
      "latin1_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin1_general_ci,      /* ctype         */
      to_lower_latin1_general_ci,   /* lower         */
      to_upper_latin1_general_ci,   /* upper         */
      sort_order_latin1_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin1_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8263,18 +8263,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin1",                     /* cset name     */
      "latin1_general_cs",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin1_general_cs,      /* ctype         */
      to_lower_latin1_general_cs,   /* lower         */
      to_upper_latin1_general_cs,   /* upper         */
      sort_order_latin1_general_cs, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin1_general_cs,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8296,18 +8296,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1251",            /* cset name     */
      "cp1251_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp1251_bin,    /* ctype         */
      to_lower_cp1251_bin, /* lower         */
      to_upper_cp1251_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp1251_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8329,18 +8329,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1251",                     /* cset name     */
      "cp1251_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_cp1251_general_ci,      /* ctype         */
      to_lower_cp1251_general_ci,   /* lower         */
      to_upper_cp1251_general_ci,   /* upper         */
      sort_order_cp1251_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_cp1251_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8362,18 +8362,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1251",                     /* cset name     */
      "cp1251_general_cs",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_cp1251_general_cs,      /* ctype         */
      to_lower_cp1251_general_cs,   /* lower         */
      to_upper_cp1251_general_cs,   /* upper         */
      sort_order_cp1251_general_cs, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_cp1251_general_cs,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8395,18 +8395,18 @@ CHARSET_INFO compiled_charsets[] = {
      "macroman",            /* cset name     */
      "macroman_bin",        /* coll name     */
      "",                    /* comment       */
-     NULL,                  /* tailoring     */
-     NULL,                  /* coll_param    */
+     nullptr,               /* tailoring     */
+     nullptr,               /* coll_param    */
      ctype_macroman_bin,    /* ctype         */
      to_lower_macroman_bin, /* lower         */
      to_upper_macroman_bin, /* upper         */
-     NULL,                  /* sort_order    */
-     NULL,                  /* uca           */
+     nullptr,               /* sort_order    */
+     nullptr,               /* uca           */
      to_uni_macroman_bin,   /* to_uni        */
-     NULL,                  /* from_uni      */
+     nullptr,               /* from_uni      */
      &my_unicase_default,   /* caseinfo      */
-     NULL,                  /* state map     */
-     NULL,                  /* ident map     */
+     nullptr,               /* state map     */
+     nullptr,               /* ident map     */
      1,                     /* strxfrm_multiply*/
      1,                     /* caseup_multiply*/
      1,                     /* casedn_multiply*/
@@ -8428,18 +8428,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1256",                     /* cset name     */
      "cp1256_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_cp1256_general_ci,      /* ctype         */
      to_lower_cp1256_general_ci,   /* lower         */
      to_upper_cp1256_general_ci,   /* upper         */
      sort_order_cp1256_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_cp1256_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8461,18 +8461,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1257",            /* cset name     */
      "cp1257_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp1257_bin,    /* ctype         */
      to_lower_cp1257_bin, /* lower         */
      to_upper_cp1257_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp1257_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8494,18 +8494,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1257",                     /* cset name     */
      "cp1257_general_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_cp1257_general_ci,      /* ctype         */
      to_lower_cp1257_general_ci,   /* lower         */
      to_upper_cp1257_general_ci,   /* upper         */
      sort_order_cp1257_general_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_cp1257_general_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -8527,18 +8527,18 @@ CHARSET_INFO compiled_charsets[] = {
      "armscii8",            /* cset name     */
      "armscii8_bin",        /* coll name     */
      "",                    /* comment       */
-     NULL,                  /* tailoring     */
-     NULL,                  /* coll_param    */
+     nullptr,               /* tailoring     */
+     nullptr,               /* coll_param    */
      ctype_armscii8_bin,    /* ctype         */
      to_lower_armscii8_bin, /* lower         */
      to_upper_armscii8_bin, /* upper         */
-     NULL,                  /* sort_order    */
-     NULL,                  /* uca           */
+     nullptr,               /* sort_order    */
+     nullptr,               /* uca           */
      to_uni_armscii8_bin,   /* to_uni        */
-     NULL,                  /* from_uni      */
+     nullptr,               /* from_uni      */
      &my_unicase_default,   /* caseinfo      */
-     NULL,                  /* state map     */
-     NULL,                  /* ident map     */
+     nullptr,               /* state map     */
+     nullptr,               /* ident map     */
      1,                     /* strxfrm_multiply*/
      1,                     /* caseup_multiply*/
      1,                     /* casedn_multiply*/
@@ -8560,18 +8560,18 @@ CHARSET_INFO compiled_charsets[] = {
      "ascii",             /* cset name     */
      "ascii_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_ascii_bin,     /* ctype         */
      to_lower_ascii_bin,  /* lower         */
      to_upper_ascii_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_ascii_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8593,18 +8593,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1250",            /* cset name     */
      "cp1250_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp1250_bin,    /* ctype         */
      to_lower_cp1250_bin, /* lower         */
      to_upper_cp1250_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp1250_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8626,18 +8626,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1256",            /* cset name     */
      "cp1256_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp1256_bin,    /* ctype         */
      to_lower_cp1256_bin, /* lower         */
      to_upper_cp1256_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp1256_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8659,18 +8659,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp866",             /* cset name     */
      "cp866_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp866_bin,     /* ctype         */
      to_lower_cp866_bin,  /* lower         */
      to_upper_cp866_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp866_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8692,18 +8692,18 @@ CHARSET_INFO compiled_charsets[] = {
      "dec8",              /* cset name     */
      "dec8_bin",          /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_dec8_bin,      /* ctype         */
      to_lower_dec8_bin,   /* lower         */
      to_upper_dec8_bin,   /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_dec8_bin,     /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8725,18 +8725,18 @@ CHARSET_INFO compiled_charsets[] = {
      "greek",             /* cset name     */
      "greek_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_greek_bin,     /* ctype         */
      to_lower_greek_bin,  /* lower         */
      to_upper_greek_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_greek_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8758,18 +8758,18 @@ CHARSET_INFO compiled_charsets[] = {
      "hebrew",            /* cset name     */
      "hebrew_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_hebrew_bin,    /* ctype         */
      to_lower_hebrew_bin, /* lower         */
      to_upper_hebrew_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_hebrew_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8791,18 +8791,18 @@ CHARSET_INFO compiled_charsets[] = {
      "hp8",               /* cset name     */
      "hp8_bin",           /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_hp8_bin,       /* ctype         */
      to_lower_hp8_bin,    /* lower         */
      to_upper_hp8_bin,    /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_hp8_bin,      /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8824,18 +8824,18 @@ CHARSET_INFO compiled_charsets[] = {
      "keybcs2",            /* cset name     */
      "keybcs2_bin",        /* coll name     */
      "",                   /* comment       */
-     NULL,                 /* tailoring     */
-     NULL,                 /* coll_param    */
+     nullptr,              /* tailoring     */
+     nullptr,              /* coll_param    */
      ctype_keybcs2_bin,    /* ctype         */
      to_lower_keybcs2_bin, /* lower         */
      to_upper_keybcs2_bin, /* upper         */
-     NULL,                 /* sort_order    */
-     NULL,                 /* uca           */
+     nullptr,              /* sort_order    */
+     nullptr,              /* uca           */
      to_uni_keybcs2_bin,   /* to_uni        */
-     NULL,                 /* from_uni      */
+     nullptr,              /* from_uni      */
      &my_unicase_default,  /* caseinfo      */
-     NULL,                 /* state map     */
-     NULL,                 /* ident map     */
+     nullptr,              /* state map     */
+     nullptr,              /* ident map     */
      1,                    /* strxfrm_multiply*/
      1,                    /* caseup_multiply*/
      1,                    /* casedn_multiply*/
@@ -8857,18 +8857,18 @@ CHARSET_INFO compiled_charsets[] = {
      "koi8r",             /* cset name     */
      "koi8r_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_koi8r_bin,     /* ctype         */
      to_lower_koi8r_bin,  /* lower         */
      to_upper_koi8r_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_koi8r_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8890,18 +8890,18 @@ CHARSET_INFO compiled_charsets[] = {
      "koi8u",             /* cset name     */
      "koi8u_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_koi8u_bin,     /* ctype         */
      to_lower_koi8u_bin,  /* lower         */
      to_upper_koi8u_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_koi8u_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8923,18 +8923,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin2",            /* cset name     */
      "latin2_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_latin2_bin,    /* ctype         */
      to_lower_latin2_bin, /* lower         */
      to_upper_latin2_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_latin2_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8956,18 +8956,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin5",            /* cset name     */
      "latin5_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_latin5_bin,    /* ctype         */
      to_lower_latin5_bin, /* lower         */
      to_upper_latin5_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_latin5_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -8989,18 +8989,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin7",            /* cset name     */
      "latin7_bin",        /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_latin7_bin,    /* ctype         */
      to_lower_latin7_bin, /* lower         */
      to_upper_latin7_bin, /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_latin7_bin,   /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -9022,18 +9022,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp850",             /* cset name     */
      "cp850_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp850_bin,     /* ctype         */
      to_lower_cp850_bin,  /* lower         */
      to_upper_cp850_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp850_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -9055,18 +9055,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp852",             /* cset name     */
      "cp852_bin",         /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_cp852_bin,     /* ctype         */
      to_lower_cp852_bin,  /* lower         */
      to_upper_cp852_bin,  /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_cp852_bin,    /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -9088,18 +9088,18 @@ CHARSET_INFO compiled_charsets[] = {
      "swe7",              /* cset name     */
      "swe7_bin",          /* coll name     */
      "",                  /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
      ctype_swe7_bin,      /* ctype         */
      to_lower_swe7_bin,   /* lower         */
      to_upper_swe7_bin,   /* upper         */
-     NULL,                /* sort_order    */
-     NULL,                /* uca           */
+     nullptr,             /* sort_order    */
+     nullptr,             /* uca           */
      to_uni_swe7_bin,     /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/
@@ -9121,18 +9121,18 @@ CHARSET_INFO compiled_charsets[] = {
      "geostd8",                     /* cset name     */
      "geostd8_general_ci",          /* coll name     */
      "",                            /* comment       */
-     NULL,                          /* tailoring     */
-     NULL,                          /* coll_param    */
+     nullptr,                       /* tailoring     */
+     nullptr,                       /* coll_param    */
      ctype_geostd8_general_ci,      /* ctype         */
      to_lower_geostd8_general_ci,   /* lower         */
      to_upper_geostd8_general_ci,   /* upper         */
      sort_order_geostd8_general_ci, /* sort_order    */
-     NULL,                          /* uca           */
+     nullptr,                       /* uca           */
      to_uni_geostd8_general_ci,     /* to_uni        */
-     NULL,                          /* from_uni      */
+     nullptr,                       /* from_uni      */
      &my_unicase_default,           /* caseinfo      */
-     NULL,                          /* state map     */
-     NULL,                          /* ident map     */
+     nullptr,                       /* state map     */
+     nullptr,                       /* ident map     */
      1,                             /* strxfrm_multiply*/
      1,                             /* caseup_multiply*/
      1,                             /* casedn_multiply*/
@@ -9154,18 +9154,18 @@ CHARSET_INFO compiled_charsets[] = {
      "geostd8",            /* cset name     */
      "geostd8_bin",        /* coll name     */
      "",                   /* comment       */
-     NULL,                 /* tailoring     */
-     NULL,                 /* coll_param    */
+     nullptr,              /* tailoring     */
+     nullptr,              /* coll_param    */
      ctype_geostd8_bin,    /* ctype         */
      to_lower_geostd8_bin, /* lower         */
      to_upper_geostd8_bin, /* upper         */
-     NULL,                 /* sort_order    */
-     NULL,                 /* uca           */
+     nullptr,              /* sort_order    */
+     nullptr,              /* uca           */
      to_uni_geostd8_bin,   /* to_uni        */
-     NULL,                 /* from_uni      */
+     nullptr,              /* from_uni      */
      &my_unicase_default,  /* caseinfo      */
-     NULL,                 /* state map     */
-     NULL,                 /* ident map     */
+     nullptr,              /* state map     */
+     nullptr,              /* ident map     */
      1,                    /* strxfrm_multiply*/
      1,                    /* caseup_multiply*/
      1,                    /* casedn_multiply*/
@@ -9187,18 +9187,18 @@ CHARSET_INFO compiled_charsets[] = {
      "latin1",                     /* cset name     */
      "latin1_spanish_ci",          /* coll name     */
      "",                           /* comment       */
-     NULL,                         /* tailoring     */
-     NULL,                         /* coll_param    */
+     nullptr,                      /* tailoring     */
+     nullptr,                      /* coll_param    */
      ctype_latin1_spanish_ci,      /* ctype         */
      to_lower_latin1_spanish_ci,   /* lower         */
      to_upper_latin1_spanish_ci,   /* upper         */
      sort_order_latin1_spanish_ci, /* sort_order    */
-     NULL,                         /* uca           */
+     nullptr,                      /* uca           */
      to_uni_latin1_spanish_ci,     /* to_uni        */
-     NULL,                         /* from_uni      */
+     nullptr,                      /* from_uni      */
      &my_unicase_default,          /* caseinfo      */
-     NULL,                         /* state map     */
-     NULL,                         /* ident map     */
+     nullptr,                      /* state map     */
+     nullptr,                      /* ident map     */
      1,                            /* strxfrm_multiply*/
      1,                            /* caseup_multiply*/
      1,                            /* casedn_multiply*/
@@ -9220,18 +9220,18 @@ CHARSET_INFO compiled_charsets[] = {
      "cp1250",                    /* cset name     */
      "cp1250_polish_ci",          /* coll name     */
      "",                          /* comment       */
-     NULL,                        /* tailoring     */
-     NULL,                        /* coll_param    */
+     nullptr,                     /* tailoring     */
+     nullptr,                     /* coll_param    */
      ctype_cp1250_polish_ci,      /* ctype         */
      to_lower_cp1250_polish_ci,   /* lower         */
      to_upper_cp1250_polish_ci,   /* upper         */
      sort_order_cp1250_polish_ci, /* sort_order    */
-     NULL,                        /* uca           */
+     nullptr,                     /* uca           */
      to_uni_cp1250_polish_ci,     /* to_uni        */
-     NULL,                        /* from_uni      */
+     nullptr,                     /* from_uni      */
      &my_unicase_default,         /* caseinfo      */
-     NULL,                        /* state map     */
-     NULL,                        /* ident map     */
+     nullptr,                     /* state map     */
+     nullptr,                     /* ident map     */
      1,                           /* strxfrm_multiply*/
      1,                           /* caseup_multiply*/
      1,                           /* casedn_multiply*/
@@ -9250,21 +9250,21 @@ CHARSET_INFO compiled_charsets[] = {
      0,
      0,
      MY_CS_COMPILED,
-     NULL,                /* cset name     */
-     NULL,                /* coll name     */
-     NULL,                /* comment       */
-     NULL,                /* tailoring     */
-     NULL,                /* coll_param    */
-     NULL,                /* ctype         */
-     NULL,                /* lower         */
-     NULL,                /* upper         */
-     NULL,                /* sort order    */
-     NULL,                /* uca           */
-     NULL,                /* to_uni        */
-     NULL,                /* from_uni      */
+     nullptr,             /* cset name     */
+     nullptr,             /* coll name     */
+     nullptr,             /* comment       */
+     nullptr,             /* tailoring     */
+     nullptr,             /* coll_param    */
+     nullptr,             /* ctype         */
+     nullptr,             /* lower         */
+     nullptr,             /* upper         */
+     nullptr,             /* sort order    */
+     nullptr,             /* uca           */
+     nullptr,             /* to_uni        */
+     nullptr,             /* from_uni      */
      &my_unicase_default, /* caseinfo      */
-     NULL,                /* state map     */
-     NULL,                /* ident map     */
+     nullptr,             /* state map     */
+     nullptr,             /* ident map     */
      1,                   /* strxfrm_multiply*/
      1,                   /* caseup_multiply*/
      1,                   /* casedn_multiply*/

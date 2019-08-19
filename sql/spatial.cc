@@ -228,7 +228,8 @@ double point_xy::distance(const point_xy &p) const {
 
 String Geometry::bad_geometry_data("Bad object", &my_charset_bin);
 
-Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_last + 1] = {NULL};
+Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_last + 1] = {
+    nullptr};
 
 static Geometry::Class_info **ci_collection_end =
     Geometry::ci_collection + Geometry::wkb_last + 1;
@@ -327,12 +328,12 @@ Geometry::Class_info *Geometry::find_class(const char *name, size_t len) {
                              len, pointer_cast<const uchar *>(name), len) == 0))
       return *cur_rt;
   }
-  return 0;
+  return nullptr;
 }
 
 Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id) {
   Class_info *ci;
-  if (!(ci = find_class(type_id))) return NULL;
+  if (!(ci = find_class(type_id))) return nullptr;
   return (*ci->m_create_func)(buffer->data);
 }
 
@@ -367,13 +368,13 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
   // Check the GEOMETRY byte string is valid, which would at least have an
   // SRID, a WKB header, and 4 more bytes for object count or Point
   // coordinate.
-  if (data_len < srid_sz + WKB_HEADER_SIZE + 4) return NULL;
+  if (data_len < srid_sz + WKB_HEADER_SIZE + 4) return nullptr;
 
   bo = ::get_byte_order(data + srid_sz);
 
   if (bo != Geometry::wkb_ndr) {
     my_error(ER_GIS_DATA_WRONG_ENDIANESS, MYF(0));
-    return NULL;
+    return nullptr;
     /*
       Don't try to convert endianess but error out because we can't
       replace the bytes refered by data, it can be from any source.
@@ -386,7 +387,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
   geom_type = uint4korr(data + srid_sz + 1);
   if (geom_type < wkb_first || geom_type > wkb_last ||
       !(result = create_by_typeid(buffer, (int)geom_type)))
-    return NULL;
+    return nullptr;
 
   gis::srid_t srid = 0;
   if (has_srid) {
@@ -395,7 +396,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
   }
 
   if (geom_type == wkb_point) {
-    if (data_len - srid_sz - WKB_HEADER_SIZE < POINT_DATA_SIZE) return NULL;
+    if (data_len - srid_sz - WKB_HEADER_SIZE < POINT_DATA_SIZE) return nullptr;
     result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE, POINT_DATA_SIZE);
   } else
     result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE,
@@ -413,7 +414,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
   const uint32 header_size = (has_srid ? GEOM_HEADER_SIZE : WKB_HEADER_SIZE);
   if (result_len == GET_SIZE_ERROR ||
       (has_srid && (result_len + header_size) != data_len))
-    return NULL;
+    return nullptr;
 
   return result;
 }
@@ -492,7 +493,7 @@ bool Geometry::as_wkb(String *wkb, bool shallow_copy) const {
   }
 
   if (wkb->reserve(WKB_HEADER_SIZE + this->get_nbytes(), 512) ||
-      get_data_ptr() == NULL)
+      get_data_ptr() == nullptr)
     return true;
 
   write_wkb_header(wkb, get_geotype());
@@ -548,7 +549,7 @@ bool Geometry::as_geometry(String *buf, bool shallow_copy) const {
                 buf->ptr() > get_cptr() + get_nbytes());
 
   if (buf->reserve(SRID_SIZE + WKB_HEADER_SIZE + this->get_nbytes(), 512) ||
-      get_data_ptr() == NULL)
+      get_data_ptr() == nullptr)
     return true;
 
   write_geometry_header(buf, get_srid(), get_geotype());
@@ -610,7 +611,7 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
       : type(PSI_NOT_INSTRUMENTED),
         previous_type(Geometry::wkb_invalid_type),
         points_in_linestring(0),
-        last_position(NULL),
+        last_position(nullptr),
         is_ok(true),
         required_byte_order(required_byte_order) {
     this->type.push_back(type);
@@ -761,7 +762,7 @@ bool Geometry::is_well_formed(const char *from, size_t length,
   if (length < GEOM_HEADER_SIZE) return false;
 
   is_well_formed = (wkb_scanner(current_thd, from + SRID_SIZE, &len, 0, true,
-                                &checker) != NULL);
+                                &checker) != nullptr);
 
   return (is_well_formed && checker.is_well_formed() &&
           checker.get_last_position() == from + length);
@@ -840,39 +841,39 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
   if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr)) return nullptr;
 
   Geometry::wkbType gt;
-  const char *q = NULL;
+  const char *q = nullptr;
   uint32 ngeos = 0, comp_type = 0, gtype = 0;
   bool comp_hashdr = false, done = false;
 
   if (has_hdr) {
-    if (*len < WKB_HEADER_SIZE) return NULL;  // Invalid WKB data.
+    if (*len < WKB_HEADER_SIZE) return nullptr;  // Invalid WKB data.
 
     gtype = uint4korr(wkb + 1);
     // The geotype isn't used in this case.
-    if (geotype != gtype && geotype != 0 /* unknown */) return NULL;
+    if (geotype != gtype && geotype != 0 /* unknown */) return nullptr;
 
     if ((*wkb != Geometry::wkb_ndr && *wkb != Geometry::wkb_xdr) ||
         gtype < Geometry::wkb_first || gtype > Geometry::wkb_last)
-      return NULL;
+      return nullptr;
 
     gt = static_cast<Geometry::wkbType>(gtype);
 
     q = wkb + WKB_HEADER_SIZE;
     *len -= WKB_HEADER_SIZE;
-    if (*len <= 0) return NULL;
+    if (*len <= 0) return nullptr;
     handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
-    if (!handler->continue_scan()) return NULL;
+    if (!handler->continue_scan()) return nullptr;
   } else {
     DBUG_ASSERT(geotype >= Geometry::wkb_first &&
                 geotype <= Geometry::wkb_last);
     q = wkb;
     gt = static_cast<Geometry::wkbType>(geotype);
     handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
-    if (!handler->continue_scan()) return NULL;
+    if (!handler->continue_scan()) return nullptr;
   }
 
   if (gt != Geometry::wkb_point) {
-    if (*len < 4) return NULL;
+    if (*len < 4) return nullptr;
     ngeos = uint4korr(q);
     q += sizeof(uint32);
     *len -= 4;
@@ -880,12 +881,12 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
 
   switch (gt) {
     case Geometry::wkb_point:
-      if (*len < POINT_DATA_SIZE) return NULL;
+      if (*len < POINT_DATA_SIZE) return nullptr;
       q += POINT_DATA_SIZE;
       *len -= POINT_DATA_SIZE;
       done = true;
       handler->on_wkb_end(q);
-      if (!handler->continue_scan()) return NULL;
+      if (!handler->continue_scan()) return nullptr;
       break;
     case Geometry::wkb_linestring:
       comp_type = Geometry::wkb_point;
@@ -913,13 +914,13 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
       break;
   }
 
-  if (!done && q != NULL) {
+  if (!done && q != nullptr) {
     for (uint32 i = 0; i < ngeos; i++) {
       q = wkb_scanner(thd, q, len, comp_type, comp_hashdr, handler);
-      if (q == NULL) return NULL;
+      if (q == nullptr) return nullptr;
     }
     handler->on_wkb_end(q);
-    if (!handler->continue_scan()) return NULL;
+    if (!handler->continue_scan()) return nullptr;
   }
 
   return q;
@@ -946,14 +947,14 @@ Geometry *Geometry::create_from_wkb(THD *thd, Geometry_buffer *buffer,
   uint32 geom_type;
   Geometry *geom;
 
-  if (len < WKB_HEADER_SIZE) return NULL;
+  if (len < WKB_HEADER_SIZE) return nullptr;
 
   geom_type = wkb_get_uint(wkb + 1, ::get_byte_order(wkb));
   if ((*wkb != wkb_xdr && *wkb != wkb_ndr) || geom_type < wkb_first ||
       geom_type > wkb_last ||
       !(geom = create_by_typeid(buffer, (int)geom_type)) ||
       res->reserve(WKB_HEADER_SIZE, 512))
-    return NULL;
+    return nullptr;
 
   q_append((char)wkb_ndr, res);
   q_append(geom_type, res);
@@ -963,14 +964,14 @@ Geometry *Geometry::create_from_wkb(THD *thd, Geometry_buffer *buffer,
                           ::get_byte_order(wkb), res);
 
   // The WKB string is invalid if it has trailing trash bytes.
-  if (tret != len - WKB_HEADER_SIZE) return NULL;
+  if (tret != len - WKB_HEADER_SIZE) return nullptr;
 
   if (init_stream)
     geom->set_data_ptr(res->ptr() + WKB_HEADER_SIZE,
                        res->length() - WKB_HEADER_SIZE);
   geom->has_geom_header_space(true);
   if (geom->get_geotype() == wkb_polygon) geom->polygon_is_wkb_form(true);
-  return tret ? geom : NULL;
+  return tret ? geom : nullptr;
 }
 
 bool Geometry::envelope(MBR *mbr) const {
@@ -1167,8 +1168,8 @@ Geometry::Geometry(const Geometry &geo) {
   wkbType geotype = geo.get_geotype();
 #endif
   DBUG_ASSERT(is_valid_geotype(geotype) &&
-              ((geo.get_ptr() != NULL && geo.get_nbytes() > 0) ||
-               (geo.get_ptr() == NULL && geo.get_nbytes() == 0) ||
+              ((geo.get_ptr() != nullptr && geo.get_nbytes() > 0) ||
+               (geo.get_ptr() == nullptr && geo.get_nbytes() == 0) ||
                (geo.get_geotype() == wkb_polygon && geo.get_nbytes() == 0)));
 
   m_ptr = geo.m_ptr;
@@ -1206,7 +1207,7 @@ Geometry::~Geometry() {
       if (get_ownmem() && m_ptr) {
         set_ownmem(false);
         gis_wkb_free(m_ptr);
-        m_ptr = NULL;
+        m_ptr = nullptr;
       }
 
       set_nbytes(0);
@@ -1262,7 +1263,7 @@ Gis_point::Gis_point(const self &pt) : Geometry(pt) {
   }
 
   m_ptr = gis_wkb_fixed_alloc(nbytes);
-  if (m_ptr == NULL) {
+  if (m_ptr == nullptr) {
     set_nbytes(0);
     set_ownmem(false);
     return;
@@ -1287,15 +1288,15 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs) {
   // std::reverse is called to reverse a linestring/ring, and also,
   // points are of equal size. Not allowed on any other type of geometries.
   DBUG_ASSERT(
-      (m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-      (m_ptr == NULL && get_nbytes() == 0 && !get_ownmem()));
+      (m_ptr != nullptr && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+      (m_ptr == nullptr && get_nbytes() == 0 && !get_ownmem()));
 
   DBUG_ASSERT(
-      (rhs.get_ptr() != NULL &&
+      (rhs.get_ptr() != nullptr &&
        rhs.get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-      (rhs.get_ptr() == NULL && rhs.get_nbytes() == 0 && !rhs.get_ownmem()));
+      (rhs.get_ptr() == nullptr && rhs.get_nbytes() == 0 && !rhs.get_ownmem()));
 
-  if (m_owner == NULL) m_owner = rhs.get_owner();
+  if (m_owner == nullptr) m_owner = rhs.get_owner();
 
   size_t plen = rhs.get_nbytes();
 
@@ -1303,11 +1304,11 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs) {
   // owning no memory because in BG, std::reverse is called to reverse a
   // linestring/ring, and also, points are of equal size.
   // Not allowed on any other type of geometries.
-  if (m_ptr == NULL) {
+  if (m_ptr == nullptr) {
     set_nbytes(SIZEOF_STORED_DOUBLE * GEOM_DIM);
     set_ownmem(true);
     m_ptr = gis_wkb_fixed_alloc(get_nbytes());
-    if (m_ptr == NULL) {
+    if (m_ptr == nullptr) {
       set_nbytes(0);
       set_ownmem(false);
       return *this;
@@ -1342,8 +1343,8 @@ void Gis_point::set_ptr(void *ptr, size_t len) {
   set_nbytes(len);
   set_ownmem(false);
   DBUG_ASSERT(
-      (m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-      (m_ptr == NULL && get_nbytes() == 0));
+      (m_ptr != nullptr && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+      (m_ptr == nullptr && get_nbytes() == 0));
 }
 
 uint32 Gis_point::get_data_size() const {
@@ -1493,7 +1494,7 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb) {
     return true;
   }
 
-  const char *firstpt = NULL, *lastpt = NULL;
+  const char *firstpt = nullptr, *lastpt = nullptr;
   if (!is_polygon_ring()) goto out;
 
   // Make sure all rings of a polygon are closed, and a ring must have
@@ -1698,11 +1699,11 @@ const Geometry::Class_info *Gis_line_string::get_class_info() const {
   @param r another polygon of same coordinate type, ring closed-ness and
   ring direction.
 */
-Gis_polygon::Gis_polygon(const self &r) : Geometry(r), m_inn_rings(NULL) {
-  Gis_polygon::ring_type *r_out = NULL, *outer = NULL;
-  Gis_polygon::inner_container_type *r_inners = NULL, *inners = NULL;
+Gis_polygon::Gis_polygon(const self &r) : Geometry(r), m_inn_rings(nullptr) {
+  Gis_polygon::ring_type *r_out = nullptr, *outer = nullptr;
+  Gis_polygon::inner_container_type *r_inners = nullptr, *inners = nullptr;
 
-  if (r.is_bg_adapter() == false || r.get_ptr() == NULL) return;
+  if (r.is_bg_adapter() == false || r.get_ptr() == nullptr) return;
 
   std::unique_ptr<Gis_polygon::ring_type> guard1;
   std::unique_ptr<Gis_polygon::inner_container_type> guard2;
@@ -1731,7 +1732,7 @@ Gis_polygon::Gis_polygon(const self &r) : Geometry(r), m_inn_rings(NULL) {
 
 Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes, const Flags_t &flags,
                          gis::srid_t srid)
-    : Geometry(NULL, nbytes, flags, srid) {
+    : Geometry(nullptr, nbytes, flags, srid) {
   set_geotype(wkb_polygon);
   // Make use of Gis_wkb_vector::parse_wkb_data.
   inner_container_type v(wkb, nbytes, get_flags(), srid);
@@ -1757,11 +1758,11 @@ Gis_polygon::~Gis_polygon() {
         if (get_ownmem()) gis_wkb_free(m_ptr);
       } else
         delete outer_ring(this);
-      m_ptr = NULL;
+      m_ptr = nullptr;
     }
     if (m_inn_rings) {
       delete m_inn_rings;
-      m_inn_rings = NULL;
+      m_inn_rings = nullptr;
     }
     /*
       Never need to free polygon's wkb memory here, because if it's one chunk
@@ -1785,12 +1786,12 @@ Gis_polygon &Gis_polygon::operator=(const Gis_polygon &rhs) {
   Geometry::operator=(rhs);
 
   this->set_flags(rhs.get_flags());
-  if (this->m_owner == 0) this->m_owner = rhs.get_owner();
+  if (this->m_owner == nullptr) this->m_owner = rhs.get_owner();
 
   if (m_ptr) delete outer_ring(this);
   if (m_inn_rings) delete m_inn_rings;
-  m_ptr = NULL;
-  m_inn_rings = NULL;
+  m_ptr = nullptr;
+  m_inn_rings = nullptr;
 
   if (rhs.get_ptr()) {
     Gis_polygon::ring_type *outer =
@@ -1828,8 +1829,8 @@ void Gis_polygon::set_ptr(void *ptr, size_t len) {
   m_inn_rings = reinterpret_cast<inner_container_type *>(plgn.get_geo_vect());
 
   outer = outer_ring(this);
-  if (outer != NULL) outer->set_owner(this);
-  if (m_inn_rings != NULL) m_inn_rings->set_owner(this);
+  if (outer != nullptr) outer->set_owner(this);
+  if (m_inn_rings != nullptr) m_inn_rings->set_owner(this);
   // Prevent destructor deleting m_ptr/m_inn_rings.
   plgn.donate_data();
 }
@@ -1850,7 +1851,7 @@ void Gis_polygon::to_wkb_unparsed() {
   delete m_inn_rings;
   m_ptr = ptr;
   set_nbytes(nbytes);
-  m_inn_rings = NULL;
+  m_inn_rings = nullptr;
   polygon_is_wkb_form(true);
   set_bg_adapter(false);
   set_ownmem(true);
@@ -1965,7 +1966,7 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw) {
   // than using std::reverse for better performance.
   if ((sign > 0 && !want_ccw) || (sign < 0 && want_ccw)) {
     char *p = static_cast<char *>(ring.get_ptr()) + sizeof(uint32);
-    char *q = NULL, *p0;
+    char *q = nullptr, *p0;
     char pt[POINT_DATA_SIZE];
     size_t s = ring.size();
 
@@ -2011,17 +2012,17 @@ bool Gis_polygon::set_polygon_ring_order() {
   separately allocated and released.
  */
 void Gis_polygon::make_rings() {
-  ring_type *outer = NULL;
+  ring_type *outer = nullptr;
 
-  if (this->m_ptr == NULL) {
-    outer = new ring_type(NULL, 0, Flags_t(wkb_linestring, 0), get_srid());
+  if (this->m_ptr == nullptr) {
+    outer = new ring_type(nullptr, 0, Flags_t(wkb_linestring, 0), get_srid());
     outer->set_owner(this);
     this->m_ptr = outer;
   }
 
-  if (m_inn_rings == NULL) {
+  if (m_inn_rings == nullptr) {
     m_inn_rings = new inner_container_type(
-        NULL, 0, Flags_t(wkb_polygon_inner_rings, 0), get_srid());
+        nullptr, 0, Flags_t(wkb_polygon_inner_rings, 0), get_srid());
     m_inn_rings->set_owner(this);
   }
   this->set_ownmem(false);
@@ -2278,16 +2279,17 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const {
    @return The address of the packed WKB string buffer.
   */
 void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes) {
-  DBUG_ASSERT(geo0->get_geotype() == Geometry::wkb_polygon && pnbytes != NULL);
+  DBUG_ASSERT(geo0->get_geotype() == Geometry::wkb_polygon &&
+              pnbytes != nullptr);
   const Gis_polygon *geo = static_cast<const Gis_polygon *>(geo0);
   Gis_polygon::ring_type *out_ring = outer_ring(geo);
   Gis_polygon::inner_container_type *inn_rings = geo->inner_rings();
   size_t &nbytes = *pnbytes;
 
-  if (out_ring == NULL) {
-    DBUG_ASSERT(inn_rings == NULL);
+  if (out_ring == nullptr) {
+    DBUG_ASSERT(inn_rings == nullptr);
     *pnbytes = 0;
-    return NULL;
+    return nullptr;
   }
 
   // Inner rings may have out of line rings.
@@ -2296,9 +2298,9 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes) {
   size_t vallen = sizeof(uint32) + out_ring->get_nbytes() +
                   (inn_rings ? inn_rings->get_nbytes() : 0);
   void *src_val = gis_wkb_alloc(vallen);
-  if (src_val == NULL) {
+  if (src_val == nullptr) {
     nbytes = 0;
-    return NULL;
+    return nullptr;
   }
 
   memcpy(static_cast<char *>(src_val) + sizeof(uint32), out_ring->get_ptr(),
@@ -3106,7 +3108,7 @@ Geometry *Gis_geometry_collection::scan_header_and_create(
 
   if (wkb->scan_wkb_header(&header) ||
       !(geom = create_by_typeid(buffer, header.wkb_type)))
-    return NULL;
+    return nullptr;
   geom->set_data_ptr(wkb->data(), wkb->length());
 
   /*
@@ -3187,7 +3189,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
 bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
                                               const String *gbuf,
                                               String *gcbuf) {
-  DBUG_ASSERT(gbuf != NULL && gbuf->ptr() != NULL && gbuf->length() > 0);
+  DBUG_ASSERT(gbuf != nullptr && gbuf->ptr() != nullptr && gbuf->length() > 0);
 
   uint32 collection_len = gcbuf->length(), geo_len = gbuf->length();
   DBUG_ASSERT(collection_len == 0 ||
@@ -3237,10 +3239,11 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
                                                  wkbType gtype,
                                                  const String *gbuf,
                                                  String *gcbuf)
-    : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid) {
+    : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0), srid) {
   uint32 geo_len = gbuf ? gbuf->length() : 0, total_len = 0;
-  DBUG_ASSERT((gbuf == NULL || (gbuf->ptr() == NULL && gbuf->length() == 0)) ||
-              (gbuf->ptr() != NULL && gbuf->length() > 0));
+  DBUG_ASSERT(
+      (gbuf == nullptr || (gbuf->ptr() == nullptr && gbuf->length() == 0)) ||
+      (gbuf->ptr() != nullptr && gbuf->length() > 0));
   total_len = geo_len + sizeof(uint32) /*NUM-objs*/ + SRID_SIZE +
               WKB_HEADER_SIZE + (geo_len > 0 ? WKB_HEADER_SIZE : 0);
 
@@ -3274,8 +3277,9 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
   @param gcbuf this geometry collection's data buffer in GEOMETRY format.
  */
 Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
-    : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), geo->get_srid()) {
-  DBUG_ASSERT(geo != NULL && geo->get_ptr() != NULL);
+    : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0),
+               geo->get_srid()) {
+  DBUG_ASSERT(geo != nullptr && geo->get_ptr() != nullptr);
   uint32 geo_len = geo->get_data_size(), total_len = 0;
   DBUG_ASSERT(geo_len != GET_SIZE_ERROR);
   total_len =
@@ -3474,7 +3478,8 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, wkb_parser *wkb) const {
         An empty collection should be simply skipped, it may contain a tree
         of empty collections which is still empty.
       */
-      if (geom != NULL && geom->get_type() == wkb_geometrycollection) continue;
+      if (geom != nullptr && geom->get_type() == wkb_geometrycollection)
+        continue;
       return true;
     }
 
@@ -3859,7 +3864,7 @@ static inline void set_inner_rings(Geometry *g,
 /// parsing the WKB of a polygon's inner rings because there is no WKB header
 /// for the inner rings only.
 void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
-  const char *q = NULL;
+  const char *q = nullptr;
   size_t nbytes = 0;
   Geometry::wkbType geotype = geom->get_geotype();
   Geometry::wkbByteOrder mybo = geom->get_byte_order();
@@ -3868,7 +3873,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
   DBUG_ASSERT(geotype != Geometry::wkb_polygon_inner_rings ||
               (geotype == Geometry::wkb_polygon_inner_rings && num_geoms != 0));
   geom->set_bg_adapter(true);
-  if (p == NULL) return;
+  if (p == nullptr) return;
 
   switch (geotype) {
     case Geometry::wkb_point:
@@ -3879,7 +3884,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       uint32 npts = uint4korr(p);
       p += sizeof(uint32);
       Point_stepper ptstep(dim, mybo, false);
-      const char *first = NULL, *last = NULL;
+      const char *first = nullptr, *last = nullptr;
 
       for (uint32 i = 0; i < npts; i++) {
         q = p;
@@ -4026,7 +4031,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
         if (i == 0) {
           // Parse outer ring.
           Gis_polygon_ring *outer = outer_ring(geom);
-          if (geom->get_ptr() == NULL) {
+          if (geom->get_ptr() == nullptr) {
             outer = new Gis_polygon_ring(
                 q, nbytes, Geometry::Flags_t(Geometry::wkb_linestring, 0),
                 geom->get_srid());
@@ -4049,7 +4054,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
         } else {
           Gis_polygon::inner_container_type *inners = inner_rings(geom);
 
-          if (inners == NULL) {
+          if (inners == nullptr) {
             inners = new Gis_polygon::inner_container_type();
             set_inner_rings(geom, inners);
             inners->set_byte_order(mybo);
@@ -4157,7 +4162,7 @@ const void *Geometry::normalize_ring_order() {
     DBUG_ASSERT(false);
   }
 
-  if (inval) return NULL;
+  if (inval) return nullptr;
   return geo->get_data_ptr();
 }
 
@@ -4207,18 +4212,18 @@ void Gis_wkb_vector<T>::reassemble() {
   set_bg_adapter(true);
   Geometry::wkbType geotype = get_geotype();
   if (geotype == Geometry::wkb_point || geotype == Geometry::wkb_polygon ||
-      geotype == Geometry::wkb_multipoint || m_geo_vect == NULL ||
+      geotype == Geometry::wkb_multipoint || m_geo_vect == nullptr ||
       geotype == Geometry::wkb_linestring || m_geo_vect->size() == 0 ||
       !has_out_of_line_components())
     return;
 
-  if (m_geo_vect == NULL) m_geo_vect = new Geo_vector;
+  if (m_geo_vect == nullptr) m_geo_vect = new Geo_vector;
   typedef std::map<size_t, std::pair<const char *, const char *>> segs_t;
   segs_t segs;
   size_t hdrsz = 0, num = m_geo_vect->size(), prev_in = 0, totlen = 0,
          segsz = 0;
   Geo_vector &vec = *m_geo_vect;
-  const char *start = get_cptr(), *end = NULL, *prev_start = get_cptr();
+  const char *start = get_cptr(), *end = nullptr, *prev_start = get_cptr();
   std::map<size_t, std::pair<void *, size_t>> plgn_data;
   std::map<size_t, std::pair<void *, size_t>>::iterator plgn_data_itr;
   bool is_inns = (geotype == Geometry::wkb_polygon_inner_rings);
@@ -4257,12 +4262,12 @@ void Gis_wkb_vector<T>::reassemble() {
           start = reinterpret_cast<char *>(&none);
           end = start + sizeof(none);
         } else
-          start = end = NULL;
+          start = end = nullptr;
       }
       // The previous geometry is already out of line, or no m_ptr allocated.
       else if (out || !prev_start) {
-        start = NULL;
-        end = NULL;
+        start = nullptr;
+        end = nullptr;
       } else  // The previous geometry is inline, note down the inline range.
       {
         start = prev_start;
@@ -4318,7 +4323,7 @@ void Gis_wkb_vector<T>::reassemble() {
   }
 
   size_t nbytes = get_nbytes();
-  DBUG_ASSERT((nbytes == 0 && m_ptr == NULL && num == segsz) ||
+  DBUG_ASSERT((nbytes == 0 && m_ptr == nullptr && num == segsz) ||
               (nbytes > 0 && num >= segsz));
 
   // If all are out of line, m_ptr is 0 and no room for ring count, otherwise
@@ -4333,9 +4338,9 @@ void Gis_wkb_vector<T>::reassemble() {
   // The header(object count) is already copied.
   char *q = ptr;
 
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     clear_wkb_data();
-    m_ptr = NULL;
+    m_ptr = nullptr;
     set_nbytes(0);
     set_ownmem(false);
     goto exit;
@@ -4425,10 +4430,11 @@ Gis_wkb_vector<T>::Gis_wkb_vector(const void *ptr, size_t nbytes,
                                   const Flags_t &flags, gis::srid_t srid,
                                   bool is_bg_adapter)
     : Geometry(ptr, nbytes, flags, srid) {
-  DBUG_ASSERT((ptr != NULL && nbytes > 0) || (ptr == NULL && nbytes == 0));
+  DBUG_ASSERT((ptr != nullptr && nbytes > 0) ||
+              (ptr == nullptr && nbytes == 0));
   set_ownmem(false);  // We use existing WKB data and don't own that memory.
   set_bg_adapter(is_bg_adapter);
-  m_geo_vect = NULL;
+  m_geo_vect = nullptr;
 
   if (!is_bg_adapter) return;
 
@@ -4437,14 +4443,14 @@ Gis_wkb_vector<T>::Gis_wkb_vector(const void *ptr, size_t nbytes,
   wkbType geotype = get_geotype();
   // Points don't need it, polygon creates it when parsing.
   if (geotype != Geometry::wkb_point && geotype != Geometry::wkb_polygon &&
-      ptr != NULL)
+      ptr != nullptr)
     guard.reset(m_geo_vect = new Geo_vector());
   // For polygon parsing to work
-  if (geotype == Geometry::wkb_polygon) m_ptr = NULL;
+  if (geotype == Geometry::wkb_polygon) m_ptr = nullptr;
 
   // Why: wkb_polygon_inner_rings should parse in polygon as a whole.
   // Don't call get_cptr() here, it returns NULL.
-  if (geotype != Geometry::wkb_polygon_inner_rings && ptr != NULL)
+  if (geotype != Geometry::wkb_polygon_inner_rings && ptr != nullptr)
     parse_wkb_data(this, static_cast<const char *>(ptr));
 
   guard.release();
@@ -4452,10 +4458,11 @@ Gis_wkb_vector<T>::Gis_wkb_vector(const void *ptr, size_t nbytes,
 
 template <typename T>
 Gis_wkb_vector<T>::Gis_wkb_vector(const Gis_wkb_vector<T> &v)
-    : Geometry(v), m_geo_vect(NULL) {
-  DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
-              (v.get_ptr() == NULL && !v.get_ownmem() && v.get_nbytes() == 0));
-  if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
+    : Geometry(v), m_geo_vect(nullptr) {
+  DBUG_ASSERT(
+      (v.get_ptr() != nullptr && v.get_nbytes() > 0) ||
+      (v.get_ptr() == nullptr && !v.get_ownmem() && v.get_nbytes() == 0));
+  if (!v.is_bg_adapter() || (v.get_ptr() == nullptr && v.m_geo_vect == nullptr))
     return;
   m_geo_vect = new Geo_vector();
   std::unique_ptr<Geo_vector> guard(m_geo_vect);
@@ -4465,8 +4472,8 @@ Gis_wkb_vector<T>::Gis_wkb_vector(const Gis_wkb_vector<T> &v)
   set_nbytes(v.get_nbytes());
   if (get_nbytes() > 0) {
     m_ptr = gis_wkb_alloc(v.get_nbytes() + 2);
-    if (m_ptr == NULL) {
-      m_geo_vect = NULL;
+    if (m_ptr == nullptr) {
+      m_geo_vect = nullptr;
       set_ownmem(false);
       set_nbytes(0);
       return;
@@ -4494,20 +4501,20 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs) {
   if (this == &rhs) return *this;
   Geometry::operator=(rhs);
 
-  DBUG_ASSERT((m_ptr != NULL && get_ownmem() && get_nbytes() > 0) ||
-              (m_ptr == NULL && !get_ownmem() && get_nbytes() == 0));
+  DBUG_ASSERT((m_ptr != nullptr && get_ownmem() && get_nbytes() > 0) ||
+              (m_ptr == nullptr && !get_ownmem() && get_nbytes() == 0));
   DBUG_ASSERT(
-      (rhs.get_ptr() != NULL && rhs.get_nbytes() > 0) ||
-      (rhs.get_ptr() == NULL && !rhs.get_ownmem() && rhs.get_nbytes() == 0));
+      (rhs.get_ptr() != nullptr && rhs.get_nbytes() > 0) ||
+      (rhs.get_ptr() == nullptr && !rhs.get_ownmem() && rhs.get_nbytes() == 0));
 
-  if (m_owner == NULL) m_owner = rhs.get_owner();
+  if (m_owner == nullptr) m_owner = rhs.get_owner();
 
   size_t nbytes_free = get_nbytes_free();
   clear_wkb_data();
 
-  if (rhs.get_ptr() == NULL) {
-    if (m_ptr != NULL) gis_wkb_free(m_ptr);
-    m_ptr = NULL;
+  if (rhs.get_ptr() == nullptr) {
+    if (m_ptr != nullptr) gis_wkb_free(m_ptr);
+    m_ptr = nullptr;
     set_flags(rhs.get_flags());
     return *this;
   }
@@ -4521,10 +4528,10 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs) {
     If have no enough space, reallocate with extra space padded with required
     bytes;
    */
-  if (m_ptr == NULL || get_nbytes() + nbytes_free < rhs.get_nbytes()) {
+  if (m_ptr == nullptr || get_nbytes() + nbytes_free < rhs.get_nbytes()) {
     gis_wkb_free(m_ptr);
     m_ptr = gis_wkb_alloc(rhs.get_nbytes() + 32 /* some extra space. */);
-    if (m_ptr == NULL) {
+    if (m_ptr == nullptr) {
       /*
         This object in this case is valid although it doesn't have any data.
        */
@@ -4570,13 +4577,13 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs) {
 template <typename T>
 void Gis_wkb_vector<T>::shallow_push(const Geometry *g) {
   const T &geo = *(static_cast<const T *>(g));
-  T *pgeo = NULL;
+  T *pgeo = nullptr;
 
-  if (m_geo_vect == NULL) m_geo_vect = new Geo_vector();
+  if (m_geo_vect == nullptr) m_geo_vect = new Geo_vector();
   // Allocate space and create an object with its default constructor.
   pgeo = static_cast<T *>(m_geo_vect->append_object());
-  DBUG_ASSERT(pgeo != NULL);
-  if (pgeo == NULL) return;
+  DBUG_ASSERT(pgeo != nullptr);
+  if (pgeo == nullptr) return;
 
   pgeo->set_flags(geo.get_flags());
   pgeo->set_srid(geo.get_srid());
@@ -4593,17 +4600,17 @@ void Gis_wkb_vector<T>::shallow_push(const Geometry *g) {
 
 template <typename T>
 void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len) {
-  DBUG_ASSERT(!(ptr == NULL && len > 0));
+  DBUG_ASSERT(!(ptr == nullptr && len > 0));
   set_bg_adapter(true);
   if (get_geotype() != Geometry::wkb_polygon) {
-    if (get_ownmem() && m_ptr != NULL) gis_wkb_free(m_ptr);
+    if (get_ownmem() && m_ptr != nullptr) gis_wkb_free(m_ptr);
     m_ptr = ptr;
     if (m_geo_vect) clear_wkb_data();
   }
   set_nbytes(len);
   /* When invoked, this object may or may not have its own memory. */
-  if (get_geotype() != Geometry::wkb_polygon_inner_rings && m_ptr != NULL) {
-    if (m_geo_vect == NULL) m_geo_vect = new Geo_vector();
+  if (get_geotype() != Geometry::wkb_polygon_inner_rings && m_ptr != nullptr) {
+    if (m_geo_vect == nullptr) m_geo_vect = new Geo_vector();
     parse_wkb_data(this, get_cptr());
   }
 }
@@ -4639,7 +4646,7 @@ void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len) {
 template <typename T>
 void Gis_wkb_vector<T>::clear() {
   if (!m_geo_vect) {
-    DBUG_ASSERT(m_ptr == NULL);
+    DBUG_ASSERT(m_ptr == nullptr);
     return;
   }
 
@@ -4654,7 +4661,7 @@ void Gis_wkb_vector<T>::clear() {
     set_ownmem(false);
   }
 
-  m_ptr = NULL;
+  m_ptr = nullptr;
   clear_wkb_data();
   set_nbytes(0);
 }
@@ -4667,7 +4674,7 @@ size_t Gis_wkb_vector<T>::current_size() const {
   // its data using the outer/inner rings.
   DBUG_ASSERT(get_geotype() != Geometry::wkb_polygon);
   set_bg_adapter(true);
-  if (m_geo_vect == NULL || m_geo_vect->empty()) return 0;
+  if (m_geo_vect == nullptr || m_geo_vect->empty()) return 0;
 
   return get_nbytes();
 }
@@ -4680,12 +4687,12 @@ size_t Gis_wkb_vector<T>::get_nbytes_free() const {
 
   size_t cap = current_size();
   if (cap == 0) {
-    DBUG_ASSERT(m_ptr == NULL);
+    DBUG_ASSERT(m_ptr == nullptr);
     return 0;
   }
 
-  const char *p = NULL, *ptr = get_cptr();
-  DBUG_ASSERT(ptr != NULL);
+  const char *p = nullptr, *ptr = get_cptr();
+  DBUG_ASSERT(ptr != nullptr);
 
   /*
     There will always be remaining free space because in push_back, when
@@ -4710,13 +4717,13 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
               val.get_geotype() == wkb_polygon ||
               val.get_geotype() == wkb_linestring);
 
-  DBUG_ASSERT(val.get_ptr() != NULL);
+  DBUG_ASSERT(val.get_ptr() != nullptr);
 
   size_t cap = 0, nalloc = 0;
   size_t vallen, needed;
   void *src_val = val.get_ptr();
 
-  if (m_geo_vect == NULL) m_geo_vect = new Geo_vector;
+  if (m_geo_vect == nullptr) m_geo_vect = new Geo_vector;
   set_bg_adapter(true);
   vallen = val.get_nbytes();
   /*
@@ -4745,7 +4752,7 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
     nalloc = cap + ((needed * 2 > 256) ? needed * 2 : 256);
     void *ptr = get_ptr();
     m_ptr = gis_wkb_realloc(m_ptr, nalloc);
-    if (m_ptr == NULL) {
+    if (m_ptr == nullptr) {
       set_nbytes(0);
       set_ownmem(0);
       clear_wkb_data();
@@ -4815,7 +4822,7 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
   val2.set_ownmem(false);
 
   shallow_push(&val2);
-  val2.Geometry::set_ptr(NULL);
+  val2.Geometry::set_ptr(nullptr);
 
   if (val2.get_geotype() == Geometry::wkb_polygon)
     own_rings(&(m_geo_vect->back()));
@@ -4839,7 +4846,7 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
 */
 template <typename T>
 void Gis_wkb_vector<T>::resize(size_t sz) {
-  if (m_geo_vect == NULL) m_geo_vect = new Geo_vector;
+  if (m_geo_vect == nullptr) m_geo_vect = new Geo_vector;
   Geometry::wkbType geotype = get_geotype();
   size_t ngeo = m_geo_vect->size();
   size_t dim = GEOM_DIM;
@@ -4849,7 +4856,7 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
   // Can resize a topmost geometry or a out of line geometry which has
   // or will have its own memory(i.e. one that's not using others' memory).
   // Points are fixed size, polygon doesn't hold data directly.
-  DBUG_ASSERT(!(m_ptr != NULL && !get_ownmem()) &&
+  DBUG_ASSERT(!(m_ptr != nullptr && !get_ownmem()) &&
               geotype != Geometry::wkb_point &&
               geotype != Geometry::wkb_polygon);
   set_bg_adapter(true);
@@ -4881,7 +4888,7 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
     return;
   }
 
-  char *ptr = NULL, *ptr2 = NULL;
+  char *ptr = nullptr, *ptr2 = nullptr;
 
   // We can store points directly into its owner, points are fixed length,
   // thus don't need its own memory.
@@ -4895,7 +4902,7 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
       nalloc = cap + 32 * (left + needed);
       ptr = get_cptr();
       m_ptr = gis_wkb_realloc(m_ptr, nalloc);
-      if (m_ptr == NULL) {
+      if (m_ptr == nullptr) {
         set_nbytes(0);
         set_ownmem(0);
         clear_wkb_data();
@@ -4944,7 +4951,7 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
       int4store(get_ucptr(), uint4korr(get_ucptr()) + 1);
       DBUG_ASSERT(uint4korr(get_ucptr()) == m_geo_vect->size() + 1);
     } else
-      DBUG_ASSERT(ptr == NULL && ptr2 == NULL);
+      DBUG_ASSERT(ptr == nullptr && ptr2 == nullptr);
 
     shallow_push(&tmp);
     if (tmp.get_geotype() == Geometry::wkb_polygon)

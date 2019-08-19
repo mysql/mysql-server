@@ -95,7 +95,7 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags) {
   MY_STAT statbuf;
 
-  if (my_stat(from, &statbuf, MyFlags) == NULL)
+  if (my_stat(from, &statbuf, MyFlags) == nullptr)
     return -1; /* Can't get stat on input file */
 
   if ((statbuf.st_mode & S_IFMT) != S_IFREG) return 1;

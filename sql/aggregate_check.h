@@ -548,7 +548,7 @@ class List;
 */
 class Item_tree_walker {
  protected:
-  Item_tree_walker() : stopped_at_item(NULL) {}
+  Item_tree_walker() : stopped_at_item(nullptr) {}
   ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
 
   /// Stops walking children of this item
@@ -573,7 +573,7 @@ class Item_tree_walker {
           returned back to this root (POSTFIX call), left the tree part:
           enable the walk again, for other tree parts.
         */
-        stopped_at_item = NULL;
+        stopped_at_item = nullptr;
       }
       // No further processing to do for this item:
       return true;
@@ -592,7 +592,7 @@ class Item_tree_walker {
 class Distinct_check : public Item_tree_walker {
  public:
   Distinct_check(SELECT_LEX *select_arg)
-      : select(select_arg), failed_ident(NULL) {}
+      : select(select_arg), failed_ident(nullptr) {}
 
   bool check_query(THD *thd);
 
@@ -624,14 +624,14 @@ class Group_check : public Item_tree_walker {
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
-        table(NULL),
+        table(nullptr),
         group_in_fd(~0ULL),
         m_root(root),
         fd(root),
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root),
-        failed_ident(NULL) {}
+        failed_ident(nullptr) {}
 
   ~Group_check() {
     for (uint j = 0; j < mat_tables.size(); ++j) destroy(mat_tables.at(j));
@@ -705,7 +705,7 @@ class Group_check : public Item_tree_walker {
   Item_ident *failed_ident;
 
   bool is_fd_on_source(Item *item);
-  bool is_child() const { return table != NULL; }
+  bool is_child() const { return table != nullptr; }
 
   /// Private ctor, for a Group_check to build a child Group_check
   Group_check(SELECT_LEX *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
@@ -729,7 +729,7 @@ class Group_check : public Item_tree_walker {
   void add_to_fd(Item *item, bool local_column, bool add_to_mat_table = true);
   void add_to_fd(table_map m) {
     whole_tables_fd |= m;
-    find_group_in_fd(NULL);
+    find_group_in_fd(nullptr);
   }
   void add_to_source_of_mat_table(Item_field *item_field, TABLE_LIST *tl);
   bool is_in_fd(Item *item);

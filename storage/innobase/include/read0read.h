@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -85,7 +85,7 @@ class MVCC {
   static bool is_view_active(ReadView *view) {
     ut_a(view != reinterpret_cast<ReadView *>(0x1));
 
-    return (view != NULL && !(intptr_t(view) & 0x1));
+    return (view != nullptr && !(intptr_t(view) & 0x1));
   }
 
   /**

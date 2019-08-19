@@ -2721,7 +2721,7 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot) {
   log_block_buf =
       static_cast<byte *>(ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
-  if (key == NULL && iv == NULL) {
+  if (key == nullptr && iv == nullptr) {
     fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
     key = space->encryption_key;

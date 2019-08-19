@@ -79,7 +79,7 @@ PFS_engine_table_share table_setup_objects::m_share = {
 
 static int update_derived_flags() {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -229,7 +229,7 @@ int table_setup_objects::rnd_next(void) {
   PFS_setup_object_iterator it =
       global_setup_object_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -243,7 +243,7 @@ int table_setup_objects::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_setup_object_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -251,7 +251,7 @@ int table_setup_objects::rnd_pos(const void *pos) {
 }
 
 int table_setup_objects::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_setup_objects *result = NULL;
+  PFS_index_setup_objects *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_setup_objects);
   m_opened_index = result;
@@ -266,7 +266,7 @@ int table_setup_objects::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more; m_pos.next()) {
     pfs = global_setup_object_container.get(m_pos.m_index, &has_more);
 
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);

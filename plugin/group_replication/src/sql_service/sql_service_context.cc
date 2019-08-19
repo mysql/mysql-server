@@ -78,7 +78,7 @@ ulong Sql_service_context::get_client_capabilities() {
 
 int Sql_service_context::get_null() {
   DBUG_TRACE;
-  if (resultset) resultset->new_field(NULL);
+  if (resultset) resultset->new_field(nullptr);
   return 0;
 }
 

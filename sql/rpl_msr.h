@@ -324,7 +324,7 @@ class Multisource_info {
 
   /* Initialize the rpl_pfs_mi array to NULLs */
   inline void init_rpl_pfs_mi() {
-    for (uint i = 0; i < MAX_CHANNELS; i++) rpl_pfs_mi[i] = 0;
+    for (uint i = 0; i < MAX_CHANNELS; i++) rpl_pfs_mi[i] = nullptr;
   }
 
   /**

@@ -56,7 +56,7 @@ PFS_ALIGNED bool events_stages_history_long_full = false;
 /** Index in EVENTS_STAGES_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_cacheline_atomic_uint32 events_stages_history_long_index;
 /** EVENTS_STAGES_HISTORY_LONG circular buffer. */
-PFS_ALIGNED PFS_events_stages *events_stages_history_long_array = NULL;
+PFS_ALIGNED PFS_events_stages *events_stages_history_long_array = nullptr;
 
 /**
   Initialize table EVENTS_STAGES_HISTORY_LONG.
@@ -83,7 +83,7 @@ void cleanup_events_stages_history_long(void) {
   PFS_FREE_ARRAY(&builtin_memory_stages_history_long,
                  events_stages_history_long_size, sizeof(PFS_events_stages),
                  events_stages_history_long_array);
-  events_stages_history_long_array = NULL;
+  events_stages_history_long_array = nullptr;
 }
 
 static inline void copy_events_stages(PFS_events_stages *dest,
@@ -102,7 +102,7 @@ void insert_events_stages_history(PFS_thread *thread,
     return;
   }
 
-  DBUG_ASSERT(thread->m_stages_history != NULL);
+  DBUG_ASSERT(thread->m_stages_history != nullptr);
 
   uint index = thread->m_stages_history_index;
 
@@ -133,7 +133,7 @@ void insert_events_stages_history_long(PFS_events_stages *stage) {
     return;
   }
 
-  DBUG_ASSERT(events_stages_history_long_array != NULL);
+  DBUG_ASSERT(events_stages_history_long_array != nullptr);
 
   uint index = events_stages_history_long_index.m_u32++;
 
@@ -147,7 +147,7 @@ void insert_events_stages_history_long(PFS_events_stages *stage) {
 }
 
 static void fct_reset_events_stages_current(PFS_thread *pfs) {
-  pfs->m_stage_current.m_class = NULL;
+  pfs->m_stage_current.m_class = nullptr;
 }
 
 /** Reset table EVENTS_STAGES_CURRENT data. */
@@ -162,7 +162,7 @@ static void fct_reset_events_stages_history(PFS_thread *pfs_thread) {
   pfs_thread->m_stages_history_index = 0;
   pfs_thread->m_stages_history_full = false;
   for (; pfs < pfs_last; pfs++) {
-    pfs->m_class = NULL;
+    pfs->m_class = nullptr;
   }
 }
 
@@ -179,7 +179,7 @@ void reset_events_stages_history_long(void) {
   PFS_events_stages *pfs = events_stages_history_long_array;
   PFS_events_stages *pfs_last = pfs + events_stages_history_long_size;
   for (; pfs < pfs_last; pfs++) {
-    pfs->m_class = NULL;
+    pfs->m_class = nullptr;
   }
 }
 

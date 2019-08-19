@@ -52,16 +52,16 @@ void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n) {
   for (ix = 0; ix < n; ++ix) {
     tables[ix].set_tableno(ix % 3);
     keys[ix] = Key_use(&tables[ix],
-                       NULL,    // Item      *val
-                       0,       // table_map  used_tables
-                       ix % 4,  // uint       key
-                       ix % 2,  // uint       keypart
-                       0,       // uint       optimize
-                       0,       //            keypart_map
-                       0,       // ha_rows    ref_table_rows
-                       true,    // bool       null_rejecting
-                       NULL,    // bool      *cond_guard
-                       0        // uint       sj_pred_no
+                       nullptr,  // Item      *val
+                       0,        // table_map  used_tables
+                       ix % 4,   // uint       key
+                       ix % 2,   // uint       keypart
+                       0,        // uint       optimize
+                       0,        //            keypart_map
+                       0,        // ha_rows    ref_table_rows
+                       true,     // bool       null_rejecting
+                       nullptr,  // bool      *cond_guard
+                       0         // uint       sj_pred_no
     );
   }
   std::random_device rng;

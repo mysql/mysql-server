@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -282,7 +282,7 @@ class Transaction_state_tracker : public State_tracker {
   inline void update_change_flags(THD *thd) {
     tx_changed &= ~TX_CHG_STATE;
     tx_changed |= (tx_curr_state != tx_reported_state) ? TX_CHG_STATE : 0;
-    if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, NULL);
+    if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, nullptr);
   }
 };
 

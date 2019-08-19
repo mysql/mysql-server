@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,14 +52,14 @@ bool array_append_string_unique(const char *str, const char **array,
   const char **p;
   /* end points at the terminating NULL element */
   const char **end = array + size - 1;
-  DBUG_ASSERT(*end == NULL);
+  DBUG_ASSERT(*end == nullptr);
 
   for (p = array; *p; ++p) {
     if (strcmp(*p, str) == 0) break;
   }
   if (p >= end) return true; /* Array is full */
 
-  DBUG_ASSERT(*p == NULL || strcmp(*p, str) == 0);
+  DBUG_ASSERT(*p == nullptr || strcmp(*p, str) == 0);
 
   while (*(p + 1)) {
     *p = *(p + 1);

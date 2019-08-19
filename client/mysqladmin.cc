@@ -56,7 +56,7 @@
 #define MAX_TRUNC_LENGTH 3
 
 const char *host = nullptr;
-char *user = 0, *opt_password = 0;
+char *user = nullptr, *opt_password = nullptr;
 const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
@@ -68,10 +68,10 @@ static bool option_force = false, interrupted = false, new_line = false,
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint tcp_port = 0, option_wait = 0, option_silent = 0, nr_iterations;
 static uint opt_count_iterations = 0, my_end_arg;
-static char *opt_bind_addr = NULL;
+static char *opt_bind_addr = nullptr;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
-static char *unix_port = 0;
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static char *unix_port = nullptr;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
 static bool opt_show_warnings = false;
@@ -174,15 +174,16 @@ static const char *command_names[] = {"create",
                                       NullS};
 
 static TYPELIB command_typelib = {array_elements(command_names) - 1, "commands",
-                                  command_names, NULL};
+                                  command_names, nullptr};
 
 static struct my_option my_long_options[] = {
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
-     (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     (uchar **)&opt_bind_addr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"count", 'c',
      "Number of iterations to make. This works with -i (--sleep) only.",
-     &nr_iterations, &nr_iterations, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &nr_iterations, &nr_iterations, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -193,36 +194,41 @@ static struct my_option my_long_options[] = {
      "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
      NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
-    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
-     GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
+     nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
      "Check memory and open file usage at exit.", &debug_check_flag,
-     &debug_check_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_check_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-     &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_info_flag, &debug_info_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif
     {"force", 'f',
      "Don't ask for confirmation on drop database; with multiple commands, "
      "continue even if an error occurs.",
-     &option_force, &option_force, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &option_force, &option_force, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"compress", 'C', "Use compression in server/client protocol.",
-     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"character-sets-dir", OPT_CHARSETS_DIR,
-     "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Directory for character set files.", &charsets_dir, &charsets_dir,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"default-character-set", OPT_DEFAULT_CHARSET,
-     "Set the default character set.", &default_charset, &default_charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host.", &host, &host, 0, GET_STR, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     "Set the default character set.", &default_charset, &default_charset,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host.", &host, &host, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given it's "
      "asked from the tty.",
-     0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -234,76 +240,82 @@ static struct my_option my_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &tcp_port, &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &tcp_port, &tcp_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol to use for connection (tcp, socket, pipe, memory).", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "The protocol to use for connection (tcp, socket, pipe, memory).", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"relative", 'r',
      "Show difference between current and previous values when used with -i. "
      "Currently only works with extended-status.",
-     &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_relative, &opt_relative, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
 #endif
-    {"silent", 's', "Silently exit if one can't connect to server.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"silent", 's', "Silently exit if one can't connect to server.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"socket", 'S', "The socket file to use for connection.", &unix_port,
-     &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &unix_port, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"sleep", 'i', "Execute commands repeatedly with a sleep between.",
-     &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &interval, &interval, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #include "sslopt-longopts.h"
 
 #include "caching_sha2_passwordopt-longopts.h"
 
-    {"user", 'u', "User for login if not current user.", &user, &user, 0,
-     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"verbose", 'v', "Write more information.", &opt_verbose, &opt_verbose, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"user", 'u', "User for login if not current user.", &user, &user, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "Write more information.", &opt_verbose, &opt_verbose,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"vertical", 'E',
      "Print output vertically. Is similar to --relative, but prints output "
      "vertically.",
-     &opt_vertical, &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_UINT,
-     OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_vertical, &opt_vertical, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+    {"wait", 'w', "Wait and retry if connection is down.", nullptr, nullptr,
+     nullptr, GET_UINT, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"connect_timeout", OPT_CONNECT_TIMEOUT, "", &opt_connect_timeout,
-     &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600 * 12, 0, 3600 * 12,
-     0, 1, 0},
+     &opt_connect_timeout, nullptr, GET_ULONG, REQUIRED_ARG, 3600 * 12, 0,
+     3600 * 12, nullptr, 1, nullptr},
     {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", &opt_shutdown_timeout,
-     &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG, SHUTDOWN_DEF_TIMEOUT, 0,
-     3600 * 12, 0, 1, 0},
+     &opt_shutdown_timeout, nullptr, GET_ULONG, REQUIRED_ARG,
+     SHUTDOWN_DEF_TIMEOUT, 0, 3600 * 12, nullptr, 1, nullptr},
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"default_auth", OPT_DEFAULT_AUTH,
      "Default authentication client-side plugin to use.", &opt_default_auth,
-     &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
      "Enable/disable the clear text authentication plugin.",
-     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 0, GET_BOOL,
-     OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, nullptr,
+     GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"show_warnings", OPT_SHOW_WARNINGS, "Show warnings after execution",
-     &opt_show_warnings, &opt_show_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_show_warnings, &opt_show_warnings, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"compression-algorithms", 0,
      "Use compression algorithm in server/client protocol. Valid values "
      "are any combination of 'zstd','zlib','uncompressed'.",
-     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_compress_algorithm, &opt_compress_algorithm, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"zstd-compression-level", 0,
      "Use this compression level in the client/server protocol, in case "
      "--compression-algorithms=zstd. Valid range is between 1 and 22, "
      "inclusive. Default is 3.",
-     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
-     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
+     &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
 
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
-static const char *load_default_groups[] = {"mysqladmin", "client", 0};
+static const char *load_default_groups[] = {"mysqladmin", "client", nullptr};
 
 bool get_one_option(int optid,
                     const struct my_option *opt MY_ATTRIBUTE((unused)),
@@ -449,7 +461,7 @@ int main(int argc, char *argv[]) {
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqladmin");
   if (using_opt_enable_cleartext_plugin)
@@ -521,7 +533,7 @@ int main(int argc, char *argv[]) {
           didn't signal for us to die. Otherwise, signal failure.
         */
 
-        if (mysql.net.vio == 0) {
+        if (mysql.net.vio == nullptr) {
           if (option_wait && !interrupted) {
             sleep(1);
             sql_connect(&mysql, option_wait);
@@ -815,7 +827,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           /* We don't use mysql_kill(), since it only handles 32-bit IDs. */
           char buff[26], *out; /* "KILL " + max 20 digs + NUL */
           out = strxmov(buff, "KILL ", NullS);
-          ullstr(my_strtoull(pos, NULL, 0), out);
+          ullstr(my_strtoull(pos, nullptr, 0), out);
 
           if (mysql_query(mysql, buff)) {
             /* out still points to just the number */
@@ -975,12 +987,12 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
       case ADMIN_PASSWORD: {
         char buff[128];
         time_t start_time;
-        char *typed_password = NULL, *verified = NULL, *tmp = NULL;
+        char *typed_password = nullptr, *verified = nullptr, *tmp = nullptr;
         bool log_off = true, err = false;
         size_t password_len;
 
         /* Do initialization the same way as we do in mysqld */
-        start_time = time((time_t *)0);
+        start_time = time((time_t *)nullptr);
         randominit(&rand_st, (ulong)start_time, (ulong)start_time / 2);
 
         if (argc < 1) {
@@ -1325,7 +1337,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row) {
   printf("| %-*s|", (int)field->max_length + 1, cur[0]);
 
   field = mysql_fetch_field(result);
-  tmp = cur[1] ? my_strtoull(cur[1], NULL, 10) : (ulonglong)0;
+  tmp = cur[1] ? my_strtoull(cur[1], nullptr, 10) : (ulonglong)0;
   printf(" %-*s|\n", (int)field->max_length + 1,
          llstr((tmp - last_values[row]), buff));
   last_values[row] = tmp;
@@ -1339,7 +1351,7 @@ static void print_relative_row_vert(MYSQL_RES *result MY_ATTRIBUTE((unused)),
 
   if (!row) putchar('|');
 
-  tmp = cur[1] ? my_strtoull(cur[1], NULL, 10) : (ulonglong)0;
+  tmp = cur[1] ? my_strtoull(cur[1], nullptr, 10) : (ulonglong)0;
   printf(" %-*s|", ex_val_max_len[row] + 1,
          llstr((tmp - last_values[row]), buff));
 
@@ -1361,7 +1373,7 @@ static void store_values(MYSQL_RES *result) {
 
   for (i = 0; (row = mysql_fetch_row(result)); i++) {
     my_stpcpy(ex_var_names[i], row[0]);
-    last_values[i] = my_strtoull(row[1], NULL, 10);
+    last_values[i] = my_strtoull(row[1], nullptr, 10);
     ex_val_max_len[i] = 2; /* Default print width for values */
   }
   ex_var_count = i;
@@ -1440,7 +1452,7 @@ static bool get_pidfile(MYSQL *mysql, char *pidfile) {
       (void)my_load_path(pidfile, pidfile_option, datadir);
     }
     mysql_free_result(result);
-    return row == 0; /* Error if row = 0 */
+    return row == nullptr; /* Error if row = 0 */
   }
   return true; /* Error */
 }
@@ -1494,7 +1506,7 @@ static bool wait_pidfile(char *pidfile, time_t last_modified,
 */
 static void print_warnings(MYSQL *mysql) {
   const char *query;
-  MYSQL_RES *result = NULL;
+  MYSQL_RES *result = nullptr;
   MYSQL_ROW cur;
   uint64_t num_rows;
   uint error;
@@ -1521,7 +1533,7 @@ static void print_warnings(MYSQL *mysql) {
     messages.  To be safe, skip printing the duplicate only if it is the only
     warning.
   */
-  if (!cur || (num_rows == 1 && error == (uint)strtoul(cur[1], NULL, 10)))
+  if (!cur || (num_rows == 1 && error == (uint)strtoul(cur[1], nullptr, 10)))
     goto end;
 
   do {

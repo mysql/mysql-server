@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,9 +74,9 @@ class Abstract_chain_element : public virtual I_chain_element,
       void (TClass::*processing_func)(TType *, Item_processing_data *)) {
     TType *casted_object =
         dynamic_cast<TType *>(item_to_process->get_process_task_object());
-    if (casted_object != NULL)
+    if (casted_object != nullptr)
       (((TClass *)this)->*processing_func)(casted_object, item_to_process);
-    return casted_object != NULL;
+    return casted_object != nullptr;
   }
 
   /**
@@ -88,9 +88,9 @@ class Abstract_chain_element : public virtual I_chain_element,
                         void (TClass::*processing_func)(TType *)) {
     TType *casted_object =
         dynamic_cast<TType *>(item_to_process->get_process_task_object());
-    if (casted_object != NULL)
+    if (casted_object != nullptr)
       (((TClass *)this)->*processing_func)(casted_object);
-    return casted_object != NULL;
+    return casted_object != nullptr;
   }
 
   void object_processing_starts(Item_processing_data *item_to_process);

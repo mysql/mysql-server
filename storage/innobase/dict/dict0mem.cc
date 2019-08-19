@@ -81,7 +81,7 @@ std::ostream &operator<<(std::ostream &s, const id_name_t &id_name) {
 @return the output stream */
 std::ostream &operator<<(std::ostream &s, const table_name_t &table_name) {
 #ifndef UNIV_HOTBACKUP
-  return (s << ut_get_name(NULL, table_name.m_name));
+  return (s << ut_get_name(nullptr, table_name.m_name));
 #else  /* !UNIV_HOTBACKUP */
   return (s << table_name.m_name);
 #endif /* !UNIV_HOTBACKUP */
@@ -119,7 +119,7 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 
   table->n_t_def++;
 
-  if (name != NULL) {
+  if (name != nullptr) {
     if (table->n_v_def == table->n_v_cols) {
       heap = table->heap;
     }
@@ -143,7 +143,7 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
     v_col->base_col = static_cast<dict_col_t **>(
         mem_heap_zalloc(table->heap, num_base * sizeof(*v_col->base_col)));
   } else {
-    v_col->base_col = NULL;
+    v_col->base_col = nullptr;
   }
 
   v_col->num_base = num_base;
@@ -162,9 +162,9 @@ void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   dict_col_t *col = table->get_col(i);
   dict_s_col_t s_col;
 
-  ut_ad(col != NULL);
+  ut_ad(col != nullptr);
 
-  if (table->s_cols == NULL) {
+  if (table->s_cols == nullptr) {
     table->s_cols = UT_NEW_NOKEY(dict_s_col_list());
   }
 
@@ -175,7 +175,7 @@ void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
     s_col.base_col = static_cast<dict_col_t **>(
         mem_heap_zalloc(table->heap, num_base * sizeof(dict_col_t *)));
   } else {
-    s_col.base_col = NULL;
+    s_col.base_col = nullptr;
   }
 
   s_col.num_base = num_base;
@@ -240,7 +240,7 @@ static void dict_mem_table_col_rename_low(
             full_len - (prefix_len + from_len));
 
     /* Replace the field names in every index. */
-    for (dict_index_t *index = table->first_index(); index != NULL;
+    for (dict_index_t *index = table->first_index(); index != nullptr;
          index = index->next()) {
       ulint n_fields = dict_index_get_n_fields(index);
 
@@ -360,7 +360,7 @@ dict_foreign_t *dict_mem_foreign_create(void) {
 
   foreign->heap = heap;
 
-  foreign->v_cols = NULL;
+  foreign->v_cols = nullptr;
 
   DBUG_PRINT("dict_mem_foreign_create", ("heap: %p", heap));
 
@@ -433,7 +433,7 @@ static void dict_mem_fill_vcol_has_index(const dict_index_t *index,
       dict_v_idx_t v_idx = *it;
 
       if (v_idx.index == index) {
-        if (*v_cols == NULL) {
+        if (*v_cols == nullptr) {
           *v_cols = UT_NEW_NOKEY(dict_vcol_set());
         }
 
@@ -452,8 +452,8 @@ static void dict_mem_fill_vcol_from_v_indexes(const char *col_name,
                                               const dict_table_t *table,
                                               dict_vcol_set **v_cols) {
   /* virtual column can't be Primary Key, so start with secondary index */
-  for (const dict_index_t *index = table->first_index()->next(); index != NULL;
-       index = index->next()) {
+  for (const dict_index_t *index = table->first_index()->next();
+       index != nullptr; index = index->next()) {
     /* Skip if the index have newly added
     virtual column because field name is NULL.
     Later virtual column set will be
@@ -489,7 +489,7 @@ static void dict_mem_fill_vcol_set_for_base_col(const char *col_name,
 
     for (ulint j = 0; j < v_col->num_base; j++) {
       if (strcmp(col_name, table->get_col_name(v_col->base_col[j]->ind)) == 0) {
-        if (*v_cols == NULL) {
+        if (*v_cols == nullptr) {
           *v_cols = UT_NEW_NOKEY(dict_vcol_set());
         }
 
@@ -547,9 +547,9 @@ void dict_mem_table_free_foreign_vcol_set(dict_table_t *table) {
   for (auto it = fk_set.begin(); it != fk_set.end(); ++it) {
     foreign = *it;
 
-    if (foreign->v_cols != NULL) {
+    if (foreign->v_cols != nullptr) {
       UT_DELETE(foreign->v_cols);
-      foreign->v_cols = NULL;
+      foreign->v_cols = nullptr;
     }
   }
 }
@@ -677,7 +677,7 @@ void dict_mem_index_free(dict_index_t *index) /*!< in: index */
          it != index->rtr_track->rtr_active->end(); ++it) {
       rtr_info = *it;
 
-      rtr_info->index = NULL;
+      rtr_info->index = nullptr;
     }
 
     mutex_destroy(&index->rtr_ssn.mutex);
@@ -772,7 +772,7 @@ bool dict_foreign_set_validate(const dict_table_t &table) {
 std::ostream &operator<<(std::ostream &out, const dict_foreign_t &foreign) {
   out << "[dict_foreign_t: id='" << foreign.id << "'";
 
-  if (foreign.foreign_table_name != NULL) {
+  if (foreign.foreign_table_name != nullptr) {
     out << ",for: '" << foreign.foreign_table_name << "'";
   }
 

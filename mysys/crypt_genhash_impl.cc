@@ -68,7 +68,7 @@ static void DIGESTCreate(DIGEST_CTX **ctx) {
 }
 
 static void DIGESTInit(DIGEST_CTX *ctx) {
-  EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+  EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
 }
 
 static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {
@@ -76,13 +76,13 @@ static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {
 }
 
 static void DIGESTFinal(void *txt, DIGEST_CTX *ctx) {
-  EVP_DigestFinal_ex(ctx, (unsigned char *)txt, NULL);
+  EVP_DigestFinal_ex(ctx, (unsigned char *)txt, nullptr);
 }
 
 static void DIGESTDestroy(DIGEST_CTX **ctx) {
   if (ctx != nullptr) {
     EVP_MD_CTX_destroy(*ctx);
-    *ctx = NULL;
+    *ctx = nullptr;
   }
 }
 
@@ -153,9 +153,9 @@ static uint getrounds(const char *s) {
   char *e;
   long val;
 
-  if (s == NULL) return (0);
+  if (s == nullptr) return (0);
 
-  if ((r = strstr(s, ROUNDS)) == NULL) {
+  if ((r = strstr(s, ROUNDS)) == nullptr) {
     return (0);
   }
 
@@ -283,7 +283,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
     rounds = MAX(ROUNDS_MIN, MIN(srounds, ROUNDS_MAX));
     custom_rounds = true;
     p = strchr(salt, '$');
-    if (p != NULL) salt = p + 1;
+    if (p != nullptr) salt = p + 1;
   }
 
   salt_len = MIN(strcspn(salt, "$"), CRYPT_SALT_LENGTH);

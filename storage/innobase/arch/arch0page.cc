@@ -2099,7 +2099,7 @@ int Arch_Page_Sys::get_num_pages(lsn_t &start_id, lsn_t &stop_id,
   success = get_num_pages(start_pos, stop_pos, *num_pages);
 
   if (!success) {
-    num_pages = 0;
+    num_pages = nullptr;
   }
 
   DBUG_PRINT("page_archiver",
@@ -2208,7 +2208,7 @@ void Arch_Page_Sys::track_initial_pages() {
     skip_count = 0;
 
     /* Add all pages for which IO is already started. */
-    while (bpage != NULL) {
+    while (bpage != nullptr) {
       if (fsp_is_system_temporary(bpage->id.space())) {
         bpage = UT_LIST_GET_PREV(list, bpage);
         continue;

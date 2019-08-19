@@ -275,7 +275,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
     tv.tv_sec = 0;
     tv.tv_usec = 10000;
 
-    int err = select(listener_ + 1, &fds, NULL, NULL, &tv);
+    int err = select(listener_ + 1, &fds, nullptr, nullptr, &tv);
 
     if (err < 0) {
       std::cerr << std::system_error(get_last_socket_error_code(),

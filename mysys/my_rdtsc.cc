@@ -255,7 +255,7 @@ ulonglong my_timer_microseconds(void) {
   {
     static std::atomic<ulonglong> atomic_last_value{0};
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 0)
+    if (gettimeofday(&tv, nullptr) == 0)
       atomic_last_value =
           (ulonglong)tv.tv_sec * 1000000 + (ulonglong)tv.tv_usec;
     else {
@@ -293,7 +293,7 @@ ulonglong my_timer_milliseconds(void) {
   {
     static ulonglong last_ms_value = 0;
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 0)
+    if (gettimeofday(&tv, nullptr) == 0)
       last_ms_value =
           (ulonglong)tv.tv_sec * 1000 + (ulonglong)tv.tv_usec / 1000;
     else {

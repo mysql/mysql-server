@@ -100,7 +100,7 @@ void Hint_scanner::syntax_warning(const char *msg) const {
         of the TOK_HINT_ADJUST() adjustment macro.
 */
 void Hint_scanner::add_hint_token_digest() {
-  if (digest_state == NULL) return;  // cant add: digest buffer is full
+  if (digest_state == nullptr) return;  // cant add: digest buffer is full
 
   if (prev_token == 0 || prev_token == HINT_ERROR) return;  // nothing to add
 

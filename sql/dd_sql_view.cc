@@ -446,7 +446,7 @@ static bool open_views_and_update_metadata(
       thd->pop_internal_handler();
 
       if (error_handler.is_view_invalid()) {
-        if (view->mdl_request.ticket != NULL) {
+        if (view->mdl_request.ticket != nullptr) {
           // Update view status in tables.options.view_valid.
           if (dd::update_view_status(thd, view->get_db_name(),
                                      view->get_table_name(), false,
@@ -474,7 +474,7 @@ static bool open_views_and_update_metadata(
     LEX *org_lex = thd->lex;
     thd->lex = view_lex;
     view_lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
-    if (view_lex->unit->prepare(thd, 0, 0, 0)) {
+    if (view_lex->unit->prepare(thd, nullptr, 0, 0)) {
       thd->lex = org_lex;
       thd->pop_internal_handler();
       // Please refer comments in the view open error handling block above.

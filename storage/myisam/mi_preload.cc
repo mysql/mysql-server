@@ -56,7 +56,7 @@
 int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves) {
   uint i;
   ulong length, block_length = 0;
-  uchar *buff = NULL;
+  uchar *buff = nullptr;
   MYISAM_SHARE *share = info->s;
   uint keys = share->state.header.keys;
   MI_KEYDEF *keyinfo = share->keyinfo;

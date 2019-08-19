@@ -624,7 +624,7 @@ class Value_generator {
         stored_in_db(false),
         num_non_virtual_base_cols(0),
         permanent_changes_completed(false) {
-    expr_str.str = NULL;
+    expr_str.str = nullptr;
     expr_str.length = 0;
   }
   ~Value_generator() {}
@@ -1347,7 +1347,7 @@ class Field {
 
   bool maybe_null() const;
   /// @return true if this field is NULL-able, false otherwise.
-  bool real_maybe_null() const { return m_null_ptr != NULL; }
+  bool real_maybe_null() const { return m_null_ptr != nullptr; }
 
   uint null_offset(const uchar *record) const {
     return (uint)(m_null_ptr - record);
@@ -1632,7 +1632,7 @@ class Field {
   */
   bool set_warning(Sql_condition::enum_severity_level level, unsigned int code,
                    int cut_increment) {
-    return set_warning(level, code, cut_increment, NULL, NULL);
+    return set_warning(level, code, cut_increment, nullptr, nullptr);
   }
 
   bool set_warning(Sql_condition::enum_severity_level level, uint code,
@@ -2625,7 +2625,7 @@ class Field_null final : public Field_str {
   type_conversion_status reset() final override { return TYPE_OK; }
   double val_real() const final override { return 0.0; }
   longlong val_int() const final override { return 0; }
-  my_decimal *val_decimal(my_decimal *) const final override { return 0; }
+  my_decimal *val_decimal(my_decimal *) const final override { return nullptr; }
   String *val_str(String *, String *value2) const final override {
     value2->length(0);
     return value2;
@@ -3833,8 +3833,9 @@ class Field_blob : public Field_longstr {
 
   Field_blob(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
              const CHARSET_INFO *cs, bool set_packlength)
-      : Field_longstr(nullptr, len_arg, maybe_null_arg ? &dummy_null_buffer : 0,
-                      0, NONE, field_name_arg, cs),
+      : Field_longstr(nullptr, len_arg,
+                      maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                      field_name_arg, cs),
         packlength(4),
         m_keep_old_value(false) {
     flags |= BLOB_FLAG;

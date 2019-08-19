@@ -89,7 +89,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   completed */
   bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
 
-  if (bpage == NULL) {
+  if (bpage == nullptr) {
     return (0);
   }
 
@@ -102,7 +102,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
   if (sync) {
-    thd_wait_begin(NULL, THD_WAIT_DISKIO);
+    thd_wait_begin(nullptr, THD_WAIT_DISKIO);
   }
 
   void *dst;
@@ -121,7 +121,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
                 bpage);
 
   if (sync) {
-    thd_wait_end(NULL);
+    thd_wait_end(nullptr);
   }
 
   if (*err != DB_SUCCESS) {
@@ -207,7 +207,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage != NULL && buf_page_is_accessed(bpage) &&
+    if (bpage != nullptr && buf_page_is_accessed(bpage) &&
         buf_page_peek_if_young(bpage)) {
       recent_blocks++;
 
@@ -217,7 +217,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
       }
     }
 
-    if (bpage != NULL) {
+    if (bpage != nullptr) {
       rw_lock_s_unlock(hash_lock);
     }
   }
@@ -385,7 +385,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   buf_pool_t *buf_pool = buf_pool_get(page_id);
   buf_page_t *bpage;
   buf_frame_t *frame;
-  buf_page_t *pred_bpage = NULL;
+  buf_page_t *pred_bpage = nullptr;
   unsigned pred_bpage_is_accessed = 0;
   page_no_t pred_offset;
   page_no_t succ_offset;
@@ -477,7 +477,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage == NULL || !buf_page_is_accessed(bpage)) {
+    if (bpage == nullptr || !buf_page_is_accessed(bpage)) {
       /* Not accessed */
       fail_count++;
 
@@ -521,7 +521,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
 
   bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
 
-  if (bpage == NULL) {
+  if (bpage == nullptr) {
     return (0);
   }
 
@@ -647,7 +647,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (!found) {
       /* The tablespace was not found, remove the
       entries for that page */
-      ibuf_merge_or_delete_for_page(NULL, page_id, NULL, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, nullptr, FALSE);
       continue;
     }
 
@@ -666,7 +666,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (err == DB_TABLESPACE_DELETED) {
       /* We have deleted or are deleting the single-table
       tablespace: remove the entries for that page */
-      ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, FALSE);
     }
   }
 
@@ -683,7 +683,7 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
   ulint count;
   fil_space_t *space = fil_space_get(space_id);
 
-  if (space == NULL) {
+  if (space == nullptr) {
     /* The tablespace is missing: do nothing */
     return;
   }

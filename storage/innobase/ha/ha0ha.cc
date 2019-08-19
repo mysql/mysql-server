@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -156,7 +156,7 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
         mutex_destroy(&table->sync_obj.mutexes[i]);
       }
       ut_free(table->sync_obj.mutexes);
-      table->sync_obj.mutexes = NULL;
+      table->sync_obj.mutexes = nullptr;
       break;
 
     case HASH_TABLE_SYNC_RW_LOCK:
@@ -165,7 +165,7 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
       }
 
       ut_free(table->sync_obj.rw_locks);
-      table->sync_obj.rw_locks = NULL;
+      table->sync_obj.rw_locks = nullptr;
       break;
 
     case HASH_TABLE_SYNC_NONE:
@@ -180,7 +180,7 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
   ulint n = hash_get_n_cells(table);
 
   for (ulint i = 0; i < n; i++) {
-    hash_get_nth_cell(table, i)->node = NULL;
+    hash_get_nth_cell(table, i)->node = nullptr;
   }
 }
 
@@ -220,7 +220,7 @@ ibool ha_insert_for_fold_func(
 
   prev_node = static_cast<ha_node_t *>(cell->node);
 
-  while (prev_node != NULL) {
+  while (prev_node != nullptr) {
     if (prev_node->fold == fold) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
       if (table->adaptive) {
@@ -246,7 +246,7 @@ ibool ha_insert_for_fold_func(
   node = static_cast<ha_node_t *>(
       mem_heap_alloc(hash_get_heap(table, fold), sizeof(ha_node_t)));
 
-  if (node == NULL) {
+  if (node == nullptr) {
     /* It was a btr search type memory heap and at the moment
     no more memory could be allocated: return */
 
@@ -265,17 +265,17 @@ ibool ha_insert_for_fold_func(
 
   node->fold = fold;
 
-  node->next = NULL;
+  node->next = nullptr;
 
   prev_node = static_cast<ha_node_t *>(cell->node);
 
-  if (prev_node == NULL) {
+  if (prev_node == nullptr) {
     cell->node = node;
 
     return (TRUE);
   }
 
-  while (prev_node->next != NULL) {
+  while (prev_node->next != nullptr) {
     prev_node = prev_node->next;
   }
 
@@ -432,7 +432,7 @@ ibool ha_validate(hash_table_t *table, /*!< in: hash table */
 
     cell = hash_get_nth_cell(table, i);
 
-    for (node = static_cast<ha_node_t *>(cell->node); node != 0;
+    for (node = static_cast<ha_node_t *>(cell->node); node != nullptr;
          node = node->next) {
       if (hash_calc_hash(node->fold, table) != i) {
         ib::error(ER_IB_MSG_522) << "Hash table node fold value " << node->fold
@@ -484,7 +484,7 @@ builds, see http://bugs.mysql.com/36941 */
   fprintf(file, ", used cells %lu", (ulong)cells);
 #endif /* PRINT_USED_CELLS */
 
-  if (table->heaps == NULL && table->heap != NULL) {
+  if (table->heaps == nullptr && table->heap != nullptr) {
     /* This calculation is intended for the adaptive hash
     index: how many buffer frames we have reserved? */
 

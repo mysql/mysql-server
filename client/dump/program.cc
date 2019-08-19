@@ -43,14 +43,14 @@ using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
 void Program::close_redirected_stderr() {
-  if (m_stderr != NULL) fclose(m_stderr);
+  if (m_stderr != nullptr) fclose(m_stderr);
 }
 
 void Program::error_log_file_callback(char *) {
   if (!m_error_log_file.has_value()) return;
   this->close_redirected_stderr();
   m_stderr = freopen(m_error_log_file.value().c_str(), "a", stderr);
-  if (m_stderr == NULL) {
+  if (m_stderr == nullptr) {
     this->error(Mysql::Tools::Base::Message_data(
         errno,
         "Cannot append error log to specified file: \"" +
@@ -140,7 +140,7 @@ int Program::get_total_connections() {
 int Program::get_error_code() { return m_error_code.load(); }
 
 int Program::execute(std::vector<std::string> positional_options) {
-  I_connection_provider *connection_provider = NULL;
+  I_connection_provider *connection_provider = nullptr;
   int num_connections = get_total_connections();
 
   std::function<bool(const Mysql::Tools::Base::Message_data &)>
@@ -184,7 +184,7 @@ int Program::execute(std::vector<std::string> positional_options) {
   std::chrono::high_resolution_clock::time_point start_time =
       std::chrono::high_resolution_clock::now();
 
-  I_progress_watcher *progress_watcher = NULL;
+  I_progress_watcher *progress_watcher = nullptr;
 
   if (m_watch_progress) {
     progress_watcher =
@@ -201,7 +201,7 @@ int Program::execute(std::vector<std::string> positional_options) {
       m_mysqldump_tool_chain_maker_options, this);
 
   crawler->register_chain_maker(chain_maker);
-  if (progress_watcher != NULL) {
+  if (progress_watcher != nullptr) {
     crawler->register_progress_watcher(progress_watcher);
     chain_maker->register_progress_watcher(progress_watcher);
   }
@@ -210,7 +210,7 @@ int Program::execute(std::vector<std::string> positional_options) {
 
   delete runner;
   delete crawler;
-  if (progress_watcher != NULL) delete progress_watcher;
+  if (progress_watcher != nullptr) delete progress_watcher;
   delete id_generator;
   delete connection_provider;
   delete message_handler;
@@ -250,7 +250,7 @@ void Program::short_usage() {
 }
 
 Program::Program()
-    : Abstract_connection_program(), m_stderr(NULL), m_error_code(0) {
+    : Abstract_connection_program(), m_stderr(nullptr), m_error_code(0) {
   m_mysql_chain_element_options = new Mysql_chain_element_options(this);
   m_mysqldump_tool_chain_maker_options =
       new Mysqldump_tool_chain_maker_options(m_mysql_chain_element_options);
@@ -262,7 +262,7 @@ Program::Program()
 const char *load_default_groups[] = {
     "client",     /* Read settings how to connect to server. */
     "mysql_dump", /* Read special settings for mysql_dump. */
-    0};
+    nullptr};
 
 int main(int argc, char **argv) {
   Program program;

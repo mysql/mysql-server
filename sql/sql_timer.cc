@@ -72,7 +72,7 @@ static THD_timer_info *thd_timer_create(void) {
   thd_timer = (THD_timer_info *)my_malloc(key_memory_thd_timer,
                                           sizeof(THD_timer_info), MYF(MY_WME));
 
-  if (thd_timer == NULL) return NULL;
+  if (thd_timer == nullptr) return nullptr;
 
   thd_timer->thread_id = 0;
   mysql_mutex_init(key_thd_timer_mutex, &thd_timer->mutex, MY_MUTEX_INIT_FAST);
@@ -86,7 +86,7 @@ static THD_timer_info *thd_timer_create(void) {
   mysql_mutex_destroy(&thd_timer->mutex);
   my_free(thd_timer);
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -158,8 +158,8 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   DBUG_TRACE;
 
   /* Create a new thread timer object if one was not provided. */
-  if (thd_timer == NULL && (thd_timer = thd_timer_create()) == NULL)
-    return NULL;
+  if (thd_timer == nullptr && (thd_timer = thd_timer_create()) == nullptr)
+    return nullptr;
 
   DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
 
@@ -174,7 +174,7 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   /* Dispose of the (cached) timer object. */
   thd_timer_destroy(thd_timer);
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -230,7 +230,7 @@ THD_timer_info *thd_timer_reset(THD_timer_info *thd_timer) {
   thd_timer->destroy = !unreachable;
   mysql_mutex_unlock(&thd_timer->mutex);
 
-  return unreachable ? thd_timer : NULL;
+  return unreachable ? thd_timer : nullptr;
 }
 
 /**

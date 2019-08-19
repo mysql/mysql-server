@@ -431,7 +431,7 @@ TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea) {
 
   thd()->pop_diagnostics_area();
   EXPECT_EQ(org_da, thd()->get_stmt_da());
-  EXPECT_TRUE(thd()->get_stacked_da() == NULL);
+  EXPECT_TRUE(thd()->get_stacked_da() == nullptr);
 }
 
 // Pop when there is just one diagnostics area = assert
@@ -489,7 +489,7 @@ TEST_F(GetDiagnosticsTest, PushDiagnosticsArea) {
   EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
 
   thd()->pop_diagnostics_area();
-  EXPECT_TRUE(thd()->get_stacked_da() == NULL);
+  EXPECT_TRUE(thd()->get_stacked_da() == nullptr);
   EXPECT_TRUE(thd()->get_stmt_da()->cond_count() == 0);
 }
 

@@ -452,16 +452,16 @@ file to network or destination file. Set to high value for faster
 data transfer to/from file system. Especially for direct i/o where
 disk driver can do parallel IO for transfer. */
 static MYSQL_SYSVAR_UINT(buffer_size, clone_buffer_size, PLUGIN_VAR_RQCMDARG,
-                         "buffer size used by clone for data transfer", NULL,
-                         NULL, 1024 * 1024 * 4, /* Default =   4M */
-                         1024 * 1024,           /* Minimum =   1M */
-                         1024 * 1024 * 256,     /* Maximum = 256M */
-                         1024 * 1024);          /* Block   =   1M */
+                         "buffer size used by clone for data transfer", nullptr,
+                         nullptr, 1024 * 1024 * 4, /* Default =   4M */
+                         1024 * 1024,              /* Minimum =   1M */
+                         1024 * 1024 * 256,        /* Maximum = 256M */
+                         1024 * 1024);             /* Block   =   1M */
 
 /** Time in seconds to wait for DDL lock */
 static MYSQL_SYSVAR_UINT(ddl_timeout, clone_ddl_timeout, PLUGIN_VAR_RQCMDARG,
-                         "Time in seconds to wait for DDL lock", NULL, NULL,
-                         60 * 5,            /* Default =   5 min */
+                         "Time in seconds to wait for DDL lock", nullptr,
+                         nullptr, 60 * 5,   /* Default =   5 min */
                          0,                 /* Minimum =   0 skip lock */
                          60 * 60 * 24 * 30, /* Maximum =   1 month */
                          1);                /* Step    =   1 sec */
@@ -469,40 +469,41 @@ static MYSQL_SYSVAR_UINT(ddl_timeout, clone_ddl_timeout, PLUGIN_VAR_RQCMDARG,
 /** If concurrency is automatically tuned */
 static MYSQL_SYSVAR_BOOL(autotune_concurrency, clone_autotune_concurrency,
                          PLUGIN_VAR_NOCMDARG,
-                         "If concurrency is automatically tuned", NULL, NULL,
-                         true); /* Enable auto tuning by default */
+                         "If concurrency is automatically tuned", nullptr,
+                         nullptr, true); /* Enable auto tuning by default */
 
 /** Maximum number of concurrent threads for clone */
 static MYSQL_SYSVAR_UINT(max_concurrency, clone_max_concurrency,
                          PLUGIN_VAR_RQCMDARG,
-                         "Maximum number of concurrent threads for clone", NULL,
-                         NULL, CLONE_DEF_CON, /* Default =   8 threads */
-                         1,                   /* Minimum =   1 thread */
-                         128,                 /* Maximum = 128 threads */
-                         1);                  /* Step    =   1 thread */
+                         "Maximum number of concurrent threads for clone",
+                         nullptr, nullptr,
+                         CLONE_DEF_CON, /* Default =   8 threads */
+                         1,             /* Minimum =   1 thread */
+                         128,           /* Maximum = 128 threads */
+                         1);            /* Step    =   1 thread */
 
 /** Maximum network bandwidth for clone */
 static MYSQL_SYSVAR_UINT(max_network_bandwidth, clone_max_network_bandwidth,
                          PLUGIN_VAR_RQCMDARG,
-                         "Maximum network bandwidth for clone in MiB/sec", NULL,
-                         NULL, 0,     /* Default =   0 unlimited */
-                         0,           /* Minimum =   0 unlimited */
-                         1024 * 1024, /* Maximum =   1 TiB/sec */
-                         1);          /* Step    =   1 MiB/sec */
+                         "Maximum network bandwidth for clone in MiB/sec",
+                         nullptr, nullptr, 0, /* Default =   0 unlimited */
+                         0,                   /* Minimum =   0 unlimited */
+                         1024 * 1024,         /* Maximum =   1 TiB/sec */
+                         1);                  /* Step    =   1 MiB/sec */
 
 /** Maximum IO bandwidth for clone */
 static MYSQL_SYSVAR_UINT(max_data_bandwidth, clone_max_io_bandwidth,
                          PLUGIN_VAR_RQCMDARG,
                          "Maximum File data bandwidth for clone in MiB/sec",
-                         NULL, NULL, 0, /* Default =   0 unlimited */
-                         0,             /* Minimum =   0 unlimited */
-                         1024 * 1024,   /* Maximum =   1 TiB/sec */
-                         1);            /* Step    =   1 MiB/sec */
+                         nullptr, nullptr, 0, /* Default =   0 unlimited */
+                         0,                   /* Minimum =   0 unlimited */
+                         1024 * 1024,         /* Maximum =   1 TiB/sec */
+                         1);                  /* Step    =   1 MiB/sec */
 
 /** If data is compressed in network layer. */
 static MYSQL_SYSVAR_BOOL(enable_compression, clone_enable_compression,
                          PLUGIN_VAR_NOCMDARG,
-                         "If compression is done at network", NULL, NULL,
+                         "If compression is done at network", nullptr, nullptr,
                          false); /* Disable compression by default */
 
 /** List of valid donor addresses allowed to clone from. */
@@ -542,7 +543,7 @@ static SYS_VAR *clone_system_variables[] = {MYSQL_SYSVAR(buffer_size),
                                             MYSQL_SYSVAR(ssl_key),
                                             MYSQL_SYSVAR(ssl_cert),
                                             MYSQL_SYSVAR(ssl_ca),
-                                            NULL};
+                                            nullptr};
 
 /** Declare clone plugin */
 mysql_declare_plugin(clone_plugin){
@@ -556,13 +557,13 @@ mysql_declare_plugin(clone_plugin){
     PLUGIN_LICENSE_GPL,
 
     plugin_clone_init,   /* Plugin Init */
-    NULL,                /* Plugin check uninstall */
+    nullptr,             /* Plugin check uninstall */
     plugin_clone_deinit, /* Plugin Deinit */
 
     CLONE_PLUGIN_VERSION,   /* Plugin Version */
-    NULL,                   /* status variables */
+    nullptr,                /* status variables */
     clone_system_variables, /* system variables */
-    NULL,                   /* config options */
+    nullptr,                /* config options */
     0,                      /* flags */
 } /** Declare clone plugin */
 mysql_declare_plugin_end;

@@ -100,7 +100,7 @@ PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[] = {
     {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
-Acl_cache *g_acl_cache = NULL;
+Acl_cache *g_acl_cache = nullptr;
 Acl_cache *get_global_acl_cache() { return g_acl_cache; }
 ulong get_global_acl_cache_size() { return g_acl_cache->size(); }
 void init_acl_cache();
@@ -125,13 +125,13 @@ static uint m_registry_array_size = 0;
 
 MEM_ROOT global_acl_memory;
 MEM_ROOT memex;
-Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = NULL;
-Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = NULL;
-Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = NULL;
-Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = NULL;
+Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = nullptr;
+Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
+Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
+Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
 Db_access_map acl_db_map;
-Default_roles *g_default_roles = NULL;
-std::vector<Role_id> *g_mandatory_roles = NULL;
+Default_roles *g_default_roles = nullptr;
+std::vector<Role_id> *g_mandatory_roles = nullptr;
 
 unique_ptr<
     malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_TABLE>>>
@@ -194,7 +194,7 @@ void ACL_internal_schema_registry::register_schema(
 */
 const ACL_internal_schema_access *ACL_internal_schema_registry::lookup(
     const char *name) {
-  DBUG_ASSERT(name != NULL);
+  DBUG_ASSERT(name != nullptr);
 
   uint i;
 
@@ -203,22 +203,22 @@ const ACL_internal_schema_access *ACL_internal_schema_registry::lookup(
                       name) == 0)
       return registry_array[i].m_access;
   }
-  return NULL;
+  return nullptr;
 }
 
 const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
   long ip_val, tmp;
   if (!(ip_arg = str2int(ip_arg, 10, 0, 255, &ip_val)) || *ip_arg != '.')
-    return 0;
+    return nullptr;
   ip_val <<= 24;
   if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != '.')
-    return 0;
+    return nullptr;
   ip_val += tmp << 16;
   if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != '.')
-    return 0;
+    return nullptr;
   ip_val += tmp << 8;
   if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != end)
-    return 0;
+    return nullptr;
   *val = ip_val + tmp;
   return ip_arg;
 }
@@ -312,7 +312,7 @@ ACL_USER::ACL_USER() {
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   ACL_USER *dst = (ACL_USER *)root->Alloc(sizeof(ACL_USER));
-  if (!dst) return 0;
+  if (!dst) return nullptr;
   *dst = *this;
   dst->user = safe_strdup_root(root, user);
   dst->ssl_cipher = safe_strdup_root(root, ssl_cipher);
@@ -345,12 +345,12 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
 void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
                           const char *proxied_host_arg,
                           const char *proxied_user_arg, bool with_grant_arg) {
-  user = (user_arg && *user_arg) ? user_arg : NULL;
-  host.update_hostname((host_arg && *host_arg) ? host_arg : NULL);
+  user = (user_arg && *user_arg) ? user_arg : nullptr;
+  host.update_hostname((host_arg && *host_arg) ? host_arg : nullptr);
   proxied_user =
-      (proxied_user_arg && *proxied_user_arg) ? proxied_user_arg : NULL;
+      (proxied_user_arg && *proxied_user_arg) ? proxied_user_arg : nullptr;
   proxied_host.update_hostname(
-      (proxied_host_arg && *proxied_host_arg) ? proxied_host_arg : NULL);
+      (proxied_host_arg && *proxied_host_arg) ? proxied_host_arg : nullptr);
   with_grant = with_grant_arg;
   sort =
       get_sort(4, host.get_host(), user, proxied_host.get_host(), proxied_user);
@@ -359,14 +359,14 @@ void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
 void ACL_PROXY_USER::init(MEM_ROOT *mem, const char *host_arg,
                           const char *user_arg, const char *proxied_host_arg,
                           const char *proxied_user_arg, bool with_grant_arg) {
-  init((host_arg && *host_arg) ? strdup_root(mem, host_arg) : NULL,
-       (user_arg && *user_arg) ? strdup_root(mem, user_arg) : NULL,
+  init((host_arg && *host_arg) ? strdup_root(mem, host_arg) : nullptr,
+       (user_arg && *user_arg) ? strdup_root(mem, user_arg) : nullptr,
        (proxied_host_arg && *proxied_host_arg)
            ? strdup_root(mem, proxied_host_arg)
-           : NULL,
+           : nullptr,
        (proxied_user_arg && *proxied_user_arg)
            ? strdup_root(mem, proxied_user_arg)
-           : NULL,
+           : nullptr,
        with_grant_arg);
 }
 
@@ -724,7 +724,7 @@ void GRANT_NAME::set_user_details(const char *h, const char *d, const char *u,
 
 GRANT_NAME::GRANT_NAME(const char *h, const char *d, const char *u,
                        const char *t, ulong p, bool is_routine)
-    : db(0), tname(0), privs(p) {
+    : db(nullptr), tname(nullptr), privs(p) {
   set_user_details(h, d, u, t, is_routine);
 }
 
@@ -942,7 +942,7 @@ Acl_user_ptr_list *cached_acl_users_for_name(const char *name) {
   it = name_to_userlist->find("");
   if (it != name_to_userlist->end()) return &it->second;
 
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -958,7 +958,7 @@ ACL_USER *find_acl_user(const char *host, const char *user, bool exact) {
   if (likely(acl_users)) {
     Acl_user_ptr_list *list = cached_acl_users_for_name(user);
     if (!list) {
-      return 0;
+      return nullptr;
     }
 
     for (auto it = list->begin(); it != list->end(); ++it) {
@@ -978,7 +978,7 @@ ACL_USER *find_acl_user(const char *host, const char *user, bool exact) {
       }
     }
   }
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -1004,7 +1004,7 @@ bool is_acl_user(THD *thd, const char *host, const char *user) {
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock(false)) return res;
 
-  res = find_acl_user(host, user, true) != NULL;
+  res = find_acl_user(host, user, true) != nullptr;
   return res;
 }
 
@@ -1032,7 +1032,7 @@ ACL_PROXY_USER *acl_find_proxy_user(const char *user, const char *host,
 
   if (!strcmp(authenticated_as, user)) {
     DBUG_PRINT("info", ("user is the same as authenticated_as"));
-    return NULL;
+    return nullptr;
   }
 
   bool find_any = check_proxy_users && !*authenticated_as;
@@ -1075,7 +1075,7 @@ ACL_PROXY_USER *acl_find_proxy_user(const char *user, const char *host,
     }
   }
   DBUG_PRINT("info", ("No matching users found, returning null"));
-  return NULL;
+  return nullptr;
 }
 
 void clear_and_init_db_cache() { db_cache.clear(); }
@@ -1209,7 +1209,7 @@ exit:
 
 static void init_check_host(void) {
   DBUG_TRACE;
-  if (acl_wild_hosts != NULL)
+  if (acl_wild_hosts != nullptr)
     acl_wild_hosts->clear();
   else
     acl_wild_hosts = new Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE>(
@@ -1224,7 +1224,7 @@ static void init_check_host(void) {
          ++acl_user) {
       if (acl_user->host.get_host()) {
         if (acl_user->host.has_wildcard()) {  // Has wildcard
-          ACL_HOST_AND_IP *acl = NULL;
+          ACL_HOST_AND_IP *acl = nullptr;
           for (acl = acl_wild_hosts->begin(); acl != acl_wild_hosts->end();
                ++acl) {  // Check if host already exists
             if (!my_strcasecmp(system_charset_info, acl_user->host.get_host(),
@@ -1253,7 +1253,7 @@ static void init_check_host(void) {
 */
 void rebuild_check_host(void) {
   delete acl_wild_hosts;
-  acl_wild_hosts = NULL;
+  acl_wild_hosts = nullptr;
   delete acl_check_hosts;
   acl_check_hosts = nullptr;
   init_check_host();
@@ -1281,7 +1281,7 @@ void rebuild_check_host(void) {
 bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
                  const char *host, const char *ip, const char *db) {
   int res = 1;
-  ACL_USER *acl_user = 0;
+  ACL_USER *acl_user = nullptr;
   DBUG_TRACE;
 
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', db: '%s'",
@@ -1400,10 +1400,10 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
 
 bool set_user_salt(ACL_USER *acl_user) {
   bool result = false;
-  plugin_ref plugin = NULL;
+  plugin_ref plugin = nullptr;
 
-  plugin =
-      my_plugin_lock_by_name(0, acl_user->plugin, MYSQL_AUTHENTICATION_PLUGIN);
+  plugin = my_plugin_lock_by_name(nullptr, acl_user->plugin,
+                                  MYSQL_AUTHENTICATION_PLUGIN);
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
 
@@ -1413,7 +1413,7 @@ bool set_user_salt(ACL_USER *acl_user) {
                               acl_user->credentials[i].m_salt,
                               &acl_user->credentials[i].m_salt_len);
     }
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
   return result;
 }
@@ -1467,7 +1467,7 @@ static void validate_user_plugin_records() {
 
 void notify_flush_event(THD *thd) {
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_FLUSH), 0,
-                     NULL, NULL, NULL, false, NULL, NULL);
+                     nullptr, nullptr, nullptr, false, nullptr, nullptr);
 }
 
 /**
@@ -1634,7 +1634,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   /*
     Prepare reading from the mysql.db table
   */
-  iterator = init_table_iterator(thd, table = tables[1].table, NULL, false,
+  iterator = init_table_iterator(thd, table = tables[1].table, nullptr, false,
                                  /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) goto end;
   table->use_all_columns();
@@ -1657,7 +1657,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
              db.user ? db.user : "",
              db.host.get_host() ? db.host.get_host() : "");
     }
-    db.access = get_access(table, 3, 0);
+    db.access = get_access(table, 3, nullptr);
     db.access = fix_rights_for_db(db.access);
     if (lower_case_table_names) {
       /*
@@ -1690,7 +1690,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   acl_proxy_users->clear();
 
   if (tables[2].table) {
-    iterator = init_table_iterator(thd, table = tables[2].table, NULL, false,
+    iterator = init_table_iterator(thd, table = tables[2].table, nullptr, false,
                                    /*ignore_not_found_rows=*/false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
@@ -1749,13 +1749,13 @@ void free_name_to_userlist() {
 void acl_free(bool end /*= false*/) {
   free_name_to_userlist();
   delete acl_users;
-  acl_users = NULL;
+  acl_users = nullptr;
   delete acl_dbs;
-  acl_dbs = NULL;
+  acl_dbs = nullptr;
   delete acl_wild_hosts;
-  acl_wild_hosts = NULL;
+  acl_wild_hosts = nullptr;
   delete acl_proxy_users;
-  acl_proxy_users = NULL;
+  acl_proxy_users = nullptr;
   delete acl_check_hosts;
   acl_check_hosts = nullptr;
   if (!end)
@@ -1765,9 +1765,9 @@ void acl_free(bool end /*= false*/) {
     if (acl_cache_initialized == true) {
       db_cache.clear();
       delete g_cached_authentication_plugins;
-      g_cached_authentication_plugins = 0;
+      g_cached_authentication_plugins = nullptr;
       delete unknown_accounts;
-      unknown_accounts = 0;
+      unknown_accounts = nullptr;
       acl_cache_initialized = false;
     }
   }
@@ -2028,9 +2028,9 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   // and then we'd need to keep it.
   old_mem = move(global_acl_memory);
   delete acl_wild_hosts;
-  acl_wild_hosts = NULL;
+  acl_wild_hosts = nullptr;
   delete acl_check_hosts;
-  acl_check_hosts = NULL;
+  acl_check_hosts = nullptr;
   old_dyn_priv_map =
       swap_dynamic_privileges_map(new User_to_dynamic_privileges_map());
 
@@ -2270,7 +2270,7 @@ end_unlock:
 static bool grant_load(THD *thd, TABLE_LIST *tables) {
   bool return_val = true;
   int error;
-  TABLE *t_table = 0, *c_table = 0;
+  TABLE *t_table = nullptr, *c_table = nullptr;
   bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
   DBUG_TRACE;
@@ -2560,12 +2560,14 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
         if (ssl_type != SSL_TYPE_NOT_SPECIFIED) {
           acl_user->ssl_type = ssl_type;
           acl_user->ssl_cipher =
-              (ssl_cipher ? strdup_root(&global_acl_memory, ssl_cipher) : 0);
+              (ssl_cipher ? strdup_root(&global_acl_memory, ssl_cipher)
+                          : nullptr);
           acl_user->x509_issuer =
-              (x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0);
+              (x509_issuer ? strdup_root(&global_acl_memory, x509_issuer)
+                           : nullptr);
           acl_user->x509_subject =
               (x509_subject ? strdup_root(&global_acl_memory, x509_subject)
-                            : 0);
+                            : nullptr);
         }
         /* update details related to password lifetime, password expiry */
         if (password_life.update_password_expired_column ||
@@ -2651,9 +2653,10 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
   */
   acl_user.can_authenticate = true;
 
-  acl_user.user = user && *user ? strdup_root(&global_acl_memory, user) : 0;
+  acl_user.user =
+      user && *user ? strdup_root(&global_acl_memory, user) : nullptr;
   acl_user.host.update_hostname(
-      host && *host ? strdup_root(&global_acl_memory, host) : 0);
+      host && *host ? strdup_root(&global_acl_memory, host) : nullptr);
   DBUG_ASSERT(plugin.str);
   if (plugin.str[0]) {
     acl_user.plugin = plugin;
@@ -2683,11 +2686,11 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
   acl_user.ssl_type =
       (ssl_type != SSL_TYPE_NOT_SPECIFIED ? ssl_type : SSL_TYPE_NONE);
   acl_user.ssl_cipher =
-      ssl_cipher ? strdup_root(&global_acl_memory, ssl_cipher) : 0;
+      ssl_cipher ? strdup_root(&global_acl_memory, ssl_cipher) : nullptr;
   acl_user.x509_issuer =
-      x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0;
+      x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : nullptr;
   acl_user.x509_subject =
-      x509_subject ? strdup_root(&global_acl_memory, x509_subject) : 0;
+      x509_subject ? strdup_root(&global_acl_memory, x509_subject) : nullptr;
   /* update details related to password lifetime, password expiry, history */
   acl_user.password_expired = password_life.update_password_expired_column;
   acl_user.password_lifetime = password_life.expire_after_days;
@@ -2819,7 +2822,7 @@ void acl_insert_db(const char *user, const char *host, const char *db,
   DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   acl_db.user = strdup_root(&global_acl_memory, user);
   acl_db.host.update_hostname(*host ? strdup_root(&global_acl_memory, host)
-                                    : 0);
+                                    : nullptr);
   acl_db.db = strdup_root(&global_acl_memory, db);
   acl_db.access = privileges;
   acl_db.sort = get_sort(3, acl_db.host.get_host(), acl_db.db, acl_db.user);
@@ -2919,7 +2922,7 @@ bool create_acl_cache_hash_key(uchar **out_key, unsigned *key_len,
              active_roles_size;
   *out_key =
       (uchar *)my_malloc(key_memory_acl_map_cache, *key_len, MYF(MY_WME));
-  if (out_key == NULL) return false;
+  if (out_key == nullptr) return false;
   auth_id.first.str = auth_id.first.str ? auth_id.first.str : "";
   auth_id.second.str = auth_id.second.str ? auth_id.second.str : "";
   memcpy(*out_key, auth_id.first.str, auth_id.first.length);
@@ -3076,12 +3079,12 @@ Acl_map *Acl_cache::checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
   if (!create_acl_cache_hash_key(&key, &key_len, version, uid, active_roles)) {
     /* OOM happened */
     active_roles.clear();
-    return 0;
+    return nullptr;
   }
   LF_PINS *pins = lf_hash_get_pins(&m_cache);
   Acl_hash_entry *entry =
       (Acl_hash_entry *)lf_hash_search(&m_cache, pins, key, key_len);
-  if (entry == 0 || entry == MY_LF_ERRPTR) {
+  if (entry == nullptr || entry == MY_LF_ERRPTR) {
     lf_hash_search_unpin(pins);
     Acl_map *map = create_acl_map(version, sctx);  // deleted in cache_flusher
     Acl_hash_entry new_entry;
@@ -3134,7 +3137,7 @@ uint64 l_cache_flusher_global_version;
 static int cache_flusher(const uchar *ptr) {
   DBUG_TRACE;
   const Acl_hash_entry *entry = reinterpret_cast<const Acl_hash_entry *>(ptr);
-  if (entry != 0) {
+  if (entry != nullptr) {
     if (entry->map->reference_count() == 0 &&
         entry->map->version() < l_cache_flusher_global_version)
       return 1;
@@ -3145,7 +3148,7 @@ static int cache_flusher(const uchar *ptr) {
 void Acl_cache::flush_cache() {
   DBUG_TRACE;
   LF_PINS *pins = lf_hash_get_pins(&m_cache);
-  Acl_hash_entry *entry = 0;
+  Acl_hash_entry *entry = nullptr;
   mysql_mutex_lock(&m_cache_flush_mutex);
   l_cache_flusher_global_version = version();
   do {
@@ -3158,7 +3161,7 @@ void Acl_cache::flush_cache() {
       delete entry->map;
     }
     lf_hash_search_unpin(pins);
-  } while (entry != 0);
+  } while (entry != nullptr);
   lf_hash_put_pins(pins);
   mysql_mutex_unlock(&m_cache_flush_mutex);
 }
@@ -3193,7 +3196,7 @@ void shutdown_acl_cache() {
   g_acl_cache->increase_version();
   DBUG_ASSERT(g_acl_cache->size() == 0);
   delete g_acl_cache;
-  g_acl_cache = NULL;
+  g_acl_cache = nullptr;
   roles_delete();
   dynamic_privileges_delete();
   delete g_mandatory_roles;

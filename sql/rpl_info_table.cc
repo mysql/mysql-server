@@ -692,7 +692,7 @@ Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
     return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
   } else {
     if (field_values->value[pos].length()) {
-      *value = strtoul(field_values->value[pos].c_ptr_safe(), 0, 10);
+      *value = strtoul(field_values->value[pos].c_ptr_safe(), nullptr, 10);
       return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
     } else if (default_value) {
       *value = default_value;

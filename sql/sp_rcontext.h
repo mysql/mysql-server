@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -417,7 +417,7 @@ class sp_cursor {
 
  public:
   explicit sp_cursor(sp_instr_cpush *i)
-      : m_result(), m_server_side_cursor(NULL), m_push_instr(i) {}
+      : m_result(), m_server_side_cursor(nullptr), m_push_instr(i) {}
 
   virtual ~sp_cursor() { destroy(); }
 

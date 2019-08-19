@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class Void_key : public Object_key {
 
  public:
   /* purecov: begin inspected */
-  virtual Raw_key *create_access_key(Raw_table *) const { return NULL; }
+  virtual Raw_key *create_access_key(Raw_table *) const { return nullptr; }
   /* purecov: end */
 
   /* purecov: begin inspected */

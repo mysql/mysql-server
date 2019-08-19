@@ -1,6 +1,6 @@
 #ifndef PERSISTED_RULE_INCLUDED
 #define PERSISTED_RULE_INCLUDED
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ class Persisted_rule {
     copy_and_set(&replacement, c, c->replacement_column());
 
     const char *is_enabled_c = (c->fetch_string(c->enabled_column()));
-    if (is_enabled_c != NULL && is_enabled_c[0] == 'Y')
+    if (is_enabled_c != nullptr && is_enabled_c[0] == 'Y')
       is_enabled = true;
     else
       is_enabled = false;
@@ -118,7 +118,7 @@ class Persisted_rule {
   void copy_and_set(Mysql::Nullable<std::string> *property, rts::Cursor *c,
                     int colno) {
     const char *value = c->fetch_string(colno);
-    if (value != NULL) {
+    if (value != nullptr) {
       std::string tmp;
       tmp.assign(value);
       *property = tmp;
@@ -131,7 +131,7 @@ class Persisted_rule {
                       Mysql::Nullable<std::string> value) {
     if (column == rts::Cursor::ILLEGAL_COLUMN_ID) return;
     if (!value.has_value()) {
-      cursor->set(column, NULL, 0);
+      cursor->set(column, nullptr, 0);
       return;
     }
     const std::string &s = value.value();

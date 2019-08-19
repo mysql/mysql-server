@@ -42,7 +42,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
                 bool *created_new_share) {
   uint i, j, key_segs, max_length, length;
-  HP_SHARE *share = 0;
+  HP_SHARE *share = nullptr;
   HA_KEYSEG *keyseg;
   HP_KEYDEF *keydef = create_info->keydef;
   uint reclength = create_info->reclength;
@@ -56,10 +56,10 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     share = hp_find_named_heap(name);
     if (share && share->open_count == 0) {
       hp_free(share);
-      share = 0;
+      share = nullptr;
     }
   }
-  *created_new_share = (share == NULL);
+  *created_new_share = (share == nullptr);
 
   if (!share) {
     HP_KEYDEF *keyinfo;
@@ -208,7 +208,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     share->auto_key = create_info->auto_key;
     share->auto_key_type = create_info->auto_key_type;
     share->auto_increment = create_info->auto_increment;
-    share->create_time = (long)time((time_t *)0);
+    share->create_time = (long)time((time_t *)nullptr);
     /* Must be allocated separately for rename to work */
     if (!(share->name = my_strdup(hp_key_memory_HP_SHARE, name, MYF(0)))) {
       my_free(share);
@@ -309,7 +309,7 @@ void heap_drop_table(HP_INFO *info) {
 }
 
 void hp_free(HP_SHARE *share) {
-  bool not_internal_table = (share->open_list.data != NULL);
+  bool not_internal_table = (share->open_list.data != nullptr);
   if (not_internal_table) /* If not internal table */
     heap_share_list = list_delete(heap_share_list, &share->open_list);
   hp_clear(share); /* Remove blocks from memory */

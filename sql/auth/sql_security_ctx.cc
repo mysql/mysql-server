@@ -81,7 +81,7 @@ Security_context &Security_context::operator=(
 void Security_context::init() {
   DBUG_TRACE;
 
-  m_user.set((const char *)0, 0, system_charset_info);
+  m_user.set((const char *)nullptr, 0, system_charset_info);
   m_host.set("", 0, system_charset_info);
   m_ip.set("", 0, system_charset_info);
   m_host_or_ip.set(STRING_WITH_LEN("connecting host"), system_charset_info);
@@ -90,7 +90,7 @@ void Security_context::init() {
   m_priv_user_length = m_priv_host_length = m_proxy_user_length = 0;
   m_master_access = 0;
   m_db_access = NO_ACCESS;
-  m_acl_map = 0;
+  m_acl_map = nullptr;
   m_map_checkout_count = 0;
   m_password_expired = false;
   m_is_locked = false;
@@ -106,7 +106,7 @@ void Security_context::logout() {
                 "Map reference count= %u",
                 m_user.c_ptr(), m_host.c_ptr(), m_acl_map->reference_count()));
     get_global_acl_cache()->return_acl_map(m_acl_map);
-    m_acl_map = 0;
+    m_acl_map = nullptr;
     clear_active_roles();
     clear_db_restrictions();
   }
@@ -144,8 +144,9 @@ void Security_context::destroy() {
     get_global_acl_cache()->return_acl_map(m_acl_map);
     clear_active_roles();
   }
-  m_acl_map = 0;
-  if (m_user.length()) m_user.set((const char *)0, 0, system_charset_info);
+  m_acl_map = nullptr;
+  if (m_user.length())
+    m_user.set((const char *)nullptr, 0, system_charset_info);
 
   if (m_host.length()) m_host.set("", 0, system_charset_info);
 
@@ -216,7 +217,8 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   m_db_access = src_sctx.m_db_access;
   m_master_access = src_sctx.m_master_access;
   m_password_expired = src_sctx.m_password_expired;
-  m_acl_map = 0;  // acl maps are reference counted we can't copy or share them!
+  m_acl_map =
+      nullptr;  // acl maps are reference counted we can't copy or share them!
   m_has_drop_policy = false;  // you cannot copy a drop policy
   m_executed_drop_policy = false;
   m_restrictions = src_sctx.restrictions();
@@ -284,7 +286,7 @@ bool Security_context::change_security_context(
 
   DBUG_ASSERT(definer_user.str && definer_host.str);
 
-  *backup = NULL;
+  *backup = nullptr;
   needs_change =
       (strcmp(definer_user.str, thd->security_context()->priv_user().str) ||
        my_strcasecmp(system_charset_info, definer_host.str,
@@ -312,7 +314,7 @@ bool Security_context::user_matches(Security_context *them) {
 
   const char *them_user = them->user().str;
 
-  return (m_user.ptr() != NULL) && (them_user != NULL) &&
+  return (m_user.ptr() != nullptr) && (them_user != nullptr) &&
          !strcmp(m_user.ptr(), them_user);
 }
 
@@ -421,10 +423,10 @@ void Security_context::clear_active_roles(void) {
   for (List_of_auth_id_refs::iterator it = m_active_roles.begin();
        it != m_active_roles.end(); ++it) {
     my_free(const_cast<char *>(it->first.str));
-    it->first.str = 0;
+    it->first.str = nullptr;
     it->first.length = 0;
     my_free(const_cast<char *>(it->second.str));
-    it->second.str = 0;
+    it->second.str = nullptr;
     it->second.length = 0;
   }
   m_active_roles.clear();
@@ -471,7 +473,7 @@ void Security_context::get_active_roles(THD *thd, List<LEX_USER> &list) {
 
 ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   DBUG_TRACE;
-  if (m_acl_map == 0 || db.length == 0) return 0;
+  if (m_acl_map == nullptr || db.length == 0) return 0;
 
   std::string key(db.str, db.length);
   Db_access_map::iterator found_acl_it = m_acl_map->db_acls()->find(key);
@@ -509,7 +511,7 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
 
 ulong Security_context::procedure_acl(LEX_CSTRING db,
                                       LEX_CSTRING procedure_name) {
-  if (m_acl_map == 0)
+  if (m_acl_map == nullptr)
     return 0;
   else {
     SP_access_map::iterator it;
@@ -524,7 +526,7 @@ ulong Security_context::procedure_acl(LEX_CSTRING db,
 }
 
 ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
-  if (m_acl_map == 0)
+  if (m_acl_map == nullptr)
     return 0;
   else {
     String q_name;
@@ -541,7 +543,7 @@ ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
 // return the entire element instead of just the acl?
 Grant_table_aggregate Security_context::table_and_column_acls(
     LEX_CSTRING db, LEX_CSTRING table) {
-  if (m_acl_map == 0) return Grant_table_aggregate();
+  if (m_acl_map == nullptr) return Grant_table_aggregate();
   Table_access_map::iterator it;
   String q_name;
   append_identifier(&q_name, db.str, db.length);
@@ -553,7 +555,7 @@ Grant_table_aggregate Security_context::table_and_column_acls(
 }
 
 ulong Security_context::table_acl(LEX_CSTRING db, LEX_CSTRING table) {
-  if (m_acl_map == 0) return 0;
+  if (m_acl_map == nullptr) return 0;
   Grant_table_aggregate aggr = table_and_column_acls(db, table);
   return filter_access(aggr.table_access, db.str ? db.str : "");
 }
@@ -561,7 +563,7 @@ ulong Security_context::table_acl(LEX_CSTRING db, LEX_CSTRING table) {
 bool Security_context::has_with_admin_acl(const LEX_CSTRING &role_name,
                                           const LEX_CSTRING &role_host) {
   DBUG_TRACE;
-  if (m_acl_map == 0) return false;
+  if (m_acl_map == nullptr) return false;
   String q_name;
   append_identifier(&q_name, role_name.str, role_name.length);
   q_name.append("@");
@@ -624,7 +626,7 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
 
   std::string privilege(priv, priv_len);
 
-  if (m_acl_map == 0) {
+  if (m_acl_map == nullptr) {
     Acl_cache_lock_guard acl_cache_lock(current_thd,
                                         Acl_cache_lock_mode::READ_MODE);
     if (!acl_cache_lock.lock(false)) return std::make_pair(false, false);
@@ -802,7 +804,7 @@ void Security_context::assign_user(const char *user_arg,
   if (user_arg)
     m_user.copy(user_arg, user_arg_length, system_charset_info);
   else
-    m_user.set((const char *)0, 0, system_charset_info);
+    m_user.set((const char *)nullptr, 0, system_charset_info);
 }
 
 /**
@@ -926,7 +928,7 @@ void Security_context::assign_ip(const char *ip_arg, const int ip_arg_length) {
   if (ip_arg)
     m_ip.copy(ip_arg, ip_arg_length, system_charset_info);
   else
-    m_ip.set((const char *)0, 0, system_charset_info);
+    m_ip.set((const char *)nullptr, 0, system_charset_info);
 }
 
 /**
@@ -968,7 +970,7 @@ void Security_context::assign_external_user(const char *ext_user_arg,
     m_external_user.copy(ext_user_arg, ext_user_arg_length,
                          system_charset_info);
   else
-    m_external_user.set((const char *)0, 0, system_charset_info);
+    m_external_user.set((const char *)nullptr, 0, system_charset_info);
 }
 
 /**

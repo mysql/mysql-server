@@ -116,14 +116,14 @@ struct TABLE_REF {
         key_parts(0),
         key_length(0),
         key(-1),
-        key_buff(NULL),
-        key_buff2(NULL),
-        key_copy(NULL),
-        items(NULL),
-        cond_guards(NULL),
+        key_buff(nullptr),
+        key_buff2(nullptr),
+        key_copy(nullptr),
+        items(nullptr),
+        cond_guards(nullptr),
         null_rejecting(0),
         depend_map(0),
-        null_ref_key(NULL),
+        null_ref_key(nullptr),
         use_count(0),
         disable_cache(false) {}
 
@@ -149,7 +149,7 @@ struct TABLE_REF {
   */
 
   bool has_guarded_conds() const {
-    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
+    DBUG_ASSERT(key_parts == 0 || cond_guards != nullptr);
 
     for (uint i = 0; i < key_parts; i++) {
       if (cond_guards[i]) return true;
@@ -221,11 +221,11 @@ enum join_type { /*
 class QEP_shared {
  public:
   QEP_shared()
-      : m_join(NULL),
+      : m_join(nullptr),
         m_idx(NO_PLAN_IDX),
-        m_table(NULL),
-        m_position(NULL),
-        m_sj_mat_exec(NULL),
+        m_table(nullptr),
+        m_position(nullptr),
+        m_sj_mat_exec(nullptr),
         m_first_sj_inner(NO_PLAN_IDX),
         m_last_sj_inner(NO_PLAN_IDX),
         m_first_inner(NO_PLAN_IDX),
@@ -234,13 +234,13 @@ class QEP_shared {
         m_ref(),
         m_index(0),
         m_type(JT_UNKNOWN),
-        m_condition(NULL),
+        m_condition(nullptr),
         m_keys(),
         m_records(0),
-        m_quick(NULL),
+        m_quick(nullptr),
         prefix_tables_map(0),
         added_tables_map(0),
-        m_ft_func(NULL),
+        m_ft_func(nullptr),
         m_skip_records_in_range(false) {}
 
   /*
@@ -462,7 +462,7 @@ class QEP_shared {
 /// Owner of a QEP_shared; parent of JOIN_TAB and QEP_TAB.
 class QEP_shared_owner {
  public:
-  QEP_shared_owner() : m_qs(NULL) {}
+  QEP_shared_owner() : m_qs(nullptr) {}
 
   /// Instructs to share the QEP_shared with another owner
   void share_qs(QEP_shared_owner *other) { other->set_qs(m_qs); }

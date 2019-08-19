@@ -40,7 +40,7 @@ struct CHANGED_TABLE_LIST {
 };
 
 Transaction_ctx::Transaction_ctx()
-    : m_savepoints(NULL),
+    : m_savepoints(nullptr),
       m_xid_state(),
       last_committed(0),
       sequence_number(0),

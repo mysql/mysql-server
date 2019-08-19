@@ -146,8 +146,8 @@ bool Distinct_check::check_query(THD *thd) {
     Item **const res =
         find_item_in_list(thd, *order->item, select->item_list, &counter,
                           REPORT_EXCEPT_NOT_FOUND, &resolution);
-    if (res == NULL)  // Other error than "not found", my_error() was called
-      return true;    /* purecov: inspected */
+    if (res == nullptr)  // Other error than "not found", my_error() was called
+      return true;       /* purecov: inspected */
     if (res != not_found_item)  // is in SELECT list
       continue;
     /*
@@ -270,8 +270,8 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
     // Search if this expression is equal to one in the SELECT list.
     Item **const res = find_item_in_list(thd, expr, select->item_list, &counter,
                                          REPORT_EXCEPT_NOT_FOUND, &resolution);
-    if (res == NULL)  // Other error than "not found", my_error() was called
-      return true;    /* purecov: inspected */
+    if (res == nullptr)  // Other error than "not found", my_error() was called
+      return true;       /* purecov: inspected */
     if (res != not_found_item) {
       // is in SELECT list, which has already been validated.
       return false;
@@ -572,7 +572,7 @@ void Group_check::find_group_in_fd(Item *item) {
 */
 Item *Group_check::select_expression(uint idx) {
   List_iterator<Item> it_select_list_of_subq(*select->get_item_list());
-  Item *expr_under = NULL;
+  Item *expr_under = nullptr;
   for (uint k = 0; k <= idx; k++) expr_under = it_select_list_of_subq++;
   DBUG_ASSERT(expr_under);
   return expr_under;
@@ -602,7 +602,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
     return;  // If UNION or ROLLUP, no FD
   // Grab Group_check for this subquery.
-  Group_check *mat_gc = NULL;
+  Group_check *mat_gc = nullptr;
   uint j;
   for (j = 0; j < mat_tables.size(); j++) {
     mat_gc = mat_tables.at(j);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
 
  public:
   static Partition_index_impl *restore_item(Partition_impl *partition) {
-    return new (std::nothrow) Partition_index_impl(partition, NULL);
+    return new (std::nothrow) Partition_index_impl(partition, nullptr);
   }
 
   static Partition_index_impl *clone(const Partition_index_impl &other,

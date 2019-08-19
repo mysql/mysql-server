@@ -131,7 +131,7 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
       allocated exclusively to execute this event.
     */
 
-    return NULL;
+    return nullptr;
   }
 
   virtual void delete_backup_ctx() { destroy(this); }
@@ -333,7 +333,7 @@ bool Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
 
   m_definition = make_lex_string(&mem_root, event_obj.definition());
 
-  if (m_time_zone == NULL) return true;
+  if (m_time_zone == nullptr) return true;
 
   Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx);
   if (m_creation_ctx == nullptr) return true;
@@ -363,7 +363,7 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone = my_tz_find(thd, &str);
 
-  if (m_time_zone == NULL) return true;
+  if (m_time_zone == nullptr) return true;
 
   m_starts_null = event_obj.is_starts_null();
   if (!m_starts_null) m_starts = event_obj.starts();
@@ -1009,7 +1009,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 
 bool Event_job_data::execute(THD *thd, bool drop) {
   String sp_sql;
-  Security_context event_sctx, *save_sctx = NULL;
+  Security_context event_sctx, *save_sctx = nullptr;
   List<Item> empty_item_list;
   bool ret = true;
   sql_digest_state *parent_digest = thd->m_digest;
@@ -1055,7 +1055,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   */
   if (save_sctx) set_system_user_flag(thd);
 
-  if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, false,
+  if (check_access(thd, EVENT_ACL, m_schema_name.str, nullptr, nullptr, false,
                    false)) {
     /*
       This aspect of behavior is defined in the worklog,
@@ -1088,8 +1088,8 @@ bool Event_job_data::execute(THD *thd, bool drop) {
 
     if (parser_state.init(thd, thd->query().str, thd->query().length)) goto end;
 
-    thd->m_digest = NULL;
-    thd->m_statement_psi = NULL;
+    thd->m_digest = nullptr;
+    thd->m_statement_psi = nullptr;
     if (parse_sql(thd, &parser_state, m_creation_ctx)) {
       LogErr(ERROR_LEVEL, ER_EVENT_ERROR_DURING_COMPILATION,
              thd->is_fatal_error() ? "fatal " : "", m_schema_name.str,

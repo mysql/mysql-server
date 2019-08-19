@@ -52,8 +52,8 @@ Plugin_table table_session_connect_attrs::m_table_def(
 PFS_engine_table_share table_session_connect_attrs::m_share = {
     &pfs_readonly_acl,
     table_session_connect_attrs::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     cursor_by_thread_connect_attr::get_row_count,
     sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
     &m_table_lock,

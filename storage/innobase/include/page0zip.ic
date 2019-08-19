@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -329,7 +329,7 @@ byte *page_zip_parse_compress_no_data(
 {
   ulint level;
   if (end_ptr == ptr) {
-    return (NULL);
+    return (nullptr);
   }
 
   level = mach_read_from_1(ptr);
@@ -338,7 +338,7 @@ byte *page_zip_parse_compress_no_data(
   because a compress log record is logged only if the compression
   was successful. Crash in this case. */
 
-  if (page && !page_zip_compress(page_zip, page, index, level, NULL)) {
+  if (page && !page_zip_compress(page_zip, page, index, level, nullptr)) {
     ut_error;
   }
 
@@ -374,7 +374,7 @@ byte *page_zip_dir_find_low(byte *slot,   /*!< in: start of records */
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the size of the compressed page trailer (the dense page directory),

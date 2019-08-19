@@ -67,9 +67,9 @@ static const uchar *setup_actor_hash_get_key(const uchar *entry,
   const PFS_setup_actor *setup_actor;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_setup_actor *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  DBUG_ASSERT(typed_entry != nullptr);
   setup_actor = *typed_entry;
-  DBUG_ASSERT(setup_actor != NULL);
+  DBUG_ASSERT(setup_actor != nullptr);
   *length = setup_actor->m_key.m_key_length;
   result = setup_actor->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -98,9 +98,9 @@ void cleanup_setup_actor_hash(void) {
 }
 
 static LF_PINS *get_setup_actor_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_setup_actor_hash_pins == NULL)) {
+  if (unlikely(thread->m_setup_actor_hash_pins == nullptr)) {
     if (!setup_actor_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_setup_actor_hash_pins = lf_hash_get_pins(&setup_actor_hash);
   }
@@ -133,12 +133,12 @@ static void set_setup_actor_key(PFS_setup_actor_key *key, const char *user,
 int insert_setup_actor(const String *user, const String *host,
                        const String *role, bool enabled, bool history) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -146,7 +146,7 @@ int insert_setup_actor(const String *user, const String *host,
   pfs_dirty_state dirty_state;
 
   pfs = global_setup_actor_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     set_setup_actor_key(&pfs->m_key, user->ptr(), user->length(), host->ptr(),
                         host->length(), role->ptr(), role->length());
     pfs->m_username = &pfs->m_key.m_hash_key[0];
@@ -180,12 +180,12 @@ int insert_setup_actor(const String *user, const String *host,
 int delete_setup_actor(const String *user, const String *host,
                        const String *role) {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -227,12 +227,12 @@ class Proc_reset_setup_actor : public PFS_buffer_processor<PFS_setup_actor> {
 
 int reset_setup_actor() {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -260,7 +260,7 @@ void lookup_setup_actor(PFS_thread *thread, const char *user, uint user_length,
   int i;
 
   LF_PINS *pins = get_setup_actor_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     *enabled = false;
     *history = false;
     return;
@@ -305,7 +305,7 @@ void lookup_setup_actor(PFS_thread *thread, const char *user, uint user_length,
 
 int update_setup_actors_derived_flags() {
   PFS_thread *thread = PFS_thread::get_current_thread();
-  if (unlikely(thread == NULL)) {
+  if (unlikely(thread == nullptr)) {
     return HA_ERR_OUT_OF_MEM;
   }
 

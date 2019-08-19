@@ -150,7 +150,7 @@ void page_header_set_field(
 
   mach_write_to_2(page + PAGE_HEADER + field, val);
   if (page_zip) {
-    page_zip_write_header(page_zip, page + PAGE_HEADER + field, 2, NULL);
+    page_zip_write_header(page_zip, page + PAGE_HEADER + field, 2, nullptr);
   }
 }
 
@@ -188,7 +188,7 @@ void page_header_set_ptr(
   ut_ad((field == PAGE_FREE) || (field == PAGE_LAST_INSERT) ||
         (field == PAGE_HEAP_TOP));
 
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     offs = 0;
   } else {
     offs = ptr - page;
@@ -209,8 +209,8 @@ void page_header_reset_last_insert(
                              uncompressed part will be updated, or NULL */
     mtr_t *mtr)               /*!< in: mtr */
 {
-  ut_ad(page != NULL);
-  ut_ad(mtr != NULL);
+  ut_ad(page != nullptr);
+  ut_ad(mtr != nullptr);
 
   if (page_zip) {
     mach_write_to_2(page + (PAGE_HEADER + PAGE_LAST_INSERT), 0);
@@ -675,7 +675,7 @@ const rec_t *page_rec_get_next_low(
             (ulong)page_get_space_id(page), (ulong)page_get_page_no(page));
     ut_error;
   } else if (offs == 0) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (page + offs);
@@ -734,7 +734,7 @@ void page_rec_set_next(rec_t *rec,        /*!< in: pointer to record,
   ut_ad(!next || !page_rec_is_infimum(next));
   ut_ad(!next || page_align(rec) == page_align(next));
 
-  offs = next != NULL ? page_offset(next) : 0;
+  offs = next != nullptr ? page_offset(next) : 0;
 
   if (page_rec_is_comp(rec)) {
     rec_set_next_offs_new(rec, offs);
@@ -753,7 +753,7 @@ const rec_t *page_rec_get_prev_const(
   const page_dir_slot_t *slot;
   ulint slot_no;
   const rec_t *rec2;
-  const rec_t *prev_rec = NULL;
+  const rec_t *prev_rec = nullptr;
   const page_t *page;
 
   ut_ad(page_rec_check(rec));
@@ -865,7 +865,7 @@ void page_mem_alloc_free(
 
   ut_ad(old_rec);
   next_offs = rec_get_next_offs(old_rec, page_is_comp(page));
-  ut_ad(next_rec == (next_offs ? page + next_offs : NULL));
+  ut_ad(next_rec == (next_offs ? page + next_offs : nullptr));
 #endif
 
   page_header_set_ptr(page, page_zip, PAGE_FREE, next_rec);

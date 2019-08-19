@@ -52,7 +52,7 @@ Digest::~Digest() {
 }
 
 void Digest::assign(const char *value) {
-  DBUG_ASSERT(value != NULL);
+  DBUG_ASSERT(value != nullptr);
   memcpy(this->value, value, length);
   is_empty = false;
 }

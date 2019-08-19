@@ -96,7 +96,8 @@ static char log_error_filter_decompile[LOG_FILTER_DUMP_BUFF_SIZE] = "";
 static SHOW_VAR show_var_filter_rules_decompile[] = {
     {LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_STATUS_NAME,
      (char *)&log_error_filter_decompile, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /*

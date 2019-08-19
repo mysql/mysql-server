@@ -113,13 +113,14 @@ lock_t *lock_rec_get_first_on_page_addr(
 
   for (lock_t *lock = static_cast<lock_t *>(
            HASH_GET_FIRST(lock_hash, lock_rec_hash(space, page_no)));
-       lock != NULL; lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
+       lock != nullptr;
+       lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
     if (lock->space_id() == space && lock->page_no() == page_no) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the first record lock on a page, where the page is identified by a
@@ -137,13 +138,14 @@ lock_t *lock_rec_get_first_on_page(
   ulint hash = buf_block_get_lock_hash_val(block);
 
   for (lock_t *lock = static_cast<lock_t *>(HASH_GET_FIRST(lock_hash, hash));
-       lock != NULL; lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
+       lock != nullptr;
+       lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
     if (lock->space_id() == space && lock->page_no() == page_no) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the next explicit lock request on a record.
@@ -209,7 +211,7 @@ lock_t *lock_rec_get_first(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the nth bit of a record lock.
@@ -245,13 +247,13 @@ const lock_t *lock_rec_get_next_on_page_const(
   page_no_t page_no = lock->page_no();
 
   while ((lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) !=
-         NULL) {
+         nullptr) {
     if (lock->space_id() == space && lock->page_no() == page_no) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the mode of a lock.
@@ -309,7 +311,7 @@ void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
   wait-for graph. Instead the lock_reset_wait_and_release_thread_if_suspended()
   is responsible for clearing the blocking_trx field once it is sure that
   we really want to remove the edge from the wait-for graph.*/
-  lock->trx->lock.wait_lock = NULL;
+  lock->trx->lock.wait_lock = nullptr;
   /* We intentionally don't clear lock->trx->lock.wait_lock_type here, to make
   it easier to obtain stats about the last wait in lock_wait_suspend_thread().
   @see trx_lock_t::wait_lock_type for more detailed explanation. */
@@ -329,14 +331,14 @@ lock_t *lock_rec_find_similar_on_page(
 {
   ut_ad(lock_mutex_own());
 
-  for (/* No op */; lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
+  for (/* No op */; lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
     if (lock->trx == trx && lock->type_mode == type_mode &&
         lock_rec_get_n_bits(lock) > heap_no) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 UNIV_INLINE
@@ -365,7 +367,7 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
 
     ut_ad(trx == lock->trx);
     ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-    ut_ad(lock->tab_lock.table != NULL);
+    ut_ad(lock->tab_lock.table != nullptr);
 
     if (table == lock->tab_lock.table &&
         lock_mode_stronger_or_eq(mode, in_mode)) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,8 @@ class Sql_cmd_dml : public Sql_cmd {
   virtual bool is_single_table_plan() const { return false; }
 
  protected:
-  Sql_cmd_dml() : Sql_cmd(), lex(NULL), result(NULL), m_empty_query(false) {}
+  Sql_cmd_dml()
+      : Sql_cmd(), lex(nullptr), result(nullptr), m_empty_query(false) {}
 
   /// @return true if query is guaranteed to return no data
   /**

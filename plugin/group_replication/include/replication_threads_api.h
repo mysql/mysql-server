@@ -39,7 +39,7 @@ class Replication_thread_api {
       : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface) {}
 
   Replication_thread_api()
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL) {}
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(nullptr) {}
 
   ~Replication_thread_api() {}
 
@@ -252,7 +252,8 @@ class Replication_thread_api {
        @retval true   the id matches a SQL or worker thread
        @retval false  the id doesn't match any thread
    */
-  bool is_own_event_applier(my_thread_id id, const char *channel_name = NULL);
+  bool is_own_event_applier(my_thread_id id,
+                            const char *channel_name = nullptr);
 
   /**
      Checks if the given id matches the receiver thread for
@@ -296,7 +297,7 @@ class Replication_thread_api {
       @retval false the operation has succeeded.
   */
   bool get_retrieved_gtid_set(std::string &retrieved_set,
-                              const char *channel_name = NULL);
+                              const char *channel_name = nullptr);
 
   /**
     Checks if the channel's relay log contains partial transaction.
@@ -331,7 +332,7 @@ class Replication_thread_api {
       @retval true    Error, channel not found
   */
   bool get_channel_credentials(std::string &username, std::string &password,
-                               const char *channel_name = NULL);
+                               const char *channel_name = nullptr);
 
  private:
   ulong stop_wait_timeout;

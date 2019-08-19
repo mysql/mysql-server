@@ -3031,38 +3031,38 @@ static const MY_UNICASE_CHARACTER planeE6[] = {
   The UNICASE array
 */
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_gb18030[256] = {
-    plane00, plane01, plane02, plane03, plane04, NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    plane10, NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    plane1D, plane1E, plane1F,
-    plane20, NULL,    NULL,    plane23, NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    plane2A, plane2B, NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    plane51, plane52, NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    planeA2, planeA3, NULL,    NULL,    planeA6, planeA7,
-    planeA8, NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    planeE6, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL};
+    plane00, plane01, plane02, plane03, plane04, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    plane10, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, plane1D, plane1E, plane1F,
+    plane20, nullptr, nullptr, plane23, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, plane2A, plane2B, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, plane51, plane52, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, planeA2, planeA3, nullptr, nullptr, planeA6, planeA7,
+    planeA8, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, planeE6, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 /**
   UNICASE INFO
@@ -19540,10 +19540,10 @@ static size_t my_well_formed_len_gb18030(
 static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
                                                  const uchar *src,
                                                  size_t srclen) {
-  const MY_UNICASE_CHARACTER *p = NULL;
+  const MY_UNICASE_CHARACTER *p = nullptr;
   uint diff, code;
 
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
 
   switch (srclen) {
     case 1:
@@ -19551,10 +19551,10 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
     case 2:
       if (src[0] < ((MIN_2_BYTE_UNICASE >> 8) & 0xFF) ||
           src[0] > ((MAX_2_BYTE_UNICASE >> 8) & 0xFF))
-        return NULL;
+        return nullptr;
 
       p = cs->caseinfo->page[(uchar)src[0]];
-      return p ? &p[(uchar)src[1]] : NULL;
+      return p ? &p[(uchar)src[1]] : nullptr;
     case 4:
       diff = gb18030_4_chs_to_diff(src);
       code = 0;
@@ -19564,14 +19564,14 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
       else if (diff >= MIN_3_BYTE_FROM_UNI && diff <= MAX_3_BYTE_FROM_UNI)
         code = (diff & 0xFFFF);
       else
-        return NULL;
+        return nullptr;
 
       p = cs->caseinfo->page[(code >> 8) & 0xFF];
-      return p ? &p[code & 0xFF] : NULL;
+      return p ? &p[code & 0xFF] : nullptr;
   }
 
   DBUG_ASSERT(0);
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -19691,7 +19691,7 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
 extern "C" {
 static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
                                 size_t srclen, char *dst, size_t dstlen) {
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
   return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, false);
@@ -19709,7 +19709,7 @@ static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
 */
 static size_t my_caseup_gb18030(const CHARSET_INFO *cs, char *src,
                                 size_t srclen, char *dst, size_t dstlen) {
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
   return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, true);
@@ -19733,7 +19733,7 @@ static size_t my_casedn_gb18030_uca(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
 
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
 
@@ -19776,7 +19776,7 @@ static size_t my_caseup_gb18030_uca(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
 
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
 
@@ -19960,7 +19960,7 @@ static int my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
   const uchar *se = s + s_length;
   const uchar *te = t + t_length;
 
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
 
   while (s < se && t < te) {
     uint mblen_s = my_ismbchar_gb18030(cs, pointer_cast<const char *>(s),
@@ -20076,7 +20076,7 @@ static size_t my_strnxfrm_gb18030(const CHARSET_INFO *cs, uchar *dst,
   const uchar *se = src + srclen;
   const uchar *sort_order;
 
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
   sort_order = cs->sort_order;
 
   for (; dst < de && src < se && nweights; nweights--) {
@@ -20128,7 +20128,7 @@ static uint unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode) {
   uint dst_len;
   int res;
 
-  DBUG_ASSERT(cs != NULL);
+  DBUG_ASSERT(cs != nullptr);
 
   res = cs->cset->wc_mb(cs, unicode, dst, dst + 4);
 
@@ -20363,7 +20363,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {nullptr,
                                                        my_propagate_simple};
 
 static MY_CHARSET_HANDLER my_charset_gb18030_handler = {
-    NULL,
+    nullptr,
     my_ismbchar_gb18030,
     my_mbcharlen_gb18030,
     my_numchars_mb,
@@ -20391,7 +20391,7 @@ static MY_CHARSET_HANDLER my_charset_gb18030_handler = {
     my_strntoull10rnd_8bit,
     my_scan_8bit};
 
-MY_CHARSET_HANDLER my_charset_gb18030_uca_handler = {NULL,
+MY_CHARSET_HANDLER my_charset_gb18030_uca_handler = {nullptr,
                                                      my_ismbchar_gb18030,
                                                      my_mbcharlen_gb18030,
                                                      my_numchars_mb,
@@ -20427,18 +20427,18 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     "gb18030",                                       /* cs name       */
     "gb18030_chinese_ci",                            /* name          */
     "",                                              /* comment       */
-    NULL,                                            /* tailoring     */
-    NULL,                                            /* coll_param    */
+    nullptr,                                         /* tailoring     */
+    nullptr,                                         /* coll_param    */
     ctype_gb18030,                                   /* ctype         */
     to_lower_gb18030,                                /* lower         */
     to_upper_gb18030,                                /* UPPER         */
     sort_order_gb18030,                              /* sort          */
-    NULL,                                            /* uca           */
-    NULL,                                            /* tab_to_uni    */
-    NULL,                                            /* tab_from_uni  */
+    nullptr,                                         /* uca           */
+    nullptr,                                         /* tab_to_uni    */
+    nullptr,                                         /* tab_from_uni  */
     &my_caseinfo_gb18030,                            /* caseinfo      */
-    NULL,                                            /* state_map     */
-    NULL,                                            /* ident_map     */
+    nullptr,                                         /* state_map     */
+    nullptr,                                         /* ident_map     */
     2,                                               /* strxfrm_multiply */
     2,                                               /* caseup_multiply  */
     2,                                               /* casedn_multiply  */
@@ -20462,18 +20462,18 @@ CHARSET_INFO my_charset_gb18030_bin = {
     "gb18030",                      /* cs name       */
     "gb18030_bin",                  /* name          */
     "",                             /* comment       */
-    NULL,                           /* tailoring     */
-    NULL,                           /* coll_param    */
+    nullptr,                        /* tailoring     */
+    nullptr,                        /* coll_param    */
     ctype_gb18030,                  /* ctype         */
     to_lower_gb18030,               /* lower         */
     to_upper_gb18030,               /* UPPER         */
-    NULL,                           /* sort order    */
-    NULL,                           /* uca           */
-    NULL,                           /* tab_to_uni    */
-    NULL,                           /* tab_from_uni  */
+    nullptr,                        /* sort order    */
+    nullptr,                        /* uca           */
+    nullptr,                        /* tab_to_uni    */
+    nullptr,                        /* tab_from_uni  */
     &my_caseinfo_gb18030,           /* caseinfo      */
-    NULL,                           /* state_map     */
-    NULL,                           /* ident_map     */
+    nullptr,                        /* state_map     */
+    nullptr,                        /* ident_map     */
     1,                              /* strxfrm_multiply */
     2,                              /* caseup_multiply  */
     2,                              /* casedn_multiply  */

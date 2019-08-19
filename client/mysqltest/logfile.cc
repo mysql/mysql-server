@@ -26,7 +26,7 @@
 #include <iostream>
 #include <string>
 
-Logfile::Logfile() : m_file(NULL), m_bytes_written(0) {
+Logfile::Logfile() : m_file(nullptr), m_bytes_written(0) {
   std::memset(m_filename, 0, sizeof(m_filename));
 }
 
@@ -51,7 +51,7 @@ bool Logfile::open(const char *dirname, const char *filename, const char *ext) {
     this->close();
 
     // Open a file, print an error message if the operation fails.
-    if ((m_file = std::fopen(m_filename, "wb+")) == NULL) {
+    if ((m_file = std::fopen(m_filename, "wb+")) == nullptr) {
       std::cerr << "Failed to open log file '" << m_filename
                 << "': " << std::strerror(errno) << ", errno: " << errno
                 << std::endl;
@@ -81,7 +81,7 @@ void Logfile::close() {
     else
       std::fclose(m_file);
   }
-  m_file = NULL;
+  m_file = nullptr;
 }
 
 void Logfile::show_tail(unsigned int lines) {

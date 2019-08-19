@@ -60,8 +60,8 @@ using connection_control::Error_handler;
 Connection_control_statistics g_statistics;
 Connection_control_variables g_variables;
 
-Connection_event_coordinator *g_connection_event_coordinator = 0;
-MYSQL_PLUGIN connection_control_plugin_info = 0;
+Connection_event_coordinator *g_connection_event_coordinator = nullptr;
+MYSQL_PLUGIN connection_control_plugin_info = nullptr;
 
 /**
   event_notify() implementation for connection_control
@@ -139,9 +139,9 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
 
 static int connection_control_deinit(void *arg MY_ATTRIBUTE((unused))) {
   delete g_connection_event_coordinator;
-  g_connection_event_coordinator = 0;
+  g_connection_event_coordinator = nullptr;
   connection_control::deinit_connection_delay_event();
-  connection_control_plugin_info = 0;
+  connection_control_plugin_info = nullptr;
 
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
@@ -150,7 +150,7 @@ static int connection_control_deinit(void *arg MY_ATTRIBUTE((unused))) {
 /** Connection_control plugin descriptor */
 static struct st_mysql_audit connection_control_descriptor = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
-    NULL,                          /* release_thd() */
+    nullptr,                       /* release_thd() */
     connection_control_notify,     /* event_notify() */
     {
         0, /* MYSQL_AUDIT_GENERAL_CLASS */
@@ -368,7 +368,7 @@ static MYSQL_SYSVAR_LONGLONG(
 SYS_VAR *connection_control_system_variables[OPT_LAST + 1] = {
     MYSQL_SYSVAR(failed_connections_threshold),
     MYSQL_SYSVAR(min_connection_delay), MYSQL_SYSVAR(max_connection_delay),
-    NULL};
+    nullptr};
 
 /**
   Function to display value for status variable :
@@ -396,7 +396,7 @@ SHOW_VAR
 connection_control_status_variables[STAT_LAST + 1] = {
     {"Connection_control_delay_generated", (char *)&show_delay_generated,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {0, 0, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
+    {nullptr, nullptr, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
 
 mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,                  /* plugin type                   */
@@ -406,12 +406,12 @@ mysql_declare_plugin(audit_log){
     "Connection event processing",       /* description                   */
     PLUGIN_LICENSE_GPL,                  /* license                       */
     connection_control_init,             /* plugin initializer            */
-    NULL,                                /* plugin check uninstall        */
+    nullptr,                             /* plugin check uninstall        */
     connection_control_deinit,           /* plugin deinitializer          */
     0x0100,                              /* version                       */
     connection_control_status_variables, /* status variables              */
     connection_control_system_variables, /* system variables              */
-    NULL,                                /* reserverd                     */
+    nullptr,                             /* reserverd                     */
     0                                    /* flags                         */
 },
     {MYSQL_INFORMATION_SCHEMA_PLUGIN,
@@ -421,10 +421,10 @@ mysql_declare_plugin(audit_log){
      "I_S table providing a view into failed attempts statistics",
      PLUGIN_LICENSE_GPL,
      connection_control_failed_attempts_view_init,
-     NULL,
-     NULL,
+     nullptr,
+     nullptr,
      0x0100,
-     NULL,
-     NULL,
-     NULL,
+     nullptr,
+     nullptr,
+     nullptr,
      0} mysql_declare_plugin_end;

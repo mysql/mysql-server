@@ -440,7 +440,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
 
   // upcast serialized object to buffer, verify result
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
+  DBUG_ASSERT(buffer != nullptr);
 
   // calculate digest sum of buffer
   Digest buffer_digest;
@@ -450,7 +450,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
   DBUG_EXECUTE_IF("keyring_file_backup_fail", DBUG_SUICIDE(););
 
   // store buffer to backup file and close it, leave on error
-  return buffer == NULL ||
+  return buffer == nullptr ||
          flush_buffer_to_file(buffer, &buffer_digest, backup_file) ||
          file_io.close(backup_file, MYF(MY_WME)) < 0;
 }
@@ -508,7 +508,7 @@ bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file) {
 */
 bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object) {
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
+  DBUG_ASSERT(buffer != nullptr);
   DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
 
   // open keyring file
@@ -573,7 +573,7 @@ bool Buffered_file_io::get_serialized_object(
   if (load_file_into_buffer(file, buffer.get())) {
     // didn't work - close file and pass a null pointer
     file_io.close(file, MYF(MY_WME));
-    *serialized_object = NULL;
+    *serialized_object = nullptr;
     return true;
   }
 
@@ -581,7 +581,7 @@ bool Buffered_file_io::get_serialized_object(
   if (file_io.close(file, MYF(MY_WME)) < 0) return true;
 
   // if there were no keys in keyring file, we reset it
-  if (buffer->size == 0) buffer.reset(NULL);
+  if (buffer->size == 0) buffer.reset(nullptr);
 
   // pass buffer memory to the caller
   *serialized_object = buffer.release();

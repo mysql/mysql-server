@@ -3842,7 +3842,7 @@ dberr_t Fil_shard::space_check_pending_operations(space_id_t space_id,
 
   /* Check for pending IO. */
 
-  *path = 0;
+  *path = nullptr;
 
   do {
     mutex_acquire();
@@ -4125,7 +4125,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   To deal with potential read requests, we will check the
   ::stop_new_ops flag in fil_io(). */
 
-  buf_LRU_flush_or_remove_pages(space_id, buf_remove, 0);
+  buf_LRU_flush_or_remove_pages(space_id, buf_remove, nullptr);
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4262,7 +4262,7 @@ bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
 #ifndef UNIV_HOTBACKUP
   /* Step-2: Invalidate buffer pool pages belonging to the tablespace
   to re-create. Remove all insert buffer entries for the tablespace */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
+  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, nullptr);
 #endif /* !UNIV_HOTBACKUP */
 
   /* Step-3: Truncate the tablespace and accordingly update
@@ -8857,7 +8857,7 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 
   fil_space_t *space = shard->get_space_by_id(space_id);
 
-  if (space == NULL) {
+  if (space == nullptr) {
     shard->mutex_release();
     return (DB_NOT_FOUND);
   }
@@ -9150,7 +9150,7 @@ bool Fil_path::is_circular() const {
   location and we must allow it. On Windows, it backs up to the directory
   where the symlink starts, which is a circular reference. */
   std::string up_path = m_path.substr(0, back_up);
-  if (my_is_symlink(up_path.c_str(), NULL)) {
+  if (my_is_symlink(up_path.c_str(), nullptr)) {
     return (false);
   }
 #endif /* _WIN32 */

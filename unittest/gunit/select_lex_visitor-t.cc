@@ -135,7 +135,7 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
 
 TEST_F(SelectLexVisitorTest, InsertList) {
   SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2, 3)", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -147,7 +147,7 @@ TEST_F(SelectLexVisitorTest, InsertList) {
 
 TEST_F(SelectLexVisitorTest, InsertList2) {
   SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -160,7 +160,7 @@ TEST_F(SelectLexVisitorTest, InsertList2) {
 
 TEST_F(SelectLexVisitorTest, InsertSet) {
   SELECT_LEX *select_lex = parse("INSERT INTO t SET a=1, b=2, c=3", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -178,7 +178,7 @@ TEST_F(SelectLexVisitorTest, InsertSet) {
 TEST_F(SelectLexVisitorTest, ReplaceList) {
   SELECT_LEX *select_lex =
       parse("REPLACE INTO t(a, b, c) VALUES (1,2,3), (4,5,6)", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -196,7 +196,7 @@ TEST_F(SelectLexVisitorTest, ReplaceList) {
 TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
   SELECT_LEX *select_lex = parse(
       "INSERT INTO t VALUES (1,2) ON DUPLICATE KEY UPDATE c= 44, a= 55", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -212,7 +212,7 @@ TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
 
 TEST_F(SelectLexVisitorTest, Update) {
   SELECT_LEX *select_lex = parse("UPDATE t SET a= 0, c= 25", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);

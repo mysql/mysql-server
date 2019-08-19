@@ -681,7 +681,7 @@ class RecLock {
         m_rec_id(rec_id) {
     ut_ad(is_predicate_lock(m_mode));
 
-    init(NULL);
+    init(nullptr);
   }
 
   /**
@@ -693,7 +693,7 @@ class RecLock {
   @param[in] mode		The lock mode
   @param[in] prdt		The predicate for the rtree lock */
   RecLock(que_thr_t *thr, dict_index_t *index, const buf_block_t *block,
-          ulint heap_no, ulint mode, lock_prdt_t *prdt = NULL)
+          ulint heap_no, ulint mode, lock_prdt_t *prdt = nullptr)
       : m_thr(thr),
         m_trx(thr_get_trx(thr)),
         m_mode(mode),
@@ -712,7 +712,7 @@ class RecLock {
       : m_thr(), m_trx(), m_mode(mode), m_index(index), m_rec_id(rec_id) {
     ut_ad(is_predicate_lock(m_mode));
 
-    init(NULL);
+    init(nullptr);
   }
 
   /**
@@ -745,7 +745,8 @@ class RecLock {
                                 we've managed to jump in front of other waiting
                                 transactions and got the lock granted, so there
                                 is no need to wait. */
-  dberr_t add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt = NULL);
+  dberr_t add_to_waitq(const lock_t *wait_for,
+                       const lock_prdt_t *prdt = nullptr);
 
   /**
   Create a lock for a transaction and initialise it.
@@ -828,7 +829,7 @@ class RecLock {
     ut_ad(lock_mutex_own());
     ut_ad(!srv_read_only_mode);
     ut_ad(m_index->is_clustered() || !dict_index_is_online_ddl(m_index));
-    ut_ad(m_thr == NULL || m_trx == thr_get_trx(m_thr));
+    ut_ad(m_thr == nullptr || m_trx == thr_get_trx(m_thr));
 
     m_size = is_predicate_lock(m_mode) ? lock_size(m_mode) : lock_size(page);
 

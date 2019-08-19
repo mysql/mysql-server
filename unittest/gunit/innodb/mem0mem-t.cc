@@ -73,7 +73,7 @@ TEST_F(mem0mem, memheapistop) {
   /* Allocate another chunk and check that our string is not at the
   top anymore. */
   dummy = mem_heap_alloc(heap, 32);
-  ut_a(dummy != NULL);
+  ut_a(dummy != nullptr);
   EXPECT_FALSE(mem_heap_is_top(heap, str_in_heap, str_len + 1));
 
   /* Cause the heap to allocate a second block and retest. */

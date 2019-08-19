@@ -206,13 +206,13 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
     dict_mutex_exit_for_mysql();
 
-    ut_ad(index != NULL);
+    ut_ad(index != nullptr);
     err = row_quiesce_write_one_index(index, file, thd);
   }
 
   /* Write the table indexes meta data. */
   for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != 0 && err == DB_SUCCESS;
+       index != nullptr && err == DB_SUCCESS;
        index = UT_LIST_GET_NEXT(indexes, index)) {
     err = row_quiesce_write_one_index(index, file, thd);
   }
@@ -369,7 +369,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   const char *hostname = server_get_hostname();
 
   /* Play it safe and check for NULL. */
-  if (hostname == 0) {
+  if (hostname == nullptr) {
     static const char NullHostname[] = "Hostname unknown";
 
     ib::warn(ER_IB_MSG_1013) << "Unable to determine server hostname.";
@@ -392,7 +392,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   /* The table name includes the NUL byte. */
-  ut_a(table->name.m_name != NULL);
+  ut_a(table->name.m_name != nullptr);
   len = static_cast<ib_uint32_t>(strlen(table->name.m_name) + 1);
 
   /* Write the table name. */
@@ -469,13 +469,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
 
-  dd_get_meta_data_filename(table, NULL, name, sizeof(name));
+  dd_get_meta_data_filename(table, nullptr, name, sizeof(name));
 
   ib::info(ER_IB_MSG_1014) << "Writing table metadata to '" << name << "'";
 
   FILE *file = fopen(name, "w+b");
 
-  if (file == NULL) {
+  if (file == nullptr) {
     ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
             strerror(errno));
 
@@ -527,7 +527,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   byte *transfer_key = ptr;
   lint elen;
 
-  ut_ad(table->encryption_key != NULL && table->encryption_iv != NULL);
+  ut_ad(table->encryption_key != nullptr && table->encryption_iv != nullptr);
 
   /* Write the encryption key size. */
   mach_write_to_4(key_size, ENCRYPTION_KEY_LEN);
@@ -554,7 +554,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   elen = my_aes_encrypt(
       reinterpret_cast<unsigned char *>(table->encryption_key),
       ENCRYPTION_KEY_LEN, ptr, reinterpret_cast<unsigned char *>(transfer_key),
-      ENCRYPTION_KEY_LEN, my_aes_256_ecb, NULL, false);
+      ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -575,7 +575,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   elen = my_aes_encrypt(reinterpret_cast<unsigned char *>(table->encryption_iv),
                         ENCRYPTION_KEY_LEN, ptr,
                         reinterpret_cast<unsigned char *>(transfer_key),
-                        ENCRYPTION_KEY_LEN, my_aes_256_ecb, NULL, false);
+                        ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -613,7 +613,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   we need save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
-  if (table->encryption_key == NULL) {
+  if (table->encryption_key == nullptr) {
     lint old_size = mem_heap_get_size(table->heap);
 
     table->encryption_key =
@@ -626,7 +626,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     dict_sys->size += new_size - old_size;
 
     fil_space_t *space = fil_space_get(table->space);
-    ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
     memcpy(table->encryption_key, space->encryption_key, ENCRYPTION_KEY_LEN);
     memcpy(table->encryption_iv, space->encryption_iv, ENCRYPTION_KEY_LEN);
@@ -639,7 +639,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   FILE *file = fopen(name, "w+b");
 
-  if (file == NULL) {
+  if (file == nullptr) {
     ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
             strerror(errno));
 
@@ -670,8 +670,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   /* Clean the encryption information */
-  table->encryption_key = NULL;
-  table->encryption_iv = NULL;
+  table->encryption_key = nullptr;
+  table->encryption_iv = nullptr;
 
   return (err);
 }
@@ -686,7 +686,7 @@ static bool row_quiesce_table_has_fts_index(
   dict_mutex_enter_for_mysql();
 
   for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != 0; index = UT_LIST_GET_NEXT(indexes, index)) {
+       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
     if (index->type & DICT_FTS) {
       exists = true;
       break;
@@ -702,13 +702,13 @@ static bool row_quiesce_table_has_fts_index(
 void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
                              trx_t *trx) /*!< in/out: transaction/session */
 {
-  ut_a(trx->mysql_thd != 0);
+  ut_a(trx->mysql_thd != nullptr);
   ut_a(srv_n_purge_threads > 0);
   ut_ad(!srv_read_only_mode);
 
-  ut_a(trx->mysql_thd != 0);
+  ut_a(trx->mysql_thd != nullptr);
 
-  ut_ad(fil_space_get(table->space) != NULL);
+  ut_ad(fil_space_get(table->space) != nullptr);
 
   ib::info(ER_IB_MSG_1016) << "Sync to disk of " << table->name << " started.";
 
@@ -767,7 +767,7 @@ void row_quiesce_table_complete(
 {
   ulint count = 0;
 
-  ut_a(trx->mysql_thd != 0);
+  ut_a(trx->mysql_thd != nullptr);
 
   /* We need to wait for the operation to complete if the
   transaction has been killed. */
@@ -790,9 +790,9 @@ void row_quiesce_table_complete(
   the user tries to drop the database (remove directory). */
   char cfg_name[OS_FILE_MAX_PATH];
 
-  dd_get_meta_data_filename(table, NULL, cfg_name, sizeof(cfg_name));
+  dd_get_meta_data_filename(table, nullptr, cfg_name, sizeof(cfg_name));
 
-  os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
+  os_file_delete_if_exists(innodb_data_file_key, cfg_name, nullptr);
 
   ib::info(ER_IB_MSG_1024) << "Deleting the meta-data file '" << cfg_name
                            << "'";
@@ -802,7 +802,7 @@ void row_quiesce_table_complete(
 
     srv_get_encryption_data_filename(table, cfp_name, sizeof(cfp_name));
 
-    os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
+    os_file_delete_if_exists(innodb_data_file_key, cfp_name, nullptr);
 
     ib::info(ER_IB_MSG_1025)
         << "Deleting the meta-data file '" << cfp_name << "'";

@@ -483,16 +483,16 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
         [this](const std::string &, const MySQLSession::RowProcessor &processor,
                const MySQLSession::FieldValidator &) {
           session_factory.get(0).query_impl(
-              processor,
-              {
-                  {"replicaset-1", "instance-1", "HA", "0.2", "0",
-                   "localhost:3310", "localhost:33100"},
-                  {"replicaset-1", "instance-2", "arbitrary_string", "1.5", "1",
-                   "localhost:3320", NULL},
-                  {"replicaset-1", "instance-3", "", "0.0", "99", "localhost",
-                   NULL},
-                  {"replicaset-1", "instance-4", "", NULL, NULL, NULL, NULL},
-              });
+              processor, {
+                             {"replicaset-1", "instance-1", "HA", "0.2", "0",
+                              "localhost:3310", "localhost:33100"},
+                             {"replicaset-1", "instance-2", "arbitrary_string",
+                              "1.5", "1", "localhost:3320", nullptr},
+                             {"replicaset-1", "instance-3", "", "0.0", "99",
+                              "localhost", nullptr},
+                             {"replicaset-1", "instance-4", "", nullptr,
+                              nullptr, nullptr, nullptr},
+                         });
         };
     EXPECT_CALL(session_factory.get(0), query(StartsWith(query_metadata), _, _))
         .Times(1)
@@ -556,18 +556,18 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
                const MySQLSession::FieldValidator &) {
           session_factory.get(0).query_impl(
               processor, {
-                             {"replicaset-2", "instance-4", "HA", NULL, NULL,
-                              "localhost2:3333", NULL},
-                             {"replicaset-1", "instance-1", "HA", NULL, NULL,
-                              "localhost1:1111", NULL},
-                             {"replicaset-1", "instance-2", "HA", NULL, NULL,
-                              "localhost1:2222", NULL},
-                             {"replicaset-1", "instance-3", "HA", NULL, NULL,
-                              "localhost1:3333", NULL},
-                             {"replicaset-3", "instance-5", "HA", NULL, NULL,
-                              "localhost3:3333", NULL},
-                             {"replicaset-3", "instance-6", "HA", NULL, NULL,
-                              "localhost3:3333", NULL},
+                             {"replicaset-2", "instance-4", "HA", nullptr,
+                              nullptr, "localhost2:3333", nullptr},
+                             {"replicaset-1", "instance-1", "HA", nullptr,
+                              nullptr, "localhost1:1111", nullptr},
+                             {"replicaset-1", "instance-2", "HA", nullptr,
+                              nullptr, "localhost1:2222", nullptr},
+                             {"replicaset-1", "instance-3", "HA", nullptr,
+                              nullptr, "localhost1:3333", nullptr},
+                             {"replicaset-3", "instance-5", "HA", nullptr,
+                              nullptr, "localhost3:3333", nullptr},
+                             {"replicaset-3", "instance-6", "HA", nullptr,
+                              nullptr, "localhost3:3333", nullptr},
                          });
         };
     EXPECT_CALL(session_factory.get(0), query(StartsWith(query_metadata), _, _))
@@ -1970,12 +1970,12 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
                                    const MySQLSession::FieldValidator &) {
     session_factory.get(0).query_impl(
         processor, {
-                       {"replicaset-1", "instance-1", "HA", NULL, NULL,
-                        "localhost:3310", NULL},
-                       {"replicaset-1", "instance-2", "HA", NULL, NULL,
-                        "localhost:3320", NULL},
-                       {"replicaset-1", "instance-3", "HA", NULL, NULL,
-                        "localhost:3330", NULL},
+                       {"replicaset-1", "instance-1", "HA", nullptr, nullptr,
+                        "localhost:3310", nullptr},
+                       {"replicaset-1", "instance-2", "HA", nullptr, nullptr,
+                        "localhost:3320", nullptr},
+                       {"replicaset-1", "instance-3", "HA", nullptr, nullptr,
+                        "localhost:3330", nullptr},
                    });
   };
   EXPECT_CALL(session_factory.get(session),
@@ -2037,12 +2037,12 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
                                    const MySQLSession::FieldValidator &) {
     session_factory.get(0).query_impl(
         processor, {
-                       {"replicaset-1", "instance-1", "HA", NULL, NULL,
-                        "localhost:3310", NULL},
-                       {"replicaset-1", "instance-2", "HA", NULL, NULL,
-                        "localhost:3320", NULL},
-                       {"replicaset-1", "instance-3", "HA", NULL, NULL,
-                        "localhost:3330", NULL},
+                       {"replicaset-1", "instance-1", "HA", nullptr, nullptr,
+                        "localhost:3310", nullptr},
+                       {"replicaset-1", "instance-2", "HA", nullptr, nullptr,
+                        "localhost:3320", nullptr},
+                       {"replicaset-1", "instance-3", "HA", nullptr, nullptr,
+                        "localhost:3330", nullptr},
                    });
   };
   EXPECT_CALL(session_factory.get(session),

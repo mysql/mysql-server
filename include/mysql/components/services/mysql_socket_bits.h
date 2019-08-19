@@ -56,7 +56,7 @@ struct MYSQL_SOCKET {
   @sa mysql_socket_setfd
 */
 static inline MYSQL_SOCKET mysql_socket_invalid() {
-  MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, NULL};
+  MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, nullptr};
   return mysql_socket;
 }
 

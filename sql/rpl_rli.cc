@@ -512,7 +512,7 @@ bool Relay_log_info::is_group_relay_log_name_invalid(const char **errmsg) {
   static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
   LOG_INFO linfo;
 
-  *errmsg = 0;
+  *errmsg = nullptr;
   if (relay_log.find_log_pos(&linfo, group_relay_log_name, true)) {
     errmsg_fmt =
         "Could not find target log file mentioned in "
@@ -1090,7 +1090,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
         log_index_name = add_channel_to_relay_log_name(
             relay_bin_index_channel, FN_REFLEN, index_file_withoutext);
       } else
-        log_index_name = 0;
+        log_index_name = nullptr;
 
       if (relay_log.open_index_file(log_index_name, ln, true)) {
         LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
@@ -1101,7 +1101,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
       mysql_mutex_lock(&mi->data_lock);
       mysql_mutex_lock(log_lock);
       if (relay_log.open_binlog(
-              ln, 0,
+              ln, nullptr,
               (max_relay_log_size ? max_relay_log_size : max_binlog_size), true,
               true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
               mi->get_mi_description_event())) {
@@ -1503,7 +1503,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
   abort_pos_wait = 0;
   log_space_limit = relay_log_space_limit;
   log_space_total = 0;
-  tables_to_lock = 0;
+  tables_to_lock = nullptr;
   tables_to_lock_count = 0;
 
   char pattern[FN_REFLEN];
@@ -1615,7 +1615,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       log_index_name = add_channel_to_relay_log_name(
           relay_bin_index_channel, FN_REFLEN, index_file_withoutext);
     } else
-      log_index_name = 0;
+      log_index_name = nullptr;
 
     if (relay_log.open_index_file(log_index_name, ln, true)) {
       LogErr(ERROR_LEVEL, ER_RPL_OPEN_INDEX_FILE_FAILED);
@@ -1673,8 +1673,9 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     mysql_mutex_lock(log_lock);
 
     if (relay_log.open_binlog(
-            ln, 0, (max_relay_log_size ? max_relay_log_size : max_binlog_size),
-            true, true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
+            ln, nullptr,
+            (max_relay_log_size ? max_relay_log_size : max_binlog_size), true,
+            true /*need_lock_index=true*/, true /*need_sid_lock=true*/,
             mi->get_mi_description_event())) {
       mysql_mutex_unlock(log_lock);
       LogErr(ERROR_LEVEL, ER_RPL_CANT_OPEN_LOG_IN_RLI_INIT_INFO);

@@ -468,7 +468,7 @@ int Server::plugin_exit(MYSQL_PLUGIN) {
   {
     RWLock_writelock slock(instance_rwl);
     ngs::free_object(instance);
-    instance = NULL;
+    instance = nullptr;
   }
 
   log_debug("Exit done");
@@ -551,7 +551,7 @@ bool Server::on_net_startup() {
     bool mysqld_have_ssl = false;
     bool skip_networking = false;
     bool skip_name_resolve = false;
-    char *tls_version = NULL;
+    char *tls_version = nullptr;
 
     sql_result.get(&skip_networking, &skip_name_resolve, &mysqld_have_ssl,
                    &ssl_config.ssl_key, &ssl_config.ssl_ca,

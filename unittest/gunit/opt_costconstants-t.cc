@@ -573,7 +573,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   const LEX_CSTRING io_block_read_name = {
       STRING_WITH_LEN("IO_BLOCK_READ_COST")};
   EXPECT_EQ(cost_constants.update_engine_cost_constant(
-                NULL, default_name, 0, io_block_read_name, new_value1),
+                nullptr, default_name, 0, io_block_read_name, new_value1),
             COST_CONSTANT_OK);
 
   // Verify that the cost constant is updated
@@ -584,7 +584,7 @@ TEST_F(CostConstantsTest, CostConstants) {
     Do a second update of the same default value.
   */
   EXPECT_EQ(cost_constants.update_engine_cost_constant(
-                NULL, default_name, 0, io_block_read_name, new_value2),
+                nullptr, default_name, 0, io_block_read_name, new_value2),
             COST_CONSTANT_OK);
 
   // Verify that the cost constant is updated
@@ -595,10 +595,10 @@ TEST_F(CostConstantsTest, CostConstants) {
     Test with illegal cost constant values.
   */
   EXPECT_EQ(cost_constants.update_engine_cost_constant(
-                NULL, default_name, 0, io_block_read_name, -1.0),
+                nullptr, default_name, 0, io_block_read_name, -1.0),
             INVALID_COST_VALUE);
   EXPECT_EQ(se_const->io_block_read_cost(), new_value2);
-  EXPECT_EQ(cost_constants.update_engine_cost_constant(NULL, default_name, 0,
+  EXPECT_EQ(cost_constants.update_engine_cost_constant(nullptr, default_name, 0,
                                                        io_block_read_name, 0.0),
             INVALID_COST_VALUE);
   EXPECT_EQ(se_const->io_block_read_cost(), new_value2);
@@ -608,14 +608,14 @@ TEST_F(CostConstantsTest, CostConstants) {
   */
   const LEX_CSTRING lunch_cost_name = {STRING_WITH_LEN("LUNCH_COST")};
   EXPECT_EQ(cost_constants.update_engine_cost_constant(
-                NULL, default_name, 0, lunch_cost_name, new_value1),
+                nullptr, default_name, 0, lunch_cost_name, new_value1),
             UNKNOWN_COST_NAME);
 
   /*
     Test handling of illegal storage category number.
   */
   EXPECT_EQ(cost_constants.update_engine_cost_constant(
-                NULL, default_name, 100, io_block_read_name, new_value1),
+                nullptr, default_name, 100, io_block_read_name, new_value1),
             INVALID_DEVICE_TYPE);
 
   // Verify that the cost constant is not updated
@@ -644,7 +644,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   // Update the default value and verify that the cost constant for both
   // tables are changed.
   EXPECT_EQ(cost_constants2.update_engine_cost_constant(
-                NULL, default_name, 0, io_block_read_name, new_value1),
+                nullptr, default_name, 0, io_block_read_name, new_value1),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_cost1->io_block_read_cost(), new_value1);
   EXPECT_EQ(se_cost2->io_block_read_cost(), new_value1);
@@ -678,7 +678,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   // Update the default value and verify that the cost constant for both
   // tables are changed.
   EXPECT_EQ(cost_constants3.update_engine_cost_constant(
-                NULL, default_name, 0, io_block_read_name, new_value1),
+                nullptr, default_name, 0, io_block_read_name, new_value1),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_cost_karius->io_block_read_cost(), new_value1);
   EXPECT_EQ(se_cost_baktus->io_block_read_cost(), new_value1);
@@ -686,7 +686,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   // Update one of the storage engines with a new cost value and verify that
   // only this engine got the new cost value
   EXPECT_EQ(cost_constants3.update_engine_cost_constant(
-                NULL, karius_name, 0, io_block_read_name, new_value2),
+                nullptr, karius_name, 0, io_block_read_name, new_value2),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_cost_karius->io_block_read_cost(), new_value2);
   EXPECT_EQ(se_cost_baktus->io_block_read_cost(), new_value1);
@@ -694,7 +694,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   // Do a new update of the default value and verify that only the storage
   // engine that still is using the default value is changed.
   EXPECT_EQ(cost_constants3.update_engine_cost_constant(
-                NULL, default_name, 0, io_block_read_name, new_value3),
+                nullptr, default_name, 0, io_block_read_name, new_value3),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_cost_karius->io_block_read_cost(), new_value2);
   EXPECT_EQ(se_cost_baktus->io_block_read_cost(), new_value3);

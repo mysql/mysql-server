@@ -91,7 +91,7 @@ static inline struct PSI_idle_locker *inline_mysql_start_idle_wait(
   @sa MYSQL_START_IDLE_WAIT.
 */
 static inline void inline_mysql_end_idle_wait(struct PSI_idle_locker *locker) {
-  if (likely(locker != NULL)) {
+  if (likely(locker != nullptr)) {
     PSI_IDLE_CALL(end_idle_wait)(locker);
   }
 }

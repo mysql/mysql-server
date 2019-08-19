@@ -109,11 +109,12 @@ void Callback_command_delegate::Row_data::clone_fields(const Row_data &other) {
   }
 }
 
-Callback_command_delegate::Callback_command_delegate() : m_current_row(NULL) {}
+Callback_command_delegate::Callback_command_delegate()
+    : m_current_row(nullptr) {}
 
 Callback_command_delegate::Callback_command_delegate(
     Start_row_callback start_row, End_row_callback end_row)
-    : m_start_row(start_row), m_end_row(end_row), m_current_row(NULL) {}
+    : m_start_row(start_row), m_end_row(end_row), m_current_row(nullptr) {}
 
 void Callback_command_delegate::set_callbacks(Start_row_callback start_row,
                                               End_row_callback end_row) {
@@ -150,7 +151,7 @@ ulong Callback_command_delegate::get_client_capabilities() {
 /****** Getting data ******/
 int Callback_command_delegate::get_null() {
   try {
-    if (m_current_row) m_current_row->fields.push_back(NULL);
+    if (m_current_row) m_current_row->fields.push_back(nullptr);
   } catch (std::exception &DEBUG_VAR(e)) {
     log_debug("Error getting result data: %s", e.what());
     return true;

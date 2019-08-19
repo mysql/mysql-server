@@ -306,9 +306,9 @@ static int add_collation(CHARSET_INFO *cs) {
     cs->number = 0;
     cs->primary_number = 0;
     cs->binary_number = 0;
-    cs->name = NULL;
+    cs->name = nullptr;
     cs->state = 0;
-    cs->sort_order = NULL;
+    cs->sort_order = nullptr;
     cs->state = 0;
   }
   return MY_XML_OK;
@@ -358,7 +358,7 @@ void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader) {
 #define MY_MAX_ALLOWED_BUF 1024 * 1024
 #define MY_CHARSET_INDEX "Index.xml"
 
-const char *charsets_dir = NULL;
+const char *charsets_dir = nullptr;
 
 static bool my_read_charset_file(MY_CHARSET_LOADER *loader,
                                  const char *filename, myf myflags) {
@@ -397,7 +397,7 @@ char *get_charsets_dir(char *buf) {
   char *res;
   DBUG_TRACE;
 
-  if (charsets_dir != NULL)
+  if (charsets_dir != nullptr)
     strmake(buf, charsets_dir, FN_REFLEN - 1);
   else {
     if (test_if_hard_path(sharedir) ||
@@ -412,7 +412,7 @@ char *get_charsets_dir(char *buf) {
   return res;
 }
 
-CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {NULL};
+CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {nullptr};
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
 void add_compiled_collation(CHARSET_INFO *cs) {
@@ -456,7 +456,7 @@ static const char *get_collation_name_alias(const char *name, char *buf,
     snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
     return buf;
   }
-  return NULL;
+  return nullptr;
 }
 
 uint get_collation_number(const char *name) {
@@ -507,7 +507,7 @@ static uint get_charset_number_internal(const char *charset_name,
 
 static const char *get_charset_name_alias(const char *name) {
   if (!my_strcasecmp(&my_charset_latin1, name, "utf8mb3")) return "utf8";
-  return NULL;
+  return nullptr;
 }
 
 uint get_charset_number(const char *charset_name, uint cs_flags) {
@@ -561,12 +561,12 @@ static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader_arg,
       if (!(cs->state & MY_CS_READY)) {
         if ((cs->cset->init && cs->cset->init(cs, loader_arg)) ||
             (cs->coll->init && cs->coll->init(cs, loader_arg))) {
-          cs = NULL;
+          cs = nullptr;
         } else
           cs->state |= MY_CS_READY;
       }
     } else
-      cs = NULL;
+      cs = nullptr;
 
     mysql_mutex_unlock(&THR_LOCK_charset);
   }
@@ -581,7 +581,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
 
   std::call_once(charsets_initialized, init_available_charsets);
 
-  if (cs_number >= array_elements(all_charsets)) return NULL;
+  if (cs_number >= array_elements(all_charsets)) return nullptr;
 
   my_charset_loader_init_mysys(&loader);
   cs = get_internal_charset(&loader, cs_number, flags);
@@ -613,7 +613,7 @@ CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
 
   cs_number = get_collation_number(name);
   my_charset_loader_init_mysys(loader);
-  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;
+  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : nullptr;
 
   if (!cs && (flags & MY_WME)) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -649,7 +649,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
   std::call_once(charsets_initialized, init_available_charsets);
 
   cs_number = get_charset_number(cs_name, cs_flags);
-  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;
+  cs = cs_number ? get_internal_charset(loader, cs_number, flags) : nullptr;
 
   if (!cs && (flags & MY_WME)) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -687,7 +687,7 @@ bool resolve_charset(const char *cs_name, const CHARSET_INFO *default_cs,
                      const CHARSET_INFO **cs) {
   *cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
-  if (*cs == NULL) {
+  if (*cs == nullptr) {
     *cs = default_cs;
     return true;
   }
@@ -715,7 +715,7 @@ bool resolve_collation(const char *cl_name, const CHARSET_INFO *default_cl,
                        const CHARSET_INFO **cl) {
   *cl = get_charset_by_name(cl_name, MYF(0));
 
-  if (*cl == NULL) {
+  if (*cl == nullptr) {
     *cl = default_cl;
     return true;
   }

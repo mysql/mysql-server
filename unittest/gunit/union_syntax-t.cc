@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class UnionSyntaxTest : public ParserTest {
 
     if (num_terms > 1) {
       SELECT_LEX *term2 = term1->next_select();
-      ASSERT_FALSE(term2 == NULL);
+      ASSERT_FALSE(term2 == nullptr);
 
       EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
@@ -113,13 +113,13 @@ string parenthesize(string query, int n) {
 
 TEST_F(UnionSyntaxTest, QueryExpParensDualOrder) {
   SELECT_LEX *term = parse("( SELECT 1 FROM t1 ORDER BY 2 ) ORDER BY 3");
-  ASSERT_FALSE(term == NULL);
+  ASSERT_FALSE(term == nullptr);
   EXPECT_EQ(nullptr, term->next_select());
   EXPECT_EQ(nullptr, term->first_inner_unit());
 
   // The query expression.
   SELECT_LEX_UNIT *exp = term->master_unit();
-  ASSERT_FALSE(exp == NULL);
+  ASSERT_FALSE(exp == nullptr);
   EXPECT_EQ(term, exp->first_select());
 
   // Table expression
@@ -136,13 +136,13 @@ TEST_F(UnionSyntaxTest, QueryExpParensDualOrder) {
 
 TEST_F(UnionSyntaxTest, QueryExpParensOrder) {
   SELECT_LEX *term = parse("(SELECT 1 FROM t1) ORDER BY 3");
-  ASSERT_FALSE(term == NULL);
+  ASSERT_FALSE(term == nullptr);
   EXPECT_EQ(nullptr, term->next_select());
   EXPECT_EQ(nullptr, term->first_inner_unit());
 
   // The query expression.
   SELECT_LEX_UNIT *exp = term->master_unit();
-  ASSERT_FALSE(exp == NULL);
+  ASSERT_FALSE(exp == nullptr);
   EXPECT_EQ(term, exp->first_select());
 
   // Table expression
@@ -153,20 +153,20 @@ TEST_F(UnionSyntaxTest, QueryExpParensOrder) {
   // Inner order clause, outer is used when inner is missing
   EXPECT_EQ(1U, term->order_list.elements);
   ORDER *inner_order = term->order_list.first;
-  ASSERT_FALSE(inner_order == NULL);
+  ASSERT_FALSE(inner_order == nullptr);
   Item *order_exp = *inner_order->item;
   EXPECT_EQ(3, order_exp->val_int());
 }
 
 TEST_F(UnionSyntaxTest, QueryExpParensLimit) {
   SELECT_LEX *term = parse("(SELECT 1 FROM t1 LIMIT 2) LIMIT 3");
-  ASSERT_FALSE(term == NULL);
+  ASSERT_FALSE(term == nullptr);
   EXPECT_EQ(nullptr, term->next_select());
   EXPECT_EQ(nullptr, term->first_inner_unit());
 
   // The query expression.
   SELECT_LEX_UNIT *exp = term->master_unit();
-  ASSERT_FALSE(exp == NULL);
+  ASSERT_FALSE(exp == nullptr);
   EXPECT_EQ(term, exp->first_select());
 
   // Table expression
@@ -219,7 +219,7 @@ const char *get_order_by_column_name(SELECT_LEX_UNIT *query_expression,
                                      int index = 0) {
   SELECT_LEX *fake = query_expression->fake_select_lex;
   // Why can't I use ASSERT_FALSE here?!
-  EXPECT_FALSE(fake == NULL);
+  EXPECT_FALSE(fake == nullptr);
   return get_order_by_column_name(fake, index);
 }
 

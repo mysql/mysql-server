@@ -75,8 +75,8 @@ Plugin_table table_data_lock_waits::m_table_def(
 PFS_engine_table_share table_data_lock_waits::m_share = {
     &pfs_readonly_acl,
     table_data_lock_waits::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_data_lock_waits::get_row_count,
     sizeof(pk_pos_t),
     &m_table_lock,
@@ -98,20 +98,20 @@ ha_rows table_data_lock_waits::get_row_count(void) {
 
 table_data_lock_waits::table_data_lock_waits()
     : PFS_engine_table(&m_share, &m_pk_pos),
-      m_row(NULL),
+      m_row(nullptr),
       m_pos(),
       m_next_pos(),
       m_pk_pos() {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
-    m_iterator[i] = NULL;
+    m_iterator[i] = nullptr;
   }
 }
 
 void table_data_lock_waits::destroy_iterators() {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
-    if (m_iterator[i] != NULL) {
+    if (m_iterator[i] != nullptr) {
       g_data_lock_inspector[i]->destroy_data_lock_wait_iterator(m_iterator[i]);
-      m_iterator[i] = NULL;
+      m_iterator[i] = nullptr;
     }
   }
 }
@@ -133,15 +133,15 @@ int table_data_lock_waits::rnd_next(void) {
        m_pos.next_engine()) {
     unsigned int index = m_pos.m_index_1;
 
-    if (m_iterator[index] == NULL) {
-      if (g_data_lock_inspector[index] == NULL) {
+    if (m_iterator[index] == nullptr) {
+      if (g_data_lock_inspector[index] == nullptr) {
         continue;
       }
 
       m_iterator[index] =
           g_data_lock_inspector[index]->create_data_lock_wait_iterator();
 
-      if (m_iterator[index] == NULL) {
+      if (m_iterator[index] == nullptr) {
         continue;
       }
     }
@@ -151,7 +151,7 @@ int table_data_lock_waits::rnd_next(void) {
 
     for (;;) {
       data = m_container.get_row(m_pos.m_index_2);
-      if (data != NULL) {
+      if (data != nullptr) {
         m_row = data;
         m_next_pos.set_after(&m_pos);
         m_pk_pos.set(&m_row->m_hidden_pk);
@@ -207,15 +207,15 @@ int table_data_lock_waits::rnd_pos(const void *pos) {
                 "We don't support multiple engines yet.");
   unsigned int index = 0;
 
-  if (m_iterator[index] == NULL) {
-    if (g_data_lock_inspector[index] == NULL) {
+  if (m_iterator[index] == nullptr) {
+    if (g_data_lock_inspector[index] == nullptr) {
       return HA_ERR_RECORD_DELETED;
     }
 
     m_iterator[index] =
         g_data_lock_inspector[index]->create_data_lock_wait_iterator();
 
-    if (m_iterator[index] == NULL) {
+    if (m_iterator[index] == nullptr) {
       return HA_ERR_RECORD_DELETED;
     }
   }
@@ -228,7 +228,7 @@ int table_data_lock_waits::rnd_pos(const void *pos) {
             m_pk_pos.m_blocking_engine_lock_id,
             m_pk_pos.m_blocking_engine_lock_id_length);
   data = m_container.get_row(0);
-  if (data != NULL) {
+  if (data != nullptr) {
     m_row = data;
     return 0;
   }
@@ -237,7 +237,7 @@ int table_data_lock_waits::rnd_pos(const void *pos) {
 }
 
 int table_data_lock_waits::index_init(uint idx, bool) {
-  PFS_index_data_lock_waits *result = NULL;
+  PFS_index_data_lock_waits *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -276,7 +276,7 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
                                            Field **fields, bool read_all) {
   Field *f;
 
-  if (unlikely(m_row == NULL)) {
+  if (unlikely(m_row == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 

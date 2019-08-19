@@ -128,7 +128,7 @@ class Connection_delay_action : public Connection_event_observer,
   /** Destructor */
   ~Connection_delay_action() {
     deinit();
-    m_lock = 0;
+    m_lock = nullptr;
   }
 
   void init(Connection_event_coordinator_services *coordinator);

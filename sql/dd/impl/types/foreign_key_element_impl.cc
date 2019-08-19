@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ bool Foreign_key_element_impl::restore_attributes(const Raw_record &r) {
   m_column = m_foreign_key->table_impl().get_column(
       r.read_ref_id(Foreign_key_column_usage::FIELD_COLUMN_ID));
 
-  return (m_column == NULL);
+  return (m_column == nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////

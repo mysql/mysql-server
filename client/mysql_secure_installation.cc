@@ -46,13 +46,13 @@
 using namespace std;
 
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
-static char *opt_host = 0;
-static char *opt_user = 0;
+static char *opt_host = nullptr;
+static char *opt_user = nullptr;
 static uint opt_port = 0;
 static uint opt_protocol = 0;
-static char *opt_socket = 0;
+static char *opt_socket = nullptr;
 static MYSQL mysql;
-static char *password = 0;
+static char *password = nullptr;
 static bool password_provided = false;
 static bool g_expire_password_on_exit = false;
 static bool opt_use_default = false;
@@ -64,17 +64,19 @@ static const char *shared_memory_base_name = default_shared_memory_base_name;
 #include "sslopt-vars.h"
 
 static const char *load_default_groups[] = {"mysql_secure_installation",
-                                            "mysql", "client", 0};
+                                            "mysql", "client", nullptr};
 
 static struct my_option my_connection_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, (longlong) "localhost", 0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host.", &opt_host, &opt_host, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, (longlong) "localhost", 0, 0, nullptr, 0,
+     nullptr},
     {"password", 'p',
      "Password to connect to the server. If password is not "
      "given it's asked from the tty.",
-     0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -86,10 +88,11 @@ static struct my_option my_connection_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_port, &opt_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol to use for connection (tcp, socket, pipe, memory).", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "The protocol to use for connection (tcp, socket, pipe, memory).", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
@@ -97,15 +100,17 @@ static struct my_option my_connection_options[] = {
      0},
 #endif
     {"socket", 'S', "Socket file to be used for connection.", &opt_socket,
-     &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_socket, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #include "sslopt-longopts.h"
 
-    {"user", 'u', "User for login if not root.", &opt_user, &opt_user, 0,
-     GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, 0, 0, 0},
+    {"user", 'u', "User for login if not root.", &opt_user, &opt_user, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, nullptr, 0, nullptr},
     {"use-default", 'D', "Execute with no user interactivity", &opt_use_default,
-     &opt_use_default, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_use_default, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     /* End token */
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage() {
   print_version();
@@ -300,7 +305,7 @@ static bool validate_password_exists() {
 static int install_password_validation_component() {
   int reply;
   int component_set = 0;
-  const char *strength = NULL;
+  const char *strength = nullptr;
   bool option_read = false;
   reply= get_response((const char *) "\nVALIDATE PASSWORD COMPONENT can be "
                                      "used to test passwords\nand improve "
@@ -470,17 +475,17 @@ static bool mysql_expire_password(MYSQL *mysql) {
 */
 
 static void set_opt_user_password(int component_set) {
-  char *password1 = 0, *password2 = 0;
+  char *password1 = nullptr, *password2 = nullptr;
   int reply = 0;
 
   for (;;) {
     if (password1) {
       my_free(password1);
-      password1 = NULL;
+      password1 = nullptr;
     }
     if (password2) {
       my_free(password2);
-      password2 = NULL;
+      password2 = nullptr;
     }
 
     password1 = get_tty_password("\nNew password: ");
@@ -508,7 +513,7 @@ static void set_opt_user_password(int component_set) {
     size_t pass_length = strlen(password1);
 
     if ((!component_set) || (reply == (int)'y' || reply == (int)'Y')) {
-      char *query = NULL, *end;
+      char *query = nullptr, *end;
       int tmp = sizeof("SET PASSWORD=") + 3;
       /*
         query string needs memory which is atleast the length of initial part
@@ -524,8 +529,8 @@ static void set_opt_user_password(int component_set) {
       *end++ = '\'';
       my_free(password1);
       my_free(password2);
-      password1 = NULL;
-      password2 = NULL;
+      password1 = nullptr;
+      password2 = nullptr;
       const char *query_const = query;
       if (!execute_query(&query_const, (unsigned int)(end - query))) {
         my_free(query);
@@ -554,10 +559,11 @@ static int get_opt_user_password() {
     */
     MYSQL *con = mysql_real_connect(&mysql, opt_host, opt_user, "", "",
                                     opt_port, opt_socket, 0);
-    if (con != NULL || mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
+    if (con != nullptr ||
+        mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
       fprintf(stdout, "Connecting to MySQL using a blank password.\n");
       my_free(password);
-      password = 0;
+      password = nullptr;
       mysql_close(con);
     } else {
       char prompt[128];
@@ -750,7 +756,7 @@ static void reload_privilege_tables() {
 				     "privilege tables now? (Press y|Y for "
 				     "Yes, any other key for No) : ", 'y');
   if (reply == (int)'y' || reply == (int)'Y') {
-    execute_query_with_message((const char *)"FLUSH PRIVILEGES", NULL);
+    execute_query_with_message((const char *)"FLUSH PRIVILEGES", nullptr);
   } else
     fprintf(stdout, "\n ... skipping.\n");
 }
@@ -763,7 +769,7 @@ int main(int argc, char *argv[]) {
   MY_INIT(argv[0]);
   DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
-  if (mysql_init(&mysql) == NULL) {
+  if (mysql_init(&mysql) == nullptr) {
     printf("... Failed to initialize the MySQL client framework.\n");
     exit(1);
   }
@@ -783,7 +789,7 @@ int main(int argc, char *argv[]) {
   my_getopt_use_args_separator = false;
 
   if ((rc = my_handle_options(&argc, &argv, my_connection_options,
-                              my_arguments_get_one_option, NULL, true))) {
+                              my_arguments_get_one_option, nullptr, true))) {
     DBUG_ASSERT(0);
   }
 

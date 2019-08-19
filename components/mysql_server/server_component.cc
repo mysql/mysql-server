@@ -398,7 +398,7 @@ METADATA("mysql.author", "Oracle Corporation"),
 DECLARE_COMPONENT(mysql_server, "mysql:core")
 /* There are no initialization/deinitialization functions, they will not be
   called as this component is not a regular one. */
-NULL, NULL END_DECLARE_COMPONENT();
+nullptr, nullptr END_DECLARE_COMPONENT();
 
 /**
   Bootstraps service registry and dynamic loader and make ready all basic
@@ -416,7 +416,7 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry) * *registry) {
   /* Seed the registry through registering the registry implementation into it,
     as well as other main bootstrap dynamic loader service implementations. */
   for (int inx = 0;
-       mysql_component_mysql_server.provides[inx].implementation != NULL;
+       mysql_component_mysql_server.provides[inx].implementation != nullptr;
        ++inx) {
     if (imp_mysql_server_registry_registration.register_service(
             mysql_component_mysql_server.provides[inx].name,
@@ -426,7 +426,7 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry) * *registry) {
     }
   }
 
-  if (registry != NULL) {
+  if (registry != nullptr) {
     my_h_service registry_handle;
     if (imp_mysql_server_registry.acquire("registry.mysql_server",
                                           &registry_handle)) {
@@ -468,7 +468,7 @@ void shutdown_dynamic_loader() {
 */
 bool mysql_services_shutdown() {
   for (int inx = 0;
-       mysql_component_mysql_server.provides[inx].implementation != NULL;
+       mysql_component_mysql_server.provides[inx].implementation != nullptr;
        ++inx) {
     if (imp_mysql_server_registry_registration.unregister(
             mysql_component_mysql_server.provides[inx].name)) {

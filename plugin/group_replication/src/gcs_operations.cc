@@ -32,7 +32,7 @@
 const std::string Gcs_operations::gcs_engine = "xcom";
 
 Gcs_operations::Gcs_operations()
-    : gcs_interface(NULL),
+    : gcs_interface(nullptr),
       injected_view_modification(false),
       leave_coordination_leaving(false),
       leave_coordination_left(false),
@@ -69,9 +69,9 @@ int Gcs_operations::initialize() {
   leave_coordination_leaving = false;
   leave_coordination_left = false;
 
-  DBUG_ASSERT(gcs_interface == NULL);
+  DBUG_ASSERT(gcs_interface == nullptr);
   if ((gcs_interface = Gcs_interface_factory::get_interface_implementation(
-           gcs_engine)) == NULL) {
+           gcs_engine)) == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_ENG_INIT_FAILED,
                  gcs_engine.c_str());
@@ -101,9 +101,9 @@ void Gcs_operations::finalize() {
   gcs_operations_lock->wrlock();
   finalize_ongoing_lock->unlock();
 
-  if (gcs_interface != NULL) gcs_interface->finalize();
+  if (gcs_interface != nullptr) gcs_interface->finalize();
   Gcs_interface_factory::cleanup(gcs_engine);
-  gcs_interface = NULL;
+  gcs_interface = nullptr;
 
   finalize_ongoing_lock->wrlock();
   finalize_ongoing = false;
@@ -117,7 +117,7 @@ enum enum_gcs_error Gcs_operations::configure(
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface != NULL) error = gcs_interface->initialize(parameters);
+  if (gcs_interface != nullptr) error = gcs_interface->initialize(parameters);
 
   gcs_operations_lock->unlock();
   return error;
@@ -129,7 +129,7 @@ enum enum_gcs_error Gcs_operations::reconfigure(
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface != NULL) error = gcs_interface->configure(parameters);
+  if (gcs_interface != nullptr) error = gcs_interface->configure(parameters);
 
   gcs_operations_lock->unlock();
   return error;
@@ -180,7 +180,7 @@ enum enum_gcs_error Gcs_operations::join(
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface == NULL || !gcs_interface->is_initialized()) {
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
     gcs_operations_lock->unlock();
     return GCS_NOK;
@@ -195,7 +195,7 @@ enum enum_gcs_error Gcs_operations::join(
   Gcs_control_interface *gcs_control =
       gcs_interface->get_control_session(group_id);
 
-  if (gcs_communication == NULL || gcs_control == NULL) {
+  if (gcs_communication == nullptr || gcs_control == nullptr) {
     /* purecov: begin inspected */
     gcs_operations_lock->unlock();
     return GCS_NOK;
@@ -230,13 +230,13 @@ bool Gcs_operations::belongs_to_group() {
   bool res = false;
   gcs_operations_lock->rdlock();
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL && gcs_control->belongs_to_group()) res = true;
+    if (gcs_control != nullptr && gcs_control->belongs_to_group()) res = true;
   }
 
   gcs_operations_lock->unlock();
@@ -265,13 +265,13 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
     goto end;
   }
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL) {
+    if (gcs_control != nullptr) {
       if (!gcs_control->leave()) {
         state = NOW_LEAVING;
         leave_coordination_leaving = true;
@@ -356,16 +356,16 @@ void Gcs_operations::leave_coordination_member_left() {
 
 Gcs_view *Gcs_operations::get_current_view() {
   DBUG_TRACE;
-  Gcs_view *view = NULL;
+  Gcs_view *view = nullptr;
   gcs_operations_lock->rdlock();
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL && gcs_control->belongs_to_group())
+    if (gcs_control != nullptr && gcs_control->belongs_to_group())
       view = gcs_control->get_current_view();
   }
 
@@ -378,13 +378,13 @@ int Gcs_operations::get_local_member_identifier(std::string &identifier) {
   int error = 1;
   gcs_operations_lock->rdlock();
 
-  if (gcs_interface != NULL && gcs_interface->is_initialized()) {
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
     std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
 
-    if (gcs_control != NULL) {
+    if (gcs_control != nullptr) {
       identifier.assign(
           gcs_control->get_local_member_identifier().get_member_id());
       error = 0;
@@ -406,7 +406,7 @@ enum enum_gcs_error Gcs_operations::send_message(
     and ready to use, since plugin can leave the group on errors
     but continue to be active.
   */
-  if (gcs_interface == NULL || !gcs_interface->is_initialized()) {
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     gcs_operations_lock->unlock();
     return skip_if_not_initialized ? GCS_OK : GCS_NOK;
   }
@@ -419,7 +419,7 @@ enum enum_gcs_error Gcs_operations::send_message(
   Gcs_control_interface *gcs_control =
       gcs_interface->get_control_session(group_id);
 
-  if (gcs_communication == NULL || gcs_control == NULL) {
+  if (gcs_communication == nullptr || gcs_control == nullptr) {
     /* purecov: begin inspected */
     gcs_operations_lock->unlock();
     return skip_if_not_initialized ? GCS_OK : GCS_NOK;
@@ -444,7 +444,7 @@ int Gcs_operations::force_members(const char *members) {
   int error = 0;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface == NULL || !gcs_interface->is_initialized()) {
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     error = 1;
@@ -469,7 +469,7 @@ int Gcs_operations::force_members(const char *members) {
     Gcs_group_management_interface *gcs_management =
         gcs_interface->get_management_session(group_id);
 
-    if (gcs_management == NULL) {
+    if (gcs_management == nullptr) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
       error = 1;

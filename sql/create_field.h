@@ -179,7 +179,7 @@ class Create_field {
   bool is_array{false};
 
   Create_field()
-      : after(NULL),
+      : after(nullptr),
         is_explicit_collation(false),
         geom_type(Field::GEOM_GEOMETRY),
         maybe_null(false),

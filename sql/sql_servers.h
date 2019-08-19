@@ -41,17 +41,17 @@ class FOREIGN_SERVER {
   char *db, *scheme, *username, *password, *socket, *owner, *host, *sport;
 
   FOREIGN_SERVER()
-      : server_name(NULL),
+      : server_name(nullptr),
         port(-1),
         server_name_length(0),
-        db(NULL),
-        scheme(NULL),
-        username(NULL),
-        password(NULL),
-        socket(NULL),
-        owner(NULL),
-        host(NULL),
-        sport(NULL) {}
+        db(nullptr),
+        scheme(nullptr),
+        username(nullptr),
+        password(nullptr),
+        socket(nullptr),
+        owner(nullptr),
+        host(nullptr),
+        sport(nullptr) {}
 };
 
 /* cache handlers */
@@ -148,7 +148,7 @@ class Sql_cmd_common_server : public Sql_cmd {
  protected:
   TABLE *table;
 
-  Sql_cmd_common_server() : table(NULL) {}
+  Sql_cmd_common_server() : table(nullptr) {}
 
   virtual ~Sql_cmd_common_server() {}
 

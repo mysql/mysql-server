@@ -392,11 +392,12 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   DBUG_ASSERT(!table->reginfo.join_tab);
   DBUG_ASSERT(qep_tab == table->reginfo.qep_tab);
   Item_subselect *const subselect =
-      qep_tab->join() ? qep_tab->join()->select_lex->master_unit()->item : NULL;
+      qep_tab->join() ? qep_tab->join()->select_lex->master_unit()->item
+                      : nullptr;
 
   DEBUG_SYNC(thd, "filesort_start");
 
-  DBUG_ASSERT(sort_result->sorted_result == NULL);
+  DBUG_ASSERT(sort_result->sorted_result == nullptr);
   sort_result->sorted_result_in_fsbuf = false;
 
   outfile = sort_result->io_cache;
@@ -633,7 +634,7 @@ err:
   if (!subselect || !subselect->is_uncacheable()) {
     if (!sort_result->sorted_result_in_fsbuf) fs_info->free_sort_buffer();
     my_free(fs_info->merge_chunks.array());
-    fs_info->merge_chunks = Merge_chunk_array(NULL, 0);
+    fs_info->merge_chunks = Merge_chunk_array(nullptr, 0);
   }
   close_cached_file(&tempfile);
   close_cached_file(&chunk_file);
@@ -677,7 +678,7 @@ Filesort::Filesort(THD *thd, QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
     : m_thd(thd),
       qep_tab(tab_arg),
       limit(limit_arg),
-      sortorder(NULL),
+      sortorder(nullptr),
       using_pq(false),
       m_force_stable_sort(
           force_stable_sort),  // keep relative order of equiv. elts
@@ -743,7 +744,7 @@ uint Filesort::make_sortorder(ORDER *order) {
     } else
       pos->item = item;
     pos->reverse = (ord->direction == ORDER_DESC);
-    DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
+    DBUG_ASSERT(pos->field != nullptr || pos->item != nullptr);
     DBUG_PRINT("info", ("sorting on %s: %s", (pos->field ? "field" : "item"),
                         (pos->field ? pos->field->field_name : "")));
   }
@@ -755,22 +756,22 @@ void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count) {
 
   // If we already have a chunk array, we're doing sort in a subquery.
   if (!merge_chunks.is_null() && merge_chunks.size() < count) {
-    my_free(merge_chunks.array());             /* purecov: inspected */
-    merge_chunks = Merge_chunk_array(NULL, 0); /* purecov: inspected */
+    my_free(merge_chunks.array());                /* purecov: inspected */
+    merge_chunks = Merge_chunk_array(nullptr, 0); /* purecov: inspected */
   }
 
   void *rawmem = merge_chunks.array();
   const size_t length = sizeof(Merge_chunk) * count;
-  if (NULL == rawmem) {
+  if (nullptr == rawmem) {
     rawmem = my_malloc(key_memory_Filesort_info_merge, length, MYF(MY_WME));
-    if (rawmem == NULL) return; /* purecov: inspected */
+    if (rawmem == nullptr) return; /* purecov: inspected */
   }
 
   if (reinit_io_cache(chunk_file, READ_CACHE, 0L, false, false) ||
       my_b_read(chunk_file, static_cast<uchar *>(rawmem), length)) {
-    my_free(rawmem); /* purecov: inspected */
-    rawmem = NULL;   /* purecov: inspected */
-    count = 0;       /* purecov: inspected */
+    my_free(rawmem);  /* purecov: inspected */
+    rawmem = nullptr; /* purecov: inspected */
+    count = 0;        /* purecov: inspected */
   }
 
   merge_chunks = Merge_chunk_array(static_cast<Merge_chunk *>(rawmem), count);
@@ -1726,7 +1727,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   sort_result->sorted_result_in_fsbuf = false;
   const size_t buf_size = param->fixed_res_length * count;
 
-  DBUG_ASSERT(sort_result->sorted_result == NULL);
+  DBUG_ASSERT(sort_result->sorted_result == nullptr);
   sort_result->sorted_result.reset(static_cast<uchar *>(my_malloc(
       key_memory_Filesort_info_record_pointers, buf_size, MYF(MY_WME))));
   if (!(to = sort_result->sorted_result.get()))
@@ -2277,7 +2278,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
       AddWithSaturate(VARLEN_PREFIX, &sortorder->length);
     AddWithSaturate(sortorder->length, &total_length);
   }
-  sortorder->field = NULL;  // end marker
+  sortorder->field = nullptr;  // end marker
   DBUG_PRINT("info", ("sort_length: %u", total_length));
   return total_length;
 }
@@ -2357,9 +2358,9 @@ Addon_fields *Filesort::get_addon_fields(
     if (!bitmap_is_set(read_set, field->field_index)) continue;
     // part_of_key is empty for a BLOB, so apply this check before the next.
     if (field->flags & BLOB_FLAG) {
-      DBUG_ASSERT(m_sort_param.addon_fields == NULL);
+      DBUG_ASSERT(m_sort_param.addon_fields == nullptr);
       *addon_fields_status = Addon_fields_status::row_contains_blob;
-      return NULL;
+      return nullptr;
     }
     if (filter_covering && !field->part_of_key.is_set(index))
       continue;  // See explanation above filter_covering
@@ -2374,23 +2375,23 @@ Addon_fields *Filesort::get_addon_fields(
     if (field->maybe_null()) null_fields++;
     num_fields++;
   }
-  if (0 == num_fields) return NULL;
+  if (0 == num_fields) return nullptr;
 
   total_length += (null_fields + 7) / 8;
 
   *ppackable_length = packable_length;
 
   if (total_length + sortlength > max_length_for_sort_data) {
-    DBUG_ASSERT(m_sort_param.addon_fields == NULL);
+    DBUG_ASSERT(m_sort_param.addon_fields == nullptr);
     *addon_fields_status = Addon_fields_status::max_length_for_sort_data;
-    return NULL;
+    return nullptr;
   }
 
-  if (m_sort_param.addon_fields == NULL) {
+  if (m_sort_param.addon_fields == nullptr) {
     void *rawmem1 = (*THR_MALLOC)->Alloc(sizeof(Addon_fields));
     void *rawmem2 = (*THR_MALLOC)->Alloc(sizeof(Sort_addon_field) * num_fields);
-    if (rawmem1 == NULL || rawmem2 == NULL)
-      return NULL; /* purecov: inspected */
+    if (rawmem1 == nullptr || rawmem2 == nullptr)
+      return nullptr; /* purecov: inspected */
     Addon_fields_array addon_array(static_cast<Sort_addon_field *>(rawmem2),
                                    num_fields);
     m_sort_param.addon_fields = new (rawmem1) Addon_fields(addon_array);

@@ -143,7 +143,7 @@ static struct st_mysql_auth two_handler = {
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 /* dialog demo where the number of questions is not known in advance */
 static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
@@ -180,7 +180,7 @@ static struct st_mysql_auth three_handler = {
     validate_auth_string_hash,
     set_salt,
     AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
-    NULL};
+    nullptr};
 
 mysql_declare_plugin(dialog){
     MYSQL_AUTHENTICATION_PLUGIN,
@@ -189,13 +189,13 @@ mysql_declare_plugin(dialog){
     "Sergei Golubchik",
     "Dialog plugin demo 1",
     PLUGIN_LICENSE_GPL,
-    NULL, /* Init */
-    NULL, /* Check uninstall */
-    NULL, /* Deinit */
+    nullptr, /* Init */
+    nullptr, /* Check uninstall */
+    nullptr, /* Deinit */
     0x0101,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0,
 },
     {
@@ -205,13 +205,13 @@ mysql_declare_plugin(dialog){
         "Sergei Golubchik",
         "Dialog plugin demo 2",
         PLUGIN_LICENSE_GPL,
-        NULL, /* Init */
-        NULL, /* Check uninstall */
-        NULL, /* Deinit */
+        nullptr, /* Init */
+        nullptr, /* Check uninstall */
+        nullptr, /* Deinit */
         0x0101,
-        NULL,
-        NULL,
-        NULL,
+        nullptr,
+        nullptr,
+        nullptr,
         0,
     } mysql_declare_plugin_end;
 
@@ -256,7 +256,7 @@ static char *builtin_ask(MYSQL *mysql MY_ATTRIBUTE((unused)),
   char *ptr;
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (fgets(buf, buf_len, stdin) == NULL) return NULL;
+  if (fgets(buf, buf_len, stdin) == nullptr) return nullptr;
   if ((ptr = strchr(buf, '\n'))) *ptr = 0;
 
   return buf;
@@ -288,7 +288,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     pkt_len = vio->read_packet(vio, &pkt);
     if (pkt_len < 0) return CR_ERROR;
 
-    if (pkt == 0) {
+    if (pkt == nullptr) {
       /*
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
@@ -349,5 +349,6 @@ static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "dialog", "Sergei Golubchik",
-    "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL", NULL,
-    init_dialog, NULL, NULL, perform_dialog, NULL mysql_end_client_plugin;
+    "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL",
+    nullptr, init_dialog, nullptr, nullptr, perform_dialog,
+    nullptr mysql_end_client_plugin;

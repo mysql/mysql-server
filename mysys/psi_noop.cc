@@ -96,7 +96,7 @@ static int spawn_thread_noop(PSI_thread_key, my_thread_handle *thread,
 }
 
 static PSI_thread *new_thread_noop(PSI_thread_key, const void *, ulonglong) {
-  return NULL;
+  return nullptr;
 }
 
 static void set_thread_id_noop(PSI_thread *, ulonglong) { return; }
@@ -111,7 +111,7 @@ static void set_thread_THD_noop(PSI_thread *, THD *) { return; }
 
 static void set_thread_os_id_noop(PSI_thread *) { return; }
 
-static PSI_thread *get_thread_noop(void) { return NULL; }
+static PSI_thread *get_thread_noop(void) { return nullptr; }
 
 static void set_thread_user_noop(const char *, int) { return; }
 
@@ -220,7 +220,7 @@ static PSI_thread_service_t psi_thread_noop = {
     notify_session_disconnect_noop,
     notify_session_change_user_noop};
 
-struct PSI_thread_bootstrap *psi_thread_hook = NULL;
+struct PSI_thread_bootstrap *psi_thread_hook = nullptr;
 PSI_thread_service_t *psi_thread_service = &psi_thread_noop;
 
 void set_psi_thread_service(void *psi) {
@@ -231,14 +231,16 @@ void set_psi_thread_service(void *psi) {
 
 static void register_mutex_noop(const char *, PSI_mutex_info *, int) { return; }
 
-static PSI_mutex *init_mutex_noop(PSI_mutex_key, const void *) { return NULL; }
+static PSI_mutex *init_mutex_noop(PSI_mutex_key, const void *) {
+  return nullptr;
+}
 
 static void destroy_mutex_noop(PSI_mutex *) { return; }
 
 static PSI_mutex_locker *start_mutex_wait_noop(PSI_mutex_locker_state *,
                                                PSI_mutex *, PSI_mutex_operation,
                                                const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_mutex_wait_noop(PSI_mutex_locker *, int) { return; }
@@ -249,7 +251,7 @@ static PSI_mutex_service_t psi_mutex_noop = {
     register_mutex_noop,   init_mutex_noop,     destroy_mutex_noop,
     start_mutex_wait_noop, end_mutex_wait_noop, unlock_mutex_noop};
 
-struct PSI_mutex_bootstrap *psi_mutex_hook = NULL;
+struct PSI_mutex_bootstrap *psi_mutex_hook = nullptr;
 PSI_mutex_service_t *psi_mutex_service = &psi_mutex_noop;
 
 void set_psi_mutex_service(void *psi) {
@@ -263,7 +265,7 @@ static void register_rwlock_noop(const char *, PSI_rwlock_info *, int) {
 }
 
 static PSI_rwlock *init_rwlock_noop(PSI_rwlock_key, const void *) {
-  return NULL;
+  return nullptr;
 }
 
 static void destroy_rwlock_noop(PSI_rwlock *) { return; }
@@ -271,7 +273,7 @@ static void destroy_rwlock_noop(PSI_rwlock *) { return; }
 static PSI_rwlock_locker *start_rwlock_rdwait_noop(
     struct PSI_rwlock_locker_state_v1 *, struct PSI_rwlock *,
     enum PSI_rwlock_operation, const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_rwlock_rdwait_noop(PSI_rwlock_locker *, int) { return; }
@@ -279,7 +281,7 @@ static void end_rwlock_rdwait_noop(PSI_rwlock_locker *, int) { return; }
 static struct PSI_rwlock_locker *start_rwlock_wrwait_noop(
     struct PSI_rwlock_locker_state_v1 *, struct PSI_rwlock *,
     enum PSI_rwlock_operation, const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_rwlock_wrwait_noop(PSI_rwlock_locker *, int) { return; }
@@ -293,7 +295,7 @@ static PSI_rwlock_service_t psi_rwlock_noop = {
     start_rwlock_rdwait_noop, end_rwlock_rdwait_noop, start_rwlock_wrwait_noop,
     end_rwlock_wrwait_noop,   unlock_rwlock_noop};
 
-struct PSI_rwlock_bootstrap *psi_rwlock_hook = NULL;
+struct PSI_rwlock_bootstrap *psi_rwlock_hook = nullptr;
 PSI_rwlock_service_t *psi_rwlock_service = &psi_rwlock_noop;
 
 void set_psi_rwlock_service(void *psi) {
@@ -304,7 +306,7 @@ void set_psi_rwlock_service(void *psi) {
 
 static void register_cond_noop(const char *, PSI_cond_info *, int) { return; }
 
-static PSI_cond *init_cond_noop(PSI_cond_key, const void *) { return NULL; }
+static PSI_cond *init_cond_noop(PSI_cond_key, const void *) { return nullptr; }
 
 static void destroy_cond_noop(PSI_cond *) { return; }
 
@@ -315,7 +317,7 @@ static void broadcast_cond_noop(PSI_cond *) { return; }
 static struct PSI_cond_locker *start_cond_wait_noop(
     struct PSI_cond_locker_state_v1 *, struct PSI_cond *, struct PSI_mutex *,
     enum PSI_cond_operation, const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_cond_wait_noop(PSI_cond_locker *, int) { return; }
@@ -325,7 +327,7 @@ static PSI_cond_service_t psi_cond_noop = {
     signal_cond_noop,   broadcast_cond_noop, start_cond_wait_noop,
     end_cond_wait_noop};
 
-struct PSI_cond_bootstrap *psi_cond_hook = NULL;
+struct PSI_cond_bootstrap *psi_cond_hook = nullptr;
 PSI_cond_service_t *psi_cond_service = &psi_cond_noop;
 
 void set_psi_cond_service(void *psi) {
@@ -339,17 +341,17 @@ static void register_file_noop(const char *, PSI_file_info *, int) { return; }
 static PSI_file_locker *get_thread_file_name_locker_noop(
     PSI_file_locker_state *, PSI_file_key, enum PSI_file_operation,
     const char *, const void *) {
-  return NULL;
+  return nullptr;
 }
 
 static PSI_file_locker *get_thread_file_stream_locker_noop(
     PSI_file_locker_state *, PSI_file *, enum PSI_file_operation) {
-  return NULL;
+  return nullptr;
 }
 
 static PSI_file_locker *get_thread_file_descriptor_locker_noop(
     PSI_file_locker_state *, File, enum PSI_file_operation) {
-  return NULL;
+  return nullptr;
 }
 
 static void create_file_noop(PSI_file_key, const char *, File) { return; }
@@ -359,7 +361,7 @@ static void start_file_open_wait_noop(PSI_file_locker *, const char *, uint) {
 }
 
 static PSI_file *end_file_open_wait_noop(PSI_file_locker *, void *) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_file_open_wait_and_bind_to_descriptor_noop(PSI_file_locker *,
@@ -406,7 +408,7 @@ static PSI_file_service_t psi_file_noop = {
     end_file_close_wait_noop,
     end_file_rename_wait_noop};
 
-struct PSI_file_bootstrap *psi_file_hook = NULL;
+struct PSI_file_bootstrap *psi_file_hook = nullptr;
 PSI_file_service_t *psi_file_service = &psi_file_noop;
 
 void set_psi_file_service(void *psi) {
@@ -421,7 +423,7 @@ static void register_socket_noop(const char *, PSI_socket_info *, int) {
 
 static PSI_socket *init_socket_noop(PSI_socket_key, const my_socket *,
                                     const struct sockaddr *, socklen_t) {
-  return NULL;
+  return nullptr;
 }
 
 static void destroy_socket_noop(PSI_socket *) { return; }
@@ -430,7 +432,7 @@ static PSI_socket_locker *start_socket_wait_noop(PSI_socket_locker_state *,
                                                  PSI_socket *,
                                                  PSI_socket_operation, size_t,
                                                  const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_socket_wait_noop(PSI_socket_locker *, size_t) { return; }
@@ -452,7 +454,7 @@ static PSI_socket_service_t psi_socket_noop = {
     end_socket_wait_noop, set_socket_state_noop,
     set_socket_info_noop, set_socket_thread_owner_noop};
 
-struct PSI_socket_bootstrap *psi_socket_hook = NULL;
+struct PSI_socket_bootstrap *psi_socket_hook = nullptr;
 PSI_socket_service_t *psi_socket_service = &psi_socket_noop;
 
 void set_psi_socket_service(void *psi) {
@@ -462,7 +464,7 @@ void set_psi_socket_service(void *psi) {
 // ===========================================================================
 
 static PSI_table_share *get_table_share_noop(bool, struct TABLE_SHARE *) {
-  return NULL;
+  return nullptr;
 }
 
 static void release_table_share_noop(PSI_table_share *) { return; }
@@ -472,14 +474,14 @@ static void drop_table_share_noop(bool, const char *, int, const char *, int) {
 }
 
 static PSI_table *open_table_noop(PSI_table_share *, const void *) {
-  return NULL;
+  return nullptr;
 }
 
 static void unbind_table_noop(PSI_table *) { return; }
 
 static PSI_table *rebind_table_noop(PSI_table_share *, const void *,
                                     PSI_table *) {
-  return NULL;
+  return nullptr;
 }
 
 static void close_table_noop(struct TABLE_SHARE *, PSI_table *) { return; }
@@ -487,7 +489,7 @@ static void close_table_noop(struct TABLE_SHARE *, PSI_table *) { return; }
 static struct PSI_table_locker *start_table_io_wait_noop(
     struct PSI_table_locker_state *, struct PSI_table *,
     enum PSI_table_io_operation, uint, const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_table_io_wait_noop(PSI_table_locker *, ulonglong) { return; }
@@ -495,7 +497,7 @@ static void end_table_io_wait_noop(PSI_table_locker *, ulonglong) { return; }
 static struct PSI_table_locker *start_table_lock_wait_noop(
     struct PSI_table_locker_state *, struct PSI_table *,
     enum PSI_table_lock_operation, ulong, const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_table_lock_wait_noop(PSI_table_locker *) { return; }
@@ -510,7 +512,7 @@ static PSI_table_service_t psi_table_noop = {
     end_table_io_wait_noop,   start_table_lock_wait_noop,
     end_table_lock_wait_noop, unlock_table_noop};
 
-struct PSI_table_bootstrap *psi_table_hook = NULL;
+struct PSI_table_bootstrap *psi_table_hook = nullptr;
 PSI_table_service_t *psi_table_service = &psi_table_noop;
 
 void set_psi_table_service(void *psi) {
@@ -524,7 +526,7 @@ static PSI_metadata_lock *create_metadata_lock_noop(void *, const MDL_key *,
                                                     opaque_mdl_duration,
                                                     opaque_mdl_status,
                                                     const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void set_metadata_lock_status_noop(PSI_metadata_lock *,
@@ -534,7 +536,7 @@ static void destroy_metadata_lock_noop(PSI_metadata_lock *) {}
 
 static PSI_metadata_locker *start_metadata_wait_noop(
     PSI_metadata_locker_state *, PSI_metadata_lock *, const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_metadata_wait_noop(PSI_metadata_locker *, int) {}
@@ -544,7 +546,7 @@ static PSI_mdl_service_t psi_mdl_noop = {
     destroy_metadata_lock_noop, start_metadata_wait_noop,
     end_metadata_wait_noop};
 
-struct PSI_mdl_bootstrap *psi_mdl_hook = NULL;
+struct PSI_mdl_bootstrap *psi_mdl_hook = nullptr;
 PSI_mdl_service_t *psi_mdl_service = &psi_mdl_noop;
 
 void set_psi_mdl_service(void *psi) {
@@ -555,7 +557,7 @@ void set_psi_mdl_service(void *psi) {
 
 static PSI_idle_locker *start_idle_wait_noop(PSI_idle_locker_state *,
                                              const char *, uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_idle_wait_noop(PSI_idle_locker *) { return; }
@@ -563,7 +565,7 @@ static void end_idle_wait_noop(PSI_idle_locker *) { return; }
 static PSI_idle_service_t psi_idle_noop = {start_idle_wait_noop,
                                            end_idle_wait_noop};
 
-struct PSI_idle_bootstrap *psi_idle_hook = NULL;
+struct PSI_idle_bootstrap *psi_idle_hook = nullptr;
 PSI_idle_service_t *psi_idle_service = &psi_idle_noop;
 
 void set_psi_idle_service(void *psi) {
@@ -577,10 +579,10 @@ static void register_stage_noop(const char *, PSI_stage_info **, int) {
 }
 
 static PSI_stage_progress *start_stage_noop(PSI_stage_key, const char *, int) {
-  return NULL;
+  return nullptr;
 }
 
-static PSI_stage_progress *get_current_stage_progress_noop() { return NULL; }
+static PSI_stage_progress *get_current_stage_progress_noop() { return nullptr; }
 
 static void end_stage_noop(void) { return; }
 
@@ -588,7 +590,7 @@ static PSI_stage_service_t psi_stage_noop = {
     register_stage_noop, start_stage_noop, get_current_stage_progress_noop,
     end_stage_noop};
 
-struct PSI_stage_bootstrap *psi_stage_hook = NULL;
+struct PSI_stage_bootstrap *psi_stage_hook = nullptr;
 PSI_stage_service_t *psi_stage_service = &psi_stage_noop;
 
 void set_psi_stage_service(void *psi) {
@@ -604,12 +606,12 @@ static void register_statement_noop(const char *, PSI_statement_info *, int) {
 static PSI_statement_locker *get_thread_statement_locker_noop(
     PSI_statement_locker_state *, PSI_statement_key, const void *,
     PSI_sp_share *) {
-  return NULL;
+  return nullptr;
 }
 
 static PSI_statement_locker *refine_statement_noop(PSI_statement_locker *,
                                                    PSI_statement_key) {
-  return NULL;
+  return nullptr;
 }
 
 static void start_statement_noop(PSI_statement_locker *, const char *, uint,
@@ -700,7 +702,7 @@ static PSI_prepared_stmt *create_prepared_stmt_noop(void *, uint,
                                                     PSI_statement_locker *,
                                                     const char *, size_t,
                                                     const char *, size_t) {
-  return NULL;
+  return nullptr;
 }
 
 static void destroy_prepared_stmt_noop(PSI_prepared_stmt *) { return; }
@@ -718,7 +720,7 @@ static void set_prepared_stmt_text_noop(PSI_prepared_stmt *, const char *,
 }
 
 static struct PSI_digest_locker *digest_start_noop(PSI_statement_locker *) {
-  return NULL;
+  return nullptr;
 }
 
 static void digest_end_noop(PSI_digest_locker *,
@@ -728,13 +730,13 @@ static void digest_end_noop(PSI_digest_locker *,
 
 static PSI_sp_share *get_sp_share_noop(uint, const char *, uint, const char *,
                                        uint) {
-  return NULL;
+  return nullptr;
 }
 
 static void release_sp_share_noop(PSI_sp_share *) { return; }
 
 static PSI_sp_locker *start_sp_noop(PSI_sp_locker_state *, PSI_sp_share *) {
-  return NULL;
+  return nullptr;
 }
 
 static void end_sp_noop(PSI_sp_locker *) { return; }
@@ -780,7 +782,7 @@ static PSI_statement_service_t psi_statement_noop = {
     end_sp_noop,
     drop_sp_noop};
 
-struct PSI_statement_bootstrap *psi_statement_hook = NULL;
+struct PSI_statement_bootstrap *psi_statement_hook = nullptr;
 PSI_statement_service_t *psi_statement_service = &psi_statement_noop;
 
 void set_psi_statement_service(void *psi) {
@@ -792,7 +794,7 @@ void set_psi_statement_service(void *psi) {
 static PSI_transaction_locker *get_thread_transaction_locker_noop(
     PSI_transaction_locker_state *, const void *, const ulonglong *, int, bool,
     bool) {
-  return NULL;
+  return nullptr;
 }
 
 static void start_transaction_noop(PSI_transaction_locker *, const char *,
@@ -847,7 +849,7 @@ static PSI_transaction_service_t psi_transaction_noop = {
     inc_transaction_release_savepoint_noop,
     end_transaction_noop};
 
-struct PSI_transaction_bootstrap *psi_transaction_hook = NULL;
+struct PSI_transaction_bootstrap *psi_transaction_hook = nullptr;
 PSI_transaction_service_t *psi_transaction_service = &psi_transaction_noop;
 
 void set_psi_transaction_service(void *psi) {
@@ -860,7 +862,7 @@ static void log_error_noop(unsigned int, PSI_error_operation) {}
 
 static PSI_error_service_t psi_error_noop = {log_error_noop};
 
-struct PSI_error_bootstrap *psi_error_hook = NULL;
+struct PSI_error_bootstrap *psi_error_hook = nullptr;
 PSI_error_service_t *psi_error_service = &psi_error_noop;
 
 void set_psi_error_service(void *psi) {
@@ -875,19 +877,19 @@ static void register_memory_noop(const char *, PSI_memory_info *, int) {
 
 static PSI_memory_key memory_alloc_noop(PSI_memory_key, size_t,
                                         struct PSI_thread **owner) {
-  *owner = NULL;
+  *owner = nullptr;
   return PSI_NOT_INSTRUMENTED;
 }
 
 static PSI_memory_key memory_realloc_noop(PSI_memory_key, size_t, size_t,
                                           struct PSI_thread **owner) {
-  *owner = NULL;
+  *owner = nullptr;
   return PSI_NOT_INSTRUMENTED;
 }
 
 static PSI_memory_key memory_claim_noop(PSI_memory_key, size_t,
                                         struct PSI_thread **owner) {
-  *owner = NULL;
+  *owner = nullptr;
   return PSI_NOT_INSTRUMENTED;
 }
 
@@ -899,7 +901,7 @@ static PSI_memory_service_t psi_memory_noop = {
     register_memory_noop, memory_alloc_noop, memory_realloc_noop,
     memory_claim_noop, memory_free_noop};
 
-struct PSI_memory_bootstrap *psi_memory_hook = NULL;
+struct PSI_memory_bootstrap *psi_memory_hook = nullptr;
 PSI_memory_service_t *psi_memory_service = &psi_memory_noop;
 
 void set_psi_memory_service(void *psi) {
@@ -919,7 +921,7 @@ static void unregister_data_lock_noop(PSI_engine_data_lock_inspector *) {
 static PSI_data_lock_service_t psi_data_lock_noop = {register_data_lock_noop,
                                                      unregister_data_lock_noop};
 
-struct PSI_data_lock_bootstrap *psi_data_lock_hook = NULL;
+struct PSI_data_lock_bootstrap *psi_data_lock_hook = nullptr;
 PSI_data_lock_service_t *psi_data_lock_service = &psi_data_lock_noop;
 
 void set_psi_data_lock_service(void *psi) {
@@ -932,7 +934,7 @@ static void unload_plugin_noop(const char *) { return; }
 
 static PSI_system_service_t psi_system_noop = {unload_plugin_noop};
 
-struct PSI_system_bootstrap *psi_system_hook = NULL;
+struct PSI_system_bootstrap *psi_system_hook = nullptr;
 PSI_system_service_t *psi_system_service = &psi_system_noop;
 
 void set_psi_system_service(void *psi) {

@@ -71,12 +71,12 @@ bool Ssl_context::setup(const Config &config) {
 
   int64_t ssl_ctx_flags = process_tls_version(config.tls_version);
 
-  m_ssl_acceptor =
-      new_VioSSLAcceptorFd(config.ssl_key, config.ssl_cert, config.ssl_ca,
-                           config.ssl_capath, config.ssl_cipher, NULL, &error,
-                           config.ssl_crl, config.ssl_crlpath, ssl_ctx_flags);
+  m_ssl_acceptor = new_VioSSLAcceptorFd(
+      config.ssl_key, config.ssl_cert, config.ssl_ca, config.ssl_capath,
+      config.ssl_cipher, nullptr, &error, config.ssl_crl, config.ssl_crlpath,
+      ssl_ctx_flags);
 
-  if (NULL == m_ssl_acceptor) {
+  if (nullptr == m_ssl_acceptor) {
     log_warning(ER_XPLUGIN_FAILED_AT_SSL_CONF, sslGetErrString(error));
     return false;
   }

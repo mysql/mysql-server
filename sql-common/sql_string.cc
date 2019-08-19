@@ -688,7 +688,7 @@ void qs_append(const char *str_in, size_t len, String *str) {
 
 void qs_append(double d, size_t len, String *str) {
   char *buff = &((*str)[str->length()]);
-  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
+  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, nullptr);
   str->length(str->length() + written);
 }
 
@@ -836,8 +836,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
       (to_cs == from_cs) || my_charset_same(from_cs, to_cs)) {
     if (to_length < to_cs->mbminlen || !nchars) {
       *from_end_pos = from;
-      *cannot_convert_error_pos = NULL;
-      *well_formed_error_pos = NULL;
+      *cannot_convert_error_pos = nullptr;
+      *well_formed_error_pos = nullptr;
       return 0;
     }
 
@@ -845,8 +845,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
       res = min(min(nchars, to_length), from_length);
       memmove(to, from, res);
       *from_end_pos = from + res;
-      *well_formed_error_pos = NULL;
-      *cannot_convert_error_pos = NULL;
+      *well_formed_error_pos = nullptr;
+      *cannot_convert_error_pos = nullptr;
     } else {
       int well_formed_error;
       uint from_offset;
@@ -874,7 +874,7 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
                                          &well_formed_error) !=
             to_cs->mbminlen) {
           *from_end_pos = *well_formed_error_pos = from;
-          *cannot_convert_error_pos = NULL;
+          *cannot_convert_error_pos = nullptr;
           return 0;
         }
         nchars--;
@@ -942,8 +942,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
     const uchar *from_end = (const uchar *)from + from_length;
     uchar *to_end = (uchar *)to + to_length;
     char *to_start = to;
-    *well_formed_error_pos = NULL;
-    *cannot_convert_error_pos = NULL;
+    *well_formed_error_pos = nullptr;
+    *cannot_convert_error_pos = nullptr;
 
     for (; nchars; nchars--) {
       const char *from_prev = from;

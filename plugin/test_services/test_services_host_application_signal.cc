@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ static bool shutdown_at_init = false;
 
 static MYSQL_SYSVAR_BOOL(shutdown_at_init, shutdown_at_init,
                          PLUGIN_VAR_OPCMDARG, "Call shutdown at init if true",
-                         NULL, NULL, false);
+                         nullptr, nullptr, false);
 
 static SYS_VAR *system_variables[] = {MYSQL_SYSVAR(shutdown_at_init), nullptr};
 
@@ -55,11 +55,11 @@ static long long test_shutdown_signal_udf(UDF_INIT *, UDF_ARGS *args,
         break;
       case 0:
         mysql_service_host_application_signal->signal(
-            HOST_APPLICATION_SIGNAL_SHUTDOWN, NULL);
+            HOST_APPLICATION_SIGNAL_SHUTDOWN, nullptr);
         break;
       case 2:
         mysql_service_host_application_signal->signal(
-            HOST_APPLICATION_SIGNAL_LAST, NULL);
+            HOST_APPLICATION_SIGNAL_LAST, nullptr);
         break;
     }
   } else
@@ -97,8 +97,8 @@ static int plugin_init(void *p) {
   if (mysql_service_udf_registration) {
     if (mysql_service_udf_registration->udf_register(
             "test_shutdown_signal_udf", INT_RESULT,
-            reinterpret_cast<Udf_func_any>(test_shutdown_signal_udf), NULL,
-            NULL))
+            reinterpret_cast<Udf_func_any>(test_shutdown_signal_udf), nullptr,
+            nullptr))
       rc = 1;
     else
       udf_registered = true;
@@ -116,7 +116,7 @@ static int plugin_deinit(void *) {
   if (mysql_service_udf_registration) {
     if (udf_registered)
       mysql_service_udf_registration->udf_unregister("test_shutdown_signal_udf",
-                                                     NULL);
+                                                     nullptr);
     mysql_service_registry->release(reinterpret_cast<my_h_service>(
         const_cast<SERVICE_TYPE_NO_CONST(udf_registration) *>(
             mysql_service_udf_registration)));
@@ -137,11 +137,11 @@ mysql_declare_plugin(test_services_host_application_signal){
     "test the plugin host application signal service",
     PLUGIN_LICENSE_GPL,
     plugin_init,   /* Plugin Init */
-    NULL,          /* Plugin Check uninstall */
+    nullptr,       /* Plugin Check uninstall */
     plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
+    nullptr, /* status variables                */
     system_variables,
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

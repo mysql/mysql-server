@@ -160,33 +160,36 @@ static struct my_option my_long_options[] = {
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
     {"debug", '#', "Output debug log", &default_dbug_option,
-     &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #endif
     {"debug-info", 'T', "Print some debug info at exit.", &info_flag,
-     &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &info_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"self-test", 't', "Process a number of test files.", &selftest_dir,
-     &selftest_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Prints version", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
-     0, 0},
-    {"charset", 'C', "Charset dir", &charsets_dir, &charsets_dir, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"in_file_errlog", 'e', "Input file", &MSGS_ERRLOG, &MSGS_ERRLOG, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"in_file_toclient", 'c', "Input file", &MSGS_TO_CLIENT, &MSGS_TO_CLIENT, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"out_dir", 'D', "Output base directory", &DATADIRECTORY, &DATADIRECTORY, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"out_file", 'O', "Output filename (errmsg.sys)", &OUTFILE, &OUTFILE, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"header_file", 'H', "mysqld_error.h file ", &HEADERFILE, &HEADERFILE, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"name_file", 'N', "mysqld_ername.h file ", &NAMEFILE, &NAMEFILE, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"errmsg_file", 'N', "mysqld_errmsg.h file ", &MSGFILE, &MSGFILE, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &selftest_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"help", '?', "Displays this help and exits.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Prints version", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"charset", 'C', "Charset dir", &charsets_dir, &charsets_dir, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"in_file_errlog", 'e', "Input file", &MSGS_ERRLOG, &MSGS_ERRLOG, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"in_file_toclient", 'c', "Input file", &MSGS_TO_CLIENT, &MSGS_TO_CLIENT,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"out_dir", 'D', "Output base directory", &DATADIRECTORY, &DATADIRECTORY,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"out_file", 'O', "Output filename (errmsg.sys)", &OUTFILE, &OUTFILE,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"header_file", 'H', "mysqld_error.h file ", &HEADERFILE, &HEADERFILE,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"name_file", 'N', "mysqld_ername.h file ", &NAMEFILE, &NAMEFILE, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"errmsg_file", 'N', "mysqld_errmsg.h file ", &MSGFILE, &MSGFILE, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static struct languages *parse_charset_string(char *str);
 static struct errors *parse_error_string(char *ptr, int er_count);
@@ -276,7 +279,7 @@ int my_main(int argc, char *argv[]) {
       goto done;
     }
 #endif
-    if (lang_head == NULL || error_head == NULL) {
+    if (lang_head == nullptr || error_head == nullptr) {
       fprintf(stderr, "Failed to get any messages from input files %s / %s\n",
               MSGS_TO_CLIENT, MSGS_ERRLOG);
       goto done;
@@ -600,7 +603,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
   FILE *file;
   char *str, buff[1000];
   const char *fail = nullptr;
-  struct errors *current_error = 0, **tail_error = *last_error;
+  struct errors *current_error = nullptr, **tail_error = *last_error;
   struct message current_message;
   int rcount = 0; /* Number of error codes in current section. */
   int ecount = 0; /* Number of error codes in total. */
@@ -735,7 +738,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
   }
 
 done:
-  *tail_error = 0; /* Mark end of list */
+  *tail_error = nullptr; /* Mark end of list */
   *last_error = tail_error;
 
   my_fclose(file, MYF(0));
@@ -775,7 +778,7 @@ static uint parse_error_offset(char *str) {
   }
   DBUG_PRINT("info", ("str: %s", str));
 
-  end = 0;
+  end = nullptr;
   ioffset = (uint)my_strtoll10(soffset, &end, &error);
   for (auto section : reserved_sections) {
     if (ioffset >= section.first && ioffset <= section.second) {
@@ -877,7 +880,7 @@ static char *parse_default_language(char *str) {
   }
 
   /* reading the short language tag */
-  if (!(slang = get_word(&str))) return 0; /* OOM: Fatal error */
+  if (!(slang = get_word(&str))) return nullptr; /* OOM: Fatal error */
   DBUG_PRINT("info", ("default_slang: %s", slang));
 
   str = skip_delimiters(str);
@@ -886,7 +889,7 @@ static char *parse_default_language(char *str) {
     fprintf(stderr,
             "The default language line does not end with short language "
             "name\n");
-    return 0;
+    return nullptr;
   }
   DBUG_PRINT("info", ("str: %s", str));
   return slang;
@@ -929,7 +932,7 @@ static struct languages *find_language(struct languages *languages,
 */
 static struct message *find_message(struct errors *err, const char *lang,
                                     bool no_default) {
-  struct message *tmp, *return_val = 0;
+  struct message *tmp, *return_val = nullptr;
   DBUG_TRACE;
 
   size_t count = (err->msg).size();
@@ -942,7 +945,7 @@ static struct message *find_message(struct errors *err, const char *lang,
       return_val = tmp;
     }
   }
-  return no_default ? NULL : return_val;
+  return no_default ? nullptr : return_val;
 }
 
 /*
@@ -972,7 +975,7 @@ static struct message *find_message(struct errors *err, const char *lang,
 static ha_checksum checksum_format_specifier(const char *msg) {
   ha_checksum chksum = 0;
   const uchar *p = (const uchar *)msg;
-  const uchar *start = NULL;
+  const uchar *start = nullptr;
   uint32 num_format_specifiers = 0;
   while (*p) {
     if (*p == '%') {
@@ -985,7 +988,7 @@ static ha_checksum checksum_format_specifier(const char *msg) {
         case 'x':
         case 's':
           chksum = my_checksum(chksum, start, (uint)(p + 1 - start));
-          start = 0; /* Not in format specifier anymore */
+          start = nullptr; /* Not in format specifier anymore */
           break;
 
         default:
@@ -1003,7 +1006,7 @@ static ha_checksum checksum_format_specifier(const char *msg) {
             "Still inside formatspecifier after end of string"
             " in'%s'\n",
             msg);
-    DBUG_ASSERT(start == 0);
+    DBUG_ASSERT(start == nullptr);
   }
 
   /* Add number of format specifiers to checksum as extra safeguard */
@@ -1032,7 +1035,7 @@ static int check_message_format(struct errors *err, const char *mess) {
   if ((err->msg).empty()) return 0; /* No previous message to compare against */
 
   first = err->msg.begin();
-  DBUG_ASSERT(first != NULL);
+  DBUG_ASSERT(first != nullptr);
 
   if (checksum_format_specifier(first->text) !=
       checksum_format_specifier(mess)) {
@@ -1098,7 +1101,7 @@ static struct message *parse_message_string(struct message *new_message,
   if (!*str) {
     /* It was not a message line, but an empty line. */
     DBUG_PRINT("info", ("str: %s", str));
-    return 0;
+    return nullptr;
   }
 
   /* reading the short lang */
@@ -1107,7 +1110,7 @@ static struct message *parse_message_string(struct message *new_message,
   if (!(new_message->lang_short_name =
             my_strndup(PSI_NOT_INSTRUMENTED, start, (uint)(str - start),
                        MYF(MY_WME | MY_FAE))))
-    return 0; /* Fatal error */
+    return nullptr; /* Fatal error */
   DBUG_PRINT("info", ("msg_slang: %s", new_message->lang_short_name));
 
   /*skip space(s) and/or tabs after the lang */
@@ -1116,7 +1119,7 @@ static struct message *parse_message_string(struct message *new_message,
   if (*str != '"') {
     fprintf(stderr, "Unexpected EOL");
     DBUG_PRINT("info", ("str: %s", str));
-    return 0;
+    return nullptr;
   }
 
   /* reading the text */
@@ -1126,7 +1129,7 @@ static struct message *parse_message_string(struct message *new_message,
   if (!(new_message->text =
             my_strndup(PSI_NOT_INSTRUMENTED, start, (uint)(str - start),
                        MYF(MY_WME | MY_FAE))))
-    return 0; /* Fatal error */
+    return nullptr; /* Fatal error */
   DBUG_PRINT("info", ("msg_text: %s", new_message->text));
 
   return new_message;
@@ -1150,7 +1153,8 @@ static struct errors *parse_error_string(char *str, int er_count) {
   /* getting the error name */
   str = skip_delimiters(str);
 
-  if (!(new_error->er_name = get_word(&str))) return 0; /* OOM: Fatal error */
+  if (!(new_error->er_name = get_word(&str)))
+    return nullptr; /* OOM: Fatal error */
   DBUG_PRINT("info", ("er_name: %s", new_error->er_name));
 
   str = skip_delimiters(str);
@@ -1165,7 +1169,7 @@ static struct errors *parse_error_string(char *str, int er_count) {
           stderr,
           "er_name %s overlaps with the reserved error section (%u - %u).\n",
           new_error->er_name, section.first, section.second);
-      return 0;
+      return nullptr;
     }
   }
 
@@ -1184,7 +1188,8 @@ static struct errors *parse_error_string(char *str, int er_count) {
 
   /* getting the sql_code 1 */
 
-  if (!(new_error->sql_code1 = get_word(&str))) return 0; /* OOM: Fatal error */
+  if (!(new_error->sql_code1 = get_word(&str)))
+    return nullptr; /* OOM: Fatal error */
   DBUG_PRINT("info", ("sql_code1: %s", new_error->sql_code1));
 
   str = skip_delimiters(str);
@@ -1197,14 +1202,15 @@ static struct errors *parse_error_string(char *str, int er_count) {
   }
 
   /* getting the sql_code 2 */
-  if (!(new_error->sql_code2 = get_word(&str))) return 0; /* OOM: Fatal error */
+  if (!(new_error->sql_code2 = get_word(&str)))
+    return nullptr; /* OOM: Fatal error */
   DBUG_PRINT("info", ("sql_code2: %s", new_error->sql_code2));
 
   str = skip_delimiters(str);
   if (*str) {
     fprintf(stderr, "The error line did not end with sql/odbc code: '%s'\n",
             str);
-    return 0;
+    return nullptr;
   }
 
   return new_error;
@@ -1216,7 +1222,7 @@ static struct errors *parse_error_string(char *str, int er_count) {
 */
 
 static struct languages *parse_charset_string(char *str) {
-  struct languages *head = 0, *new_lang;
+  struct languages *head = nullptr, *new_lang;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("str: %s", str));
 
@@ -1225,11 +1231,11 @@ static struct languages *parse_charset_string(char *str) {
   if (!*str) {
     /* unexpected EOL */
     DBUG_PRINT("info", ("str: %s", str));
-    return 0;
+    return nullptr;
   }
 
   str = skip_delimiters(str);
-  if (!(*str != ';' && *str)) return 0;
+  if (!(*str != ';' && *str)) return nullptr;
 
   do {
     /*creating new element of the linked list */
@@ -1241,21 +1247,21 @@ static struct languages *parse_charset_string(char *str) {
     /* get the full language name */
 
     if (!(new_lang->lang_long_name = get_word(&str)))
-      return 0; /* OOM: Fatal error */
+      return nullptr; /* OOM: Fatal error */
 
     DBUG_PRINT("info", ("long_name: %s", new_lang->lang_long_name));
 
     /* getting the short name for language */
     str = skip_delimiters(str);
-    if (!*str) return 0; /* Error: No space or tab */
+    if (!*str) return nullptr; /* Error: No space or tab */
 
     if (!(new_lang->lang_short_name = get_word(&str)))
-      return 0; /* OOM: Fatal error */
+      return nullptr; /* OOM: Fatal error */
     DBUG_PRINT("info", ("short_name: %s", new_lang->lang_short_name));
 
     /* getting the charset name */
     str = skip_delimiters(str);
-    if (!(new_lang->charset = get_word(&str))) return 0; /* Fatal error */
+    if (!(new_lang->charset = get_word(&str))) return nullptr; /* Fatal error */
     DBUG_PRINT("info", ("charset: %s", new_lang->charset));
 
     /* skipping space, tab or "," */

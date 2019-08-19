@@ -503,7 +503,7 @@ int chk_key(MI_CHECK *param, MI_INFO *info) {
       }
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
-      mi_extra(info, HA_EXTRA_KEYREAD, 0);
+      mi_extra(info, HA_EXTRA_KEYREAD, nullptr);
       memset(info->lastkey, 0, keyinfo->seg->length);
       if (!mi_rkey(info, info->rec_buff, key, (const uchar *)info->lastkey,
                    (key_part_map)1, HA_READ_KEY_EXACT)) {
@@ -514,7 +514,7 @@ int chk_key(MI_CHECK *param, MI_INFO *info) {
                                "column has the value 0");
         param->warning_printed = save;
       }
-      mi_extra(info, HA_EXTRA_NO_KEYREAD, 0);
+      mi_extra(info, HA_EXTRA_NO_KEYREAD, nullptr);
     }
 
     length =
@@ -537,7 +537,7 @@ int chk_key(MI_CHECK *param, MI_INFO *info) {
       update_key_parts(keyinfo, rec_per_key_part, param->unique_count,
                        param->stats_method == MI_STATS_METHOD_IGNORE_NULLS
                            ? param->notnull_count
-                           : NULL,
+                           : nullptr,
                        (ulonglong)info->state->records);
   }
   if (param->testflag & T_INFO) {
@@ -892,7 +892,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info, int extend) {
   ha_rows records, del_blocks;
   my_off_t used, empty, pos, splits, start_recpos = 0, del_length, link_used,
                                      start_block;
-  uchar *record = 0, *to = NULL;
+  uchar *record = nullptr, *to = nullptr;
   char llbuff[22], llbuff2[22], llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[HA_MAX_POSSIBLE_KEY];
@@ -1570,7 +1570,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
     mysql_file_close(info->dfile, MYF(0));
     info->dfile = new_file;
     info->state->data_file_length = sort_param.filepos;
-    share->state.version = (ulong)time((time_t *)0); /* Force reopen */
+    share->state.version = (ulong)time((time_t *)nullptr); /* Force reopen */
   } else {
     info->state->data_file_length = sort_param.max_pos;
   }
@@ -1611,7 +1611,7 @@ err:
       if (info->s->file_map) {
         (void)my_munmap((char *)info->s->file_map,
                         (size_t)info->s->mmaped_length);
-        info->s->file_map = NULL;
+        info->s->file_map = nullptr;
       }
       if (change_to_newfile(share->data_file_name, MI_NAME_DEXT, DATA_TMP_EXT,
                             flags) ||
@@ -1806,7 +1806,7 @@ int mi_sort_index(MI_CHECK *param, MI_INFO *info, char *name,
   flush_key_blocks(share->key_cache, keycache_thread_var(), share->kfile,
                    FLUSH_IGNORE_CHANGED);
 
-  share->state.version = (ulong)time((time_t *)0);
+  share->state.version = (ulong)time((time_t *)nullptr);
   old_state = share->state; /* save state if not stored */
   r_locks = share->r_locks;
   w_locks = share->w_locks;
@@ -2105,11 +2105,11 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
   set_data_file_type(&sort_info, share);
   sort_param.filepos = new_header_length;
   sort_info.dupp = 0;
-  sort_info.buff = 0;
+  sort_info.buff = nullptr;
   param->read_cache.end_of_file = sort_info.filelength =
       mysql_file_seek(param->read_cache.file, 0L, MY_SEEK_END, MYF(0));
 
-  sort_param.wordlist = NULL;
+  sort_param.wordlist = nullptr;
   init_alloc_root(mi_key_memory_MI_SORT_PARAM_wordroot, &sort_param.wordroot,
                   FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
@@ -2222,7 +2222,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       update_key_parts(sort_param.keyinfo, rec_per_key_part, sort_param.unique,
                        param->stats_method == MI_STATS_METHOD_IGNORE_NULLS
                            ? sort_param.notnull
-                           : NULL,
+                           : nullptr,
                        (ulonglong)info->state->records);
     /* Enable this index in the permanent (not the copied) key_map. */
     mi_set_key_active(share->state.key_map, sort_param.key);
@@ -2242,7 +2242,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       share->state.state.data_file_length = info->state->data_file_length =
           sort_param.filepos;
       /* Only whole records */
-      share->state.version = (ulong)time((time_t *)0);
+      share->state.version = (ulong)time((time_t *)nullptr);
       mysql_file_close(info->dfile, MYF(0));
       info->dfile = new_file;
       share->data_file_type = sort_info.new_data_file_type;
@@ -2399,7 +2399,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
   ha_rows start_records;
   my_off_t new_header_length, del;
   File new_file;
-  MI_SORT_PARAM *sort_param = 0;
+  MI_SORT_PARAM *sort_param = nullptr;
   MYISAM_SHARE *share = info->s;
   ulong *rec_per_key_part;
   HA_KEYSEG *keyseg;
@@ -2522,7 +2522,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
 
   set_data_file_type(&sort_info, share);
   sort_info.dupp = 0;
-  sort_info.buff = 0;
+  sort_info.buff = nullptr;
   param->read_cache.end_of_file = sort_info.filelength =
       mysql_file_seek(param->read_cache.file, 0L, MY_SEEK_END, MYF(0));
 
@@ -2651,7 +2651,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
   */
   if (i > 1) {
     if (rep_quick)
-      init_io_cache_share(&param->read_cache, &io_share, NULL, i);
+      init_io_cache_share(&param->read_cache, &io_share, nullptr, i);
     else
       init_io_cache_share(&new_data_cache, &io_share, &info->rec_cache, i);
   } else
@@ -2719,7 +2719,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
     share->state.state.data_file_length = info->state->data_file_length =
         sort_param->filepos;
     /* Only whole records */
-    share->state.version = (ulong)time((time_t *)0);
+    share->state.version = (ulong)time((time_t *)nullptr);
 
     /*
       Exchange the data file descriptor of the table, so that we use the
@@ -2860,7 +2860,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key) {
   int error;
   SORT_INFO *sort_info = sort_param->sort_info;
   MI_INFO *info = sort_info->info;
-  FT_WORD *wptr = 0;
+  FT_WORD *wptr = nullptr;
   DBUG_TRACE;
 
   if (!sort_param->wordlist) {
@@ -2885,7 +2885,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key) {
                                              sort_param->filepos));
   if (!wptr->pos) {
     free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
-    sort_param->wordlist = 0;
+    sort_param->wordlist = nullptr;
     error = sort_write_record(sort_param);
   } else
     sort_param->wordptr = (void *)wptr;
@@ -2929,7 +2929,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
   int parallel_flag;
   uint found_record, b_type, left_length;
   my_off_t pos;
-  uchar *to = NULL;
+  uchar *to = nullptr;
   MI_BLOCK_INFO block_info;
   SORT_INFO *sort_info = sort_param->sort_info;
   MI_CHECK *param = sort_info->param;
@@ -2968,7 +2968,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
         }
       }
     case DYNAMIC_RECORD:
-      to = NULL;
+      to = nullptr;
       pos = sort_param->pos;
       searching = (sort_param->fix_datafile && (param->testflag & T_EXTEND));
       parallel_flag = (sort_param->read_cache.file < 0) ? READING_NEXT : 0;
@@ -3564,7 +3564,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a) {
     /* flushing buffer to second-level tree */
     for (error = 0; !error && p < ft_buf->buf; p += val_len)
       error = sort_insert_key(sort_param, key_block, p, HA_OFFSET_ERROR);
-    ft_buf->buf = 0;
+    ft_buf->buf = nullptr;
     return error;
   }
 
@@ -3624,14 +3624,14 @@ static int sort_insert_key(MI_SORT_PARAM *sort_param,
     }
     a_length = 2 + nod_flag;
     key_block->end_pos = anc_buff + 2;
-    lastkey = 0; /* No previous key in block */
+    lastkey = nullptr; /* No previous key in block */
   } else
     a_length = mi_getint(anc_buff);
 
   /* Save pointer to previous block */
   if (nod_flag) _mi_kpointer(info, key_block->end_pos, prev_block);
 
-  t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)0, lastkey,
+  t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)nullptr, lastkey,
                                   lastkey, key, &s_temp);
   (*keyinfo->store_key)(keyinfo, key_block->end_pos + nod_flag, &s_temp);
   a_length += t_length;
@@ -3779,7 +3779,7 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
             (sizeof(SORT_KEY_BLOCKS) + buffer_length + IO_SIZE) * blocks,
             MYF(0)))) {
     mi_check_print_error(param, "Not enough memory for sort-key-blocks");
-    return 0;
+    return nullptr;
   }
   for (i = 0; i < blocks; i++) {
     block[i].inited = 0;
@@ -3990,7 +3990,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info, uint update) {
   }
   if (update & (UPDATE_STAT | UPDATE_SORT | UPDATE_TIME | UPDATE_AUTO_INC)) {
     if (update & UPDATE_TIME) {
-      share->state.check_time = (long)time((time_t *)0);
+      share->state.check_time = (long)time((time_t *)nullptr);
       if (!share->state.create_time)
         share->state.create_time = share->state.check_time;
     }
@@ -4038,7 +4038,7 @@ err:
 
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
                                bool repair_only) {
-  uchar *record = 0;
+  uchar *record = nullptr;
   DBUG_TRACE;
 
   if (!info->s->base.auto_key ||
@@ -4060,10 +4060,10 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     return;
   }
 
-  mi_extra(info, HA_EXTRA_KEYREAD, 0);
+  mi_extra(info, HA_EXTRA_KEYREAD, nullptr);
   if (mi_rlast(info, record, info->s->base.auto_key - 1)) {
     if (my_errno() != HA_ERR_END_OF_FILE) {
-      mi_extra(info, HA_EXTRA_NO_KEYREAD, 0);
+      mi_extra(info, HA_EXTRA_NO_KEYREAD, nullptr);
       my_free(mi_get_rec_buff_ptr(info, record));
       mi_check_print_error(param, "%d when reading last record", my_errno());
       return;
@@ -4078,7 +4078,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       info->s->state.auto_increment =
           std::max(info->s->state.auto_increment, param->auto_increment_value);
   }
-  mi_extra(info, HA_EXTRA_NO_KEYREAD, 0);
+  mi_extra(info, HA_EXTRA_NO_KEYREAD, nullptr);
   my_free(mi_get_rec_buff_ptr(info, record));
   update_state_info(param, info, UPDATE_AUTO_INC);
 }

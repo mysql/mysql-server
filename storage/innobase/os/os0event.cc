@@ -416,7 +416,7 @@ struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
 #endif /* HAVE_CLOCK_GETTIME */
     {
       struct timeval tv;
-      if (gettimeofday(&tv, NULL) == -1) {
+      if (gettimeofday(&tv, nullptr) == -1) {
         const auto errno_gettimeofday = errno;
 
 #ifndef UNIV_NO_ERR_MSGS
@@ -613,9 +613,9 @@ Frees an event object. */
 void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 
 {
-  if (event != NULL) {
+  if (event != nullptr) {
     UT_DELETE(event);
-    event = NULL;
+    event = nullptr;
   }
 }
 

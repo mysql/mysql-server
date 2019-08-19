@@ -370,12 +370,12 @@ int ha_recover(const mem_root_unordered_set<my_xid> *commit_list) {
   DBUG_TRACE;
   info.found_foreign_xids = info.found_my_xids = 0;
   info.commit_list = commit_list;
-  info.dry_run =
-      (info.commit_list == 0 && tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
-  info.list = NULL;
+  info.dry_run = (info.commit_list == nullptr &&
+                  tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
+  info.list = nullptr;
 
   /* commit_list and tc_heuristic_recover cannot be set both */
-  DBUG_ASSERT(info.commit_list == 0 ||
+  DBUG_ASSERT(info.commit_list == nullptr ||
               tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
   /* if either is set, total_ha_2pc must be set too */
   DBUG_ASSERT(info.dry_run || total_ha_2pc > (ulong)opt_bin_log);
@@ -400,7 +400,7 @@ int ha_recover(const mem_root_unordered_set<my_xid> *commit_list) {
   }
 
   for (info.len = MAX_XID_LIST_SIZE;
-       info.list == 0 && info.len > MIN_XID_LIST_SIZE; info.len /= 2) {
+       info.list == nullptr && info.len > MIN_XID_LIST_SIZE; info.len /= 2) {
     info.list = new (std::nothrow) XA_recover_txn[info.len];
   }
   if (!info.list) {
@@ -1199,7 +1199,7 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd) {
       if (!mdl_request.ticket) ha_rollback_trans(thd, true);
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-      DBUG_ASSERT(thd->m_transaction_psi == NULL);
+      DBUG_ASSERT(thd->m_transaction_psi == nullptr);
 #endif
 
       /*
@@ -1688,11 +1688,11 @@ bool applier_reset_xa_trans(THD *thd) {
      previously saved is restored.
   */
   attach_native_trx(thd);
-  trn_ctx->set_ha_trx_info(Transaction_ctx::SESSION, NULL);
+  trn_ctx->set_ha_trx_info(Transaction_ctx::SESSION, nullptr);
   trn_ctx->set_no_2pc(Transaction_ctx::SESSION, false);
   trn_ctx->cleanup();
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  thd->m_transaction_psi = NULL;
+  thd->m_transaction_psi = nullptr;
 #endif
   thd->mdl_context.release_transactional_locks();
   /*
@@ -1735,7 +1735,7 @@ bool detach_native_trx(THD *thd, plugin_ref plugin, void *) {
     DBUG_ASSERT(!thd->get_ha_data(hton->slot)->ha_ptr_backup);
 
     hton->replace_native_transaction_in_thd(
-        thd, NULL, &thd->get_ha_data(hton->slot)->ha_ptr_backup);
+        thd, nullptr, &thd->get_ha_data(hton->slot)->ha_ptr_backup);
   }
 
   return false;
@@ -1749,8 +1749,8 @@ bool reattach_native_trx(THD *thd, plugin_ref plugin, void *) {
     /* restore the saved original engine transaction's link with thd */
     void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
 
-    hton->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-    *trx_backup = NULL;
+    hton->replace_native_transaction_in_thd(thd, *trx_backup, nullptr);
+    *trx_backup = nullptr;
   }
   return false;
 }

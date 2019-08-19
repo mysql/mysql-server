@@ -259,7 +259,7 @@ dberr_t zReader::fetch_page() {
   m_bpage = buf_page_get_zip(page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
                              m_rctx.m_page_size);
 
-  ut_a(m_bpage != NULL);
+  ut_a(m_bpage != nullptr);
   ut_ad(fil_page_get_type(m_bpage->zip.data) == m_page_type_ex);
   m_rctx.m_page_no = mach_read_from_4(m_bpage->zip.data + FIL_PAGE_NEXT);
 
@@ -447,7 +447,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
   page_zip = buf_block_get_page_zip(rec_block);
   ut_a(fil_page_index_page_check(page_align(rec)) || op == OPCODE_INSERT_BULK);
 
-  if (page_zip != NULL) {
+  if (page_zip != nullptr) {
     DBUG_EXECUTE_IF("lob_insert_single_zstream",
                     { goto insert_single_zstream; });
 
@@ -685,7 +685,7 @@ byte *btr_rec_copy_externally_stored_field_func(
     trx_rollback_or_clean_all_recovered() or any
     TRX_ISO_READ_UNCOMMITTED transactions. */
 
-    return (NULL);
+    return (nullptr);
   }
 
   return (btr_copy_externally_stored_field(trx, index, len, lob_version, data,
@@ -1288,7 +1288,7 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
   }
 
   ut_ad(index->is_clustered());
-  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(rec_offs_validate(rec, nullptr, offsets));
 
   const ulint n = rec_offs_n_fields(offsets);
 

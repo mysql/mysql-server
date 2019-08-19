@@ -196,7 +196,7 @@ class thd_scheduler {
  public:
   void *data; /* scheduler-specific data structure */
 
-  thd_scheduler() : data(NULL) {}
+  thd_scheduler() : data(nullptr) {}
 
   ~thd_scheduler() {}
 };
@@ -691,7 +691,7 @@ struct Ha_data {
   */
   plugin_ref lock;
 
-  Ha_data() : ha_ptr(NULL), ha_ptr_backup(NULL), lock(NULL) {}
+  Ha_data() : ha_ptr(nullptr), ha_ptr_backup(nullptr), lock(nullptr) {}
 };
 
 /**
@@ -709,8 +709,8 @@ class Global_read_lock {
 
   Global_read_lock()
       : m_state(GRL_NONE),
-        m_mdl_global_shared_lock(NULL),
-        m_mdl_blocks_commits_lock(NULL) {}
+        m_mdl_global_shared_lock(nullptr),
+        m_mdl_blocks_commits_lock(nullptr) {}
 
   bool lock_global_read_lock(THD *thd);
   void unlock_global_read_lock(THD *thd);
@@ -1182,8 +1182,8 @@ class THD : public MDL_context_owner,
     explicit Query_plan(THD *thd_arg)
         : thd(thd_arg),
           sql_command(SQLCOM_END),
-          lex(NULL),
-          modification_plan(NULL),
+          lex(nullptr),
+          modification_plan(nullptr),
           is_ps(false) {}
 
     /**
@@ -2240,7 +2240,8 @@ class THD : public MDL_context_owner,
   /**@{*/
   void set_trans_pos(const char *file, my_off_t pos) {
     DBUG_TRACE;
-    DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
+    DBUG_ASSERT(((file == nullptr) && (pos == 0)) ||
+                ((file != nullptr) && (pos != 0)));
     if (file) {
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
@@ -2250,8 +2251,8 @@ class THD : public MDL_context_owner,
       DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
       strcpy(m_trans_fixed_log_file, m_trans_log_file);
     } else {
-      m_trans_log_file = NULL;
-      m_trans_fixed_log_file = NULL;
+      m_trans_log_file = nullptr;
+      m_trans_fixed_log_file = nullptr;
     }
 
     m_trans_end_pos = pos;
@@ -2527,8 +2528,8 @@ class THD : public MDL_context_owner,
 
   inline void clear_active_vio() {
     mysql_mutex_lock(&LOCK_thd_data);
-    active_vio = 0;
-    m_SSL = NULL;
+    active_vio = nullptr;
+    m_SSL = nullptr;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -2609,10 +2610,10 @@ class THD : public MDL_context_owner,
     */
     mysql_mutex_assert_not_owner(current_mutex.load());
     mysql_mutex_lock(&LOCK_current_cond);
-    current_mutex = NULL;
-    current_cond = NULL;
+    current_mutex = nullptr;
+    current_cond = nullptr;
     mysql_mutex_unlock(&LOCK_current_cond);
-    enter_stage(stage, NULL, src_function, src_file, src_line);
+    enter_stage(stage, nullptr, src_function, src_file, src_line);
     return;
   }
 
@@ -3056,7 +3057,7 @@ class THD : public MDL_context_owner,
   Gtid_set *get_gtid_next_list() {
     return variables.gtid_next_list.is_non_null
                ? variables.gtid_next_list.gtid_set
-               : NULL;
+               : nullptr;
   }
 
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
@@ -3416,7 +3417,7 @@ class THD : public MDL_context_owner,
     }
     owned_gtid.clear();
     owned_sid.clear();
-    owned_gtid.dbug_print(NULL, "set owned_gtid in clear_owned_gtids");
+    owned_gtid.dbug_print(nullptr, "set owned_gtid in clear_owned_gtids");
   }
 
   /** @return true, if owned GTID is empty or waiting for deferred cleanup. */
@@ -3515,7 +3516,7 @@ class THD : public MDL_context_owner,
     a statement is parsed but before it's executed.
   */
   bool copy_db_to(char const **p_db, size_t *p_db_length) const {
-    if (m_db.str == NULL) {
+    if (m_db.str == nullptr) {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }

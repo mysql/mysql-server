@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ Parameter_impl::Parameter_impl()
       m_datetime_precision_null(true),
       m_elements(),
       m_options(default_valid_option_keys),
-      m_routine(NULL),
+      m_routine(nullptr),
       m_collation_id(INVALID_OBJECT_ID) {}
 
 Parameter_impl::Parameter_impl(Routine_impl *routine)

@@ -80,7 +80,7 @@ void Abstract_crawler::process_dump_task(I_dump_task *new_dump_task) {
     Chain_data *chain_data = new Chain_data(new_chain_id);
 
     I_object_reader *chain = (*it)->create_chain(chain_data, new_dump_task);
-    if (chain != NULL) {
+    if (chain != nullptr) {
       main_item_processing_data->set_chain(chain_data);
       chain->read_object(this->new_chain_created(
           chain_data, main_item_processing_data, chain));

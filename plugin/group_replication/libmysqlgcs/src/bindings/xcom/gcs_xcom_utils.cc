@@ -134,7 +134,7 @@ bool is_valid_hostname(const std::string &server_and_port) {
   }
 
   /* handle hostname*/
-  error = (checked_getaddrinfo(hostname, 0, NULL, &addr) != 0);
+  error = (checked_getaddrinfo(hostname, nullptr, nullptr, &addr) != 0);
   if (error) goto end;
 
 end:
@@ -353,7 +353,7 @@ bool is_parameters_syntax_correct(
    */
 
   // validate group name
-  if (group_name_str != NULL && group_name_str->size() == 0) {
+  if (group_name_str != nullptr && group_name_str->size() == 0) {
     MYSQL_GCS_LOG_ERROR("The group_name parameter (" << group_name_str << ")"
                                                      << " is not valid.")
     error = GCS_NOK;
@@ -362,14 +362,14 @@ bool is_parameters_syntax_correct(
 
   // validate bootstrap string
   // accepted values: true, false, on, off
-  if (bootstrap_group_str != NULL) {
+  if (bootstrap_group_str != nullptr) {
     std::string &flag = const_cast<std::string &>(*bootstrap_group_str);
     error = is_valid_flag("bootstrap_group", flag);
     if (error == GCS_NOK) goto end;
   }
 
   // validate peer addresses addresses
-  if (peer_nodes_str != NULL) {
+  if (peer_nodes_str != nullptr) {
     /*
      Parse and validate hostname and ports.
      */
@@ -402,7 +402,7 @@ bool is_parameters_syntax_correct(
   }
 
   // local peer address
-  if (local_node_str != NULL) {
+  if (local_node_str != nullptr) {
     bool matches_local_ip = false;
     std::map<std::string, int> ips;
     std::map<std::string, int>::iterator it;
@@ -483,7 +483,7 @@ bool is_parameters_syntax_correct(
   }
 
   // validate compression
-  if (compression_str != NULL) {
+  if (compression_str != nullptr) {
     std::string &flag = const_cast<std::string &>(*compression_str);
     error = is_valid_flag("compression", flag);
     if (error == GCS_NOK) goto end;
@@ -550,7 +550,7 @@ bool is_parameters_syntax_correct(
   }
 
   // Validate whitelist reconfiguration parameter
-  if (reconfigure_ip_whitelist_str != NULL) {
+  if (reconfigure_ip_whitelist_str != nullptr) {
     std::string &flag =
         const_cast<std::string &>(*reconfigure_ip_whitelist_str);
     error = is_valid_flag("reconfigure_ip_whitelist", flag);
@@ -575,7 +575,7 @@ bool is_parameters_syntax_correct(
 
   // Validate XCom cache size
   errno = 0;
-  if (xcom_cache_size_str != NULL &&
+  if (xcom_cache_size_str != nullptr &&
       // Verify if the input value is a valid number
       (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
        // Check that it is not lower than the min value allowed for the var

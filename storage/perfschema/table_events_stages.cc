@@ -70,7 +70,7 @@ Plugin_table table_events_stages_current::m_table_def(
 PFS_engine_table_share table_events_stages_current::m_share = {
     &pfs_truncatable_acl,
     table_events_stages_current::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_stages_current::delete_all_rows,
     table_events_stages_current::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -111,7 +111,7 @@ Plugin_table table_events_stages_history::m_table_def(
 PFS_engine_table_share table_events_stages_history::m_share = {
     &pfs_truncatable_acl,
     table_events_stages_history::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_stages_history::delete_all_rows,
     table_events_stages_history::get_row_count,
     sizeof(pos_events_stages_history), /* ref length */
@@ -151,7 +151,7 @@ Plugin_table table_events_stages_history_long::m_table_def(
 PFS_engine_table_share table_events_stages_history_long::m_share = {
     &pfs_truncatable_acl,
     table_events_stages_history_long::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_stages_history_long::delete_all_rows,
     table_events_stages_history_long::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -199,7 +199,7 @@ int table_events_stages_common::make_row(PFS_events_stages *stage) {
 
   PFS_stage_class *unsafe = (PFS_stage_class *)stage->m_class;
   PFS_stage_class *klass = sanitize_stage_class(unsafe);
-  if (unlikely(klass == NULL)) {
+  if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -346,7 +346,7 @@ int table_events_stages_current::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_thread_iterator it = global_thread_container.iterate(m_pos.m_index);
   pfs_thread = it.scan_next(&m_pos.m_index);
-  if (pfs_thread != NULL) {
+  if (pfs_thread != nullptr) {
     stage = &pfs_thread->m_stage_current;
     m_next_pos.set_after(&m_pos);
     return make_row(stage);
@@ -362,7 +362,7 @@ int table_events_stages_current::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index);
-  if (pfs_thread != NULL) {
+  if (pfs_thread != nullptr) {
     stage = &pfs_thread->m_stage_current;
     return make_row(stage);
   }
@@ -389,7 +389,7 @@ int table_events_stages_current::index_next(void) {
 
   do {
     pfs_thread = it.scan_next(&m_pos.m_index);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         stage = &pfs_thread->m_stage_current;
         if (m_opened_index->match(stage)) {
@@ -400,7 +400,7 @@ int table_events_stages_current::index_next(void) {
         }
       }
     }
-  } while (pfs_thread != NULL);
+  } while (pfs_thread != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -440,7 +440,7 @@ int table_events_stages_history::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_pos.m_index_2 >= events_stages_history_per_thread) {
         /* This thread does not have more (full) history */
         continue;
@@ -454,7 +454,7 @@ int table_events_stages_history::rnd_next(void) {
 
       stage = &pfs_thread->m_stages_history[m_pos.m_index_2];
 
-      if (stage->m_class != NULL) {
+      if (stage->m_class != nullptr) {
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
         return make_row(stage);
@@ -475,7 +475,7 @@ int table_events_stages_history::rnd_pos(const void *pos) {
   DBUG_ASSERT(m_pos.m_index_2 < events_stages_history_per_thread);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
+  if (pfs_thread != nullptr) {
     if (!pfs_thread->m_stages_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_stages_history_index)) {
       return HA_ERR_RECORD_DELETED;
@@ -483,7 +483,7 @@ int table_events_stages_history::rnd_pos(const void *pos) {
 
     stage = &pfs_thread->m_stages_history[m_pos.m_index_2];
 
-    if (stage->m_class != NULL) {
+    if (stage->m_class != nullptr) {
       return make_row(stage);
     }
   }
@@ -512,7 +512,7 @@ int table_events_stages_history::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           if (m_pos.m_index_2 >= events_stages_history_per_thread) {
@@ -527,7 +527,7 @@ int table_events_stages_history::index_next(void) {
           }
 
           stage = &pfs_thread->m_stages_history[m_pos.m_index_2];
-          if (stage->m_class != NULL) {
+          if (stage->m_class != nullptr) {
             if (m_opened_index->match(stage)) {
               /* Next iteration, look for the next history in this thread */
               m_next_pos.set_after(&m_pos);
@@ -535,7 +535,7 @@ int table_events_stages_history::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (stage->m_class != NULL);
+        } while (stage->m_class != nullptr);
       }
     }
   }
@@ -585,7 +585,7 @@ int table_events_stages_history_long::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next()) {
     stage = &events_stages_history_long_array[m_pos.m_index];
 
-    if (stage->m_class != NULL) {
+    if (stage->m_class != nullptr) {
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
       return make_row(stage);
@@ -617,7 +617,7 @@ int table_events_stages_history_long::rnd_pos(const void *pos) {
 
   stage = &events_stages_history_long_array[m_pos.m_index];
 
-  if (stage->m_class == NULL) {
+  if (stage->m_class == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 

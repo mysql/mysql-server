@@ -283,7 +283,7 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char *default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
-static const char *load_default_groups[] = {"mysqlbinlog", "client", 0};
+static const char *load_default_groups[] = {"mysqlbinlog", "client", nullptr};
 
 static bool one_database = false, disable_log_bin = false;
 static bool opt_hexdump = false;
@@ -320,7 +320,7 @@ static char *host = nullptr;
 static int port = 0;
 static uint my_end_arg;
 static const char *sock = nullptr;
-static char *opt_plugin_dir = nullptr, *opt_default_auth = 0;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = nullptr;
@@ -1350,8 +1350,8 @@ end:
 }
 
 static struct my_option my_long_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"base64-output", OPT_BASE64_OUTPUT_MODE,
      /* 'unspec' is not mentioned because it is just a placeholder. */
      "Determine when the output statements should be base64-encoded BINLOG "
@@ -1362,10 +1362,11 @@ static struct my_option my_long_options[] = {
      "only when necessary (i.e., for row-based events and format description "
      "events).  If no --base64-output[=name] option is given at all, the "
      "default is 'auto'.",
-     &opt_base64_output_mode_str, &opt_base64_output_mode_str, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_base64_output_mode_str, &opt_base64_output_mode_str, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
-     (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     (uchar **)&opt_bind_addr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     /*
       mysqlbinlog needs charsets knowledge, to be able to convert a charset
       number found in binlog to a charset name (to be able to print things
@@ -1373,14 +1374,16 @@ static struct my_option my_long_options[] = {
       SET @`a`:=_cp850 0x4DFC6C6C6572 COLLATE `cp850_general_ci`;
     */
     {"character-sets-dir", OPT_CHARSETS_DIR,
-     "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Directory for character set files.", &charsets_dir, &charsets_dir,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"database", 'd', "List entries for just this database (local log only).",
-     &database, &database, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &database, &database, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"rewrite-db", OPT_REWRITE_DB,
      "Rewrite the row event to point so that "
      "it can be applied to a new database",
-     &rewrite, &rewrite, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &rewrite, &rewrite, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
 #ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1392,16 +1395,20 @@ static struct my_option my_long_options[] = {
      NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
-     &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
      "Check memory and open file usage at exit .", &debug_check_flag,
-     &debug_check_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_check_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-     &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_info_flag, &debug_info_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif
     {"default_auth", OPT_DEFAULT_AUTH,
      "Default authentication client-side plugin to use.", &opt_default_auth,
-     &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"disable-log-bin", 'D',
      "Disable binary log. This is useful, if you "
      "enabled --to-last-log and are sending the output to the same MySQL "
@@ -1409,32 +1416,35 @@ static struct my_option my_long_options[] = {
      "This way you could avoid an endless loop. You would also like to use it "
      "when restoring after a crash to avoid duplication of the statements you "
      "already have. NOTE: you will need a SUPER privilege to use this option.",
-     &disable_log_bin, &disable_log_bin, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &disable_log_bin, &disable_log_bin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"force-if-open", 'F', "Force if binlog was not closed properly.",
-     &force_if_open_opt, &force_if_open_opt, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
-     0},
+     &force_if_open_opt, &force_if_open_opt, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
+     nullptr, 0, nullptr},
     {"force-read", 'f', "Force reading unknown binlog events.", &force_opt,
-     &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &force_opt, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"hexdump", 'H', "Augment output with hexadecimal and ASCII event dump.",
-     &opt_hexdump, &opt_hexdump, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"host", 'h', "Get the binlog from server.", &host, &host, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_hexdump, &opt_hexdump, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"host", 'h', "Get the binlog from server.", &host, &host, nullptr,
+     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"idempotent", 'i',
      "Notify the server to use idempotent mode before "
      "applying Row Events",
-     &idempotent_mode, &idempotent_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &idempotent_mode, &idempotent_mode, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"local-load", 'l',
      "Prepare local temporary files for LOAD DATA INFILE in the specified "
      "directory.",
-     &dirname_for_local_load, &dirname_for_local_load, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"offset", 'o', "Skip the first N entries.", &offset, &offset, 0, GET_ULL,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"password", 'p', "Password to connect to remote server.", 0, 0, 0,
-     GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &dirname_for_local_load, &dirname_for_local_load, nullptr, GET_STR_ALLOC,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"offset", 'o', "Skip the first N entries.", &offset, &offset, nullptr,
+     GET_ULL, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"password", 'p', "Password to connect to remote server.", nullptr, nullptr,
+     nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -1442,15 +1452,16 @@ static struct my_option my_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &port, &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &port, &port, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol to use for connection (tcp, socket, pipe, memory).", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "The protocol to use for connection (tcp, socket, pipe, memory).", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"read-from-remote-server", 'R',
      "Read binary logs from a MySQL server. "
      "This is an alias for read-from-remote-master=BINLOG-DUMP-NON-GTIDS.",
-     &opt_remote_alias, &opt_remote_alias, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_remote_alias, &opt_remote_alias, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"read-from-remote-master", OPT_REMOTE_PROTO,
      "Read binary logs from a MySQL server through the COM_BINLOG_DUMP or "
      "COM_BINLOG_DUMP_GTID commands by setting the option to either "
@@ -1458,27 +1469,29 @@ static struct my_option my_long_options[] = {
      "--read-from-remote-master=BINLOG-DUMP-GTIDS is combined with "
      "--exclude-gtids, transactions can be filtered out on the master "
      "avoiding unnecessary network traffic.",
-     &opt_remote_proto_str, &opt_remote_proto_str, 0, GET_STR, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
+     &opt_remote_proto_str, &opt_remote_proto_str, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"raw", OPT_RAW_OUTPUT,
      "Requires -R. Output raw binlog data instead of SQL "
      "statements, output is to log files.",
-     &raw_mode, &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &raw_mode, &raw_mode, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"result-file", 'r',
      "Direct output to a given file. With --raw this is a "
      "prefix for the file names.",
-     &output_file, &output_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &output_file, &output_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"server-id", OPT_SERVER_ID,
      "Extract only binlog entries created by the server having the given id.",
-     &filter_server_id, &filter_server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
-     0, 0, 0},
+     &filter_server_id, &filter_server_id, nullptr, GET_ULONG, REQUIRED_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
     {"server-id-bits", 0, "Set number of significant bits in server-id",
      &opt_server_id_bits, &opt_server_id_bits,
      /* Default + Max 32 bits, minimum 7 bits */
-     0, GET_UINT, REQUIRED_ARG, 32, 7, 32, 0, 0, 0},
+     nullptr, GET_UINT, REQUIRED_ARG, 32, 7, 32, nullptr, 0, nullptr},
     {"set-charset", OPT_SET_CHARSET,
-     "Add 'SET NAMES character_set' to the output.", &charset, &charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Add 'SET NAMES character_set' to the output.", &charset, &charset,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
@@ -1489,9 +1502,10 @@ static struct my_option my_long_options[] = {
      "row-based events. This is for testing only, and should not be used in "
      "production systems. If you want to suppress base64-output, consider "
      "using --base64-output=never instead.",
-     &short_form, &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"socket", 'S', "The socket file to use for connection.", &sock, &sock, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &short_form, &short_form, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"socket", 'S', "The socket file to use for connection.", &sock, &sock,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
@@ -1501,114 +1515,120 @@ static struct my_option my_long_options[] = {
      "in the local time zone, in any format accepted by the MySQL server "
      "for DATETIME and TIMESTAMP types, for example: 2004-12-25 11:25:56 "
      "(you should probably use quotes for your shell to set it properly).",
-     &start_datetime_str, &start_datetime_str, 0, GET_STR_ALLOC, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &start_datetime_str, &start_datetime_str, nullptr, GET_STR_ALLOC,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"start-position", 'j',
      "Start reading the binlog at position N. Applies to the first binlog "
      "passed on the command line.",
-     &start_position, &start_position, 0, GET_ULL, REQUIRED_ARG,
+     &start_position, &start_position, nullptr, GET_ULL, REQUIRED_ARG,
      BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
      /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
-     (ulonglong)(~(uint32)0), 0, 0, 0},
+     (ulonglong)(~(uint32)0), nullptr, 0, nullptr},
     {"stop-datetime", OPT_STOP_DATETIME,
      "Stop reading the binlog at first event having a datetime equal or "
      "posterior to the argument; the argument must be a date and time "
      "in the local time zone, in any format accepted by the MySQL server "
      "for DATETIME and TIMESTAMP types, for example: 2004-12-25 11:25:56 "
      "(you should probably use quotes for your shell to set it properly).",
-     &stop_datetime_str, &stop_datetime_str, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
+     &stop_datetime_str, &stop_datetime_str, nullptr, GET_STR_ALLOC,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"stop-never", OPT_STOP_NEVER,
      "Wait for more data from the server "
      "instead of stopping at the end of the last log. Implicitly sets "
      "--to-last-log but instead of stopping at the end of the last log "
      "it continues to wait till the server disconnects.",
-     &stop_never, &stop_never, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &stop_never, &stop_never, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
      "The slave server_id used for --read-from-remote-server --stop-never."
      " This option cannot be used together with connection-server-id.",
-     &stop_never_slave_server_id, &stop_never_slave_server_id, 0, GET_LL,
-     REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
+     &stop_never_slave_server_id, &stop_never_slave_server_id, nullptr, GET_LL,
+     REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, nullptr, 0, nullptr},
     {"connection-server-id", OPT_CONNECTION_SERVER_ID,
      "The slave server_id used for --read-from-remote-server."
      " This option cannot be used together with stop-never-slave-server-id.",
-     &connection_server_id, &connection_server_id, 0, GET_LL, REQUIRED_ARG, -1,
-     -1, 0xFFFFFFFFLL, 0, 0, 0},
+     &connection_server_id, &connection_server_id, nullptr, GET_LL,
+     REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, nullptr, 0, nullptr},
     {"stop-position", OPT_STOP_POSITION,
      "Stop reading the binlog at position N. Applies to the last binlog "
      "passed on the command line.",
-     &stop_position, &stop_position, 0, GET_ULL, REQUIRED_ARG,
+     &stop_position, &stop_position, nullptr, GET_ULL, REQUIRED_ARG,
      (longlong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE, (ulonglong)(~(my_off_t)0),
-     0, 0, 0},
+     nullptr, 0, nullptr},
     {"to-last-log", 't',
      "Requires -R. Will not stop at the end of the "
      "requested binlog but rather continue printing until the end of the last "
      "binlog of the MySQL server. If you send the output to the same MySQL "
      "server, that may lead to an endless loop.",
-     &to_last_remote_log, &to_last_remote_log, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-     0, 0},
-    {"user", 'u', "Connect to the remote server as username.", &user, &user, 0,
-     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &to_last_remote_log, &to_last_remote_log, nullptr, GET_BOOL, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
+    {"user", 'u', "Connect to the remote server as username.", &user, &user,
+     nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v',
      "Reconstruct pseudo-SQL statements out of row events. "
      "-v -v adds comments on column data types.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"version", 'V', "Print version and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"open_files_limit", OPT_OPEN_FILES_LIMIT,
      "Used to reserve file descriptors for use by this program.",
-     &open_files_limit, &open_files_limit, 0, GET_ULONG, REQUIRED_ARG, MY_NFILE,
-     8, OS_FILE_LIMIT, 0, 1, 0},
+     &open_files_limit, &open_files_limit, nullptr, GET_ULONG, REQUIRED_ARG,
+     MY_NFILE, 8, OS_FILE_LIMIT, nullptr, 1, nullptr},
     {"verify-binlog-checksum", 'c', "Verify checksum binlog events.",
      (uchar **)&opt_verify_binlog_checksum,
-     (uchar **)&opt_verify_binlog_checksum, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     (uchar **)&opt_verify_binlog_checksum, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
      "The maximum size of a row-based binary log event in bytes. Rows will be "
      "grouped into events smaller than this size if possible. "
      "This value must be a multiple of 256.",
-     &opt_binlog_rows_event_max_size, &opt_binlog_rows_event_max_size, 0,
+     &opt_binlog_rows_event_max_size, &opt_binlog_rows_event_max_size, nullptr,
      GET_ULONG, REQUIRED_ARG,
      /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
-     /* max_value */ ULONG_MAX, /* arg_source */ 0,
-     /* block_size */ 256, /* app_type */ 0},
+     /* max_value */ ULONG_MAX, /* arg_source */ nullptr,
+     /* block_size */ 256, /* app_type */ nullptr},
     {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
      "Do not preserve Global Transaction Identifiers; instead make the server "
      "execute the transactions as if they were new.",
-     &opt_skip_gtids, &opt_skip_gtids, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_skip_gtids, &opt_skip_gtids, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"include-gtids", OPT_MYSQLBINLOG_INCLUDE_GTIDS,
      "Print events whose Global Transaction Identifiers "
      "were provided.",
-     &opt_include_gtids_str, &opt_include_gtids_str, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_include_gtids_str, &opt_include_gtids_str, nullptr, GET_STR_ALLOC,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"exclude-gtids", OPT_MYSQLBINLOG_EXCLUDE_GTIDS,
      "Print all events but those whose Global Transaction "
      "Identifiers were provided.",
-     &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0, GET_STR_ALLOC,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_exclude_gtids_str, &opt_exclude_gtids_str, nullptr, GET_STR_ALLOC,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"print-table-metadata", OPT_PRINT_TABLE_METADATA,
      "Print metadata stored in Table_map_log_event", &opt_print_table_metadata,
-     &opt_print_table_metadata, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_print_table_metadata, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"compress", 'C', "Use compression in server/client protocol.",
-     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"compression-algorithms", 0,
      "Use compression algorithm in server/client protocol. Valid values "
      "are any combination of 'zstd','zlib','uncompressed'.",
-     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_compress_algorithm, &opt_compress_algorithm, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"zstd-compression-level", 0,
      "Use this compression level in the client/server protocol, in case "
      "--compression-algorithms=zstd. Valid range is between 1 and 22, "
      "inclusive. Default is 3.",
-     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
-     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
+     &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
     {"require-row-format", 0,
      "Fail when printing an event that was not logged using row format or\n"
      "other forbidden events like Load instructions or the creation/deletion\n"
      "of temporary tables.",
-     &opt_require_row_format, &opt_require_row_format, 0, GET_BOOL, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_require_row_format, &opt_require_row_format, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
 };
 
 /**
@@ -1889,7 +1909,7 @@ static Exit_status safe_connect() {
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
 #endif
-  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_client_role",
@@ -1897,7 +1917,7 @@ static Exit_status safe_connect() {
   set_server_public_key(mysql);
   set_get_server_public_key_option(mysql);
 
-  if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0)) {
+  if (!mysql_real_connect(mysql, host, user, pass, nullptr, port, sock, 0)) {
     error("Failed on connect: %s", mysql_error(mysql));
     return ERROR_STOP;
   }
@@ -2274,7 +2294,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           soon.
         */
         if (raw_mode) {
-          if (output_file != 0) {
+          if (output_file != nullptr) {
             snprintf(log_file_name, sizeof(log_file_name), "%s%s", output_file,
                      rev->new_log_ident);
           } else {
@@ -2787,9 +2807,9 @@ int main(int argc, char **argv) {
   my_set_max_open_files(open_files_limit);
 
   MY_TMPDIR tmpdir;
-  tmpdir.list = 0;
+  tmpdir.list = nullptr;
   if (!dirname_for_local_load) {
-    if (init_tmpdir(&tmpdir, 0)) return EXIT_FAILURE;
+    if (init_tmpdir(&tmpdir, nullptr)) return EXIT_FAILURE;
     dirname_for_local_load =
         my_strdup(PSI_NOT_INSTRUMENTED, my_tmpdir(&tmpdir), MY_WME);
   }

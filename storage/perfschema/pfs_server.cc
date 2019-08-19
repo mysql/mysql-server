@@ -103,22 +103,22 @@ int initialize_performance_schema(
     PSI_system_bootstrap **system_bootstrap) {
   bool init_failed = false;
 
-  *thread_bootstrap = NULL;
-  *mutex_bootstrap = NULL;
-  *rwlock_bootstrap = NULL;
-  *cond_bootstrap = NULL;
-  *file_bootstrap = NULL;
-  *socket_bootstrap = NULL;
-  *table_bootstrap = NULL;
-  *mdl_bootstrap = NULL;
-  *idle_bootstrap = NULL;
-  *stage_bootstrap = NULL;
-  *statement_bootstrap = NULL;
-  *transaction_bootstrap = NULL;
-  *memory_bootstrap = NULL;
-  *error_bootstrap = NULL;
-  *data_lock_bootstrap = NULL;
-  *system_bootstrap = NULL;
+  *thread_bootstrap = nullptr;
+  *mutex_bootstrap = nullptr;
+  *rwlock_bootstrap = nullptr;
+  *cond_bootstrap = nullptr;
+  *file_bootstrap = nullptr;
+  *socket_bootstrap = nullptr;
+  *table_bootstrap = nullptr;
+  *mdl_bootstrap = nullptr;
+  *idle_bootstrap = nullptr;
+  *stage_bootstrap = nullptr;
+  *statement_bootstrap = nullptr;
+  *transaction_bootstrap = nullptr;
+  *memory_bootstrap = nullptr;
+  *error_bootstrap = nullptr;
+  *data_lock_bootstrap = nullptr;
+  *system_bootstrap = nullptr;
 
   pfs_enabled = param->m_enabled;
 
@@ -366,11 +366,11 @@ void init_pfs_instrument_array() {
   Deallocate the PFS_INSTRUMENT array.
 */
 void cleanup_instrument_config() {
-  if (pfs_instr_config_array != NULL) {
+  if (pfs_instr_config_array != nullptr) {
     my_free_container_pointers(*pfs_instr_config_array);
   }
   delete pfs_instr_config_array;
-  pfs_instr_config_array = NULL;
+  pfs_instr_config_array = nullptr;
 }
 
 /**

@@ -478,7 +478,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   share.state.process = (ulong)getpid();
   share.state.unique = (ulong)0;
   share.state.update_count = (ulong)0;
-  share.state.version = (ulong)time((time_t *)0);
+  share.state.version = (ulong)time((time_t *)nullptr);
   share.state.sortkey = (ushort)~0;
   share.state.auto_increment = ci->auto_increment;
   share.options = options;
@@ -527,7 +527,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
           ? std::max(share.base.pack_reclength, ulong{MI_MIN_BLOCK_LENGTH})
           : MI_EXTEND_BLOCK_LENGTH;
   if (!(flags & HA_DONT_TOUCH_DATA))
-    share.state.create_time = (long)time((time_t *)0);
+    share.state.create_time = (long)time((time_t *)nullptr);
 
   if (!internal_table) mysql_mutex_lock(&THR_LOCK_myisam);
 
@@ -565,7 +565,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     fn_format(filename, name, "", MI_NAME_IEXT,
               MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
                   (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
-    linkname_ptr = 0;
+    linkname_ptr = nullptr;
     /* Replace the current file */
     create_flag = (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
   }
@@ -622,7 +622,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
       } else {
         fn_format(filename, name, "", MI_NAME_DEXT,
                   MY_UNPACK_FILENAME | MY_APPEND_EXT);
-        linkname_ptr = 0;
+        linkname_ptr = nullptr;
         create_flag = (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
       }
       if ((dfile = mysql_file_create_with_symlink(

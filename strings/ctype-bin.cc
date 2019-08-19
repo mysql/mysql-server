@@ -479,8 +479,8 @@ static MY_COLLATION_HANDLER my_collation_binary_handler = {
     my_propagate_simple};
 
 static MY_CHARSET_HANDLER my_charset_handler = {
-    NULL,              /* init */
-    NULL,              /* ismbchar      */
+    nullptr,           /* init */
+    nullptr,           /* ismbchar      */
     my_mbcharlen_8bit, /* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
@@ -515,18 +515,18 @@ CHARSET_INFO my_charset_bin = {
     "binary",                                       /* cs name    */
     "binary",                                       /* name          */
     "",                                             /* comment       */
-    NULL,                                           /* tailoring     */
-    NULL,                                           /* coll_param    */
+    nullptr,                                        /* tailoring     */
+    nullptr,                                        /* coll_param    */
     ctype_bin,                                      /* ctype         */
     bin_char_array,                                 /* to_lower      */
     bin_char_array,                                 /* to_upper      */
-    NULL,                                           /* sort_order    */
-    NULL,                                           /* uca           */
-    NULL,                                           /* tab_to_uni    */
-    NULL,                                           /* tab_from_uni  */
+    nullptr,                                        /* sort_order    */
+    nullptr,                                        /* uca           */
+    nullptr,                                        /* tab_to_uni    */
+    nullptr,                                        /* tab_from_uni  */
     &my_unicase_default,                            /* caseinfo     */
-    NULL,                                           /* state_map    */
-    NULL,                                           /* ident_map    */
+    nullptr,                                        /* state_map    */
+    nullptr,                                        /* ident_map    */
     1,                                              /* strxfrm_multiply */
     1,                                              /* caseup_multiply  */
     1,                                              /* casedn_multiply  */

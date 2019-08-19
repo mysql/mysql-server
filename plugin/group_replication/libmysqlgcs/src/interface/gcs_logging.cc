@@ -30,7 +30,7 @@
 #define SIZE_DEBUG_OPTIONS \
   sizeof(gcs_xcom_debug_strings) / sizeof(*gcs_xcom_debug_strings)
 
-Logger_interface *Gcs_log_manager::m_logger = NULL;
+Logger_interface *Gcs_log_manager::m_logger = nullptr;
 
 // Logging infrastructure interface
 Logger_interface *Gcs_log_manager::get_logger() { return m_logger; }
@@ -43,9 +43,9 @@ enum_gcs_error Gcs_log_manager::initialize(Logger_interface *logger) {
 enum_gcs_error Gcs_log_manager::finalize() {
   enum_gcs_error ret = GCS_NOK;
 
-  if (m_logger != NULL) {
+  if (m_logger != nullptr) {
     ret = m_logger->finalize();
-    m_logger = NULL;
+    m_logger = nullptr;
   }
 
   return ret;

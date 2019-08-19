@@ -474,7 +474,7 @@ bool PFS_table_context::initialize(void) {
   if (m_restore) {
     /* Restore context from TLS. */
     PFS_table_context *context = THR_PFS_contexts[m_thr_key];
-    DBUG_ASSERT(context != NULL);
+    DBUG_ASSERT(context != nullptr);
 
     if (context) {
       m_last_version = context->m_current_version;
@@ -491,14 +491,14 @@ bool PFS_table_context::initialize(void) {
 
     /* Initialize a new context, store in TLS. */
     m_last_version = m_current_version;
-    m_map = NULL;
+    m_map = nullptr;
     m_word_size = sizeof(ulong) * 8;
 
     /* Write to TLS. */
     THR_PFS_contexts[m_thr_key] = context;
   }
 
-  m_initialized = (m_map_size > 0) ? (m_map != NULL) : true;
+  m_initialized = (m_map_size > 0) ? (m_map != nullptr) : true;
 
   return m_initialized;
 }
@@ -509,7 +509,7 @@ PFS_table_context::PFS_table_context(ulonglong current_version, bool restore,
     : m_thr_key(key),
       m_current_version(current_version),
       m_last_version(0),
-      m_map(NULL),
+      m_map(nullptr),
       m_map_size(0),
       m_word_size(sizeof(ulong)),
       m_restore(restore),
@@ -525,7 +525,7 @@ PFS_table_context::PFS_table_context(ulonglong current_version, ulong map_size,
     : m_thr_key(key),
       m_current_version(current_version),
       m_last_version(0),
-      m_map(NULL),
+      m_map(nullptr),
       m_map_size(map_size),
       m_word_size(sizeof(ulong)),
       m_restore(restore),
@@ -670,7 +670,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_persisted_variables::m_share,
     &table_user_defined_functions::m_share,
 
-    NULL};
+    nullptr};
 
 static PSI_mutex_key key_LOCK_pfs_share_list;
 static PSI_mutex_info info_LOCK_pfs_share_list = {
@@ -698,7 +698,7 @@ PFS_dynamic_table_shares pfs_external_table_shares;
 void PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     tables->push_back((*current)->m_table_def);
   }
 }
@@ -707,7 +707,7 @@ void PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables) {
 void PFS_engine_table_share::init_all_locks(void) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     thr_lock_init((*current)->m_thr_lock_ptr);
   }
 }
@@ -716,7 +716,7 @@ void PFS_engine_table_share::init_all_locks(void) {
 void PFS_engine_table_share::delete_all_locks(void) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     thr_lock_delete((*current)->m_thr_lock_ptr);
   }
 }
@@ -730,7 +730,7 @@ int PFS_engine_table_share::write_row(PFS_engine_table *pfs_table, TABLE *table,
                                       Field **fields) const {
   my_bitmap_map *org_bitmap;
 
-  if (m_write_row == NULL) {
+  if (m_write_row == nullptr) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -778,7 +778,7 @@ PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
   /* First try to find in native performance schema table shares */
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++) {
+  for (current = &all_shares[0]; (*current) != nullptr; current++) {
     if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0) {
       return *current;
     }
@@ -893,7 +893,7 @@ int PFS_engine_table::index_read(KEY *key_infos, uint index, const uchar *key,
                                  uint key_len,
                                  enum ha_rkey_function find_flag) {
   // DBUG_ASSERT(m_index != NULL);
-  if (m_index == NULL) {
+  if (m_index == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -942,7 +942,7 @@ PFS_engine_table_share *PFS_dynamic_table_shares::find_share(
       return it;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -995,11 +995,11 @@ static bool allow_drop_schema_privilege() {
       see PFS_unknown_acl::check()
   */
   THD *thd = current_thd;
-  if (thd == NULL) {
+  if (thd == nullptr) {
     return false;
   }
 
-  DBUG_ASSERT(thd->lex != NULL);
+  DBUG_ASSERT(thd->lex != nullptr);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT) &&
       (thd->lex->sql_command != SQLCOM_DROP_TABLE)) {
@@ -1080,11 +1080,11 @@ static bool allow_drop_table_privilege() {
     Note that we must also allow GRANT to transfer the truncate privilege.
   */
   THD *thd = current_thd;
-  if (thd == NULL) {
+  if (thd == nullptr) {
     return false;
   }
 
-  DBUG_ASSERT(thd->lex != NULL);
+  DBUG_ASSERT(thd->lex != nullptr);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT)) {
     return false;
@@ -1426,25 +1426,25 @@ void PFS_engine_index::read_key(const uchar *key, uint key_len,
                                 enum ha_rkey_function find_flag) {
   PFS_key_reader reader(m_key_info, key, key_len);
 
-  if (m_key_ptr_1 != NULL) {
+  if (m_key_ptr_1 != nullptr) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[0].field->field_name,
                                   m_key_ptr_1->m_name) == 0);
     m_key_ptr_1->read(reader, find_flag);
   }
 
-  if (m_key_ptr_2 != NULL) {
+  if (m_key_ptr_2 != nullptr) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[1].field->field_name,
                                   m_key_ptr_2->m_name) == 0);
     m_key_ptr_2->read(reader, find_flag);
   }
 
-  if (m_key_ptr_3 != NULL) {
+  if (m_key_ptr_3 != nullptr) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[2].field->field_name,
                                   m_key_ptr_3->m_name) == 0);
     m_key_ptr_3->read(reader, find_flag);
   }
 
-  if (m_key_ptr_4 != NULL) {
+  if (m_key_ptr_4 != nullptr) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[3].field->field_name,
                                   m_key_ptr_4->m_name) == 0);
     m_key_ptr_4->read(reader, find_flag);

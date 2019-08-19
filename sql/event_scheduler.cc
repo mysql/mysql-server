@@ -214,7 +214,7 @@ void pre_init_event_thread(THD *thd) {
   thd->security_context()->cache_current_db_access(0);
   thd->security_context()->set_host_or_ip_ptr(my_localhost,
                                               strlen(my_localhost));
-  thd->get_protocol_classic()->init_net(NULL);
+  thd->get_protocol_classic()->init_net(nullptr);
   thd->security_context()->set_user_ptr(STRING_WITH_LEN("event_scheduler"));
   thd->get_protocol_classic()->get_net()->read_timeout = slave_net_timeout;
   thd->slave_thread = false;
@@ -273,7 +273,7 @@ static void *event_scheduler_thread(void *arg) {
 
   }  // Against gcc warnings
   my_thread_end();
-  return 0;
+  return nullptr;
 }
 
 /**
@@ -304,7 +304,7 @@ static void *event_worker_thread(void *arg) {
   worker_thread.run(thd, event);
 
   my_thread_end();
-  return 0;  // Can't return anything here
+  return nullptr;  // Can't return anything here
 }
 }  // extern "C"
 
@@ -324,7 +324,7 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   Event_job_data job_data;
   bool res;
 
-  DBUG_ASSERT(thd->m_digest == NULL);
+  DBUG_ASSERT(thd->m_digest == nullptr);
 
   thd->thread_stack = &my_stack;  // remember where our stack is
   res = post_init_event_thread(thd);
@@ -340,10 +340,10 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
-  DBUG_ASSERT(thd->m_statement_psi == NULL);
+  DBUG_ASSERT(thd->m_statement_psi == nullptr);
   thd->m_statement_psi = MYSQL_START_STATEMENT(
       &state, event->get_psi_info()->m_key, event->dbname.str,
-      event->dbname.length, thd->charset(), NULL);
+      event->dbname.length, thd->charset(), nullptr);
 #endif
   /*
     We must make sure the schema is released and unlocked in the right
@@ -389,10 +389,10 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
 end:
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-  thd->m_statement_psi = NULL;
+  thd->m_statement_psi = nullptr;
 #endif
 
-  DBUG_ASSERT(thd->m_digest == NULL);
+  DBUG_ASSERT(thd->m_digest == nullptr);
 
   DBUG_PRINT("info",
              ("Done with Event %s.%s", event->dbname.str, event->name.str));
@@ -403,7 +403,7 @@ end:
 
 Event_scheduler::Event_scheduler(Event_queue *queue_arg)
     : state(INITIALIZED),
-      scheduler_thd(NULL),
+      scheduler_thd(nullptr),
       queue(queue_arg),
       mutex_last_locked_at_line(0),
       mutex_last_unlocked_at_line(0),
@@ -439,7 +439,7 @@ Event_scheduler::~Event_scheduler() {
 */
 
 bool Event_scheduler::start(int *err_no) {
-  THD *new_thd = NULL;
+  THD *new_thd = nullptr;
   bool ret = false;
   my_thread_handle th;
   struct scheduler_param *scheduler_param_value;
@@ -503,7 +503,7 @@ bool Event_scheduler::start(int *err_no) {
     new_thd->get_protocol_classic()->end_net();
 
     state = INITIALIZED;
-    scheduler_thd = NULL;
+    scheduler_thd = nullptr;
     delete new_thd;
 
     my_free(scheduler_param_value);
@@ -561,7 +561,7 @@ bool Event_scheduler::run(THD *thd) {
 
   LOCK_DATA();
   deinit_event_thread(thd);
-  scheduler_thd = NULL;
+  scheduler_thd = nullptr;
   state = INITIALIZED;
   DBUG_PRINT("info", ("Broadcasting COND_state back to the stoppers"));
   mysql_cond_broadcast(&COND_state);
@@ -676,7 +676,7 @@ bool Event_scheduler::stop() {
   if (state != RUNNING) {
     /* Synchronously wait until the scheduler stops. */
     while (state != INITIALIZED)
-      COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
+      COND_STATE_WAIT(thd, nullptr, &stage_waiting_for_scheduler_to_stop);
     goto end;
   }
 
@@ -708,7 +708,7 @@ bool Event_scheduler::stop() {
 
     /* thd could be 0x0, when shutting down */
     LogErr(INFORMATION_LEVEL, ER_SCHEDULER_WAITING);
-    COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
+    COND_STATE_WAIT(thd, nullptr, &stage_waiting_for_scheduler_to_stop);
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
   LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STOPPED);
@@ -813,8 +813,8 @@ void Event_scheduler::cond_wait(THD *thd, struct timespec *abstime,
   mutex_scheduler_data_locked = false;
   mutex_last_unlocked_in_func = src_func;
   if (thd)
-    thd->enter_cond(&COND_state, &LOCK_scheduler_state, stage, NULL, src_func,
-                    src_file, src_line);
+    thd->enter_cond(&COND_state, &LOCK_scheduler_state, stage, nullptr,
+                    src_func, src_file, src_line);
 
   DBUG_PRINT("info", ("mysql_cond_%swait", abstime ? "timed" : ""));
   if (!abstime)
@@ -827,7 +827,7 @@ void Event_scheduler::cond_wait(THD *thd, struct timespec *abstime,
       Not the best thing to do but we need to obey cond_wait()
     */
     UNLOCK_DATA();
-    thd->exit_cond(NULL, src_func, src_file, src_line);
+    thd->exit_cond(nullptr, src_func, src_file, src_line);
     LOCK_DATA();
   }
   mutex_last_locked_in_func = src_func;

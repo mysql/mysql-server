@@ -465,7 +465,7 @@ uint64 Pipeline_stats_member_collector::
 
 void Pipeline_stats_member_collector::send_stats_member_message(
     Flow_control_mode mode) {
-  if (local_member_info == NULL) return; /* purecov: inspected */
+  if (local_member_info == nullptr) return; /* purecov: inspected */
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
   if (member_status != Group_member_info::MEMBER_ONLINE &&
@@ -478,10 +478,10 @@ void Pipeline_stats_member_collector::send_stats_member_message(
   Certifier_interface *cert_interface =
       (applier_module && applier_module->get_certification_handler())
           ? applier_module->get_certification_handler()->get_certifier()
-          : NULL;
+          : nullptr;
 
-  if (send_transaction_identifiers && cert_interface != NULL) {
-    char *committed_transactions_buf = NULL;
+  if (send_transaction_identifiers && cert_interface != nullptr) {
+    char *committed_transactions_buf = nullptr;
     size_t committed_transactions_buf_length = 0;
     int get_group_stable_transactions_set_string_outcome =
         cert_interface->get_group_stable_transactions_set_string(
@@ -499,9 +499,11 @@ void Pipeline_stats_member_collector::send_stats_member_message(
       static_cast<int32>(applier_module->get_message_queue_size()),
       m_transactions_waiting_apply.load(), m_transactions_certified.load(),
       m_transactions_applied.load(), m_transactions_local.load(),
-      (cert_interface != NULL) ? cert_interface->get_negative_certified() : 0,
-      (cert_interface != NULL) ? cert_interface->get_certification_info_size()
-                               : 0,
+      (cert_interface != nullptr) ? cert_interface->get_negative_certified()
+                                  : 0,
+      (cert_interface != nullptr)
+          ? cert_interface->get_certification_info_size()
+          : 0,
       send_transaction_identifiers, committed_transactions,
       last_conflict_free_transaction, m_transactions_local_rollback.load(),
       mode);
@@ -923,7 +925,7 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
 
 Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
     const std::string &member_id) {
-  Pipeline_member_stats *member_pipeline_stats = NULL;
+  Pipeline_member_stats *member_pipeline_stats = nullptr;
   Flow_control_module_info::iterator it = m_info.find(member_id);
   if (it != m_info.end()) {
     member_pipeline_stats = new Pipeline_member_stats(it->second);

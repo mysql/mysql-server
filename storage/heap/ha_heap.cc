@@ -77,7 +77,7 @@ static handler *heap_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 
 ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
-      file(0),
+      file(nullptr),
       records_changed(0),
       key_stat_version(0),
       single_instance(false) {}
@@ -108,7 +108,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
     HP_CREATE_INFO create_info;
     bool created_new_share;
     int rc;
-    file = 0;
+    file = nullptr;
     if (heap_prepare_hp_create_info(table, single_instance, delete_on_close,
                                     &create_info))
       goto end;
@@ -170,9 +170,9 @@ handler *ha_heap::clone(const char *, MEM_ROOT *mem_root) {
   handler *new_handler =
       get_new_handler(table->s, false, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
+                                           HA_OPEN_IGNORE_IF_LOCKED, nullptr))
     return new_handler;
-  return NULL; /* purecov: inspected */
+  return nullptr; /* purecov: inspected */
 }
 
 const char *ha_heap::table_type() const { return "MEMORY"; }
@@ -666,7 +666,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
                                          : 0);
     error = heap_create(name, &hp_create_info, &internal_share, &created);
     my_free(hp_create_info.keydef);
-    DBUG_ASSERT(file == 0);
+    DBUG_ASSERT(file == nullptr);
   }
 
   DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
@@ -711,11 +711,11 @@ mysql_declare_plugin(heap){
     "Hash based, stored in memory, useful for temporary tables",
     PLUGIN_LICENSE_GPL,
     heap_init,
-    NULL,
-    NULL,
-    0x0100, /* 1.0 */
-    NULL,   /* status variables                */
-    NULL,   /* system variables                */
-    NULL,   /* config options                  */
-    0,      /* flags                           */
+    nullptr,
+    nullptr,
+    0x0100,  /* 1.0 */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

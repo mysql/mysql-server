@@ -155,7 +155,7 @@ static MY_UNI_IDX idx_uni_cp1250[] = {{0x0000, 0x00FD, tab_uni_cp1250_plane00},
                                       {0x2013, 0x20AC, tab_uni_cp1250_plane20},
                                       {0x02C7, 0x02DD, tab_uni_cp1250_plane02},
                                       {0x2122, 0x2122, tab_uni_cp1250_plane21},
-                                      {0, 0, NULL}};
+                                      {0, 0, nullptr}};
 
 static const uchar ctype_win1250ch[] = {
     0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x28, 0x28,
@@ -601,18 +601,18 @@ CHARSET_INFO my_charset_cp1250_czech_ci = {
     "cp1250",                                       /* cs name   */
     "cp1250_czech_cs",                              /* name      */
     "",                                             /* comment   */
-    NULL,                                           /* tailoring */
-    NULL,                                           /* coll_param */
+    nullptr,                                        /* tailoring */
+    nullptr,                                        /* coll_param */
     ctype_win1250ch,
     to_lower_win1250ch,
     to_upper_win1250ch,
     sort_order_win1250ch,
-    NULL,                /* uca          */
+    nullptr,             /* uca          */
     tab_cp1250_uni,      /* tab_to_uni   */
     idx_uni_cp1250,      /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     2,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */

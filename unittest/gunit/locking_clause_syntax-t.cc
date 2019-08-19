@@ -49,10 +49,10 @@ class Intrusive_list_indexer {
   Intrusive_list_indexer(SQL_I_List<T> list) : m_list(list) {}
   T *operator[](int i) {
     int curr = 0;
-    for (T *t = m_list.first; t != NULL; t = t->next_local, ++curr)
+    for (T *t = m_list.first; t != nullptr; t = t->next_local, ++curr)
       if (curr == i) return t;
     EXPECT_TRUE(false);
-    return NULL;
+    return nullptr;
   }
 
  private:

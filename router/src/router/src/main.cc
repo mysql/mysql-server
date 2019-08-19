@@ -164,7 +164,7 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
   g_program_name = argv[0];
 
   mysqlrouter::MySQLClientThreadToken api_token;
-  if (mysql_library_init(argc, argv, NULL)) {
+  if (mysql_library_init(argc, argv, nullptr)) {
     log_error("Could not initialize MySQL library");
     return 1;
   }

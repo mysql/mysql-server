@@ -201,7 +201,7 @@ const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
 void PFS_data_cache::clear() { m_set.clear(); }
 
 PFS_data_lock_container::PFS_data_lock_container()
-    : m_logical_row_index(0), m_filter(NULL) {}
+    : m_logical_row_index(0), m_filter(nullptr) {}
 
 PFS_data_lock_container::~PFS_data_lock_container() {}
 
@@ -216,7 +216,7 @@ const char *PFS_data_lock_container::cache_data(const char *ptr,
 
 bool PFS_data_lock_container::accept_engine(const char *engine,
                                             size_t engine_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_engine(engine, engine_length);
   }
   return true;
@@ -224,14 +224,14 @@ bool PFS_data_lock_container::accept_engine(const char *engine,
 
 bool PFS_data_lock_container::accept_lock_id(const char *engine_lock_id,
                                              size_t engine_lock_id_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_lock_id(engine_lock_id, engine_lock_id_length);
   }
   return true;
 }
 
 bool PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_transaction_id(transaction_id);
   }
   return true;
@@ -239,7 +239,7 @@ bool PFS_data_lock_container::accept_transaction_id(ulonglong transaction_id) {
 
 bool PFS_data_lock_container::accept_thread_id_event_id(ulonglong thread_id,
                                                         ulonglong event_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_thread_id_event_id(thread_id, event_id);
   }
   return true;
@@ -250,7 +250,7 @@ bool PFS_data_lock_container::accept_object(
     const char *table_name, size_t table_name_length,
     const char *partition_name, size_t partition_name_length,
     const char *sub_partition_name, size_t sub_partition_name_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_object(table_schema, table_schema_length, table_name,
                                   table_name_length, partition_name,
                                   partition_name_length, sub_partition_name,
@@ -274,7 +274,7 @@ void PFS_data_lock_container::add_lock_row(
 
   row.m_engine = engine;
 
-  if (engine_lock_id != NULL) {
+  if (engine_lock_id != nullptr) {
     size_t len = engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_engine_lock_id)) {
       DBUG_ASSERT(false);
@@ -347,7 +347,7 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
       The caller should not ask for it again.
     */
     DBUG_ASSERT(false);
-    return NULL;
+    return nullptr;
   }
 
   size_t physical_index = index - m_logical_row_index;
@@ -356,11 +356,11 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
     return &m_rows[physical_index];
   }
 
-  return NULL;
+  return nullptr;
 }
 
 PFS_data_lock_wait_container::PFS_data_lock_wait_container()
-    : m_logical_row_index(0), m_filter(NULL) {}
+    : m_logical_row_index(0), m_filter(nullptr) {}
 
 PFS_data_lock_wait_container::~PFS_data_lock_wait_container() {}
 
@@ -375,7 +375,7 @@ const char *PFS_data_lock_wait_container::cache_data(const char *ptr,
 
 bool PFS_data_lock_wait_container::accept_engine(const char *engine,
                                                  size_t engine_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_engine(engine, engine_length);
   }
   return true;
@@ -383,7 +383,7 @@ bool PFS_data_lock_wait_container::accept_engine(const char *engine,
 
 bool PFS_data_lock_wait_container::accept_requesting_lock_id(
     const char *engine_lock_id, size_t engine_lock_id_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_requesting_lock_id(engine_lock_id,
                                               engine_lock_id_length);
   }
@@ -392,7 +392,7 @@ bool PFS_data_lock_wait_container::accept_requesting_lock_id(
 
 bool PFS_data_lock_wait_container::accept_blocking_lock_id(
     const char *engine_lock_id, size_t engine_lock_id_length) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_blocking_lock_id(engine_lock_id,
                                             engine_lock_id_length);
   }
@@ -401,7 +401,7 @@ bool PFS_data_lock_wait_container::accept_blocking_lock_id(
 
 bool PFS_data_lock_wait_container::accept_requesting_transaction_id(
     ulonglong transaction_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_requesting_transaction_id(transaction_id);
   }
   return true;
@@ -409,7 +409,7 @@ bool PFS_data_lock_wait_container::accept_requesting_transaction_id(
 
 bool PFS_data_lock_wait_container::accept_blocking_transaction_id(
     ulonglong transaction_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_blocking_transaction_id(transaction_id);
   }
   return true;
@@ -417,7 +417,7 @@ bool PFS_data_lock_wait_container::accept_blocking_transaction_id(
 
 bool PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(
     ulonglong thread_id, ulonglong event_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_requesting_thread_id_event_id(thread_id, event_id);
   }
   return true;
@@ -425,7 +425,7 @@ bool PFS_data_lock_wait_container::accept_requesting_thread_id_event_id(
 
 bool PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(
     ulonglong thread_id, ulonglong event_id) {
-  if (m_filter != NULL) {
+  if (m_filter != nullptr) {
     return m_filter->match_blocking_thread_id_event_id(thread_id, event_id);
   }
   return true;
@@ -444,7 +444,7 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
 
   row.m_engine = engine;
 
-  if (requesting_engine_lock_id != NULL) {
+  if (requesting_engine_lock_id != nullptr) {
     size_t len = requesting_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_requesting_engine_lock_id)) {
       DBUG_ASSERT(false);
@@ -464,7 +464,7 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
   row.m_requesting_event_id = requesting_event_id;
   row.m_requesting_identity = requesting_identity;
 
-  if (blocking_engine_lock_id != NULL) {
+  if (blocking_engine_lock_id != nullptr) {
     size_t len = blocking_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_blocking_engine_lock_id)) {
       DBUG_ASSERT(false);
@@ -508,7 +508,7 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
       The caller should not ask for it again.
     */
     DBUG_ASSERT(false);
-    return NULL;
+    return nullptr;
   }
 
   size_t physical_index = index - m_logical_row_index;
@@ -517,5 +517,5 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
     return &m_rows[physical_index];
   }
 
-  return NULL;
+  return nullptr;
 }

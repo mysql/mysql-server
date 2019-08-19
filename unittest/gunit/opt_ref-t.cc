@@ -47,7 +47,7 @@ bool scrap_bool;  // Needed by Key_field CTOR.
 class Fake_key_field : public Key_field {
  public:
   Fake_key_field()
-      : Key_field(NULL, NULL, 0, 0, false, false, &scrap_bool, 0) {}
+      : Key_field(nullptr, nullptr, 0, 0, false, false, &scrap_bool, 0) {}
 };
 
 /*
@@ -76,7 +76,7 @@ class OptRefTest : public ::testing::Test {
     t1.pos_in_table_list = &t1_table_list;
 
     t1_table_list.table = &t1;
-    t1_table_list.embedding = NULL;
+    t1_table_list.embedding = nullptr;
     t1_table_list.derived_keys_ready = true;
     t1_table_list.set_tableno(0);
   }
@@ -125,8 +125,8 @@ class OptRefTest : public ::testing::Test {
 
   void call_add_key_fields(Item *cond) {
     uint and_level = 0;
-    (void)add_key_fields(thd(), NULL /* join */, &t1_key_fields, &and_level,
-                         cond, ~0ULL, NULL);
+    (void)add_key_fields(thd(), nullptr /* join */, &t1_key_fields, &and_level,
+                         cond, ~0ULL, nullptr);
   }
 
  private:

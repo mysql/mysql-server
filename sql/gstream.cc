@@ -36,7 +36,7 @@
 #include "sql/psi_memory_key.h"
 
 static inline bool is_numeric_beginning(const char *pc, const size_t len) {
-  return (pc != NULL &&
+  return (pc != nullptr &&
           ((*pc >= '0' && *pc <= '9') || *pc == '-' || *pc == '+' ||
            (*pc == '.' && len > 1 && pc[1] >= '0' && pc[1] <= '9')));
 }

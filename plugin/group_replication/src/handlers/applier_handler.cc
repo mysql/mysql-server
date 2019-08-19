@@ -60,9 +60,10 @@ int Applier_handler::initialize_repositories(bool reset_logs,
   channel_interface.set_stop_wait_timeout(plugin_shutdown_timeout);
 
   error = channel_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, false, GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
-      0, true, NULL, false, NULL, 0, NULL, NULL);
+      const_cast<char *>("<NULL>"), 0, nullptr, nullptr, false, nullptr,
+      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, false,
+      GROUP_REPLICATION_APPLIER_THREAD_PRIORITY, 0, true, nullptr, false,
+      nullptr, 0, nullptr, nullptr);
 
   if (error) {
     LogPluginErr(ERROR_LEVEL,
@@ -75,7 +76,7 @@ int Applier_handler::initialize_repositories(bool reset_logs,
 int Applier_handler::start_applier_thread() {
   DBUG_TRACE;
 
-  int error = channel_interface.start_threads(false, true, NULL, false);
+  int error = channel_interface.start_threads(false, true, nullptr, false);
   if (error) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_START_ERROR);
   }
@@ -102,10 +103,10 @@ int Applier_handler::handle_event(Pipeline_event *event, Continuation *cont) {
   DBUG_TRACE;
   int error = 0;
 
-  Data_packet *p = NULL;
+  Data_packet *p = nullptr;
   error = event->get_Packet(&p);
   DBUG_EXECUTE_IF("applier_handler_force_error_on_pipeline", error = 1;);
-  if (error || (p == NULL)) {
+  if (error || (p == nullptr)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_DATA_FAILED);
     error = 1;
     goto end;

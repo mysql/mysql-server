@@ -356,7 +356,7 @@ void Sql_formatter::format_dump_start(
 void Sql_formatter::format_plain_sql_object(
     Abstract_plain_sql_object_dump_task *plain_sql_dump_task) {
   View *new_view_task = dynamic_cast<View *>(plain_sql_dump_task);
-  if (new_view_task != NULL) {
+  if (new_view_task != nullptr) {
     /*
      DROP VIEW statement followed by CREATE VIEW must be written to output
      as an atomic operation, else there is a possibility of bug#21399236.
@@ -374,16 +374,16 @@ void Sql_formatter::format_plain_sql_object(
 
   Mysql_function *new_func_task =
       dynamic_cast<Mysql_function *>(plain_sql_dump_task);
-  if (new_func_task != NULL)
+  if (new_func_task != nullptr)
     format_sql_objects_definer(plain_sql_dump_task, "FUNCTION");
 
   Stored_procedure *new_proc_task =
       dynamic_cast<Stored_procedure *>(plain_sql_dump_task);
-  if (new_proc_task != NULL)
+  if (new_proc_task != nullptr)
     format_sql_objects_definer(plain_sql_dump_task, "PROCEDURE");
 
   Privilege *new_priv_task = dynamic_cast<Privilege *>(plain_sql_dump_task);
-  if (new_priv_task != NULL) {
+  if (new_priv_task != nullptr) {
     if (m_options->m_drop_user)
       this->append_output(
           "DROP USER " +
@@ -393,7 +393,7 @@ void Sql_formatter::format_plain_sql_object(
 
   Column_statistic *new_col_stats_task =
       dynamic_cast<Column_statistic *>(plain_sql_dump_task);
-  if (new_col_stats_task != NULL) {
+  if (new_col_stats_task != nullptr) {
     if (m_options->m_column_statistics)
       this->append_output(plain_sql_dump_task->get_sql_formatted_definition() +
                           ";\n");

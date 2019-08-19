@@ -651,7 +651,7 @@ static const uchar tab_uni_8859_2_plane02[] = {
 static MY_UNI_IDX idx_uni_8859_2[] = {{0x0000, 0x00FD, tab_uni_8859_2_plane00},
                                       {0x0102, 0x017E, tab_uni_8859_2_plane01},
                                       {0x02C7, 0x02DD, tab_uni_8859_2_plane02},
-                                      {0, 0, NULL}};
+                                      {0, 0, nullptr}};
 
 static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler = {
     nullptr, /* init */
@@ -675,18 +675,18 @@ CHARSET_INFO my_charset_latin2_czech_ci = {
     "latin2",                                       /* cs name   */
     "latin2_czech_cs",                              /* name      */
     "",                                             /* comment   */
-    NULL,                                           /* tailoring */
-    NULL,                                           /* coll_param */
+    nullptr,                                        /* tailoring */
+    nullptr,                                        /* coll_param */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
-    NULL,                /* uca          */
+    nullptr,             /* uca          */
     tab_8859_2_uni,      /* tab_to_uni   */
     idx_uni_8859_2,      /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     4,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */

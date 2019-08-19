@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 /// @retval True if fails to get the value, true otherwise.
 bool query_get_string(MYSQL *mysql, const char *query, int column,
                       std::string *str) {
-  MYSQL_RES *res = NULL;
+  MYSQL_RES *res = nullptr;
   MYSQL_ROW row;
 
   if (mysql_query(mysql, query)) {
@@ -45,10 +45,10 @@ bool query_get_string(MYSQL *mysql, const char *query, int column,
     return true;
   }
 
-  if (((res = mysql_store_result(mysql)) == NULL) ||
-      ((row = mysql_fetch_row(res)) == NULL)) {
+  if (((res = mysql_store_result(mysql)) == nullptr) ||
+      ((row = mysql_fetch_row(res)) == nullptr)) {
     mysql_free_result(res);
-    str = 0;
+    str = nullptr;
     return true;
   }
 

@@ -134,7 +134,7 @@ TEST_F(Message_builder, encode_compact_metadata) {
   std::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
       message_with_header_from_buffer<Mysqlx::Resultset::ColumnMetaData>(data));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_collation());
   ASSERT_EQ(COLLATION, msg->collation());
@@ -189,7 +189,7 @@ TEST_F(Message_builder, encode_full_metadata) {
   std::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
       message_with_header_from_buffer<Mysqlx::Resultset::ColumnMetaData>(data));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_collation());
   ASSERT_EQ(COLLATION, msg->collation());
@@ -251,7 +251,7 @@ TEST_F(Message_builder, encode_notice_frame) {
       message_with_header_from_buffer<Mysqlx::Notice::Frame>(
           get_data_from_buffer()));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_type());
   ASSERT_EQ(TYPE, msg->type());
@@ -270,7 +270,7 @@ TEST_F(Message_builder, encode_notice_rows_affected) {
       message_with_header_from_buffer<Mysqlx::Notice::Frame>(
           get_data_from_buffer()));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_type());
   ASSERT_EQ(3, msg->type()); /*Mysqlx::Notice::SessionStateChanged*/

@@ -126,9 +126,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
       dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
     *rebuilt_old_pk =
         row_log_table_get_pk(trx, btr_cur_get_rec(btr_cur),
-                             btr_cur_get_index(btr_cur), NULL, sys, &heap);
+                             btr_cur_get_index(btr_cur), nullptr, sys, &heap);
   } else {
-    *rebuilt_old_pk = NULL;
+    *rebuilt_old_pk = nullptr;
   }
 
   /* Update would release the implicit lock. Must convert to
@@ -187,7 +187,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
   trx_id_offset = btr_cur_get_index(btr_cur)->trx_id_offset;
 
   if (!trx_id_offset) {
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     ulint trx_id_col;
     const ulint *offsets;
     ulint len;
@@ -198,7 +198,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
 
     offsets =
         rec_get_offsets(btr_cur_get_rec(btr_cur), btr_cur_get_index(btr_cur),
-                        NULL, trx_id_col + 1, &heap);
+                        nullptr, trx_id_col + 1, &heap);
 
     trx_id_offset = rec_get_nth_field_offs(offsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
@@ -273,8 +273,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   mem_heap_t *heap = mem_heap_create(1024);
-  mem_heap_t *offsets_heap = NULL;
-  ulint *offsets = NULL;
+  mem_heap_t *offsets_heap = nullptr;
+  ulint *offsets = nullptr;
   const dtuple_t *rebuilt_old_pk;
   byte sys[DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN];
 
@@ -684,8 +684,8 @@ try_again:
       delete-unmark. */
       big_rec_t *big_rec;
       rec_t *insert_rec;
-      offsets = NULL;
-      offsets_heap = NULL;
+      offsets = nullptr;
+      offsets_heap = nullptr;
 
       err =
           btr_cur_optimistic_insert(flags, btr_cur, &offsets, &offsets_heap,
@@ -718,8 +718,8 @@ try_again:
       ut_a(err == DB_SUCCESS);
       heap = mem_heap_create(sizeof(upd_t) +
                              dtuple_get_n_fields(entry) * sizeof(upd_field_t));
-      offsets_heap = NULL;
-      offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), index, NULL,
+      offsets_heap = nullptr;
+      offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), index, nullptr,
                                 ULINT_UNDEFINED, &offsets_heap);
       update = row_upd_build_sec_rec_difference_binary(
           btr_cur_get_rec(btr_cur), index, offsets, entry, heap);
@@ -823,7 +823,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   heap = mem_heap_create(1024);
 
-  while (node->index != NULL) {
+  while (node->index != nullptr) {
     dict_index_t *index = node->index;
     dtuple_t *entry;
 
@@ -936,7 +936,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   heap = mem_heap_create(1024);
 
-  while (node->index != NULL) {
+  while (node->index != nullptr) {
     dict_index_t *index = node->index;
     dtuple_t *entry;
 
@@ -1062,7 +1062,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dberr_t err = DB_SUCCESS;
   bool non_mv_upd = true;
 
-  if (node->index == NULL || ((node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
+  if (node->index == nullptr || ((node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
     /* No change in secondary indexes */
 
     return (err);
@@ -1070,7 +1070,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   heap = mem_heap_create(1024);
 
-  while (node->index != NULL) {
+  while (node->index != nullptr) {
     dict_index_t *index = node->index;
     dtuple_t *entry;
 
@@ -1216,7 +1216,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
   private to a single connection. */
   node->table = dd_table_open_on_id(table_id, thd, mdl, false, true);
 
-  if (node->table == NULL) {
+  if (node->table == nullptr) {
     /* Table was dropped */
     return;
   }
@@ -1225,7 +1225,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
     dd_table_close(node->table, thd, mdl, false);
 
     /* We skip undo operations to missing .ibd files */
-    node->table = NULL;
+    node->table = nullptr;
 
     return;
   }
@@ -1248,14 +1248,14 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
   if (!row_undo_search_clust_to_pcur(node)) {
     dd_table_close(node->table, thd, mdl, false);
 
-    node->table = NULL;
+    node->table = nullptr;
   }
 
   /* Extract indexed virtual columns from undo log */
   if (node->table && node->table->n_v_cols) {
     row_upd_replace_vcol(
         node->row, node->table, node->update, false, node->undo_row,
-        (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) ? NULL : ptr);
+        (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) ? nullptr : ptr);
   }
 }
 
@@ -1267,8 +1267,8 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
   dberr_t err;
   MDL_ticket *mdl = nullptr;
 
-  ut_ad(node != NULL);
-  ut_ad(thr != NULL);
+  ut_ad(node != nullptr);
+  ut_ad(thr != nullptr);
   ut_ad(node->state == UNDO_NODE_MODIFY);
   ut_ad(node->trx->in_rollback);
   ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
@@ -1280,7 +1280,7 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
   row_undo_mod_parse_undo_rec(node, thd,
                               dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
-  if (node->table == NULL) {
+  if (node->table == nullptr) {
     /* It is already undone, or will be undone by another query
     thread, or table was dropped */
 
@@ -1317,7 +1317,7 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
 
   dd_table_close(node->table, thd, &mdl, false);
 
-  node->table = NULL;
+  node->table = nullptr;
 
   return (err);
 }

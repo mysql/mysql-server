@@ -145,13 +145,13 @@ std::string Client::resolve_hostname() {
   sockaddr_storage *addr =
       m_connection->peer_addr(&socket_ip_string, &socket_port);
 
-  if (NULL == addr) {
+  if (nullptr == addr) {
     log_debug("%s: get peer address failed, can't resolve IP to hostname",
               m_id);
     return "";
   }
 
-  char *hostname = NULL;
+  char *hostname = nullptr;
   uint32_t connect_errors = 0;
   const int resolve_result = ip_to_hostname(addr, socket_ip_string.c_str(),
                                             &hostname, &connect_errors);

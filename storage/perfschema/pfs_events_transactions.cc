@@ -60,7 +60,7 @@ PFS_ALIGNED bool events_transactions_history_long_full = false;
 PFS_ALIGNED PFS_cacheline_atomic_uint32 events_transactions_history_long_index;
 /** EVENTS_TRANSACTIONS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_transactions *events_transactions_history_long_array =
-    NULL;
+    nullptr;
 
 /**
   Initialize table EVENTS_TRANSACTIONS_HISTORY_LONG.
@@ -91,7 +91,7 @@ void cleanup_events_transactions_history_long(void) {
                  events_transactions_history_long_size,
                  sizeof(PFS_events_transactions),
                  events_transactions_history_long_array);
-  events_transactions_history_long_array = NULL;
+  events_transactions_history_long_array = nullptr;
 }
 
 static inline void copy_events_transactions(
@@ -110,7 +110,7 @@ void insert_events_transactions_history(PFS_thread *thread,
     return;
   }
 
-  DBUG_ASSERT(thread->m_transactions_history != NULL);
+  DBUG_ASSERT(thread->m_transactions_history != nullptr);
 
   uint index = thread->m_transactions_history_index;
 
@@ -142,7 +142,7 @@ void insert_events_transactions_history_long(
     return;
   }
 
-  DBUG_ASSERT(events_transactions_history_long_array != NULL);
+  DBUG_ASSERT(events_transactions_history_long_array != nullptr);
 
   uint index = events_transactions_history_long_index.m_u32++;
 
@@ -157,7 +157,7 @@ void insert_events_transactions_history_long(
 }
 
 static void fct_reset_events_transactions_current(PFS_thread *pfs) {
-  pfs->m_transaction_current.m_class = NULL;
+  pfs->m_transaction_current.m_class = nullptr;
 }
 
 /** Reset table EVENTS_TRANSACTIONS_CURRENT data. */
@@ -173,7 +173,7 @@ static void fct_reset_events_transactions_history(PFS_thread *pfs_thread) {
   pfs_thread->m_transactions_history_index = 0;
   pfs_thread->m_transactions_history_full = false;
   for (; pfs < pfs_last; pfs++) {
-    pfs->m_class = NULL;
+    pfs->m_class = nullptr;
   }
 }
 
@@ -191,7 +191,7 @@ void reset_events_transactions_history_long(void) {
   PFS_events_transactions *pfs_last =
       pfs + events_transactions_history_long_size;
   for (; pfs < pfs_last; pfs++) {
-    pfs->m_class = NULL;
+    pfs->m_class = nullptr;
   }
 }
 

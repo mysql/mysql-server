@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,7 +195,7 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line) {
   native_mutex_unlock(&mp->global);
   if (native_mutex_destroy(&mp->global)) error = 1;
   if (native_mutex_destroy(&mp->mutex)) error = 1;
-  mp->file = 0; /* Mark destroyed */
+  mp->file = nullptr; /* Mark destroyed */
   return error;
 }
 

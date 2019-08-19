@@ -63,7 +63,7 @@ Plugin_table table_users::m_table_def(
 PFS_engine_table_share table_users::m_share = {
     &pfs_truncatable_acl,
     table_users::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_users::delete_all_rows,
     cursor_by_user::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -116,7 +116,7 @@ int table_users::delete_all_rows(void) {
 table_users::table_users() : cursor_by_user(&m_share) {}
 
 int table_users::index_init(uint, bool) {
-  PFS_index_users *result = NULL;
+  PFS_index_users *result = nullptr;
   result = PFS_NEW(PFS_index_users_by_user);
   m_opened_index = result;
   m_index = result;

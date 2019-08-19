@@ -295,7 +295,7 @@ static void track_table_access(THD *thd, TABLE **tables, size_t count) {
 static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock) {
   reset_lock_data(*mysql_lock);
   my_free(*mysql_lock);
-  *mysql_lock = 0;
+  *mysql_lock = nullptr;
 }
 
 /**
@@ -322,10 +322,10 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
 
   DBUG_TRACE;
 
-  if (lock_tables_check(thd, tables, count, flags)) return NULL;
+  if (lock_tables_check(thd, tables, count, flags)) return nullptr;
 
   if (!(sql_lock = get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
-    return NULL;
+    return nullptr;
 
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
@@ -361,7 +361,7 @@ end:
     thd->send_kill_message();
     if (sql_lock) {
       mysql_unlock_tables(thd, sql_lock);
-      sql_lock = 0;
+      sql_lock = nullptr;
     }
   }
 
@@ -570,7 +570,7 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a, MYSQL_LOCK *b) {
                 sizeof(THR_LOCK_DATA *) * (a->lock_count + b->lock_count) +
                 sizeof(TABLE *) * (a->table_count + b->table_count),
             MYF(MY_WME))))
-    return 0;  // Fatal error
+    return nullptr;  // Fatal error
   sql_lock->lock_count = a->lock_count + b->lock_count;
   sql_lock->table_count = a->table_count + b->table_count;
   sql_lock->locks = (THR_LOCK_DATA **)(sql_lock + 1);
@@ -663,7 +663,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
             sizeof(*sql_lock) + sizeof(THR_LOCK_DATA *) * tables * 2 +
                 sizeof(table_ptr) * lock_count,
             MYF(0))))
-    return 0;
+    return nullptr;
   locks = locks_buf = sql_lock->locks = (THR_LOCK_DATA **)(sql_lock + 1);
   to = table_buf = sql_lock->table = (TABLE **)(locks + tables * 2);
   sql_lock->table_count = lock_count;
@@ -789,7 +789,7 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
     DBUG_ASSERT(!tablespace.empty());
 
     MDL_request *tablespace_request = new (thd->mem_root) MDL_request;
-    if (tablespace_request == NULL) return true;
+    if (tablespace_request == nullptr) return true;
     MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE, "",
                      tablespace.c_str(), MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
@@ -1074,11 +1074,11 @@ void Global_read_lock::unlock_global_read_lock(THD *thd) {
 
   if (m_mdl_blocks_commits_lock) {
     thd->mdl_context.release_lock(m_mdl_blocks_commits_lock);
-    m_mdl_blocks_commits_lock = NULL;
+    m_mdl_blocks_commits_lock = nullptr;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
   Global_read_lock::m_atomic_active_requests--;
-  m_mdl_global_shared_lock = NULL;
+  m_mdl_global_shared_lock = nullptr;
   m_state = GRL_NONE;
 }
 

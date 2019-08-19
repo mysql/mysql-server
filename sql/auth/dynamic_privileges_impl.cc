@@ -49,14 +49,14 @@ class THD;
 */
 class Thd_creator {
  public:
-  Thd_creator(THD *thd) : m_thd(thd), m_tmp_thd(0) {}
+  Thd_creator(THD *thd) : m_thd(thd), m_tmp_thd(nullptr) {}
 
   /**
     Returns a THD handle either by creating a new one or by returning a
     previously created THD.
   */
   THD *operator()() {
-    if (m_thd == 0 && m_tmp_thd == 0) {
+    if (m_thd == nullptr && m_tmp_thd == nullptr) {
       /*
         Initiate a THD without plugins,
         without attaching to the Global_THD_manager, and without setting
@@ -64,7 +64,7 @@ class Thd_creator {
       */
       m_tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       return m_tmp_thd;
-    } else if (m_thd == 0) {
+    } else if (m_thd == nullptr) {
       return m_tmp_thd;
     }
     return m_thd;
@@ -74,7 +74,7 @@ class Thd_creator {
     Automatically frees any THD handle created by this class.
   */
   ~Thd_creator() {
-    if (m_thd == 0 && m_tmp_thd != 0) {
+    if (m_thd == nullptr && m_tmp_thd != nullptr) {
       destroy_thd(m_tmp_thd);
     }
   }

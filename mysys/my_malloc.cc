@@ -79,7 +79,7 @@ void *my_malloc(PSI_memory_key key, size_t size, myf flags) {
 
   raw_size = HEADER_SIZE + size;
   mh = (my_memory_header *)my_raw_malloc(raw_size, flags);
-  if (likely(mh != NULL)) {
+  if (likely(mh != nullptr)) {
     void *user_ptr;
     mh->m_magic = MAGIC;
     mh->m_size = size;
@@ -88,7 +88,7 @@ void *my_malloc(PSI_memory_key key, size_t size, myf flags) {
     MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
     return user_ptr;
   }
-  return NULL;
+  return nullptr;
 }
 
 void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
@@ -97,7 +97,7 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
   size_t min_size;
   void *new_ptr;
 
-  if (ptr == NULL) return my_malloc(key, size, flags);
+  if (ptr == nullptr) return my_malloc(key, size, flags);
 
   old_mh = USER_TO_HEADER(ptr);
   DBUG_ASSERT((old_mh->m_key == key) ||
@@ -109,7 +109,7 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
   if (old_size == size) return ptr;
 
   new_ptr = my_malloc(key, size, flags);
-  if (likely(new_ptr != NULL)) {
+  if (likely(new_ptr != nullptr)) {
 #ifndef DBUG_OFF
     my_memory_header *new_mh = USER_TO_HEADER(new_ptr);
 #endif
@@ -125,13 +125,13 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
 
     return new_ptr;
   }
-  return NULL;
+  return nullptr;
 }
 
 void my_claim(const void *ptr) {
   my_memory_header *mh;
 
-  if (ptr == NULL) return;
+  if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(const_cast<void *>(ptr));
   DBUG_ASSERT(mh->m_magic == MAGIC);
@@ -142,7 +142,7 @@ void my_claim(const void *ptr) {
 void my_free(void *ptr) {
   my_memory_header *mh;
 
-  if (ptr == NULL) return;
+  if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(ptr);
   DBUG_ASSERT(mh->m_magic == MAGIC);
@@ -201,14 +201,14 @@ static void *my_raw_malloc(size_t size, myf my_flags) {
 
   DBUG_EXECUTE_IF("simulate_out_of_memory", {
     free(point);
-    point = NULL;
+    point = nullptr;
   });
   DBUG_EXECUTE_IF("simulate_persistent_out_of_memory", {
     free(point);
-    point = NULL;
+    point = nullptr;
   });
 
-  if (point == NULL) {
+  if (point == nullptr) {
     set_my_errno(errno);
     if (my_flags & MY_FAE) error_handler_hook = fatal_error_handler_hook;
     if (my_flags & (MY_FAE + MY_WME))
@@ -285,7 +285,8 @@ static void my_raw_free(void *ptr) {
 void *my_memdup(PSI_memory_key key, const void *from, size_t length,
                 myf my_flags) {
   void *ptr;
-  if ((ptr = my_malloc(key, length, my_flags)) != 0) memcpy(ptr, from, length);
+  if ((ptr = my_malloc(key, length, my_flags)) != nullptr)
+    memcpy(ptr, from, length);
   return ptr;
 }
 

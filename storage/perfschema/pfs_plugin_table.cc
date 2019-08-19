@@ -466,7 +466,7 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
     PFS_engine_table_share *temp_share =
         pfs_external_table_shares.find_share(temp_st_share->m_table_name, true);
 
-    if (temp_share != NULL) {
+    if (temp_share != nullptr) {
       /* If share found in global list,
        *  - Move it to purgatory.
        *  - Add it to the list of shares to be removed.

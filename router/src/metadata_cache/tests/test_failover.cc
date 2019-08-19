@@ -191,9 +191,9 @@ class FailoverTest : public ::testing::Test {
 
 class DelayCheck {
  public:
-  DelayCheck() { start_time_ = time(NULL); }
+  DelayCheck() { start_time_ = time(nullptr); }
 
-  long time_elapsed() { return time(NULL) - start_time_; }
+  long time_elapsed() { return time(nullptr) - start_time_; }
 
  private:
   time_t start_time_;

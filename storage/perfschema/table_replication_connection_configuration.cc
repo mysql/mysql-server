@@ -90,8 +90,8 @@ Plugin_table table_replication_connection_configuration::m_table_def(
 PFS_engine_table_share table_replication_connection_configuration::m_share = {
     &pfs_readonly_acl,
     table_replication_connection_configuration::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_connection_configuration::get_row_count, /* records */
     sizeof(pos_t),                                             /* ref length */
     &m_table_lock,
@@ -183,7 +183,7 @@ int table_replication_connection_configuration::rnd_pos(const void *pos) {
 
 int table_replication_connection_configuration::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_rpl_connection_config *result = NULL;
+  PFS_index_rpl_connection_config *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_connection_config);
   m_opened_index = result;
@@ -219,7 +219,7 @@ int table_replication_connection_configuration::index_next(void) {
 int table_replication_connection_configuration::make_row(Master_info *mi) {
   const char *temp_store;
 
-  DBUG_ASSERT(mi != NULL);
+  DBUG_ASSERT(mi != nullptr);
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);

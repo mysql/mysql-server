@@ -43,7 +43,7 @@ bool Properties::from_str(const String_type &number, T *value) {
   // Do the conversion to an 8 byte signed integer.
   int error_code;
   int64 tmp = 0;
-  tmp = my_strtoll10(number.c_str(), NULL, &error_code);
+  tmp = my_strtoll10(number.c_str(), nullptr, &error_code);
 
   // Check for conversion errors, including boundaries for 8 byte integers.
   if (error_code != 0 && error_code != -1) return true;
@@ -66,7 +66,7 @@ bool Properties::from_str(const String_type &number, T *value) {
 }
 
 bool Properties::from_str(const String_type &bool_str, bool *value) {
-  DBUG_ASSERT(value != NULL);
+  DBUG_ASSERT(value != nullptr);
 
   if (bool_str == "true") {
     *value = true;

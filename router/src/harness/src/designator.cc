@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ long Designator::parse_number() {
   std::string::const_iterator start = cur_;
   while (::isdigit(peek())) ++cur_;
   if (std::distance(start, cur_) == 0) parse_error("Expected number");
-  return strtol(std::string(start, cur_).c_str(), NULL, 10);
+  return strtol(std::string(start, cur_).c_str(), nullptr, 10);
 }
 
 void Designator::parse_plugin() {

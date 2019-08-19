@@ -76,7 +76,7 @@ Plugin_table table_ets_global_by_event_name::m_table_def(
 PFS_engine_table_share table_ets_global_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_ets_global_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ets_global_by_event_name::delete_all_rows,
     table_ets_global_by_event_name::get_row_count,
     sizeof(PFS_simple_index),
@@ -156,7 +156,7 @@ int table_ets_global_by_event_name::rnd_pos(const void *pos) {
 
 int table_ets_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                bool) {
-  PFS_index_ets_global_by_event_name *result = NULL;
+  PFS_index_ets_global_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ets_global_by_event_name);
   m_opened_index = result;
@@ -180,7 +180,7 @@ int table_ets_global_by_event_name::index_next(void) {
       }
       m_pos.m_index++;
     }
-  } while (transaction_class != NULL);
+  } while (transaction_class != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }

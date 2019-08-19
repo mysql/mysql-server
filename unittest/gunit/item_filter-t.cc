@@ -250,7 +250,7 @@ Item_func *ItemFilterTest::create_item(Item_func::Functype type, Field *fld,
       break;
     }
     default:
-      result = NULL;
+      result = nullptr;
       DBUG_ASSERT(false);
       return result;
   }
@@ -269,7 +269,7 @@ TEST_F(ItemFilterTest, BasicDefaultRows) {
   const table_map used_tables = 0;
 
   MY_BITMAP no_ignore_flds;
-  bitmap_init(&no_ignore_flds, 0, m_table->s->fields);
+  bitmap_init(&no_ignore_flds, nullptr, m_table->s->fields);
 
   // Check filtering for predicate: field0 = 10
   create_item_check_filter(COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC,
@@ -317,7 +317,7 @@ TEST_F(ItemFilterTest, BasicIgnoreField) {
 
   // Predicates on m_field[0] should be ignored
   MY_BITMAP ignore_fld0;
-  bitmap_init(&ignore_fld0, 0, m_table->s->fields);
+  bitmap_init(&ignore_fld0, nullptr, m_table->s->fields);
   bitmap_set_bit(&ignore_fld0, m_field[0]->field_index);
 
   // Check filtering for predicate on ignored field: field0 = 10
@@ -367,7 +367,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
 
   // Do not ignore predicates on any fields
   MY_BITMAP ignore_flds;
-  bitmap_init(&ignore_flds, 0, m_table->s->fields);
+  bitmap_init(&ignore_flds, nullptr, m_table->s->fields);
 
   // Create predicate: field0 = 10
   Item *eq_item1 = create_item_check_filter(
@@ -440,7 +440,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
 
   // Do not ignore predicates on any fields
   MY_BITMAP ignore_flds;
-  bitmap_init(&ignore_flds, 0, m_table->s->fields);
+  bitmap_init(&ignore_flds, nullptr, m_table->s->fields);
 
   // Create predicate: field0 = 10
   Item *eq_item1 = create_item_check_filter(
@@ -523,7 +523,7 @@ TEST_F(ItemFilterTest, InPredicate) {
 
   // Do not ignore predicates on any fields
   MY_BITMAP ignore_flds;
-  bitmap_init(&ignore_flds, 0, m_table->s->fields);
+  bitmap_init(&ignore_flds, nullptr, m_table->s->fields);
 
   // Calculate filtering effect of "col IN (1)"
   List<Item> in_lst1;

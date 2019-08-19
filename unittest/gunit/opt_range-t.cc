@@ -92,7 +92,7 @@ using my_testing::Server_initializer;
 
 class OptRangeTest : public ::testing::Test {
  protected:
-  OptRangeTest() : m_opt_param(NULL) {}
+  OptRangeTest() : m_opt_param(nullptr) {}
 
   virtual void SetUp() {
     initializer.SetUp();
@@ -314,7 +314,7 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
       result = new Item_func_xor(new Item_field(fld), new Item_int(value));
       break;
     default:
-      result = NULL;
+      result = nullptr;
       DBUG_ASSERT(false);
       return result;
   }
@@ -333,7 +333,7 @@ Item_func_xor *OptRangeTest::create_xor_item(Item *item1, Item *item2) {
 void OptRangeTest::check_use_count(SEL_TREE *tree) {
   for (uint i = 0; i < m_opt_param->keys; i++) {
     SEL_ROOT *cur_range = tree->keys[i];
-    if (cur_range != NULL) {
+    if (cur_range != nullptr) {
       EXPECT_FALSE(cur_range->test_use_count(cur_range));
     }
   }
@@ -428,9 +428,9 @@ TEST_F(OptRangeTest, AllocateImplicit) {
   We cannot do EXPECT_NE(NULL, get_mm_tree(...))
   because of limits in google test.
  */
-const SEL_TREE *null_tree = NULL;
-const SEL_ROOT *null_root = NULL;
-const SEL_ARG *null_arg = NULL;
+const SEL_TREE *null_tree = nullptr;
+const SEL_ROOT *null_root = nullptr;
+const SEL_ARG *null_arg = nullptr;
 
 static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi) {
@@ -1627,7 +1627,7 @@ TEST_F(OptRangeTest, RowConstructorIn2) {
 
   SEL_TREE *sel_tree = get_mm_tree(m_opt_param, cond);
 
-  EXPECT_FALSE(sel_tree == NULL);
+  EXPECT_FALSE(sel_tree == nullptr);
   EXPECT_EQ(Key_map(1), sel_tree->keys_map);
 
   const char *expected =
@@ -1657,7 +1657,7 @@ TEST_F(OptRangeTest, RowConstructorIn3) {
 
   SEL_TREE *sel_tree = get_mm_tree(m_opt_param, cond);
 
-  EXPECT_FALSE(sel_tree == NULL);
+  EXPECT_FALSE(sel_tree == nullptr);
   EXPECT_EQ(Key_map(1), sel_tree->keys_map);
 
   const char *expected =
@@ -1734,11 +1734,11 @@ TEST_F(OptRangeTest, CombineAlways2) {
    public:
     Fake_sel_arg() {
       part = 0;
-      left = NULL;
-      next = NULL;
+      left = nullptr;
+      next = nullptr;
       min_flag = max_flag = maybe_flag = false;
       set_endpoints(1, 2);
-      next_key_part = NULL;
+      next_key_part = nullptr;
       make_root();
     }
 
@@ -1783,7 +1783,8 @@ TEST_F(OptRangeTest, CombineAlways2) {
   Fake_sel_arg other_root;
   other_root.add_next_key_part(&key_range);
   SEL_ROOT other(&other_root);
-  append_range_all_keyparts(NULL, &res, &so_far, &other, key_part_info, true);
+  append_range_all_keyparts(nullptr, &res, &so_far, &other, key_part_info,
+                            true);
 
   // Let's make sure we built the expression we expected ...
   EXPECT_STREQ("(1 <= col_1 <= 2 AND 1 <= col_2 <= 2)", res.ptr());

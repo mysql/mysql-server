@@ -219,15 +219,15 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   TREE wtree;
   ALL_IN_ONE aio;
   FT_DOC *dptr;
-  st_ft_info_nlq *dlist = NULL;
+  st_ft_info_nlq *dlist = nullptr;
   my_off_t saved_lastpos = info->lastpos;
   struct st_mysql_ftparser *parser;
   MYSQL_FTPARSER_PARAM *ftparser_param;
   DBUG_TRACE;
 
   /* black magic ON */
-  if ((int)(keynr = _mi_check_index(info, keynr)) < 0) return NULL;
-  if (_mi_readinfo(info, F_RDLCK, 1)) return NULL;
+  if ((int)(keynr = _mi_check_index(info, keynr)) < 0) return nullptr;
+  if (_mi_readinfo(info, F_RDLCK, 1)) return nullptr;
   /* black magic OFF */
 
   aio.info = info;
@@ -253,7 +253,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (flags & FT_EXPAND && ft_query_expansion_limit) {
     QUEUE best;
     init_queue(&best, key_memory_QUEUE, ft_query_expansion_limit, 0, false,
-               &FT_DOC_cmp, 0);
+               &FT_DOC_cmp, nullptr);
     tree_walk(&aio.dtree, &walk_and_push, &best, left_root_right);
     while (best.elements) {
       my_off_t docid = ((FT_DOC *)queue_remove(&best, 0))->dpos;

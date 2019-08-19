@@ -66,7 +66,7 @@ extern "C" void *my_malloc(PSI_memory_key key, size_t size, int flags) {
   else
     mh = (my_memory_header *)malloc(raw_size);
 
-  if (mh != NULL) {
+  if (mh != nullptr) {
     void *user_ptr;
     mh->m_magic = MAGIC;
     mh->m_size = size;
@@ -75,13 +75,13 @@ extern "C" void *my_malloc(PSI_memory_key key, size_t size, int flags) {
     MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
     return user_ptr;
   }
-  return NULL;
+  return nullptr;
 }
 
 extern "C" void my_free(void *ptr) {
   my_memory_header *mh;
 
-  if (ptr == NULL) return;
+  if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(ptr);
   assert(mh->m_magic == MAGIC);

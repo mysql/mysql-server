@@ -146,7 +146,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
   size_t err_offset;
   *dom = Json_dom::parse(safep, safe_length, &parse_err, &err_offset);
 
-  if (*dom == NULL && parse_err != NULL) {
+  if (*dom == nullptr && parse_err != nullptr) {
     /*
       Report syntax error. The last argument is no longer used, but kept to
       avoid changing error message format.
@@ -155,7 +155,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
              parse_err, err_offset, "");
     *parse_error = true;
   }
-  return *dom == NULL;
+  return *dom == nullptr;
 }
 
 /**
@@ -524,7 +524,7 @@ const Json_path *Json_path_cache::get_path(uint arg_idx) const {
   const Path_cell &cell = m_arg_idx_to_vector_idx[arg_idx];
 
   if (cell.m_status != enum_path_status::OK_NOT_NULL) {
-    return NULL;
+    return nullptr;
   }
 
   return &m_paths[cell.m_index];
@@ -549,7 +549,7 @@ longlong Item_func_json_valid::val_int() {
   DBUG_ASSERT(fixed == 1);
   try {
     bool ok;
-    if (json_is_valid(args, 0, &m_value, func_name(), NULL, false, &ok)) {
+    if (json_is_valid(args, 0, &m_value, func_name(), nullptr, false, &ok)) {
       return error_int();
     }
 
@@ -1261,7 +1261,7 @@ String *Item_func_json_type::val_str(String *) {
     if (get_json_wrapper(args, 0, &m_value, func_name(), &wr) ||
         args[0]->null_value) {
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     const enum_json_type type = wr.type();
@@ -1290,7 +1290,7 @@ String *Item_json_func::val_str(String *) {
   Json_wrapper wr;
   if (val_json(&wr)) return error_str();
 
-  if (null_value) return NULL;
+  if (null_value) return nullptr;
 
   m_string_buffer.length(0);
 
@@ -1572,8 +1572,8 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
   }
 
   // Exactly one of scalar and dom should be used.
-  DBUG_ASSERT((scalar == NULL) != (dom == NULL));
-  DBUG_ASSERT(scalar == NULL || scalar->get() != NULL);
+  DBUG_ASSERT((scalar == nullptr) != (dom == nullptr));
+  DBUG_ASSERT(scalar == nullptr || scalar->get() != nullptr);
 
   if (scalar) {
     /*
@@ -1697,7 +1697,7 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
                            const char *calling_function, String *value,
                            String *tmp, Json_wrapper *wr) {
   if (get_json_atom_wrapper(args, arg_idx, calling_function, value, tmp, wr,
-                            NULL, true))
+                            nullptr, true))
     return true;
 
   if (args[arg_idx]->null_value) {
@@ -1744,7 +1744,7 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
   // Not a non-binary string, nor a JSON value, wrap the rest
 
   if (get_json_atom_wrapper(args, 0, func_name(), &m_value,
-                            &m_conversion_buffer, wr, NULL, true))
+                            &m_conversion_buffer, wr, nullptr, true))
     return error_json();
 
   null_value = args[0]->null_value;
@@ -2723,7 +2723,7 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items) {
 
   m_source_string_item = new Item_string(&my_charset_utf8mb4_bin);
   Item_string *default_escape = new Item_string(&my_charset_utf8mb4_bin);
-  if (m_source_string_item == NULL || default_escape == NULL)
+  if (m_source_string_item == nullptr || default_escape == nullptr)
     return true; /* purecov: inspected */
 
   Item *like_string_item = args[2];
@@ -2762,7 +2762,7 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items) {
 
   m_like_node = new Item_func_like(m_source_string_item, like_string_item,
                                    default_escape, true);
-  if (m_like_node == NULL) return true; /* purecov: inspected */
+  if (m_like_node == nullptr) return true; /* purecov: inspected */
 
   Item *like_args[3];
   like_args[0] = m_source_string_item;
@@ -3221,7 +3221,7 @@ String *Item_func_json_quote::val_str(String *str) {
   String *res = args[0]->val_str(str);
   if (!res) {
     null_value = true;
-    return NULL;
+    return nullptr;
   }
 
   try {
@@ -3244,7 +3244,7 @@ String *Item_func_json_quote::val_str(String *str) {
 
     if (ensure_utf8mb4(*res, &m_value, &safep, &safep_size, true)) {
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     /*
@@ -3297,7 +3297,7 @@ String *Item_func_json_unquote::val_str(String *str) {
 
       if (args[0]->null_value) {
         null_value = true;
-        return NULL;
+        return nullptr;
       }
 
       m_value.length(0);
@@ -3317,7 +3317,7 @@ String *Item_func_json_unquote::val_str(String *str) {
 
     if (!res) {
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     /*
@@ -3920,7 +3920,7 @@ longlong Item_func_member_of::val_int() {
 
     // arg 0 is the value to lookup
     if (get_json_atom_wrapper(args, 0, func_name(), &m_doc_value, &conv_buf,
-                              &doc_a, NULL, true) ||
+                              &doc_a, nullptr, true) ||
         args[0]->null_value) {
       null_value = true;
       return 0;

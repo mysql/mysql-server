@@ -92,11 +92,11 @@
 #include "violite.h"
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
-    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-    {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
     {{STRING_WITH_LEN("User")},
      {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("Select_priv")},
      {STRING_WITH_LEN("enum('N','Y')")},
      {STRING_WITH_LEN("utf8")}},
@@ -156,10 +156,10 @@ static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
      {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
-    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
      {{STRING_WITH_LEN("User")},
       {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("Select_priv")},
       {STRING_WITH_LEN("enum('N','Y')")},
       {STRING_WITH_LEN("utf8")}},
@@ -250,34 +250,38 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
      {{STRING_WITH_LEN("ssl_type")},
       {STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')")},
       {STRING_WITH_LEN("utf8")}},
-     {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
-     {{STRING_WITH_LEN("x509_issuer")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
-     {{STRING_WITH_LEN("x509_subject")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+     {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {nullptr, 0}},
+     {{STRING_WITH_LEN("x509_issuer")},
+      {STRING_WITH_LEN("blob")},
+      {nullptr, 0}},
+     {{STRING_WITH_LEN("x509_subject")},
+      {STRING_WITH_LEN("blob")},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("max_questions")},
       {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("max_updates")},
       {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("max_connections")},
       {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("max_user_connections")},
       {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
-     {{STRING_WITH_LEN("plugin")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+      {nullptr, 0}},
+     {{STRING_WITH_LEN("plugin")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
      {{STRING_WITH_LEN("authentication_string")},
       {STRING_WITH_LEN("text")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("password_expired")},
       {STRING_WITH_LEN("enum('N','Y')")},
       {STRING_WITH_LEN("utf8")}},
      {{STRING_WITH_LEN("password_last_changed")},
       {STRING_WITH_LEN("timestamp")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("password_lifetime")},
       {STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("account_locked")},
       {STRING_WITH_LEN("enum('N','Y')")},
       {STRING_WITH_LEN("utf8")}},
@@ -289,98 +293,106 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {STRING_WITH_LEN("utf8")}},
      {{STRING_WITH_LEN("Password_reuse_history")},
       {STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("Password_reuse_time")},
       {STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
+      {nullptr, 0}},
      {{STRING_WITH_LEN("Password_require_current")},
       {STRING_WITH_LEN("enum('N','Y')")},
       {STRING_WITH_LEN("utf8")}},
      {{STRING_WITH_LEN("User_attributes")},
       {STRING_WITH_LEN("json")},
-      {NULL, 0}}};
+      {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_proxies_priv_table_fields[MYSQL_PROXIES_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Proxied_host")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Proxied_user")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("With_grant")},
          {STRING_WITH_LEN("tinyint(1)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_procs_priv_table_fields[MYSQL_PROCS_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Routine_name")},
          {STRING_WITH_LEN("char(64)")},
          {STRING_WITH_LEN("utf8")}},
         {{STRING_WITH_LEN("Routine_type")},
          {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Proc_priv")},
          {STRING_WITH_LEN("set('Execute','Alter Routine','Grant')")},
          {STRING_WITH_LEN("utf8")}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_columns_priv_table_fields[MYSQL_COLUMNS_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Table_name")},
          {STRING_WITH_LEN("char(64)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Column_name")},
          {STRING_WITH_LEN("char(64)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Column_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
          {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Table_name")},
          {STRING_WITH_LEN("char(64)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Table_priv")},
          {STRING_WITH_LEN("set('Select','Insert','Update','Delete','Create',"
                           "'Drop','Grant','References','Index','Alter',"
@@ -394,54 +406,64 @@ static const TABLE_FIELD_TYPE
     mysql_role_edges_table_fields[MYSQL_ROLE_EDGES_FIELD_COUNT] = {
         {{STRING_WITH_LEN("FROM_HOST")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("FROM_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("TO_HOST")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("TO_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("WITH_ADMIN_OPTION")},
          {STRING_WITH_LEN("enum('N','Y')")},
          {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_default_roles_table_fields[MYSQL_DEFAULT_ROLES_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("HOST")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("DEFAULT_ROLE_HOST")},
          {STRING_WITH_LEN("char(255)")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("DEFAULT_ROLE_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_password_history_table_fields[MYSQL_PASSWORD_HISTORY_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("Password_timestamp")},
          {STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
-        {{STRING_WITH_LEN("Password")}, {STRING_WITH_LEN("text")}, {NULL, 0}}};
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Password")},
+         {STRING_WITH_LEN("text")},
+         {nullptr, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_dynamic_priv_table_fields[MYSQL_DYNAMIC_PRIV_FIELD_COUNT] = {
         {{STRING_WITH_LEN("USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-         {NULL, 0}},
-        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
-        {{STRING_WITH_LEN("PRIV")}, {STRING_WITH_LEN("char(32)")}, {NULL, 0}},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("HOST")},
+         {STRING_WITH_LEN("char(255)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("PRIV")},
+         {STRING_WITH_LEN("char(32)")},
+         {nullptr, 0}},
         {{STRING_WITH_LEN("WITH_GRANT_OPTION")},
          {STRING_WITH_LEN("enum('N','Y')")},
-         {NULL, 0}}};
+         {nullptr, 0}}};
 
 /** keep in sync with @ref ACL_TABLES */
 const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
@@ -855,7 +877,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
       table->field[i]->store(&what, 1,
                              &my_charset_latin1);  // set requested privileges
   }
-  rights = get_access(table, 3, 0);
+  rights = get_access(table, 3, nullptr);
   rights = fix_rights_for_db(rights);
 
   if (old_row_exists) {
@@ -1264,7 +1286,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
       if (privileges & rights)  // is in this record the priv to be revoked ??
       {
-        GRANT_COLUMN *grant_column = NULL;
+        GRANT_COLUMN *grant_column = nullptr;
         char colum_name_buf[HOSTNAME_LENGTH + 1];
         String column_name(colum_name_buf, sizeof(colum_name_buf),
                            system_charset_info);
@@ -1755,7 +1777,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++) tables[i].updating = true;
 
     if (!(thd->sp_runtime_ctx ||
-          thd->rli_slave->rpl_filter->tables_ok(0, tables)))
+          thd->rli_slave->rpl_filter->tables_ok(nullptr, tables)))
       return 1;
 
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++)

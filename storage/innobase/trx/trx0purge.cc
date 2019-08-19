@@ -69,7 +69,7 @@ ulong srv_max_purge_lag = 0;
 ulong srv_max_purge_lag_delay = 0;
 
 /** The global data structure coordinating a purge */
-trx_purge_t *purge_sys = NULL;
+trx_purge_t *purge_sys = nullptr;
 
 #ifdef UNIV_DEBUG
 bool srv_purge_view_update_only_debug;
@@ -140,7 +140,7 @@ const page_size_t TrxUndoRsegsIterator::set_next() {
 
     mutex_exit(&m_purge_sys->pq_mutex);
 
-    m_purge_sys->rseg = NULL;
+    m_purge_sys->rseg = nullptr;
 
     /* return a dummy object, not going to be used by the caller */
     return (univ_page_size);
@@ -150,7 +150,7 @@ const page_size_t TrxUndoRsegsIterator::set_next() {
 
   mutex_exit(&m_purge_sys->pq_mutex);
 
-  ut_a(m_purge_sys->rseg != NULL);
+  ut_a(m_purge_sys->rseg != nullptr);
 
   mutex_enter(&m_purge_sys->rseg->mutex);
 
@@ -186,13 +186,13 @@ static que_t *trx_purge_graph_build(trx_t *trx, ulint n_purge_threads) {
   que_fork_t *fork;
 
   heap = mem_heap_create(512);
-  fork = que_fork_create(NULL, NULL, QUE_FORK_PURGE, heap);
+  fork = que_fork_create(nullptr, nullptr, QUE_FORK_PURGE, heap);
   fork->trx = trx;
 
   for (i = 0; i < n_purge_threads; ++i) {
     que_thr_t *thr;
 
-    thr = que_thr_create(fork, heap, NULL);
+    thr = que_thr_create(fork, heap, nullptr);
 
     thr->child = row_purge_node_create(thr, heap);
   }
@@ -204,7 +204,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   purge_sys = static_cast<trx_purge_t *>(ut_zalloc_nokey(sizeof(*purge_sys)));
 
   purge_sys->state = PURGE_STATE_INIT;
-  purge_sys->event = os_event_create(0);
+  purge_sys->event = os_event_create(nullptr);
 
   new (&purge_sys->iter) purge_iter_t;
   new (&purge_sys->limit) purge_iter_t;
@@ -262,7 +262,7 @@ void trx_purge_sys_close(void) {
 
   sess_close(purge_sys->sess);
 
-  purge_sys->sess = NULL;
+  purge_sys->sess = nullptr;
 
   purge_sys->view.close();
   purge_sys->view.~ReadView();
@@ -270,14 +270,14 @@ void trx_purge_sys_close(void) {
   rw_lock_free(&purge_sys->latch);
   mutex_free(&purge_sys->pq_mutex);
 
-  if (purge_sys->purge_queue != NULL) {
+  if (purge_sys->purge_queue != nullptr) {
     UT_DELETE(purge_sys->purge_queue);
-    purge_sys->purge_queue = NULL;
+    purge_sys->purge_queue = nullptr;
   }
 
   os_event_destroy(purge_sys->event);
 
-  purge_sys->event = NULL;
+  purge_sys->event = nullptr;
 
   mem_heap_free(purge_sys->heap);
 
@@ -287,7 +287,7 @@ void trx_purge_sys_close(void) {
 
   ut_free(purge_sys);
 
-  purge_sys = NULL;
+  purge_sys = nullptr;
 }
 
 /*================ UNDO LOG HISTORY LIST =============================*/
@@ -876,7 +876,7 @@ dberr_t start_logging(Tablespace *undo_space) {
   char *log_file_name = undo_space->log_file_name();
 
   /* Delete the log file if it exists. */
-  os_file_delete_if_exists(innodb_log_file_key, log_file_name, NULL);
+  os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
 
   /* Create the log file, open it and write 0 to indicate
   init phase. */
@@ -890,7 +890,7 @@ dberr_t start_logging(Tablespace *undo_space) {
 
   ulint sz = UNIV_PAGE_SIZE;
   void *buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
-  if (buf == NULL) {
+  if (buf == nullptr) {
     os_file_close(handle);
     return (DB_OUT_OF_MEMORY);
   }
@@ -946,7 +946,7 @@ void done_logging(space_id_t space_num) {
 
   ulint sz = UNIV_PAGE_SIZE;
   void *buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
-  if (buf == NULL) {
+  if (buf == nullptr) {
     os_file_close(handle);
     os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
     return;
@@ -1002,7 +1002,7 @@ bool is_active_truncate_log_present(space_id_t space_num) {
 
     ulint sz = UNIV_PAGE_SIZE;
     void *buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
-    if (buf == NULL) {
+    if (buf == nullptr) {
       os_file_close(handle);
       os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
       return (false);
@@ -1743,7 +1743,7 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
 
   if (purge_sys->rseg->last_del_marks) {
     mtr_t mtr;
-    trx_undo_rec_t *undo_rec = NULL;
+    trx_undo_rec_t *undo_rec = nullptr;
 
     mtr_start(&mtr);
 
@@ -1751,7 +1751,7 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
         &modifier_trx_id, purge_sys->rseg->space_id, page_size,
         purge_sys->hdr_page_no, purge_sys->hdr_offset, RW_S_LATCH, &mtr);
 
-    if (undo_rec != NULL) {
+    if (undo_rec != nullptr) {
       offset = page_offset(undo_rec);
       undo_no = trx_undo_rec_get_undo_no(undo_rec);
       undo_rseg_space = purge_sys->rseg->space_id;
@@ -1788,7 +1788,7 @@ static void trx_purge_choose_next_log(void) {
 
   const page_size_t &page_size = purge_sys->rseg_iter->set_next();
 
-  if (purge_sys->rseg != NULL) {
+  if (purge_sys->rseg != nullptr) {
     trx_purge_read_undo_rec(purge_sys, page_size);
   } else {
     /* There is nothing to do yet. */
@@ -1855,7 +1855,7 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
     next_rec = trx_undo_page_get_next_rec(rec2, purge_sys->hdr_page_no,
                                           purge_sys->hdr_offset);
 
-    if (next_rec == NULL) {
+    if (next_rec == nullptr) {
       rec2 = trx_undo_get_next_rec(rec2, purge_sys->hdr_page_no,
                                    purge_sys->hdr_offset, &mtr);
       break;
@@ -1881,7 +1881,7 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
     }
   }
 
-  if (rec2 == NULL) {
+  if (rec2 == nullptr) {
     mtr_commit(&mtr);
 
     trx_purge_rseg_get_next_history_log(purge_sys->rseg, n_pages_handled);
@@ -1936,12 +1936,12 @@ static MY_ATTRIBUTE((warn_unused_result))
 
     if (!purge_sys->next_stored) {
       DBUG_PRINT("ib_purge", ("no logs left in the history list"));
-      return (NULL);
+      return (nullptr);
     }
   }
 
   if (purge_sys->iter.trx_no >= purge_sys->view.low_limit_no()) {
-    return (NULL);
+    return (nullptr);
   }
 
   /* fprintf(stderr, "Thread %lu purging trx %llu undo record %llu\n",
@@ -1982,7 +1982,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
   ulint i = 0;
 
   for (thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
-       thr != NULL && i < n_purge_threads;
+       thr != nullptr && i < n_purge_threads;
        thr = UT_LIST_GET_NEXT(thrs, thr), ++i) {
     purge_node_t *node;
 
@@ -2200,7 +2200,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
                                        to purge in one batch */
                 bool truncate)         /*!< in: truncate history if true */
 {
-  que_thr_t *thr = NULL;
+  que_thr_t *thr = nullptr;
   ulint n_pages_handled;
 
   ut_a(n_purge_threads > 0);
@@ -2235,13 +2235,13 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
     for (ulint i = 0; i < n_purge_threads - 1; ++i) {
       thr = que_fork_scheduler_round_robin(purge_sys->query, thr);
 
-      ut_a(thr != NULL);
+      ut_a(thr != nullptr);
 
       srv_que_task_enqueue_low(thr);
     }
 
     thr = que_fork_scheduler_round_robin(purge_sys->query, thr);
-    ut_a(thr != NULL);
+    ut_a(thr != nullptr);
 
     purge_sys->n_submitted += n_purge_threads - 1;
 
@@ -2249,7 +2249,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
 
     /* Do it synchronously. */
   } else {
-    thr = que_fork_scheduler_round_robin(purge_sys->query, NULL);
+    thr = que_fork_scheduler_round_robin(purge_sys->query, nullptr);
     ut_ad(thr);
 
   run_synchronously:

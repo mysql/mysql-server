@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -92,14 +92,14 @@ void *os_mem_alloc_large(ulint *n) {
   if (shmid < 0) {
     ib::warn(ER_IB_MSG_852)
         << "Failed to allocate " << size << " bytes. errno " << errno;
-    ptr = NULL;
+    ptr = nullptr;
   } else {
-    ptr = shmat(shmid, NULL, 0);
+    ptr = shmat(shmid, nullptr, 0);
     if (ptr == (void *)-1) {
       ib::warn(ER_IB_MSG_853) << "Failed to attach shared memory segment,"
                                  " errno "
                               << errno;
-      ptr = NULL;
+      ptr = nullptr;
     }
 
     /* Remove the shared memory segment so that it will be
@@ -145,14 +145,14 @@ skip:
   /* Align block size to system page size */
   ut_ad(ut_is_2pow(size));
   size = *n = ut_2pow_round(*n + (size - 1), size);
-  ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | OS_MAP_ANON, -1,
-             0);
+  ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | OS_MAP_ANON,
+             -1, 0);
   if (UNIV_UNLIKELY(ptr == (void *)-1)) {
     ib::error(ER_IB_MSG_856) << "mmap(" << size
                              << " bytes) failed;"
                                 " errno "
                              << errno;
-    ptr = NULL;
+    ptr = nullptr;
   } else {
     os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
     UNIV_MEM_ALLOC(ptr, size);

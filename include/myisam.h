@@ -148,7 +148,7 @@ struct MI_ISAMINFO /* Struct from h_info */
   time_t update_time{0};
   uint reflength{0};
   ulong record_offset{0};
-  ulong *rec_per_key{0}; /* for sql optimizing */
+  ulong *rec_per_key{nullptr}; /* for sql optimizing */
 };
 
 struct MI_CREATE_INFO {

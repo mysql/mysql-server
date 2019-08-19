@@ -202,8 +202,8 @@ std::string SocketOperations::get_local_hostname() {
         mysql_harness::get_strerror(errno) + " (ret: " + std::to_string(ret) +
         ", errno: " + std::to_string(errno) + ")");
   }
-  for (ifap = ifa; ifap != NULL; ifap = ifap->ifa_next) {
-    if ((ifap->ifa_addr == NULL) || (ifap->ifa_flags & IFF_LOOPBACK) ||
+  for (ifap = ifa; ifap != nullptr; ifap = ifap->ifa_next) {
+    if ((ifap->ifa_addr == nullptr) || (ifap->ifa_flags & IFF_LOOPBACK) ||
         (!(ifap->ifa_flags & IFF_UP)))
       continue;
     family = ifap->ifa_addr->sa_family;
@@ -219,9 +219,9 @@ std::string SocketOperations::get_local_hostname() {
     addrlen = static_cast<socklen_t>((family == AF_INET)
                                          ? sizeof(struct sockaddr_in)
                                          : sizeof(struct sockaddr_in6));
-    ret =
-        getnameinfo(ifap->ifa_addr, addrlen, buf,
-                    static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
+    ret = getnameinfo(ifap->ifa_addr, addrlen, buf,
+                      static_cast<socklen_t>(sizeof(buf)), nullptr, 0,
+                      NI_NAMEREQD);
 
     if (0 == ret) break;
   }

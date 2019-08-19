@@ -142,8 +142,8 @@ Plugin_table table_replication_group_members::m_table_def(
 PFS_engine_table_share table_replication_group_members::m_share = {
     &pfs_readonly_acl,
     &table_replication_group_members::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_group_members::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,

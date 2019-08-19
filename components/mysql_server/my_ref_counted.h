@@ -36,7 +36,7 @@ class my_ref_counted {
   my_ref_counted(my_ref_counted &other);
   virtual ~my_ref_counted();
   uint64 add_reference();
-  bool release_reference(uint64 *new_count = NULL);
+  bool release_reference(uint64 *new_count = nullptr);
   uint64 get_reference_count() const;
 
  private:

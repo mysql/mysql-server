@@ -83,8 +83,8 @@ Plugin_table table_variables_by_thread::m_table_def(
 PFS_engine_table_share table_variables_by_thread::m_share = {
     &pfs_readonly_acl,
     table_variables_by_thread::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_variables_by_thread::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -113,7 +113,7 @@ table_variables_by_thread::table_variables_by_thread()
       m_sysvar_cache(true),
       m_pos(),
       m_next_pos(),
-      m_context(NULL) {}
+      m_context(nullptr) {}
 
 void table_variables_by_thread::reset_position(void) {
   m_pos.reset();
@@ -149,7 +149,7 @@ int table_variables_by_thread::rnd_next(void) {
      * mem_root. */
     if (m_sysvar_cache.materialize_session(pfs_thread, true) == 0) {
       const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index_2);
-      if (system_var != NULL) {
+      if (system_var != nullptr) {
         /* If make_row() fails, get the next thread. */
         if (!make_row(pfs_thread, system_var)) {
           m_next_pos.set_after(&m_pos);
@@ -176,7 +176,7 @@ int table_variables_by_thread::rnd_pos(const void *pos) {
   if (m_sysvar_cache.materialize_session(pfs_thread, m_pos.m_index_2) == 0) {
     /* Get the first (and only) element from the cache. */
     const System_variable *system_var = m_sysvar_cache.get();
-    if (system_var != NULL) {
+    if (system_var != nullptr) {
       return make_row(pfs_thread, system_var);
     }
   }
@@ -194,7 +194,7 @@ int table_variables_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)),
       sizeof(table_variables_by_thread_context));
   new (m_context) table_variables_by_thread_context(hash_version, false);
 
-  PFS_index_variables_by_thread *result = NULL;
+  PFS_index_variables_by_thread *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_variables_by_thread);
   m_opened_index = result;
@@ -215,13 +215,13 @@ int table_variables_by_thread::index_next(void) {
     PFS_thread *pfs_thread =
         global_thread_container.get(m_pos.m_index_1, &has_more_thread);
 
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         if (m_sysvar_cache.materialize_session(pfs_thread, true) == 0) {
           const System_variable *system_var;
           do {
             system_var = m_sysvar_cache.get(m_pos.m_index_2);
-            if (system_var != NULL) {
+            if (system_var != nullptr) {
               if (m_opened_index->match(system_var)) {
                 if (!make_row(pfs_thread, system_var)) {
                   m_next_pos.set_after(&m_pos);
@@ -230,7 +230,7 @@ int table_variables_by_thread::index_next(void) {
               }
               m_pos.m_index_2++;
             }
-          } while (system_var != NULL);
+          } while (system_var != nullptr);
         }
       }
     }

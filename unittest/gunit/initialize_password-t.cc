@@ -28,7 +28,7 @@
 
 namespace initialize_password_unittest {
 
-static const char *null_s = NULL;
+static const char *null_s = nullptr;
 
 TEST(initialize_password, random_pwd_10chars) {
   char pass[12];
@@ -148,13 +148,13 @@ TEST(initialize_password, strong_pwd_10_chars) {
     const char *s = strchr(chars, *ptr);
     EXPECT_NE(s, null_s);
 
-    if (!had_low && NULL != strchr(low_chars, *ptr))
+    if (!had_low && nullptr != strchr(low_chars, *ptr))
       had_low = true;
-    else if (!had_up && NULL != strchr(up_chars, *ptr))
+    else if (!had_up && nullptr != strchr(up_chars, *ptr))
       had_up = true;
-    else if (!had_sym && NULL != strchr(sym_chars, *ptr))
+    else if (!had_sym && nullptr != strchr(sym_chars, *ptr))
       had_sym = true;
-    else if (!had_num && NULL != strchr(num_chars, *ptr))
+    else if (!had_num && nullptr != strchr(num_chars, *ptr))
       had_num = true;
   }
 
@@ -183,13 +183,13 @@ TEST(initialize_password, strong_pwd_4_chars) {
     const char *s = strchr(chars, *ptr);
     EXPECT_NE(s, null_s);
 
-    if (!had_low && NULL != strchr(low_chars, *ptr))
+    if (!had_low && nullptr != strchr(low_chars, *ptr))
       had_low = true;
-    else if (!had_up && NULL != strchr(up_chars, *ptr))
+    else if (!had_up && nullptr != strchr(up_chars, *ptr))
       had_up = true;
-    else if (!had_sym && NULL != strchr(sym_chars, *ptr))
+    else if (!had_sym && nullptr != strchr(sym_chars, *ptr))
       had_sym = true;
-    else if (!had_num && NULL != strchr(num_chars, *ptr))
+    else if (!had_num && nullptr != strchr(num_chars, *ptr))
       had_num = true;
   }
 

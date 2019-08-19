@@ -123,8 +123,8 @@ Plugin_table table_replication_connection_status::m_table_def(
 PFS_engine_table_share table_replication_connection_status::m_share = {
     &pfs_readonly_acl,
     table_replication_connection_status::create,
-    NULL,                                               /* write_row */
-    NULL,                                               /* delete_all_rows */
+    nullptr,                                            /* write_row */
+    nullptr,                                            /* delete_all_rows */
     table_replication_connection_status::get_row_count, /* records */
     sizeof(pos_t),                                      /* ref length */
     &m_table_lock,
@@ -196,7 +196,7 @@ ha_rows table_replication_connection_status::get_row_count() {
 }
 
 int table_replication_connection_status::rnd_next(void) {
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
@@ -233,7 +233,7 @@ int table_replication_connection_status::rnd_pos(const void *pos) {
 }
 
 int table_replication_connection_status::index_init(uint idx, bool) {
-  PFS_index_rpl_connection_status *result = NULL;
+  PFS_index_rpl_connection_status *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -252,7 +252,7 @@ int table_replication_connection_status::index_init(uint idx, bool) {
 }
 
 int table_replication_connection_status::index_next(void) {
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
 
   channel_map.rdlock();
 
@@ -288,8 +288,8 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
   m_row.service_state = PS_RPL_CONNECT_SERVICE_STATE_NO;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  DBUG_ASSERT(mi != nullptr);
+  DBUG_ASSERT(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->data_lock);
 

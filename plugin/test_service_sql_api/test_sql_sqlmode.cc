@@ -51,36 +51,36 @@ struct st_test_statement {
 
 static struct st_test_statement test_query_plan[] = {
     /* DB    RESULT  QUERY */
-    {NULL, true, "SELECT 'first complex command' as a"},
-    {NULL, true, "SELECT @@global.sql_mode"},
-    {NULL, true, "SELECT @@session.sql_mode"},
-    {NULL, false, "SET @@session.sql_mode = @@global.sql_mode"},
-    {NULL, true, "SELECT @@global.sql_mode"},
-    {NULL, true, "SELECT @@session.sql_mode"},
+    {nullptr, true, "SELECT 'first complex command' as a"},
+    {nullptr, true, "SELECT @@global.sql_mode"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
+    {nullptr, false, "SET @@session.sql_mode = @@global.sql_mode"},
+    {nullptr, true, "SELECT @@global.sql_mode"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
     /* SQL_MODE : NO_UNSIGNED_SUBTRACTION(Checking whether subtraction
        result is signed) */
-    {NULL, true, "SELECT CAST(0 AS UNSIGNED) - 1"},
+    {nullptr, true, "SELECT CAST(0 AS UNSIGNED) - 1"},
 
     /* Checking whether sql_mode value is getting changed or not */
-    {NULL, false, "SET @@global.sql_mode = NO_ZERO_DATE"},
-    {NULL, false, "SET @@session.sql_mode = NO_ZERO_DATE"},
-    {NULL, true, "SELECT @@global.sql_mode"},
-    {NULL, true, "SELECT @@session.sql_mode"},
-    {NULL, false, "SET @@global.sql_mode = DEFAULT"},
-    {NULL, false, "SET @@session.sql_mode = DEFAULT"},
-    {NULL, true, "SELECT @@global.sql_mode"},
-    {NULL, true, "SELECT @@session.sql_mode"},
+    {nullptr, false, "SET @@global.sql_mode = NO_ZERO_DATE"},
+    {nullptr, false, "SET @@session.sql_mode = NO_ZERO_DATE"},
+    {nullptr, true, "SELECT @@global.sql_mode"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
+    {nullptr, false, "SET @@global.sql_mode = DEFAULT"},
+    {nullptr, false, "SET @@session.sql_mode = DEFAULT"},
+    {nullptr, true, "SELECT @@global.sql_mode"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
 
     /* SQL_MODE : ANSI */
     {"test", true, "SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)"},
-    {NULL, false, "SET @@session.sql_mode = ANSI"},
-    {NULL, true, "SELECT @@session.sql_mode"},
+    {nullptr, false, "SET @@session.sql_mode = ANSI"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
     /* Expected error for invalid group function */
     {"test", true, "SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)"},
 
     /* SQL_MODE : STRICT_TRANS_TABLES */
     {"test", false, "SET @@session.sql_mode = STRICT_TRANS_TABLES"},
-    {NULL, true, "SELECT @@session.sql_mode"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
     {"test", false, "INSERT INTO t2 VALUES(NULL,'t2b1')"},
     /* Expected error Bad NULL value */
     {"test", false, "INSERT INTO t1 SELECT * FROM t2"},
@@ -89,15 +89,15 @@ static struct st_test_statement test_query_plan[] = {
 
     /* SQL_MODE : TRADITIONAL */
     {"test", false, "SET @@session.sql_mode = TRADITIONAL"},
-    {NULL, true, "SELECT @@session.sql_mode"},
+    {nullptr, true, "SELECT @@session.sql_mode"},
     {"test", false, "INSERT INTO t2 VALUES(NULL,'t2b1')"},
     /* Expected error Bad NULL value */
     {"test", false, "INSERT INTO t1 SELECT * FROM t2"},
     /* Should return no rows in columns a and b */
     {"test", true, "SELECT * FROM t1 WHERE a = 't2a2'"},
 
-    {NULL, false, "SET @@global.sql_mode = NO_UNSIGNED_SUBTRACTION"},
-    {NULL, false, "SET @@session.sql_mode = NO_UNSIGNED_SUBTRACTION"}};
+    {nullptr, false, "SET @@global.sql_mode = NO_UNSIGNED_SUBTRACTION"},
+    {nullptr, false, "SET @@session.sql_mode = NO_UNSIGNED_SUBTRACTION"}};
 
 #define STRING_BUFFER_SIZE 512
 
@@ -187,7 +187,7 @@ struct st_plugin_ctx {
   st_plugin_ctx() { reset(); }
 
   void reset() {
-    resultcs = NULL;
+    resultcs = nullptr;
     meta_server_status = 0;
     meta_warn_count = 0;
     server_status = 0;
@@ -813,7 +813,7 @@ static void test_selects(MYSQL_SESSION session, void *p) {
 
   struct st_plugin_ctx *plugin_ctx = new st_plugin_ctx();
 
-  const char *last_db = NULL;
+  const char *last_db = nullptr;
   size_t stmt_count = sizeof(test_query_plan) / sizeof(test_query_plan[0]);
   for (size_t i = 0; i < stmt_count; i++) {
     /* Change current DB if needed */
@@ -825,7 +825,7 @@ static void test_selects(MYSQL_SESSION session, void *p) {
     run_statement(session, test_query_plan[i].query, plugin_ctx,
                   test_query_plan[i].generates_result_set, p);
 
-    last_db = NULL;
+    last_db = nullptr;
   }
 
   WRITE_DASHED_LINE();
@@ -877,7 +877,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -906,7 +906,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -952,11 +952,11 @@ mysql_declare_plugin(test_daemon){
     "Test sql sql_mode",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init      */
-    NULL,                           /* Plugin Check uninstall    */
+    nullptr,                        /* Plugin Check uninstall    */
     test_sql_service_plugin_deinit, /* Plugin Deinit    */
     0x0100,                         /* 1.0              */
-    NULL,                           /* status variables */
-    NULL,                           /* system variables */
-    NULL,                           /* config options   */
+    nullptr,                        /* status variables */
+    nullptr,                        /* system variables */
+    nullptr,                        /* config options   */
     0,                              /* flags            */
 } mysql_declare_plugin_end;

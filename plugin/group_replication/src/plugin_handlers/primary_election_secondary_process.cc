@@ -29,7 +29,7 @@ static void *launch_handler_thread(void *arg) {
   Primary_election_secondary_process *handler =
       (Primary_election_secondary_process *)arg;
   handler->secondary_election_process_handler();
-  return 0;
+  return nullptr;
 }
 
 Primary_election_secondary_process::Primary_election_secondary_process()
@@ -124,7 +124,7 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
   int error = 0;
   std::string err_msg;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
@@ -218,7 +218,7 @@ end:
   if (!election_process_aborted && !error) {
     Group_member_info *primary_member_info =
         group_member_mgr->get_group_member_info(primary_uuid);
-    if (primary_member_info != NULL) {
+    if (primary_member_info != nullptr) {
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port());
@@ -355,7 +355,7 @@ int Primary_election_secondary_process::after_view_change(
 
   Group_member_info *member_info =
       group_member_mgr->get_group_member_info(primary_uuid);
-  if (member_info == NULL) {
+  if (member_info == nullptr) {
     if (!group_in_read_mode) {
       election_process_aborted = true;
     } else {

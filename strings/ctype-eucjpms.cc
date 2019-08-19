@@ -3414,72 +3414,99 @@ static const MY_UNICASE_CHARACTER c8FF4[256] = {
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_eucjpms[512] = {
     /* JIS-X-0208 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, cA2, cA3, NULL,
-    NULL, cA6, cA7, /* A */
-    NULL, NULL, NULL, NULL, NULL, cAD, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, cA2, cA3, nullptr, nullptr, cA6, cA7, /* A */
+    nullptr, nullptr, nullptr, nullptr, nullptr, cAD, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
 
     /* JIS-X-0212 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, c8FA6, c8FA7, /* A */
-    NULL, c8FA9, c8FAA, c8FAB, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, c8FF3,
-    c8FF4, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, c8FA6, c8FA7, /* A */
+    nullptr, c8FA9, c8FAA, c8FAB, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, c8FF3, c8FF4, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 static MY_UNICASE_INFO my_caseinfo_eucjpms = {0x0FFFF,
                                               my_caseinfo_pages_eucjpms};
@@ -36468,7 +36495,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {
     my_hash_sort_simple,
     my_propagate_simple};
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_eucjpms,
                                                 mbcharlen_eucjpms,
                                                 my_numchars_mb,
@@ -36504,18 +36531,18 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci = {
     "eucjpms",                      /* cs name    */
     "eucjpms_japanese_ci",          /* name         */
     "",                             /* comment      */
-    NULL,                           /* tailoring    */
-    NULL,                           /* coll_param   */
+    nullptr,                        /* tailoring    */
+    nullptr,                        /* coll_param   */
     ctype_eucjpms,
     to_lower_eucjpms,
     to_upper_eucjpms,
     sort_order_eucjpms,
-    NULL,                 /* uca          */
-    NULL,                 /* tab_to_uni   */
-    NULL,                 /* tab_from_uni */
+    nullptr,              /* uca          */
+    nullptr,              /* tab_to_uni   */
+    nullptr,              /* tab_from_uni */
     &my_caseinfo_eucjpms, /* caseinfo    */
-    NULL,                 /* state_map    */
-    NULL,                 /* ident_map    */
+    nullptr,              /* state_map    */
+    nullptr,              /* ident_map    */
     1,                    /* strxfrm_multiply */
     1,                    /* caseup_multiply  */
     2,                    /* casedn_multiply  */
@@ -36539,18 +36566,18 @@ CHARSET_INFO my_charset_eucjpms_bin = {
     "eucjpms",                      /* cs name    */
     "eucjpms_bin",                  /* name         */
     "",                             /* comment      */
-    NULL,                           /* tailoring    */
-    NULL,                           /* coll_param   */
+    nullptr,                        /* tailoring    */
+    nullptr,                        /* coll_param   */
     ctype_eucjpms,
     to_lower_eucjpms,
     to_upper_eucjpms,
-    NULL,                 /* sort_order   */
-    NULL,                 /* uca          */
-    NULL,                 /* tab_to_uni   */
-    NULL,                 /* tab_from_uni */
+    nullptr,              /* sort_order   */
+    nullptr,              /* uca          */
+    nullptr,              /* tab_to_uni   */
+    nullptr,              /* tab_from_uni */
     &my_caseinfo_eucjpms, /* caseinfo    */
-    NULL,                 /* state_map    */
-    NULL,                 /* ident_map    */
+    nullptr,              /* state_map    */
+    nullptr,              /* ident_map    */
     1,                    /* strxfrm_multiply */
     1,                    /* caseup_multiply  */
     2,                    /* casedn_multiply  */

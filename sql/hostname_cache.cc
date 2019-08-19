@@ -205,9 +205,9 @@ bool hostname_cache_init(uint size) {
 
 void hostname_cache_free() {
   delete hostname_cache_by_ip;
-  hostname_cache_by_ip = NULL;
+  hostname_cache_by_ip = nullptr;
   delete hostname_cache_lru;
-  hostname_cache_lru = NULL;
+  hostname_cache_lru = nullptr;
 
   if (hostname_cache_mutex_inited) {
     mysql_mutex_destroy(&hostname_cache_mutex);
@@ -258,9 +258,9 @@ static void add_hostname_impl(const char *ip_string, const char *hostname,
 
   entry = hostname_cache_search(ip_string);
 
-  if (likely(entry == NULL)) {
+  if (likely(entry == nullptr)) {
     entry = new (std::nothrow) Host_entry;
-    if (entry == NULL) return;
+    if (entry == nullptr) return;
 
     need_add = true;
     strcpy(entry->ip_key, ip_string);
@@ -276,7 +276,7 @@ static void add_hostname_impl(const char *ip_string, const char *hostname,
   }
 
   if (validated) {
-    if (hostname != NULL) {
+    if (hostname != nullptr) {
       size_t len = strlen(hostname);
       if (len > sizeof(entry->m_hostname) - 1)
         len = sizeof(entry->m_hostname) - 1;
@@ -454,7 +454,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
              ("IP address: '%s'; family: %d.", ip_string, (int)ip->sa_family));
 
   /* Default output values, for most cases. */
-  *hostname = NULL;
+  *hostname = nullptr;
   *connect_errors = 0;
 
   /* Check if we have loopback address (127.0.0.1 or ::1). */
@@ -516,7 +516,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   DBUG_PRINT("info", ("Resolving '%s'...", (const char *)ip_string));
 
   err_code =
-      vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+      vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, nullptr, 0, NI_NAMEREQD);
 
   /*
   ===========================================================================
@@ -593,7 +593,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
       errors.m_nameinfo_transient = 1;
       validated = false;
     }
-    add_hostname(ip_string, NULL, validated, &errors);
+    add_hostname(ip_string, nullptr, validated, &errors);
 
     return 0;
   }
@@ -649,7 +649,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   DBUG_PRINT("info",
              ("Getting IP addresses for hostname '%s'...", hostname_buffer));
 
-  err_code = getaddrinfo(hostname_buffer, NULL, &hints, &addr_info_list);
+  err_code = getaddrinfo(hostname_buffer, nullptr, &hints, &addr_info_list);
   if (err_code == 0) free_addr_info_list = true;
 
   /*
@@ -661,7 +661,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   DBUG_EXECUTE_IF("getaddrinfo_error_noname", {
     if (free_addr_info_list) freeaddrinfo(addr_info_list);
 
-    addr_info_list = NULL;
+    addr_info_list = nullptr;
     err_code = EAI_NONAME;
     free_addr_info_list = false;
   });
@@ -669,7 +669,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   DBUG_EXECUTE_IF("getaddrinfo_error_again", {
     if (free_addr_info_list) freeaddrinfo(addr_info_list);
 
-    addr_info_list = NULL;
+    addr_info_list = nullptr;
     err_code = EAI_AGAIN;
     free_addr_info_list = false;
   });
@@ -701,7 +701,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
 
     debug_addr_info[1].ai_addr = (struct sockaddr *)&debug_sock_addr[1];
     debug_addr_info[1].ai_addrlen = sizeof(struct sockaddr_in);
-    debug_addr_info[1].ai_next = NULL;
+    debug_addr_info[1].ai_next = nullptr;
 
     addr_info_list = &debug_addr_info[0];
     err_code = 0;
@@ -730,7 +730,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
 
     debug_addr_info[1].ai_addr = (struct sockaddr *)&debug_sock_addr[1];
     debug_addr_info[1].ai_addrlen = sizeof(struct sockaddr_in);
-    debug_addr_info[1].ai_next = NULL;
+    debug_addr_info[1].ai_next = nullptr;
 
     addr_info_list = &debug_addr_info[0];
     err_code = 0;
@@ -798,7 +798,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
 
     debug_addr_info[1].ai_addr = (struct sockaddr *)&debug_sock_addr[1];
     debug_addr_info[1].ai_addrlen = sizeof(struct sockaddr_in6);
-    debug_addr_info[1].ai_next = NULL;
+    debug_addr_info[1].ai_next = nullptr;
 
     addr_info_list = &debug_addr_info[0];
     err_code = 0;
@@ -865,7 +865,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
 
     debug_addr_info[1].ai_addr = (struct sockaddr *)&debug_sock_addr[1];
     debug_addr_info[1].ai_addrlen = sizeof(struct sockaddr_in6);
-    debug_addr_info[1].ai_next = NULL;
+    debug_addr_info[1].ai_next = nullptr;
 
     addr_info_list = &debug_addr_info[0];
     err_code = 0;
@@ -898,7 +898,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
       errors.m_addrinfo_transient = 1;
       validated = false;
     }
-    add_hostname(ip_string, NULL, validated, &errors);
+    add_hostname(ip_string, nullptr, validated, &errors);
 
     return false;
   }

@@ -242,12 +242,12 @@ mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
     "Metadata Cache, managing information fetched from the Metadata Server",
     VERSION_NUMBER(0, 0, 1),
     0,
-    NULL,  // Requires
+    nullptr,  // Requires
     0,
-    NULL,  // Conflicts
+    nullptr,  // Conflicts
     init,
-    NULL,
-    start,  // start
-    NULL    // stop
+    nullptr,
+    start,   // start
+    nullptr  // stop
 };
 }

@@ -591,19 +591,19 @@ Json_dom_ptr Json_dom::parse(const char *text, size_t length,
 
   if (success) {
     Json_dom_ptr dom = handler.get_built_doc();
-    if (dom == NULL && syntaxerr != NULL) {
+    if (dom == nullptr && syntaxerr != nullptr) {
       // The parsing failed for some other reason than a syntax error.
-      *syntaxerr = NULL;
+      *syntaxerr = nullptr;
     }
     return dom;
   }
 
   // Report the error offset and the error message if requested by the caller.
-  if (offset != NULL) *offset = reader.GetErrorOffset();
-  if (syntaxerr != NULL)
+  if (offset != nullptr) *offset = reader.GetErrorOffset();
+  if (syntaxerr != nullptr)
     *syntaxerr = rapidjson::GetParseError_En(reader.GetParseErrorCode());
 
-  return NULL;
+  return nullptr;
 }
 #endif  // ifdef MYSQL_SERVER
 
@@ -710,7 +710,7 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
         my_decimal m;
         if (Json_decimal::convert_from_binary(v.get_data(), v.get_data_length(),
                                               &m))
-          return NULL; /* purecov: inspected */
+          return nullptr; /* purecov: inspected */
         return new (std::nothrow) Json_decimal(m);
       }
 
@@ -732,7 +732,7 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
 
   /* purecov: begin inspected */
   my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-  return NULL;
+  return nullptr;
   /* purecov: end */
 }
 
@@ -3394,7 +3394,7 @@ size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const {
       double dbl = get_double();
       char buff[MY_GCVT_MAX_FIELD_WIDTH + 1];
       size_t len =
-          my_gcvt(dbl, MY_GCVT_ARG_DOUBLE, sizeof(buff) - 1, buff, NULL);
+          my_gcvt(dbl, MY_GCVT_ARG_DOUBLE, sizeof(buff) - 1, buff, nullptr);
       make_json_numeric_sort_key(buff, len, (dbl < 0), &key);
       break;
     }

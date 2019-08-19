@@ -98,7 +98,7 @@ static const char *fk_info_str(const THD *thd,
   res |= str.append(", CONSTRAINT ");
   append_identifier(&str, fk_p->fk_name().c_str(), fk_p->fk_name().length());
 
-  return res ? NULL : thd->strmake(str.ptr(), str.length());
+  return res ? nullptr : thd->strmake(str.ptr(), str.length());
 }
 
 /**
@@ -195,7 +195,7 @@ static Truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
     merge children, and on those we don't have an MDL lock.
     Thus clear the ticket to satisfy MDL asserts.
   */
-  table_ref->mdl_request.ticket = NULL;
+  table_ref->mdl_request.ticket = nullptr;
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, flags))
@@ -301,7 +301,7 @@ static Truncate_result handler_truncate_temporary(THD *thd,
 */
 
 bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref) {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   DBUG_TRACE;
 
   /* Lock types are set in the parser. */
@@ -344,16 +344,16 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref) {
     m_ticket_downgrade = table->mdl_ticket;
     /* Close if table is going to be recreated. */
     if (table->s->db_type()->flags & HTON_CAN_RECREATE)
-      close_all_tables_for_name(thd, table->s, false, NULL);
+      close_all_tables_for_name(thd, table->s, false, nullptr);
 
     return false;
   }  //  if (thd->locked_tables_mode)
   DBUG_ASSERT(!thd->locked_tables_mode);
 
   /* Acquire an exclusive lock. */
-  DBUG_ASSERT(table_ref->next_global == NULL);
-  if (lock_table_names(thd, table_ref, NULL, thd->variables.lock_wait_timeout,
-                       0))
+  DBUG_ASSERT(table_ref->next_global == nullptr);
+  if (lock_table_names(thd, table_ref, nullptr,
+                       thd->variables.lock_wait_timeout, 0))
     return true;
 
   /* Table is already locked exclusively. Remove cached instances. */

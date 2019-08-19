@@ -39,7 +39,7 @@ long enable_super_read_only_mode(
   DBUG_EXECUTE_IF("group_replication_read_mode_error", { return 1; });
 #endif
 
-  DBUG_ASSERT(command_interface != NULL);
+  DBUG_ASSERT(command_interface != nullptr);
 
   // Extract server values for super read mode
   longlong server_super_read_only_query =
@@ -65,7 +65,7 @@ long disable_super_read_only_mode(
   DBUG_TRACE;
   long error = 0;
 
-  DBUG_ASSERT(command_interface != NULL);
+  DBUG_ASSERT(command_interface != nullptr);
 
   error = command_interface->reset_read_only();
 
@@ -99,7 +99,7 @@ long get_read_mode_state(Sql_service_command_interface *sql_command_interface,
 
   long error = 0;
 
-  DBUG_ASSERT(sql_command_interface != NULL);
+  DBUG_ASSERT(sql_command_interface != nullptr);
 
   // Extract server values for the read mode
   longlong server_read_only_query =

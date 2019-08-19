@@ -796,7 +796,7 @@ class Item_func_num1 : public Item_func_numhybrid {
   void set_numeric_type() override;
   String *str_op(String *) override {
     DBUG_ASSERT(0);
-    return 0;
+    return nullptr;
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
@@ -825,7 +825,7 @@ class Item_num_op : public Item_func_numhybrid {
   void set_numeric_type() override;
   String *str_op(String *) override {
     DBUG_ASSERT(0);
-    return 0;
+    return nullptr;
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
@@ -1333,7 +1333,7 @@ class Item_func_rand final : public Item_real_func {
   bool first_eval;  // true if val_real() is called 1st time
  public:
   Item_func_rand(const POS &pos, Item *a)
-      : Item_real_func(pos, a), rand(0), first_eval(true) {}
+      : Item_real_func(pos, a), rand(nullptr), first_eval(true) {}
   explicit Item_func_rand(const POS &pos) : Item_real_func(pos) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
@@ -2036,7 +2036,7 @@ class Item_func_udf_float final : public Item_udf_func {
   }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
     double res = val_real();
-    if (null_value) return NULL;
+    if (null_value) return nullptr;
     double2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
     return dec_buf;
   }
@@ -2119,7 +2119,7 @@ class Item_func_udf_str : public Item_udf_func {
   }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
     String *res = val_str(&str_value);
-    if (!res) return NULL;
+    if (!res) return nullptr;
     str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
                    dec_buf);
     return dec_buf;
@@ -2864,7 +2864,7 @@ class user_var_entry {
   THD *m_owner;
 
   void reset_value() {
-    m_ptr = NULL;
+    m_ptr = nullptr;
     m_length = 0;
   }
   void set_value(char *value, size_t length) {
@@ -3075,14 +3075,14 @@ class Item_func_set_user_var : public Item_var_func {
   Item_func_set_user_var(Name_string a, Item *b, bool delayed)
       : Item_var_func(b),
         cached_result_type(INT_RESULT),
-        entry(NULL),
+        entry(nullptr),
         entry_thread_id(0),
         delayed_non_constness(delayed),
         name(a) {}
   Item_func_set_user_var(const POS &pos, Name_string a, Item *b, bool delayed)
       : Item_var_func(pos, b),
         cached_result_type(INT_RESULT),
-        entry(NULL),
+        entry(nullptr),
         entry_thread_id(0),
         delayed_non_constness(delayed),
         name(a) {}
@@ -3345,11 +3345,11 @@ class Item_func_match final : public Item_real_func {
         key(0),
         flags(b),
         join_key(false),
-        ft_handler(NULL),
-        table_ref(NULL),
-        master(NULL),
-        concat_ws(NULL),
-        hints(NULL),
+        ft_handler(nullptr),
+        table_ref(nullptr),
+        master(nullptr),
+        concat_ws(nullptr),
+        hints(nullptr),
         simple_expression(false) {
     null_on_null = false;
   }
@@ -3363,10 +3363,10 @@ class Item_func_match final : public Item_real_func {
       ft_handler->please->close_search(ft_handler);
       destroy(hints);
     }
-    ft_handler = NULL;
-    concat_ws = NULL;
-    table_ref = NULL;  // required by Item_func_match::eq()
-    master = NULL;
+    ft_handler = nullptr;
+    concat_ws = nullptr;
+    table_ref = nullptr;  // required by Item_func_match::eq()
+    master = nullptr;
     return;
   }
   Item *key_item() const override { return against; }
@@ -3728,7 +3728,7 @@ class Item_func_sp final : public Item_func {
   }
 
   my_decimal *val_decimal(my_decimal *dec_buf) override {
-    if (execute() || null_value) return NULL;
+    if (execute() || null_value) return nullptr;
     return sp_result_field->val_decimal(dec_buf);
   }
 
@@ -3737,7 +3737,7 @@ class Item_func_sp final : public Item_func {
     char buff[20];
     buf.set(buff, 20, str->charset());
     buf.length(0);
-    if (execute() || null_value) return NULL;
+    if (execute() || null_value) return nullptr;
     /*
       result_field will set buf pointing to internal buffer
       of the resul_field. Due to this it will change any time
@@ -3877,7 +3877,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
-                            Field **found = NULL);
+                            Field **found = nullptr);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 
