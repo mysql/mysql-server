@@ -5127,7 +5127,8 @@ class PT_create_resource_group final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override {
     if (check_resource_group_support()) return nullptr;
 
-    if (check_resource_group_name_len(sql_cmd.m_name)) return nullptr;
+    if (check_resource_group_name_len(sql_cmd.m_name, Sql_condition::SL_ERROR))
+      return nullptr;
 
     if (has_priority &&
         validate_resource_group_priority(thd, &sql_cmd.m_priority,
@@ -5163,7 +5164,8 @@ class PT_alter_resource_group final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override {
     if (check_resource_group_support()) return nullptr;
 
-    if (check_resource_group_name_len(sql_cmd.m_name)) return nullptr;
+    if (check_resource_group_name_len(sql_cmd.m_name, Sql_condition::SL_ERROR))
+      return nullptr;
 
     for (auto &range : *sql_cmd.m_cpu_list) {
       if (validate_vcpu_range(range)) return nullptr;
@@ -5188,7 +5190,8 @@ class PT_drop_resource_group final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override {
     if (check_resource_group_support()) return nullptr;
 
-    if (check_resource_group_name_len(sql_cmd.m_name)) return nullptr;
+    if (check_resource_group_name_len(sql_cmd.m_name, Sql_condition::SL_ERROR))
+      return nullptr;
 
     thd->lex->sql_command = SQLCOM_DROP_RESOURCE_GROUP;
     return &sql_cmd;
@@ -5210,7 +5213,8 @@ class PT_set_resource_group final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override {
     if (check_resource_group_support()) return nullptr;
 
-    if (check_resource_group_name_len(sql_cmd.m_name)) return nullptr;
+    if (check_resource_group_name_len(sql_cmd.m_name, Sql_condition::SL_ERROR))
+      return nullptr;
 
     thd->lex->sql_command = SQLCOM_SET_RESOURCE_GROUP;
     return &sql_cmd;

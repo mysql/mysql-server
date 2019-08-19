@@ -28,6 +28,7 @@
 %{
 #include "my_inttypes.h"
 #include "sql/derror.h"
+#include "sql/parse_tree_helpers.h"  // check_resource_group_name_len
 #include "sql/parse_tree_hints.h"
 #include "sql/parser_yystype.h"
 #include "sql/sql_class.h"
@@ -550,6 +551,9 @@ set_var_hint:
 resource_group_hint:
          RESOURCE_GROUP_HINT '(' HINT_ARG_IDENT ')'
          {
+           if (check_resource_group_name_len($3, Sql_condition::SL_WARNING))
+             YYERROR;
+
            $$= NEW_PTN PT_hint_resource_group($3);
            if ($$ == nullptr)
               YYABORT; // OOM
