@@ -19730,6 +19730,9 @@ ER_WARN_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_MASTER_EOF
 ER_IB_LOB_ROLLBACK_INDEX_LEN
   eng "Rolling back LOB for transaction %llu undo number %llu : current index length %llu."
 
+ER_CANT_PROCESS_EXPRESSION_FOR_GENERATED_COLUMN_TO_DD
+  eng "Error in processing (possibly deprecated) expression or function '%.128s' for generated column %.64s.%.64s.%.64s"
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.
