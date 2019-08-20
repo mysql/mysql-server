@@ -2617,8 +2617,8 @@ class Item : public Parse_tree_node {
   virtual bool repoint_const_outer_ref(uchar *arg MY_ATTRIBUTE((unused))) {
     return false;
   }
-  virtual Field *get_orig_field() { return NULL; }
-  virtual void set_orig_field(Field *) {}
+  virtual const Field *get_orig_field() { return nullptr; }
+  virtual void set_orig_field(const Field *) {}
   virtual bool strip_db_table_name_processor(uchar *) { return false; }
 
  private:
@@ -3363,7 +3363,7 @@ class Item_field : public Item_ident {
     Item's original field. Used to compare fields in Item_field::eq() in order
     to get proper result when field is transformed by tmp table.
   */
-  Field *orig_field;
+  const Field *orig_field;
   /// Result field
   Field *result_field;
   Item_equal *item_equal;
@@ -3549,8 +3549,8 @@ class Item_field : public Item_ident {
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
-  Field *get_orig_field() override { return orig_field; }
-  void set_orig_field(Field *orig_field_arg) override {
+  const Field *get_orig_field() override { return orig_field; }
+  void set_orig_field(const Field *orig_field_arg) override {
     if (orig_field_arg) orig_field = orig_field_arg;
   }
   bool returns_array() const override { return field && field->is_array(); }

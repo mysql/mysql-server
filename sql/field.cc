@@ -10410,7 +10410,7 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
 
   // Mark if collation was specified explicitly by user for the column.
   if (item->type() == Item::FIELD_ITEM) {
-    TABLE *table = table_field->orig_table;
+    const TABLE *table = table_field->orig_table;
     DBUG_ASSERT(table);
     const dd::Table *table_obj =
         table->s->tmp_table ? table->s->tmp_table_def : nullptr;

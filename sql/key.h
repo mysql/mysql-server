@@ -332,7 +332,7 @@ void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
               uint key_length);
 void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
                  uint key_length);
-bool key_cmp_if_same(TABLE *form, const uchar *key, uint index,
+bool key_cmp_if_same(const TABLE *table, const uchar *key, uint index,
                      uint key_length);
 void key_unpack(String *to, TABLE *table, KEY *key);
 void field_unpack(String *to, Field *field, uint max_length, bool prefix_key);

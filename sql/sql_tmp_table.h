@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,8 +74,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         Field **default_field, bool group, bool modify_item,
                         bool table_cant_handle_bit_fields, bool make_copy_field,
                         bool copy_result_field = false);
-Field *create_tmp_field_from_field(THD *thd, Field *org_field, const char *name,
-                                   TABLE *table, Item_field *item);
+Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
+                                   const char *name, TABLE *table,
+                                   Item_field *item);
 
 /**
   Get the minimum of max_key_length and max_key_part_length between

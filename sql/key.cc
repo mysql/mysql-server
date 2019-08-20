@@ -262,7 +262,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
     1	Key has changed
 */
 
-bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
+bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
                      uint key_length) {
   uint store_length;
   KEY_PART_INFO *key_part;

@@ -3916,7 +3916,8 @@ end:
   return result;
 }
 
-const histograms::Histogram *TABLE_SHARE::find_histogram(uint field_index) {
+const histograms::Histogram *TABLE_SHARE::find_histogram(
+    uint field_index) const {
   if (m_histograms == nullptr) return nullptr;
 
   const auto found = m_histograms->find(field_index);

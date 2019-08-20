@@ -11478,7 +11478,7 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
  * Implementation of QUICK_GROUP_MIN_MAX_SELECT
  *******************************************************************************/
 
-static inline uint get_field_keypart(KEY *index, Field *field);
+static inline uint get_field_keypart(KEY *index, const Field *field);
 static inline SEL_ROOT *get_index_range_tree(uint index, SEL_TREE *range_tree,
                                              PARAM *param);
 static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *index_range_tree,
@@ -12661,7 +12661,7 @@ static bool get_constant_key_infix(SEL_ROOT *index_range_tree,
     0 if field does not reference any index field.
 */
 
-static inline uint get_field_keypart(KEY *index, Field *field) {
+static inline uint get_field_keypart(KEY *index, const Field *field) {
   KEY_PART_INFO *part, *end;
 
   for (part = index->key_part, end = part + actual_key_parts(index); part < end;

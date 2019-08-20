@@ -111,8 +111,9 @@ static bool alloc_record_buffers(TABLE *table);
     new_created field
 */
 
-Field *create_tmp_field_from_field(THD *thd, Field *org_field, const char *name,
-                                   TABLE *table, Item_field *item) {
+Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
+                                   const char *name, TABLE *table,
+                                   Item_field *item) {
   Field *new_field;
 
   new_field =
@@ -619,7 +620,8 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   table->field[-1] = field;
   default_field[-1] = NULL;
   from_field[-1] = NULL;
-  field->table = field->orig_table = table;
+  field->table = table;
+  field->orig_table = table;
   field->field_index = 0;
 
   // Keep the field from being expanded by SELECT *.
@@ -1656,7 +1658,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     *(reg_field++) = hash_field = field_ll;
     if (sjtbl) sjtbl->hash_field = field_ll;
     table->hash_field = field_ll;
-    field_ll->table = field_ll->orig_table = table;
+    field_ll->table = table;
+    field_ll->orig_table = table;
     share->fields++;
     field_ll->field_index = 0;
     reclength = field_ll->pack_length();

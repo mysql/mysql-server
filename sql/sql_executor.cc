@@ -817,7 +817,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
       Item_equal_iterator it(*item_equal);
       Item_field *item_field;
       while ((item_field = it++)) {
-        Field *field = item_field->field;
+        const Field *field = item_field->field;
         JOIN_TAB *stat = field->table->reginfo.join_tab;
         Key_map possible_keys = field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);

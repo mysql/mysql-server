@@ -6915,7 +6915,7 @@ float Item_func_match::get_filtering_effect(THD *, table_map filter_for_table,
 
    @param field field to be added to the table read set.
 */
-static void update_table_read_set(Field *field) {
+static void update_table_read_set(const Field *field) {
   TABLE *table = field->table;
 
   if (!bitmap_test_and_set(table->read_set, field->field_index))

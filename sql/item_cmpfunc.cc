@@ -232,11 +232,11 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
            fname);
 }
 
-static bool get_histogram_selectivity(THD *thd, Field *field, Item **args,
+static bool get_histogram_selectivity(THD *thd, const Field *field, Item **args,
                                       size_t arg_count,
                                       histograms::enum_operator op,
                                       Item_func *item_func,
-                                      TABLE_SHARE *table_share,
+                                      const TABLE_SHARE *table_share,
                                       double *selectivity) {
   const histograms::Histogram *histogram =
       table_share->find_histogram(field->field_index);

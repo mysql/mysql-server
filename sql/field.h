@@ -791,8 +791,8 @@ class Field {
     Note that you can use table->in_use as replacement for current_thd member
     only inside of val_*() and store() members (e.g. you can't use it in cons)
   */
-  TABLE *table;       // Pointer for table
-  TABLE *orig_table;  // Pointer to original table
+  TABLE *table;             // Pointer for table
+  const TABLE *orig_table;  // Pointer to original table
   const char **table_name, *field_name;
   LEX_CSTRING comment;
   /* Field is part of the following keys */
@@ -1096,7 +1096,7 @@ class Field {
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
   bool gcol_expr_is_equal(const Create_field *field) const;
-  virtual bool eq(Field *field) const {
+  virtual bool eq(const Field *field) const {
     return (ptr == field->ptr && m_null_ptr == field->m_null_ptr &&
             null_bit == field->null_bit && field->type() == type());
   }
@@ -4765,9 +4765,10 @@ class Field_bit : public Field {
     bit_ptr = bit_ptr_arg;
     bit_ofs = bit_ofs_arg;
   }
-  bool eq(Field *field) const final override {
-    return (Field::eq(field) && bit_ptr == ((Field_bit *)field)->bit_ptr &&
-            bit_ofs == ((Field_bit *)field)->bit_ofs);
+  bool eq(const Field *field) const final override {
+    return (Field::eq(field) &&
+            bit_ptr == down_cast<const Field_bit *>(field)->bit_ptr &&
+            bit_ofs == down_cast<const Field_bit *>(field)->bit_ofs);
   }
   uint is_equal(const Create_field *new_field) const final override;
   void move_field_offset(ptrdiff_t ptr_diff) final override {

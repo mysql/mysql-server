@@ -677,7 +677,7 @@ struct TABLE_SHARE {
     @retval nullptr if no histogram is found
     @retval a pointer to a histogram if one is found
   */
-  const histograms::Histogram *find_histogram(uint field_index);
+  const histograms::Histogram *find_histogram(uint field_index) const;
 
   /** Category of this table. */
   TABLE_CATEGORY table_category{TABLE_UNKNOWN_CATEGORY};

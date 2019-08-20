@@ -447,12 +447,12 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
   @param[out] negative  true if the constant is has a (minus) sign
   @returns   true on error
 */
-static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
+static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
                                            Item **const_val,
                                            Item_func::Functype ft,
                                            Range_placement *place,
                                            bool *negative) {
-  const auto fd = down_cast<Field_new_decimal *>(f->field);
+  const auto fd = down_cast<const Field_new_decimal *>(f->field);
   const int f_frac = fd->dec;
   const int f_intg = fd->precision - f_frac;
   bool was_string_or_real = false;
@@ -765,7 +765,7 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
   @returns   true on error
 
 */
-static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
+static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
                                              Item **const_val,
                                              Range_placement *place) {
   const auto rtype = (*const_val)->result_type();
@@ -848,7 +848,8 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
           /* '2038-01-19 03:14:07.[999999]' */
           MYSQL_TIME max_timestamp = my_time_set(
               TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,
-              max_fraction(down_cast<Field_temporal *>(f->field)->decimals()),
+              max_fraction(
+                  down_cast<const Field_temporal *>(f->field)->decimals()),
               false, MYSQL_TIMESTAMP_DATETIME);
 
           /* '1970-01-01 00:00:01.[000000]' */
