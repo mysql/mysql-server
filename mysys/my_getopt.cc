@@ -509,10 +509,11 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
           }
           argument = optend;
         } else if (optp->arg_type == REQUIRED_ARG && !optend) {
-          /* Check if there are more arguments after this one,
-Note: options loaded from config file that requires value
-should always be in the form '--option=value'.
-*/
+          /*
+             Check if there are more arguments after this one,
+             Note: options loaded from config file that requires value
+             should always be in the form '--option=value'.
+           */
           if (!is_cmdline_arg || !*++pos) {
             if (my_getopt_print_errors)
               my_getopt_error_reporter(ERROR_LEVEL, EE_OPTION_REQUIRES_ARGUMENT,

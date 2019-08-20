@@ -10377,10 +10377,10 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
 
   switch (item->type()) {
     /*
-            We have to take into account both the real table's fields and
-            pseudo-fields used in trigger's body. These fields are used
-            to copy defaults values later inside constructor of
-            the class Create_field.
+      We have to take into account both the real table's fields and
+      pseudo-fields used in trigger's body. These fields are used
+      to copy defaults values later inside constructor of
+      the class Create_field.
      */
     case Item::FIELD_ITEM:
     case Item::TRIGGER_FIELD_ITEM:
