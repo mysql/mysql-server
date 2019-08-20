@@ -919,6 +919,8 @@ INSERT INTO cc VALUES
   ('b'), ('E'), ('v'), ('4'), ('L'), ('g'), ('i'), ('D'), ('S'), ('s'), ('4'),
   ('5'), ('4'), ('y'), ('v'), ('Z'), ('O'), ('2'), ('v'), ('5');
 
+ANALYZE TABLE c, bb, cc;
+
 let $query = SELECT *
 FROM
   cc AS alias1
