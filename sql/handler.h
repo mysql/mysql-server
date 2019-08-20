@@ -4842,13 +4842,13 @@ class handler {
   uint get_index(void) const { return active_index; }
 
   /**
-    @retval  0   Bulk update used by handler
-    @retval  1   Bulk update not used, normal operation used
+    @retval  false   Bulk update used by handler
+    @retval  true    Bulk update not used, normal operation used
   */
   virtual bool start_bulk_update() { return true; }
   /**
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
+    @retval  false   Bulk delete used by handler
+    @retval  true    Bulk delete not used, normal operation used
   */
   virtual bool start_bulk_delete() { return true; }
   /**

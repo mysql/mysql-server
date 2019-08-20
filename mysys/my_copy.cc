@@ -77,7 +77,7 @@
 
 int my_copy(const char *from, const char *to, myf MyFlags) {
   size_t Count;
-  bool new_file_stat = false; /* 1 if we could stat "to" */
+  bool new_file_stat = false; /* true if we could stat "to" */
   int create_flag;
   File from_file, to_file;
   uchar buff[IO_SIZE];

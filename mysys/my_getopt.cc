@@ -93,7 +93,7 @@ static char enabled_my_option[] = "1";
 static char space_char[] = " ";
 
 /*
-   This is a flag that can be set in client programs. 0 means that
+   This is a flag that can be set in client programs. false means that
    my_getopt will not print error messages, but the client should do
    it by itself
 */
@@ -101,7 +101,7 @@ static char space_char[] = " ";
 bool my_getopt_print_errors = true;
 
 /*
-   This is a flag that can be set in client programs. 1 means that
+   This is a flag that can be set in client programs. true means that
    my_getopt will skip over options it does not know how to handle.
 */
 
@@ -378,7 +378,8 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
             option with a special option prefix
           */
           if (!must_be_var) {
-            if (optend) must_be_var = true; /* option is followed by an argument */
+            if (optend)
+              must_be_var = true; /* option is followed by an argument */
             for (int i = 0; special_opt_prefix[i]; i++) {
               if (!getopt_compare_strings(special_opt_prefix[i], opt_str,
                                           special_opt_prefix_lengths[i]) &&
@@ -478,7 +479,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
           }
           if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL) {
             /*
-              Set bool to 1 if no argument or if the user has used
+              Set bool to true if no argument or if the user has used
               --enable-'option-name'.
               *optend was set to '0' if one used --disable-option
             */
@@ -509,9 +510,9 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
           argument = optend;
         } else if (optp->arg_type == REQUIRED_ARG && !optend) {
           /* Check if there are more arguments after this one,
-       Note: options loaded from config file that requires value
-       should always be in the form '--option=value'.
-    */
+Note: options loaded from config file that requires value
+should always be in the form '--option=value'.
+*/
           if (!is_cmdline_arg || !*++pos) {
             if (my_getopt_print_errors)
               my_getopt_error_reporter(ERROR_LEVEL, EE_OPTION_REQUIRES_ARGUMENT,
@@ -926,7 +927,7 @@ int findopt(const char *optpat, uint length, const struct my_option **opt_res) {
   function: compare_strings
 
   Works like strncmp, other than 1.) considers '-' and '_' the same.
-  2.) Returns -1 if strings differ, 0 if they are equal
+  2.) Returns true if strings differ, false if they are equal
 */
 
 bool getopt_compare_strings(const char *s, const char *t, uint length) {

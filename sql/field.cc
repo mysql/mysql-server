@@ -8399,9 +8399,9 @@ void Field_set::sql_type(String &res) const {
 
 /**
   @retval
-    1  if the fields are equally defined
+    true   if the fields are equally defined
   @retval
-    0  if the fields are unequally defined
+    false  if the fields are unequally defined
 */
 
 bool Field::eq_def(const Field *field) const {
@@ -8555,7 +8555,7 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
 
 /**
   @return
-  returns 1 if the fields are equally defined
+  returns true if the fields are equally defined
 */
 bool Field_num::eq_def(const Field *field) const {
   if (!Field::eq_def(field)) return false;
@@ -10377,10 +10377,10 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
 
   switch (item->type()) {
     /*
-      We have to take into account both the real table's fields and
-      pseudo-fields used in trigger's body. These fields are used
-      to copy defaults values later inside constructor of
-      the class Create_field.
+            We have to take into account both the real table's fields and
+            pseudo-fields used in trigger's body. These fields are used
+            to copy defaults values later inside constructor of
+            the class Create_field.
      */
     case Item::FIELD_ITEM:
     case Item::TRIGGER_FIELD_ITEM:
