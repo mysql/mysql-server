@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,48 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-FILE(GLOB JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/tie/*.java)
+SET(CLUSTERJ_TIE_PREFIX
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/tie)
+
+SET(JAVA_SOURCES
+  ${CLUSTERJ_TIE_PREFIX}/BlobImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ClusterConnectionImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ClusterConnectionServiceImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ClusterTransactionImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ColumnImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/DbImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/DbImplForNdbRecord.java
+  ${CLUSTERJ_TIE_PREFIX}/DbugImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/DictionaryImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/FixedByteBufferPoolImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/IndexImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/IndexOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/IndexScanOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/KeyPart.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordBlobImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordDeleteOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordIndexScanOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordInsertOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordKeyOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordResultDataImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordScanOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordScanResultDataImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordSmartValueHandlerFactoryImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordSmartValueHandlerImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordTableScanOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/NdbRecordUniqueKeyOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/OperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/PartitionKeyImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ResultDataImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ScanFilterImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ScanOperationImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/ScanResultDataImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/TableImpl.java
+  ${CLUSTERJ_TIE_PREFIX}/Utility.java
+  ${CLUSTERJ_TIE_PREFIX}/VariableByteBufferPoolImpl.java
+  )
 
 SET ( CLASSPATH 
   target/classes
