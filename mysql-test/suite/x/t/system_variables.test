@@ -7,7 +7,7 @@
 # Please update the test case when the variable count changes
 # add/remove variable
 let $wait_condition=
-  SELECT COUNT(*)=25 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=22 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -102,16 +102,4 @@ let $wait_condition=
 
 --let $assert_text= Mysqlx_enable_hello_notice must be 0, the default value
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_enable_hello_notice", Value, 1]" = "ON"
---source include/assert.inc
-
---let $assert_text= Mysqlx_compression_algorithms must be DEFLATE,LZ4, the default value
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_compression_algorithms", Value, 1]" = "DEFLATE,LZ4"
---source include/assert.inc
-
---let $assert_text= compression_style_server must be MULTIPLE,GROUP, the default value
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_compression_server_style", Value, 1]" = "MULTIPLE,GROUP"
---source include/assert.inc
-
---let $assert_text= compression_style_client must be SINGLE,MULTIPLE,GROUP, the default value
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_compression_client_style", Value, 1]" = "SINGLE,MULTIPLE,GROUP"
 --source include/assert.inc

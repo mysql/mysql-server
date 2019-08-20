@@ -44,7 +44,6 @@
 #include "plugin/x/client/mysqlxclient/xerror.h"
 #include "plugin/x/client/validator/capability_compression_validator.h"
 #include "plugin/x/client/validator/descriptor.h"
-#include "plugin/x/client/validator/option_compression_validator.h"
 #include "plugin/x/client/validator/option_connection_validator.h"
 #include "plugin/x/client/validator/option_context_validator.h"
 #include "plugin/x/client/validator/option_ssl_validator.h"
@@ -207,9 +206,6 @@ Capability_descriptor get_capability_descriptor(
     case XSession::Capability_session_connect_attrs:
       return {"session_connect_attrs", new Object_validator()};
 
-    case XSession::Capability_compression:
-      return {"compression", new Capability_compression_validator()};
-
     default:
       return {};
   }
@@ -295,18 +291,6 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
     case Mysqlx_option::Network_namespace:
       return Option_descriptor{
           new Con_str_store<&Con_conf::m_network_namespace>()};
-
-    case Mysqlx_option::Compression_negotiation_mode:
-      return Option_descriptor{new Compression_negotiation_validator()};
-
-    case Mysqlx_option::Compression_algorithms:
-      return Option_descriptor{new Compression_algorithms_validator()};
-
-    case Mysqlx_option::Compression_client_style:
-      return Option_descriptor{new Compression_client_styles_validator()};
-
-    case Mysqlx_option::Compression_server_style:
-      return Option_descriptor{new Compression_server_styles_validator()};
 
     default:
       return {};
@@ -844,11 +828,6 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     // and client didn't mark it as optional (its "required").
     if (error) return error;
   }
-
-  if (Compression_algorithm::k_none !=
-      m_context->m_compression_config.m_use_algorithm)
-    m_protocol->use_compression(
-        m_context->m_compression_config.m_use_algorithm);
 
   const auto is_secure_connection =
       connection.state().is_ssl_activated() ||

@@ -32,7 +32,7 @@
 
 #include "plugin/x/client/mysqlxclient/xargument.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "plugin/x/client/validator/option_compression_validator.h"
+#include "plugin/x/client/xcompression_negotiator.h"
 
 namespace xcl {
 
@@ -66,31 +66,13 @@ class To_variable_validator : public Validator {
 }  // namespace
 
 void Capabilities_negotiator::server_supports_client_styles(
-    const Array_of_strings &server_supported_client_styles) {
-  To_variable_validator<Compression_client_styles_validator> validator;
-
-  check_server_capability(&validator, server_supported_client_styles,
-                          m_compression_negotiation_client_style,
-                          &m_choosen_client_style, &m_choosen_client_style_txt);
-}
+    const Array_of_strings &server_supported_client_styles) {}
 
 void Capabilities_negotiator::server_supports_server_styles(
-    const Array_of_strings &server_supported_server_styles) {
-  To_variable_validator<Compression_server_styles_validator> validator;
-
-  check_server_capability(&validator, server_supported_server_styles,
-                          m_compression_negotiation_server_style,
-                          &m_choosen_server_style, &m_choosen_server_style_txt);
-}
+    const Array_of_strings &server_supported_server_styles) {}
 
 void Capabilities_negotiator::server_supports_algorithms(
-    const Array_of_strings &server_supported_algorithms) {
-  To_variable_validator<Compression_algorithms_validator> validator;
-
-  check_server_capability(&validator, server_supported_algorithms,
-                          m_compression_negotiation_algorithm,
-                          &m_choosen_algorithm, &m_choosen_algorithm_txt);
-}
+    const Array_of_strings &server_supported_algorithms) {}
 
 bool Capabilities_negotiator::is_negotiation_needed() const {
   return m_compression_mode != Compression_negotiation::k_disabled;

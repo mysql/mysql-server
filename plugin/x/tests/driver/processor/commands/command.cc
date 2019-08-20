@@ -145,7 +145,6 @@ Command::Command() {
   m_commands["endrepeat"] = &Command::cmd_endrepeat;
   m_commands["system"] = &Command::cmd_system;
   m_commands["peerdisc"] = &Command::cmd_peerdisc;
-  m_commands["enable_compression"] = &Command::cmd_enable_compression;
   m_commands["recv"] = &Command::cmd_recv;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
@@ -1134,25 +1133,6 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
 
   context->m_connection->close_active(false);
 
-  return Result::Continue;
-}
-
-Command::Result Command::cmd_enable_compression(std::istream &input,
-                                                Execution_context *context,
-                                                const std::string &args) {
-  const static std::map<std::string, xcl::Compression_algorithm> algo{
-      {"deflate", xcl::Compression_algorithm::k_deflate},
-      {"lz4", xcl::Compression_algorithm::k_lz4}};
-
-  std::string arg = args;
-  context->m_variables->replace(&arg);
-  if (0 == algo.count(arg)) {
-    context->print_error("ERROR: Invalid algorithm used: \"", arg, "\"\n");
-
-    return Result::Stop_with_failure;
-  }
-
-  context->m_connection->active_xprotocol()->use_compression(algo.at(arg));
   return Result::Continue;
 }
 
@@ -2365,8 +2345,6 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
-  std::cout << "-->enable_compression [deflate|lz4]\n";
-  std::cout << "  Enable compression\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";
   std::cout
@@ -2394,14 +2372,10 @@ void print_help_commands() {
   std::cout << "  - In case when user specified <msgtype> - read one message "
                "and print it,\n"
                "    checks if its type is <msgtype>, additionally its fields "
-               "may be matched.\n"
-               "    Compressed messages are decompressed, thus user will "
-               "receive inner X Protocol messages.\n";
+               "may be matched.\n";
   std::cout << "  - In case when user specified <msgid> - read one message and "
                "print the ID,\n"
-               "    checks the RAW message ID if its match <msgid>.\n"
-               "    Compressed messages are not decompressed, thus their IDs "
-               "may be matched against <msgid>.\n";
+               "    checks the RAW message ID if its match <msgid>.\n";
   std::cout << "-->recvok\n";
   std::cout << "  Expect to receive 'Mysqlx.Ok' message. Works with "
                "'expecterror' command.\n";

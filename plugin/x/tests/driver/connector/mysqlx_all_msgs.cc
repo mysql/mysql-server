@@ -97,13 +97,6 @@ static struct init_message_factory {
     server_message<Mysqlx::Sql::StmtExecuteOk>(
         Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK, "SQL_STMT_EXECUTE_OK",
         "Mysqlx.Sql.StmtExecuteOk");
-    server_message<Mysqlx::ServerMessages>(
-        Mysqlx::ServerMessages::COMPRESSION_SINGLE, "COMPRESSION_SINGLE", "");
-    server_message<Mysqlx::ServerMessages>(
-        Mysqlx::ServerMessages::COMPRESSION_MULTIPLE, "COMPRESSION_MULTIPLE",
-        "");
-    server_message<Mysqlx::ServerMessages>(
-        Mysqlx::ServerMessages::COMPRESSION_GROUP, "COMPRESSION_GROUP", "");
 
     client_message<Mysqlx::Connection::CapabilitiesGet>(
         Mysqlx::ClientMessages::CON_CAPABILITIES_GET, "CON_CAPABILITIES_GET",
@@ -168,12 +161,5 @@ static struct init_message_factory {
     client_message<Mysqlx::Cursor::Close>(Mysqlx::ClientMessages::CURSOR_CLOSE,
                                           "CURSOR_CLOSE",
                                           "Mysqlx.Cursor.Close");
-    client_message<Mysqlx::ClientMessages>(
-        Mysqlx::ClientMessages::COMPRESSION_SINGLE, "COMPRESSION_SINGLE", "");
-    client_message<Mysqlx::ClientMessages>(
-        Mysqlx::ClientMessages::COMPRESSION_MULTIPLE, "COMPRESSION_MULTIPLE",
-        "");
-    client_message<Mysqlx::ClientMessages>(
-        Mysqlx::ClientMessages::COMPRESSION_GROUP, "COMPRESSION_GROUP", "");
   }
 } init_message_factory;

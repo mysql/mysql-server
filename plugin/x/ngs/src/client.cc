@@ -48,7 +48,6 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/src/capabilities/capability_compression.h"
 #include "plugin/x/src/capabilities/handler_auth_mech.h"
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 #include "plugin/x/src/capabilities/handler_connection_attributes.h"
@@ -155,8 +154,6 @@ xpl::Capabilities_configurator *Client::capabilities_configurator() {
 
   handlers.push_back(
       ngs::allocate_shared<xpl::Capability_connection_attributes>());
-
-  handlers.push_back(ngs::allocate_shared<xpl::Capability_compression>(this));
 
   return ngs::allocate_object<xpl::Capabilities_configurator>(handlers);
 }
@@ -434,21 +431,6 @@ void Client::on_session_auth_success(Session_interface &) {
   // this is called from worker thread
   State expected = State::k_authenticating_first;
   m_state.compare_exchange_strong(expected, State::k_running);
-
-  if (Compression_style::k_none != m_cached_compression_server_style) {
-    get_protocol_compression_or_install_it()->set_comp_style(
-        m_cached_compression_server_style);
-  }
-
-  if (Compression_style::k_none != m_cached_compression_server_style &&
-      Compression_algorithm::k_none != m_cached_compression_algorithm) {
-    get_protocol_compression_or_install_it()->set_comp_algo(
-        m_cached_compression_algorithm);
-  }
-
-  m_config->m_compression_client_style = m_cached_compression_client_style;
-  m_config->m_compression_server_style = m_cached_compression_server_style;
-  m_config->m_compression_algorithm = m_cached_compression_algorithm;
 }
 
 void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused))) {
@@ -571,35 +553,6 @@ xpl::iface::Waiting_for_io *Client::get_idle_processing() {
   }
 
   return m_session->get_notice_output_queue().get_callbacks_waiting_for_io();
-}
-
-void Client::enable_compression_algo(const Compression_algorithm algo) {
-  DBUG_LOG("debug", "enable_compression_algo: " << static_cast<int>(algo));
-  m_cached_compression_algorithm = algo;
-}
-
-void Client::configure_compression_style(const Compression_style style) {
-  DBUG_LOG("debug", "configure_compression_style: " << static_cast<int>(style));
-  m_cached_compression_server_style = style;
-}
-
-void Client::configure_compression_client_style(const Compression_style style) {
-  DBUG_LOG("debug",
-           "configure_compression_client_style: " << static_cast<int>(style));
-  m_cached_compression_client_style = style;
-}
-
-Protocol_encoder_compression *Client::get_protocol_compression_or_install_it() {
-  if (!m_is_compression_encoder_injected) {
-    m_is_compression_encoder_injected = true;
-    auto encoder = ngs::allocate_object<Protocol_encoder_compression>(
-        std::move(m_encoder), m_protocol_monitor,
-        std::bind(&Client::on_network_error, this, std::placeholders::_1),
-        &m_memory_block_pool);
-    set_encoder(encoder);
-  }
-
-  return reinterpret_cast<Protocol_encoder_compression *>(m_encoder.get());
 }
 
 bool Client::create_session() {

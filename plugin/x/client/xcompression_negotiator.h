@@ -39,6 +39,8 @@
 
 namespace xcl {
 
+enum class Compression_style { k_none, k_single, k_multiple, k_group };
+
 class Capabilities_negotiator {
  public:
   using Compression_styles = std::vector<Compression_style>;

@@ -36,6 +36,16 @@
 
 namespace protocol {
 
+namespace tags {
+
+enum Raw_payload_ids {
+  COMPRESSION_SINGLE = 19,
+  COMPRESSION_MULTIPLE = 20,
+  COMPRESSION_GROUP = 21,
+};
+
+}  // namespace tags
+
 enum class Compression_type { k_single, k_multiple, k_group };
 
 class Compression_buffer_interface {

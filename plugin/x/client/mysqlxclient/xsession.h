@@ -92,17 +92,6 @@ class XSession {
       1024 characters.
      */
     Capability_session_connect_attrs,
-
-    /**
-      Enable compression and choose the algorithm and style.
-
-      Capability type: OBJECT.
-      Key: "algorithm" = type STRING; one of "deflate|lz4".
-      Key: "server_style" = type STRING; one of "single|multiple|group".
-      Key: "client_style" = type STRING; one of "single|multiple|group".
-      Key "algorithm" and one of (or both) "style" key must be set.
-     */
-    Capability_compression,
   };
 
   /**
@@ -282,43 +271,6 @@ class XSession {
       Option type: STRING
     */
     Network_namespace,
-    /** Compression negotiation check which compression algorithms or styles
-      are supported by the server and choose one supported by both sides.
-      Setting compression from "options" has priority over
-      "capabilities". If "compression_negotiation_mode" will have other value
-      than "DISABLED", then it will overwrite settings done by "capabilities".
-
-      Following modes are possible:
-
-      * "DISABLED" - client doesn't wont to use negotiation
-      * "REQUIRED" - if there is no common compression configuration or setting
-                     it fails, then such connection is rejected
-      * "PREFERRED" - client tries to negotiate compression configuration still
-                     when it fail, the connection is still usable
-
-
-      Default: "DISABLED"
-      Option type: STRING
-    */
-    Compression_negotiation_mode,
-    /** Try to negotiate following compression algorithms
-
-      Default: ["deflate","lz4"]
-      Option type: STRING, ARRAY OF STRINGS
-    */
-    Compression_algorithms,
-    /** Try to negotiate following compression server style
-
-      Default: "group"
-      Option type: STRING, ARRAY OF STRINGS
-    */
-    Compression_server_style,
-    /** Try to negotiate following compression server style
-
-      Default: "single"
-      Option type: STRING, ARRAY OF STRINGS
-    */
-    Compression_client_style,
   };
 
  public:

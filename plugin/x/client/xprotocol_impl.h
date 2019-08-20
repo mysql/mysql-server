@@ -81,13 +81,6 @@ class Protocol_impl : public XProtocol,
   XConnection &get_connection() override { return *m_connection; }
 
   XError send(const Client_message_type_id mid, const Message &msg) override;
-  XError send_compressed_frame(const Client_message_type_id mid,
-                               const Message &msg) override;
-  XError send_compressed_frames(const Client_message_type_id mid,
-                                const std::vector<Message *> &msg) override;
-  XError send_compressed_group_of_frames(
-      const std::vector<std::pair<Client_message_type_id, Message *>> &messages)
-      override;
 
   XError send(const Header_message_type_id mid, const uint8_t *buffer,
               const std::size_t length) override;
@@ -244,8 +237,6 @@ class Protocol_impl : public XProtocol,
                               const std::string &schema,
                               const std::string &method = "") override;
 
-  void use_compression(const Compression_algorithm algo) override;
-
  private:
   using CodedInputStream = google::protobuf::io::CodedInputStream;
   template <typename Handler>
@@ -343,7 +334,6 @@ class Protocol_impl : public XProtocol,
   void dispatch_send_message(const Client_message_type_id id,
                              const Message &message);
 
-  Message *read_compressed(Server_message_type_id *mid, XError *out_error);
   void skip_not_parsed(CodedInputStream *input_stream, XError *out_error);
   bool send_impl(const Client_message_type_id mid, const Message &msg,
                  ZeroCopyOutputStream *input_stream);
@@ -358,13 +348,10 @@ class Protocol_impl : public XProtocol,
 
   std::unique_ptr<XConnection> m_connection;
   std::shared_ptr<Connection_input_stream> m_connection_input_stream;
-  std::shared_ptr<ZeroCopyInputStream> m_compressed_input_stream;
   std::vector<uint8_t> m_static_recv_buffer;
 
   z_stream m_out_stream;
   std::unique_ptr<XCompression> m_compression;
-  Server_message_type_id m_compression_message_id{Sid::COMPRESSION_GROUP};
-  Server_message_type_id m_compression_inner_message_id{Sid::COMPRESSION_GROUP};
 };
 
 template <typename Auth_continue_handler>

@@ -32,7 +32,6 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/message_cache.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/protocol/stream/compression/decompression_algorithm_interface.h"
 #include "plugin/x/src/io/vio_input_stream.h"
 
 namespace ngs {
@@ -139,8 +138,6 @@ class Message_decoder {
                                   xpl::Vio_input_stream *stream);
 
  private:
-  class Compressed_message_decoder;
-
   static Error_code parse_coded_stream_generic(CodedInputStream *stream,
                                                Message *message);
   Decode_error parse_coded_stream_inner(CodedInputStream *coded_input,
@@ -150,21 +147,10 @@ class Message_decoder {
   Decode_error parse_protobuf_frame(const uint8_t message_type,
                                     const uint32_t message_size,
                                     xpl::Vio_input_stream *net_input_stream);
-  Decode_error parse_compressed_single_frame(
-      const uint32_t message_size, xpl::Vio_input_stream *net_input_stream);
-  Decode_error parse_compressed_multiple_frame(
-      const uint32_t msg_size, xpl::Vio_input_stream *net_input_stream);
-  Decode_error parse_compressed_group_frame(const uint32_t message_size,
-                                            xpl::Vio_input_stream *net_stream);
-
-  bool is_compression_enabled() const;
-  protocol::Decompression_algorithm_interface *get_decompression_algorithm();
 
   Message_dispatcher_interface *m_dispatcher;
   Protocol_monitor_interface *m_monitor;
   std::shared_ptr<Protocol_config> m_config;
-  std::unique_ptr<protocol::Decompression_algorithm_interface>
-      m_decompression_algorithm;
   Message_cache m_cache;
 };
 

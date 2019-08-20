@@ -44,21 +44,6 @@ Options:
 --use-socket          Connection through UNIX socket, using default file name 'SOCK'
                       --use-socket* options take precedence before options like: uri, user,
                       host, password, port
---compression-mode=<mode>  Enable/disable compression negotiation algorithm (default: "DISABLED")
-                      "DISABLED" - do not negotiate compression
-                      "PREFERRED" - if server doesn't support selected compression, continue without compression.
-                      "REQUIRED" - if server doesn't support selected compression, fail the connection.
---compression-algorithm=<algo[,algo...]>  Try to negotiate specified compression algorithm with the server (default:"DEFLATE,LZ4")
-                      "" - compression not enabled
-                      "DEFLATE" - zlib compression enabled
-                      "LZ4" - lz4f compression enabled
---compression-server-style   Set compression server style (default: "GROUP,MULTIPLE,SINGLE")
-                      "" - compression style not enabled
-                      "SINGLE" - one compressed frame contain only one X Protocol message
-                      "MULTIPLE" - one compressed frame may contain multiple X Protocol messages of the same type.
-                      "GROUP" - one compressed frame may contain multiple X Protocol messages of different type.
---compression-client-style   Set compression client style (default: "SINGLE,MULTIPLE,GROUP");
-                      Accept the same values as --compression-server-style
 --ssl-mode            SSL configuration (default: "")
                       "" - require encryption when at last one ssl option is set, otherwise is should be disabled.
                       "PREFERRED" - encryption is optional, client tries to set it up
@@ -117,8 +102,6 @@ The following commands may appear in the input script:
   Execute SSL handshake, enables SSL on current connection
 <protomsg>
   Encodes the text format protobuf message and sends it to the server (allows variables).
--->enable_compression [deflate|lz4]
-  Enable compression
 -->recv [quiet|<FIELD PATH>]
   quiet        - received message isn't printed
   <FIELD PATH> - print only selected part of the message using
@@ -136,10 +119,8 @@ The following commands may appear in the input script:
 -->recvtype (<msgtype> [<msg_fied>] [<expected_field_value>] [be-quiet])|<msgid>
   - In case when user specified <msgtype> - read one message and print it,
     checks if its type is <msgtype>, additionally its fields may be matched.
-    Compressed messages are decompressed, thus user will receive inner X Protocol messages.
   - In case when user specified <msgid> - read one message and print the ID,
     checks the RAW message ID if its match <msgid>.
-    Compressed messages are not decompressed, thus their IDs may be matched against <msgid>.
 -->recvok
   Expect to receive 'Mysqlx.Ok' message. Works with 'expecterror' command.
 -->recvuntil <msgtype> [do_not_show_intermediate]
