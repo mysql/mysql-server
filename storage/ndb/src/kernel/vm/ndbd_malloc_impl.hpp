@@ -279,7 +279,8 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   Uint32 free_shr = m_allocated - m_in_use - m_spare;
   if (rl.m_max > 0)
   {
-    Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare;
+    assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res);
+    Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare - spare_res;
     if (free_shr > limit)
     {
       free_shr = limit;
