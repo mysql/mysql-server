@@ -3868,9 +3868,8 @@ sub mysql_install_db {
     # If init-file is passed, get the file path to merge the contents
     # of the file with bootstrap.sql
     if ($extra_opt =~ /--init[-_]file=(.*)/) {
-      $init_file = $1;
+      $init_file = get_bld_path($1);
     }
-    $init_file = get_bld_path($init_file);
     mtr_add_arg($args, $extra_opt);
   }
 
