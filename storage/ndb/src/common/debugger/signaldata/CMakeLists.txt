@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,38 +21,94 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_CONVENIENCE_LIBRARY(ndbsignaldata
-	AlterIndxImpl.cpp BuildIndxImpl.cpp BuildIndx.cpp
-        CreateIndxImpl.cpp CreateTab.cpp
-        CreateTable.cpp CreateTrigImpl.cpp #DihSwitchReplicaReq.cpp
-        DropIndxImpl.cpp DropTable.cpp DropTrigImpl.cpp
-        GetTabInfo.cpp
-        SchemaTrans.cpp SchemaTransImpl.cpp
-        TcKeyReq.cpp TcKeyConf.cpp TcKeyRef.cpp
-        TcRollbackRep.cpp
-        TupKey.cpp TupCommit.cpp LqhKey.cpp
-        FsOpenReq.cpp FsCloseReq.cpp FsRef.cpp FsConf.cpp FsReadWriteReq.cpp
-        SignalDataPrint.cpp SignalNames.cpp
-        ContinueB.cpp DihContinueB.cpp NdbfsContinueB.cpp
-        CloseComReqConf.cpp PackedSignal.cpp PrepFailReqRef.cpp
-        GCP.cpp DictTabInfo.cpp
-        AlterTable.cpp AlterTab.cpp
-        CreateTrig.cpp DropTrig.cpp
-        FireTrigOrd.cpp TrigAttrInfo.cpp
-        CreateIndx.cpp AlterIndx.cpp DropIndx.cpp TcIndx.cpp
-        IndxKeyInfo.cpp IndxAttrInfo.cpp
-        FsAppendReq.cpp ScanTab.cpp
-        BackupImpl.cpp BackupSignalData.cpp
-        UtilSequence.cpp UtilPrepare.cpp UtilDelete.cpp UtilExecute.cpp
-        LqhFrag.cpp DropTab.cpp PrepDropTab.cpp LCP.cpp MasterLCP.cpp
-        CopyGCI.cpp SystemError.cpp StartRec.cpp NFCompleteRep.cpp
-        FailRep.cpp DisconnectRep.cpp SignalDroppedRep.cpp
-        SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp
-        UtilLock.cpp TuxMaint.cpp AccLock.cpp
-        LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp
-        ScanFrag.cpp ApiVersion.cpp
-        LocalRouteOrd.cpp
-        RestoreImpl.cpp
-	DbinfoScan.cpp NodePing.cpp
-	IndexStatSignal.cpp GetConfig.cpp AllocNodeId.cpp
-        CreateFK.cpp DropFK.cpp IsolateOrd.cpp
-        ProcessInfoRep.cpp)
+  AccLock.cpp
+  AllocNodeId.cpp
+  AlterIndx.cpp
+  AlterIndxImpl.cpp
+  AlterTab.cpp
+  AlterTable.cpp
+  ApiVersion.cpp
+  BackupImpl.cpp
+  BackupSignalData.cpp
+  BuildIndx.cpp
+  BuildIndxImpl.cpp
+  CloseComReqConf.cpp
+  CntrStart.cpp
+  ContinueB.cpp
+  CopyGCI.cpp
+  CreateFK.cpp
+  CreateFragmentation.cpp
+  CreateIndx.cpp
+  CreateIndxImpl.cpp
+  CreateTab.cpp
+  CreateTable.cpp
+  CreateTrig.cpp
+  CreateTrigImpl.cpp
+  DbinfoScan.cpp
+  DictTabInfo.cpp
+  DihContinueB.cpp
+# DihSwitchReplicaReq.cpp
+  DisconnectRep.cpp
+  DropFK.cpp
+  DropIndx.cpp
+  DropIndxImpl.cpp
+  DropTab.cpp
+  DropTable.cpp
+  DropTrig.cpp
+  DropTrigImpl.cpp
+  FailRep.cpp
+  FireTrigOrd.cpp
+  FsAppendReq.cpp
+  FsCloseReq.cpp
+  FsConf.cpp
+  FsOpenReq.cpp
+  FsReadWriteReq.cpp
+  FsRef.cpp
+  GCP.cpp
+  GetConfig.cpp
+  GetTabInfo.cpp
+  IndexStatSignal.cpp
+  IndxAttrInfo.cpp
+  IndxKeyInfo.cpp
+  IsolateOrd.cpp
+  LCP.cpp
+  LocalRouteOrd.cpp
+  LqhFrag.cpp
+  LqhKey.cpp
+  LqhTrans.cpp
+  MasterLCP.cpp
+  NFCompleteRep.cpp
+  NdbSttor.cpp
+  NdbfsContinueB.cpp
+  NodePing.cpp
+  PackedSignal.cpp
+  PrepDropTab.cpp
+  PrepFailReqRef.cpp
+  ProcessInfoRep.cpp
+  ReadNodesConf.cpp
+  RestoreImpl.cpp
+  ScanFrag.cpp
+  ScanTab.cpp
+  SchemaTrans.cpp
+  SchemaTransImpl.cpp
+  SignalDataPrint.cpp
+  SignalDroppedRep.cpp
+  SignalNames.cpp
+  StartRec.cpp
+  SumaImpl.cpp
+  SystemError.cpp
+  TcIndx.cpp
+  TcKeyConf.cpp
+  TcKeyRef.cpp
+  TcKeyReq.cpp
+  TcRollbackRep.cpp
+  TrigAttrInfo.cpp
+  TupCommit.cpp
+  TupKey.cpp
+  TuxMaint.cpp
+  UtilDelete.cpp
+  UtilExecute.cpp
+  UtilLock.cpp
+  UtilPrepare.cpp
+  UtilSequence.cpp
+  )

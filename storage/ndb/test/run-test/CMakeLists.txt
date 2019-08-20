@@ -36,6 +36,7 @@ INCLUDE_DIRECTORIES(
 IF(NOT WIN32)
   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
 ENDIF()
+
 MYSQL_ADD_EXECUTABLE(atrt
   main.cpp
   setup.cpp
@@ -43,37 +44,52 @@ MYSQL_ADD_EXECUTABLE(atrt
   db.cpp
   command.cpp
   test_execution_resources.cpp
-  DESTINATION mysql-test/ndb)
-
-TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
+  DESTINATION mysql-test/ndb
+  LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
+  )
 
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
 ADD_TEST(NAME check_testcase_files
-         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-         COMMAND atrt --check-testcase-files ${testcase_files})
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND atrt --check-testcase-files ${testcase_files})
 
 ADD_CUSTOM_COMMAND(OUTPUT check_testcase_files.passed
-                   COMMAND atrt
-                           --check-testcase-files ${testcase_files}
-                           > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
-                   COMMAND echo See output in ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
-                           > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.passed
-                   MAIN_DEPENDENCY atrt
-                   DEPENDS ${testcase_files}
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  COMMAND atrt
+          --check-testcase-files ${testcase_files}
+          > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
+  COMMAND echo See output in ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
+          > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.passed
+          MAIN_DEPENDENCY atrt
+          DEPENDS ${testcase_files}
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+          )
 
 ADD_CUSTOM_TARGET(check_testcase_files ALL
-                  SOURCES check_testcase_files.passed)
+  SOURCES check_testcase_files.passed)
 
 INSTALL(PROGRAMS atrt-mysql-test-run
-        DESTINATION bin)
-INSTALL(PROGRAMS atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
-                 atrt-setup.sh atrt-mysqltest autotest-boot.sh autotest-run.sh
-                 check-tests.sh make-config.sh make-html-reports.sh
-                 make-index.sh ndb-autotest.sh upgrade-boot.sh
-        DESTINATION mysql-test/ndb)
+  DESTINATION bin)
+
+INSTALL(PROGRAMS
+  atrt-analyze-result.sh
+  atrt-backtrace.sh
+  atrt-gather-result.sh
+  atrt-setup.sh
+  atrt-mysqltest
+  autotest-boot.sh
+  autotest-run.sh
+  check-tests.sh
+  make-config.sh
+  make-html-reports.sh
+  make-index.sh
+  ndb-autotest.sh
+  upgrade-boot.sh
+  DESTINATION mysql-test/ndb
+  )
+
 INSTALL(DIRECTORY .
-        DESTINATION mysql-test/ndb
-        FILES_MATCHING
-        PATTERN "*-tests.txt"
-        PATTERN "conf-*.cnf")
+  DESTINATION mysql-test/ndb
+  FILES_MATCHING
+  PATTERN "*-tests.txt"
+  PATTERN "conf-*.cnf"
+  )
