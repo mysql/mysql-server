@@ -15289,6 +15289,14 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   space_id_t space_num = undo::id2num(space_id);
   undo::Tablespace *undo_space = undo::spaces->find(space_num);
 
+  /*  If the undo space is missing, allow the DROP UNDO TABLESPACE to
+  continue to completion. */
+  if (undo_space == nullptr) {
+    undo::spaces->x_unlock();
+    mutex_exit(&(undo::ddl_mutex));
+    return (error);
+  }
+
   /* Verify that the undo tablespace is not one of the first two undo spaces,
   has been altered inactive and is now empty. */
   if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES ||

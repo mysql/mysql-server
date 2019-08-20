@@ -10,7 +10,6 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --source include/restart_mysqld.inc
 
 # Let each undo truncation occur explicitly.
-SET @orig_undo_log_truncate = @@GLOBAL.innodb_undo_log_truncate;
 SET GLOBAL innodb_undo_log_truncate = OFF;
 
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
@@ -234,22 +233,34 @@ ALTER TABLE t1 TABLESPACE undo_004;
 SHOW WARNINGS;
 
 --echo #
+--echo # Show that a missing undo tablespace can be dropped
+--echo #
+let $MYSQLD_DATADIR=`select @@datadir`;
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/undo_004.ibu
+--source include/start_mysqld.inc
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+DROP UNDO TABLESPACE undo_004;
+
+--echo #
 --echo # Cleanup
 --echo #
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 DROP PROCEDURE populate_t1;
-DROP UNDO TABLESPACE undo_004;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 let $inactive_undo_space = undo_005;
 source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_005;
 
-SET GLOBAL innodb_undo_log_truncate = @orig_undo_log_truncate;
-
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .* The directory '.*' does not exist.");
 call mtr.add_suppression("\\[ERROR\\] .* Cannot drop undo tablespace 'undo_005' because it is active. Please do: ALTER UNDO TABLESPACE undo_005 SET INACTIVE");
 call mtr.add_suppression("\\[Warning\\] .* Log writer is waiting for checkpointer to to catch up lag");
+call mtr.add_suppression("\\[Warning\\] .* Tablespace .*, name 'undo_004', file 'undo_004.ibu' is missing");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace");
 --enable_query_log
 
