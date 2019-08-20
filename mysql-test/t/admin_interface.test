@@ -79,6 +79,7 @@ GRANT SUPER ON *.* TO u3;
 --replace_result $ADMIN_PORT ADMIN_PORT
 --let $restart_parameters=restart: --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT --max-connections=2
 --source include/start_mysqld.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --enable_connect_log
 --echo # Test case 5
