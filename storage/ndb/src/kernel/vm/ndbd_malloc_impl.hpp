@@ -298,6 +298,10 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
 
   // TODO if spare_need > 0, mark out of memory in some way
 
+  if (rl.m_max > 0)
+  {
+    require(rl.m_max >= rl.m_curr + rl.m_spare);
+  }
   return spare_take;
 }
 
