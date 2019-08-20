@@ -33,6 +33,7 @@ The tablespace memory cache */
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include "arch0page.h"
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
@@ -8169,6 +8170,9 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
     for (size_t i = 0; i < n_pages_read; ++i) {
       buf_block_set_file_page(block, page_id_t(space_id, page_no++));
+
+      /* We are going to modify the page. Add to page tracking system. */
+      arch_page_sys->track_page(&block->page, LSN_MAX, LSN_MAX, true);
 
       if ((err = callback(page_off, block)) != DB_SUCCESS) {
         return (err);
