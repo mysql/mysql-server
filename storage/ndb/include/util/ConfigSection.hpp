@@ -18,7 +18,9 @@
 #ifndef ConfigSection_H
 #define ConfigSection_H
 
+#include <bitset>
 #include <vector>
+
 #define CONFIG_V2_MAGIC 0x87654321
 
 class ConfigObject;
@@ -84,6 +86,9 @@ public: /* Public data types */
     SystemSection = 7
   };
 
+  static constexpr Uint32 CONFIG_MAX_KEY_COUNT = 999;
+  using Key_bitset = std::bitset<CONFIG_MAX_KEY_COUNT>;
+
 public: /* Public methods */
   ConfigSection();
   ConfigSection(ConfigObject*);
@@ -98,6 +103,7 @@ public: /* Public methods */
 
   SectionType get_section_type();
 
+  void get_keys(Key_bitset& keys) const;
 private: /* Private methods */
   void sort();
   void set_node_ids(Entry*);
@@ -126,7 +132,8 @@ private: /* Private methods */
   bool set_comm_section();
   bool set_system_section();
 
-  ConfigSection *copy(bool ignore_node_ids) const;
+  ConfigSection *copy() const;
+  ConfigSection *copy_no_primary_keys(const Key_bitset& keys) const;
   void copy_default(ConfigSection *default_cs);
   Entry* copy_entry(const Entry *copy_entry) const;
   void handle_default_section(ConfigSection *curr);

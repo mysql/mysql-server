@@ -92,7 +92,7 @@ ConfigObject::copy_current(ConfigSection *curr_section) const
 {
   ConfigObject *new_co = new ConfigObject();
   DEB_MALLOC(("new(%u) => %p", __LINE__, new_co));
-  ConfigSection *new_cs = curr_section->copy(false);
+  ConfigSection *new_cs = curr_section->copy();
   if (new_cs == nullptr)
   {
     DEB_MALLOC(("delete(%u) => %p", __LINE__, new_co));
@@ -797,6 +797,79 @@ ConfigObject::commitConfig(bool only_sort)
 void
 ConfigObject::create_default_sections()
 {
+  /* Configuration parameters can be mandatory, optional with system default
+   * values, or optional without system default values.
+   *
+   * The sections will contain all parameters explicitly set and parameters
+   * that are not set but have system default values.
+   *
+   * Parameters that are neither set explicitly or do not have system default
+   * values will not be part of section.
+   *
+   * Make sure that the default sections we create only contains of parameters
+   * that are present in all sections.
+   *
+   * Note that all sections have some mandatory keys.
+   */
+  ConfigSection::Key_bitset data_node_default_keys;
+  ConfigSection::Key_bitset api_node_default_keys;
+  ConfigSection::Key_bitset mgm_node_default_keys;
+  ConfigSection::Key_bitset tcp_default_keys;
+  ConfigSection::Key_bitset shm_default_keys;
+
+  data_node_default_keys.set();
+  api_node_default_keys.set();
+  mgm_node_default_keys.set();
+  tcp_default_keys.set();
+  shm_default_keys.set();
+
+  for (Uint32 i = 0; i < m_num_sections; i++)
+  {
+    ConfigSection *current = m_cfg_sections[i];
+    ConfigSection::Key_bitset keys;
+    current->get_keys(keys);
+    ConfigSection::SectionType section_type = current->get_section_type();
+    switch (section_type)
+    {
+      case ConfigSection::DataNodeTypeId:
+      {
+        data_node_default_keys &= keys;
+        break;
+      }
+      case ConfigSection::ApiNodeTypeId:
+      {
+        api_node_default_keys &= keys;
+        break;
+      }
+      case ConfigSection::MgmNodeTypeId:
+      {
+        mgm_node_default_keys &= keys;
+        break;
+      }
+      case ConfigSection::TcpTypeId:
+      {
+        tcp_default_keys &= keys;
+        break;
+      }
+      case ConfigSection::ShmTypeId:
+      {
+        shm_default_keys &= keys;
+        break;
+      }
+      case ConfigSection::SystemSectionId:
+      {
+        /* Only one system section, so no need of a default */
+        break;
+      }
+      default:
+      {
+        ndbout_c("section_type: %u", section_type);
+        require(false);
+        break;
+      }
+    }
+  }
+
   /**
    * The default sections is created from the first section of the type
    * found. We never put node id and first node id and second node id
@@ -814,7 +887,8 @@ ConfigObject::create_default_sections()
         if (m_data_node_default_section == nullptr)
         {
           DEB_UNPACK_V1(("Copy DB node section %u", i));
-          m_data_node_default_section = current->copy(true);
+          m_data_node_default_section =
+              current->copy_no_primary_keys(data_node_default_keys);
         }
         DEB_UNPACK_V1(("Handle DB node section %u", i));
         current->handle_default_section(m_data_node_default_section);
@@ -825,7 +899,8 @@ ConfigObject::create_default_sections()
         if (m_api_node_default_section == nullptr)
         {
           DEB_UNPACK_V1(("Copy API node section %u", i));
-          m_api_node_default_section = current->copy(true);
+          m_api_node_default_section =
+              current->copy_no_primary_keys(api_node_default_keys);
         }
         DEB_UNPACK_V1(("Handle API node section %u", i));
         current->handle_default_section(m_api_node_default_section);
@@ -836,7 +911,8 @@ ConfigObject::create_default_sections()
         if (m_mgm_node_default_section == nullptr)
         {
           DEB_UNPACK_V1(("Copy MGM node section %u", i));
-          m_mgm_node_default_section = current->copy(true);
+          m_mgm_node_default_section =
+              current->copy_no_primary_keys(mgm_node_default_keys);
         }
         DEB_UNPACK_V1(("Handle MGM node section %u", i));
         current->handle_default_section(m_mgm_node_default_section);
@@ -847,7 +923,8 @@ ConfigObject::create_default_sections()
         if (m_tcp_default_section == nullptr)
         {
           DEB_UNPACK_V1(("Copy TCP section %u", i));
-          m_tcp_default_section = current->copy(true);
+          m_tcp_default_section =
+              current->copy_no_primary_keys(tcp_default_keys);
         }
         DEB_UNPACK_V1(("Handle TCP section %u", i));
         current->handle_default_section(m_tcp_default_section);
@@ -858,7 +935,8 @@ ConfigObject::create_default_sections()
         if (m_shm_default_section == nullptr)
         {
           DEB_UNPACK_V1(("Copy SHM section %u", i));
-          m_shm_default_section = current->copy(true);
+          m_shm_default_section =
+              current->copy_no_primary_keys(shm_default_keys);
         }
         DEB_UNPACK_V1(("Handle SHM section %u", i));
         current->handle_default_section(m_shm_default_section);
