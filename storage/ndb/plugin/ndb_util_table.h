@@ -91,11 +91,9 @@ class Ndb_util_table {
   bool create_table_in_NDB(const NdbDictionary::Table &new_table) const;
   bool drop_table_in_NDB(const NdbDictionary::Table &old_table) const;
 
-  virtual bool define_indexes(const NdbDictionary::Table &table,
-                              unsigned int mysql_version) const;
-  bool create_index(const NdbDictionary::Table &,
-                    const NdbDictionary::Index &) const;
-  bool create_primary_ordered_index(const NdbDictionary::Table &) const;
+  virtual bool define_indexes(unsigned int mysql_version) const;
+  bool create_index(const NdbDictionary::Index &) const;
+  bool create_primary_ordered_index() const;
 
   /**
      @brief Drop the events related to this table from NDB
@@ -146,9 +144,10 @@ class Ndb_util_table {
 
   /**
     @brief Open the table definition from NDB
+    @param reload_table  Boolean flag. Reload the table definition if true.
     @return true if table definition could be opened
    */
-  bool open();
+  bool open(bool reload_table = false);
 
   /**
      @brief Check if actual table definition in NDB matches the expected.
@@ -185,10 +184,10 @@ class Ndb_util_table {
   const NdbDictionary::Table *get_table() const;
 
   /**
-     @brief Create table in NDB
-     @return true if table was created sucessfully
+     @brief Create table in NDB and open it
+     @return true if table was created successfully
    */
-  bool create() const;
+  bool create(bool is_upgrade = false);
 
   /**
      @brief Check if table need to be upgraded
@@ -197,10 +196,10 @@ class Ndb_util_table {
   virtual bool need_upgrade() const = 0;
 
   /**
-     @brief Upgrade table in NDB
-     @return true if table was upgraded sucessfully
+     @brief Upgrade table in NDB and open it
+     @return true if table was upgraded successfully
    */
-  bool upgrade() const;
+  bool upgrade();
 
   /**
      @brief Create DDL for creating the table definition

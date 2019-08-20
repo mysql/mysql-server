@@ -133,14 +133,21 @@ bool Ndb_util_table::exists() const {
   return true;
 }
 
-bool Ndb_util_table::open() {
+bool Ndb_util_table::open(bool reload_table) {
   Ndb *ndb = m_thd_ndb->ndb;
 
   // Set correct database name on the Ndb object
   Db_name_guard db_guard(ndb, m_db_name.c_str());
 
-  // Load up the table definition from NDB dictionary
-  m_table_guard.init(m_table_name.c_str());
+  if (unlikely(reload_table)) {
+    DBUG_ASSERT(m_table_guard.get_table() != nullptr);
+    // Reload the table definition from NDB dictionary
+    m_table_guard.invalidate();
+    m_table_guard.reinit();
+  } else {
+    // Load up the table definition from NDB dictionary
+    m_table_guard.init(m_table_name.c_str());
+  }
 
   const NdbDictionary::Table *tab = m_table_guard.get_table();
   if (!tab) {
@@ -256,18 +263,18 @@ bool Ndb_util_table::define_table_add_column(
   return true;
 }
 
-bool Ndb_util_table::define_indexes(const NdbDictionary::Table &,
-                                    unsigned int) const {
+bool Ndb_util_table::define_indexes(unsigned int) const {
   // Base class implementation. Override in derived classes to define indexes.
   return true;
 }
 
-bool Ndb_util_table::create_index(const NdbDictionary::Table &table,
-                                  const NdbDictionary::Index &idx) const {
+bool Ndb_util_table::create_index(const NdbDictionary::Index &idx) const {
   Db_name_guard db_guard(m_thd_ndb->ndb, m_db_name.c_str());
 
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
-  if (dict->createIndex(idx, table) != 0) {
+  const NdbDictionary::Table *table = get_table();
+  DBUG_ASSERT(table != nullptr);
+  if (dict->createIndex(idx, *table) != 0) {
     push_ndb_error_warning(dict->getNdbError());
     push_warning("Failed to create index '%s'", idx.getName());
     return false;
@@ -275,17 +282,19 @@ bool Ndb_util_table::create_index(const NdbDictionary::Table &table,
   return true;
 }
 
-bool Ndb_util_table::create_primary_ordered_index(
-    const NdbDictionary::Table &table) const {
+bool Ndb_util_table::create_primary_ordered_index() const {
   NdbDictionary::Index index("PRIMARY");
 
   index.setType(NdbDictionary::Index::OrderedIndex);
   index.setLogging(false);
 
-  for (int i = 0; i < table.getNoOfPrimaryKeys(); i++) {
-    index.addColumnName(table.getPrimaryKey(i));
+  const NdbDictionary::Table *table = get_table();
+  DBUG_ASSERT(table != nullptr);
+
+  for (int i = 0; i < table->getNoOfPrimaryKeys(); i++) {
+    index.addColumnName(table->getPrimaryKey(i));
   }
-  return create_index(table, index);
+  return create_index(index);
 }
 
 bool Ndb_util_table::create_table_in_NDB(
@@ -337,7 +346,7 @@ bool Ndb_util_table::drop_event_in_NDB(const char *event_name) const {
   return true;
 }
 
-bool Ndb_util_table::create() const {
+bool Ndb_util_table::create(bool is_upgrade) {
   NdbDictionary::Table new_table(m_table_name.c_str());
 
   unsigned mysql_version = MYSQL_VERSION_ID;
@@ -352,31 +361,25 @@ bool Ndb_util_table::create() const {
 
   if (!create_table_in_NDB(new_table)) return false;
 
-  if (!define_indexes(new_table, mysql_version)) return false;
+  // Load the new table definition into the Ndb_util_table object.
+  if (!open(is_upgrade)) return false;
+
+  if (!define_indexes(mysql_version)) return false;
 
   return true;
 }
 
 // Upgrade table
-bool Ndb_util_table::upgrade() const {
-  NdbDictionary::Table new_table(m_table_name.c_str());
-  if (!define_table_ndb(new_table, MYSQL_VERSION_ID)) {
-    return false;
-  }
-
+bool Ndb_util_table::upgrade() {
   const NdbDictionary::Table *old_table = get_table();
 
   // Could copy stuff from old to new table if necessary...
 
   // Drop the old table
-  if (!drop_table_in_NDB(*old_table)) {
-    return false;
-  }
+  if (!drop_table_in_NDB(*old_table)) return false;
 
-  // Create new table
-  if (!create_table_in_NDB(new_table)) {
-    return false;
-  }
+  // Create the new table
+  if (!create(true)) return false;
 
   return true;
 }
@@ -435,7 +438,34 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
                                                   bool &reinstall) const {
   ndb_log_verbose(50, "Checking '%s' table", m_name.c_str());
 
-  if (!m_util_table.exists()) {
+  if (m_util_table.exists()) {
+    // Table exists already. Upgrade it if required.
+    if (!m_util_table.open()) {
+      ndb_log_error("Failed to open '%s' table", m_name.c_str());
+      return false;
+    }
+
+    if (m_util_table.need_upgrade()) {
+      ndb_log_info("The '%s' table needs to be upgraded", m_name.c_str());
+
+      if (!upgrade_allowed) {
+        ndb_log_info("Upgrade of '%s' table not allowed!", m_name.c_str());
+        // Skip upgrading the table and continue with
+        // limited functionality
+        return true;
+      }
+
+      ndb_log_info("Upgrade of '%s' table...", m_name.c_str());
+      if (!m_util_table.upgrade()) {
+        ndb_log_error("Upgrade of '%s' table failed!", m_name.c_str());
+        return false;
+      }
+      reinstall = true;
+      ndb_log_info("Upgrade of '%s' table completed", m_name.c_str());
+    }
+
+  } else {
+    // Table did not exist. Create it.
     ndb_log_verbose(50, "The '%s' table does not exist, creating..",
                     m_name.c_str());
 
@@ -447,30 +477,6 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
     reinstall = true;
 
     ndb_log_info("Created '%s' table", m_name.c_str());
-  }
-
-  if (!m_util_table.open()) {
-    ndb_log_error("Failed to open '%s' table", m_name.c_str());
-    return false;
-  }
-
-  if (m_util_table.need_upgrade()) {
-    ndb_log_warning("The '%s' table need upgrade", m_name.c_str());
-
-    if (!upgrade_allowed) {
-      ndb_log_info("Upgrade of '%s' table not allowed!", m_name.c_str());
-      // Skip upgrading the table and continue with
-      // limited functionality
-      return true;
-    }
-
-    ndb_log_info("Upgrade of '%s' table...", m_name.c_str());
-    if (!m_util_table.upgrade()) {
-      ndb_log_error("Upgrade of '%s' table failed!", m_name.c_str());
-      return false;
-    }
-    reinstall = true;
-    ndb_log_info("Upgrade of '%s' table completed", m_name.c_str());
   }
 
   ndb_log_verbose(50, "The '%s' table is ok", m_name.c_str());

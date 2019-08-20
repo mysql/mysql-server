@@ -92,9 +92,8 @@ bool Ndb_sql_metadata_table::define_table_ndb(NdbDictionary::Table &new_table,
   return true;
 }
 
-bool Ndb_sql_metadata_table::define_indexes(const NdbDictionary::Table &table,
-                                            unsigned) const {
-  return create_primary_ordered_index(table);
+bool Ndb_sql_metadata_table::define_indexes(unsigned) const {
+  return create_primary_ordered_index();
 }
 
 bool Ndb_sql_metadata_table::check_schema() const { return true; }

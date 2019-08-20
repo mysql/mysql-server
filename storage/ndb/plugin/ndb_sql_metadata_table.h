@@ -40,8 +40,7 @@ class Ndb_sql_metadata_table : public Ndb_util_table {
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
 
-  bool define_indexes(const NdbDictionary::Table &table,
-                      unsigned int mysql_version) const override;
+  bool define_indexes(unsigned int mysql_version) const override;
 
  public:
   Ndb_sql_metadata_table(class Thd_ndb *);
