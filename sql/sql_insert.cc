@@ -2613,6 +2613,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
             MDL_SHARED_UPGRADABLE, nullptr, &mdl_requests, nullptr) ||
         collect_fk_names_for_new_fks(thd, create_table->db,
                                      create_table->table_name, alter_info,
+                                     create_info->db_type,
                                      0,  // No pre-existing FKs
                                      &mdl_requests))
 

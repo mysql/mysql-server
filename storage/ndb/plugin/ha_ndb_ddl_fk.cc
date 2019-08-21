@@ -1447,18 +1447,17 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb) {
 
     NdbDictionary::ForeignKey ndbfk;
     char fk_name[FN_REFLEN];
-    if (fk->name.str && fk->name.length) {
-      // The fk has a name, use it
-      lex2str(fk->name, fk_name);
-      if (lower_case_table_names) ndb_fk_casedn(fk_name);
-    } else {
-      // The fk has no name, generate a name
-      snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
-               parent_index ? parent_index->getObjectId()
-                            : parent_tab.get_table()->getObjectId(),
-               child_index ? child_index->getObjectId()
-                           : child_tab.get_table()->getObjectId());
-    }
+
+    /*
+      In 8.0 we rely on SQL-layer to always provide foreign key name, either
+      by using the name provided by the user, or by generating an unique name.
+      In either case, the name has already been prepared at this point.
+    */
+    DBUG_ASSERT(fk->name.str && fk->name.length);
+
+    lex2str(fk->name, fk_name);
+    if (lower_case_table_names) ndb_fk_casedn(fk_name);
+
     ndbfk.setName(fk_name);
     ndbfk.setParent(*parent_tab.get_table(), parent_index, parentcols);
     ndbfk.setChild(*child_tab.get_table(), child_index, childcols);

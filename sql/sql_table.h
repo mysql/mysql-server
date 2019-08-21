@@ -242,6 +242,7 @@ bool collect_fk_parents_for_new_fks(
   @param          table_name                    Table name.
   @param          alter_info                    Alter_info object with the
                                                 list of FKs to be added.
+  @param          hton                          Table's storage engine.
   @param          fk_max_generated_name_number  Max value of number component
                                                 among existing generated foreign
                                                 key names.
@@ -253,6 +254,7 @@ bool collect_fk_parents_for_new_fks(
 bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
                                   const char *table_name,
                                   const Alter_info *alter_info,
+                                  handlerton *hton,
                                   uint fk_max_generated_name_number,
                                   MDL_request_list *mdl_requests);
 

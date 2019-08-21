@@ -61,7 +61,6 @@ class Dictionary_client;
 }
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
-static const char FOREIGN_KEY_NAME_SUBSTR[] = "_ibfk_";
 static const char CHECK_CONSTRAINT_NAME_SUBSTR[] = "_chk_";
 
 /**
@@ -207,16 +206,18 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
 
   @param table_name         Table name.
   @param table_name_length  Table name length.
+  @param hton               Table storage engine.
   @param fk                 Foreign key to be checked.
 
   @note We assume that the name is generated if it starts with
-        *table_name*_ibfk_. i.e. follow InnoDB approach.
+        <table_name><SE-specific or default foreign key name suffix>
+        (e.g. "_ibfk_" for InnoDB or "_fk_" for NDB).
 
   @returns true if name is generated, false otherwise.
 */
 
 bool is_generated_foreign_key_name(const char *table_name,
-                                   size_t table_name_length,
+                                   size_t table_name_length, handlerton *hton,
                                    const dd::Foreign_key &fk);
 
 /**
@@ -226,18 +227,16 @@ bool is_generated_foreign_key_name(const char *table_name,
   @param thd             Thread context.
   @param old_db          Table's database before rename.
   @param old_table_name  Table name before rename.
+  @param hton            Table's storage engine.
   @param new_db          Table's database after rename.
   @param new_tab         New version of the table with new name set.
-
-  @todo Implement new naming scheme (or move responsibility of
-        naming to the SE layer).
 
   @returns true if error, false otherwise.
 */
 
 bool rename_foreign_keys(THD *thd, const char *old_db,
-                         const char *old_table_name, const char *new_db,
-                         dd::Table *new_tab);
+                         const char *old_table_name, handlerton *hton,
+                         const char *new_db, dd::Table *new_tab);
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of

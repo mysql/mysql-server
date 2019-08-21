@@ -76,6 +76,7 @@
 #include "sql/default_values.h"                // max_pack_length
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
+#include "sql/handler.h"  // FK_NAME_DEFAULT_SUFFIX
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
@@ -2406,17 +2407,20 @@ bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
 }
 
 bool is_generated_foreign_key_name(const char *table_name,
-                                   size_t table_name_length,
+                                   size_t table_name_length, handlerton *hton,
                                    const dd::Foreign_key &fk) {
   /*
-    We assume that the name is generated if it starts with <table_name>_ibfk_
+    We assume that the name is generated if it starts with
+    <table_name><SE-specific or default foreign key name suffix>
+    (e.g. "_ibfk_" for InnoDB or "_fk_" for NDB).
   */
-  return ((fk.name().length() >
-           table_name_length + sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1) &&
+  const LEX_CSTRING &fk_name_suffix =
+      hton->fk_name_suffix.str ? hton->fk_name_suffix : FK_NAME_DEFAULT_SUFFIX;
+
+  return ((fk.name().length() > table_name_length + fk_name_suffix.length) &&
           (memcmp(fk.name().c_str(), table_name, table_name_length) == 0) &&
-          (memcmp(fk.name().c_str() + table_name_length,
-                  dd::FOREIGN_KEY_NAME_SUBSTR,
-                  sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1) == 0));
+          (memcmp(fk.name().c_str() + table_name_length, fk_name_suffix.str,
+                  fk_name_suffix.length) == 0));
 }
 
 #ifndef DBUG_OFF
@@ -2435,7 +2439,7 @@ static bool is_foreign_key_name_locked(THD *thd, const char *db,
 
 bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
                          const char *old_db MY_ATTRIBUTE((unused)),
-                         const char *old_table_name,
+                         const char *old_table_name, handlerton *hton,
                          const char *new_db MY_ATTRIBUTE((unused)),
                          dd::Table *new_tab) {
   // With LCTN = 2, we are using lower-case tablename for FK name.
@@ -2461,13 +2465,13 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
     DBUG_ASSERT(is_foreign_key_name_locked(thd, old_db, fk->name().c_str()));
 
     if (is_generated_foreign_key_name(old_table_name_norm,
-                                      old_table_name_norm_len, *fk)) {
+                                      old_table_name_norm_len, hton, *fk)) {
       char table_name[NAME_LEN + 1];
       my_stpncpy(table_name, new_tab->name().c_str(), sizeof(table_name));
       if (lower_case_table_names == 2)
         my_casedn_str(system_charset_info, table_name);
       dd::String_type new_name(table_name);
-      // Copy _ibfk_nnnn from the old name.
+      // Copy <fk_name_suffix><number> (e.g. "_ibfk_nnnn") from the old name.
       new_name.append(fk->name().substr(old_table_name_norm_len));
       if (check_string_char_length(to_lex_cstring(new_name.c_str()), "",
                                    NAME_CHAR_LEN, system_charset_info, true)) {

@@ -91,7 +91,6 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Verify that fk is working now when parent has been resolved
 set foreign_key_checks=1;
---replace_regex /FK_[0-9]+_[0-9]+/FK_XX_XX/
 --error ER_NO_REFERENCED_ROW_2
 insert into t1 values(1, 2);
 set foreign_key_checks=0;
@@ -706,7 +705,6 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 # Rename table referenced by foreign key -> t1 references t3
 alter table t2 rename t3;
 --disable_warnings
---replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_XX_XX/
 show create table t1;
 --enable_warnings
 
@@ -750,7 +748,6 @@ truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
 --disable_warnings
---replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_XX_XX/
 show create table t1;
 --enable_warnings
 
@@ -835,7 +832,6 @@ truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
 --disable_warnings
---replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_XX_XX/
 show create table t1;
 --enable_warnings
 
@@ -869,7 +865,6 @@ truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
 --disable_warnings
---replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_XX_XX/
 show create table t1;
 --enable_warnings
 
