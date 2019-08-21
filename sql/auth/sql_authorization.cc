@@ -6216,6 +6216,9 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   Auth_id_ref authid;
   LEX_USER *user = nullptr;
   LEX_USER *role = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  int result = 0;
+  bool transactional_tables = false;
 
   /*
     This statement will be replicated as a statement, even when using
@@ -6225,7 +6228,11 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   */
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
-  TABLE *table = open_default_role_table(thd);
+  if ((result = open_grant_tables(thd, tables, &transactional_tables)))
+    return result != 1;
+
+  TABLE *table = tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table;
+
   if (!table) {
     my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
     return true;
@@ -6307,7 +6314,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
       }
     }
 
-    ret = log_and_commit_acl_ddl(thd, true, nullptr, nullptr, ret);
+    ret = log_and_commit_acl_ddl(thd, transactional_tables, nullptr, nullptr,
+                                 ret);
     get_global_acl_cache()->increase_version();
   } /* Critical section */
 

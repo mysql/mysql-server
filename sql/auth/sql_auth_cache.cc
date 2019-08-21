@@ -1561,20 +1561,20 @@ bool acl_init(bool dont_read_acl_tables) {
     statements do their own checks and refuse to operate if privilege
     tables are using unsupported SE.
   */
-  return_val = check_engine_type_for_acl_table(thd);
+  return_val = check_engine_type_for_acl_table(thd, false);
 
   /*
     Check all the ACL tables are intact and output warning message in
     case any of the ACL tables are corrupted.
   */
-  check_acl_tables_intact(thd);
+  check_acl_tables_intact(thd, false);
 
   /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
     will be freed there are global static objects and thus are initialized
     by zeros at startup.
   */
-  return_val |= acl_reload(thd);
+  return_val |= acl_reload(thd, false);
   notify_flush_event(thd);
   thd->release_resources();
   delete thd;
@@ -1776,8 +1776,12 @@ void acl_free(bool end /*= false*/) {
   free_root(&global_acl_memory, MYF(0));
 }
 
-bool check_engine_type_for_acl_table(THD *thd) {
+bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  uint flags = mdl_locked
+                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                         MYSQL_OPEN_IGNORE_FLUSH
+                   : MYSQL_LOCK_IGNORE_TIMEOUT;
 
   /*
     Open the following ACL tables to check their consistency.
@@ -1788,10 +1792,13 @@ bool check_engine_type_for_acl_table(THD *thd) {
 
   grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
 
-  bool result = open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+  bool result = open_and_lock_tables(thd, tables, flags);
   if (!result) {
     check_engine_type_for_acl_table(tables, false);
-    commit_and_close_mysql_tables(thd);
+    if (!mdl_locked)
+      commit_and_close_mysql_tables(thd);
+    else
+      close_thread_tables(thd);
   }
 
   return result;
@@ -1859,24 +1866,31 @@ bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
   For example - acl_init()
 
   @param thd        Handle of current thread.
+  @param mdl_locked MDL is locked
 
   @retval
     false       OK.
     true        Unable to open the table(s).
 */
-bool check_acl_tables_intact(THD *thd) {
+bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   Acl_ignore_error_handler acl_ignore_handler;
+  uint flags = mdl_locked
+                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                         MYSQL_OPEN_IGNORE_FLUSH
+                   : MYSQL_LOCK_IGNORE_TIMEOUT;
 
   grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
 
-  bool result_acl =
-      open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+  bool result_acl = open_and_lock_tables(thd, tables, flags);
 
   thd->push_internal_handler(&acl_ignore_handler);
   if (!result_acl) {
     check_acl_tables_intact(thd, tables);
-    commit_and_close_mysql_tables(thd);
+    if (!mdl_locked)
+      commit_and_close_mysql_tables(thd);
+    else
+      close_thread_tables(thd);
   }
   thd->pop_internal_handler();
 
@@ -1914,9 +1928,13 @@ static bool is_expected_or_transient_error(THD *thd) {
     true   Failure
 */
 
-bool acl_reload(THD *thd) {
+bool acl_reload(THD *thd, bool mdl_locked) {
   MEM_ROOT old_mem;
   bool return_val = true;
+  uint flags = mdl_locked
+                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                         MYSQL_OPEN_IGNORE_FLUSH
+                   : MYSQL_LOCK_IGNORE_TIMEOUT;
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users = nullptr;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs = nullptr;
   Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *old_acl_proxy_users =
@@ -1976,7 +1994,7 @@ bool acl_reload(THD *thd) {
   tables[3].open_strategy = tables[4].open_strategy = tables[5].open_strategy =
       TABLE_LIST::OPEN_IF_EXISTS;
 
-  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT)) {
+  if (open_and_lock_tables(thd, tables, flags)) {
     /*
       Execution might have been interrupted; only print the error message
       if a user error condition has been raised. Also do not print expected/
@@ -2053,7 +2071,10 @@ bool acl_reload(THD *thd) {
   }
 
 end:
-  commit_and_close_mysql_tables(thd);
+  if (!mdl_locked)
+    commit_and_close_mysql_tables(thd);
+  else
+    close_thread_tables(thd);
   get_global_acl_cache()->increase_version();
   DEBUG_SYNC(thd, "after_acl_reload");
   return return_val;
@@ -2105,7 +2126,7 @@ bool grant_init(bool skip_grant_tables) {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
-  return_val = grant_reload(thd);
+  return_val = grant_reload(thd, false);
 
   if (return_val && thd->get_stmt_da()->is_error())
     LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_INIT_GRANT_SUBSYSTEM,
@@ -2379,7 +2400,8 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
 /**
   @brief Reload information about table and column level privileges if possible
 
-  @param thd    Current thread
+  @param thd        Current thread
+  @param mdl_locked MDL lock status - affects open/close table operations
 
   Locked tables are checked by acl_reload() and doesn't have to be checked
   in this call.
@@ -2391,9 +2413,13 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
     @retval true  Error
 */
 
-bool grant_reload(THD *thd) {
+bool grant_reload(THD *thd, bool mdl_locked) {
   MEM_ROOT old_mem;
   bool return_val = true;
+  uint flags = mdl_locked
+                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                         MYSQL_OPEN_IGNORE_FLUSH
+                   : MYSQL_LOCK_IGNORE_TIMEOUT;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
   DBUG_TRACE;
@@ -2418,7 +2444,7 @@ bool grant_reload(THD *thd) {
   tables[0].open_type = tables[1].open_type = tables[2].open_type =
       OT_BASE_ONLY;
 
-  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT)) {
+  if (open_and_lock_tables(thd, tables, flags)) {
     if (!is_expected_or_transient_error(thd)) {
       LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
              thd->get_stmt_da()->message_text());
@@ -2459,7 +2485,10 @@ bool grant_reload(THD *thd) {
   }
 
 end:
-  commit_and_close_mysql_tables(thd);
+  if (!mdl_locked)
+    commit_and_close_mysql_tables(thd);
+  else
+    close_thread_tables(thd);
   return return_val;
 }
 
@@ -3357,18 +3386,20 @@ uint32 global_password_reuse_interval = 0;
 /**
   Reload all ACL caches
 
-  @param [in] thd       THD handle
+  @param [in] thd              THD handle
+  @param [in] mdl_locked       MDL locks are taken
   @returns Status of reloading ACL caches
     @retval false Success
     @retval true Error
 */
 
-bool reload_acl_caches(THD *thd) {
+bool reload_acl_caches(THD *thd, bool mdl_locked) {
   bool retval = true;
   DBUG_TRACE;
 
-  if (check_engine_type_for_acl_table(thd) || check_acl_tables_intact(thd) ||
-      acl_reload(thd) || grant_reload(thd)) {
+  if (check_engine_type_for_acl_table(thd, mdl_locked) ||
+      check_acl_tables_intact(thd, mdl_locked) || acl_reload(thd, mdl_locked) ||
+      grant_reload(thd, mdl_locked)) {
     goto end;
   }
   retval = false;

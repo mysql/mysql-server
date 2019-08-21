@@ -35,6 +35,4 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
 bool modify_default_roles_in_table(THD *thd, TABLE *table,
                                    const Auth_id_ref &auth_id,
                                    const Auth_id_ref &role, bool delete_option);
-TABLE *open_default_role_table(THD *thd);
-void close_all_role_tables(THD *thd);
 #endif /* ROLE_TABLES_H */

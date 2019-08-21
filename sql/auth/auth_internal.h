@@ -166,8 +166,8 @@ bool do_update_sctx(Security_context *sctx, LEX_USER *from_user);
 void update_sctx(Security_context *sctx, LEX_USER *to_user);
 
 void clear_and_init_db_cache();
-bool acl_reload(THD *thd);
-bool grant_reload(THD *thd);
+bool acl_reload(THD *thd, bool mdl_locked);
+bool grant_reload(THD *thd, bool mdl_locked);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
 
