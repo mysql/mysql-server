@@ -357,6 +357,33 @@ SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
 RESET PERSIST;
 
 --echo #
+--echo # Bug #30030648: NO DEPRECATION WARNING ON SERVER RESTART FOR SET PERSISTED OPTIONS
+--echo #
+
+--echo # should report warning
+SET GLOBAL avoid_temporal_upgrade=TRUE;
+--echo # should report warning
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+--echo # should report warning
+SET PERSIST avoid_temporal_upgrade=TRUE;
+
+--let $ofile= $MYSQLTEST_VARDIR/tmp/server_log.err
+
+--echo # Restart server
+--let $restart_parameters=restart:--log_error=$MYSQLTEST_VARDIR/tmp/server_log.err
+--replace_result $MYSQLTEST_VARDIR tmp_dir
+--source include/restart_mysqld_no_echo.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting --avoid_temporal_upgrade
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/server_log.err
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/server_log.err
+RESET PERSIST;
+
+--echo #
 --echo # Bug #28749668: SKIP_NAME_RESOLVE CAN BE PERSIT_ONLY-ED TO ON, BUT NOT OFF
 --echo #
 
@@ -367,6 +394,7 @@ GRANT ALL ON *.* TO 'bug28749668'@'%';
 SET PERSIST_ONLY skip_name_resolve=0;
 
 --echo # Restart server and check if server starts
+--let $restart_parameters=restart:
 --source include/restart_mysqld.inc
 
 connection con1;
@@ -378,4 +406,3 @@ DROP USER 'bug28749668'@'%';
 disconnect con1;
 
 --echo # End of the 8.0 tests
-

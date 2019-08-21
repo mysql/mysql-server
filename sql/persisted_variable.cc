@@ -793,6 +793,31 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
 
 err:
   if (new_thd) {
+    /* check for warnings in DA */
+    Diagnostics_area::Sql_condition_iterator it =
+        thd->get_stmt_da()->sql_conditions();
+    const Sql_condition *err = nullptr;
+    while ((err = it++)) {
+      if (err->severity() == Sql_condition::SL_WARNING) {
+        // Rewrite error number for "deprecated" to error log equivalent.
+        if (err->mysql_errno() == ER_WARN_DEPRECATED_SYNTAX)
+          LogEvent()
+              .type(LOG_TYPE_ERROR)
+              .prio(WARNING_LEVEL)
+              .errcode(ER_SERVER_WARN_DEPRECATED)
+              .verbatim(err->message_text());
+        /*
+          Any other (unexpected) message is wrapped to preserve its
+          original error number, and to explain the issue.
+          This is a failsafe; "expected", that is to say, common
+          messages should be handled explicitly like the deprecation
+          warning above.
+        */
+        else
+          LogErr(WARNING_LEVEL, ER_ERROR_INFO_FROM_DA, err->mysql_errno(),
+                 err->message_text());
+      }
+    }
     thd->free_items();
     lex_end(thd->lex);
     thd->release_resources();
