@@ -165,6 +165,8 @@ TEST_F(Admin_command_index_test, drop_missing_index_name) {
 }
 
 TEST_F(Admin_command_index_test, drop_no_schema) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -176,6 +178,8 @@ TEST_F(Admin_command_index_test, drop_no_schema) {
 }
 
 TEST_F(Admin_command_index_test, drop_no_collection) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -187,6 +191,8 @@ TEST_F(Admin_command_index_test, drop_no_collection) {
 }
 
 TEST_F(Admin_command_index_test, drop_no_virtual_column_no_index) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -199,6 +205,9 @@ TEST_F(Admin_command_index_test, drop_no_virtual_column_no_index) {
 
 TEST_F(Admin_command_index_test, drop_index_with_column) {
   One_row_resultset column_name{DECIMAL_COLUMN};
+
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(DoAll(SetUpResultset(column_name), Return(ngs::Success())));
 

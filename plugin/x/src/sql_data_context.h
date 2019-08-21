@@ -77,6 +77,8 @@ class Sql_data_context : public ngs::Sql_session_interface {
   // can only be executed once authenticated
   ngs::Error_code execute(const char *sql, std::size_t sql_len,
                           ngs::Resultset_interface *rset) override;
+  ngs::Error_code execute_sql(const char *sql, std::size_t sql_len,
+                              ngs::Resultset_interface *rset) override;
   ngs::Error_code prepare_prep_stmt(const char *sql, std::size_t sql_len,
                                     ngs::Resultset_interface *rset) override;
   ngs::Error_code deallocate_prep_stmt(const uint32_t stmt_id,
@@ -94,6 +96,7 @@ class Sql_data_context : public ngs::Sql_session_interface {
   ngs::Error_code attach() override;
   ngs::Error_code detach() override;
   ngs::Error_code reset() override;
+  bool is_sql_mode_set(const std::string &mode) override;
 
   ngs::Error_code init();
   ngs::Error_code init(const int client_port, const Connection_type type);
@@ -117,9 +120,6 @@ class Sql_data_context : public ngs::Sql_session_interface {
   // USER() function
   std::string get_user_name() const;
   std::string get_host_or_ip() const;
-
-  ngs::Error_code execute_sql(const char *sql, size_t length,
-                              ngs::Command_delegate *deleg);
 
   ngs::Error_code switch_to_user(const char *username, const char *hostname,
                                  const char *address, const char *db);

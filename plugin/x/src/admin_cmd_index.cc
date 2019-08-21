@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 
 #include "plugin/x/src/index_array_field.h"
 #include "plugin/x/src/index_field.h"
@@ -47,7 +48,7 @@ bool Admin_command_index::is_table_support_virtual_columns(
       .quote_identifier(name);
 
   std::string create_stmt;
-  Sql_data_result result(m_session->data_context());
+  Sql_data_result result(&m_session->data_context());
   try {
     result.query(qb.get());
     if (result.size() != 1) {
@@ -58,7 +59,7 @@ bool Admin_command_index::is_table_support_virtual_columns(
       *error = ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
       return false;
     }
-    result.skip().get(create_stmt);
+    result.skip().get(&create_stmt);
   } catch (const ngs::Error_code &e) {
     log_debug(
         "Unable to get creation stmt for collection '%s';"
@@ -287,6 +288,10 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   return ngs::Success();
 }
 
+#define INDEX_NAME_REGEX "^\\\\$ix_[[:alnum:]_]+[[:xdigit:]]+$"
+#define INDEX_NAME_REGEX_NO_BACKSLASH_ESCAPES \
+  "^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$"
+
 ngs::Error_code Admin_command_index::get_index_generated_column_names(
     const std::string &schema, const std::string &collection,
     const std::string &index_name,
@@ -307,11 +312,16 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
       .quote_string(schema)
       .put(" AND index_name=")
       .quote_string(index_name)
-      .put(
-          " AND column_name RLIKE '^\\\\$ix_[[:alnum:]_]+[[:xdigit:]]+$')"
-          " GROUP BY column_name HAVING count = 1");
+      .put(" AND column_name RLIKE '");
 
-  Sql_data_result result(m_session->data_context());
+  if (m_session->data_context().is_sql_mode_set("NO_BACKSLASH_ESCAPES"))
+    qb.put(INDEX_NAME_REGEX_NO_BACKSLASH_ESCAPES);
+  else
+    qb.put(INDEX_NAME_REGEX);
+
+  qb.put("') GROUP BY column_name HAVING count = 1");
+
+  Sql_data_result result(&m_session->data_context());
   try {
     result.query(qb.get());
     if (result.size() == 0) return ngs::Success();

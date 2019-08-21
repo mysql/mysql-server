@@ -166,6 +166,8 @@ class Mock_sql_data_context : public Sql_session_interface {
                           const Authentication_interface &, bool));
   MOCK_METHOD3(execute,
                Error_code(const char *, std::size_t, Resultset_interface *));
+  MOCK_METHOD3(execute_sql,
+               Error_code(const char *, std::size_t, Resultset_interface *));
   MOCK_METHOD3(fetch_cursor,
                Error_code(const std::uint32_t, const std::uint32_t,
                           Resultset_interface *));
@@ -179,6 +181,7 @@ class Mock_sql_data_context : public Sql_session_interface {
   MOCK_METHOD0(attach, Error_code());
   MOCK_METHOD0(detach, Error_code());
   MOCK_METHOD0(reset, Error_code());
+  MOCK_METHOD1(is_sql_mode_set, bool(const std::string &));
 };
 
 class Mock_protocol_encoder : public Protocol_encoder_interface {

@@ -58,7 +58,7 @@ ngs::Error_code Crud_command_handler::execute(
     return error;
   }
   log_debug("CRUD query: %s", m_qb.get().c_str());
-  ngs::Error_code error = m_session->data_context().execute(
+  ngs::Error_code error = m_session->data_context().execute_sql(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
   notice_handling(resultset.get_info(), builder, msg);

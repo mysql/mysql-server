@@ -276,16 +276,6 @@ class String_argument_validator {
   bool *m_error;
 };
 
-inline std::string adjust_sql_regex(const char *regex) {
-  if (!regex) return {};
-  std::string str{regex};
-  if (str.size() < 2) return str;
-  for (std::string::size_type b = str.find(R"(\\)", 0); b != std::string::npos;
-       b = str.find(R"(\\)", b))
-    str.erase(++b, 1);
-  return str;
-}
-
 class Docpath_argument_validator : String_argument_validator {
  public:
   Docpath_argument_validator(const char *name, bool *error)
@@ -293,7 +283,7 @@ class Docpath_argument_validator : String_argument_validator {
 
   void operator()(const std::string &input, std::string *output) {
     static const std::string k_doc_member_regex =
-        adjust_sql_regex(DOC_MEMBER_REGEX);
+        "^" DOC_MEMBER_REGEX_NO_BACKSLASH_ESCAPES "$";
     static const Regex re(k_doc_member_regex.c_str());
     std::string value;
     String_argument_validator::operator()(input, &value);

@@ -99,6 +99,7 @@ CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JS
 command ok
 Query
 CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+SELECT @@sql_mode
 SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
 0 rows affected
 ######### create_collection_index #########
@@ -113,6 +114,7 @@ ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_t1_F3A2A51A9B0F2BE2468926B4132313728
 
 command ok
 Query
+SELECT @@sql_mode
 SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='foo' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
 ALTER TABLE `xtest`.`test2` DROP INDEX `foo`, DROP COLUMN `$ix_t1_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
 0 rows affected
@@ -128,6 +130,7 @@ ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B41323137
 
 command ok
 Query
+SELECT @@sql_mode
 SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='bar' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
 ALTER TABLE `xtest`.`test2` DROP INDEX `bar`, DROP COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
 0 rows affected
@@ -143,6 +146,7 @@ ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_ft_r_F3A2A51A9B0F2BE2468926B41323137
 
 command ok
 Query
+SELECT @@sql_mode
 SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='foobar' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
 ALTER TABLE `xtest`.`test2` DROP INDEX `foobar`, DROP COLUMN `$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
 0 rows affected
@@ -153,6 +157,7 @@ test2	COLLECTION
 command ok
 Query
 SHOW TABLES FROM `xtest`
+SELECT @@sql_mode
 SELECT T.table_name AS name, IF(ANY_VALUE(T.table_type) LIKE '%VIEW', IF(COUNT(*)=1 AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1 AND COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END)=1, 'COLLECTION', 'TABLE')) AS type FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C ON (T.table_schema = C.table_schema AND T.table_name = C.table_name) WHERE T.table_schema = 'xtest' GROUP BY name ORDER BY name
 0 rows affected
 ######### drop_collection #########

@@ -183,22 +183,19 @@ ngs::Error_code Account_verification_handler::verify_account(
 ngs::Error_code Account_verification_handler::get_account_record(
     const std::string &user, const std::string &host,
     Account_record &record) const try {
-  Sql_data_result result(m_session->data_context());
+  Sql_data_result result(&m_session->data_context());
   result.query(get_sql(user, host));
   // The query asks for primary key, thus here we should get only one row
   if (result.size() != 1)
     return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
-  result.get(record.require_secure_transport)
-      .get(record.db_password_hash)
-      .get(record.auth_plugin_name)
-      .get(record.is_account_locked)
-      .get(record.is_password_expired)
-      .get(record.disconnect_on_expired_password)
-      .get(record.is_offline_mode_and_not_super_user)
-      .get(record.user_required.ssl_type)
-      .get(record.user_required.ssl_cipher)
-      .get(record.user_required.ssl_x509_issuer)
-      .get(record.user_required.ssl_x509_subject);
+  result.get(&record.require_secure_transport, &record.db_password_hash,
+             &record.auth_plugin_name, &record.is_account_locked,
+             &record.is_password_expired,
+             &record.disconnect_on_expired_password,
+             &record.is_offline_mode_and_not_super_user,
+             &record.user_required.ssl_type, &record.user_required.ssl_cipher,
+             &record.user_required.ssl_x509_issuer,
+             &record.user_required.ssl_x509_subject);
   return ngs::Success();
 } catch (const ngs::Error_code &e) {
   return e;

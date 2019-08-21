@@ -112,7 +112,7 @@ class Server : public ngs::Server_delegate {
   void reset_globals();
 
  private:
-  static void verify_mysqlx_user_grants(Sql_data_context &context);
+  static void verify_mysqlx_user_grants(Sql_data_context *context);
   static void initialize_xmessages();
 
   bool on_net_startup();

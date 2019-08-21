@@ -137,6 +137,9 @@ class Admin_command_handler {
 #define DOC_MEMBER_REGEX                                                     \
   R"(\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_)" \
   R"(\\$]*|\\*|\\".*\\")))*)"
+#define DOC_MEMBER_REGEX_NO_BACKSLASH_ESCAPES                         \
+  R"(\$((\*{2})?(\[([[:digit:]]+|\*)\]|\.([[:alpha:]_\$][[:alnum:]_)" \
+  R"(\$]*|\*|\".*\")))*)"
 
 }  // namespace xpl
 
