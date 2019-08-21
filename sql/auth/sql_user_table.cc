@@ -627,7 +627,6 @@ static bool acl_end_trans_and_close_tables(THD *thd,
     result |= trans_commit_implicit(thd);
   }
   close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
 
   if (result || rollback_transaction) {
     /*
@@ -641,8 +640,9 @@ static bool acl_end_trans_and_close_tables(THD *thd,
       acquire MDL on privilege tables after the release_transactional_locks()
       and before acl_reload/grant_reload() below.
     */
-    reload_acl_caches(thd);
+    reload_acl_caches(thd, true);
   }
+  thd->mdl_context.release_transactional_locks();
 
   return result;
 }
