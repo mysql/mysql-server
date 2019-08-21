@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,40 +22,44 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/src/document_id_aggregator.h"
+#ifndef PLUGIN_X_SRC_HELPER_GET_SYSTEM_VARIABLE_H_
+#define PLUGIN_X_SRC_HELPER_GET_SYSTEM_VARIABLE_H_
+
+#include <string>
+
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
-std::string Document_id_aggregator::generate_id(const Variables &vars) {
-  std::string id = m_id_generator->generate(vars);
-  if (m_id_retention_state) m_document_ids.push_back(id);
-  return id;
+template <typename T>
+void get_system_variable(ngs::Sql_session_interface *da,
+                         const std::string &variable, T *value) {
+  Sql_data_result result(da);
+  try {
+    result.query(("SELECT @@" + variable).c_str());
+    if (result.size() != 1) {
+      log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR, variable.c_str());
+      *value = T();
+      return;
+    }
+    result.get(value);
+  } catch (const ngs::Error_code &) {
+    log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR, variable.c_str());
+    *value = T();
+  }
 }
 
-ngs::Error_code Document_id_aggregator::configue(
-    ngs::Sql_session_interface *data_context) {
-  Sql_data_result result(data_context);
-  try {
-    result.query(
-        "SELECT @@mysqlx_document_id_unique_prefix,"
-        "@@auto_increment_offset,@@auto_increment_increment");
-    if (result.size() != 1) {
-      log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR,
-                "mysqlx_document_id_unique_prefix', "
-                "'auto_increment_offset', 'auto_increment_increment");
-      return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
-    }
-    uint16_t prefix = 0, offset = 0, increment = 0;
-    result.get(&prefix, &offset, &increment);
-    m_variables = Variables{prefix, offset, increment};
-  } catch (const ngs::Error_code &e) {
-    log_debug("Unable to get document id variables; exception message: '%s'",
-              e.message.c_str());
-    return e;
-  }
-  return ngs::Success();
+template <typename T>
+T get_system_variable(ngs::Sql_session_interface *da,
+                      const std::string &variable) {
+  T value = T();
+  get_system_variable(da, variable, &value);
+  return value;
 }
 
 }  // namespace xpl
+
+#endif  // PLUGIN_X_SRC_HELPER_GET_SYSTEM_VARIABLE_H_

@@ -472,7 +472,7 @@ int Server::plugin_exit(MYSQL_PLUGIN) {
   return 0;
 }
 
-void Server::verify_mysqlx_user_grants(Sql_data_context &context) {
+void Server::verify_mysqlx_user_grants(Sql_data_context *context) {
   Sql_data_result sql_result(context);
   int num_of_grants = 0;
   bool has_no_privileges = false;
@@ -494,7 +494,7 @@ void Server::verify_mysqlx_user_grants(Sql_data_context &context) {
   sql_result.query("SHOW GRANTS FOR " MYSQLXSYS_ACCOUNT);
 
   do {
-    sql_result.get_next_field(grants);
+    sql_result.get(&grants);
     ++num_of_grants;
     if (grants == "GRANT USAGE ON *.* TO `" MYSQL_SESSION_USER
                   "`@`" MYSQLXSYS_HOST "`")
@@ -525,8 +525,8 @@ void Server::verify_mysqlx_user_grants(Sql_data_context &context) {
 
   if (has_select_on_mysql_user && has_super) {
     log_debug(
-        "Using %s account for authentication which has all required \
-permissions",
+        "Using %s account for authentication"
+        " which has all required permissions ",
         MYSQLXSYS_ACCOUNT);
     return;
   }
@@ -602,7 +602,7 @@ bool Server::on_net_startup() {
 
     if (error) throw error;
 
-    Sql_data_result sql_result(sql_context);
+    Sql_data_result sql_result(&sql_context);
     try {
       sql_context.switch_to_local_user(MYSQL_SESSION_USER);
       sql_result.query(
@@ -624,17 +624,11 @@ bool Server::on_net_startup() {
     bool skip_name_resolve = false;
     char *tls_version = NULL;
 
-    sql_result.get_next_field(skip_networking);
-    sql_result.get_next_field(skip_name_resolve);
-    sql_result.get_next_field(mysqld_have_ssl);
-    sql_result.get_next_field(ssl_config.ssl_key);
-    sql_result.get_next_field(ssl_config.ssl_ca);
-    sql_result.get_next_field(ssl_config.ssl_capath);
-    sql_result.get_next_field(ssl_config.ssl_cert);
-    sql_result.get_next_field(ssl_config.ssl_cipher);
-    sql_result.get_next_field(ssl_config.ssl_crl);
-    sql_result.get_next_field(ssl_config.ssl_crlpath);
-    sql_result.get_next_field(tls_version);
+    sql_result.get(&skip_networking, &skip_name_resolve, &mysqld_have_ssl,
+                   &ssl_config.ssl_key, &ssl_config.ssl_ca,
+                   &ssl_config.ssl_capath, &ssl_config.ssl_cert,
+                   &ssl_config.ssl_cipher, &ssl_config.ssl_crl,
+                   &ssl_config.ssl_crlpath, &tls_version);
 
     instance->start_verify_server_state_timer();
 

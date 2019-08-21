@@ -34,6 +34,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/admin_cmd_index.h"
+#include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
@@ -307,7 +308,7 @@ ngs::Error_code create_collection_impl(ngs::Sql_session_interface *da,
   const ngs::PFS_string &tmp(qb.get());
   log_debug("CreateCollection: %s", tmp.c_str());
   Empty_resultset rset;
-  return da->execute(tmp.c_str(), tmp.length(), &rset);
+  return da->execute_sql(tmp.c_str(), tmp.length(), &rset);
 }
 
 }  // namespace
@@ -376,7 +377,8 @@ ngs::Error_code Admin_command_handler::drop_collection(
   const ngs::PFS_string &tmp(qb.get());
   log_debug("DropCollection: %s", tmp.c_str());
   Empty_resultset rset;
-  error = m_session->data_context().execute(tmp.data(), tmp.length(), &rset);
+  error =
+      m_session->data_context().execute_sql(tmp.data(), tmp.length(), &rset);
   if (error) return error;
   m_session->proto().send_exec_ok();
 
@@ -580,44 +582,44 @@ ngs::Error_code is_schema_selected_and_exists(ngs::Sql_session_interface *da,
   if (!schema.empty()) qb.put(" FROM ").quote_identifier(schema);
 
   Empty_resultset rset;
-  return da->execute(qb.get().data(), qb.get().length(), &rset);
-}
-
-template <typename T>
-T get_system_variable(ngs::Sql_session_interface *da,
-                      const std::string &variable) {
-  xpl::Sql_data_result result(*da);
-  try {
-    result.query(("SELECT @@" + variable).c_str());
-    if (result.size() != 1) {
-      log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR, variable.c_str());
-      return T();
-    }
-    T value = T();
-    result.get(&value);
-    return value;
-  } catch (const ngs::Error_code &) {
-    log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR, variable.c_str());
-    return T();
-  }
+  return da->execute_sql(qb.get().data(), qb.get().length(), &rset);
 }
 
 #define DOC_ID_REGEX R"(\\$\\._id)"
+#define DOC_ID_REGEX_NO_BACKSLASH_ESCAPES R"(\$\._id)"
 
 #define JSON_EXTRACT_REGEX(member) \
   R"(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\'')" member R"(\\\\''\\))"
+#define JSON_EXTRACT_REGEX_NO_BACKSLASH_ESCAPES(member) \
+  R"(json_extract\(`doc`,(_[[:alnum:]]+)?\\'')" member R"(\\''\))"
+
+#define JSON_EXTRACT_UNQUOTE_REGEX(member) \
+  R"(^json_unquote\\()" JSON_EXTRACT_REGEX(member) R"(\\)$)"
+
+#define JSON_EXTRACT_UNQUOTE_REGEX_NO_BACKSLASH_ESCAPES(member) \
+  R"(^json_unquote\()" JSON_EXTRACT_REGEX_NO_BACKSLASH_ESCAPES(member) R"(\)$)"
 
 #define COUNT_WHEN(expresion) \
   "COUNT(CASE WHEN (" expresion ") THEN 1 ELSE NULL END)"
 
-const char *const COUNT_DOC =
+const char *const k_count_doc =
     COUNT_WHEN("column_name = 'doc' AND data_type = 'json'");
-const char *const COUNT_ID = COUNT_WHEN(
-    R"(column_name = '_id' AND generation_expression RLIKE '^json_unquote\\()" JSON_EXTRACT_REGEX(
-        DOC_ID_REGEX) R"(\\)$')");
-const char *const COUNT_GEN = COUNT_WHEN(
+const char *const k_count_id = COUNT_WHEN(
+    "column_name = '_id' AND generation_expression RLIKE "
+    "'" JSON_EXTRACT_UNQUOTE_REGEX(DOC_ID_REGEX) "'");
+const char *const k_count_gen = COUNT_WHEN(
     "column_name != '_id' AND column_name != 'doc' AND "
     "generation_expression RLIKE '" JSON_EXTRACT_REGEX(DOC_MEMBER_REGEX) "'");
+
+const char *const k_count_id_no_backslash_escapes = COUNT_WHEN(
+    "column_name = '_id' AND generation_expression RLIKE "
+    "'" JSON_EXTRACT_UNQUOTE_REGEX_NO_BACKSLASH_ESCAPES(
+        DOC_ID_REGEX_NO_BACKSLASH_ESCAPES) "'");
+const char *const k_count_gen_no_backslash_escapes = COUNT_WHEN(
+    "column_name != '_id' AND column_name != 'doc' AND "
+    "generation_expression RLIKE '" JSON_EXTRACT_REGEX_NO_BACKSLASH_ESCAPES(
+        DOC_MEMBER_REGEX_NO_BACKSLASH_ESCAPES) "'");
+
 }  // namespace
 
 /* Stmt: list_objects
@@ -659,17 +661,27 @@ ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
           "T.table_name AS name, "
           "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', "
           "IF(COUNT(*)=1 AND ")
-      .put(COUNT_DOC)
-      .put("=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = ")
-      .put(COUNT_GEN)
-      .put(" AND ")
-      .put(COUNT_DOC)
-      .put("=1 AND ")
-      .put(COUNT_ID)
-      .put(
-          "=1, 'COLLECTION', 'TABLE')) AS type "
-          "FROM information_schema.tables AS T "
-          "LEFT JOIN information_schema.columns AS C ON (")
+      .put(k_count_doc)
+      .put("=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = ");
+
+  if (m_session->data_context().is_sql_mode_set("NO_BACKSLASH_ESCAPES")) {
+    qb.put(k_count_gen_no_backslash_escapes)
+        .put(" AND ")
+        .put(k_count_doc)
+        .put("=1 AND ")
+        .put(k_count_id_no_backslash_escapes);
+  } else {
+    qb.put(k_count_gen)
+        .put(" AND ")
+        .put(k_count_doc)
+        .put("=1 AND ")
+        .put(k_count_id);
+  }
+
+  qb.put(
+        "=1, 'COLLECTION', 'TABLE')) AS type "
+        "FROM information_schema.tables AS T "
+        "LEFT JOIN information_schema.columns AS C ON (")
       .put(BINARY_OPERATOR)
       .put("T.table_schema = C.table_schema AND ")
       .put(BINARY_OPERATOR)
@@ -685,8 +697,8 @@ ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
 
   log_debug("LIST: %s", qb.get().c_str());
   Streaming_resultset<> resultset(m_session, false);
-  error = m_session->data_context().execute(qb.get().data(), qb.get().length(),
-                                            &resultset);
+  error = m_session->data_context().execute_sql(qb.get().data(),
+                                                qb.get().length(), &resultset);
   if (error) return error;
 
   return ngs::Success();
@@ -696,16 +708,19 @@ namespace {
 bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
                    const std::string &name) {
   Query_string_builder qb;
-  qb.put("SELECT COUNT(*) AS cnt,")
-      .put(COUNT_DOC)
-      .put(" AS doc,")
-      .put(COUNT_ID)
-      .put(" AS id,")
-      .put(COUNT_GEN)
-      .put(
-          " AS gen "
-          "FROM information_schema.columns "
-          "WHERE table_name = ")
+  qb.put("SELECT COUNT(*) AS cnt,").put(k_count_doc).put(" AS doc,");
+
+  if (da->is_sql_mode_set("NO_BACKSLASH_ESCAPES"))
+    qb.put(k_count_id_no_backslash_escapes)
+        .put(" AS id,")
+        .put(k_count_gen_no_backslash_escapes);
+  else
+    qb.put(k_count_id).put(" AS id,").put(k_count_gen);
+
+  qb.put(
+        " AS gen "
+        "FROM information_schema.columns "
+        "WHERE table_name = ")
       .quote_string(name)
       .put(" AND table_schema = ");
   if (schema.empty())
@@ -713,7 +728,7 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
   else
     qb.quote_string(schema);
 
-  Sql_data_result result(*da);
+  Sql_data_result result(da);
   try {
     result.query(qb.get());
     if (result.size() != 1) {
@@ -725,7 +740,7 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
       return false;
     }
     int64_t cnt = 0, doc = 0, id = 0, gen = 0;
-    result.get(&cnt).get(&doc).get(&id).get(&gen);
+    result.get(&cnt, &doc, &id, &gen);
     return doc == 1 && id == 1 && (cnt == gen + doc + id);
   } catch (const ngs::Error_code &DEBUG_VAR(e)) {
     log_debug(
