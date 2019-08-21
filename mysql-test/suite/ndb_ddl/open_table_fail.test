@@ -1,0 +1,23 @@
+-- source include/have_ndb.inc
+-- source include/have_debug.inc
+
+--echo #
+--echo # Test failure to acquire NDB_SHARE while opening table. This is an
+--echo # unusual error condition and can thus be reproduced only with
+--echo # error injection.
+--echo #
+CREATE TABLE t1(
+  id INT PRIMARY KEY,
+  val INT
+) ENGINE=ndbcluster;
+
+set @save_debug = @@session.debug;
+# Force error to occur while opening table
+SET SESSION debug="+d,ndb_share_acquire_fail1";
+--error ER_GET_ERRMSG
+SELECT * FROM t1;
+SHOW WARNINGS;
+SET SESSION debug=@save_debug;
+
+--echo # Cleanup and remove the table
+DROP TABLE t1;

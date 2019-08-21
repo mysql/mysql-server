@@ -560,6 +560,11 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", key));
 
+  if (DBUG_EVALUATE_IF("ndb_share_acquire_fail1", true, false)) {
+    // Simulate failure to acquire NDB_SHARE
+    return nullptr;
+  }
+
   mysql_mutex_assert_owner(&ndbcluster_mutex);
 
   auto it = ndbcluster_open_tables->find(key);

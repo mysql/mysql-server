@@ -43,6 +43,14 @@ static const char *COL_EPOCH = "epoch";
 static const char *COL_TYPE = "type";
 static const char *COL_SCHEMA_OP_ID = "schema_op_id";
 
+// Length of the schema object identifiers which can be distributed by the
+// ndb_schema table. The legacy limit of 63 was increased in 8.0.18 to allow for
+// "any" identifier to be distributed. NOTE! Code still supports working with a
+// ndb_schema table using the legacy length, warning will be printed suggesting
+// upgrade
+static constexpr int IDENTIFIER_LENGTH = 255;
+static constexpr int LEGACY_IDENTIFIER_LENGTH = 63;
+
 Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
 
@@ -56,14 +64,14 @@ bool Ndb_schema_dist_table::check_schema() const {
   // backwards compatiblity reasons it's allowed to use such a schema
   // distribution table but not all identifiers will be possible to distribute.
   if (!(check_column_exist(COL_DB) && check_column_varbinary(COL_DB) &&
-        check_column_minlength(COL_DB, 63))) {
+        check_column_minlength(COL_DB, LEGACY_IDENTIFIER_LENGTH))) {
     return false;
   }
 
   // name
   // varbinary, at least 63 bytes long
   if (!(check_column_exist(COL_NAME) && check_column_varbinary(COL_NAME) &&
-        check_column_minlength(COL_NAME, 63))) {
+        check_column_minlength(COL_NAME, LEGACY_IDENTIFIER_LENGTH))) {
     return false;
   }
   // Check that db + name is the primary key, otherwise pk operations
@@ -206,21 +214,30 @@ bool Ndb_schema_dist_table::define_table_ndb(NdbDictionary::Table &new_table,
   // Allow table to be read+write also in single user mode
   new_table.setSingleUserMode(NdbDictionary::Table::SingleUserModeReadWrite);
 
+  // The length of "db" and "name" was adjusted in 8.0.18 to allow
+  // passing 255 bytes long identifiers
+  int db_and_name_length = IDENTIFIER_LENGTH;
+  if (mysql_version < 80018) {
+    // Use legacy identifier length when creating the table for
+    // backwards compatibility testing
+    db_and_name_length = LEGACY_IDENTIFIER_LENGTH;
+  }
+
   {
-    // db VARBINARY(63) NOT NULL
+    // db VARBINARY(255) NOT NULL
     NdbDictionary::Column col_db(COL_DB);
     col_db.setType(NdbDictionary::Column::Varbinary);
-    col_db.setLength(63);
+    col_db.setLength(db_and_name_length);
     col_db.setNullable(false);
     col_db.setPrimaryKey(true);
     if (!define_table_add_column(new_table, col_db)) return false;
   }
 
   {
-    // name VARBINARY(63) NOT NULL
+    // name VARBINARY(255) NOT NULL
     NdbDictionary::Column col_name(COL_NAME);
     col_name.setType(NdbDictionary::Column::Varbinary);
-    col_name.setLength(63);
+    col_name.setLength(db_and_name_length);
     col_name.setNullable(false);
     col_name.setPrimaryKey(true);
     if (!define_table_add_column(new_table, col_name)) return false;
@@ -304,6 +321,12 @@ bool Ndb_schema_dist_table::need_upgrade() const {
   if (!have_schema_op_id_column()) {
     return true;
   }
+  // The 'db' and 'name' column need to be upgrade if length is shorter than
+  // current identifier length
+  if (get_column_max_length(COL_DB) < IDENTIFIER_LENGTH ||
+      get_column_max_length(COL_NAME) < IDENTIFIER_LENGTH) {
+    return true;
+  }
   return false;
 }
 
@@ -321,9 +344,9 @@ bool Ndb_schema_dist_table::drop_events_in_NDB() const {
 std::string Ndb_schema_dist_table::define_table_dd() const {
   std::stringstream ss;
   ss << "CREATE TABLE " << db_name() << "." << table_name() << "(\n";
-  ss << "db VARBINARY(63) NOT NULL,"
-        "name VARBINARY(63) NOT NULL,"
-        "slock BINARY(32) NOT NULL,"
+  ss << "db VARBINARY(" << get_column_max_length(COL_DB) << ") NOT NULL,";
+  ss << "name VARBINARY(" << get_column_max_length(COL_NAME) << ") NOT NULL,";
+  ss << "slock BINARY(32) NOT NULL,"
         "query BLOB NOT NULL,"
         "node_id INT UNSIGNED NOT NULL,"
         "epoch BIGINT UNSIGNED NOT NULL,"

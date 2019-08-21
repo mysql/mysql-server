@@ -5337,8 +5337,7 @@ class Ndb_schema_event_handler {
       case NdbDictionary::Event::TE_DROP:
         // Cluster failure or ndb_schema_result table dropped
         if (ndb_binlog_tables_inited && ndb_binlog_running)
-          ndb_log_verbose(
-              1, "NDB Binlog: NDB tables initially readonly on reconnect.");
+          ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
 
         // Indicate util tables not ready
         mysql_mutex_lock(&injector_data_mutex);
@@ -5412,8 +5411,7 @@ class Ndb_schema_event_handler {
       case NDBEVENT::TE_DROP:
         /* ndb_schema table DROPped */
         if (ndb_binlog_tables_inited && ndb_binlog_running)
-          ndb_log_verbose(
-              1, "NDB Binlog: NDB tables initially readonly on reconnect.");
+          ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
 
         // Indicate util tables not ready
         mysql_mutex_lock(&injector_data_mutex);
@@ -6955,8 +6953,7 @@ static void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
     case NDBEVENT::TE_DROP:
       if (ndb_apply_status_share == share) {
         if (ndb_binlog_tables_inited && ndb_binlog_running)
-          ndb_log_verbose(
-              1, "NDB Binlog: NDB tables initially readonly on reconnect.");
+          ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
 
         /* release the ndb_apply_status_share */
         NDB_SHARE::release_reference(ndb_apply_status_share,

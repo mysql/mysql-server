@@ -246,13 +246,6 @@ connection server1;
 --echo Wait for (fast) 'server1' to complete setup and get out of read-only mode
 --source include/ndb_not_readonly.inc
 
-connection server2;
---echo Reading 'mysql.ndb_schema' on 'server2' announce schema distr. participation as a side effect.
-disable_result_log;
---error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED,ER_NOT_FORM_FILE,ER_KEY_NOT_FOUND
-select * from mysql.ndb_schema where db="" and name="";
-enable_result_log;
-
 connection server1;
 --echo Create table operation on 'server1' grab MDL lock while waiting for
 --echo schema distribution to all subscribing mysqld -> stuck on 'server2'
