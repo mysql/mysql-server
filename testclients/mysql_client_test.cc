@@ -20490,6 +20490,17 @@ static void test_wl12475() {
   mysql_close(mysql_local);
 }
 
+static void test_bug30032302() {
+  MYSQL_RES *res;
+
+  myheader("test_bug30032302");
+
+  res = mysql_list_processes(mysql);
+  mysql_free_result(res);
+
+  check_warning(mysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -20774,6 +20785,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl11381_qa", test_wl11381_qa},
     {"test_wl11772", test_wl11772},
     {"test_wl12475", test_wl12475},
+    {"test_bug30032302", test_bug30032302},
     {0, 0}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

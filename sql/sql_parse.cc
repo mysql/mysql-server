@@ -2066,18 +2066,18 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       my_ok(thd);  // Tell client we are alive
       break;
     case COM_PROCESS_INFO:
+      bool global_access;
       thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
       push_deprecated_warn(thd, "COM_PROCESS_INFO",
                            "SHOW PROCESSLIST statement");
-      if (!thd->security_context()->priv_user().str[0] &&
-          check_global_access(thd, PROCESS_ACL))
-        break;
+      global_access = (check_global_access(thd, PROCESS_ACL) == 0);
+      if (!thd->security_context()->priv_user().str[0] && !global_access) break;
       query_logger.general_log_print(thd, command, NullS);
+
+      DBUG_EXECUTE_IF("force_db_name_to_null", thd->reset_db(NULL_CSTR););
+
       mysqld_list_processes(
-          thd,
-          thd->security_context()->check_access(PROCESS_ACL, thd->db().str)
-              ? NullS
-              : thd->security_context()->priv_user().str,
+          thd, global_access ? NullS : thd->security_context()->priv_user().str,
           false);
       break;
     case COM_PROCESS_KILL: {
