@@ -110,12 +110,6 @@ class HashJoinChunk {
   /// @retval true on error
   bool Rewind();
 
-  /// Set the file position to the beginning of the last row read.
-  void IgnoreLastRead() {
-    my_b_seek(&m_file, my_b_tell(&m_file) - m_previous_row_size);
-    m_previous_row_size = 0;
-  }
-
  private:
   // A collection of which tables the chunk file holds data from. Used to
   // determine where to read data from, and where to put the data back.
@@ -123,10 +117,6 @@ class HashJoinChunk {
 
   // The number of rows in this chunk file.
   ha_rows m_num_rows{0};
-
-  // The size of the last row read from the chunk file. Used when we need to
-  // rewind to the beginning of the last row read, in case of OOM.
-  size_t m_previous_row_size{0};
 
   // The underlying file that is used when reading data to and from disk.
   IO_CACHE m_file;

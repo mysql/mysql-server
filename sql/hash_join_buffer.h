@@ -257,6 +257,8 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer);
 /// behavior.
 void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row);
 
+enum class StoreRowResult { ROW_STORED, BUFFER_FULL, FATAL_ERROR };
+
 class HashJoinRowBuffer {
  public:
   // Construct the buffer. Note that Init() must be called before the buffer can
@@ -276,9 +278,12 @@ class HashJoinRowBuffer {
   ///
   /// @param thd the thread handler
   ///
-  /// @returns true if the buffer is full. In that case, the row was
-  ///   not inserted.
-  bool StoreRow(THD *thd);
+  /// @retval ROW_STORED the row was stored.
+  /// @retval BUFFER_FULL the row was stored, and the buffer is full.
+  /// @retval FATAL_ERROR an unrecoverable error occured (most likely,
+  ///         malloc failed). It is the callers responsibility to call
+  ///         my_error().
+  StoreRowResult StoreRow(THD *thd);
 
   size_t size() const { return m_hash_map->size(); }
 

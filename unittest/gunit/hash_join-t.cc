@@ -337,7 +337,7 @@ TEST(HashJoinTest, JoinIntOneToOneMatch) {
       initializer.thd(), std::move(test_helper.left_iterator),
       {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
-      {test_helper.join_condition});
+      {test_helper.join_condition}, true);
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
@@ -358,7 +358,7 @@ TEST(HashJoinTest, JoinIntNoMatch) {
       initializer.thd(), std::move(test_helper.left_iterator),
       {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
-      {test_helper.join_condition});
+      {test_helper.join_condition}, true);
 
   ASSERT_FALSE(hash_join_iterator.Init());
   EXPECT_EQ(-1, hash_join_iterator.Read());
@@ -375,7 +375,7 @@ TEST(HashJoinTest, JoinIntOneToManyMatch) {
       initializer.thd(), std::move(test_helper.left_iterator),
       {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
-      {test_helper.join_condition});
+      {test_helper.join_condition}, true);
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
@@ -400,7 +400,7 @@ TEST(HashJoinTest, JoinStringOneToOneMatch) {
       initializer.thd(), std::move(test_helper.left_iterator),
       {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
-      {test_helper.join_condition});
+      {test_helper.join_condition}, true);
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
@@ -445,7 +445,7 @@ static void BM_HashTableIteratorBuild(size_t num_iterations) {
       initializer.thd(), std::move(test_helper.left_iterator),
       {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
-      {test_helper.join_condition});
+      {test_helper.join_condition}, true);
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
@@ -488,7 +488,7 @@ static void BM_HashTableIteratorProbe(size_t num_iterations) {
       initializer.thd(), std::move(test_helper.left_iterator),
       {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
-      {test_helper.join_condition});
+      {test_helper.join_condition}, true);
 
   for (size_t i = 0; i < num_iterations; ++i) {
     ASSERT_FALSE(hash_join_iterator.Init());

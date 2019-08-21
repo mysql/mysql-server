@@ -111,11 +111,5 @@ bool HashJoinChunk::LoadRowFromChunk(String *buffer) {
   hash_join_buffer::LoadIntoTableBuffers(
       m_tables, {pointer_cast<const uchar *>(buffer->ptr()), buffer->length()});
 
-  // If this is a chunk file from the build input, the next step will be to put
-  // the row in the hash table. If the hash table is full, we will have to
-  // re-read this row later; the tables' record buffer (record[0]) will be
-  // overwritten during the probe phase with matching rows from the hash table
-  // (see HashJoinIterator::ReadJoinedRow()).
-  m_previous_row_size = sizeof(row_length) + row_length;
   return false;
 }

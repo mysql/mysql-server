@@ -1701,3 +1701,61 @@ b AS subquery3_t1
 );
 col_varchar
 DROP TABLE b, cc;
+#
+# Bug#30049083 [REGRESSION]REPLACE/INSERT WITH LIMIT TAKING MORE TIME AND
+#              SPACE
+#
+# If the query has a LIMIT, the hash join should not spill to disk. Note
+# that if the query contains either grouping or sorting, we allow spill
+# to disk even if the query contains a LIMIT.
+CREATE TABLE t1 (col1 BIGINT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+INSERT INTO t1 SELECT col1 + 256 FROM t1;
+CREATE TABLE t2 SELECT col1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 2048;
+# This should spill to disk since we do not have any LIMIT.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+# This should NOT spill to disk since we have a LIMIT.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 1;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+0
+# This should spill to disk since we have sorting.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 ORDER BY t1.col1 LIMIT 1;
+col1	col1
+1	1
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+# This should spill to disk since we have (implicit) grouping.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT SUM(t1.col1) FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 10;
+SUM(t1.col1)
+131328
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1,t2;
