@@ -69,8 +69,6 @@ const char *const ER_TEXT_RECEIVE_HANDLER_FAILED =
 const char *const ER_TEXT_NOTICE_HANDLER_FAILED =
     "Aborted by internal callback at send message processing";
 const char *const ER_TEXT_RECEIVE_BUFFER_TO_SMALL = "Receive buffer to small";
-const char *const ER_TEXT_COMPRESSION_NOT_CONFIGURED =
-    "Compression is disabled or required compression style was not selected";
 
 namespace details {
 
