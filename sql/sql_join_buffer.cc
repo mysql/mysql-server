@@ -1011,8 +1011,8 @@ bool JOIN_CACHE_BKA::check_emb_key_usage() {
   */
   for (i = 0; i < ref->key_parts; i++) {
     uint j;
-    Item *item = ref->items[i]->real_item();
-    Field *fld = ((Item_field *)item)->field;
+    const Item *item = ref->items[i]->real_item();
+    const Field *fld = down_cast<const Item_field *>(item)->field;
     CACHE_FIELD *init_copy = field_descr + flag_fields + i;
     for (j = i, copy = init_copy; i < local_key_arg_fields; i++, copy++) {
       if (fld->eq(copy->field)) {

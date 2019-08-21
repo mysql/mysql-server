@@ -1089,8 +1089,8 @@ void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
 
 ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
-                               Field *comp_field = NULL,
-                               Item **const_item = NULL);
+                               const Field *comp_field = nullptr,
+                               Item **const_item = nullptr);
 bool test_if_subpart(ORDER *a, ORDER *b);
 void calc_group_buffer(JOIN *join, ORDER *group);
 bool make_join_readinfo(JOIN *join, uint no_jbuf_after);

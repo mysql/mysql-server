@@ -7739,7 +7739,7 @@ type_conversion_status Field_json::store_json(const Json_wrapper *json) {
   @param[in] field the field to copy data from
   @return zero on success, non-zero on failure
 */
-type_conversion_status Field_json::store(Field_json *field) {
+type_conversion_status Field_json::store(const Field_json *field) {
   /*
     The callers of this function have already checked for null, so we
     don't need to handle it here for now. Assert that field is not

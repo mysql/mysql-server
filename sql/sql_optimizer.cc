@@ -1526,7 +1526,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
     Item *real_itm = (*order->item)->real_item();
     if (real_itm->type() != Item::FIELD_ITEM) return 0;
 
-    Field *field = static_cast<Item_field *>(real_itm)->field;
+    const Field *field = down_cast<const Item_field *>(real_itm)->field;
 
     /*
       Skip key parts that are constants in the WHERE clause.
@@ -1975,12 +1975,13 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   Key_map usable_keys = *map;
 
   for (ORDER *tmp_order = order; tmp_order; tmp_order = tmp_order->next) {
-    Item *item = (*tmp_order->item)->real_item();
+    const Item *item = (*tmp_order->item)->real_item();
     if (item->type() != Item::FIELD_ITEM) {
       usable_keys.clear_all();
       return false;
     }
-    usable_keys.intersect(((Item_field *)item)->field->part_of_sortkey);
+    usable_keys.intersect(
+        down_cast<const Item_field *>(item)->field->part_of_sortkey);
     if (usable_keys.is_clear_all()) return false;  // No usable keys
   }
   if (tab->type() == JT_REF_OR_NULL || tab->type() == JT_FT) return false;
@@ -3322,7 +3323,8 @@ class COND_CMP : public ilink<COND_CMP> {
 */
 
 static Item_equal *find_item_equal(COND_EQUAL *cond_equal,
-                                   Item_field *item_field, bool *inherited_fl) {
+                                   const Item_field *item_field,
+                                   bool *inherited_fl) {
   Item_equal *item = 0;
   bool in_upper_level = false;
   while (cond_equal) {
@@ -3459,17 +3461,17 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
     if (down_cast<Item_ref *>(right_item)->depended_from) return false;
     right_item = right_item->real_item();
   }
-  Item_field *left_item_field, *right_item_field;
+  const Item_field *left_item_field, *right_item_field;
 
   if (left_item->type() == Item::FIELD_ITEM &&
       right_item->type() == Item::FIELD_ITEM &&
-      (left_item_field = down_cast<Item_field *>(left_item)) &&
-      (right_item_field = down_cast<Item_field *>(right_item)) &&
+      (left_item_field = down_cast<const Item_field *>(left_item)) &&
+      (right_item_field = down_cast<const Item_field *>(right_item)) &&
       !left_item_field->depended_from && !right_item_field->depended_from) {
     /* The predicate the form field1=field2 is processed */
 
-    Field *const left_field = left_item_field->field;
-    Field *const right_field = right_item_field->field;
+    const Field *const left_field = left_item_field->field;
+    const Field *const right_field = right_item_field->field;
 
     if (!left_field->eq_def(right_field)) return false;
 
@@ -6065,7 +6067,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       return true;
     }
     case Item::FIELD_ITEM: {
-      Item_field *item_field = (Item_field *)item;
+      const Item_field *item_field = down_cast<const Item_field *>(item);
       if (item_field->field->table != tbl) return other_tbls_ok;
       /*
         The below is probably a repetition - the first part checks the
@@ -6475,10 +6477,10 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
 
   /* Mark all found fields in old array */
   for (; new_fields != end; new_fields++) {
-    Field *const new_field = new_fields->item_field->field;
+    const Field *const new_field = new_fields->item_field->field;
 
     for (Key_field *old = start; old != first_free; old++) {
-      Field *const old_field = old->item_field->field;
+      const Field *const old_field = old->item_field->field;
 
       /*
         Check that the Field objects are the same, as we may have several
@@ -6585,9 +6587,9 @@ static uint get_semi_join_select_list_index(Item_field *item_field) {
     List<Item> &items = emb_sj_nest->nested_join->sj_inner_exprs;
     List_iterator<Item> it(items);
     for (uint i = 0; i < items.elements; i++) {
-      Item *sel_item = it++;
+      const Item *sel_item = it++;
       if (sel_item->type() == Item::FIELD_ITEM &&
-          ((Item_field *)sel_item)->field->eq(item_field->field))
+          down_cast<const Item_field *>(sel_item)->field->eq(item_field->field))
         return i;
     }
   }
@@ -7137,9 +7139,6 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
                              sargables);
       } else if (cond_func->functype() == Item_func::JSON_CONTAINS ||
                  cond_func->functype() == Item_func::JSON_OVERLAPS) {
-        Json_wrapper cont_wr;
-        String str;
-        Field *field;
         /*
           Applicability analysis was done during substitute_gc().
           Check here that a typed array field is used and there's a key over
@@ -7153,7 +7152,8 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
             !is_local_field(cond_func->key_item()) ||  // 2
             !cond_func->key_item()->returns_array())   // 3
           break;
-        field = (down_cast<Item_field *>(cond_func->key_item()))->field;
+        const Field *field =
+            (down_cast<const Item_field *>(cond_func->key_item()))->field;
         JOIN_TAB *tab = field->table->reginfo.join_tab;
         Key_map possible_keys = field->key_start;
 
@@ -7356,7 +7356,7 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
 
 static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS)) {
-    Field *const field = key_field->item_field->field;
+    const Field *const field = key_field->item_field->field;
     TABLE_LIST *const tl = key_field->item_field->table_ref;
     TABLE *const table = tl->table;
 
@@ -8446,7 +8446,7 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
   in sorted order.
 *****************************************************************************/
 
-static Item *part_of_refkey(TABLE *table, TABLE_REF *ref, Field *field) {
+static Item *part_of_refkey(TABLE *table, TABLE_REF *ref, const Field *field) {
   uint ref_parts = ref->key_parts;
   if (ref_parts) {
     if (ref->has_guarded_conds()) return NULL;
@@ -10098,9 +10098,9 @@ static bool find_field_in_order_list(Field *field, void *data) {
   ORDER *group = (ORDER *)data;
   bool part_found = false;
   for (ORDER *tmp_group = group; tmp_group; tmp_group = tmp_group->next) {
-    Item *item = (*tmp_group->item)->real_item();
+    const Item *item = (*tmp_group->item)->real_item();
     if (item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)item)->field->eq(field)) {
+        down_cast<const Item_field *>(item)->field->eq(field)) {
       part_found = true;
       break;
     }
@@ -10126,11 +10126,11 @@ static bool find_field_in_item_list(Field *field, void *data) {
   List<Item> *fields = (List<Item> *)data;
   bool part_found = false;
   List_iterator<Item> li(*fields);
-  Item *item;
+  const Item *item;
 
   while ((item = li++)) {
     if (item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)item)->field->eq(field)) {
+        down_cast<const Item_field *>(item)->field->eq(field)) {
       part_found = true;
       break;
     }

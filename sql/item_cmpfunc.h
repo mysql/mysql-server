@@ -216,7 +216,7 @@ class Arg_comparator {
   int compare_json();
   bool compare_null_values();
 
-  static bool can_compare_as_dates(Item *a, Item *b);
+  static bool can_compare_as_dates(const Item *a, const Item *b);
 
   Item **cache_converted_constant(THD *thd, Item **value, Item **cache,
                                   Item_result type);

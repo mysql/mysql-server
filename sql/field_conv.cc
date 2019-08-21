@@ -395,7 +395,7 @@ static void do_field_decimal(Copy_field *copy) {
   copy->to_field()->store_decimal(copy->from_field()->val_decimal(&value));
 }
 
-inline type_conversion_status copy_time_to_time(Field *from, Field *to) {
+inline type_conversion_status copy_time_to_time(const Field *from, Field *to) {
   MYSQL_TIME ltime;
   from->get_time(&ltime);
   return to->store_time(&ltime);
@@ -853,13 +853,13 @@ static inline bool is_blob_type(Field *to) {
 
 /** Simple quick field convert that is called on insert. */
 
-type_conversion_status field_conv(Field *to, Field *from) {
+type_conversion_status field_conv(Field *to, const Field *from) {
   const int from_type = from->type();
   const int to_type = to->type();
 
   if ((to_type == MYSQL_TYPE_JSON) && (from_type == MYSQL_TYPE_JSON)) {
     Field_json *to_json = down_cast<Field_json *>(to);
-    Field_json *from_json = down_cast<Field_json *>(from);
+    const Field_json *from_json = down_cast<const Field_json *>(from);
     return to_json->store(from_json);
   }
 
@@ -868,8 +868,8 @@ type_conversion_status field_conv(Field *to, Field *from) {
       to->charset() == from->charset() && to_type != MYSQL_TYPE_GEOMETRY) {
     if (to->real_type() == MYSQL_TYPE_VARCHAR &&
         from->real_type() == MYSQL_TYPE_VARCHAR) {
-      Field_varstring *to_vc = static_cast<Field_varstring *>(to);
-      const Field_varstring *from_vc = static_cast<Field_varstring *>(from);
+      Field_varstring *to_vc = down_cast<Field_varstring *>(to);
+      const Field_varstring *from_vc = down_cast<const Field_varstring *>(from);
       if (to_vc->length_bytes == from_vc->length_bytes) {
         copy_field_varstring(to_vc, from_vc);
         return TYPE_OK;
@@ -883,7 +883,8 @@ type_conversion_status field_conv(Field *to, Field *from) {
         (!to->is_temporal_with_time() || to->decimals() == from->decimals()) &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
          (to->field_length == from->field_length &&
-          (((Field_num *)to)->dec == ((Field_num *)from)->dec))) &&
+          (down_cast<Field_num *>(to)->dec ==
+           down_cast<const Field_num *>(from)->dec))) &&
         to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||

@@ -5757,7 +5757,7 @@ class Item_cache : public Item_basic_constant {
   virtual void keep_array() {}
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq_def(Field *field) {
+  bool eq_def(const Field *field) {
     return cached_field && cached_field->eq_def(field);
   }
   bool eq(const Item *item, bool) const override { return this == item; }

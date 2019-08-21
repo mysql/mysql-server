@@ -5453,7 +5453,8 @@ bool Item_field::subst_argument_checker(uchar **arg) {
   the field reference when propagating equalities.
 */
 
-static void convert_zerofill_number_to_string(Item **item, Field_num *field) {
+static void convert_zerofill_number_to_string(Item **item,
+                                              const Field_num *field) {
   char buff[MAX_FIELD_WIDTH], *pos;
   String tmp(buff, sizeof(buff), field->charset()), *res;
 

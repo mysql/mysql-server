@@ -4484,7 +4484,7 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
   List_iterator_fast<Item> f(*fields), v(*values);
   Item *value;
   while ((value = v++)) {
-    Field *rfield;
+    const Field *rfield;
 
     if (!use_table_field)
       rfield = (down_cast<Item_field *>((f++)->real_item()))->field;

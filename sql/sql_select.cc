@@ -112,7 +112,6 @@ static store_key *get_store_key(THD *thd, Key_use *keyuse,
                                 table_map used_tables, KEY_PART_INFO *key_part,
                                 uchar *key_buff, uint maybe_null);
 static uint actual_key_flags(KEY *key_info);
-bool const_expression_in_where(Item *conds, Item *item, Item **comp_item);
 
 using Global_tables_iterator =
     IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_global>;
@@ -3392,7 +3391,8 @@ ORDER *simple_remove_const(ORDER *order, Item *where) {
     true    can be used
     false   cannot be used
 */
-static bool test_if_equality_guarantees_uniqueness(Item *l, Item *r) {
+static bool test_if_equality_guarantees_uniqueness(const Item *l,
+                                                   const Item *r) {
   return r->const_item() &&
          /* elements must be compared as dates */
          (Arg_comparator::can_compare_as_dates(l, r) ||
@@ -3408,13 +3408,13 @@ static bool test_if_equality_guarantees_uniqueness(Item *l, Item *r) {
   or if i1 is a wrapper item around the f2 field.
 */
 
-static bool equal(Item *i1, Item *i2, Field *f2) {
+static bool equal(const Item *i1, const Item *i2, const Field *f2) {
   DBUG_ASSERT((i2 == NULL) ^ (f2 == NULL));
 
   if (i2 != NULL)
     return i1->eq(i2, true);
   else if (i1->type() == Item::FIELD_ITEM)
-    return f2->eq(((Item_field *)i1)->field);
+    return f2->eq(down_cast<const Item_field *>(i1)->field);
   else
     return false;
 }
@@ -3434,8 +3434,8 @@ static bool equal(Item *i1, Item *i2, Field *f2) {
   @note
     comp_item and comp_field parameters are mutually exclusive.
 */
-bool const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
-                               Item **const_item) {
+bool const_expression_in_where(Item *cond, Item *comp_item,
+                               const Field *comp_field, Item **const_item) {
   DBUG_ASSERT((comp_item == NULL) ^ (comp_field == NULL));
 
   Item *intermediate = NULL;

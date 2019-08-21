@@ -413,10 +413,10 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   Item *item;
 
   while ((item = it++)) {
-    Item *real_item = item->real_item();
+    const Item *real_item = item->real_item();
 
     if (real_item->type() == Item::FIELD_ITEM) {
-      Field *field = ((Item_field *)real_item)->field;
+      const Field *field = down_cast<const Item_field *>(real_item)->field;
       if (field->flags & BLOB_FLAG) {
         use_blobs = true;
         tot_length += 256;  // Will be extended if needed

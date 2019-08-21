@@ -260,7 +260,7 @@ enum type_conversion_status {
 
 struct CACHE_FIELD;
 
-type_conversion_status field_conv(Field *to, Field *from);
+type_conversion_status field_conv(Field *to, const Field *from);
 
 inline uint get_enum_pack_length(int elements) {
   return elements < 256 ? 1 : 2;
@@ -4228,7 +4228,7 @@ class Field_json : public Field_blob {
   virtual type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime,
                                     uint8 dec_arg) final override;
-  type_conversion_status store(Field_json *field);
+  type_conversion_status store(const Field_json *field);
 
   bool pack_diff(uchar **to, ulonglong value_options) const final override;
   /**

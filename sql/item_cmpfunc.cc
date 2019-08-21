@@ -1001,7 +1001,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
           false otherwise
 */
 
-bool Arg_comparator::can_compare_as_dates(Item *left, Item *right) {
+bool Arg_comparator::can_compare_as_dates(const Item *left, const Item *right) {
   if (left->type() == Item::ROW_ITEM || right->type() == Item::ROW_ITEM)
     return false;
 
