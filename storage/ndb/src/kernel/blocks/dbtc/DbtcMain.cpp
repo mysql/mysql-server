@@ -3879,15 +3879,25 @@ void Dbtc::execTCKEYREQ(Signal* signal)
          */
         if (unlikely(regApiPtr->m_write_count > m_take_over_operations))
         {
+          jam();
           TCKEY_abort(signal, 65, apiConnectptr);
           return;
         }
       }
       else if (unlikely(regApiPtr->m_write_count > m_max_writes_per_trans))
       {
+        jam();
         TCKEY_abort(signal, 65, apiConnectptr);
         return;
       }
+      if (unlikely(m_concurrent_write_operations > m_take_over_operations))
+      {
+        jam();
+        TCKEY_abort(signal, 65, apiConnectptr);
+        return;
+      }
+      regTcPtr->m_write_operation = 1;
+      m_concurrent_write_operations++;
       break;
     default:
       TCKEY_abort(signal, 9, apiConnectptr);
@@ -5050,6 +5060,11 @@ void Dbtc::releaseTcCon()
   regTcPtr->m_special_op_flags = 0;
   regTcPtr->indexOp = RNIL;
 
+  if (regTcPtr->m_write_operation == 1)
+  {
+    jam();
+    m_concurrent_write_operations--;
+  }
   if (regTcPtr->triggeringOperation != RNIL &&
       regTcPtr->currentTriggerId != RNIL)
   {
@@ -15798,6 +15813,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConList.addLast(tcConptr);
   }
   c_counters.cconcurrentOp = 0;
+  m_concurrent_write_operations = 0;
 
   TcConnectRecordPtr tcConptr;
   while (fast_record_list.removeFirst(tcConptr))
