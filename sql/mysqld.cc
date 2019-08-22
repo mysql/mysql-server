@@ -5578,11 +5578,16 @@ static int init_server_components() {
   */
   bool dd_upgrade_was_initiated = dd::upgrade_57::in_progress();
 #endif
-  // Populate DD tables with meta data from 5.7 in case of upgrade
-  if (!is_help_or_validate_option() && dd::upgrade_57::in_progress() &&
-      dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE)) {
-    LogErr(ERROR_LEVEL, ER_DD_POPULATING_TABLES_FAILED);
-    unireg_abort(1);
+
+  if (!is_help_or_validate_option() && dd::upgrade_57::in_progress()) {
+    // Populate DD tables with meta data from 5.7
+    if (dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE)) {
+      LogErr(ERROR_LEVEL, ER_DD_POPULATING_TABLES_FAILED);
+      unireg_abort(1);
+    }
+    // Run after_dd_upgrade hook
+    if (RUN_HOOK(server_state, after_dd_upgrade_from_57, (NULL)))
+      unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   /*

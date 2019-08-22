@@ -682,6 +682,20 @@ int Server_state_delegate::after_server_shutdown(THD *) {
   return ret;
 }
 
+/**
+ * This hook MUST be invoked after upgrade from .frm to data dictionary
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::after_dd_upgrade_from_57(THD *) {
+  DBUG_TRACE;
+  Server_state_param param;
+
+  int ret = 0;
+  FOREACH_OBSERVER(ret, after_dd_upgrade_from_57, (&param));
+  return ret;
+}
+
 int Binlog_storage_delegate::after_sync(THD *thd, const char *log_file,
                                         my_off_t log_pos) {
   DBUG_TRACE;

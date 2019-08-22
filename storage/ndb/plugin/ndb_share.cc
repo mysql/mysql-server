@@ -258,6 +258,30 @@ NDB_SHARE *NDB_SHARE::create_and_acquire_reference(const char *key,
   return share;
 }
 
+NDB_SHARE *NDB_SHARE::create_and_acquire_reference(
+    const char *key, const class ha_ndbcluster *reference) {
+  mysql_mutex_lock(&ndbcluster_mutex);
+
+  NDB_SHARE *share = NDB_SHARE::create(key);
+  if (share == nullptr)
+    ndb_log_error("failed to create NDB_SHARE for key: %s", key);
+  else {
+    // Insert the new share in list of open shares
+    ndbcluster_open_tables->emplace(key, share);
+
+    // Add share refcount from 'ndbcluster_open_tables'
+    share->increment_use_count();
+    share->refs_insert("ndbcluster_open_tables");
+
+    // Add refcount for returned 'share'.
+    share->increment_use_count();
+    share->refs_insert(reference);
+  }
+
+  mysql_mutex_unlock(&ndbcluster_mutex);
+  return share;
+}
+
 NDB_SHARE *NDB_SHARE::acquire_for_handler(
     const char *key, const class ha_ndbcluster *reference) {
   DBUG_TRACE;

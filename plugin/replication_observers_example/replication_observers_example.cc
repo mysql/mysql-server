@@ -64,6 +64,7 @@ static int after_engine_recovery_call = 0;
 static int after_recovery_call = 0;
 static int before_server_shutdown_call = 0;
 static int after_server_shutdown_call = 0;
+static int after_dd_upgrade_call = 0;
 static bool thread_aborted = false;
 
 static void dump_server_state_calls() {
@@ -141,6 +142,12 @@ static int after_server_shutdown(Server_state_param *) {
   return 0;
 }
 
+static int after_dd_upgrade(Server_state_param *) {
+  after_dd_upgrade_call++;
+
+  return 0;
+}
+
 Server_state_observer server_state_observer = {
     sizeof(Server_state_observer),
 
@@ -150,6 +157,7 @@ Server_state_observer server_state_observer = {
     after_recovery,            // after_recovery
     before_server_shutdown,    // before shutdown
     after_server_shutdown,     // after shutdown
+    after_dd_upgrade,          // after DD upgrade from 5.7 to 8.0
 };
 
 static int trans_before_dml_call = 0;

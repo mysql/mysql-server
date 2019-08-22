@@ -1785,17 +1785,31 @@ bool migrate_plugin_table_to_dd(THD *thd) {
 }
 
 /**
-  Check whether the table is a NDB table. This is done by checking for the
-  presence of a table_name.ndb file in the data directory. Note that these
-  files are permanently removed at a later step in the upgrade
+  Migration of NDB tables is deferred until later, except for legacy privilege
+  tables stored in NDB, which must be migrated now so that they can be moved to
+  InnoDB later in the upgrade.
+
+  To check whether the table is a NDB table, look for the presence of a
+  table_name.ndb file in the data directory. These files still exist at this
+  point, though they will be permanently removed later in the upgrade.
 */
-static bool is_ndb_table(const char *db_name, const char *table_name) {
+static bool is_skipped_ndb_table(const char *db_name, const char *table_name) {
   char path[FN_REFLEN];
   build_table_filename(path, FN_REFLEN - 1, db_name, table_name,
                        NDB_EXT.c_str(), 0);
 
   if (access(path, F_OK)) {
     if (errno == ENOENT) return false;
+  }
+
+  if (strcmp("mysql", db_name) == 0) {
+    if ((strcmp("user", table_name) == 0) || (strcmp("db", table_name) == 0) ||
+        (strcmp("tables_priv", table_name) == 0) ||
+        (strcmp("columns_priv", table_name) == 0) ||
+        (strcmp("procs_priv", table_name) == 0) ||
+        (strcmp("proxies_priv", table_name) == 0)) {
+      return false;
+    }
   }
 
   return true;
@@ -1864,7 +1878,7 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       if (is_skip_table) continue;
 
       // Skip NDB tables which are upgraded later by the ndbcluster plugin
-      if (is_ndb_table(schema_name, table_name)) continue;
+      if (is_skipped_ndb_table(schema_name, table_name)) continue;
 
       log_sink_buffer_check_timeout();
 

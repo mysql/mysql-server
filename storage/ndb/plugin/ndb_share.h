@@ -207,6 +207,8 @@ struct NDB_SHARE {
   // Create NDB_SHARE and acquire reference
   static NDB_SHARE *create_and_acquire_reference(const char *key,
                                                  const char *reference);
+  static NDB_SHARE *create_and_acquire_reference(const char *key,
+                                                 const class ha_ndbcluster *);
   // Acquire reference by key
   static NDB_SHARE *acquire_reference_by_key(const char *key,
                                              const char *reference);
