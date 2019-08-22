@@ -22,7 +22,7 @@ self_ref	CREATE TABLE `self_ref` (
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ix` (`i`),
   KEY `fk_j_unique_i` (`j`),
-  CONSTRAINT `fk_j_unique_i` FOREIGN KEY (`j`) REFERENCES `self_ref` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_j_unique_i` FOREIGN KEY (`j`) REFERENCES `self_ref` (`i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE self_ref;
 # A self referencing FK can use the supporting index as parent index
@@ -39,7 +39,7 @@ self_ref	CREATE TABLE `self_ref` (
   `i` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ix` (`i`),
-  CONSTRAINT `fk_i_unique_i` FOREIGN KEY (`i`) REFERENCES `self_ref` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_i_unique_i` FOREIGN KEY (`i`) REFERENCES `self_ref` (`i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE self_ref;
 # But not if it's not unique.
@@ -63,7 +63,7 @@ self_ref	CREATE TABLE `self_ref` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`),
-  CONSTRAINT `fk_ij_unique_ji` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_ij_unique_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref` (`j`, `i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE self_ref_hash(pk INT PRIMARY KEY, i INT, j INT,
 UNIQUE INDEX ijx(i, j) USING HASH,
@@ -80,7 +80,7 @@ self_ref_hash	CREATE TABLE `self_ref_hash` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`) USING HASH,
-  CONSTRAINT `fk_ij_unique_hash_ji` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref_hash` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_ij_unique_hash_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref_hash` (`j`, `i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE self_ref_btree(pk INT PRIMARY KEY, i INT, j INT,
 UNIQUE INDEX ijx(i, j) USING BTREE,
@@ -95,7 +95,7 @@ self_ref_btree	CREATE TABLE `self_ref_btree` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`) USING BTREE,
-  CONSTRAINT `fk_ij_unique_btree_ji` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref_btree` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_ij_unique_btree_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref_btree` (`j`, `i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES self_ref, self_ref_hash, self_ref_btree;
 # If there is an index with the same columns as the FK, but in
@@ -114,7 +114,7 @@ self_ref	CREATE TABLE `self_ref` (
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`j`,`i`),
   KEY `fk_ij_diff_order_ji` (`i`,`j`),
-  CONSTRAINT `fk_ij_diff_order_ji` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_ij_diff_order_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref` (`j`, `i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE self_ref;
 #
@@ -482,10 +482,10 @@ t2	CREATE TABLE `t2` (
   KEY `c` (`fk2`),
   KEY `d` (`fk3`),
   KEY `e` (`fk4`),
-  CONSTRAINT `c` FOREIGN KEY (`fk2`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `e` FOREIGN KEY (`fk4`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `t2_fk_1` FOREIGN KEY (`fk1`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `t2_fk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c` FOREIGN KEY (`fk2`) REFERENCES `t1` (`id`),
+  CONSTRAINT `e` FOREIGN KEY (`fk4`) REFERENCES `t1` (`id`),
+  CONSTRAINT `t2_fk_1` FOREIGN KEY (`fk1`) REFERENCES `t1` (`id`),
+  CONSTRAINT `t2_fk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE TABLE_NAME = 't2' ORDER BY CONSTRAINT_NAME;
@@ -521,9 +521,9 @@ child	CREATE TABLE `child` (
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
@@ -554,12 +554,12 @@ child	CREATE TABLE `child` (
   KEY `fk4` (`fk4`),
   KEY `c2` (`fk5`),
   KEY `fk6` (`fk6`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
@@ -595,14 +595,14 @@ child	CREATE TABLE `child` (
   KEY `fk6` (`fk6`),
   KEY `child_fk_10` (`fk7`),
   KEY `fk8` (`fk8`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
@@ -639,13 +639,13 @@ child	CREATE TABLE `child` (
   KEY `fk6` (`fk6`),
   KEY `child_fk_10` (`fk7`),
   KEY `fk8` (`fk8`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
@@ -682,14 +682,14 @@ child	CREATE TABLE `child` (
   KEY `child_fk_10` (`fk7`),
   KEY `fk8` (`fk8`),
   KEY `fk9` (`fk9`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk9`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk9`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
@@ -729,14 +729,14 @@ child	CREATE TABLE `child` (
   KEY `fk8` (`fk8`),
   KEY `fk9` (`fk9`),
   KEY `fk10` (`fk10`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
@@ -777,14 +777,14 @@ child	CREATE TABLE `child` (
   KEY `fk8` (`fk8`),
   KEY `fk9` (`fk9`),
   KEY `fk10` (`fk10`),
-  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;

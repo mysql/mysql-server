@@ -19,7 +19,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
-  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -50,7 +50,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
-  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -82,7 +82,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
-  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -113,7 +113,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
-  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -158,7 +158,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -190,7 +190,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -243,7 +243,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -275,7 +275,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -307,7 +307,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -362,7 +362,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -395,7 +395,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -434,7 +434,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`b1`,`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`b1`, `c1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
@@ -467,7 +467,7 @@ t2	CREATE TABLE `t2` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
-  CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`b1`,`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`b1`, `c1`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....

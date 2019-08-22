@@ -46,42 +46,44 @@
 #include "mysql/plugin.h"                            // st_mysql_plugin
 #include "scope_guard.h"                             // Scope_guard
 #include "sql/auth/auth_acls.h"                      // DB_ACLS
-#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/dd_table.h"                 // is_encrypted
-#include "sql/dd/types/column.h"             // dd::Column
-#include "sql/dd/types/table.h"              // dd::Table
-#include "sql/debug_sync.h"                  // DEBUG_SYNC
-#include "sql/derror.h"                      // ER_THD
-#include "sql/error_handler.h"               // Internal_error_handler
-#include "sql/field.h"                       // Field
-#include "sql/filesort.h"                    // filesort_free_buffers
-#include "sql/item.h"                        // Item_empty_string
-#include "sql/log.h"                         // query_logger
-#include "sql/mysqld.h"                      // lower_case_table_names
-#include "sql/mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql/opt_trace.h"                   // fill_optimizer_trace_info
-#include "sql/partition_info.h"              // partition_info
-#include "sql/protocol.h"                    // Protocol
-#include "sql/sp_head.h"                     // sp_head
-#include "sql/sql_base.h"                    // close_thread_tables
-#include "sql/sql_class.h"                   // THD
-#include "sql/sql_db.h"                      // get_default_db_collation
-#include "sql/sql_executor.h"                // QEP_TAB
-#include "sql/sql_lex.h"                     // LEX
-#include "sql/sql_optimizer.h"               // JOIN
-#include "sql/sql_parse.h"                   // command_name
-#include "sql/sql_partition.h"               // HA_USE_AUTO_PARTITION
-#include "sql/sql_plugin.h"                  // PLUGIN_IS_DELETED, LOCK_plugin
-#include "sql/sql_profile.h"                 // query_profile_statistics_info
-#include "sql/sql_table.h"                   // primary_key_name
-#include "sql/sql_tmp_table.h"               // create_ondisk_from_heap
-#include "sql/sql_trigger.h"                 // acquire_shared_mdl_for_trigger
-#include "sql/strfunc.h"                     // lex_string_strmake
-#include "sql/table_trigger_dispatcher.h"    // Table_trigger_dispatcher
-#include "sql/temp_table_param.h"            // Temp_table_param
-#include "sql/trigger.h"                     // Trigger
-#include "sql/tztime.h"                      // my_tz_SYSTEM
+#include "sql/dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"                  // dd::Schema_MDL_locker
+#include "sql/dd/dd_table.h"                   // is_encrypted
+#include "sql/dd/types/column.h"               // dd::Column
+#include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h"  // dd::Foreign_key_element
+#include "sql/dd/types/table.h"                // dd::Table
+#include "sql/debug_sync.h"                    // DEBUG_SYNC
+#include "sql/derror.h"                        // ER_THD
+#include "sql/error_handler.h"                 // Internal_error_handler
+#include "sql/field.h"                         // Field
+#include "sql/filesort.h"                      // filesort_free_buffers
+#include "sql/item.h"                          // Item_empty_string
+#include "sql/log.h"                           // query_logger
+#include "sql/mysqld.h"                        // lower_case_table_names
+#include "sql/mysqld_thd_manager.h"            // Global_THD_manager
+#include "sql/opt_trace.h"                     // fill_optimizer_trace_info
+#include "sql/partition_info.h"                // partition_info
+#include "sql/protocol.h"                      // Protocol
+#include "sql/sp_head.h"                       // sp_head
+#include "sql/sql_base.h"                      // close_thread_tables
+#include "sql/sql_class.h"                     // THD
+#include "sql/sql_db.h"                        // get_default_db_collation
+#include "sql/sql_executor.h"                  // QEP_TAB
+#include "sql/sql_lex.h"                       // LEX
+#include "sql/sql_optimizer.h"                 // JOIN
+#include "sql/sql_parse.h"                     // command_name
+#include "sql/sql_partition.h"                 // HA_USE_AUTO_PARTITION
+#include "sql/sql_plugin.h"                    // PLUGIN_IS_DELETED, LOCK_plugin
+#include "sql/sql_profile.h"                   // query_profile_statistics_info
+#include "sql/sql_table.h"                     // primary_key_name
+#include "sql/sql_tmp_table.h"                 // create_ondisk_from_heap
+#include "sql/sql_trigger.h"                   // acquire_shared_mdl_for_trigger
+#include "sql/strfunc.h"                       // lex_string_strmake
+#include "sql/table_trigger_dispatcher.h"      // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"              // Temp_table_param
+#include "sql/trigger.h"                       // Trigger
+#include "sql/tztime.h"                        // my_tz_SYSTEM
 
 /* @see dynamic_privileges_table.cc */
 bool iterate_all_dynamic_privileges(THD *thd,
@@ -1067,6 +1069,104 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
 }
 
 /**
+  Append definitions of FOREIGN KEY statements to SHOW CREATE TABLE statement
+  output for the table.
+
+  @param          thd         Thread context.
+  @param          db          Table's database.
+  @param          table_obj   dd::Table describing the table.
+  @param[in,out]  packet      Pointer to a string where CREATE TABLE statement
+                              describing the table is being constructed.
+*/
+static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
+                                   const dd::Table *table_obj, String *packet) {
+  if (!table_obj) return;
+
+  for (const dd::Foreign_key *fk : table_obj->foreign_keys()) {
+    packet->append(STRING_WITH_LEN(",\n  "));
+    packet->append(STRING_WITH_LEN("CONSTRAINT "));
+    append_identifier(thd, packet, fk->name().c_str(), fk->name().length());
+    packet->append(STRING_WITH_LEN(" FOREIGN KEY ("));
+
+    bool first = true;
+    for (const dd::Foreign_key_element *fk_el : fk->elements()) {
+      if (!first)
+        packet->append(STRING_WITH_LEN(", "));
+      else
+        first = false;
+      append_identifier(thd, packet, fk_el->column().name().c_str(),
+                        fk_el->column().name().length());
+    }
+
+    packet->append(STRING_WITH_LEN(") REFERENCES "));
+
+    if (my_strcasecmp(table_alias_charset, db->str,
+                      fk->referenced_table_schema_name().c_str())) {
+      append_identifier(thd, packet, fk->referenced_table_schema_name().c_str(),
+                        fk->referenced_table_schema_name().length());
+      packet->append('.');
+    }
+    append_identifier(thd, packet, fk->referenced_table_name().c_str(),
+                      fk->referenced_table_name().length());
+    packet->append(STRING_WITH_LEN(" ("));
+
+    first = true;
+    for (const dd::Foreign_key_element *fk_el : fk->elements()) {
+      if (!first)
+        packet->append(STRING_WITH_LEN(", "));
+      else
+        first = false;
+      append_identifier(thd, packet, fk_el->referenced_column_name().c_str(),
+                        fk_el->referenced_column_name().length());
+    }
+    packet->append(")");
+
+    switch (fk->delete_rule()) {
+      case dd::Foreign_key::RULE_NO_ACTION:
+        // Don't print clause when default is used.
+        break;
+      case dd::Foreign_key::RULE_RESTRICT:
+        packet->append(STRING_WITH_LEN(" ON DELETE RESTRICT"));
+        break;
+      case dd::Foreign_key::RULE_CASCADE:
+        packet->append(STRING_WITH_LEN(" ON DELETE CASCADE"));
+        break;
+      case dd::Foreign_key::RULE_SET_NULL:
+        packet->append(STRING_WITH_LEN(" ON DELETE SET NULL"));
+        break;
+      case dd::Foreign_key::RULE_SET_DEFAULT:
+        // Future-proofing, we don't support this now.
+        packet->append(STRING_WITH_LEN(" ON DELETE SET DEFAULT"));
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+    switch (fk->update_rule()) {
+      case dd::Foreign_key::RULE_NO_ACTION:
+        // Don't print clause when default is used.
+        break;
+      case dd::Foreign_key::RULE_RESTRICT:
+        packet->append(STRING_WITH_LEN(" ON UPDATE RESTRICT"));
+        break;
+      case dd::Foreign_key::RULE_CASCADE:
+        packet->append(STRING_WITH_LEN(" ON UPDATE CASCADE"));
+        break;
+      case dd::Foreign_key::RULE_SET_NULL:
+        packet->append(STRING_WITH_LEN(" ON UPDATE SET NULL"));
+        break;
+      case dd::Foreign_key::RULE_SET_DEFAULT:
+        // Future-proofing, we don't support this now.
+        packet->append(STRING_WITH_LEN(" ON UPDATE SET DEFAULT"));
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+  }
+}
+
+/**
   Build a CREATE TABLE statement for a table.
 
   @param thd              The thread
@@ -1087,8 +1187,7 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                        HA_CREATE_INFO *create_info_arg, bool show_database) {
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128],
-      def_value_buf[MAX_FIELD_WIDTH];
+  char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
   String def_value(def_value_buf, sizeof(def_value_buf), system_charset_info);
@@ -1132,9 +1231,9 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     avoid having to update gazillions of tests and result files, but
     it also saves a few bytes of the binary log.
    */
+  const LEX_CSTRING *const db =
+      table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
   if (show_database) {
-    const LEX_CSTRING *const db =
-        table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
     if (!thd->db().str || strcmp(db->str, thd->db().str)) {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1381,15 +1480,8 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
   }
 
-  /*
-    Get possible foreign key definitions stored in InnoDB and append them
-    to the CREATE TABLE statement
-  */
-
-  if ((for_str = file->get_foreign_key_create_info())) {
-    packet->append(for_str, strlen(for_str));
-    file->free_foreign_key_create_info(for_str);
-  }
+  // Append foreign key constraint definitions to the CREATE TABLE statement.
+  print_foreign_key_info(thd, db, table_obj, packet);
 
   /*
     Append check constraints to the CREATE TABLE statement. All check

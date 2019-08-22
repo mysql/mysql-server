@@ -11,6 +11,11 @@ USE TEST;
 # InnoDB did not handle lower_case_table_names=2 for
 # foreign_table_names and referenced_table_names.
 #
+# Also provides coverage for bug#25583288 "DO NOT USE
+# HA_INNOBASE::GET_FOREIGN_KEY_CREATE_INFO() FOR SHOW CREATE
+# TABLE FK" and bug#30110545 "FK TABLE NAME CASING IS OMITTED
+# ON MYSQL 8 LOWER_CASE_TABLE_NAMES=2"
+#
 SHOW VARIABLES LIKE 'lower_case_table_names';
 Variable_name	Value
 lower_case_table_names	2
@@ -26,7 +31,7 @@ Create Table	CREATE TABLE `Table2` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk1` (`c2`),
-  CONSTRAINT `fk1` FOREIGN KEY (`c2`) REFERENCES `table1` (`c1`)
+  CONSTRAINT `fk1` FOREIGN KEY (`c2`) REFERENCES `Table1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';
@@ -71,8 +76,8 @@ Create Table	CREATE TABLE `Product_Order` (
   PRIMARY KEY (`No`),
   KEY `Product_Category` (`Product_Category`,`Product_Id`),
   KEY `Customer_Id` (`Customer_Id`),
-  CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `product` (`Category`, `Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `product_order_ibfk_2` FOREIGN KEY (`Customer_Id`) REFERENCES `customer` (`Id`)
+  CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `Product` (`Category`, `Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `product_order_ibfk_2` FOREIGN KEY (`Customer_Id`) REFERENCES `Customer` (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Product;
 Table	Product

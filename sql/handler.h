@@ -3925,15 +3925,9 @@ class Ft_hints {
   -------------------------------------------------------------------------
   The following methods are used to implement foreign keys as supported by
   InnoDB and NDB.
-  get_foreign_key_create_info is used by SHOW CREATE TABLE to get a textual
-  description of how the CREATE TABLE part to define FOREIGN KEY's is done.
-  free_foreign_key_create_info is used to free the memory area that provided
-  this description.
 
   Methods:
     get_parent_foreign_key_list()
-    get_foreign_key_create_info()
-    free_foreign_key_create_info()
     get_foreign_key_list()
 
   -------------------------------------------------------------------------
@@ -5276,9 +5270,6 @@ class handler {
       uint index MY_ATTRIBUTE((unused))) {
     return false;
   }
-  virtual char *get_foreign_key_create_info() {
-    return (NULL);
-  } /* gets foreign key create string from InnoDB */
   /**
     Get the list of foreign keys in this table.
 
@@ -5333,7 +5324,6 @@ class handler {
   virtual void init_table_handle_for_HANDLER() {
     return;
   } /* prepare InnoDB for HANDLER */
-  virtual void free_foreign_key_create_info(char *) {}
   /** The following can be called without an open handler */
   virtual const char *table_type() const = 0;
 

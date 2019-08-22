@@ -1036,17 +1036,6 @@ int Handler::enable_indexes(uint mode) {
 
 /* Not implemented methods. */
 
-char *Handler::get_foreign_key_create_info() {
-  DBUG_TRACE;
-  DBUG_ABORT();
-  return nullptr;
-}
-
-void Handler::free_foreign_key_create_info(char *) {
-  DBUG_TRACE;
-  DBUG_ABORT();
-}
-
 int Handler::external_lock(THD *, int) {
   DBUG_TRACE;
   DBUG_ABORT();

@@ -1349,9 +1349,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(RW_LOCK_MUTEX, SYNC_NO_ORDER_CHECK, rw_lock_mutex_key);
 
-  LATCH_ADD_MUTEX(SRV_DICT_TMPFILE, SYNC_DICT_OPERATION,
-                  srv_dict_tmpfile_mutex_key);
-
   LATCH_ADD_MUTEX(SRV_INNODB_MONITOR, SYNC_NO_ORDER_CHECK,
                   srv_innodb_monitor_mutex_key);
 
@@ -1439,7 +1436,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 #endif /* UNIV_DEBUG */
 
-  LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
+  LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT_OPERATION,
+                   dict_operation_lock_key);
 
   LATCH_ADD_RWLOCK(RSEGS, SYNC_RSEGS, rsegs_lock_key);
 

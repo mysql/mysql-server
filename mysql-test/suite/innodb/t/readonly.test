@@ -45,3 +45,24 @@ let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#21966795 "FK DEFINITIONS MISSING FROM SHOW CREATE TABLE IN
+--echo #               'INNODB_READ_ONLY' MODE"
+--echo #
+
+CREATE TABLE parent(pk INT PRIMARY KEY);
+CREATE TABLE child(fk INT, CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent (pk));
+SHOW CREATE TABLE child;
+
+--source include/restart_innodb_read_only.inc
+
+--echo # SHOW CREATE TABLE should still show foreign keys.
+SHOW CREATE TABLE child;
+
+--echo # Clean-up.
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+DROP TABLES child, parent;

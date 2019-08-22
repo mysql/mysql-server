@@ -644,7 +644,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #endif /* UNIV_DEBUG */
     PSI_MUTEX_KEY(rw_lock_list_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(rw_lock_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(srv_dict_tmpfile_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(srv_innodb_monitor_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(srv_misc_tmpfile_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(srv_monitor_file_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -17232,63 +17231,6 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
   return is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT;
 }
 
-/** Gets the foreign key create info for a table stored in InnoDB.
- @return own: character string in the form which can be inserted to the
- CREATE TABLE statement, MUST be freed with
- ha_innobase::free_foreign_key_create_info */
-
-char *ha_innobase::get_foreign_key_create_info(void) {
-  ut_a(m_prebuilt != NULL);
-
-  /* We do not know if MySQL can call this function before calling
-  external_lock(). To be safe, update the thd of the current table
-  handle. */
-
-  update_thd(ha_thd());
-
-  m_prebuilt->trx->op_info = (char *)"getting info on foreign keys";
-
-  if (!srv_read_only_mode) {
-    mutex_enter(&srv_dict_tmpfile_mutex);
-
-    rewind(srv_dict_tmpfile);
-
-    /* Output the data to a temporary file */
-    dict_print_info_on_foreign_keys(TRUE, srv_dict_tmpfile, m_prebuilt->trx,
-                                    m_prebuilt->table);
-
-    m_prebuilt->trx->op_info = (char *)"";
-
-    long flen = ftell(srv_dict_tmpfile);
-
-    if (flen < 0) {
-      flen = 0;
-    }
-
-    /* Allocate buffer for the string, and
-    read the contents of the temporary file */
-
-    char *str = 0;
-
-    str = reinterpret_cast<char *>(
-        my_malloc(PSI_INSTRUMENT_ME, flen + 1, MYF(0)));
-
-    if (str != NULL) {
-      rewind(srv_dict_tmpfile);
-
-      flen = (uint)fread(str, 1, flen, srv_dict_tmpfile);
-
-      str[flen] = 0;
-    }
-
-    mutex_exit(&srv_dict_tmpfile_mutex);
-
-    return (str);
-  }
-
-  return (NULL);
-}
-
 /** Maps a InnoDB foreign key constraint to a equivalent MySQL foreign key info.
  @return pointer to foreign key info */
 static FOREIGN_KEY_INFO *get_foreign_key_info(
@@ -17639,17 +17581,6 @@ int ha_innobase::get_cascade_foreign_key_table_list(
   m_prebuilt->trx->op_info = "";
 
   return (0);
-}
-
-/** Frees the foreign key create info for a table stored in InnoDB, if it is
- non-NULL. */
-
-void ha_innobase::free_foreign_key_create_info(
-    char *str) /*!< in, own: create info string to free */
-{
-  if (str != NULL) {
-    my_free(str);
-  }
 }
 
 /** Tells something additional to the handler about how to do things.

@@ -61,6 +61,11 @@ USE TEST;
 --echo # InnoDB did not handle lower_case_table_names=2 for
 --echo # foreign_table_names and referenced_table_names.
 --echo #
+--echo # Also provides coverage for bug#25583288 "DO NOT USE
+--echo # HA_INNOBASE::GET_FOREIGN_KEY_CREATE_INFO() FOR SHOW CREATE
+--echo # TABLE FK" and bug#30110545 "FK TABLE NAME CASING IS OMITTED
+--echo # ON MYSQL 8 LOWER_CASE_TABLE_NAMES=2"
+--echo #
 
 SHOW VARIABLES LIKE 'lower_case_table_names';
 
@@ -72,9 +77,6 @@ DROP TABLE IF EXISTS `Table1`;
 CREATE TABLE `Table1`(c1 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE `Table2`(c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
 ALTER TABLE `Table2` ADD CONSTRAINT fk1 FOREIGN KEY(c2) REFERENCES `Table1`(c1);
-#TODO: NewDD: Need "Bug 25583288 - DO NOT USE
-# HA_INNOBASE::GET_FOREIGN_KEY_CREATE_INFO() FOR SHOW CREATE TABLE FK"
-# to properly display show create table case.
 query_vertical SHOW CREATE TABLE `Table2`;
 query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';

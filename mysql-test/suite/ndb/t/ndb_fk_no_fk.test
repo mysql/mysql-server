@@ -129,8 +129,12 @@ show warnings;
 
 
 --echo #
---echo # show create of table with mock table references
+--echo # SHOW CREATE TABLE for table with mock table references
 --echo #
+--echo # In the past SHOW CREATE TABLE has shown mock table names
+--echo # in @@ndb_show_foreign_key_mock_tables=1 mode. However,
+--echo # after move of related code to SQL-layer, this is no
+--echo # longer supported.
 create table t1 (
   a int not null,
   b int not null,
@@ -164,7 +168,6 @@ show create table t1;
 
 --disable_warnings
 set @@ndb_show_foreign_key_mock_tables= 1;
---replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 show create table t1;
 --enable_warnings
 set @@ndb_show_foreign_key_mock_tables= 0;

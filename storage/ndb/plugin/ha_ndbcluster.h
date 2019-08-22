@@ -259,9 +259,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int get_parent_foreign_key_list(THD *thd,
                                   List<FOREIGN_KEY_INFO> *f_key_list) override;
 
-  char *get_foreign_key_create_info() override;
-  void free_foreign_key_create_info(char *str) override;
-
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def) override;

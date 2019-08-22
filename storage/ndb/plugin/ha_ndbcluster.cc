@@ -1332,8 +1332,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans) {
 
 extern bool ndb_fk_util_generate_constraint_string(
     THD *thd, Ndb *ndb, const NdbDictionary::ForeignKey &fk,
-    const int child_tab_id, const bool print_mock_table_names,
-    String &fk_string);
+    const int child_tab_id, String &fk_string);
 
 /**
   Generate error messages when requested by the caller.
@@ -1397,7 +1396,7 @@ bool ha_ndbcluster::get_error_message(int error, String *buf) {
     }
 
     /* generate constraint string from fk object */
-    if (!ndb_fk_util_generate_constraint_string(current_thd, ndb, fk, 0, false,
+    if (!ndb_fk_util_generate_constraint_string(current_thd, ndb, fk, 0,
                                                 fk_string)) {
       DBUG_ASSERT(false);
       return temporary;

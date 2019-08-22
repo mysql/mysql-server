@@ -24,3 +24,29 @@ a
 1
 # restart
 DROP TABLE t1;
+#
+# Bug#21966795 "FK DEFINITIONS MISSING FROM SHOW CREATE TABLE IN
+#               'INNODB_READ_ONLY' MODE"
+#
+CREATE TABLE parent(pk INT PRIMARY KEY);
+CREATE TABLE child(fk INT, CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent (pk));
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `c` (`fk`),
+  CONSTRAINT `c` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+# SHOW CREATE TABLE should still show foreign keys.
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `c` (`fk`),
+  CONSTRAINT `c` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Clean-up.
+# restart
+DROP TABLES child, parent;

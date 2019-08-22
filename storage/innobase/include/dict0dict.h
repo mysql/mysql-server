@@ -428,15 +428,6 @@ otherwise table->n_def */
 ulint dict_table_has_column(const dict_table_t *table, const char *col_name,
                             ulint col_nr = 0);
 
-/** Outputs info on foreign keys of a table. */
-void dict_print_info_on_foreign_keys(
-    ibool create_table_format, /*!< in: if TRUE then print in
-                  a format suitable to be inserted into
-                  a CREATE TABLE, otherwise in the format
-                  of SHOW TABLE STATUS */
-    FILE *file,                /*!< in: file where to print */
-    trx_t *trx,                /*!< in: transaction */
-    dict_table_t *table);      /*!< in: table */
 /** Outputs info on a foreign key of a table in a format suitable for
  CREATE TABLE. */
 void dict_print_info_on_foreign_key_in_create_format(

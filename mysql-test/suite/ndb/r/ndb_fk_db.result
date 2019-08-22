@@ -24,7 +24,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=copy, add constraint fk2 foreign key (b)
 references mydb0.parent(a);
@@ -37,8 +37,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, add constraint fk3 foreign key (c)
 references mydb0.parent(a);
@@ -51,9 +51,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=copy, drop foreign key fk2;
 show create table child;
@@ -65,8 +65,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
@@ -78,7 +78,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table mydb0.parent algorithm=copy, rename mydb1.parent;
 show create table child;
@@ -90,7 +90,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table mydb1.parent algorithm=inplace, rename mydb0.parent;
 show create table child;
@@ -102,7 +102,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 use test;
 alter table mydb1.child algorithm=copy, add constraint fk2 foreign key (b)
@@ -117,8 +117,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 use test;
 alter table mydb1.child algorithm=inplace, add constraint fk3 foreign key (c)
@@ -133,9 +133,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 use test;
 drop database mydb1;
