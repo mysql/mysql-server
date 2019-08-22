@@ -427,12 +427,12 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
 
   if (!critical_error) {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_FALLBACK,
-                 "Distributed Recovery.");
+                 "Incremental Recovery.");
     recovery_module->start_recovery(this->m_group_name, this->m_view_id);
     return 0;
   } else {
     const char *exit_state_action_abort_log_message =
-        "Fatal error while Group Replication was using Clone for provisioning.";
+        "Fatal error while Group Replication was provisoning with Clone.";
     leave_group_on_failure::mask leave_actions;
     leave_actions.set(leave_group_on_failure::SKIP_SET_READ_ONLY, true);
     leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);

@@ -89,7 +89,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.reset_recovery_retry_count_done";
 
 --let $assert_file = $error_file
 --let $assert_text = Recovery process aborted.
---let $assert_select = Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.
+--let $assert_select = Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.
 --let $assert_count = 1
 --source include/assert_grep.inc
 
