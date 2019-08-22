@@ -3702,7 +3702,8 @@ class THD : public MDL_context_owner,
     Assign a new value to thd->m_query_string.
     Protected with the LOCK_thd_query mutex.
   */
-  void set_query_for_display(const char *query_arg, size_t query_length_arg) {
+  void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
+                             size_t query_length_arg MY_ATTRIBUTE((unused))) {
     MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
