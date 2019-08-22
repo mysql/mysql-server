@@ -3382,7 +3382,7 @@ TESTCASE("TupCheckSumError", ""){
   FINALIZER(runClearTable);
 }
 TESTCASE("InterpretNok6000", ""){
-  // TABLE("T8");
+  // TABLE("T1");
   INITIALIZER(TupErr::populateTable);
   STEP(TupErr::doInterpretNok6000Query);
   FINALIZER(runClearTable);
