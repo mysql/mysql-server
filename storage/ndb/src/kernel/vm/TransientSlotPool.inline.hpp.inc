@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,7 +157,23 @@ TransientSlotPool::getPtr(Uint32 i, Uint32 slot_size) const
   page = reinterpret_cast<Page*>(lpage.p);
 
   Type* p = reinterpret_cast<Type*>(&page->m_data[page_index * slot_size]);
-  require(Magic::match(p->m_magic, Type::TYPE_ID));
+  if (unlikely(!Magic::match(p->m_magic, Slot::TYPE_ID)))
+  {
+    g_eventLogger->info("Magic::match failed in %s: "
+                        "type_id %08x rg %u tid %u: "
+                        "slot_size %u: ptr.i %u: ptr.p %p: "
+                        "magic %08x expected %08x",
+                        __func__,
+                        Slot::TYPE_ID,
+                        GET_RG(Slot::TYPE_ID),
+                        GET_TID(Slot::TYPE_ID),
+                        slot_size,
+                        page_index,
+                        p,
+                        p->m_magic,
+                        Magic::make(Slot::TYPE_ID));
+    require(Magic::match(p->m_magic, Slot::TYPE_ID));
+  }
   return p;
 }
 
