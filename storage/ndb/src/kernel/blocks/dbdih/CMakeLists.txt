@@ -23,6 +23,7 @@
 MYSQL_ADD_EXECUTABLE(ndb_print_sys_file
   printSysfile.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES
   ndbgeneral
   ndblogger
@@ -32,6 +33,7 @@ MYSQL_ADD_EXECUTABLE(ndb_print_sys_file
 MYSQL_ADD_EXECUTABLE(ndb_print_frag_file
   printFragfile.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES
   ndbgeneral
   ndblogger

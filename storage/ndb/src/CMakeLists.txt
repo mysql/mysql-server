@@ -135,6 +135,7 @@ TARGET_LINK_LIBRARIES(ndbclient_static PRIVATE ${SSL_LIBRARIES})
 
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
+SET_TARGET_PROPERTIES(ndbclient_static_link_test PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
 
 #
@@ -284,4 +285,5 @@ MYSQL_INSTALL_TARGETS(ndbclient_so
   COMPONENT Development)
 # Build test program to check linking against ndclient_so
 ADD_EXECUTABLE(ndbclient_shared_link_test ndbclient_link_test.cpp)
+SET_TARGET_PROPERTIES(ndbclient_shared_link_test PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(ndbclient_shared_link_test ndbclient_so)

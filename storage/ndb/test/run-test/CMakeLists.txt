@@ -45,6 +45,7 @@ MYSQL_ADD_EXECUTABLE(atrt
   command.cpp
   test_execution_resources.cpp
   DESTINATION mysql-test/ndb
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
   )
 

@@ -31,6 +31,7 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(ndb_mgm
   main.cpp
   COMPONENT ClusterManagementClient
+  ENABLE_EXPORTS
   LINK_LIBRARIES
   ${EDITLINE_LIBRARY}
   mysys

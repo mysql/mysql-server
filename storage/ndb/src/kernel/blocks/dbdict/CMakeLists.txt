@@ -23,6 +23,7 @@
 MYSQL_ADD_EXECUTABLE(ndb_print_schema_file
   printSchemaFile.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES
   ndbgeneral
   ndblogger

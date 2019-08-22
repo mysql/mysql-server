@@ -79,41 +79,49 @@ ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_drop_table
   drop_tab.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_delete_all
   delete_all.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_desc
   desc.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_drop_index
   drop_index.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_select_all
   select_all.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_select_count
   select_count.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_perror
@@ -121,6 +129,7 @@ MYSQL_ADD_EXECUTABLE(ndb_perror
   ${NDB_SOURCE_DIR}/src/mgmapi/mgmapi_error.cpp
   ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_restore
@@ -131,11 +140,13 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/Restore.cpp
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbtools ndbclient_static
   )
 
@@ -148,12 +159,14 @@ NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 # Build ndbinfo_sql and run it to create ndbinfo.sql
 MYSQL_ADD_EXECUTABLE(ndbinfo_sql
   ndbinfo_sql.cpp
   SKIP_INSTALL
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 
@@ -165,16 +178,19 @@ ADD_CUSTOM_COMMAND(TARGET ndbinfo_sql POST_BUILD
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
   ndbinfo_select_all.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_blob_tool
   ndb_blob_tool.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 
@@ -182,6 +198,7 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   ndb_move_data.cpp
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 

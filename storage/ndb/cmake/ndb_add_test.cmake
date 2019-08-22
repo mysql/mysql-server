@@ -48,6 +48,7 @@ FUNCTION(NDB_ADD_TEST)
   # - adds test to be run by ctest
   # - skips install ot the unittest binary
   MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC} ADD_TEST ${EXEC})
+  SET_TARGET_PROPERTIES(${EXEC} PROPERTIES ENABLE_EXPORTS TRUE)
 
   # Add additional libraries
   IF(ARG_LIBS)

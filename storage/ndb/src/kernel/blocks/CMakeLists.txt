@@ -124,5 +124,6 @@ MYSQL_ADD_EXECUTABLE(ndb_print_file
   diskpage.cpp
   dbtup/tuppage.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )

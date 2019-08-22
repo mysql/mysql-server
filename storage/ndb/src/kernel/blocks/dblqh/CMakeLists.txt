@@ -24,6 +24,7 @@ MYSQL_ADD_EXECUTABLE(ndb_redo_log_reader
   redoLogReader/records.cpp
   redoLogReader/reader.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES
   ndbgeneral
   ndblogger

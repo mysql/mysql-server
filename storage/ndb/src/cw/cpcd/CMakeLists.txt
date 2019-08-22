@@ -48,6 +48,7 @@ ADD_EXECUTABLE(ndb_cpcd
         Process.cpp
         common.cpp
         main.cpp)
+SET_TARGET_PROPERTIES(ndb_cpcd PROPERTIES ENABLE_EXPORTS TRUE)
 
 TARGET_LINK_LIBRARIES(ndb_cpcd
                ndbclient_static)
