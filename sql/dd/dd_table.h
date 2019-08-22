@@ -210,7 +210,7 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
   @param fk                 Foreign key to be checked.
 
   @note We assume that the name is generated if it starts with
-        <table_name><SE-specific or default foreign key name suffix>
+        (table name)(SE-specific or default foreign key name suffix)
         (e.g. "_ibfk_" for InnoDB or "_fk_" for NDB).
 
   @returns true if name is generated, false otherwise.

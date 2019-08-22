@@ -5520,7 +5520,7 @@ static bool adjust_foreign_key_names_for_old_table_version(
   @param hton         Table storage engine.
 
   @note We assume that generated names follow pattern:
-        <table_name><SE-specific or default FK name suffix><number>
+        (table name)(SE-specific or default FK name suffix)(number)
         E.g. "table_name_ibfk_####" for InnoDB. This function is in sync
         with generate_fk_name() and dd::rename_foreign_keys().
 
@@ -5571,7 +5571,7 @@ static uint get_fk_max_generated_name_number(const char *table_name,
         neither constraint name nor foreign key name.
 
   @note We generated names according to the pattern:
-        <table_name><SE-specific or default FK name suffix><counter>
+        (table name)(SE-specific or default FK name suffix)(counter)
         The counter is 1-based and per table. The number chosen for the
         counter is 1 higher than the highest number currently in use.
         For InnoDB "_ibfk_" is used as suffix, so names are compatible
@@ -5608,7 +5608,7 @@ static void generate_fk_name(char *name_buff, size_t name_buff_size,
         neither constraint name nor foreign key name.
 
   @note We generated names according to the pattern:
-        <table_name><SE-specific or default FK name suffix><counter>
+        (table name)(SE-specific or default FK name suffix)(counter)
         The counter is 1-based and per table. The number chosen for the
         counter is 1 higher than the highest number currently in use.
         For InnoDB "_ibfk_" is used as suffix, so names are compatible
