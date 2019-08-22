@@ -20,6 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <algorithm>  // std::min
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <boost/optional/optional.hpp>
@@ -31,9 +33,9 @@
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"  // THD
 
-#define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
-#define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS / 8
-#define KEYRING_UDF_KEY_TYPE_LENGTH 3
+#define MAX_KEYRING_UDF_KEY_LENGTH 16384
+#define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH
+size_t KEYRING_UDF_KEY_TYPE_LENGTH = 128;
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -237,6 +239,12 @@ long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
     return 0;
   }
 
+  if (strlen(args->args[2]) > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) {
+    my_error(ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG, MYF(0), "keyring_key_store");
+    *error = 1;
+    return 0;
+  }
+
   if (my_key_store(args->args[0], args->args[1], current_user.c_str(),
                    args->args[2], strlen(args->args[2]))) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "keyring_key_store");
@@ -265,19 +273,44 @@ static bool fetch(const char *function_name, char *key_id, char **a_key,
     return true;
   }
 
-  DBUG_ASSERT((key == NULL && key_len == 0) ||
-              (key != NULL && key_len <= MAX_KEYRING_UDF_KEY_TEXT_LENGTH &&
-               key_type != NULL &&
-               strlen(key_type) <= KEYRING_UDF_KEY_TYPE_LENGTH));
+  if (key == nullptr && key_len > 0) {
+    my_error(ER_CLIENT_KEYRING_UDF_KEY_INVALID, MYF(0), function_name);
+    if (key_type != nullptr) my_free(key_type);
+    return true;
+  }
+
+  if (key_len > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) {
+    my_error(ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG, MYF(0), function_name);
+    if (key != nullptr) my_free(key);
+    if (key_type != nullptr) my_free(key_type);
+    return true;
+  }
+
+  if (key_len != 0) {
+    if (key_type == nullptr) {
+      my_error(ER_CLIENT_KEYRING_UDF_KEY_TYPE_INVALID, MYF(0), function_name);
+      if (key != nullptr) my_free(key);
+      return true;
+    }
+
+    if (strlen(key_type) > KEYRING_UDF_KEY_TYPE_LENGTH) {
+      my_error(ER_CLIENT_KEYRING_UDF_KEY_TYPE_TOO_LONG, MYF(0), function_name);
+      if (key != nullptr) my_free(key);
+      if (key_type != nullptr) my_free(key_type);
+      return true;
+    }
+  }
 
   if (a_key != NULL)
     *a_key = key;
   else
     my_free(key);
+
   if (a_key_type != NULL)
     *a_key_type = key_type;
   else
     my_free(key_type);
+
   if (a_key_len != NULL) *a_key_len = key_len;
 
   return false;
@@ -361,8 +394,9 @@ char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
   }
 
   if (key_type != NULL) {
-    memcpy(initid->ptr, key_type, KEYRING_UDF_KEY_TYPE_LENGTH);
-    *length = KEYRING_UDF_KEY_TYPE_LENGTH;
+    memcpy(initid->ptr, key_type,
+           std::min(strlen(key_type), KEYRING_UDF_KEY_TYPE_LENGTH));
+    *length = std::min(strlen(key_type), KEYRING_UDF_KEY_TYPE_LENGTH);
     my_free(key_type);
   } else {
     *is_null = 1;

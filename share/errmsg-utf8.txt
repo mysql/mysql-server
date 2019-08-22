@@ -9167,6 +9167,18 @@ ER_CLIENT_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
 ER_WARN_DA_PRIVILEGE_NOT_REGISTERED
   eng "Dynamic privilege '%s' is not registered with the server."
 
+ER_CLIENT_KEYRING_UDF_KEY_INVALID
+  eng "Function '%s' failed because key is invalid."
+
+ER_CLIENT_KEYRING_UDF_KEY_TYPE_INVALID
+  eng "Function '%s' failed because key type is invalid."
+
+ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG
+  eng "Function '%s' failed because key length is too long."
+
+ER_CLIENT_KEYRING_UDF_KEY_TYPE_TOO_LONG
+  eng "Function '%s' failed because key type is too long."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

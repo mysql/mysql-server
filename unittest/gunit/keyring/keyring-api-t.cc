@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ TEST_F(Keyring_api_test, CheckIfInmemoryKeyIsXORed) {
             expected_key_signature.length());
   uchar *key_data_fetched = fetched_key->get_key_data();
   size_t key_data_fetched_size = fetched_key->get_key_data_size();
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
 
   // make sure that the key was xored before it was put into keys_container,
   // i.e.  the fetched key data is not equal to the key data that was stored

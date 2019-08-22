@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,8 @@ struct Key : IKey {
                         size_t input_buffer_size);
   void store_in_buffer(uchar *buffer, size_t *buffer_position) const;
   std::string *get_key_signature() const;
-  std::string *get_key_type();
+  std::string *get_key_type_as_string();
+  Key_type get_key_type() const;
   std::string *get_key_id();
   std::string *get_user_id();
   uchar *get_key_data();
@@ -58,6 +59,9 @@ struct Key : IKey {
   bool is_key_id_valid();
   bool is_key_valid();
   bool is_key_length_valid();
+
+ protected:
+  void set_key_type_enum(const std::string *key_type);
 
  private:
   void init(const char *a_key_id, const char *a_key_type, const char *a_user_id,
@@ -82,6 +86,7 @@ struct Key : IKey {
   std::unique_ptr<uchar[]> key;
   size_t key_len;
   mutable std::string key_signature;
+  Key_type key_type_enum;
 };
 
 }  // namespace keyring

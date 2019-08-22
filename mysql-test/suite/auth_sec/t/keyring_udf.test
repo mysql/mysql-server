@@ -115,6 +115,14 @@ UNINSTALL PLUGIN keyring_file;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 
+# Tests for SECRET data
+--source include/keyring_udf_secret_data_before_restart.inc
+--echo # Re-starting mysql server with keyring_file plugin.
+let $restart_parameters = restart:--keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring;
+let $explicit_default_wait_counter=4000;
+--source include/restart_mysqld_no_echo.inc
+--source include/keyring_udf_secret_data_after_restart.inc
+
 UNINSTALL PLUGIN keyring_udf;
 --echo # Test cases for keyring_udf not loaded and keyring_file plugin loaded
 --source include/keyring_udf_keyring_udf_plugin_not_loaded.inc

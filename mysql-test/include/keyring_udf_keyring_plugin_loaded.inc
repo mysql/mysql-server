@@ -63,10 +63,6 @@ select keyring_key_remove(1);
 select keyring_key_remove(NULL);
 # End of wrong argument type
 
-#Error case -- too long key
---error ER_CANT_INITIALIZE_UDF
-select keyring_key_generate('Rob_AES_8196','AES',2049);
-
 #Check the plugins
 
 select PLUGIN_NAME,PLUGIN_AUTHOR from information_schema.plugins where PLUGIN_NAME like '%keyring%';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,15 +109,15 @@ void Keys_container::allocate_and_set_data_for_key(
 
 IKey *Keys_container::fetch_key(IKey *key) {
   DBUG_ASSERT(key->get_key_data() == NULL);
-  DBUG_ASSERT(key->get_key_type()->empty());
+  DBUG_ASSERT(key->get_key_type_as_string()->empty());
 
   IKey *fetched_key = get_key_from_hash(key);
 
   if (fetched_key == NULL) return NULL;
 
-  if (fetched_key->get_key_type()->empty()) return NULL;
+  if (fetched_key->get_key_type_as_string()->empty()) return NULL;
 
-  allocate_and_set_data_for_key(key, fetched_key->get_key_type(),
+  allocate_and_set_data_for_key(key, fetched_key->get_key_type_as_string(),
                                 fetched_key->get_key_data(),
                                 fetched_key->get_key_data_size());
   return key;

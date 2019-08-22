@@ -207,7 +207,7 @@ TEST_F(Keys_container_test, StoreFetchRemove) {
   size_t key_data_fetched_size = fetched_key->get_key_data_size();
   EXPECT_STREQ(sample_key_data.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(sample_key_data.length() + 1 == key_data_fetched_size);
 
   keys_container->remove_key(&key_id);

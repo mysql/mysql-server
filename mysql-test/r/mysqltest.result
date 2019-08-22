@@ -1344,6 +1344,7 @@ loaddata_utf8.dat
 loadxml.dat
 loadxml2.dat
 numbers.txt
+secret_data_cert.txt
 wl5766_data.txt
 words.dat
 words2.dat
@@ -1369,6 +1370,7 @@ loaddata_utf8.dat
 loadxml.dat
 loadxml2.dat
 numbers.txt
+secret_data_cert.txt
 wl5766_data.txt
 words.dat
 words2.dat

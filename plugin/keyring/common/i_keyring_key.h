@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,20 @@
 
 namespace keyring {
 
+const std::string AES = "AES";
+const std::string RSA = "RSA";
+const std::string DSA = "DSA";
+const std::string SECRET = "SECRET";
+
+enum class Operation_type { fetch = 0, store, remove, generate };
+
+enum class Key_type { aes = 0, rsa, dsa, secret, unknown };
+
 struct IKey : public Keyring_alloc {
   // key_signature:= key_id || user_id
   virtual std::string *get_key_signature() const = 0;
-  virtual std::string *get_key_type() = 0;
+  virtual std::string *get_key_type_as_string() = 0;
+  virtual Key_type get_key_type() const = 0;
   virtual std::string *get_key_id() = 0;
   virtual std::string *get_user_id() = 0;
   virtual uchar *get_key_data() = 0;
@@ -52,6 +62,9 @@ struct IKey : public Keyring_alloc {
   virtual bool is_key_length_valid() = 0;
 
   virtual ~IKey() {}
+
+ protected:
+  virtual void set_key_type_enum(const std::string *key_type) = 0;
 };
 
 }  // namespace keyring
