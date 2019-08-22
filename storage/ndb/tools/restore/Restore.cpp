@@ -855,7 +855,14 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
      m_fileHeader.NdbVersion);
   
   if (ret != 0) {
-    restoreLogger.log_error("parseTableInfo failed");
+    ndberror_struct err_struct;
+    err_struct.code = ret;
+    ndberror_update(&err_struct);
+
+    restoreLogger.log_error("parseTableInfo failed with error %u \"%s\"",
+        err_struct.code, err_struct.message);
+
+    restoreLogger.log_error("Check version of backup and schema contained in backup.");
     return false;
   }
   if(tableImpl == 0)
