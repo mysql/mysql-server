@@ -2458,3 +2458,40 @@ EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
 DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30131161: SYNTAX ERROR WITH || WHEN USING PIPES_AS_CONCAT AFTER
+--echo #               UPGRADING TO 8.0.17
+--echo #
+
+SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT'));
+
+# `||` should have higher precedence than `LIKE` and `ESCAPE`:
+
+SELECT 'ab' LIKE 'a%', 'ab' LIKE 'a' || '%';
+SELECT 'ab' NOT LIKE 'a%', 'ab' NOT LIKE 'a' || '%';
+
+SELECT 'ab' LIKE 'ac', 'ab' LIKE 'a' || 'c';
+SELECT 'ab' NOT LIKE 'ac', 'ab' NOT LIKE 'a' || 'c';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!' || '%' ESCAPE '!';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!' || '%' ESCAPE '!';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '$', 'a%' LIKE 'a!' || '%' ESCAPE '$';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '$', 'a%' NOT LIKE 'a!' || '%' ESCAPE '$';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!%' ESCAPE '' || '!';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!%' ESCAPE '' || '!';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '' || '$', 'a%' LIKE 'a!%' ESCAPE '' || '$';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '' || '$', 'a%' NOT LIKE 'a!%' ESCAPE '' || '$';
+
+# `||` should have a higher precedence than `^`:
+
+SELECT 1 ^ 100, 1 ^ '10' || '0';
+
+# `||` should have a lower precedence than the unary `-`:
+
+SELECT -1 || '0';
+
+SET sql_mode=DEFAULT;
