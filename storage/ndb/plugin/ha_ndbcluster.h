@@ -85,12 +85,6 @@ struct NDB_INDEX_DATA {
   NdbRecord *ndb_unique_record_row;
 };
 
-// Wrapper class for list to hold NDBFKs
-class Ndb_fk_list : public List<NdbDictionary::ForeignKey> {
- public:
-  ~Ndb_fk_list() { delete_elements(); }
-};
-
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_share.h"
 
@@ -469,11 +463,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
   int inplace__drop_fks(THD *, Ndb *, NdbDictionary::Dictionary *,
                         const NdbDictionary::Table *);
-  static int get_fk_data_for_truncate(NdbDictionary::Dictionary *,
-                                      const NdbDictionary::Table *,
-                                      Ndb_fk_list &);
   static int recreate_fk_for_truncate(THD *, Ndb *, const char *,
-                                      Ndb_fk_list &);
+                                      std::vector<NdbDictionary::ForeignKey> *);
   bool has_fk_dependency(THD *, const NdbDictionary::Column *) const;
   int check_default_values(const NdbDictionary::Table *ndbtab);
   int get_metadata(THD *thd, const dd::Table *table_def);

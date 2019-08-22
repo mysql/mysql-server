@@ -27,8 +27,11 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
+
+using Ndb_fk_list = std::vector<NdbDictionary::ForeignKey>;
 
 // Database name guard for Ndb objects
 struct Ndb_db_guard {
@@ -50,5 +53,9 @@ const char *fk_split_name(char dst[], const char *src, bool index = false);
 bool fetch_referenced_tables_from_ndb_dictionary(
     class THD *thd, const char *schema_name, const char *table_name,
     std::set<std::pair<std::string, std::string>> &referenced_tables);
+
+bool retrieve_foreign_key_list_from_ndb(NdbDictionary::Dictionary *dict,
+                                        const NdbDictionary::Table *table,
+                                        Ndb_fk_list *fk_list);
 
 #endif

@@ -73,6 +73,7 @@
 #include "storage/ndb/plugin/ndb_ddl_transaction_ctx.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
 #include "storage/ndb/plugin/ndb_event_data.h"
+#include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
@@ -9230,10 +9231,10 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     }
 
     /* save the foreign key information in fk_list */
-    int err;
-    if ((err = get_fk_data_for_truncate(dict, ndbtab_g.get_table(),
-                                        fk_list_for_truncate)))
-      return err;
+    if (!retrieve_foreign_key_list_from_ndb(dict, ndbtab_g.get_table(),
+                                            &fk_list_for_truncate)) {
+      ERR_RETURN(dict->getNdbError());
+    }
 
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
     const int drop_result = drop_table_impl(
@@ -9820,10 +9821,10 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     }
   }
 
-  if (!fk_list_for_truncate.is_empty()) {
+  if (!fk_list_for_truncate.empty()) {
     // create foreign keys from the list extracted from old table
     const int recreate_fk_result =
-        recreate_fk_for_truncate(thd, ndb, m_tabname, fk_list_for_truncate);
+        recreate_fk_for_truncate(thd, ndb, m_tabname, &fk_list_for_truncate);
     if (recreate_fk_result != 0) {
       return recreate_fk_result;
     }
