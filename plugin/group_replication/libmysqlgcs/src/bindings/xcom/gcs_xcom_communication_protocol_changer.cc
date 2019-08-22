@@ -67,6 +67,9 @@ Gcs_xcom_communication_protocol_changer::set_protocol_version(
     begin_protocol_version_change(new_version);
     will_change_protocol = true;
     future = m_promise.get_future();
+  } else {
+    /* The protocol change will not proceed. */
+    release_tagged_lock_and_notify_waiters();
   }
 
   return std::make_pair(will_change_protocol, std::move(future));
@@ -102,11 +105,7 @@ void Gcs_xcom_communication_protocol_changer::commit_protocol_version_change() {
               "Protocol version should have been set");
 
   /* Stop buffering outgoing messages. */
-  {
-    std::unique_lock<std::mutex> lock(m_mutex);
-    m_tagged_lock.unlock();
-  }
-  m_protocol_change_finished.notify_all();
+  release_tagged_lock_and_notify_waiters();
 
   /* All done, notify caller. */
   m_promise.set_value();
@@ -114,6 +113,15 @@ void Gcs_xcom_communication_protocol_changer::commit_protocol_version_change() {
   MYSQL_GCS_LOG_INFO(
       "Changed to group communication protocol version "
       << gcs_protocol_to_mysql_version(m_tentative_new_protocol));
+}
+
+void Gcs_xcom_communication_protocol_changer::
+    release_tagged_lock_and_notify_waiters() {
+  {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_tagged_lock.unlock();
+  }
+  m_protocol_change_finished.notify_all();
 }
 
 void Gcs_xcom_communication_protocol_changer::finish_protocol_version_change(
