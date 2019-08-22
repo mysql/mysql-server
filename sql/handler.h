@@ -2433,7 +2433,7 @@ struct handlerton {
   /**
     Suffix for auto-generated foreign key names for tables using this storage
     engine. If such suffix is specified by SE then its generated foreign key
-    names follow <table name><SE-specific FK name suffix><FK number> pattern.
+    names follow (table name)(SE-specific FK name suffix)(FK number) pattern.
     Length of such suffix should not exceed MAX_FK_NAME_SUFFIX_LENGTH bytes.
     If no suffix is specified then FK_NAME_DEFAULT_SUFFIX is used as
     default.
@@ -2607,7 +2607,7 @@ static const size_t MAX_FK_NAME_SUFFIX_LENGTH = 16;
 /**
   Suffix for auto-generated foreign key names for tables in SE's which
   don't specify own suffix. I.e. for foreign keys on tables in such
-  SE's generated names follow <table name>FK_NAME_DEFAULT_SUFFIX<FK number>
+  SE's generated names follow (table name)FK_NAME_DEFAULT_SUFFIX(FK number)
   pattern.
 */
 static const LEX_CSTRING FK_NAME_DEFAULT_SUFFIX = {STRING_WITH_LEN("_fk_")};
