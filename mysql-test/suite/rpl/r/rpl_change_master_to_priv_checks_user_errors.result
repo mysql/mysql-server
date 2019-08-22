@@ -32,8 +32,26 @@ CREATE TABLE t1 (c1 INT);
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=1142]
 include/stop_slave.inc
-RESET SLAVE;
+GRANT CREATE ON *.* TO 'u1'@'localhost';
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+#
+# TC3. Slave thread should fail to start if `PRIVILEGE_CHECKS_USER`
+#      user gets dropped.
+# ----------------------------------------------------------------------
+include/stop_slave.inc
 DROP USER 'u1'@'localhost';
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13494]
+include/stop_slave.inc
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+GRANT DROP ON *.* TO 'u1'@'localhost';
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER='u1'@'localhost';
+START SLAVE;
 [connection master]
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+DROP USER 'u1'@'localhost';
 include/rpl_end.inc
