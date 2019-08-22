@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,21 @@ void unhex(const Input_type &input, Output_type &output) {
     }
 
     output.push_back(decimal_value);
+  }
+}
+
+template <typename Input_type, typename Output_type>
+void hex(const Input_type &input, Output_type &output) {
+  std::size_t position = 0;
+  std::size_t distance = std::distance(input.begin(), input.end());
+
+  while (position < distance) {
+    unsigned char data = input.at(position++);
+
+    const auto hi = data >> 4;
+    const auto lo = data & 0x0F;
+    output.push_back(ALLOWED_HEX_CHARACTERS[hi]);
+    output.push_back(ALLOWED_HEX_CHARACTERS[lo]);
   }
 }
 

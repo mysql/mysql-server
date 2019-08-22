@@ -33,17 +33,17 @@
 #include <string>
 #include <utility>
 
-#include "errmsg.h"
-#include "my_compiler.h"
-#include "my_config.h"
-#include "my_dbug.h"
-#include "my_macros.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
+#include "errmsg.h"         // NOLINT(build/include_subdir)
+#include "my_compiler.h"    // NOLINT(build/include_subdir)
+#include "my_config.h"      // NOLINT(build/include_subdir)
+#include "my_dbug.h"        // NOLINT(build/include_subdir)
+#include "my_macros.h"      // NOLINT(build/include_subdir)
+#include "mysql_version.h"  // NOLINT(build/include_subdir)
+#include "mysqld_error.h"   // NOLINT(build/include_subdir)
 
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "plugin/x/client/validator/capability_compression_validator.h"
 #include "plugin/x/client/validator/descriptor.h"
+#include "plugin/x/client/validator/option_compression_validator.h"
 #include "plugin/x/client/validator/option_connection_validator.h"
 #include "plugin/x/client/validator/option_context_validator.h"
 #include "plugin/x/client/validator/option_ssl_validator.h"
@@ -291,6 +291,20 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
     case Mysqlx_option::Network_namespace:
       return Option_descriptor{
           new Con_str_store<&Con_conf::m_network_namespace>()};
+
+    case Mysqlx_option::Compression_negotiation_mode:
+      return Option_descriptor{new Compression_negotiation_validator()};
+
+    case Mysqlx_option::Compression_algorithms:
+      return Option_descriptor{new Compression_algorithms_validator()};
+
+    case Mysqlx_option::Compression_combine_mixed_messages:
+      return Option_descriptor{new Compression_bool_store<
+          &Compression_config::m_use_server_combine_mixed_messages>()};
+
+    case Mysqlx_option::Compression_max_combine_messages:
+      return Option_descriptor{new Compression_int_store<
+          &Compression_config::m_use_server_max_combine_messages>()};
 
     default:
       return {};
@@ -708,10 +722,6 @@ void Session_impl::setup_server_supported_compression(
 
   if ("algorithm" == field->key()) {
     negotiator.server_supports_algorithms(text_values);
-  } else if ("client_style" == field->key()) {
-    negotiator.server_supports_client_styles(text_values);
-  } else if ("server_style" == field->key()) {
-    negotiator.server_supports_server_styles(text_values);
   }
 }
 
@@ -813,13 +823,13 @@ XError Session_impl::authenticate(const char *user, const char *pass,
 
     XError error;
     auto &config = m_context->m_compression_config;
-    Capabilities_builder capability_builder;
 
-    if (config.m_negotiator.update_compression_options(
-            &config.m_use_algorithm, &config.m_use_client_style,
-            &config.m_use_server_style, &capability_builder, &error)) {
+    if (config.m_negotiator.update_compression_options(&config.m_use_algorithm,
+                                                       &error)) {
+      Capabilities_builder capability_builder;
+      capability_builder.add_capability("compression",
+                                        get_compression_capability());
       error = protocol.execute_set_capability(capability_builder.get_result());
-
       // We shouldn't fail here, server supports needed capability
       if (error) return error;
     }
@@ -828,6 +838,8 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     // and client didn't mark it as optional (its "required").
     if (error) return error;
   }
+
+  m_protocol->use_compression(m_context->m_compression_config.m_use_algorithm);
 
   const auto is_secure_connection =
       connection.state().is_ssl_activated() ||
@@ -1069,6 +1081,22 @@ Argument_uobject Session_impl::get_connect_attrs() const {
       {"_pid", Argument_value{std::to_string(static_cast<uint64_t>(getpid()))}},
 #endif
   };
+}
+
+Argument_value Session_impl::get_compression_capability() const {
+  static const std::map<Compression_algorithm, std::string> k_algorithm{
+      {Compression_algorithm::k_deflate, "DEFLATE_STREAM"},
+      {Compression_algorithm::k_lz4, "LZ4_MESSAGE"}};
+
+  Argument_object obj;
+  auto &config = m_context->m_compression_config;
+  obj["algorithm"] = k_algorithm.at(config.m_use_algorithm);
+  obj["server_combine_mixed_messages"] =
+      config.m_use_server_combine_mixed_messages;
+  obj["server_max_combine_messages"] =
+      static_cast<int64_t>(config.m_use_server_max_combine_messages);
+
+  return Argument_value{obj};
 }
 
 Session_impl::Session_connect_timeout_scope_guard::

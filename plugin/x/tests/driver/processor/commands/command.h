@@ -112,6 +112,8 @@ class Command {
   Result cmd_recv_all_until_disc(std::istream &input,
                                  Execution_context *context,
                                  const std::string &args);
+  Result cmd_enable_compression(std::istream &input, Execution_context *context,
+                                const std::string &args);
   Result cmd_peerdisc(std::istream &input, Execution_context *context,
                       const std::string &args);
   Result cmd_recv(std::istream &input, Execution_context *context,
@@ -201,6 +203,8 @@ class Command {
                    const std::string &args);
   Result cmd_noquery(std::istream &input, Execution_context *context,
                      const std::string &args);
+  Result cmd_compress(std::istream &input, Execution_context *context,
+                      const std::string &args);
   Result cmd_wait_for(std::istream &input, Execution_context *context,
                       const std::string &args);
   Result cmd_import(std::istream &input, Execution_context *context,

@@ -1,0 +1,43 @@
+# Variable: mysqlx_compression_algorithms
+# Default : DEFLATE_STREAM,LZ4_MESSAGE
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_compression_algorithms_sav= @@global.mysqlx_compression_algorithms;
+
+## Valid cases
+SET GLOBAL mysqlx_compression_algorithms="";
+show variables like 'mysqlx_compression_algorithms';
+
+SET @@global.mysqlx_compression_algorithms="LZ4_MESSAGE";
+show variables like 'mysqlx_compression_algorithms';
+SET @@global.mysqlx_compression_algorithms="DEFLATE_STREAM,LZ4_MESSAGE";
+# assert_variable.inc doesn't work with sets
+show variables like 'mysqlx_compression_algorithms';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_compression_algorithms="LZ4_MESSAGE";
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_compression_algorithms="LZ4_MESSAGE";
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_compression_algorithms="LZ4_MESSAGE";
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_compression_algorithms="LZ4_MESSAGE";
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_compression_algorithms="LZ4_MESSAGE";
+
+SET GLOBAL mysqlx_compression_algorithms=1;
+show variables like 'mysqlx_compression_algorithms';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_compression_algorithms=-848;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_compression_algorithms=848;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_compression_algorithms='%45*#in';
+show variables like 'mysqlx_compression_algorithms';
+
+SET @@global.mysqlx_compression_algorithms= @mysqlx_compression_algorithms_sav;

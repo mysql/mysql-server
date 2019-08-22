@@ -31,16 +31,50 @@
 
 #include "my_dbug.h"
 
+#include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/decompression_algorithm_lz4.h"
+#include "plugin/x/protocol/stream/compression/decompression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression_output_stream.h"
+#include "plugin/x/protocol/stream/decompression_input_stream.h"
+
 namespace xcl {
+
+bool Compression_impl::reinitialize(const Compression_algorithm algorithm) {
+  DBUG_LOG("debug", "Compression_impl::reinitialize(algorithm:"
+                        << static_cast<int>(algorithm));
+  switch (algorithm) {
+    case Compression_algorithm::k_deflate:
+      m_downlink_stream.reset(new protocol::Decompression_algorithm_zlib());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_zlib());
+      return true;
+
+    case Compression_algorithm::k_lz4:
+      m_downlink_stream.reset(new protocol::Decompression_algorithm_lz4());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_lz4());
+      return true;
+
+    case Compression_algorithm::k_none: {
+    }
+  }
+
+  return false;
+}
 
 Compression_impl::Output_stream_ptr Compression_impl::uplink(
     Output_stream *source) {
-  return {};
+  if (!m_uplink_stream) return {};
+
+  return std::make_shared<protocol::Compression_output_stream>(
+      m_uplink_stream.get(), source);
 }
 
 Compression_impl::Input_stream_ptr Compression_impl::downlink(
     Input_stream *source) {
-  return {};
+  if (!m_uplink_stream) return {};
+
+  return std::make_shared<protocol::Decompression_input_stream>(
+      m_downlink_stream.get(), source);
 }
 
 }  // namespace xcl

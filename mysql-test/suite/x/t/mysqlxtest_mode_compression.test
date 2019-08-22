@@ -1,0 +1,444 @@
+## XPLUGIN: Following test verifies compression-mode used by
+## both mysqlxclient and mysqlxtest.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_ssl_warnings_suppression.inc
+--source include/xplugin_create_user.inc
+
+
+--write_file $MYSQL_TMP_DIR/compression-none.tmp
+-->import assert_status_variable.macro
+SELECT "Send some data which might trigger server side compression" as Column1;
+-->expecterror 2512
+-->begin_compress
+Mysqlx.Sql.StmtExecute{
+  stmt:"SELECT \"some string value\" as column1"
+}
+-->end_compress
+
+-->expecterror 2512
+-->begin_compress
+Mysqlx.Sql.StmtExecute{
+  stmt:"SELECT \"some string value\" as column1"
+}
+-->end_compress
+
+-->expecterror 2512
+-->begin_compress
+Mysqlx.Sql.StmtExecute{
+  stmt:"SELECT \"some string value\" as column1"
+}
+-->end_compress
+
+callmacro Assert_client_message_count	Mysqlx.Connection.Compression	==	0;
+
+EOF
+
+
+--write_file $MYSQL_TMP_DIR/compression-both.tmp
+-->import assert_status_variable.macro
+SELECT "Send some data which might trigger server side compression" as Column1;
+-->begin_compress
+Mysqlx.Sql.StmtExecute{
+  stmt:"SELECT \"some string value\" as column1"
+}
+-->end_compress
+recvresult;
+
+callmacro Assert_client_message_count	Mysqlx.Connection.Compression	>	0;
+
+EOF
+
+
+--echo
+--echo ############################################################
+--echo ## Test verifies "--compression-mode" command line option:
+--echo #
+--echo # 1. Try to use any compression when server has enabled all algorithms
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo # 2. Try to use any algorithm with, still server has disabled all algorithms
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client can't
+--echo #       connect to the server
+--echo #    c. use "PREFERRED" compression mode and verify that client may
+--echo #       connect to the server, still can't use selected style
+--echo # 3. Try to use any algorithm when server has only "lz4" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo # 4. Try to use any algorithm when server has only "deflate" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo # 5. Try to use "deflate" algorithm when server has only "lz4" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client can't
+--echo #       connect to the server
+--echo #    c. use "PREFERRED" compression mode and verify that client may
+--echo #       connect to the server, still can't use selected style
+--echo # 6. Try to use "lz4" algorithm when server has only "deflate" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client can't
+--echo #       connect to the server
+--echo #    c. use "PREFERRED" compression mode and verify that client may
+--echo #       connect to the server, still can't use selected style
+--echo # 7. Try to use "lz4" algorithm when server has only "lz4" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo # 8. Try to use "deflate" algorithm when server has only "deflate" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+
+
+--echo
+--echo # 1.a
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 1.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 1.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 2.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 2.b
+--echo #
+#
+# Following option marks that mysqlxtest wont be able to
+# establish connection, the option "--file" may give an
+# wrong suggestion that the file will be executed:
+#
+#    --expect-error=2513
+#
+exec $MYSQLXTEST
+  --expect-error=2513
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 2.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 3.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="LZ4_MESSAGE";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 3.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 3.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 4.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="DEFLATE_STREAM";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 4.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 4.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 5.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="LZ4_MESSAGE";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 5.b
+--echo #
+exec $MYSQLXTEST
+  --expect-error=2513
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 5.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 6.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="DEFLATE_STREAM";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 6.b
+--echo #
+exec $MYSQLXTEST
+  --expect-error=2513
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 6.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 7.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="LZ4_MESSAGE";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 7.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 7.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 8.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="DEFLATE_STREAM";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 8.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 8.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+
+## Cleanup
+SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
+--remove_file $MYSQL_TMP_DIR/compression-none.tmp
+--remove_file $MYSQL_TMP_DIR/compression-both.tmp
+--source include/xplugin_drop_user.inc

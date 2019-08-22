@@ -69,6 +69,8 @@ const char *const ER_TEXT_RECEIVE_HANDLER_FAILED =
 const char *const ER_TEXT_NOTICE_HANDLER_FAILED =
     "Aborted by internal callback at send message processing";
 const char *const ER_TEXT_RECEIVE_BUFFER_TO_SMALL = "Receive buffer to small";
+const char *const ER_TEXT_COMPRESSION_NOT_CONFIGURED =
+    "Compression is disabled or required compression style was not selected";
 
 namespace details {
 
@@ -109,6 +111,16 @@ XError make_xerror(const Mysqlx::Error &error) {
 
 bool is_timeout_error(const XError &error) {
   return (CR_X_READ_TIMEOUT == error.error());
+}
+
+bool is_compressed(const XProtocol::Header_message_type_id id) {
+  switch (id) {
+    case Mysqlx::ServerMessages::COMPRESSION:
+      return true;
+
+    default:
+      return false;
+  }
 }
 
 class Query_sequencer : public Query_instances {
@@ -168,6 +180,11 @@ XError Protocol_impl::execute_authenticate(const std::string &user,
                   ERR_MSG_INVALID_AUTH_METHOD + method);
 
   return error;
+}
+
+void Protocol_impl::use_compression(const Compression_algorithm algo) {
+  DBUG_TRACE;
+  m_compression->reinitialize(algo);
 }
 
 std::unique_ptr<XProtocol::Capabilities>
@@ -827,6 +844,57 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::recv_single_message(
   }
 }
 
+XError Protocol_impl::send_compressed_frame(
+    const Client_message_type_id message_id, const Message &message) {
+  DBUG_TRACE;
+
+  return send_compressed_multiple_frames({{message_id, &message}});
+}
+
+XError Protocol_impl::send_compressed_multiple_frames(
+    const std::vector<std::pair<Client_message_type_id, const Message *>>
+        &messages) {
+  DBUG_TRACE;
+
+  std::string compressed_messages;
+  int total_size = 0;
+
+  {
+    StringOutputStream out_stream(&compressed_messages);
+    auto compressed_out_stream = m_compression->uplink(&out_stream);
+
+    if (!compressed_out_stream) {
+      return XError{CR_X_COMPRESSION_NOT_CONFIGURED,
+                    ER_TEXT_COMPRESSION_NOT_CONFIGURED};
+    }
+
+    CodedOutputStream cos(compressed_out_stream.get());
+
+    for (const auto &message : messages) {
+      const auto msg_id = message.first;
+      const auto header_msg_id = static_cast<Header_message_type_id>(msg_id);
+      const auto msg = message.second;
+      const auto msg_size = msg->ByteSize();
+
+      dispatch_send_message(msg_id, *msg);
+
+      cos.WriteLittleEndian32(msg_size + 1);
+      cos.WriteRaw(&header_msg_id, 1);
+      msg->SerializeToCodedStream(&cos);
+
+      total_size += msg_size + 5;
+    }
+  }
+
+  Mysqlx::Connection::Compression compression;
+  compression.set_payload(compressed_messages);
+  DBUG_DUMP("compressed-payload", (const uint8_t *)compressed_messages.c_str(),
+            compressed_messages.length());
+  compression.set_uncompressed_size(total_size);
+
+  return send(Mysqlx::ClientMessages::COMPRESSION, compression);
+}
+
 std::unique_ptr<Protocol_impl::Message> Protocol_impl::alloc_message(
     const Header_message_type_id mid) {
   DBUG_TRACE;
@@ -872,6 +940,8 @@ std::unique_ptr<Protocol_impl::Message> Protocol_impl::alloc_message(
     case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS:
       ret_val.reset(new Mysqlx::Resultset::FetchDoneMoreOutParams());
       break;
+    case Mysqlx::ServerMessages::COMPRESSION:
+      return nullptr;
   }
 
   return ret_val;
@@ -926,10 +996,69 @@ XProtocol::Message *Protocol_impl::recv_id(
   return msg.release();
 }
 
+XProtocol::Message *Protocol_impl::read_compressed(Server_message_type_id *mid,
+                                                   XError *out_error) {
+  DBUG_TRACE;
+
+  if (nullptr == m_compressed_input_stream.get()) {
+    *out_error = XError{CR_X_COMPRESSION_NOT_CONFIGURED,
+                        ER_TEXT_COMPRESSION_NOT_CONFIGURED};
+    return nullptr;
+  }
+
+  std::unique_ptr<XProtocol::Message> message;
+
+  {
+    CodedInputStream cis(m_compressed_input_stream.get());
+
+    // Currently only XQuery_result class sets the m_context->m_global_error
+    // on invalid sequence of fetched resultsets.
+    //
+    // Fatal errors might be also set in m_global_error, where fatal errors
+    // might
+    //
+    // * IO errors
+    // * Server fatal Mysqlx.Error messages
+    // * compression errors
+    //
+    // This topic needs to be investigated
+    Header_message_type_id id;
+    uint32_t size;
+    cis.ReadLittleEndian32(&size);
+    cis.ReadRaw(&id, 1);
+    cis.PushLimit(size - 1);
+    DBUG_LOG("debug", "COMPRESSION_GROUP HEADER id:" << static_cast<int>(id)
+                                                     << ", size:" << size);
+    *mid = static_cast<Server_message_type_id>(id);
+
+    message = deserialize_message(*mid, &cis, out_error);
+
+    if (!*out_error) *out_error = m_connection_input_stream->GetIOError();
+  }
+
+  if (!details::has_data(m_compressed_input_stream.get())) {
+    DBUG_LOG("debug", "No more data in compressed packet,"
+                          << " removing compression stream");
+    m_compressed_input_stream.reset();
+    m_compressed_payload_input_stream.reset();
+    m_compressed.Clear();
+  }
+
+  if (*out_error) return nullptr;
+
+  return message.release();
+}
+
 XProtocol::Message *Protocol_impl::recv_message_with_header(
     Server_message_type_id *mid, XError *out_error) {
   DBUG_TRACE;
   uint32_t payload_size = 0;
+
+  /* If the pointer is set, then we are in middle of reading compressed message.
+   */
+  if (m_compressed_input_stream) {
+    return read_compressed(mid, out_error);
+  }
 
   Header_message_type_id header_mid;
   *out_error = recv_header(&header_mid, &payload_size);
@@ -941,27 +1070,68 @@ XProtocol::Message *Protocol_impl::recv_message_with_header(
            "Reading X message of type: " << static_cast<int>(header_mid)
                                          << ", and size: " << payload_size);
 
+  const bool is_mid_compressed = details::is_compressed(header_mid);
+
   m_connection_input_stream->AllowedRead(payload_size);
 
-  // The 'cis' variable must be destroyed before doing read_buffered
-  google::protobuf::io::CodedInputStream cis(m_connection_input_stream.get());
+  {
+    // The 'cis' variable must be destroyed before doing read_buffered
+    google::protobuf::io::CodedInputStream cis(m_connection_input_stream.get());
 
-  cis.PushLimit(payload_size);
+    cis.PushLimit(payload_size);
 
-  DBUG_PRINT("info", ("Reading uncompressed X message"));
-  auto result = deserialize_message(header_mid, &cis, out_error);
+    if (!is_mid_compressed) {
+      DBUG_PRINT("info", ("Reading uncompressed X message"));
+      auto result = deserialize_message(header_mid, &cis, out_error);
 
-  if (!*out_error) {
-    *out_error = m_connection_input_stream->GetIOError();
+      if (!*out_error) {
+        *out_error = m_connection_input_stream->GetIOError();
+      }
+
+      if (*out_error) {
+        return nullptr;
+      }
+
+      *mid = static_cast<XProtocol::Server_message_type_id>(header_mid);
+
+      return result.release();
+    }
+
+    bool read_ok = true;
+
+    if (!m_compressed.ParseFromCodedStream(&cis)) {
+      std::string error_message(ERR_MSG_MESSAGE_NOT_INITIALIZED);
+      error_message += "Name:" + m_compressed.GetTypeName() + ", ";
+      error_message += m_compressed.InitializationErrorString();
+      *out_error = XError(CR_MALFORMED_PACKET, error_message);
+      return nullptr;
+    }
+
+    m_compression_inner_message_id = Mysqlx::ServerMessages::COMPRESSION;
+
+    if (!read_ok) {
+      *out_error = m_connection_input_stream->GetIOError();
+      return nullptr;
+    }
+
+    bool out_ignore = false;
+    *out_error =
+        dispatch_received(*mid, Mysqlx::Connection::Compression(), &out_ignore);
+
+    if (*out_error || out_ignore) {
+      skip_not_parsed(&cis, out_error);
+
+      return nullptr;
+    }
   }
+  const auto &payload = m_compressed.payload();
+  m_compressed_payload_input_stream.reset(
+      new google::protobuf::io::ArrayInputStream(payload.c_str(),
+                                                 payload.length()));
+  m_compressed_input_stream =
+      m_compression->downlink(m_compressed_payload_input_stream.get());
 
-  if (*out_error) {
-    return nullptr;
-  }
-
-  *mid = static_cast<XProtocol::Server_message_type_id>(header_mid);
-
-  return result.release();
+  return read_compressed(mid, out_error);
 }
 
 }  // namespace xcl

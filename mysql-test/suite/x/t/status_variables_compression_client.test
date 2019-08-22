@@ -1,0 +1,108 @@
+## Compression done on client side
+#
+# client->server: Mysqlx.Connection.Compression
+#
+# In which X Plugin compress by default following messages
+#
+# * NOTICE - 11, 0x0b
+# * RESULTSET_COLUMN_META_DATA - 12, 0x0c
+# * RESULTSET_ROW  - 13, 0x0d
+# * RESULTSET_FETCH_DONE - 14, 0x0e
+#
+# followed with uncompressed:
+#
+# * SQL_STMT_EXECUTE_OK = 17   0x11
+#
+# The client is going to use following messages to transfer
+# compressed payload:
+#
+# * COMPRESSION = 46;   0x2E
+#
+# The goal of this test is to verify that after enabling compression,
+# and sending compression messages by the client, following system variables
+# are incremented:
+#
+# * mysqlx_bytes_received_compressed_payload
+# * mysqlx_bytes_received_uncompressed_frame
+#
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/check_compression_recv_stats.tmp
+
+use performance_schema;
+
+SELECT (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received') ,
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received_compressed_payload'),
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received_uncompressed_frame')
+       INTO @received1,@received_comp1,@received_uncomp1;
+
+varlet %COMMENT1% abcd efghi jklm noprs tuwx yz;
+varlet %COMMENT2% 123 456 790 11 12 13 14 15 16;
+varlet %COMMENT% /*%COMMENT1%%COMMENT2%%COMMENT1%%COMMENT2%%COMMENT2%%COMMENT1%*/;
+
+-->begin_compress SINGLE
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1  %COMMENT%"
+  namespace: "sql"
+}
+-->end_compress
+recvresult be-quiet;
+
+SELECT (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received') ,
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received_compressed_payload'),
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received_uncompressed_frame')
+       INTO @received2,@received_comp2,@received_uncomp2;
+
+-->begin_compress SINGLE
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 2  %COMMENT%"
+  namespace: "sql"
+}
+-->end_compress
+recvresult be-quiet;
+
+SELECT (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received') ,
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received_compressed_payload'),
+       (select VARIABLE_VALUE from session_status WHERE VARIABLE_NAME like 'mysqlx_bytes_received_uncompressed_frame')
+       INTO @received3,@received_comp3,@received_uncomp3;
+
+import assert_select.macro;
+
+callmacro Assert_select0	1	SELECT @received3 > 0;
+callmacro Assert_select0	1	SELECT @received2 > 0;
+callmacro Assert_select0	1	SELECT @received1 > 0;
+
+callmacro Assert_select0	1	SELECT @received_uncomp3 > 0;
+callmacro Assert_select0	1	SELECT @received_uncomp2 > 0;
+callmacro Assert_select0	1	SELECT @received_uncomp3 > @received_uncomp2;
+
+callmacro Assert_select0	1	SELECT @received_comp3 > 0;
+callmacro Assert_select0	1	SELECT @received_comp2 > 0;
+
+# There is some bug here, doing "SELECT @received_comp3 > @received_comp2" is going to fail !
+callmacro Assert_select0	1	SELECT @received_comp3 > 0+@received_comp2;
+
+callmacro Assert_select0	1	SELECT (@received_comp2 - @received_comp1) >= (@received_comp3 - @received_comp2);
+
+EOF
+
+
+echo ## 1. Verify compression at client side using ZLIB algorithm;
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.tmp 2>&1;
+
+echo ## 2. Verify compression at client side using LZ4Frame algorithm;
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.tmp 2>&1;
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/check_compression_recv_stats.tmp
+--source include/xplugin_drop_user.inc

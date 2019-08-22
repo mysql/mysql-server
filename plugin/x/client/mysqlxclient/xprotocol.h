@@ -382,6 +382,42 @@ class XProtocol {
                       const std::size_t length) = 0;
 
   /**
+    Serialize, compress and send protobuf message.
+
+    This method compresses 'message', and places it into 'payload'
+    field of `Compression` message. `Compression` message is serialized
+    and send to the wire.
+    Such construction is send using XConnection interface.
+
+    @param message_id   message identifier
+    @param message      to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error or timeout error occurred
+  */
+  virtual XError send_compressed_frame(const Client_message_type_id message_id,
+                                       const Message &message) = 0;
+
+  /**
+    Serialize, compress and send multiple protobuf message of different type.
+
+    This method builds "Compression" message that encodes and compresses all
+    'messages' into "payload" field. Later on "Compression" message is
+    serialized and send to the wire. size. Such construction is send using
+    XConnection interface.
+
+    @param messages     messages to be serialized, compressed and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error or timeout error occurred
+  */
+  virtual XError send_compressed_multiple_frames(
+      const std::vector<std::pair<Client_message_type_id, const Message *>>
+          &messages) = 0;
+
+  /**
     Serialize and send protobuf message.
 
     @param m      message to be serialized and sent
@@ -878,6 +914,8 @@ class XProtocol {
                                       const std::string &pass,
                                       const std::string &schema,
                                       const std::string &method = "") = 0;
+
+  virtual void use_compression(const Compression_algorithm algo) = 0;
 };
 
 }  // namespace xcl

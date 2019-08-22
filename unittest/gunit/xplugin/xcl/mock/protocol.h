@@ -63,12 +63,9 @@ class Mock_protocol : public XProtocol {
 
   MOCK_METHOD2(send_compressed_frame,
                XError(const Client_message_type_id mid, const Message &msg));
-  MOCK_METHOD2(send_compressed_frames,
-               XError(const Client_message_type_id mid,
-                      const std::vector<Message *> &msg));
-  MOCK_METHOD1(send_compressed_group_of_frames,
-               XError(const std::vector<
-                      std::pair<Client_message_type_id, Message *>> &messages));
+  MOCK_METHOD1(send_compressed_multiple_frames,
+               XError(const std::vector<std::pair<Client_message_type_id,
+                                                  const Message *>> &messages));
   MOCK_METHOD2(send,
                XError(const Client_message_type_id mid, const Message &msg));
   MOCK_METHOD3(send, XError(const Header_message_type_id mid,

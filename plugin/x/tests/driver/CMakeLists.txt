@@ -50,6 +50,8 @@ SET(XTEST_SRC
   processor/sql_block_processor.cc
   processor/sql_stmt_processor.cc
   processor/stream_processor.cc
+  processor/compress_single_message_block_processor.cc
+  processor/multiple_compress_block_processor.cc
 
   processor/commands/command.cc
   processor/commands/expected_error.cc

@@ -391,14 +391,11 @@ class Mock_client : public iface::Client {
   MOCK_METHOD1(set_read_timeout, void(const unsigned int));
   MOCK_METHOD1(set_write_timeout, void(const unsigned int));
 
-  MOCK_METHOD1(enable_compression_algo,
-               void(const ngs::Compression_algorithm algo));
-  MOCK_METHOD1(configure_compression_style,
-               void(const ngs::Compression_style style));
-  MOCK_METHOD1(configure_compression_client_style,
-               void(const ngs::Compression_style style));
-  MOCK_METHOD1(configure_compression_messages,
-               void(const std::vector<uint32_t> &ids));
+  MOCK_METHOD3(configure_compression_opts,
+               void(const ngs::Compression_algorithm algo,
+                    const int64_t max_msg, const bool combine));
+  MOCK_METHOD2(configure_compression_opts,
+               void(const int max_msg, const bool combine));
   MOCK_METHOD1(handle_message, void(ngs::Message_request *));
 
   MOCK_METHOD1(get_capabilities,

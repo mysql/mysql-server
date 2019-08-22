@@ -10,9 +10,8 @@
 
 # Please update the test case when the variable count changes
 # add/remove variable
-
 let $wait_condition=
-  SELECT COUNT(*)=71 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=76 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -138,8 +137,24 @@ if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_sent", Value, 1] = 0
 --source include/assert.inc
 
+--let $assert_text= No connections were made, Mysqlx_bytes_sent_compressed_payload must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_sent_compressed_payload", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_bytes_sent_uncompressed_frame must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_sent_uncompressed_frame", Value, 1] = 0
+--source include/assert.inc
+
 --let $assert_text= No connections were made, Mysqlx_bytes_received must match default value which is 0.
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_received", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_bytes_received_uncompressed_frame must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_received_uncompressed_frame", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_bytes_received_compressed_payload must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_received_compressed_payload", Value, 1] = 0
 --source include/assert.inc
 
 --let $assert_text= No connections were made, Mysqlx_errors_sent must match default value which is 0.

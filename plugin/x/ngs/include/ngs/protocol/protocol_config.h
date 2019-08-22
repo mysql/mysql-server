@@ -74,8 +74,6 @@ class Protocol_config {
       : m_global(global) {}
 
   Compression_algorithm m_compression_algorithm = Compression_algorithm::k_none;
-  Compression_style m_compression_server_style = Compression_style::k_none;
-  Compression_style m_compression_client_style = Compression_style::k_none;
   std::shared_ptr<Protocol_global_config> m_global;
 };
 

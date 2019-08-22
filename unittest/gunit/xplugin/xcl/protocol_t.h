@@ -140,9 +140,15 @@ class Xcl_protocol_impl_tests : public Test {
                             const int32_t error_code = 0) {
     auto message_binary = Message_encoder::encode(message);
 
-    const uint8_t header_size = 5;
     const uint8_t payload_size = message_binary.size();
     const auto id = Client_message<Message_type>::get_id();
+
+    expect_write_payload(id, payload_size, error_code);
+  }
+
+  void expect_write_payload(const uint8_t id, const uint32_t payload_size,
+                            const int32 error_code = 0) {
+    const std::uint8_t header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, write(_, header_size + payload_size))
         .WillOnce(Invoke(

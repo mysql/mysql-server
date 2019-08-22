@@ -63,6 +63,9 @@ class Client {
   virtual iface::Protocol_encoder &protocol() const = 0;
   virtual iface::Server &server() const = 0;
   virtual iface::Vio &connection() const = 0;
+  virtual void configure_compression_opts(const ngs::Compression_algorithm algo,
+                                          const int64_t max_msg,
+                                          const bool combine) = 0;
 
   virtual void activate_tls() = 0;
 

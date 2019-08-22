@@ -37,7 +37,7 @@
 
 namespace {
 
-static std::string data_to_bindump(const std::string &bindump) {
+std::string data_to_bindump(const std::string &bindump) {
   std::string res;
 
   for (size_t i = 0; i < bindump.length(); i++) {
@@ -140,7 +140,7 @@ int Send_message_block_processor::process_client_message(
   return 0;
 }
 
-std::string Send_message_block_processor::message_to_bindump(
+std::string Send_message_block_processor::message_serialize(
     const xcl::XProtocol::Message &message) {
   std::string res;
   std::string out;
@@ -161,5 +161,10 @@ std::string Send_message_block_processor::message_to_bindump(
                    .second;
   res.append(out);
 
-  return data_to_bindump(res);
+  return res;
+}
+
+std::string Send_message_block_processor::message_to_bindump(
+    const xcl::XProtocol::Message &message) {
+  return data_to_bindump(message_serialize(message));
 }

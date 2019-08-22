@@ -52,6 +52,40 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -522,6 +556,40 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -746,6 +814,40 @@ Mysqlx.Connection.Capabilities {
       scalar {
         type: V_BOOL
         v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -1342,6 +1444,40 @@ Mysqlx.Connection.Capabilities {
     }
   }
   capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
     name: "node_type"
     value {
       type: SCALAR
@@ -1664,6 +1800,40 @@ Mysqlx.Connection.Capabilities {
       scalar {
         type: V_BOOL
         v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "compression"
+    value {
+      type: OBJECT
+      obj {
+        fld {
+          key: "algorithm"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "deflate_stream"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "lz4_message"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

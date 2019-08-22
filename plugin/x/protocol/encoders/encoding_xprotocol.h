@@ -36,16 +36,6 @@
 
 namespace protocol {
 
-namespace tags {
-
-enum Raw_payload_ids {
-  COMPRESSION_SINGLE = 19,
-  COMPRESSION_MULTIPLE = 20,
-  COMPRESSION_GROUP = 21,
-};
-
-}  // namespace tags
-
 enum class Compression_type { k_single, k_multiple, k_group };
 
 class Compression_buffer_interface {
@@ -139,8 +129,8 @@ class XProtocol_encoder : public Protobuf_encoder {
   struct Compression_position : Position {
     Encoding_buffer *m_compressed_buffer;
     Compression_type m_compression_type;
-    uint32_t m_compressed_data_size;
-    uint32_t m_uncompressed_data_size;
+    Delayed_fixed_varuint32 m_uncompressed_size;
+    Field_delimiter<5> m_payload;
     uint8_t m_msg_id;
   };
 
@@ -163,31 +153,29 @@ class XProtocol_encoder : public Protobuf_encoder {
                                          Encoding_buffer *to_compress) {
     Compression_position result;
 
+    result.m_msg_id = msg_id;
+    begin_xmessage<tags::Compression::server_id, 100>(&result);
+
     switch (type) {
       case Compression_type::k_single:
-        begin_xmessage<tags::Raw_payload_ids::COMPRESSION_SINGLE, 100>(&result);
-        set_header_config(Header_configuration::k_none);
-        m_buffer->m_current->m_current_data += 5;
-        break;
       case Compression_type::k_multiple:
-        begin_xmessage<tags::Raw_payload_ids::COMPRESSION_MULTIPLE, 100>(
-            &result);
-        set_header_config(Header_configuration::k_size_only);
-        m_buffer->m_current->m_current_data += 5;
+        set_header_config(Header_configuration::k_full);
+        encode_field_var_uint32<tags::Compression::server_messages>(msg_id);
         break;
       case Compression_type::k_group:
-        begin_xmessage<tags::Raw_payload_ids::COMPRESSION_GROUP, 100>(&result);
         set_header_config(Header_configuration::k_full);
-        m_buffer->m_current->m_current_data += 4;
         break;
     }
+
+    result.m_uncompressed_size =
+        encode_field_fixed_uint32<tags::Compression::uncompressed_size>();
+    begin_delimited_field<tags::Compression::payload>(&result.m_payload);
 
     DBUG_ASSERT(to_compress->m_current == to_compress->m_front);
     DBUG_ASSERT(to_compress->m_current->m_begin_data ==
                 to_compress->m_current->m_current_data);
     result.m_compressed_buffer = m_buffer;
     result.m_compression_type = type;
-    result.m_msg_id = msg_id;
     // Reset buffer, and initialize the 'handy' data hold inside
     // 'Encoder_primitives'
     buffer_set(to_compress);
@@ -202,6 +190,8 @@ class XProtocol_encoder : public Protobuf_encoder {
     const auto before_compression_size =
         before_compression.bytes_until_page(m_page);
 
+    position.m_uncompressed_size.encode(before_compression_size);
+
     if (!compress->process(position.m_compressed_buffer, m_buffer))
       return false;
 
@@ -209,39 +199,14 @@ class XProtocol_encoder : public Protobuf_encoder {
     const auto message_size =
         position.bytes_until_page(position.m_compressed_buffer->m_current);
 
-    switch (position.m_compression_type) {
-      case Compression_type::k_single:
-        primitives::base::Fixint_length<4>::encode_value(ptr, message_size - 4);
-        primitives::base::Fixint_length<1>::encode_value(
-            ptr, tags::Raw_payload_ids::COMPRESSION_SINGLE);
-        primitives::base::Fixint_length<1>::encode_value(ptr,
-                                                         position.m_msg_id);
-        primitives::base::Fixint_length<4>::encode_value(
-            ptr, before_compression_size);
-        break;
-      case Compression_type::k_multiple:
-        primitives::base::Fixint_length<4>::encode_value(ptr, message_size - 4);
-        primitives::base::Fixint_length<1>::encode_value(
-            ptr, tags::Raw_payload_ids::COMPRESSION_MULTIPLE);
-        primitives::base::Fixint_length<1>::encode_value(ptr,
-                                                         position.m_msg_id);
-        primitives::base::Fixint_length<4>::encode_value(
-            ptr, before_compression_size);
-        break;
-      case Compression_type::k_group:
-        primitives::base::Fixint_length<4>::encode_value(ptr, message_size - 4);
-        primitives::base::Fixint_length<1>::encode_value(
-            ptr, tags::Raw_payload_ids::COMPRESSION_GROUP);
-        primitives::base::Fixint_length<4>::encode_value(
-            ptr, before_compression_size);
-        break;
-    }
     // Lets discard data inside new/compression buffer
     // in case when 'compress' call didn't do that.
     m_buffer->reset();
 
     // and now we restore original buffer
     buffer_set(position.m_compressed_buffer);
+    end_delimited_field(position.m_payload);
+    primitives::base::Fixint_length<4>::encode_value(ptr, message_size - 4);
 
     set_header_config(Header_configuration::k_full);
 

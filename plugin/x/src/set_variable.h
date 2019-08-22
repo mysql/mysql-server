@@ -21,22 +21,36 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#ifndef PLUGIN_X_CLIENT_VALIDATOR_CAPABILITY_COMPRESSION_VALIDATOR_H_
-#define PLUGIN_X_CLIENT_VALIDATOR_CAPABILITY_COMPRESSION_VALIDATOR_H_
 
-#include <string>
+#ifndef PLUGIN_X_SRC_SET_VARIABLE_H_
+#define PLUGIN_X_SRC_SET_VARIABLE_H_
 
-#include "plugin/x/client/validator/validator.h"
+#include <algorithm>
+#include <utility>
+#include <vector>
 
-namespace xcl {
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
+#include "typelib.h"      // NOLINT(build/include_subdir)
 
-class Capability_compression_validator : public Object_validator {
+namespace xpl {
+
+class Set_variable {
  public:
-  bool valid_type(const Argument_value &value) override;
-  bool valid_value(const Argument_value &value) override;
-  void store(void *context, const Argument_value &value) override;
+  Set_variable(std::vector<const char *> labels)
+      : m_labels(std::move(labels)),
+        m_typelib{m_labels.size() - 1, "", m_labels.data(), nullptr} {}
+
+  ulonglong *value() { return &m_value; }
+  TYPELIB *typelib() { return &m_typelib; }
+  const ulonglong &get_value() const { return m_value; }
+  const std::vector<const char *> &get_labels() const { return m_labels; }
+
+ private:
+  ulonglong m_value{0};
+  std::vector<const char *> m_labels;
+  TYPELIB m_typelib;
 };
 
-}  // namespace xcl
+}  // namespace xpl
 
-#endif  // PLUGIN_X_CLIENT_VALIDATOR_CAPABILITY_COMPRESSION_VALIDATOR_H_
+#endif  // PLUGIN_X_SRC_SET_VARIABLE_H_

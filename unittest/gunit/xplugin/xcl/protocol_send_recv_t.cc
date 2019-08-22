@@ -386,5 +386,15 @@ TEST_F(Xcl_protocol_impl_tests, recv_resultset) {
   ASSERT_EQ(query_result, result.get());
 }
 
+TEST_F(Xcl_protocol_impl_tests, send_compressed) {
+  m_sut->use_compression(Compression_algorithm::k_deflate);
+  expect_write_payload(Mysqlx::ClientMessages::COMPRESSION, 17, 0);
+
+  auto result = m_sut->send_compressed_frame(
+      Mysqlx::ClientMessages::EXPECT_OPEN, Mysqlx::Expect::Open());
+
+  ASSERT_EQ(0, result.error());
+}
+
 }  // namespace test
 }  // namespace xcl

@@ -66,6 +66,16 @@ class XCompression {
   virtual ~XCompression() = default;
 
   /**
+    Reinitialize 'uplink' and 'downlink' compression context using set
+    algorithm.
+
+    Some compression algorithm may be only set before session or capability
+    setup, in that case setting such algorithm may fail. Also some algorithms
+    set once may be not changeable.
+  */
+  virtual bool reinitialize(const Compression_algorithm algorithm) = 0;
+
+  /**
     Downlink compression stream
 
     This method returns a stream that can be used with compression done

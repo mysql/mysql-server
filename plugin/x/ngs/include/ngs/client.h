@@ -32,8 +32,8 @@
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder_compression.h"
 #include "plugin/x/src/capabilities/configurator.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/helper/chrono.h"
@@ -109,6 +109,11 @@ class Client : public xpl::iface::Client {
   void set_write_timeout(const uint32_t) override;
 
   bool handle_session_connect_attr_set(ngs::Message_request &command);
+
+  void configure_compression_opts(const Compression_algorithm algo,
+                                  const int64_t max_msg,
+                                  const bool combine) override;
+
   void handle_message(Message_request *message) override;
 
  private:
@@ -176,6 +181,11 @@ class Client : public xpl::iface::Client {
   uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
   uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
 
+  Compression_algorithm m_cached_compression_algorithm =
+      Compression_algorithm::k_none;
+  int64_t m_cached_max_msg = -1;
+  bool m_cached_combine_msg = false;
+
   Error_code read_one_message_and_dispatch();
 
   virtual xpl::Capabilities_configurator *capabilities_configurator();
@@ -195,6 +205,8 @@ class Client : public xpl::iface::Client {
   void set_encoder(xpl::iface::Protocol_encoder *enc);
 
  private:
+  Protocol_encoder_compression *get_protocol_compression_or_install_it();
+
   Client(const Client &) = delete;
   Client &operator=(const Client &) = delete;
 

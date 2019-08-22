@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ class Send_message_block_processor : public Block_processor {
       const xcl::XProtocol::Client_message_type_id msg_id,
       const xcl::XProtocol::Message &msg);
 
+  std::string message_serialize(const xcl::XProtocol::Message &message);
   std::string message_to_bindump(const xcl::XProtocol::Message &message);
 
   Execution_context *m_context;

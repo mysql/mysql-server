@@ -36,8 +36,8 @@ class Compression_config {
   Capabilities_negotiator m_negotiator;
 
   Compression_algorithm m_use_algorithm = Compression_algorithm::k_none;
-  Compression_style m_use_server_style = Compression_style::k_none;
-  Compression_style m_use_client_style = Compression_style::k_none;
+  bool m_use_server_combine_mixed_messages = true;
+  int64_t m_use_server_max_combine_messages = 0;
 };
 
 }  // namespace xcl

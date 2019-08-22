@@ -26,7 +26,7 @@ syntax = "proto2";
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
 import "mysqlx_datatypes.proto";
-import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
+import "mysqlx.proto";
 
 package Mysqlx.Connection;
 option java_package = "com.mysql.cj.x.protobuf";
@@ -75,4 +75,14 @@ message CapabilitiesSet {
 message Close {
   option (client_message_id) = CON_CLOSE; // comment_out_if PROTOBUF_LITE
 };
+
+message Compression {
+  optional uint64 uncompressed_size = 1;
+  optional Mysqlx.ServerMessages.Type server_messages = 2;
+  optional Mysqlx.ClientMessages.Type client_messages = 3;
+  required bytes payload = 4;
+  
+  option (server_message_id) = COMPRESSION; // comment_out_if PROTOBUF_LITE
+  option (client_message_id) = COMPRESSION; // comment_out_if PROTOBUF_LITE
+}
 

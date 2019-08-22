@@ -30,7 +30,9 @@ SET(ngs_SRC
   ngs/src/notice_descriptor.cc
   ngs/src/protocol_decoder.cc
   ngs/src/protocol_encoder.cc
+  ngs/src/protocol_encoder_compression.cc
   ngs/src/protocol_flusher.cc
+  ngs/src/protocol_flusher_compression.cc
   ngs/src/scheduler.cc
   ngs/src/server.cc
   ngs/src/server_client_timeout.cc
@@ -130,6 +132,7 @@ SET(xplugin_SRC
   src/capabilities/handler_tls.cc
   src/index_field.cc
   src/index_array_field.cc
+  src/capabilities/capability_compression.cc
 
   ${ngs_SRC}
 )

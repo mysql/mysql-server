@@ -25,6 +25,8 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
+#include "plugin/x/client/xcompression_negotiator.h"
+
 #include <string>
 #include <vector>
 
@@ -32,7 +34,7 @@
 
 #include "plugin/x/client/mysqlxclient/xargument.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "plugin/x/client/xcompression_negotiator.h"
+#include "plugin/x/client/validator/option_compression_validator.h"
 
 namespace xcl {
 
@@ -65,23 +67,33 @@ class To_variable_validator : public Validator {
 
 }  // namespace
 
-void Capabilities_negotiator::server_supports_client_styles(
-    const Array_of_strings &server_supported_client_styles) {}
-
-void Capabilities_negotiator::server_supports_server_styles(
-    const Array_of_strings &server_supported_server_styles) {}
-
 void Capabilities_negotiator::server_supports_algorithms(
-    const Array_of_strings &server_supported_algorithms) {}
+    const Array_of_strings &server_supported_algorithms) {
+  class Compression_algorithms_validator2
+      : public Translate_array_validator<Compression_algorithm, Context,
+                                         false> {
+   public:
+    Compression_algorithms_validator2()
+        : Translate_array_validator(
+              {{"DEFLATE_STREAM", Compression_algorithm::k_deflate},
+               {"LZ4_MESSAGE", Compression_algorithm::k_lz4}}) {}
+
+    void visit_translate(const Array_of_enums &algos) override {}
+  };
+
+  To_variable_validator<Compression_algorithms_validator2> validator;
+
+  check_server_capability(&validator, server_supported_algorithms,
+                          m_compression_negotiation_algorithm,
+                          &m_choosen_algorithm, &m_choosen_algorithm_txt);
+}
 
 bool Capabilities_negotiator::is_negotiation_needed() const {
   return m_compression_mode != Compression_negotiation::k_disabled;
 }
 
 bool Capabilities_negotiator::update_compression_options(
-    Compression_algorithm *out_algorithm, Compression_style *out_client_style,
-    Compression_style *out_server_style, Capabilities_builder *out_builder,
-    XError *out_error) {
+    Compression_algorithm *out_algorithm, XError *out_error) {
   if (!was_chooses()) {
     if (is_compression_required()) {
       *out_error =
@@ -94,19 +106,6 @@ bool Capabilities_negotiator::update_compression_options(
   }
 
   *out_algorithm = m_choosen_algorithm;
-  *out_client_style = m_choosen_client_style;
-  *out_server_style = m_choosen_server_style;
-
-  out_builder->clear();
-  Argument_object obj;
-
-  obj["algorithm"] = m_choosen_algorithm_txt;
-  if (Compression_style::k_none != m_choosen_client_style)
-    obj["client_style"] = m_choosen_client_style_txt;
-  if (Compression_style::k_none != m_choosen_server_style)
-    obj["server_style"] = m_choosen_server_style_txt;
-
-  out_builder->add_capability("compression", Argument_value{obj});
 
   return true;
 }
@@ -117,18 +116,6 @@ bool Capabilities_negotiator::is_compression_required() const {
 
 bool Capabilities_negotiator::was_chooses() const {
   if (m_choosen_algorithm == Compression_algorithm::k_none) return false;
-
-  if (m_choosen_client_style == Compression_style::k_none &&
-      m_choosen_server_style == Compression_style::k_none)
-    return false;
-
-  if (!m_compression_negotiation_client_style.empty() &&
-      m_choosen_client_style == Compression_style::k_none)
-    return false;
-
-  if (!m_compression_negotiation_server_style.empty() &&
-      m_choosen_server_style == Compression_style::k_none)
-    return false;
 
   if (!m_compression_negotiation_algorithm.empty() &&
       m_choosen_algorithm == Compression_algorithm::k_none)

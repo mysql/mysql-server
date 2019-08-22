@@ -35,31 +35,19 @@
 #include "mysqlxclient/xcompression.h"
 #include "mysqlxclient/xerror.h"
 
-#include "plugin/x/client/xcapability_builder.h"
-
 namespace xcl {
-
-enum class Compression_style { k_none, k_single, k_multiple, k_group };
 
 class Capabilities_negotiator {
  public:
-  using Compression_styles = std::vector<Compression_style>;
   using Compression_algorithms = std::vector<Compression_algorithm>;
   using Array_of_strings = std::vector<std::string>;
 
  public:
-  void server_supports_client_styles(
-      const Array_of_strings &server_supported_client_styles);
-  void server_supports_server_styles(
-      const Array_of_strings &server_supported_server_styles);
   void server_supports_algorithms(
       const Array_of_strings &server_supported_algorithms);
 
   bool is_negotiation_needed() const;
   bool update_compression_options(Compression_algorithm *out_algorithm,
-                                  Compression_style *out_client_style,
-                                  Compression_style *out_server_style,
-                                  Capabilities_builder *out_builder,
                                   XError *out_Error);
 
  public:
@@ -70,14 +58,6 @@ class Capabilities_negotiator {
   //
   Compression_algorithms m_compression_negotiation_algorithm{
       Compression_algorithm::k_deflate, Compression_algorithm::k_lz4};
-
-  Compression_styles m_compression_negotiation_server_style{
-      Compression_style::k_group, Compression_style::k_multiple,
-      Compression_style::k_single};
-
-  Compression_styles m_compression_negotiation_client_style{
-      Compression_style::k_single, Compression_style::k_multiple,
-      Compression_style::k_group};
 
   Compression_negotiation m_compression_mode =
       Compression_negotiation::k_disabled;
@@ -112,11 +92,7 @@ class Capabilities_negotiator {
   bool was_chooses() const;
 
   Compression_algorithm m_choosen_algorithm = Compression_algorithm::k_none;
-  Compression_style m_choosen_client_style = Compression_style::k_none;
-  Compression_style m_choosen_server_style = Compression_style::k_none;
   std::string m_choosen_algorithm_txt;
-  std::string m_choosen_client_style_txt;
-  std::string m_choosen_server_style_txt;
 };
 
 }  // namespace xcl

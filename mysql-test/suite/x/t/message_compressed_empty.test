@@ -1,0 +1,166 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/too_large.tmp
+-->import wait_until_disconnect.macro
+-->import connection.macro
+-->import assert_status_variable.macro
+
+-->macro New_session_with_compression
+newsession SOME_SESSION	-;
+-->quiet
+callmacro Verify_its_xprotocol_connection;
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "algorithm"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%OPTION_COMPRESSION_ALGORITHM%"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+recvok;
+enable_compression %OPTION_COMPRESSION_ALGORITHM%;
+login;
+-->noquiet
+-->endmacro
+
+-->macro Execute_invalid_message	%MSG%
+callmacro New_session_with_compression;
+
+hexsend %MSG%;
+recverror ER_X_BAD_COMPRESSED_FRAME;
+
+noquiet;
+echo ## Waiting for disconnection;
+callmacro Wait_until_disconnect;
+-->quiet
+-->endmacro
+
+-->echo
+-->echo ## 1. Send empty compressed frame
+-->echo ## 2. Send empty compressed payload
+-->echo ## 3. Send empty single-compressed frame and check its processed
+-->echo ## 4. Send empty compressed frame with invalid uncompressed-size field
+-->echo ## 5. Send empty compressed frame with invalid client_messages field
+-->echo ## 6. Send empty compressed frame with unknown field of group type
+-->echo ## 7. Send empty compressed frame with invalid payload field
+-->echo ## 8. Send empty compressed frame with unknown field
+-->echo #
+
+-->echo
+-->echo # 1.
+#
+# length=1, Mysqlx.Compression
+callmacro Execute_invalid_message	010000002E;
+
+-->echo;
+-->echo # 2
+-->hexparse %MSG_COMP_HEX% Mysqlx.Connection.Compression {
+  payload:""
+}
+echo %MSG_COMP_HEX%;
+callmacro Execute_invalid_message	%MSG_COMP_HEX%;
+
+-->echo;
+-->echo # 3.
+
+callmacro New_session_with_compression;
+-->binparse %DATA% Mysqlx.Expect.Open {
+}
+compress_bin %COMPRESSED% %DATA%;
+
+callmacro Assert_status_variable	Mysqlx_expect_open	0;
+
+Mysqlx.Connection.Compression {
+  uncompressed_size: 1000
+  payload:"%COMPRESSED%"
+}
+recvok;
+
+callmacro Assert_status_variable	Mysqlx_expect_open	1;
+closesession SOME_SESSION;
+
+-->echo
+-->echo # 4.
+#
+# length=2, Mysqlx.Compression, invalid uncompressed_size
+callmacro Execute_invalid_message	020000002E08;
+
+-->echo
+-->echo # 5.
+#
+# length=2, Mysqlx.Compression, invalid client_messages
+callmacro Execute_invalid_message	020000002E10;
+
+
+-->echo
+-->echo # 6.
+#
+# length=2, Mysqlx.Compression, invalid client_messages
+callmacro Execute_invalid_message	020000002E53;
+
+
+-->echo
+-->echo # 7.
+#
+# length=2, Mysqlx.Compression, invalid payload
+callmacro Execute_invalid_message	020000002E04;
+
+-->echo
+-->echo # 8.
+#
+# length=3, Mysqlx.Compression, unknown payload
+callmacro Execute_invalid_message	030000002E2400;
+
+EOF
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+SET GLOBAL mysqlx_max_allowed_packet = 1000;
+
+echo;
+echo ## A. Execute the test using "deflate" algorithm;
+echo #;
+--replace_regex /payload: *\".*\"/payload: "BINARY"/
+exec $MYSQLXTEST
+  -u x_root
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
+
+echo;
+echo ## B. Execute the test using "lz4" algorithm;
+echo #;
+--replace_regex /payload: *\".*\"/payload: "BINARY"/
+exec $MYSQLXTEST
+  -u x_root
+  --compression-mode=required
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
+
+## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
+--remove_file $MYSQL_TMP_DIR/too_large.tmp
+--source include/xplugin_drop_user.inc

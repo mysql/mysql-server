@@ -1,0 +1,205 @@
+## Test to verifies maximum number of messages for compression
+#
+
+#
+# Server gives user a possibility to configure maximum number
+# of messages that server can compress into signle Mysqlx.Connection.Compression
+# message:
+#
+#     client<-server: Compressed(MaxNoOfMsg * X Protocol frame)
+#
+# The configuration in done thought following capability:
+#
+# * server_max_combine_messages
+#
+# and it doesn't have any influence on compressed messages send from client.
+#
+# The test checks if the server encapsulated correct number of messages into
+# single compressed message.
+#
+#
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+CREATE TABLE test_table(data TEXT);
+INSERT INTO test_table(data) VALUES
+   ("my first row"),
+   ("my second row"),
+   ("my third row"),
+   ("my fourth row"),
+   ("my fifth row"),
+   ("my sixth row"),
+   ("my seventh row"),
+   ("my eighth row"),
+   ("my ninth row"),
+   ( "my tenth row");
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/resultset.tmp
+-->import connection.macro
+-->import assert_messages.macro
+-->import assert_notices.macro
+
+-->macro New_session_with_compression	%SESSION%	%MAX_MSG%
+newsession %SESSION%	-;
+-->quiet
+callmacro Verify_its_xprotocol_connection;
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "algorithm"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "%OPTION_COMPRESSION_ALGORITHM%"
+                }
+              }
+            }
+          }
+          fld {
+            key: "server_max_combine_messages"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_SINT
+                v_signed_int: %MAX_MSG%
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+recvok;
+enable_compression %OPTION_COMPRESSION_ALGORITHM%;
+login;
+-->noquiet
+-->endmacro
+
+-->echo
+-->echo
+-->echo ## Execute same query two times, which should return resultset of 10 rows
+-->echo #   1. Observe that the resultset if its correctly uncompressed
+-->echo #   2. Observe that the resultset if its correctly encapsulated
+-->echo #      into compression messages
+
+
+callmacro New_session_with_compression	SomeSession	%MAX_MSGS_PER_COMPRESSION%;
+-->echo
+-->echo #
+-->echo # 1
+
+stmtsql SELECT * FROM test.test_table;
+callmacro Assert_metadata	BYTES	"data";
+callmacro Assert_rows	10;
+callmacro Assert_message	Mysqlx.Resultset.FetchDone;
+callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:0;
+callmacro Assert_message Mysqlx.Sql.StmtExecuteOk;
+
+
+-->echo
+-->echo #
+-->echo # 2
+stmtsql SELECT * FROM test.test_table;
+repeat %NUM_OF_COMPRESSION_MSGS%;
+callmacro Assert_frame	COMPRESSION;
+endrepeat;
+callmacro Assert_message	Mysqlx.Sql.StmtExecuteOk;
+
+EOF
+
+
+let $iteration=2;
+while ($iteration)
+{
+  let $algo=`select json_unquote(JSON_EXTRACT('["NONE","DEFLATE_STREAM","LZ4_MESSAGE"]', '$[$iteration]'))`;
+  --echo
+  --echo ## I. Execute the test using: $algo + max_combine=1
+  --echo #
+  exec $MYSQLXTEST
+    --schema test
+    -ux_root --password=''
+    --compression-mode=required
+    --compression-algorithm=$algo
+    -v %MAX_MSGS_PER_COMPRESSION%=1
+    -v %NUM_OF_COMPRESSION_MSGS%=13
+    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+  --echo
+  --echo ## II. Execute the test using: $algo + max_combine=2
+  --echo #
+  exec $MYSQLXTEST
+    --schema test
+    -ux_root --password=''
+    --compression-mode=required
+    --compression-algorithm=$algo
+    -v %MAX_MSGS_PER_COMPRESSION%=2
+    -v %NUM_OF_COMPRESSION_MSGS%=7
+    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+  --echo
+  --echo ## III. Execute the test using: $algo + max_combine=3
+  --echo #
+  exec $MYSQLXTEST
+    --schema test
+    -ux_root --password=''
+    --compression-mode=required
+    --compression-algorithm=$algo
+    -v %MAX_MSGS_PER_COMPRESSION%=3
+    -v %NUM_OF_COMPRESSION_MSGS%=5
+    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+  --echo
+  --echo ## IV. Execute the test using: $algo + max_combine=6
+  --echo #
+  exec $MYSQLXTEST
+    --schema test
+    -ux_root --password=''
+    --compression-mode=required
+    --compression-algorithm=$algo
+    -v %MAX_MSGS_PER_COMPRESSION%=6
+    -v %NUM_OF_COMPRESSION_MSGS%=3
+    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+  --echo
+  --echo ## V. Execute the test using: $algo + max_combine=1000000
+  --echo #
+  exec $MYSQLXTEST
+    --schema test
+    -ux_root --password=''
+    --compression-mode=required
+    --compression-algorithm=$algo
+    -v %MAX_MSGS_PER_COMPRESSION%=1000000
+    -v %NUM_OF_COMPRESSION_MSGS%=1
+    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+  --echo
+  --echo ## VI. Execute the test using: $algo + max_combine=9223372036854775807
+  --echo #
+  exec $MYSQLXTEST
+    --schema test
+    -ux_root --password=''
+    --compression-mode=required
+    --compression-algorithm=$algo
+    -v %MAX_MSGS_PER_COMPRESSION%=9223372036854775807
+    -v %NUM_OF_COMPRESSION_MSGS%=1
+    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+  dec $iteration;
+}
+
+## Cleanup
+DROP TABLE test_table;
+
+--remove_file $MYSQL_TMP_DIR/resultset.tmp
+--source include/xplugin_drop_user.inc

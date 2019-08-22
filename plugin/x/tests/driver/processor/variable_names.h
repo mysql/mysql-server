@@ -40,11 +40,11 @@ const std::string k_variable_option_port = "%OPTION_CLIENT_PORT%";
 const std::string k_variable_option_ssl_mode = "%OPTION_SSL_MODE%";
 const std::string k_variable_option_ssl_cipher = "%OPTION_SSL_CIPHER%";
 const std::string k_variable_option_tls_version = "%OPTION_TLS_VERSION%";
-const std::string k_variable_option_compression_client_style =
-    "%OPTION_COMPRESSION_STYLE_CLIENT%";
-const std::string k_variable_option_compression_server_style =
-    "%OPTION_COMPRESSION_STYLE_SERVER%";
 const std::string k_variable_option_compression_algorithm =
     "%OPTION_COMPRESSION_ALGORITHM%";
+const std::string k_variable_option_compression_max_combine_messages =
+    "%OPTION_COMPRESSION_MAX_COMBINE_MESSAGES%";
+const std::string k_variable_option_compression_combine_mixed_messages =
+    "%OPTION_COMPRESSION_COMBINE_MIXED_MESSAGES%";
 
 #endif  // PLUGIN_X_TESTS_DRIVER_PROCESSOR_VARIABLE_NAMES_H_

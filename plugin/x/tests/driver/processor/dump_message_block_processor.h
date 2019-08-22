@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@ class Dump_message_block_processor : public Send_message_block_processor {
               const xcl::XProtocol::Message &message) override;
 
   std::string m_variable_name;
+  bool m_is_hex = false;
 };
 
 #endif  // PLUGIN_X_TESTS_DRIVER_PROCESSOR_DUMP_MESSAGE_BLOCK_PROCESSOR_H_

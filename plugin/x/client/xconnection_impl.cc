@@ -620,6 +620,7 @@ XError Connection_impl::shutdown(const Shutdown_type how_to_shutdown) {
 
 XError Connection_impl::write(const uint8_t *data,
                               const std::size_t data_length) {
+  DBUG_DUMP("Connection_impl", data, data_length);
   std::size_t left_data_to_write = data_length;
   const unsigned char *data_to_send = (const unsigned char *)data;
 

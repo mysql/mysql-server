@@ -70,6 +70,18 @@ class Getter_any {
     }
   }
 
+  template <typename Value_type>
+  static Value_type get_numeric_value(const ::Mysqlx::Datatypes::Any &any,
+                                      ngs::Error_code *out_error) {
+    try {
+      return get_numeric_value<Value_type>(any);
+    } catch (const Error_code &e) {
+      if (out_error) *out_error = e;
+    }
+
+    return {};
+  }
+
   static std::string get_string_value(const ::Mysqlx::Datatypes::Any &any,
                                       ngs::Error_code *out_error = nullptr) {
     using ::Mysqlx::Datatypes::Any;

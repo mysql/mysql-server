@@ -35,7 +35,6 @@ SET(CLIENT_SRC
   xcompression_negotiator.cc
   xcompression_impl.cc
   xrow.cc
-  validator/capability_compression_validator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
 )
 

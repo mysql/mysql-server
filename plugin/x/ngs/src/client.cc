@@ -45,6 +45,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/src/capabilities/capability_compression.h"
 #include "plugin/x/src/capabilities/handler_auth_mech.h"
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 #include "plugin/x/src/capabilities/handler_connection_attributes.h"
@@ -155,6 +156,8 @@ xpl::Capabilities_configurator *Client::capabilities_configurator() {
 
   handlers.push_back(
       ngs::allocate_shared<xpl::Capability_connection_attributes>());
+
+  handlers.push_back(ngs::allocate_shared<xpl::Capability_compression>(this));
 
   return ngs::allocate_object<xpl::Capabilities_configurator>(handlers);
 }
@@ -430,9 +433,25 @@ void Client::on_accept() {
 }
 
 void Client::on_session_auth_success(xpl::iface::Session *) {
+  log_debug("%s: on_session_auth_success", client_id());
   // this is called from worker thread
   State expected = State::k_authenticating_first;
   m_state.compare_exchange_strong(expected, State::k_running);
+
+  if (Compression_algorithm::k_none != m_cached_compression_algorithm) {
+    Compression_style style = m_cached_combine_msg
+                                  ? Compression_style::k_group
+                                  : Compression_style::k_multiple;
+
+    if (m_cached_max_msg == 1) {
+      style = Compression_style::k_single;
+    }
+
+    get_protocol_compression_or_install_it()->set_compression_options(
+        m_cached_compression_algorithm, style, m_cached_max_msg);
+
+    m_config->m_compression_algorithm = m_cached_compression_algorithm;
+  }
 }
 
 void Client::on_session_close(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
@@ -555,6 +574,27 @@ xpl::iface::Waiting_for_io *Client::get_idle_processing() {
   }
 
   return m_session->get_notice_output_queue().get_callbacks_waiting_for_io();
+}
+
+Protocol_encoder_compression *Client::get_protocol_compression_or_install_it() {
+  if (!m_is_compression_encoder_injected) {
+    m_is_compression_encoder_injected = true;
+    auto encoder = ngs::allocate_object<Protocol_encoder_compression>(
+        std::move(m_encoder), m_protocol_monitor,
+        std::bind(&Client::on_network_error, this, std::placeholders::_1),
+        &m_memory_block_pool);
+    set_encoder(encoder);
+  }
+
+  return reinterpret_cast<Protocol_encoder_compression *>(m_encoder.get());
+}
+
+void Client::configure_compression_opts(const Compression_algorithm algo,
+                                        const int64_t max_msg,
+                                        const bool combine) {
+  m_cached_compression_algorithm = algo;
+  m_cached_max_msg = max_msg;
+  m_cached_combine_msg = combine;
 }
 
 bool Client::create_session() {

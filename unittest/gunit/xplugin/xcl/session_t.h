@@ -78,6 +78,7 @@ class Xcl_session_impl_tests : public Test {
         .WillRepeatedly(ReturnRef(m_mock_connection));
     EXPECT_CALL(m_mock_connection, state())
         .WillRepeatedly(ReturnRef(m_mock_connection_state));
+    EXPECT_CALL(*m_mock_protocol, use_compression(_)).WillRepeatedly(Return());
 
     result.reset(
         new Session_impl(std::unique_ptr<Protocol_factory>{m_mock_factory}));

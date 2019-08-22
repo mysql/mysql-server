@@ -105,6 +105,7 @@ SET(XPL_TEST_SRC
   xpl/sasl_plain_auth_t.cc
   xpl/scheduler_t.cc
   xpl/server_client_timeout_t.cc
+  xpl/set_variable_adaptor_t.cc
   xpl/sha256_cache_t.cc
   xpl/socket_acceptor_task_t.cc
   xpl/sql_statement_builder_t.cc

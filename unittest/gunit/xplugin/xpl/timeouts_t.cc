@@ -49,8 +49,8 @@ class Timers_test_suite : public ::testing::Test {
     EXPECT_CALL(mock_server, get_config()).WillRepeatedly(Return(config));
     EXPECT_CALL(*mock_vio, get_mysql_socket())
         .WillRepeatedly(ReturnRef(m_socket));
-    sut.reset(new Mock_ngs_client(mock_vio, mock_server, /* id */ 1,
-                                  &mock_protocol_monitor, timeouts));
+    sut.reset(new StrictMock<Mock_ngs_client>(
+        mock_vio, mock_server, /* id */ 1, &mock_protocol_monitor, timeouts));
   }
 
   void TearDown() { EXPECT_CALL(*mock_vio, shutdown()); }
@@ -99,8 +99,8 @@ TEST_F(Timers_test_suite,
                       Return(k_msg.size())));
 
   EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
-  EXPECT_CALL(*sut, handle_message(_));
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
+  EXPECT_CALL(*sut, handle_message(_));
 
   sut->read_one_message_and_dispatch();
 }
@@ -120,6 +120,7 @@ TEST_F(Timers_test_suite,
   EXPECT_CALL(*mock_vio, set_state(_)).Times(2);
   EXPECT_CALL(*sut, handle_message(_));
   EXPECT_CALL(mock_protocol_monitor, on_receive(k_msg.size()));
+
   sut->read_one_message_and_dispatch();
 }
 

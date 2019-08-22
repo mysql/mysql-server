@@ -1,0 +1,160 @@
+# Checks decompression context consistency
+#
+# This test confirms even if some X Protocol messages are skipped/failed
+# by Expectation blocks, still those messages are decompressed which
+# ensure that client and server have the compression context in the same
+# state.
+#
+# The usage of compression context depends on which algorithm was selected by the user:
+#
+# * DEFLATE_STREAM - in this case the context is always the same, created
+#                    after connection authentication
+# * LZ4_MESSAGE - in this case the context is alive only for time of creation
+#                 of "Mysqlx.Connection.Compression" message. Each compression
+#                 message is going to have different context.
+#
+#
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/resultset.tmp
+-->import assert_status_variable.macro
+
+-->echo
+-->echo
+-->echo ## I. Compression and Open expectation block with no-error condition
+-->echo #
+-->echo # 1. Fail the expectation block and check that each message that
+-->echo #    was compressed is replied with error without executing it
+-->echo # 2. Close expectation block and check that compressed messages
+-->echo #    are correctly decompressed (context in sync) and executed
+
+-->macro Execute_compressed_queries	%ERROR%
+-->begin_compress %BLOCK_COMPRESSION%
+Mysqlx.Sql.StmtExecute{
+  stmt: "SELECT 'First query'"
+}
+
+Mysqlx.Sql.StmtExecute{
+  stmt: "SELECT 'Second query'"
+}
+
+Mysqlx.Sql.StmtExecute{
+  stmt: "SELECT 'Last query'"
+}
+-->end_compress
+
+-->expecterror %ERROR%
+-->recvresult
+-->expecterror %ERROR%
+-->recvresult
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+-->echo
+-->echo #
+-->echo # I.1
+# Open no-error block
+Mysqlx.Expect.Open {
+    cond {
+        condition_key: 1
+    }
+}
+-->recvok
+
+# Following error will force all requestes to be rejected
+expecterror ER_PARSE_ERROR;
+SELECT invalid_syntax(-);
+
+# Try to execute SQL from a compressed packet
+callmacro Execute_compressed_queries	ER_X_EXPECT_NO_ERROR_FAILED;
+
+
+-->echo
+-->echo #
+-->echo # I.2
+Mysqlx.Expect.Close {
+}
+recverror ER_X_EXPECT_NO_ERROR_FAILED;
+callmacro Execute_compressed_queries	0;
+
+EOF
+
+
+--echo
+--echo ## A. Execute the test using zlib/single
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  -v%BLOCK_COMPRESSION%=SINGLE
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## B. Execute the test using lz4/single
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=lz4_message
+  -v%BLOCK_COMPRESSION%=SINGLE
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## C. Execute the test using zlib/multiple
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  -v%BLOCK_COMPRESSION%=MULTIPLE
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## D. Execute the test using lz4/multiple
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=lz4_message
+  -v%BLOCK_COMPRESSION%=MULTIPLE
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## E. Execute the test using zlib/group
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=deflate_stream
+  -v%BLOCK_COMPRESSION%=GROUP
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+
+--echo
+--echo ## F. Execute the test using lz4/group
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=lz4_message
+  -v%BLOCK_COMPRESSION%=GROUP
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+## Cleanup
+
+--remove_file $MYSQL_TMP_DIR/resultset.tmp
+--source include/xplugin_drop_user.inc

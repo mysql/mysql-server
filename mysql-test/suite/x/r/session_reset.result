@@ -1,6 +1,5 @@
 # restart
-call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unhandled message of type 12'");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unhandled message of type 12'");
+call mtr.add_suppression("Plugin mysqlx reported: '.*: Unhandled message of type 12'");
 select sleep(1);
 sleep(1)
 0
@@ -8,6 +7,24 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
 root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC
+
+## A. Execute the Session reset without compression
+#
+## 1. Execute Reset using basic scenarios
+#    a. verify that reset without args removes current session
+#    b. verify that reset with keep_open=false removes current session
+#    c. verify that close removes current session
+## 2. Execute Reset with pipelined stmt-execute
+#    a. verify that reset without args removes current session
+#    b. verify that reset with keep_open=false removes current session
+#    c. verify that close removes current session
+## 3. Execute Reset and check that prepared-stmts are removed
+#    a. verify that reset without args removes current session and prepared-statemtents
+#    b. verify that reset with keep_open=false removes current session and prepared-statemtents
+#    c. verify that close removes current session and prepared-statemtents
+
+## 1.a
+#
 
 Session reset (Session_reset_empty)
 ===================================
@@ -129,6 +146,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+## 1.b
+#
 
 Session reset (Session_reset)
 =============================
@@ -257,6 +277,9 @@ Mysqlx.Ok {
 }
 ok
 
+## 1.c
+#
+
 Session reset (Session_close)
 =============================
 send Mysqlx.Session.Close {
@@ -378,6 +401,9 @@ Mysqlx.Ok {
 }
 ok
 
+## 2.a
+#
+
 Session reset single frame (Session_reset_empty)
 ================================================
 Sending 39 bytes raw data...
@@ -395,6 +421,9 @@ Mysqlx.Error {
 }
 
 ok
+
+## 2.b
+#
 
 Session reset single frame (Session_reset)
 ==========================================
@@ -414,6 +443,9 @@ Mysqlx.Error {
 
 ok
 
+## 2.c
+#
+
 Session reset single frame (Session_close)
 ==========================================
 Sending 39 bytes raw data...
@@ -431,6 +463,9 @@ Mysqlx.Error {
 }
 
 ok
+
+## 3.a
+#
 
 Session reset prepared stmt (Session_reset_empty)
 =================================================
@@ -480,6 +515,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 
+## 3.b
+#
+
 Session reset prepared stmt (Session_reset)
 ===========================================
 send Mysqlx.Prepare.Prepare {
@@ -528,6 +566,1229 @@ Got expected error: Cursor with ID=3 was not opened. (code 5111)
 Mysqlx.Ok {
   msg: "bye!"
 }
+
+## 3.c
+#
+
+Session reset prepared stmt (Session_close)
+===========================================
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+## B. Execute the Session reset with "deflate" compression enabled
+#
+## 1. Execute Reset using basic scenarios
+#    a. verify that reset without args removes current session
+#    b. verify that reset with keep_open=false removes current session
+#    c. verify that close removes current session
+## 2. Execute Reset with pipelined stmt-execute
+#    a. verify that reset without args removes current session
+#    b. verify that reset with keep_open=false removes current session
+#    c. verify that close removes current session
+## 3. Execute Reset and check that prepared-stmts are removed
+#    a. verify that reset without args removes current session and prepared-statemtents
+#    b. verify that reset with keep_open=false removes current session and prepared-statemtents
+#    c. verify that close removes current session and prepared-statemtents
+
+## 1.a
+#
+
+Session reset (Session_reset_empty)
+===================================
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1.1"
+}
+
+1.1
+1.1
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.2"
+}
+
+send Mysqlx.Session.Reset {
+}
+
+2.1
+2.1
+0 rows affected
+2.2
+2.2
+0 rows affected
+RUN recvok
+Login OK
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3.1"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+connecting...
+active session is now 'foo'
+RUN set @secret = 12345
+
+0 rows affected
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@secret is NULL, 'OK', 'FAIL')
+IF(@secret is NULL, 'OK', 'FAIL')
+OK
+0 rows affected
+closing session foo
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'foobar'
+RUN set global max_connections = 1234
+
+
+0 rows affected
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+OK
+0 rows affected
+RUN set @@global.max_connections = default
+
+0 rows affected
+closing session foobar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'bar'
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+RUN recvok
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Expect.Close {
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+closing session bar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## 1.b
+#
+
+Session reset (Session_reset)
+=============================
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1.1"
+}
+
+1.1
+1.1
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.2"
+}
+
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+2.1
+2.1
+0 rows affected
+2.2
+2.2
+0 rows affected
+RUN recvok
+Login OK
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3.1"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+connecting...
+active session is now 'foo'
+RUN set @secret = 12345
+
+0 rows affected
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+RUN select IF(@secret is NULL, 'OK', 'FAIL')
+IF(@secret is NULL, 'OK', 'FAIL')
+OK
+0 rows affected
+closing session foo
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'foobar'
+RUN set global max_connections = 1234
+
+
+0 rows affected
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+RUN select IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+OK
+0 rows affected
+RUN set @@global.max_connections = default
+
+0 rows affected
+closing session foobar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'bar'
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+RUN recvok
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Expect.Close {
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+closing session bar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## 1.c
+#
+
+Session reset (Session_close)
+=============================
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1.1"
+}
+
+1.1
+1.1
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.2"
+}
+
+send Mysqlx.Session.Close {
+}
+
+2.1
+2.1
+0 rows affected
+2.2
+2.2
+0 rows affected
+RUN recvok
+Login OK
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3.1"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+connecting...
+active session is now 'foo'
+RUN set @secret = 12345
+
+0 rows affected
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@secret is NULL, 'OK', 'FAIL')
+IF(@secret is NULL, 'OK', 'FAIL')
+OK
+0 rows affected
+closing session foo
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'foobar'
+RUN set global max_connections = 1234
+
+
+0 rows affected
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+OK
+0 rows affected
+RUN set @@global.max_connections = default
+
+0 rows affected
+closing session foobar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'bar'
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+RUN recvok
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Expect.Close {
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+closing session bar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## 2.a
+#
+
+Session reset single frame (Session_reset_empty)
+================================================
+Sending 39 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+
+## 2.b
+#
+
+Session reset single frame (Session_reset)
+==========================================
+Sending 41 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+
+## 2.c
+#
+
+Session reset single frame (Session_close)
+==========================================
+Sending 39 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+
+## 3.a
+#
+
+Session reset prepared stmt (Session_reset_empty)
+=================================================
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+## 3.b
+#
+
+Session reset prepared stmt (Session_reset)
+===========================================
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+## 3.c
+#
+
+Session reset prepared stmt (Session_close)
+===========================================
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+## C. Execute the Session reset with "lz4" compression enabled
+#
+## 1. Execute Reset using basic scenarios
+#    a. verify that reset without args removes current session
+#    b. verify that reset with keep_open=false removes current session
+#    c. verify that close removes current session
+## 2. Execute Reset with pipelined stmt-execute
+#    a. verify that reset without args removes current session
+#    b. verify that reset with keep_open=false removes current session
+#    c. verify that close removes current session
+## 3. Execute Reset and check that prepared-stmts are removed
+#    a. verify that reset without args removes current session and prepared-statemtents
+#    b. verify that reset with keep_open=false removes current session and prepared-statemtents
+#    c. verify that close removes current session and prepared-statemtents
+
+## 1.a
+#
+
+Session reset (Session_reset_empty)
+===================================
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1.1"
+}
+
+1.1
+1.1
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.2"
+}
+
+send Mysqlx.Session.Reset {
+}
+
+2.1
+2.1
+0 rows affected
+2.2
+2.2
+0 rows affected
+RUN recvok
+Login OK
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3.1"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+connecting...
+active session is now 'foo'
+RUN set @secret = 12345
+
+0 rows affected
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@secret is NULL, 'OK', 'FAIL')
+IF(@secret is NULL, 'OK', 'FAIL')
+OK
+0 rows affected
+closing session foo
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'foobar'
+RUN set global max_connections = 1234
+
+
+0 rows affected
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+OK
+0 rows affected
+RUN set @@global.max_connections = default
+
+0 rows affected
+closing session foobar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'bar'
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+RUN recvok
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Expect.Close {
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+closing session bar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## 1.b
+#
+
+Session reset (Session_reset)
+=============================
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1.1"
+}
+
+1.1
+1.1
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.2"
+}
+
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+2.1
+2.1
+0 rows affected
+2.2
+2.2
+0 rows affected
+RUN recvok
+Login OK
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3.1"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+connecting...
+active session is now 'foo'
+RUN set @secret = 12345
+
+0 rows affected
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+RUN select IF(@secret is NULL, 'OK', 'FAIL')
+IF(@secret is NULL, 'OK', 'FAIL')
+OK
+0 rows affected
+closing session foo
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'foobar'
+RUN set global max_connections = 1234
+
+
+0 rows affected
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+RUN select IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+OK
+0 rows affected
+RUN set @@global.max_connections = default
+
+0 rows affected
+closing session foobar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'bar'
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+RUN recvok
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Expect.Close {
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+closing session bar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## 1.c
+#
+
+Session reset (Session_close)
+=============================
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1.1"
+}
+
+1.1
+1.1
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.2"
+}
+
+send Mysqlx.Session.Close {
+}
+
+2.1
+2.1
+0 rows affected
+2.2
+2.2
+0 rows affected
+RUN recvok
+Login OK
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3.1"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+connecting...
+active session is now 'foo'
+RUN set @secret = 12345
+
+0 rows affected
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@secret is NULL, 'OK', 'FAIL')
+IF(@secret is NULL, 'OK', 'FAIL')
+OK
+0 rows affected
+closing session foo
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'foobar'
+RUN set global max_connections = 1234
+
+
+0 rows affected
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+RUN select IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+IF(@@global.max_connections = 1234, 'OK', 'FAIL')
+OK
+0 rows affected
+RUN set @@global.max_connections = default
+
+0 rows affected
+closing session foobar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now 'bar'
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+RUN recvok
+send Mysqlx.Session.Close {
+}
+
+RUN recvok
+Login OK
+send Mysqlx.Expect.Close {
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+closing session bar
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## 2.a
+#
+
+Session reset single frame (Session_reset_empty)
+================================================
+Sending 39 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+
+## 2.b
+#
+
+Session reset single frame (Session_reset)
+==========================================
+Sending 41 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+
+## 2.c
+#
+
+Session reset single frame (Session_close)
+==========================================
+Sending 39 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+
+## 3.a
+#
+
+Session reset prepared stmt (Session_reset_empty)
+=================================================
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+## 3.b
+#
+
+Session reset prepared stmt (Session_reset)
+===========================================
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Reset {
+  keep_open: false
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+## 3.c
+#
 
 Session reset prepared stmt (Session_close)
 ===========================================

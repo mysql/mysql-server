@@ -24,6 +24,7 @@
 
 #include "plugin/x/tests/driver/processor/commands/command.h"
 
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <algorithm>
 #include <fstream>
 #include <functional>
@@ -36,6 +37,9 @@
 
 #include "mysqld_error.h"
 
+#include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression_output_stream.h"
 #include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/message_matcher.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
@@ -92,6 +96,27 @@ std::string bindump_to_data(const std::string &bindump,
   return res;
 }
 
+std::string data_to_bindump(const std::string &bindump) {
+  std::string res;
+
+  for (size_t i = 0; i < bindump.length(); i++) {
+    unsigned char ch = bindump[i];
+
+    if (i >= 5 && ch == '\\') {
+      res.push_back('\\');
+      res.push_back('\\');
+    } else if (i >= 5 && isprint(ch) && !isblank(ch)) {
+      res.push_back(ch);
+    } else {
+      res.append("\\x");
+      res.push_back(aux::ALLOWED_HEX_CHARACTERS[(ch >> 4) & 0xf]);
+      res.push_back(aux::ALLOWED_HEX_CHARACTERS[ch & 0xf]);
+    }
+  }
+
+  return res;
+}
+
 template <typename T>
 class Backup_and_restore {
  public:
@@ -145,6 +170,7 @@ Command::Command() {
   m_commands["endrepeat"] = &Command::cmd_endrepeat;
   m_commands["system"] = &Command::cmd_system;
   m_commands["peerdisc"] = &Command::cmd_peerdisc;
+  m_commands["enable_compression"] = &Command::cmd_enable_compression;
   m_commands["recv"] = &Command::cmd_recv;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
@@ -189,6 +215,8 @@ Command::Command() {
   m_commands["noquery_result"] = &Command::cmd_noquery;
   m_commands["wait_for"] = &Command::cmd_wait_for;
   m_commands["received"] = &Command::cmd_received;
+  m_commands["compress_bin"] = &Command::cmd_compress;
+  m_commands["compress_hex"] = &Command::cmd_compress;
   m_commands["clear_received"] = &Command::cmd_clear_received;
   m_commands["recvresult_store_metadata"] =
       &Command::cmd_recvresult_store_metadata;
@@ -1136,6 +1164,32 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_enable_compression(std::istream &input,
+                                                Execution_context *context,
+                                                const std::string &args) {
+  const static std::map<std::string, xcl::Compression_algorithm> algo{
+      {"deflate_stream", xcl::Compression_algorithm::k_deflate},
+      {"lz4_message", xcl::Compression_algorithm::k_lz4}};
+
+  std::string arg = args;
+  context->m_variables->replace(&arg);
+
+  std::string lower_case_arg;
+  for (const auto c : arg) {
+    lower_case_arg.push_back(tolower(c));
+  }
+
+  if (0 == algo.count(lower_case_arg)) {
+    context->print_error("ERROR: Invalid algorithm used: \"", arg, "\"\n");
+
+    return Result::Stop_with_failure;
+  }
+
+  context->m_connection->active_holder().enable_compression(
+      algo.at(lower_case_arg));
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_peerdisc(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
@@ -1813,7 +1867,7 @@ Command::Result Command::cmd_hexsend(std::istream &input,
   if (0 != args_copy.length() % 2) {
     context->print_error(
         "Size of data should be a multiplication of two, current length:",
-        args_copy.length(), '\n');
+        args_copy.length(), ", data:'", args_copy, "'\n");
     return Result::Stop_with_failure;
   }
 
@@ -2177,6 +2231,75 @@ Command::Result Command::cmd_recv_with_stored_metadata(
                         Metadata_policy::Use_stored);
 }
 
+Command::Result Command::cmd_compress(std::istream &input,
+                                      Execution_context *context,
+                                      const std::string &args) {
+  std::vector<std::string> argl;
+
+  aux::split(argl, args, " ", true);
+
+  const bool is_hex = context->m_command_name.find("hex") != std::string::npos;
+
+  if (argl.size() != 2) {
+    context->print_error("'compress' command requires two arguments.\n");
+    return Result::Stop_with_failure;
+  }
+
+  context->m_variables->replace(&argl[1]);
+
+  std::string raw;
+  std::string compressed;
+
+  if (is_hex) {
+    aux::unhex(argl[1], raw);
+  } else {
+    raw =
+        bindump_to_data(argl[1], &context->m_script_stack, context->m_console);
+  }
+
+  auto algorithm = context->m_connection->active_holder().get_algorithm();
+
+  if (!algorithm) {
+    context->print_error(
+        "Algorithm not selected, please call first 'enable_compression' "
+        "command.\n");
+    return Result::Stop_with_failure;
+  }
+
+  {
+    google::protobuf::io::StringOutputStream sos(&compressed);
+    protocol::Compression_output_stream pos(algorithm, &sos);
+
+    uint8_t *dst;
+    int dst_size;
+    int raw_offset = 0;
+    uint8_t *source = reinterpret_cast<uint8_t *>(&raw[0]);
+    int source_size = raw.length();
+
+    while (source_size &&
+           pos.Next(reinterpret_cast<void **>(&dst), &dst_size)) {
+      int to_copy = std::min(dst_size, source_size);
+      int left_in_next = dst_size - to_copy;
+      memcpy(dst, &raw[raw_offset], to_copy);
+      source_size -= to_copy;
+      source += to_copy;
+
+      if (left_in_next > 0) pos.BackUp(left_in_next);
+    }
+  }
+
+  raw.clear();
+  if (is_hex) {
+    aux::hex(compressed, raw);
+  } else {
+    raw = data_to_bindump(compressed);
+  }
+
+  context->m_variables->set(argl[0], raw);
+
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_clear_stored_metadata(std::istream &input,
                                                    Execution_context *context,
                                                    const std::string &args) {
@@ -2325,6 +2448,12 @@ void print_help_commands() {
                "executed and results printed (allows variables).\n";
   std::cout << "-->endsql\n";
   std::cout << "  End SQL block. End a block of SQL started by -->sql\n";
+  std::cout << "-->begin_compress\n";
+  std::cout << "  Begins block of protobuf messages to compress and\n"
+               "  encapsulate inside single 'Compressed' message.\n";
+  std::cout << "-->end_compress\n";
+  std::cout << "  End compressed message block. End a block started by "
+               "-->begin_compress\n";
   std::cout << "-->macro <macroname> <argname1> ...\n";
   std::cout << "  Start a block of text to be defined as a macro. Must be "
                "terminated with -->endmacro\n";
@@ -2345,6 +2474,8 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
+  std::cout << "-->enable_compression [deflate|lz4]\n";
+  std::cout << "  Enable compression\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";
   std::cout
@@ -2372,10 +2503,14 @@ void print_help_commands() {
   std::cout << "  - In case when user specified <msgtype> - read one message "
                "and print it,\n"
                "    checks if its type is <msgtype>, additionally its fields "
-               "may be matched.\n";
+               "may be matched.\n"
+               "    Compressed messages are decompressed, thus user will "
+               "receive inner X Protocol messages.\n";
   std::cout << "  - In case when user specified <msgid> - read one message and "
                "print the ID,\n"
-               "    checks the RAW message ID if its match <msgid>.\n";
+               "    checks the RAW message ID if its match <msgid>.\n"
+               "    Compressed messages are not decompressed, thus their IDs "
+               "may be matched against <msgid>.\n";
   std::cout << "-->recvok\n";
   std::cout << "  Expect to receive 'Mysqlx.Ok' message. Works with "
                "'expecterror' command.\n";
@@ -2514,6 +2649,14 @@ void print_help_commands() {
                "<varname> value.\n";
   std::cout << "-->varescape <varname>\n";
   std::cout << "  Escape end-line and backslash characters.\n";
+  std::cout << "-->compress_bin <VAR> <bindump>\n";
+  std::cout << "  Compress <bindump> using output-compression context\n";
+  std::cout << "  and put the output to <VAR> encoded using bindump\n";
+  std::cout << "  (compatible with protobuf text format).\n";
+  std::cout << "-->compress_hex <VAR> <hexdump>\n";
+  std::cout << "  Compress <hexdump> using output-compression context\n";
+  std::cout
+      << "  and put the output to <VAR> encoded using hexdecimal string.\n";
   std::cout << "-->binsend <bindump>[<bindump>...]\n";
   std::cout << "  Sends one or more binary message dumps to the server "
                "(generate those with --bindump)\n";
@@ -2521,10 +2664,16 @@ void print_help_commands() {
                "[offset-end[percent]]]\n";
   std::cout
       << "  Same as binsend with begin and end offset of data to be send\n";
-  std::cout << "-->binparse MESSAGE.NAME {\n";
+  std::cout << "-->binparse <VAR_NAME> MESSAGE.NAME {\n";
   std::cout << "    MESSAGE.DATA\n";
   std::cout << "}\n";
-  std::cout << "  Dump given message to variable %MESSAGE_DUMP%\n";
+  std::cout << "  Dump given message to variable <VAR_NAME>, encoded as \n";
+  std::cout << "  binary string (compatible with protobuf text format).\n";
+  std::cout << "-->hexparse <VAR_NAME> MESSAGE.NAME {\n";
+  std::cout << "    MESSAGE.DATA\n";
+  std::cout << "}\n";
+  std::cout << "  Dump given message to variable <VAR_NAME>, encoded as \n";
+  std::cout << "  hexdecimal string.\n";
   std::cout << "-->quiet/noquiet\n";
   std::cout << "  Toggle verbose messages\n";
   std::cout << "-->query_result/noquery_result\n";

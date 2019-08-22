@@ -27,15 +27,29 @@
 #include <cctype>
 #include <iostream>
 
-#include "my_dbug.h"
-#include "print_version.h"
-#include "welcome_copyright_notice.h"
+#include "my_dbug.h"                   // NOLINT(build/include_subdir)
+#include "print_version.h"             // NOLINT(build/include_subdir)
+#include "welcome_copyright_notice.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
 #include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
+
+namespace {
+
+std::vector<std::string> multivalue_argument(const std::string &value) {
+  if (value.empty()) return {};
+
+  std::vector<std::string> result;
+
+  aux::split(result, value, ",", false);
+
+  return result;
+}
+
+}  // namespace
 
 void Driver_command_line_options::print_version() { ::print_version(); }
 
@@ -96,8 +110,30 @@ void Driver_command_line_options::print_help() {
   std::cout << "                      --use-socket* options take precedence "
                "before options like: uri, user,\n";
   std::cout << "                      host, password, port\n";
-  std::cout << "--ssl-mode            SSL configuration (default: ";
-  std::cout << "\"\")\n";
+  std::cout << "--compression-mode=<mode>  Enable/disable compression "
+               "negotiation algorithm (default: \"DISABLED\")\n";
+  std::cout << "                      \"DISABLED\" - do not negotiate "
+               "compression\n";
+  std::cout << "                      \"PREFERRED\" - if server doesn't "
+               "support selected compression, continue without compression.\n";
+  std::cout << "                      \"REQUIRED\" - if server doesn't support "
+               "selected compression, fail the connection.\n";
+  std::cout
+      << "--compression-algorithm=<algo[,algo...]>  Try to negotiate specified"
+         " compression algorithm with the server "
+         "(default:\"DEFLATE_STREAM,LZ4_MESSAGE\")\n";
+  std::cout << "                      \"\" - compression not enabled\n";
+  std::cout << "                      \"DEFLATE_STREAM\" - zlib compression "
+               "enabled\n";
+  std::cout
+      << "                      \"LZ4_MESSAGE\" - lz4f compression enabled\n";
+  std::cout << "--compression-combine-mixed-messages=<0/1>  If 1, server is "
+               "allowed to combine different message types into a compressed "
+               "message (default: 1)\n";
+  std::cout << "--compression-max-combine-messages=<N>  "
+               "If set, the server MUST not store more than N uncompressed "
+               "messages into a compressed message (default: no limit)\n";
+  std::cout << "--ssl-mode            SSL configuration (default: \"\")\n";
   std::cout << "                      \"\" - require encryption when at last "
                "one ssl option is set, otherwise is should be disabled.\n";
   std::cout << "                      \"PREFERRED\" - encryption is optional, "
@@ -177,6 +213,21 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
+    } else if (check_arg_with_value(argv, i, "--compression-mode", nullptr,
+                                    value)) {
+      m_connection_options.compression_mode = value;
+    } else if (check_arg_with_value(argv, i, "--compression-algorithm", nullptr,
+                                    value)) {
+      m_connection_options.compression_algorithm = multivalue_argument(value);
+    } else if (check_arg_with_value(argv, i,
+                                    "--compression-combine-mixed-messages",
+                                    nullptr, value)) {
+      m_connection_options.compression_combine_mixed_messages =
+          std::stoi(value);
+    } else if (check_arg_with_value(argv, i,
+                                    "--compression-max-combine-messages",
+                                    nullptr, value)) {
+      m_connection_options.compression_max_combine_messages = std::stoi(value);
     } else if (check_arg_with_value(argv, i, "--ssl-mode", nullptr, value)) {
       m_connection_options.ssl_mode = value;
     } else if (check_arg_with_value(argv, i, "--ssl-key", nullptr, value)) {
