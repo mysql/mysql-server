@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #endif
 #include <algorithm>
+#include <bitset>
 
 //#define DEBUG_MALLOC 1
 #ifdef DEBUG_MALLOC
@@ -883,7 +884,7 @@ ConfigSection::set_node_ids(ConfigSection::Entry *entry)
 }
 
 ConfigSection::Entry*
-ConfigSection::copy_entry(ConfigSection::Entry *dup_entry)
+ConfigSection::copy_entry(const ConfigSection::Entry *dup_entry) const
 {
   ConfigSection::Entry *new_entry = new Entry;
   *new_entry = *dup_entry;
@@ -996,7 +997,7 @@ ConfigSection::set_node_id_from_keys()
 }
 
 ConfigSection*
-ConfigSection::copy(bool ignore_node_ids)
+ConfigSection::copy() const
 {
   ConfigSection *new_config_section = new ConfigSection(m_cfg_object);
   DEB_MALLOC(("new(%u) => %p", __LINE__, new_config_section));
@@ -1009,30 +1010,56 @@ ConfigSection::copy(bool ignore_node_ids)
   Uint32 num_entries = 0;
   for (Uint32 i = 0; i < m_num_entries; i++)
   {
-    Entry *curr_entry = m_entry_array[i];
+    const Entry *curr_entry = m_entry_array[i];
+    new_config_section->m_entry_array.push_back(copy_entry(curr_entry));
+    num_entries++;
+  }
+  new_config_section->m_num_entries = num_entries;
+  new_config_section->set_node_id_from_keys();
+  new_config_section->verify_section();
+  new_config_section->sort();
+  return new_config_section;
+}
+
+ConfigSection*
+ConfigSection::copy_no_primary_keys(const Key_bitset& keys) const
+{
+  ConfigSection *new_config_section = new ConfigSection(m_cfg_object);
+  DEB_MALLOC(("new(%u) => %p", __LINE__, new_config_section));
+  require(is_real_section());
+  new_config_section->m_magic = this->m_magic;
+  new_config_section->m_config_section_type =
+    this->m_config_section_type;
+  new_config_section->m_section_type = this->m_section_type;
+  new_config_section->set_config_section_type();
+  Uint32 num_entries = 0;
+  for (Uint32 i = 0; i < m_num_entries; i++)
+  {
+    const Entry *curr_entry = m_entry_array[i];
     Uint32 key = curr_entry->m_key;
-    if (!(ignore_node_ids &&
-          (key == CONFIG_NODE_ID ||
-           key == CONFIG_FIRST_NODE_ID ||
-           key == CONFIG_SECOND_NODE_ID)))
+    /* The node id parameters are primary keys for section they belongs to,
+     * never copy them.
+     */
+    if (keys[key] &&
+        key != CONFIG_NODE_ID &&
+        key != CONFIG_FIRST_NODE_ID &&
+        key != CONFIG_SECOND_NODE_ID)
     {
       new_config_section->m_entry_array.push_back(copy_entry(curr_entry));
       num_entries++;
     }
   }
   new_config_section->m_num_entries = num_entries;
-  if (ignore_node_ids)
-  {
-    new_config_section->m_node = 0;
-    new_config_section->m_node1 = 0;
-    new_config_section->m_node2 = 0;
-    /* Not a normal section, so not verified */
-  }
-  else
-  {
-    new_config_section->set_node_id_from_keys();
-    new_config_section->verify_section();
-  }
+
+  // Clear member copies of node ids since they are not copied.
+  new_config_section->m_node = 0;
+  new_config_section->m_node1 = 0;
+  new_config_section->m_node2 = 0;
+
+  /* Since node ids are missing this section can not in general be verified by
+   * verify_section().
+   */
+
   new_config_section->sort();
   return new_config_section;
 }
@@ -1279,4 +1306,13 @@ bool ConfigSection::unpack_comm_section(const Uint32 **data)
   }
   require(set_comm_section());
   return unpack_section_entries(data, header_len, num_entries);
+}
+
+void ConfigSection::get_keys(Key_bitset& keys) const
+{
+  for (Uint32 i = 0; i < m_num_entries; i++)
+  {
+    Entry *entry = m_entry_array[i];
+    keys.set(entry->m_key);
+  }
 }
