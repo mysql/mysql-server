@@ -883,7 +883,7 @@ ConfigSection::set_node_ids(ConfigSection::Entry *entry)
 }
 
 ConfigSection::Entry*
-ConfigSection::copy_entry(ConfigSection::Entry *dup_entry)
+ConfigSection::copy_entry(const ConfigSection::Entry *dup_entry) const
 {
   ConfigSection::Entry *new_entry = new Entry;
   *new_entry = *dup_entry;
@@ -996,7 +996,7 @@ ConfigSection::set_node_id_from_keys()
 }
 
 ConfigSection*
-ConfigSection::copy(bool ignore_node_ids)
+ConfigSection::copy(bool ignore_node_ids) const
 {
   ConfigSection *new_config_section = new ConfigSection(m_cfg_object);
   DEB_MALLOC(("new(%u) => %p", __LINE__, new_config_section));

@@ -116,19 +116,19 @@ private: /* Private methods */
   bool set_pointer_comm_section();
   bool set_pointer_system_section();
 
-  bool is_pointer_section();
-  bool is_pointer_node_section();
-  bool is_pointer_comm_section();
-  bool is_pointer_system_section();
-  bool is_real_section();
+  bool is_pointer_section() const;
+  bool is_pointer_node_section() const;
+  bool is_pointer_comm_section() const;
+  bool is_pointer_system_section() const;
+  bool is_real_section() const;
 
   bool set_node_section();
   bool set_comm_section();
   bool set_system_section();
 
-  ConfigSection *copy(bool ignore_node_ids);
+  ConfigSection *copy(bool ignore_node_ids) const;
   void copy_default(ConfigSection *default_cs);
-  Entry* copy_entry(Entry *copy_entry);
+  Entry* copy_entry(const Entry *copy_entry) const;
   void handle_default_section(ConfigSection *curr);
 
   Uint32 get_v1_length() const;
@@ -285,7 +285,7 @@ ConfigSection::get_second_node_id()
 }
 
 inline bool
-ConfigSection::is_real_section()
+ConfigSection::is_real_section() const
 {
   check_magic();
   return ((m_config_section_type == NodeSection) ||
@@ -294,7 +294,7 @@ ConfigSection::is_real_section()
 }
 
 inline bool
-ConfigSection::is_pointer_section()
+ConfigSection::is_pointer_section() const
 {
   check_magic();
   return ((m_config_section_type == NodePointerSection) ||
@@ -303,21 +303,21 @@ ConfigSection::is_pointer_section()
 }
 
 inline bool
-ConfigSection::is_pointer_node_section()
+ConfigSection::is_pointer_node_section() const
 {
   check_magic();
   return (m_config_section_type == NodePointerSection);
 }
 
 inline bool
-ConfigSection::is_pointer_comm_section()
+ConfigSection::is_pointer_comm_section() const
 {
   check_magic();
   return (m_config_section_type == CommPointerSection);
 }
 
 inline bool
-ConfigSection::is_pointer_system_section()
+ConfigSection::is_pointer_system_section() const
 {
   check_magic();
   return (m_config_section_type == SystemPointerSection);
