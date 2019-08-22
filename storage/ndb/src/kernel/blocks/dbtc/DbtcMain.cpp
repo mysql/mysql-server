@@ -3800,6 +3800,19 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   else if (TOperationType == ZREAD || TOperationType == ZREAD_EX) {
     jam();
     c_counters.creadCount++;
+    if (regTcPtr->opSimple == ZFALSE)
+    {
+      jam();
+      if (unlikely(m_concurrent_overtakeable_operations >=
+                   m_take_over_operations))
+      {
+        jam();
+        TCKEY_abort(signal, 65, apiConnectptr);
+        return;
+      }
+      regTcPtr->m_overtakeable_operation = 1;
+      m_concurrent_overtakeable_operations++;
+    }
   }
   else
   {
@@ -3890,14 +3903,15 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         TCKEY_abort(signal, 65, apiConnectptr);
         return;
       }
-      if (unlikely(m_concurrent_write_operations > m_take_over_operations))
+      if (unlikely(m_concurrent_overtakeable_operations >=
+                   m_take_over_operations))
       {
         jam();
         TCKEY_abort(signal, 65, apiConnectptr);
         return;
       }
-      regTcPtr->m_write_operation = 1;
-      m_concurrent_write_operations++;
+      regTcPtr->m_overtakeable_operation = 1;
+      m_concurrent_overtakeable_operations++;
       break;
     default:
       TCKEY_abort(signal, 9, apiConnectptr);
@@ -5060,10 +5074,10 @@ void Dbtc::releaseTcCon()
   regTcPtr->m_special_op_flags = 0;
   regTcPtr->indexOp = RNIL;
 
-  if (regTcPtr->m_write_operation == 1)
+  if (regTcPtr->m_overtakeable_operation == 1)
   {
     jam();
-    m_concurrent_write_operations--;
+    m_concurrent_overtakeable_operations--;
   }
   if (regTcPtr->triggeringOperation != RNIL &&
       regTcPtr->currentTriggerId != RNIL)
@@ -15813,7 +15827,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConList.addLast(tcConptr);
   }
   c_counters.cconcurrentOp = 0;
-  m_concurrent_write_operations = 0;
+  m_concurrent_overtakeable_operations = 0;
 
   TcConnectRecordPtr tcConptr;
   while (fast_record_list.removeFirst(tcConptr))

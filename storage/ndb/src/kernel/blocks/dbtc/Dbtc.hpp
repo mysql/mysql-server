@@ -777,7 +777,7 @@ public:
       apiConnect(RNIL),
       nextList(RNIL),
       noOfNodes(0),
-      m_write_operation(0),
+      m_overtakeable_operation(0),
       m_special_op_flags(0),
       prevList(RNIL),
       triggeringOperation(RNIL),
@@ -821,7 +821,7 @@ public:
                              /* 1 = UPDATE REQUEST                          */
                              /* 2 = INSERT REQUEST                          */
                              /* 3 = DELETE REQUEST                          */
-    Uint8 m_write_operation;
+    Uint8 m_overtakeable_operation;
     Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
@@ -2619,7 +2619,7 @@ private:
   } c_counters;
   RSS_OP_SNAPSHOT(cconcurrentOp);
 
-  Uint32 m_concurrent_write_operations;
+  Uint32 m_concurrent_overtakeable_operations;
 
   Uint16 cownNodeid;
   Uint16 terrorCode;
