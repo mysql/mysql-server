@@ -345,14 +345,23 @@ bool IndexRangeScanIterator::Init() {
   if (first_init && table()->file->inited && set_record_buffer(m_qep_tab))
     return true; /* purecov: inspected */
 
+  m_seen_eof = false;
   return false;
 }
 
 int IndexRangeScanIterator::Read() {
+  if (m_seen_eof) {
+    return -1;
+  }
+
   int tmp;
   while ((tmp = m_quick->get_next())) {
     if (thd()->killed || (tmp != HA_ERR_RECORD_DELETED)) {
-      return HandleError(tmp);
+      int error_code = HandleError(tmp);
+      if (error_code == -1) {
+        m_seen_eof = true;
+      }
+      return error_code;
     }
   }
 

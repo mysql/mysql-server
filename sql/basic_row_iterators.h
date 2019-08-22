@@ -143,6 +143,11 @@ class IndexRangeScanIterator final : public TableRowIterator {
   QUICK_SELECT_I *const m_quick;
   QEP_TAB *const m_qep_tab;
   ha_rows *const m_examined_rows;
+
+  // After m_quick has returned EOF, some of its members are destroyed, making
+  // subsequent requests for new rows undefined. We flag EOF so that the
+  // iterator does not request a new row.
+  bool m_seen_eof{false};
 };
 
 // Readers relating to reading sorted data (from filesort).
