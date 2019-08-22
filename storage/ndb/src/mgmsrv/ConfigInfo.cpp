@@ -67,14 +67,15 @@ ConfigInfo::m_sectionNameAliases[]={
   {0, 0}
 };
 
+// Also defines the order used in print_impl()/print()/print_xml().
 const char* 
 ConfigInfo::m_sectionNames[]={
   "SYSTEM",
   "COMPUTER",
 
-  DB_TOKEN,
-  MGM_TOKEN,
   API_TOKEN,
+  MGM_TOKEN,
+  DB_TOKEN,
 
   "TCP",
   "SHM"
@@ -4687,12 +4688,18 @@ void ConfigInfo::print_impl(const char* section_filter,
                             ConfigPrinter& printer) const {
   printer.start();
   /* Iterate through all sections */
-  Properties::Iterator it(&m_info);
-  for (const char* s = it.first(); s != NULL; s = it.next()) {
+  for (int i = 0; i < m_noOfSectionNames; i++)
+  {
+    const char* s = m_sectionNames[i];
     if (section_filter && strcmp(section_filter, s))
       continue; // Skip this section
 
     const Properties * sec = getInfo(s);
+    if (sec == nullptr)
+    {
+      // There was no such section
+      continue;
+    }
 
     if (is_internal_section(sec))
       continue; // Skip whole section
