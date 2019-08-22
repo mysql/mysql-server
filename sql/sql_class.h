@@ -3698,10 +3698,6 @@ class THD : public MDL_context_owner,
   */
   const String normalized_query();
 
-  /**
-    Assign a new value to thd->m_query_string.
-    Protected with the LOCK_thd_query mutex.
-  */
   void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
                              size_t query_length_arg MY_ATTRIBUTE((unused))) {
     MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
@@ -3710,11 +3706,16 @@ class THD : public MDL_context_owner,
 #endif
   }
   void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }
+
+  /**
+    Assign a new value to thd->m_query_string.
+    Protected with the LOCK_thd_query mutex.
+  */
   void set_query(const char *query_arg, size_t query_length_arg) {
     LEX_CSTRING tmp = {query_arg, query_length_arg};
     set_query(tmp);
   }
-  void set_query(const LEX_CSTRING &query_arg);
+  void set_query(LEX_CSTRING query_arg);
   void reset_query() { set_query(LEX_CSTRING()); }
 
   /**
