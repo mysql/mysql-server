@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1148,6 +1148,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
       if (param->convert_str_value(thd))
         goto error;
 
+     DBUG_ASSERT(param->pos_in_query > length);
      size_t num_bytes = param->pos_in_query - length;
      if (query->length() + num_bytes + val->length() >
           std::numeric_limits<uint32>::max())

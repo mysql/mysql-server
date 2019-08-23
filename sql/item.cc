@@ -3765,7 +3765,7 @@ bool Item_param::itemize(Parse_context *pc, Item **res)
     my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
     return true;
   }
-  return lex->param_list.push_back(this);
+  return false;
 }
 
 
