@@ -227,6 +227,8 @@ public:
   Uint32 get_allocated() const;
   Uint32 get_reserved() const;
   Uint32 get_shared() const;
+  Uint32 get_free_shared() const;
+  Uint32 get_free_shared_nolock() const;
   Uint32 get_spare() const;
   Uint32 get_in_use() const;
   Uint32 get_reserved_in_use() const;
@@ -521,7 +523,17 @@ inline
 Uint32 Resource_limits::get_free_shared() const
 {
   assert(m_allocated >= m_free_reserved + m_in_use + m_spare);
-  return m_allocated - (m_free_reserved + m_in_use + m_spare);
+  const Uint32 used = m_free_reserved + m_in_use + m_spare;
+  const Uint32 total = m_allocated;
+  /*
+   * When called from get_free_shared_nolock ensure that total is not less
+   * than used.
+   */
+  if (unlikely(total < used))
+  {
+    return 0;
+  }
+  return total - used;
 }
 
 inline
