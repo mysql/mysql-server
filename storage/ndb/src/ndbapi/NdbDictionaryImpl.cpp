@@ -3449,7 +3449,8 @@ void NdbTableImpl::IndirectReader(SimpleProperties::Reader & it,
   NdbTableImpl * impl = static_cast<NdbTableImpl *>(dest);
   Uint16 key = it.getKey();
 
-  if(key == DictTabInfo::FrmData) {
+  /* Metadata may be stored as FrmData or MysqlDictMetadata */
+  if(key == DictTabInfo::FrmData || key == DictTabInfo::MysqlDictMetadata) {
     /* Expand the UtilBuffer to the required length, then copy data in */
     impl->m_frm.grow(it.getPaddedLength());
     it.getString(static_cast<char *>(impl->m_frm.append(it.getValueLen())));
@@ -3461,7 +3462,8 @@ bool NdbTableImpl::IndirectWriter(SimpleProperties::Writer & it,
                                   const void * src) {
   const NdbTableImpl * impl = static_cast<const NdbTableImpl *>(src);
 
-  if(key == DictTabInfo::FrmData)
+  /* Always store metadata as MysqlDictMetadata */
+  if(key == DictTabInfo::MysqlDictMetadata)
     return it.add(key, impl->m_frm.get_data(), impl->m_frm.length());
 
   return true;
