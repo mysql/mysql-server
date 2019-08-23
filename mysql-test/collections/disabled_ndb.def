@@ -58,10 +58,3 @@ ndb.ndb_import2 : BUG#28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
 
 # Disabled due to Bug#29305977 which is waiting on Bug#29205142 to be fixed
 ndb.ndbinfo_upgrade: Bug#29305977 NDB.NDBINFO_UPGRADE TEST FAILS
-
-# The check-testcase fails in the following testcases
-# due to an issue in the patch that fixed Bug#20712046
-ndb.distributed_grants: Bug#29966540 DISTRIBUTED PRIVILEGES TESTCASES FAIL AFTER THE FIX FOR BUG#20712046
-ndb.apply_stored_grants: Bug#29966540 DISTRIBUTED PRIVILEGES TESTCASES FAIL AFTER THE FIX FOR BUG#20712046
-ndb.concurrent_grants: Bug#29966540 DISTRIBUTED PRIVILEGES TESTCASES FAIL AFTER THE FIX FOR BUG#20712046
-ndb_rpl.ndb_rpl_stored_grants: Bug#29966540 DISTRIBUTED PRIVILEGES TESTCASES FAIL AFTER THE FIX FOR BUG#20712046
