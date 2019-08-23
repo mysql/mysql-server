@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1718,7 +1718,6 @@ bool log_slow_applicable(THD *thd)
 void log_slow_do(THD *thd)
 {
   THD_STAGE_INFO(thd, stage_logging_slow_query);
-  thd->status_var.long_query_count++;
 
   if (thd->rewritten_query.length())
     query_logger.slow_log_write(thd,
@@ -1731,6 +1730,10 @@ void log_slow_do(THD *thd)
 
 void log_slow_statement(THD *thd)
 {
+  // The docs say slow queries must be counted even when the log is off.
+  if (thd->server_status & SERVER_QUERY_WAS_SLOW)
+    thd->status_var.long_query_count++;
+
   if (log_slow_applicable(thd))
     log_slow_do(thd);
 }
