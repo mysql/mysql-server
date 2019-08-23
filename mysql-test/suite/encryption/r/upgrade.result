@@ -35,23 +35,23 @@ SELECT schema_id, t.name, t.options, t.tablespace_id
 FROM mysql.tables t JOIN mysql.schemata sch
 ON t.schema_id = sch.id WHERE sch.name LIKE 'db1' ORDER BY t.name;
 schema_id	name	options	tablespace_id
-3	c1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	c2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	c3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	h1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	h2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	h3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	i1	avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	i2	avg_row_length=0;encrypt_type=y;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	i3	avg_row_length=0;encrypt_type=n;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	i4	avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
-3	i_part1	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
-3	i_part2	avg_row_length=0;encrypt_type=y;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
-3	i_part3	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
-3	i_part4	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
-3	i_ts1	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
-3	i_ts2	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
-3	i_ts3	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
+4	c1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	c2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	c3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	h1	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	h2	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	h3	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	i1	avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	i2	avg_row_length=0;encrypt_type=y;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	i3	avg_row_length=0;encrypt_type=n;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	i4	avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	NULL
+4	i_part1	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+4	i_part2	avg_row_length=0;encrypt_type=y;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+4	i_part3	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+4	i_part4	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;tablespace=innodb_file_per_table;	NULL
+4	i_ts1	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
+4	i_ts2	avg_row_length=0;encrypt_type=n;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
+4	i_ts3	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;	27
 SELECT id, name, options FROM mysql.tablespaces
 WHERE name LIKE 'ts%' OR name LIKE '%db1%';
 id	name	options

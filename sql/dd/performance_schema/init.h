@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #ifndef DD__PERFORMANCE_SCHEMA_INIT_PFS_INCLUDED
 #define DD__PERFORMANCE_SCHEMA_INIT_PFS_INCLUDED
 
+class THD;
+
 namespace dd {
 class Properties;
 enum class enum_dd_init_type;
@@ -30,6 +32,16 @@ enum class enum_dd_init_type;
 
 namespace dd {
 namespace performance_schema {
+
+/**
+  Create the performance schema.
+
+  @param thd    Thread context.
+
+  @return       Return true upon failure, otherwise false.
+*/
+
+bool create_pfs_schema(THD *thd);
 
 /**
   Creates performance schema tables in the Data Dictionary.

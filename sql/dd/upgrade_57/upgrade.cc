@@ -55,8 +55,9 @@
 #include "sql/dd/impl/sdi.h"                      // sdi::store()
 #include "sql/dd/impl/system_registry.h"          // dd::System_tables
 #include "sql/dd/impl/utils.h"                    // execute_query
-#include "sql/dd/info_schema/metadata.h"  // dd::info_schema::install_IS...
-#include "sql/dd/sdi_file.h"              // dd::sdi_file::EXT
+#include "sql/dd/info_schema/metadata.h"     // dd::info_schema::install_IS...
+#include "sql/dd/performance_schema/init.h"  // create_pfs_schema
+#include "sql/dd/sdi_file.h"                 // dd::sdi_file::EXT
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/types/tablespace.h"
@@ -942,6 +943,9 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
   /*
     If mysql.ibd exists and upgrade stage tracking does not exist, restart
     the server.
+
+    For ordinary restart of an 8.0 server, and for upgrades post 8.0,
+    this code path will be taken.
   */
   if (exists_mysql_tablespace && !upgrade_status_exists) {
     return (restart_dictionary(thd));
@@ -1101,6 +1105,35 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
     terminate(thd);
     return true;
   }
+
+  /*
+    Plugins may need to create performance schema tables. During upgrade from
+    5.7, we do not yet have an entry in mysql.schemata for performance schema,
+    so creation of such tables will fail. To avoid this, we migrate the entry
+    here if the schema was present in 5.7. If the performance schema was not
+    present in 5.7, then we create the schema explicitly, if the server is
+    configured to use the performance schema.
+  */
+  size_t path_len = build_table_filename(
+      path, sizeof(path) - 1, PERFORMANCE_SCHEMA_DB_NAME.str, "", "", 0);
+  path[path_len - 1] = 0;  // Remove last '/' from path
+  MY_STAT stat_info;
+
+  // RAII to handle error messages.
+  dd::upgrade::Bootstrap_error_handler bootstrap_error_handler;
+
+  if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != nullptr) {
+    if (migrate_schema_to_dd(thd, PERFORMANCE_SCHEMA_DB_NAME.str)) {
+      terminate(thd);
+      return true;
+    }
+  }
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  else if (dd::performance_schema::create_pfs_schema(thd)) {
+    terminate(thd);
+    return true;
+  }
+#endif
 
   // Reset flag
   set_allow_sdi_creation(true);
