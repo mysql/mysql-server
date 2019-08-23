@@ -3588,15 +3588,26 @@ void srv_shutdown() {
 single-table tablespace.
 @param[in]	table		table object
 @param[out]	filename	filename
-@param[in]	max_len		filename max length */
+@param[in]	max_len		filename max length
+@param[in]	convert		convert table_name to lower case*/
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
-                                      ulint max_len) {
+                                      ulint max_len, bool convert) {
   /* Make sure the data_dir_path is set. */
   dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
   std::string path = dict_table_get_datadir(table);
+  char table_name[OS_FILE_MAX_PATH];
 
-  auto filepath = Fil_path::make(path, table->name.m_name, CFP, true);
+  char *name;
+  if (convert) {
+    strcpy(table_name, table->name.m_name);
+    innobase_casedn_str(table_name);
+    name = table_name;
+  } else {
+    name = table->name.m_name;
+  }
+
+  auto filepath = Fil_path::make(path, name, CFP, true);
 
   size_t len = strlen(filepath);
   ut_a(max_len >= len);

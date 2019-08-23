@@ -33,10 +33,23 @@ sub ib_backup_cfg_file {
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
     my @args = (File::Spec->catfile($datadir, $db, $cfg_file),
-	        File::Spec->catfile($tmpd, $cfg_file));
+		File::Spec->catfile($tmpd, $cfg_file));
 
     copy(@args) or die "copy @args failed: $!";
 }
+
+sub ib_backup_cfp_file {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $cfp_file = sprintf("%s.cfp", $table);
+    my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
+
+    my @args = (File::Spec->catfile($datadir, $db, $cfp_file),
+	        File::Spec->catfile($tmpd, $cfp_file));
+
+    copy(@args) or die "copy @args failed: $!";
+}
+
 
 sub ib_backup_tablespace {
     my ($db, $table) = @_;
@@ -100,6 +113,21 @@ sub ib_restore_ibd_file {
 
     copy(@args) or die "copy @args failed: $!";
 }
+
+
+sub ib_restore_cfp_file {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $cfp_file = sprintf("%s.cfp", $table);
+    my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
+
+    my @args = (File::Spec->catfile($tmpd, $cfp_file),
+		File::Spec->catfile($datadir, "$db", $cfp_file));
+
+    copy(@args) or die "copy @args failed: $!";
+}
+
+
 
 sub ib_restore_tablespace {
     my ($db, $table) = @_;
