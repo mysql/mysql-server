@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef NDB_POOL_HPP
 #define NDB_POOL_HPP
+
+#include <climits>
 
 #include <ndb_global.h>
 #include <kernel_types.h>
@@ -72,6 +74,8 @@ struct Record_info
 
 struct Resource_limit
 {
+  static constexpr Uint32 HIGHEST_LIMIT = UINT32_MAX;
+
   /**
     Minimal number of pages dedicated for the resource group from shared global
     page memory.

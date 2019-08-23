@@ -426,14 +426,11 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   }
 
   Uint32 free_shr = m_allocated - m_in_use - m_spare;
-  if (rl.m_max > 0)
+  assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res);
+  Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare - spare_res;
+  if (free_shr > limit)
   {
-    assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res);
-    Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare - spare_res;
-    if (free_shr > limit)
-    {
-      free_shr = limit;
-    }
+    free_shr = limit;
   }
   Uint32 spare_shr = (free_shr > spare_need) ? spare_need : free_shr;
   spare_need -= spare_shr;
@@ -448,10 +445,8 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
 
   // TODO if spare_need > 0, mark out of memory in some way
 
-  if (rl.m_max > 0)
-  {
-    require(rl.m_max >= rl.m_curr + rl.m_spare);
-  }
+  require(rl.m_max >= rl.m_curr + rl.m_spare);
+
   return spare_take;
 }
 
@@ -565,11 +560,8 @@ Uint32 Resource_limits::get_resource_free(Uint32 id) const
 {
   require(id <= MM_RG_COUNT);
   const Resource_limit& rl = m_limit[id - 1];
-  if (rl.m_max != 0)
-  {
-    return rl.m_max - (rl.m_curr + rl.m_spare);
-  }
-  return UINT32_MAX;
+  assert(rl.m_curr + rl.m_spare <= rl.m_max);
+  return rl.m_max - (rl.m_curr + rl.m_spare);
 }
 
 inline

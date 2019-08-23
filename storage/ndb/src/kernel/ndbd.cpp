@@ -341,6 +341,11 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_resource_id = RG_DATAMEM;
     ed.m_mem_manager->set_resource_limit(rl);
   }
+  else
+  {
+    g_eventLogger->alert("No data memory, exiting.");
+    return -1;
+  }
 
   Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
@@ -379,13 +384,32 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_resource_id = RG_FILE_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
+  else
+  {
+    g_eventLogger->alert("No file buffer memory, exiting.");
+    return -1;
+  }
 
   Uint32 jbpages = compute_jb_pages(&ed);
   if (jbpages)
   {
+    require(globalData.isNdbMt);
     Resource_limit rl;
     rl.m_min = jbpages;
     rl.m_max = jbpages;
+    rl.m_resource_id = RG_JOBBUFFER;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+  else if (globalData.isNdbMt)
+  {
+    g_eventLogger->alert("No job buffer memory, exiting.");
+    return -1;
+  }
+  else
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = 0; // Not used by ndbd
     rl.m_resource_id = RG_JOBBUFFER;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -432,7 +456,16 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      * allow over allocation (from SharedGlobalMemory) of up to 25% of
      *   totally allocated SendBuffer
      */
+    require(sbpages + (sbpages * 25) / 100 > 0);
     rl.m_max = sbpages + (sbpages * 25) / 100;
+    rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+  else
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = 0; // Not used by ndbd
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -454,6 +487,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
 
     Resource_limit rl;
     rl.m_min = pgman_pages;
+    require(pgman_pages > 0);
     rl.m_max = pgman_pages;
     rl.m_resource_id = RG_DISK_PAGE_BUFFER;  // Add to RG_DISK_PAGE_BUFFER
     ed.m_mem_manager->set_resource_limit(rl);
@@ -463,7 +497,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   {
     Resource_limit rl;
     rl.m_min = stpages;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = RG_SCHEMA_TRANS_MEMORY;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -541,13 +575,13 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         g_eventLogger->info("reserving %u extra pages for undo buffer memory",
                             undopages);
         transmem += undopages;
-        Resource_limit rl;
-        rl.m_min = transmem;
-        rl.m_max = 0;
-        rl.m_resource_id = RG_TRANSACTION_MEMORY;
-        ed.m_mem_manager->set_resource_limit(rl);
       }
     }
+    Resource_limit rl;
+    rl.m_min = transmem;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_TRANSACTION_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
   }
 
   {
@@ -560,8 +594,16 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      * percent of global shared global page memory.
      */
     rl.m_min = 0;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = RG_QUERY_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_DISK_RECORDS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
 

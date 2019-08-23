@@ -442,7 +442,7 @@ Resource_limits::check() const
     curr += rl[i].m_curr;
     spare += rl[i].m_spare;
     sumres += rl[i].m_min;
-    // assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
+    assert(rl[i].m_curr <= rl[i].m_max);
     if (rl[i].m_curr + rl[i].m_spare > rl[i].m_min)
     {
       shared_alloc += rl[i].m_curr + rl[i].m_spare - rl[i].m_min;
@@ -502,7 +502,7 @@ Resource_limits::dump() const
  *
  * m_min = reserved
  * m_curr = currently used
- * m_max = max alloc, 0 = no limit
+ * m_max = max alloc
  *
  */
 void
@@ -608,7 +608,7 @@ Ndbd_mem_manager::get_memroot() const
  *
  * m_min = reserved
  * m_curr = currently used including spare pages
- * m_max = max alloc, 0 = no limit
+ * m_max = max alloc
  * m_spare = pages reserved for restart or special use
  *
  */
@@ -1697,7 +1697,7 @@ main(int argc, char** argv)
   rl.m_resource_id = 0;
   mem.set_resource_limit(rl);
   rl.m_min = sz < 16384 ? sz : 16384;
-  rl.m_max = 0;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
   rl.m_resource_id = 1;
   mem.set_resource_limit(rl);
   

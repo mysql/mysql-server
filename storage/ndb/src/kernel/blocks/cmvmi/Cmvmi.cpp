@@ -3539,7 +3539,8 @@ Cmvmi::execCONTINUEB(Signal* signal)
     m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
     {
       const Uint32 dm_pages_used = rl.m_curr;
-      const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+      const Uint32 dm_pages_total =
+          (rl.m_max < Resource_limit::HIGHEST_LIMIT) ? rl.m_max : rl.m_min;
       const Uint32 dm_percent_now = calc_percent(dm_pages_used,
                                                  dm_pages_total);
 
@@ -3617,7 +3618,8 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
   const Uint32 dm_pages_used = rl.m_curr;
-  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+  const Uint32 dm_pages_total =
+      (rl.m_max < Resource_limit::HIGHEST_LIMIT) ? rl.m_max : rl.m_min;
 
   const Uint32 acc_pages_used =
     sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
@@ -3642,7 +3644,8 @@ Cmvmi::reportIMUsage(Signal* signal, int incDec, BlockReference ref)
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
   const Uint32 dm_pages_used = rl.m_curr;
-  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+  const Uint32 dm_pages_total =
+      (rl.m_max < Resource_limit::HIGHEST_LIMIT) ? rl.m_max : rl.m_min;
 
   const Uint32 acc_pages_used =
     sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
