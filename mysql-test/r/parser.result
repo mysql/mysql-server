@@ -2542,3 +2542,51 @@ Note	1003	(/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`
 DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+#
+# Bug#30131161: SYNTAX ERROR WITH || WHEN USING PIPES_AS_CONCAT AFTER
+#               UPGRADING TO 8.0.17
+#
+SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT'));
+SELECT 'ab' LIKE 'a%', 'ab' LIKE 'a' || '%';
+'ab' LIKE 'a%'	'ab' LIKE 'a' || '%'
+1	1
+SELECT 'ab' NOT LIKE 'a%', 'ab' NOT LIKE 'a' || '%';
+'ab' NOT LIKE 'a%'	'ab' NOT LIKE 'a' || '%'
+0	0
+SELECT 'ab' LIKE 'ac', 'ab' LIKE 'a' || 'c';
+'ab' LIKE 'ac'	'ab' LIKE 'a' || 'c'
+0	0
+SELECT 'ab' NOT LIKE 'ac', 'ab' NOT LIKE 'a' || 'c';
+'ab' NOT LIKE 'ac'	'ab' NOT LIKE 'a' || 'c'
+1	1
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!' || '%' ESCAPE '!';
+'a%' LIKE 'a!%' ESCAPE '!'	'a%' LIKE 'a!' || '%' ESCAPE '!'
+1	1
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!' || '%' ESCAPE '!';
+'a%' NOT LIKE 'a!%' ESCAPE '!'	'a%' NOT LIKE 'a!' || '%' ESCAPE '!'
+0	0
+SELECT 'a%' LIKE 'a!%' ESCAPE '$', 'a%' LIKE 'a!' || '%' ESCAPE '$';
+'a%' LIKE 'a!%' ESCAPE '$'	'a%' LIKE 'a!' || '%' ESCAPE '$'
+0	0
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '$', 'a%' NOT LIKE 'a!' || '%' ESCAPE '$';
+'a%' NOT LIKE 'a!%' ESCAPE '$'	'a%' NOT LIKE 'a!' || '%' ESCAPE '$'
+1	1
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!%' ESCAPE '' || '!';
+'a%' LIKE 'a!%' ESCAPE '!'	'a%' LIKE 'a!%' ESCAPE '' || '!'
+1	1
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!%' ESCAPE '' || '!';
+'a%' NOT LIKE 'a!%' ESCAPE '!'	'a%' NOT LIKE 'a!%' ESCAPE '' || '!'
+0	0
+SELECT 'a%' LIKE 'a!%' ESCAPE '' || '$', 'a%' LIKE 'a!%' ESCAPE '' || '$';
+'a%' LIKE 'a!%' ESCAPE '' || '$'	'a%' LIKE 'a!%' ESCAPE '' || '$'
+0	0
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '' || '$', 'a%' NOT LIKE 'a!%' ESCAPE '' || '$';
+'a%' NOT LIKE 'a!%' ESCAPE '' || '$'	'a%' NOT LIKE 'a!%' ESCAPE '' || '$'
+1	1
+SELECT 1 ^ 100, 1 ^ '10' || '0';
+1 ^ 100	1 ^ '10' || '0'
+101	101
+SELECT -1 || '0';
+-1 || '0'
+-10
+SET sql_mode=DEFAULT;

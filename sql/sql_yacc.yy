@@ -1259,7 +1259,7 @@ void warn_about_deprecated_binary(THD *thd)
 %left CONDITIONLESS_JOIN
 %left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON_SYM USING
 %left   SET_VAR
-%left   OR_OR_SYM OR_SYM OR2_SYM
+%left   OR_SYM OR2_SYM
 %left   XOR
 %left   AND_SYM AND_AND_SYM
 %left   BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
@@ -1270,6 +1270,7 @@ void warn_about_deprecated_binary(THD *thd)
 %left   '-' '+'
 %left   '*' '/' '%' DIV_SYM MOD_SYM
 %left   '^'
+%left   OR_OR_SYM
 %left   NEG '~'
 %right  NOT_SYM NOT2_SYM
 %right  BINARY_SYM COLLATE_SYM
