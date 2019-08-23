@@ -478,6 +478,10 @@ static bool fix_fk_parent_key_names(THD *thd, const String_type &schema_name,
       Should never hit this case as the caller of this function stores
       the information in dictionary.
     */
+    get_thd_ndb(thd)->push_warning(
+        ER_DD_CANT_FETCH_TABLE_DATA,
+        "Error in fetching %s.%s table data from dictionary",
+        schema_name.c_str(), table_name.c_str());
     ndb_log_error("Error in fetching %s.%s table data from dictionary",
                   schema_name.c_str(), table_name.c_str());
     return false;
@@ -593,14 +597,21 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                                          MY_UNPACK_FILENAME | MY_APPEND_EXT),
                                CREATE_MODE, O_RDWR | O_TRUNC, MYF(MY_WME));
 
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
   if (frm_file < 0) {
-    ndb_log_error("Could not create frm file, error: %d", frm_file);
+    thd_ndb->push_warning("Failed to create .frm file for table %s.%s",
+                          schema_name.c_str(), table_name.c_str());
+    ndb_log_error("Failed to create .frm file for table '%s.%s', error: %d",
+                  schema_name.c_str(), table_name.c_str(), frm_file);
     return false;
   }
 
   if (mysql_file_write(frm_file, frm_data, unpacked_len,
                        MYF(MY_WME | MY_NABP))) {
-    ndb_log_error("Could not write frm file ");
+    thd_ndb->push_warning("Failed to write .frm file for table %s.%s",
+                          schema_name.c_str(), table_name.c_str());
+    ndb_log_error("Failed to write .frm file for table '%s.%s'",
+                  schema_name.c_str(), table_name.c_str());
     // Delete frm file
     mysql_file_delete(key_file_frm, index_file, MYF(0));
     return false;
@@ -612,6 +623,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   if (create_table_share_for_upgrade(thd, path, &share, &frm_context,
                                      schema_name.c_str(), table_name.c_str(),
                                      is_fix_view_cols_and_deps)) {
+    thd_ndb->push_warning(ER_CANT_CREATE_TABLE_SHARE_FROM_FRM,
+                          "Error in creating TABLE_SHARE from %s.frm file",
+                          table_name.c_str());
     ndb_log_error("Error in creating TABLE_SHARE from %s.frm file",
                   table_name.c_str());
     // Delete frm file
@@ -633,6 +647,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   // Get the handler
   if (!(file = get_new_handler(&share, share.partition_info_str_len != 0,
                                thd->mem_root, share.db_type()))) {
+    thd_ndb->push_warning(ER_CANT_CREATE_HANDLER_OBJECT_FOR_TABLE,
+                          "Error in creating handler object for table %s.%s",
+                          schema_name.c_str(), table_name.c_str());
     ndb_log_error("Error in creating handler object for table %s.%s",
                   schema_name.c_str(), table_name.c_str());
     return false;
@@ -641,8 +658,11 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   table_guard.update_handler(file);
 
   if (table.file->set_ha_share_ref(&share.ha_share)) {
+    thd_ndb->push_warning(ER_CANT_SET_HANDLER_REFERENCE_FOR_TABLE,
+                          "Error in setting handler reference for table %s.%s",
+                          schema_name.c_str(), table_name.c_str());
     ndb_log_error("Error in setting handler reference for table %s.%s",
-                  table_name.c_str(), schema_name.c_str());
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
 
@@ -680,22 +700,27 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   // since it's not possible to upgrade such tables
   const bool check_temporal_upgrade = true;
   const int error = check_table_for_old_types(&table, check_temporal_upgrade);
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
   if (error) {
-    if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
+    if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE) {
+      thd_ndb->push_warning(ER_TABLE_NEEDS_DUMP_UPGRADE,
+                            "Table upgrade required for %s.%s. Please "
+                            "dump/reload table to fix it",
+                            schema_name.c_str(), table_name.c_str());
       ndb_log_error(
           "Table upgrade required for "
           "`%-.64s`.`%-.64s`. Please dump/reload table to "
           "fix it!",
           schema_name.c_str(), table_name.c_str());
-    else
+    } else {
       ndb_log_error(
           "Table upgrade required. Please do \"REPAIR TABLE `%s`\" "
           "or dump/reload to fix it",
           table_name.c_str());
-    thd_ndb->push_warning(
-        "Table definition contains obsolete data types such "
-        "as old temporal or decimal types");
+      thd_ndb->push_warning(
+          ER_TABLE_UPGRADE_REQUIRED,
+          "Table definition contains obsolete data types such "
+          "as old temporal or decimal types");
+    }
     return false;
   }
 
@@ -812,6 +837,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   Upgrade_MDL_guard mdl_guard(thd);
   if ((tablespace_name_set.size() != 0) &&
       mdl_guard.acquire_lock_tablespace(&tablespace_name_set)) {
+    thd_ndb->push_warning(ER_CANT_LOCK_TABLESPACE,
+                          "Unable to acquire lock on tablespace name %s",
+                          share.tablespace);
     ndb_log_error("Unable to acquire lock on tablespace name %s",
                   share.tablespace);
     return false;
@@ -825,7 +853,12 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   Bootstrap_error_handler bootstrap_error_handler;
   bootstrap_error_handler.set_log_error(false);
   if (!fix_generated_columns_for_upgrade(thd, &table, alter_info.create_list)) {
-    ndb_log_error("Error in processing generated columns");
+    thd_ndb->push_warning(
+        ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD,
+        "Error in processing generated columns for table %s.%s",
+        schema_name.c_str(), table_name.c_str());
+    ndb_log_error("Error in processing generated columns for table '%s.%s'",
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
   bootstrap_error_handler.set_log_error(true);
@@ -848,7 +881,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   }
 
   if (!sch_obj) {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
+    thd_ndb->push_warning(ER_BAD_DB_ERROR, "Unknown database '%s'",
+                          schema_name.c_str());
+    ndb_log_error("Unknown database '%s'", schema_name.c_str());
     return false;
   }
 
@@ -860,6 +895,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       fk_number, nullptr, table.file);
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
+    thd_ndb->push_warning(ER_DD_ERROR_CREATING_ENTRY,
+                          "Error in Creating DD entry for %s.%s",
+                          schema_name.c_str(), table_name.c_str());
     ndb_log_error("Error in Creating DD entry for %s.%s", schema_name.c_str(),
                   table_name.c_str());
     trans_rollback_stmt(thd);
@@ -872,6 +910,11 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     if (table.file->ha_upgrade_table(thd, schema_name.c_str(),
                                      table_name.c_str(), table_def.get(),
                                      &table)) {
+      thd_ndb->push_warning(ER_DD_CANT_FIX_SE_DATA,
+                            "Failed to set SE specific data for table %s.%s",
+                            schema_name.c_str(), table_name.c_str());
+      ndb_log_error("Failed to set SE specific data for table %s.%s",
+                    schema_name.c_str(), table_name.c_str());
       trans_rollback_stmt(thd);
       trans_rollback(thd);
       return false;
@@ -880,6 +923,8 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
     const NdbDictionary::Table *ndbtab = ndbtab_guard.get_table();
     if (ndbtab == nullptr) {
+      thd_ndb->push_warning("Failed to get table %s.%s from NDB Dictionary",
+                            schema_name.c_str(), table_name.c_str());
       ndb_log_error("Failed to get table '%s.%s' from NDB Dictionary",
                     schema_name.c_str(), table_name.c_str());
       trans_rollback_stmt(thd);
@@ -888,6 +933,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     }
     if (!Ndb_metadata::compare(thd, ndbtab, table_def.get(), true,
                                ndb->getDictionary())) {
+      thd_ndb->push_warning(
+          "Definition of table %s.%s in NDB Dictionary has changed",
+          schema_name.c_str(), table_name.c_str());
       ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                     schema_name.c_str(), table_name.c_str());
       trans_rollback_stmt(thd);
@@ -897,14 +945,21 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   }
 
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
-    ndb_log_error("Error in Creating DD entry for %s.%s", schema_name.c_str(),
-                  table_name.c_str());
+    thd_ndb->push_warning(
+        ER_DD_ERROR_CREATING_ENTRY,
+        "Failed to create DD entry for %s.%s, transaction failed",
+        schema_name.c_str(), table_name.c_str());
+    ndb_log_error("Failed to create DD entry for %s.%s, transaction failed",
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
 
   if (!set_se_data_for_user_tables(thd, schema_name, to_table_name, &table)) {
-    ndb_log_error("Error in fixing SE data for %s.%s", schema_name.c_str(),
-                  table_name.c_str());
+    thd_ndb->push_warning(ER_DD_CANT_FIX_SE_DATA,
+                          "Failed to set SE specific data for table %s.%s",
+                          schema_name.c_str(), table_name.c_str());
+    ndb_log_error("Failed to set SE specific data for table %s.%s",
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
 

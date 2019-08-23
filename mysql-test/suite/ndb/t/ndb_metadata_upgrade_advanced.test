@@ -169,7 +169,8 @@ SET GLOBAL ndb_metadata_check_interval = 0;
 # Changes have been detected, reset values
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
 SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-# Suppress sync failure warning
+# Suppress sync failure warnings
+CALL mtr.add_suppression("NDB: Got error '1296: Definition of table .* has changed'");
 CALL mtr.add_suppression("NDB: Definition of table .* has changed");
 CALL mtr.add_suppression("NDB: Failed to migrate table");
 --enable_query_log

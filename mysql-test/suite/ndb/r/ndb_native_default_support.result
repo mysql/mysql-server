@@ -332,7 +332,7 @@ SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c 
 ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
