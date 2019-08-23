@@ -5548,6 +5548,15 @@ static int init_server_components() {
     flags |= PLUGIN_INIT_SKIP_INITIALIZATION | PLUGIN_INIT_SKIP_PLUGIN_TABLE;
   if (opt_initialize) flags |= PLUGIN_INIT_SKIP_DYNAMIC_LOADING;
 
+  /*
+    In the case of upgrade, we need to delay initialization of plugins that
+    depend on e.g. mysql tables that will be changed during upgrade.
+  */
+  if (!is_help_or_validate_option() && !opt_initialize &&
+      !dd::upgrade::no_server_upgrade_required() &&
+      opt_upgrade_mode != UPGRADE_MINIMAL)
+    flags |= PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE;
+
   if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
                                            flags)) {
     // Delete all DD tables in case of error in initializing plugins.
@@ -5641,6 +5650,18 @@ static int init_server_components() {
         unireg_abort(1);
       }
       delete_optimizer_cost_module();
+      /*
+        When upgrade is finished, we need to initialize the plugins that
+        had their initialization delayed due to dependencies on the
+        environment.
+
+        TODO: Provide a better long term solution by re-ordering startup
+              sequence and rewriting the way we create and upgrade server
+              resources needed by plugins.
+      */
+      if (dd::upgrade::plugin_initialize_delayed_after_upgrade()) {
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
     }
   }
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();

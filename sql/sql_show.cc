@@ -176,6 +176,7 @@ static bool show_plugins(THD *thd, plugin_ref plugin, void *arg) {
       table->field[2]->store(STRING_WITH_LEN("DELETED"), cs);
       break;
     case PLUGIN_IS_UNINITIALIZED:
+    case PLUGIN_IS_WAITING_FOR_UPGRADE:
       table->field[2]->store(STRING_WITH_LEN("INACTIVE"), cs);
       break;
     case PLUGIN_IS_READY:

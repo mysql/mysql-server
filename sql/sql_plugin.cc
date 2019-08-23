@@ -1612,6 +1612,82 @@ err_unlock:
 
 bool is_builtin_and_core_se_initialized() { return initialized; }
 
+namespace dd {
+namespace upgrade {
+
+constexpr const char *delayed_plugins[] = {"audit_log", "mysql_firewall"};
+
+/**
+  Initialize delayed plugins.
+
+  This function is used to initialize plugins that depend on changes in
+  the environment if there has been upgrade of mysql tables used by
+  the plugins.
+
+  @note This function will initialize all plugins that are in state
+        PLUGIN_IS_UNINITIALIZED. Plugins that are not in the submitted
+        list of plugin names will either be in state PLUGIN_IS_READY
+        at this point, or they should have been reaped already.
+
+  @return Operation outcome, false if no errors
+*/
+bool plugin_initialize_delayed_after_upgrade() {
+  /* Make sure the internals are initialized and builtins registered */
+  if (!initialized) return true;
+
+  /*
+    Iterate over named plugins and change state from
+    PLUGIN_IS_WAITING_FOR_UPGRADE to PLUGIN_IS_UNINITIALIZED.
+  */
+  mysql_mutex_lock(&LOCK_plugin);
+  for (auto name : delayed_plugins) {
+    const LEX_CSTRING plugin_name = to_lex_cstring(name);
+    st_plugin_int *plugin_ptr =
+        plugin_find_internal(plugin_name, MYSQL_ANY_PLUGIN);
+    if (plugin_ptr != nullptr &&
+        plugin_ptr->state == PLUGIN_IS_WAITING_FOR_UPGRADE) {
+      plugin_ptr->state = PLUGIN_IS_UNINITIALIZED;
+    }
+  }
+  mysql_mutex_unlock(&LOCK_plugin);
+
+  /*
+    Then, initialize all plugins that are in state PLUGIN_UNINITIALIZED,
+    and reap those that fail to initialize. Plugins that failed to initialize
+    the last time we tried will have their state set to PLUGIN_IS_DYING, and
+    be deleted, so the plugins being initialized below should be only those
+    that are in the submitted list of plugin names.
+  */
+  Auto_THD fake_session;
+  Disable_autocommit_guard autocommit_guard(fake_session.thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(
+      fake_session.thd->dd_client());
+  if (plugin_init_initialize_and_reap())
+    return ::end_transaction(fake_session.thd, true);
+
+  return ::end_transaction(fake_session.thd, false);
+}
+
+/**
+  Reset state of delayed plugins to indicate that they wait for upgrade to
+  complete. This means they will not be initialized yet.
+*/
+void delay_initialization_of_dependent_plugins() {
+  mysql_mutex_lock(&LOCK_plugin);
+  for (auto name : delayed_plugins) {
+    const LEX_CSTRING plugin_name = to_lex_cstring(name);
+    st_plugin_int *plugin_ptr =
+        plugin_find_internal(plugin_name, MYSQL_ANY_PLUGIN);
+    if (plugin_ptr != nullptr && plugin_ptr->state == PLUGIN_IS_UNINITIALIZED) {
+      plugin_ptr->state = PLUGIN_IS_WAITING_FOR_UPGRADE;
+    }
+  }
+  mysql_mutex_unlock(&LOCK_plugin);
+}
+
+}  // namespace upgrade
+}  // namespace dd
+
 /**
   Register and initialize the dynamic plugins. Also initialize
   the remaining builtin plugins that are not initialized
@@ -1653,6 +1729,16 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
     LogErr(WARNING_LEVEL, ER_PLUGIN_LOAD_OPTIONS_IGNORED);
   }
 
+  /*
+    Delay initialization of plugins that depend on the environment.
+  */
+  if ((flags & PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE)) {
+    dd::upgrade::delay_initialization_of_dependent_plugins();
+  }
+
+  /*
+    Initialize plugins that are in state 'PLUGIN_IS_UNINITIALIZED'.
+  */
   Auto_THD fake_session;
   Disable_autocommit_guard autocommit_guard(fake_session.thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(
