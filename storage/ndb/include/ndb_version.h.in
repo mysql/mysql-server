@@ -1291,4 +1291,11 @@ ndb_config_version_v2(Uint32 x)
   return x >= NDB_USE_CONFIG_VERSION_V2_80;
 }
 
+/**
+ * Formerly defined as
+ * #define MAX_FRM_DATA_SIZE 6000
+ */
+#define NDB_SHORT_OPAQUE_METADATA_MAX_BYTES 6000
+
+
 #endif

@@ -1047,8 +1047,33 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   }
 
   ConstRope frm(c_rope_pool, tablePtr.p->frmData);
-  w.add(DictTabInfo::FrmLen, frm.size());        // for pre-8.0 recipients
-  w.addKey(DictTabInfo::FrmData, SimpleProperties::BinaryValue, frm.size());
+  if (frm.size() <= NDB_SHORT_OPAQUE_METADATA_MAX_BYTES)
+  {
+    /**
+     * Compatibility:
+     * Prior to 8.0, up to 6000 bytes of opaque metadata were
+     * stored using the FrmData key with FrmLen length key
+     *
+     * In 8.0, longer values are stored under the
+     * MysqlDictMetadata key.
+     *
+     * We store metadata in FrmData if it is < 6000 bytes, or
+     * in MysqlDictMetadata if it is longer.  This 'split
+     * by length' is done so that during upgrade, older versions
+     * can still find their 'FRM' info in the 'FrmData/FrmLen'
+     * format.
+     * Once we no longer support upgrade from versions < 8.0,
+     * we can always use the MysqlDictMetadata key.
+     * FrmLen/FrmData can take up to 6000 bytes
+     */
+    w.add(DictTabInfo::FrmLen, frm.size());
+    w.addKey(DictTabInfo::FrmData, SimpleProperties::BinaryValue, frm.size());
+  }
+  else
+  {
+    w.addKey(DictTabInfo::MysqlDictMetadata, SimpleProperties::BinaryValue,
+             frm.size());
+  }
   ndbrequire(packRopeData(w, frm));
 
   {
@@ -5714,7 +5739,8 @@ public:
   bool isValid() { return m_valid; }
 
   void unpackData(SimpleProperties::Reader & it) {
-    if(it.getKey() == DictTabInfo::FrmData)
+    if(it.getKey() == DictTabInfo::FrmData ||
+       it.getKey() == DictTabInfo::MysqlDictMetadata)
       m_valid &= unpackDataToRope(it, m_frm);
   }
 
@@ -5770,7 +5796,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
       jam();
       parseP->errorCode = CreateTableRef::OutOfStringBuffer;
       parseP->errorLine = __LINE__;
-      parseP->errorKey = DictTabInfo::FrmData;
+      parseP->errorKey = it.getKey();
       return;
     }
   }
