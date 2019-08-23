@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12846,6 +12846,7 @@ param_marker:
           {
             $$= NEW_PTN Item_param(@$,
                                    (uint) (@1.raw.start - YYLIP->get_buf()));
+            Lex->param_list.push_back($$);
           }
         ;
 
