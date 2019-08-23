@@ -1,5 +1,6 @@
 -- source include/have_ndb.inc
 -- source include/count_sessions.inc
+-- source include/not_embedded.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
 --echo #
