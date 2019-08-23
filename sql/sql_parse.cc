@@ -2067,18 +2067,22 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
     case COM_PROCESS_INFO:
       bool global_access;
+      LEX_CSTRING db_saved;
       thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
       push_deprecated_warn(thd, "COM_PROCESS_INFO",
                            "SHOW PROCESSLIST statement");
       global_access = (check_global_access(thd, PROCESS_ACL) == 0);
       if (!thd->security_context()->priv_user().str[0] && !global_access) break;
       query_logger.general_log_print(thd, command, NullS);
+      db_saved = thd->db();
 
       DBUG_EXECUTE_IF("force_db_name_to_null", thd->reset_db(NULL_CSTR););
 
       mysqld_list_processes(
           thd, global_access ? NullS : thd->security_context()->priv_user().str,
           0);
+
+      DBUG_EXECUTE_IF("force_db_name_to_null", thd->reset_db(db_saved););
       break;
     case COM_PROCESS_KILL: {
       push_deprecated_warn(thd, "COM_PROCESS_KILL",
