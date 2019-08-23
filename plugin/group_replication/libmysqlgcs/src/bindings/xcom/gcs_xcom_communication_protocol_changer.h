@@ -335,6 +335,12 @@ class Gcs_xcom_communication_protocol_changer {
   void commit_protocol_version_change();
 
   /*
+   Releases the tagged lock and notifies threads waiting for the protocol change
+   to finish.
+   */
+  void release_tagged_lock_and_notify_waiters();
+
+  /*
    Auxiliary method to the implementation of
    atomically_increment_nr_packets_in_transit.
 
