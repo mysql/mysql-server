@@ -147,9 +147,10 @@ ulint srv_path_copy(char *dest,             /*!< out: destination buffer */
 single-table tablespace.
 @param[in]	table		table object
 @param[out]	filename	filename
-@param[in]	max_len		filename max length */
+@param[in]	max_len		filename max length
+@param[in]	convert		convert to lower case */
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
-                                      ulint max_len);
+                                      ulint max_len, bool convert = false);
 #endif /* !UNIV_HOTBACKUP */
 
 /** true if the server is being started */

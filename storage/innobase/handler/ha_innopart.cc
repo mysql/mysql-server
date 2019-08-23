@@ -107,6 +107,8 @@ Ha_innopart_share::~Ha_innopart_share() {
 void Ha_innopart_share::partition_name_casedn_str(char *s) {
 #ifdef _WIN32
   innobase_casedn_str(s);
+#else
+  DBUG_EXECUTE_IF("induce_lowercase_part_names", { innobase_casedn_str(s); });
 #endif
 }
 

@@ -63,6 +63,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_aes.h"
 #include "my_dbug.h"
 
+extern bool lower_case_file_system;
+
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
 file size then it will assert. TODO: Fix this limitation of the IO functions.
@@ -3225,6 +3227,73 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
   return (DB_ERROR);
 }
 
+/** It is possible that the import is coming from the versions 8.0.14-16 where
+partition ibd/cfg/cfp names are in lower case. Rename the ibd/cfg/cfp file name
+according to the table name in the dictionary
+@param[in]	table	InnoDB table object
+@param[in]	suffix  suffix of the file */
+static void rename_disk_filename_if_necessary(dict_table_t *table,
+                                              const ib_file_suffix suffix) {
+  ut_ad(suffix == IBD || suffix == CFP || suffix == CFG);
+
+  /* Rename is required only in specific scenario */
+  if (!dict_table_is_partition(table) ||
+      !(innobase_get_lower_case_table_names() == 1) || lower_case_file_system) {
+    return;
+  }
+
+  char existing_cfp_file_path[OS_FILE_MAX_PATH];
+  char new_cfp_file_path[OS_FILE_MAX_PATH];
+  char *dict_file_path = nullptr;
+
+  os_file_type_t type;
+  bool exists = false;
+  std::string datadir_path = dict_table_get_datadir(table);
+
+  /* Get the file name from the dictionary. */
+  if (suffix != CFP) {
+    dict_file_path =
+        Fil_path::make(datadir_path, table->name.m_name, suffix, true);
+  } else {
+    srv_get_encryption_data_filename(table, existing_cfp_file_path,
+                                     sizeof(existing_cfp_file_path));
+    dict_file_path = existing_cfp_file_path;
+  }
+
+  /* If file doesn't exists, check if file exists in lower case. */
+  if (!os_file_status(dict_file_path, &exists, &type) || !exists) {
+    exists = false;
+    char *disk_file_path = nullptr;
+
+    if (suffix != CFP) {
+      char lower_case_table_name[OS_FILE_MAX_PATH];
+      strcpy(lower_case_table_name, table->name.m_name);
+      innobase_casedn_str(lower_case_table_name);
+      disk_file_path =
+          Fil_path::make(datadir_path, lower_case_table_name, suffix, true);
+    } else {
+      srv_get_encryption_data_filename(table, new_cfp_file_path,
+                                       sizeof(new_cfp_file_path), true);
+      disk_file_path = new_cfp_file_path;
+    }
+
+    /* Check and rename the file according to dictionary name */
+    if (os_file_status(disk_file_path, &exists, &type) && exists) {
+      if (!os_file_rename_func(disk_file_path, dict_file_path)) {
+        /* Rename failed . Do nothing */
+      }
+    }
+
+    if (suffix != CFP) {
+      ut_free(disk_file_path);
+    }
+  }
+
+  if (suffix != CFP) {
+    ut_free(dict_file_path);
+  }
+}
+
 /**
 Read the contents of the @<tablename@>.cfg file.
 @param[in]	table		table
@@ -3243,6 +3312,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dd_get_meta_data_filename(table, table_def, name, sizeof(name));
 
   FILE *file = fopen(name, "rb");
+
+  if (file == nullptr) {
+    rename_disk_filename_if_necessary(table, CFG);
+    file = fopen(name, "rb");
+  }
 
   if (file == NULL) {
     char msg[BUFSIZ];
@@ -3377,19 +3451,21 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
 
   FILE *file = fopen(name, "rb");
 
-  if (file == NULL) {
+  if (file == nullptr) {
+    rename_disk_filename_if_necessary(table, CFP);
+    file = fopen(name, "rb");
+  }
+
+  if (file != NULL) {
+    import.m_cfp_missing = false;
+    err = row_import_read_encryption_data(table, file, thd);
+    fclose(file);
+  } else {
     /* If there's no cfp file, we assume it's not an
     encrpyted table. return directly. */
     import.m_cfp_missing = true;
-
     err = DB_SUCCESS;
-  } else {
-    import.m_cfp_missing = false;
-
-    err = row_import_read_encryption_data(table, file, thd);
-    fclose(file);
   }
-
   return (err);
 }
 
@@ -3511,6 +3587,9 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
             table->encryption_iv != nullptr);
     }
   }
+
+  /* Check and rename ibd file if necessary */
+  rename_disk_filename_if_necessary(table, IBD);
 
   /* Read CFG file */
   err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
