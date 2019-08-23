@@ -3384,6 +3384,14 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable) {
   */
   m_current_rset = m_rsets;
 
+  /*
+    Reset rewritten (for password obfuscation etc.) query after
+    internal call from NDB etc.  Without this, a rewritten query
+    would get "stuck" in SHOW PROCESSLIST.
+  */
+  m_thd->rewritten_query.mem_free();
+  m_thd->reset_query_for_display();
+
   return rc;
 }
 
