@@ -115,6 +115,18 @@ struct Resource_limit
   Uint32 m_spare;
 
   /**
+    The number of dedicated pages that a resource do not use but made available
+    for other resources to use, using give_up_pages().
+   */
+  Uint32 m_lent;
+
+  /**
+    The number of pages this resource use from pages otherwise dedicated to
+    other resources, using take_pages().
+  */
+  Uint32 m_borrowed;
+
+  /**
     A positive number identifying the resource group.
   */
   Uint32 m_resource_id;
@@ -160,7 +172,7 @@ struct Pool_context
   Ndbd_mem_manager* get_mem_manager() const;
   
   /**
-   * Alloc consekutive pages
+   * Alloc consecutive pages
    *
    *   @param i   : out : i value of first page
    *   @return    : pointer to first page (NULL if failed)

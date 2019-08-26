@@ -148,6 +148,22 @@ class Resource_limits
   Uint32 m_untaken;
 
   /**
+    The number of pages otherwise dedicated to some resource that are available
+    for other resources.
+
+    See give_up_pages() and take_pages().
+  */
+  Uint32 m_lent;
+
+  /**
+    The number of pages used by some resource that are lent from dedicated
+    pages for some other resource.
+
+    See give_up_pages() and take_pages().
+  */
+  Uint32 m_borrowed;
+
+  /**
     One more than highest page number allocated.
 
     Used internally by Ndbd_mem_manager for consistency checks.
@@ -183,12 +199,15 @@ class Resource_limits
 
   Uint32 alloc_resource_spare(Uint32 id, Uint32 cnt);
   void release_resource_spare(Uint32 id, Uint32 cnt);
-  void dec_free_reserved(Uint32 cnt);
   void dec_in_use(Uint32 cnt);
+  void dec_resource_borrowed(Uint32 id, Uint32 cnt);
+  void dec_resource_lent(Uint32 id, Uint32 cnt);
   void dec_resource_in_use(Uint32 id, Uint32 cnt);
   void dec_resource_spare(Uint32 id, Uint32 cnt);
   void dec_spare(Uint32 cnt);
   Uint32 get_resource_in_use(Uint32 resource) const;
+  Uint32 get_resource_lent(Uint32 id) const;
+  Uint32 get_resource_borrowed(Uint32 id) const;
   void inc_free_reserved(Uint32 cnt);
   void inc_in_use(Uint32 cnt);
   void inc_resource_in_use(Uint32 id, Uint32 cnt);
@@ -214,10 +233,18 @@ public:
   Uint32 get_resource_free(Uint32 id) const;
   Uint32 get_resource_free_reserved(Uint32 id) const;
   Uint32 get_resource_free_shared(Uint32 id) const;
+  Uint32 get_resource_free_lent(Uint32 id) const;
   Uint32 get_resource_reserved(Uint32 id) const;
   Uint32 get_resource_spare(Uint32 resource) const;
+  void dec_free_reserved(Uint32 cnt);
   void dec_untaken(Uint32 cnt);
+  void dec_borrowed(Uint32 cnt);
+  void dec_lent(Uint32 cnt);
+  void inc_borrowed(Uint32 cnt);
+  void inc_lent(Uint32 cnt);
   void inc_untaken(Uint32 cnt);
+  void inc_resource_lent(Uint32 id, Uint32 cnt);
+  void inc_resource_borrowed(Uint32 id, Uint32 cnt);
   void set_max_page(Uint32 page);
   void set_allocated(Uint32 cnt);
   void set_free_reserved(Uint32 cnt);
@@ -755,6 +782,22 @@ void Resource_limits::set_free_reserved(Uint32 cnt)
 }
 
 inline
+Uint32 Resource_limits::get_resource_lent(Uint32 id) const
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  return m_limit[id - 1].m_lent;
+}
+
+inline
+Uint32 Resource_limits::get_resource_borrowed(Uint32 id) const
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  return m_limit[id - 1].m_borrowed;
+}
+
+inline
 void Resource_limits::dec_untaken(Uint32 cnt)
 {
   assert(m_untaken >= cnt);
@@ -762,10 +805,70 @@ void Resource_limits::dec_untaken(Uint32 cnt)
 }
 
 inline
+void Resource_limits::dec_borrowed(Uint32 cnt)
+{
+  assert(m_borrowed >= cnt);
+  m_borrowed -= cnt;
+}
+
+inline
+void Resource_limits::dec_lent(Uint32 cnt)
+{
+  assert(m_lent >= cnt);
+  m_lent -= cnt;
+}
+
+inline
+void Resource_limits::inc_borrowed(Uint32 cnt)
+{
+  m_borrowed += cnt;
+  assert(m_borrowed >= cnt);
+}
+
+inline
+void Resource_limits::inc_lent(Uint32 cnt)
+{
+  m_lent += cnt;
+  assert(m_lent >= cnt);
+}
+
+inline
 void Resource_limits::inc_untaken(Uint32 cnt)
 {
   m_untaken += cnt;
   assert(m_untaken >= cnt);
+}
+
+inline
+void Resource_limits::dec_resource_lent(Uint32 id, Uint32 cnt)
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  m_limit[id - 1].m_lent -= cnt;
+}
+
+inline
+void Resource_limits::dec_resource_borrowed(Uint32 id, Uint32 cnt)
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  m_limit[id - 1].m_borrowed -= cnt;
+}
+
+inline
+void Resource_limits::inc_resource_lent(Uint32 id, Uint32 cnt)
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  m_limit[id - 1].m_lent += cnt;
+}
+
+inline
+void Resource_limits::inc_resource_borrowed(Uint32 id, Uint32 cnt)
+{
+  require(id > 0);
+  require(id <= MM_RG_COUNT);
+  m_limit[id - 1].m_borrowed += cnt;
 }
 
 inline

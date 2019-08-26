@@ -424,6 +424,8 @@ Resource_limits::Resource_limits()
   m_untaken = 0;
   m_max_page = 0;
   m_prio_free_limit = 0;
+  m_lent = 0;
+  m_borrowed = 0;
   memset(m_limit, 0, sizeof(m_limit));
 }
 
@@ -437,42 +439,51 @@ Resource_limits::check() const
   const Resource_limit* rl = m_limit;
   Uint32 curr = 0;
   Uint32 spare = 0;
-  Uint32 res_alloc = 0;
+  Uint32 lent = 0;
+  Uint32 borrowed = 0;
+  Uint32 sumres_lent = 0;
+  Uint32 sumres_alloc = 0; // includes spare and lent pages
   Uint32 shared_alloc = 0;
   Uint32 sumres = 0;
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
     curr += rl[i].m_curr;
     spare += rl[i].m_spare;
+    lent += rl[i].m_lent;
+    borrowed += rl[i].m_borrowed;
+    sumres_lent += rl[i].m_lent;
     sumres += rl[i].m_min;
-    assert(rl[i].m_curr <= rl[i].m_max);
-    if (rl[i].m_curr + rl[i].m_spare > rl[i].m_min)
+    const Uint32 res_alloc = rl[i].m_curr + rl[i].m_spare + rl[i].m_lent;
+    require(res_alloc <= rl[i].m_max);
+    if (res_alloc > rl[i].m_min)
     {
-      shared_alloc += rl[i].m_curr + rl[i].m_spare - rl[i].m_min;
-      res_alloc += rl[i].m_min;
+      shared_alloc += res_alloc - rl[i].m_min;
+      sumres_alloc += rl[i].m_min;
     }
     else
     {
-      res_alloc += rl[i].m_curr + rl[i].m_spare;
+      sumres_alloc += res_alloc;
     }
   }
 
-  if(!((curr == get_in_use()) &&
+  if(!((curr + m_untaken == get_in_use()) &&
        (spare == get_spare()) &&
-       (res_alloc + shared_alloc == curr + spare) &&
-       (res_alloc <= sumres) &&
-       (sumres == res_alloc + get_free_reserved()) &&
-       (get_in_use() + get_spare() <= get_allocated())))
+       (sumres_alloc + shared_alloc == curr + spare + sumres_lent) &&
+       (sumres == sumres_alloc + get_free_reserved()) &&
+       (get_in_use() + get_spare() <= get_allocated()) &&
+       (lent == m_lent) &&
+       (borrowed == m_borrowed)))
   {
     dump();
   }
 
-  assert(curr == get_in_use());
-  assert(spare == get_spare());
-  assert(res_alloc + shared_alloc == curr + spare);
-  assert(res_alloc <= sumres);
-  assert(sumres == res_alloc + get_free_reserved());
-  assert(get_in_use() + get_spare() <= get_allocated());
+  require(curr + m_untaken == get_in_use());
+  require(spare == get_spare());
+  require(sumres_alloc + shared_alloc == curr + spare + sumres_lent);
+  require(sumres == sumres_alloc + get_free_reserved());
+  require(get_in_use() + get_spare() <= get_allocated());
+  require(lent == m_lent);
+  require(borrowed == m_borrowed);
 #endif
 }
 
@@ -480,21 +491,36 @@ void
 Resource_limits::dump() const
 {
   printf("ri: global "
-         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u: untaken %u\n",
+         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u: untaken: %u: lent: %u: borrowed: %u\n",
          m_max_page,
          m_free_reserved,
          m_in_use,
          m_allocated,
          m_spare,
-         m_untaken);
+         m_untaken,
+         m_lent,
+         m_borrowed);
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
-    printf("ri: %u id: %u min: %u curr: %u max: %u spare: %u spare_pct: %u\n",
+    if (m_limit[i].m_resource_id == 0 &&
+        m_limit[i].m_min == 0 &&
+        m_limit[i].m_curr == 0 &&
+        m_limit[i].m_max == 0 &&
+        m_limit[i].m_lent == 0 &&
+        m_limit[i].m_borrowed == 0 &&
+        m_limit[i].m_spare == 0 &&
+        m_limit[i].m_spare_pct == 0)
+    {
+      continue;
+    }
+    printf("ri: %u id: %u min: %u curr: %u max: %u lent: %u borrowed: %u spare: %u spare_pct: %u\n",
            i,
            m_limit[i].m_resource_id,
            m_limit[i].m_min,
            m_limit[i].m_curr,
            m_limit[i].m_max,
+           m_limit[i].m_lent,
+           m_limit[i].m_borrowed,
            m_limit[i].m_spare,
            m_limit[i].m_spare_pct);
   }
@@ -1400,12 +1426,16 @@ void
 Ndbd_mem_manager::dump() const
 {
   mt_mem_manager_lock();
+  printf("Begin Ndbd_mem_manager::dump\n");
   for (Uint32 zone = 0; zone < ZONE_COUNT; zone ++)
   {
+    printf("zone %u\n", zone);
     for (Uint32 i = 0; i<16; i++)
     {
-      printf(" list: %d - ", i);
       Uint32 head = m_buddy_lists[zone][i];
+      if (head == 0)
+        continue;
+      printf(" list: %d - ", i);
       while(head)
       {
         Free_page_data* fd = get_free_page_data(m_base_page+head, head);
@@ -1415,9 +1445,9 @@ Ndbd_mem_manager::dump() const
       }
       printf("EOL\n");
     }
-
-    m_resource_limits.dump();
   }
+  m_resource_limits.dump();
+  printf("End Ndbd_mem_manager::dump\n");
   mt_mem_manager_unlock();
 }
 
