@@ -368,6 +368,8 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
 
       # Cannot use INSTALL_PRIVATE_LIBRARY because these are not targets.
       INSTALL(FILES
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_NAME}
+        ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_NAME}
         ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_VERSION}
         ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_VERSION}
         DESTINATION "${INSTALL_PRIV_LIBDIR}" COMPONENT SharedLibraries

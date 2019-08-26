@@ -305,6 +305,9 @@ ENDIF()
 IF(LINUX_INSTALL_RPATH_ORIGIN)
   SET(RPATH_OPTION " -Wl,-R,$pkglibdir")    # for mysql_config
   SET(RPATH_OPTION_PC " -Wl,-R,\${libdir}") # for pkg_config
+  # Do not use STRING_APPEND, it may eval the $.
+  SET(RPATH_OPTION "${RPATH_OPTION} -Wl,-rpath-link=$pkglibdir/private")
+  SET(RPATH_OPTION_PC "${RPATH_OPTION_PC} -Wl,-rpath-link=\${libdir}/private")
 ENDIF()
 
 # some scripts use  @TARGET_LINUX@
