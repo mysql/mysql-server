@@ -1768,6 +1768,7 @@ bool Ndbd_mem_manager::give_up_pages(Uint32 type, Uint32 cnt)
 
   if (!m_resource_limits.give_up_pages(idx, cnt))
   {
+    m_resource_limits.dump();
     mt_mem_manager_unlock();
     return false;
   }
@@ -1810,6 +1811,7 @@ bool Ndbd_mem_manager::take_pages(Uint32 type, Uint32 cnt)
 
   if (!m_resource_limits.take_pages(idx, cnt))
   {
+    m_resource_limits.dump();
     mt_mem_manager_unlock();
     return false;
   }
@@ -1875,21 +1877,31 @@ void abort_handler(int signum)
 class Test_mem_manager: public Ndbd_mem_manager
 {
 public:
-  Test_mem_manager(Uint32 tot_mem, Uint32 data_mem, Uint32 trans_mem);
+  static constexpr Uint32 ZONE_COUNT = Ndbd_mem_manager::ZONE_COUNT;
+  Test_mem_manager(Uint32 tot_mem,
+                   Uint32 data_mem,
+                   Uint32 trans_mem,
+                   Uint32 data_mem2 = 0,
+                   Uint32 trans_mem2 = 0);
   ~Test_mem_manager();
 };
 
 enum Resource_groups {
   RG_DM = 1,
   RG_TM = 2,
-  RG_QM = 3
+  RG_QM = 3,
+  RG_DM2 = 4,
+  RG_TM2 = 5,
+  RG_QM2 = 6
 };
 
 Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
                                    Uint32 data_mem,
-                                   Uint32 trans_mem)
+                                   Uint32 trans_mem,
+                                   Uint32 data_mem2,
+                                   Uint32 trans_mem2)
 {
-  assert(tot_mem >= data_mem + trans_mem); // Need to adjust, 2 pages per 32K pages is not allocatable
+  assert(tot_mem >= data_mem + trans_mem + data_mem2 + trans_mem2);
 
   Resource_limit rl;
   // Data memory
@@ -1910,6 +1922,24 @@ Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
   rl.m_resource_id = RG_QM;
   set_resource_limit(rl);
 
+  // Data memory
+  rl.m_min = data_mem2;
+  rl.m_max = rl.m_min;
+  rl.m_resource_id = RG_DM2;
+  set_resource_limit(rl);
+
+  // Transaction memory
+  rl.m_min = trans_mem2;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_TM2;
+  set_resource_limit(rl);
+
+  // Query memory
+  rl.m_min = 0;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_QM2;
+  set_resource_limit(rl);
+
   init(NULL, tot_mem);
   map(NULL);
 }
@@ -1919,7 +1949,9 @@ Test_mem_manager::~Test_mem_manager()
   require(m_resource_limits.get_in_use() == 0);
 }
 
+#define NDBD_MALLOC_PERF_TEST 0
 static void perf_test(int sz, int run_time);
+static void transfer_test();
 
 int 
 main(int argc, char** argv)
@@ -1928,26 +1960,114 @@ main(int argc, char** argv)
   ndb_init_stacktrace();
   signal(SIGABRT, abort_handler);
 
-  int sz = 1*32768;
+  int sz = 1 * 32768;
   int run_time = 30;
   if (argc > 1)
-    sz = 32*atoi(argv[1]);
+    sz = 32 * atoi(argv[1]);
 
   if (argc > 2)
     run_time = atoi(argv[2]);
 
   g_eventLogger->createConsoleHandler();
-  g_eventLogger->setCategory("keso");
+  g_eventLogger->setCategory("ndbd_malloc-t");
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_INFO);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
 
-  perf_test(sz, run_time);
+  transfer_test();
+
+  if (NDBD_MALLOC_PERF_TEST)
+  {
+    perf_test(sz, run_time);
+  }
+
   ndb_end(0);
 }
 
 #define DEBUG 0
+
+void transfer_test()
+{
+  const Uint32 data_pages = 18;
+#ifndef USE_DO_VIRTUAL_ALLOC
+  const Uint32 meta_pages = 1;
+#else
+  const Uint32 meta_pages = Test_mem_manager::ZONE_COUNT;
+#endif
+  Test_mem_manager mem(meta_pages + data_pages, 4, 4, 4, 4);
+  Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
+
+  Uint32 dm[4 + 1];
+  Uint32 dm2[4];
+  Uint32 tm[6];
+  Uint32 tm2[6];
+
+  if (DEBUG) mem.dump();
+
+  // Allocate 4 pages each from DM and DM2 resources.
+  for (int i = 0; i < 4; i++)
+  {
+    require(mem.alloc_page(RG_DM, &dm[i], zone));
+    require(mem.alloc_page(RG_DM2, &dm2[i], zone));
+  }
+
+  // Allocate 5 pages each from TM and TM2 resources.
+  for (int i = 0; i < 5; i++)
+  {
+    require(mem.alloc_page(RG_TM, &tm[i], zone));
+    require(mem.alloc_page(RG_TM2, &tm2[i], zone));
+  }
+
+  // Allocating a 6th page for TM should fail since all 18 pages are allocated.
+  require(mem.alloc_page(RG_TM, &tm[5], zone) == nullptr);
+
+  // Start transfer of pages from RG_DM to RG_TM
+  require(mem.give_up_pages(RG_DM, 1));
+
+  /* Start and complete transfer between RG_DM2 to RG_TM2 before completing
+   * transfer from RG_DM to RG_TM started above.
+   */
+  require(mem.alloc_page(RG_TM2, &tm2[5], zone) == nullptr);
+  require(mem.give_up_pages(RG_DM2, 1));
+  require(mem.take_pages(RG_TM2, 1));
+  tm2[5] = dm2[3];
+  dm2[3] = RNIL;
+  mem.release_page(RG_TM2, tm2[5]);
+
+  /* Verify that one can not allocate a page for RG_DM since it already have
+   * reached its maximum of 4 (including the lent page)
+   */
+  require(mem.alloc_page(RG_DM, &dm[4], zone) != nullptr);
+
+  // Proceed with taking over the page to RG_TM
+  require(mem.take_pages(RG_TM, 1));
+  tm[5] = dm[3];
+  dm[3] = RNIL;
+
+  require(mem.alloc_page(RG_DM, &dm[3], zone) == nullptr);
+
+  mem.release_page(RG_DM, dm[4]);
+  mem.release_page(RG_TM, tm[5]);
+
+  require(mem.alloc_page(RG_DM, &dm[3], zone));
+  require(mem.alloc_page(RG_DM2, &dm2[3], zone));
+
+  // Cleanup, release all allocated pages.
+  for (int i = 0; i < 4; i++)
+  {
+    mem.release_page(RG_DM, dm[i]);
+    mem.release_page(RG_DM2, dm2[i]);
+  }
+
+  for (int i = 0; i < 5; i++)
+  {
+    mem.release_page(RG_TM, tm[i]);
+    mem.release_page(RG_TM2, tm2[i]);
+  }
+
+  if (DEBUG) mem.dump();
+}
 
 void perf_test(int sz, int run_time)
 {
