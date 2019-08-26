@@ -108,6 +108,9 @@ class Fake_TABLE : public TABLE {
   // make room for up to 8 keyparts per index
   KEY_PART_INFO m_key_part_infos[max_keys][8];
 
+  static const int max_record_length = MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS;
+  uchar m_record[max_record_length];
+
   Fake_TABLE_LIST table_list;
   Fake_TABLE_SHARE table_share;
   // Storage space for the handler's handlerton
@@ -148,6 +151,8 @@ class Fake_TABLE : public TABLE {
     table_list.set_tableno(highest_table_id);
     highest_table_id = (highest_table_id + 1) % MAX_TABLES;
     key_info = &m_keys[0];
+    record[0] = &m_record[0];
+    memset(record[0], 0, max_record_length);
     for (int i = 0; i < max_keys; i++)
       key_info[i].key_part = m_key_part_infos[i];
     // We choose non-zero to avoid it working by coincidence.

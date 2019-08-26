@@ -33,7 +33,7 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/key.h"
-#include "unittest/gunit/temptable/mock_field_long.h"
+#include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/temptable/mock_field_varstring.h"
 
 namespace temptable_test {
@@ -42,12 +42,12 @@ class Table_helper {
  public:
   Table_helper(const char *name, THD *thd);
 
-  void add_field_long(const char *name, bool is_nullable, bool is_unsigned);
+  void add_field_long(const char *name, bool is_nullable);
 
   void add_field_varstring(const char *name, uint char_len, bool is_nullable);
 
   void add_index(enum ha_key_alg algorithm, bool unique,
-                 std::vector<int> columns);
+                 const std::vector<int> &columns);
 
   void finalize();
 
@@ -101,7 +101,6 @@ class Table_helper {
   void initialize_table();
   void finalize_fields();
   uint set_field_pointers(uchar *record);
-  void set_field_pointers();
 };
 
 inline Table_helper::Table_helper(const char *name, THD *thd)
@@ -111,9 +110,8 @@ inline Table_helper::Table_helper(const char *name, THD *thd)
   std::strcpy(m_name, name);
 }
 
-inline void Table_helper::add_field_long(const char *name, bool is_nullable,
-                                         bool is_unsigned) {
-  add_field(Mock_field_long(name, is_nullable, is_unsigned));
+inline void Table_helper::add_field_long(const char *name, bool is_nullable) {
+  add_field(Mock_field_long(name, is_nullable));
 }
 
 inline void Table_helper::add_field_varstring(const char *name, uint char_len,
@@ -131,7 +129,7 @@ inline void Table_helper::add_field(const Field &field) {
 }
 
 inline void Table_helper::add_index(ha_key_alg algorithm, bool unique,
-                                    std::vector<int> columns) {
+                                    const std::vector<int> &columns) {
   EXPECT_FALSE(m_finalized);
   EXPECT_GT(columns.size(), 0);
 

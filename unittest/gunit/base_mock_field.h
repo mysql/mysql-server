@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,44 +37,13 @@
   functions depending on what you want to test.
 */
 
-class Base_mock_field_long : public Field_long {
-  uchar buffer[PACK_LENGTH];
-  uchar null_byte;
-
-  void initialize() {
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
-    null_byte = '\0';
-    set_null_ptr(&null_byte, 1);
-  }
-
- public:
-  Base_mock_field_long()
-      : Field_long(0,             // ptr_arg
-                   4,             // len_arg
-                   NULL,          // null_ptr_arg
-                   1,             // null_bit_arg
-                   Field::NONE,   // auto_flags_arg
-                   "field_name",  // field_name_arg
-                   false,         // zero_arg
-                   false)         // unsigned_arg
-  {
-    initialize();
-  }
-
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
-};
-
 class Base_mock_field_longlong : public Field_longlong {
-  uchar buffer[PACK_LENGTH];
-  uchar null_byte;
+  uchar buffer[PACK_LENGTH + 1];
 
   void initialize() {
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
-    null_byte = '\0';
-    set_null_ptr(&null_byte, 1);
+    ptr = buffer + 1;
+    memset(buffer, 0, sizeof(buffer));
+    set_null_ptr(buffer, 1);
   }
 
  public:
@@ -115,14 +84,14 @@ class Base_mock_field_varstring : public Field_varstring {
 };
 
 class Base_mock_field_json : public Field_json {
-  uchar m_null_byte = '\0';
+  uchar buffer[MAX_FIELD_WIDTH + 1];
 
  public:
   Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, true, "json_field") {
-    ptr = new uchar[pack_length()];
-    set_null_ptr(&m_null_byte, 1);
+    ptr = buffer + 1;
+    memset(buffer, 0, sizeof(buffer));
+    set_null_ptr(buffer, 1);
   }
-  ~Base_mock_field_json() { delete[] ptr; }
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
 };
 

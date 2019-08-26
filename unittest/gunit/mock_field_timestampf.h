@@ -27,27 +27,22 @@
 #include "unittest/gunit/fake_table.h"
 
 class Mock_field_timestampf : public Field_timestampf {
-  static const int PACK_LENGTH = 8;
-  uchar null_byte;
   void initialize() {
     table = new Fake_TABLE(this);
     EXPECT_FALSE(table == NULL) << "Out of memory";
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
-    set_null_ptr(&null_byte, 1);
+    ptr = table->record[0] + 1;
+    set_null_ptr(table->record[0], 1);
   }
 
  public:
-  uchar buffer[PACK_LENGTH];
   bool store_timestamp_internal_called;
   Mock_field_timestampf(uchar auto_flags_arg, int scale)
-      : Field_timestampf(static_cast<uchar *>(buffer),  // ptr_arg
-                         &null_byte,                    // null_ptr_arg
-                         '\0',                          // null_bit_arg
-                         auto_flags_arg,                // auto_flags_arg
-                         "",                            // field_name_arg
-                         static_cast<uint8>(scale)),    // dec_arg a.k.a. scale.
-        null_byte(0),
+      : Field_timestampf(nullptr,                     // ptr_arg
+                         nullptr,                     // null_ptr_arg
+                         '\0',                        // null_bit_arg
+                         auto_flags_arg,              // auto_flags_arg
+                         "",                          // field_name_arg
+                         static_cast<uint8>(scale)),  // dec_arg a.k.a. scale.
         store_timestamp_internal_called(false) {
     initialize();
   }

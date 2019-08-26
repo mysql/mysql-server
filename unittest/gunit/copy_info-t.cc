@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,11 +58,9 @@ class CopyInfoTest : public ::testing::Test {
   called. We inherit Field_long, but the data type does not matter.
 */
 class Mock_field : public Field_long {
-  uchar null_byte;
-
  public:
-  Mock_field(uchar auto_flags_arg)
-      : Field_long(NULL, 0, &null_byte, 0, auto_flags_arg, "", false, false) {}
+  explicit Mock_field(uchar auto_flags_arg)
+      : Field_long(nullptr, 0, nullptr, 0, auto_flags_arg, "", false, false) {}
 
   MOCK_METHOD1(store_timestamp, void(const timeval *));
 };
@@ -197,10 +195,7 @@ TEST_F(CopyInfoTest, updateAccessors) {
 }
 
 static Field_long make_field() {
-  static uchar unused_null_byte;
-
-  Field_long a(NULL, 0, &unused_null_byte, 0, Field::DEFAULT_NOW, "a", false,
-               false);
+  Field_long a(nullptr, 0, nullptr, 0, Field::DEFAULT_NOW, "a", false, false);
   return a;
 }
 

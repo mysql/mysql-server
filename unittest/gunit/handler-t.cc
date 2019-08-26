@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,25 +56,25 @@ class HandlerTest : public ::testing::Test {
  */
 TEST_F(HandlerTest, ReportErrorHandler) {
   Mock_field_datetime field_datetime;
-  Fake_TABLE table(&field_datetime);
+  Fake_TABLE *table = static_cast<Fake_TABLE *>(field_datetime.table);
   handlerton *hton = NULL;
-  StrictMock<Mock_HANDLER> mock_handler(hton, table.get_share());
-  table.set_handler(&mock_handler);
+  StrictMock<Mock_HANDLER> mock_handler(hton, table->get_share());
+  table->set_handler(&mock_handler);
 
   // This error should be ignored.
-  EXPECT_EQ(-1, report_handler_error(&table, HA_ERR_END_OF_FILE));
+  EXPECT_EQ(-1, report_handler_error(table, HA_ERR_END_OF_FILE));
 
   // This one should not be printed to stderr, but passed on to the handler.
   EXPECT_CALL(mock_handler, print_error(HA_ERR_TABLE_DEF_CHANGED, 0)).Times(1);
-  EXPECT_EQ(1, report_handler_error(&table, HA_ERR_TABLE_DEF_CHANGED));
+  EXPECT_EQ(1, report_handler_error(table, HA_ERR_TABLE_DEF_CHANGED));
 }
 
 TEST_F(HandlerTest, TableInMemoryEstimate) {
   Mock_field_datetime field_datetime;
-  Fake_TABLE table(&field_datetime);
+  Fake_TABLE *table = static_cast<Fake_TABLE *>(field_datetime.table);
   handlerton *hton = NULL;
-  StrictMock<Mock_HANDLER> mock_handler(hton, table.get_share());
-  table.set_handler(&mock_handler);
+  StrictMock<Mock_HANDLER> mock_handler(hton, table->get_share());
+  table->set_handler(&mock_handler);
 
   // Verify that the handler does not know the buffer size
   EXPECT_EQ(mock_handler.get_memory_buffer_size(), -1);
@@ -150,11 +150,11 @@ TEST_F(HandlerTest, TableInMemoryEstimate) {
 
 TEST_F(HandlerTest, IndexInMemoryEstimate) {
   Mock_field_datetime field_datetime;
-  Fake_TABLE table(&field_datetime);
+  Fake_TABLE *table = static_cast<Fake_TABLE *>(field_datetime.table);
   handlerton *hton = NULL;
-  StrictMock<Mock_HANDLER> mock_handler(hton, table.get_share());
-  table.set_handler(&mock_handler);
-  mock_handler.change_table_ptr(&table, table.get_share());
+  StrictMock<Mock_HANDLER> mock_handler(hton, table->get_share());
+  table->set_handler(&mock_handler);
+  mock_handler.change_table_ptr(table, table->get_share());
   const uint key_no = 0;
 
   // Verify that the handler does not know the buffer size
@@ -177,7 +177,7 @@ TEST_F(HandlerTest, IndexInMemoryEstimate) {
   const uint index_size_large = mem_buf_size * 2;
 
   // Initialize the estimate for how much of the index that is in memory
-  table.key_info[key_no].set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+  table->key_info[key_no].set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
   /*
     Test with an index that is less than 20% of memory buffer. This should
@@ -204,7 +204,7 @@ TEST_F(HandlerTest, IndexInMemoryEstimate) {
     Simulate that the storage engine has reported that 50 percent of the
     index is in a memory buffer.
   */
-  table.key_info[key_no].set_in_memory_estimate(0.5);
+  table->key_info[key_no].set_in_memory_estimate(0.5);
 
   /*
     Set the index size to be less than 20 percent but larger than 10K.
@@ -227,10 +227,10 @@ TEST_F(HandlerTest, IndexInMemoryEstimate) {
 
 TEST_F(HandlerTest, SamplingInterfaceAllRows) {
   Mock_field_datetime field_datetime;
-  Fake_TABLE table(&field_datetime);
-  StrictMock<Mock_SAMPLING_HANDLER> mock_handler(nullptr, &table,
-                                                 table.get_share());
-  table.set_handler(&mock_handler);
+  Fake_TABLE *table = static_cast<Fake_TABLE *>(field_datetime.table);
+  StrictMock<Mock_SAMPLING_HANDLER> mock_handler(nullptr, table,
+                                                 table->get_share());
+  table->set_handler(&mock_handler);
 
   uchar buffer[8];
 
@@ -257,10 +257,10 @@ TEST_F(HandlerTest, SamplingInterfaceAllRows) {
 
 TEST_F(HandlerTest, SamplingInterfaceNoRows) {
   Mock_field_datetime field_datetime;
-  Fake_TABLE table(&field_datetime);
-  StrictMock<Mock_SAMPLING_HANDLER> mock_handler(nullptr, &table,
-                                                 table.get_share());
-  table.set_handler(&mock_handler);
+  Fake_TABLE *table = reinterpret_cast<Fake_TABLE *>(field_datetime.table);
+  StrictMock<Mock_SAMPLING_HANDLER> mock_handler(nullptr, table,
+                                                 table->get_share());
+  table->set_handler(&mock_handler);
 
   uchar buffer[8];
 

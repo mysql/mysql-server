@@ -74,7 +74,18 @@ class Mock_field_long : public Field_long {
                    0,            // field_name_arg
                    false,        // zero_arg
                    false)        // unsigned_arg
-  {}
+  {
+    table = new Fake_TABLE(this);
+    ptr = table->record[0];
+
+    // Make it possible to write into this field
+    bitmap_set_bit(table->write_set, 0);
+  }
+
+  ~Mock_field_long() override {
+    delete static_cast<Fake_TABLE *>(table);
+    table = nullptr;
+  }
 
   // Avoid warning about hiding other overloaded versions of store().
   using Field_long::store;
@@ -107,7 +118,7 @@ class Mock_field_string : public Field_string {
     m_fake_tbl = new Fake_TABLE(this);
 
     // Allocate place for storing the field value
-    ptr = new uchar[length];
+    ptr = m_fake_tbl->record[0];
 
     // Make it possible to write into this field
     bitmap_set_bit(m_fake_tbl->write_set, 0);
@@ -120,8 +131,6 @@ class Mock_field_string : public Field_string {
   }
 
   ~Mock_field_string() {
-    delete[] ptr;
-    ptr = NULL;
     delete m_fake_tbl;
     m_fake_tbl = NULL;
   }
@@ -147,7 +156,7 @@ class Mock_field_varstring : public Field_varstring {
     m_fake_tbl = new Fake_TABLE(this);
 
     // Allocate place for storing the field value
-    ptr = new uchar[length + 1];
+    ptr = m_fake_tbl->record[0];
 
     // Make it possible to write into this field
     bitmap_set_bit(m_fake_tbl->write_set, 0);
@@ -160,8 +169,6 @@ class Mock_field_varstring : public Field_varstring {
   }
 
   ~Mock_field_varstring() {
-    delete[] ptr;
-    ptr = NULL;
     delete m_fake_tbl;
     m_fake_tbl = NULL;
   }

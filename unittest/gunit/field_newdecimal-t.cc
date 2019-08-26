@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,13 +49,11 @@ class FieldNewDecimalTest : public ::testing::Test {
 };
 
 class Mock_field_new_decimal : public Field_new_decimal {
-  uchar buffer[MAX_FIELD_WIDTH];
-  uchar null_byte;
+  uchar buffer[MAX_FIELD_WIDTH + 1];
   void initialize() {
-    ptr = buffer;
-    memset(buffer, 0, MAX_FIELD_WIDTH);
-    null_byte = '\0';
-    set_null_ptr(&null_byte, 1);
+    ptr = buffer + 1;
+    memset(buffer, 0, MAX_FIELD_WIDTH + 1);
+    set_null_ptr(buffer, 1);
   }
 
  public:

@@ -1,6 +1,6 @@
 #ifndef MOCK_FIELD_LONG_INCLUDED
 #define MOCK_FIELD_LONG_INCLUDED
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,14 +54,14 @@ class Mock_field_long : public Field_long {
     @param is_nullable Whether it's nullable.
   */
   Mock_field_long(const char *name, bool is_nullable)
-      : Field_long(0,                                // ptr_arg
-                   8,                                // len_arg
-                   is_nullable ? &null_byte : NULL,  // null_ptr_arg
-                   is_nullable ? 1 : 0,              // null_bit_arg
-                   Field::NONE,                      // auto_flags_arg
-                   name,                             // field_name_arg
-                   false,                            // zero_arg
-                   false)                            // unsigned_arg
+      : Field_long(0,                               // ptr_arg
+                   8,                               // len_arg
+                   is_nullable ? buffer : nullptr,  // null_ptr_arg
+                   is_nullable ? 1 : 0,             // null_bit_arg
+                   Field::NONE,                     // auto_flags_arg
+                   name,                            // field_name_arg
+                   false,                           // zero_arg
+                   false)                           // unsigned_arg
   {
     initialize(name);
   }
@@ -70,13 +70,12 @@ class Mock_field_long : public Field_long {
   void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 
  private:
-  uchar buffer[PACK_LENGTH];
-  uchar null_byte = '\0';
+  uchar buffer[PACK_LENGTH + 1];
   char m_name[1024];
 
   void initialize(const char *name) {
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
+    ptr = buffer + 1;
+    memset(buffer, 0, PACK_LENGTH + 1);
     static const char *table_name_buf = "table_name";
     table_name = &table_name_buf;
     if (name) {

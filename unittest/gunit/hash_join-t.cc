@@ -42,8 +42,8 @@
 #include "unittest/gunit/fake_integer_iterator.h"
 #include "unittest/gunit/fake_string_iterator.h"
 #include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/parsertest.h"
-#include "unittest/gunit/temptable/mock_field_long.h"
 #include "unittest/gunit/temptable/mock_field_varstring.h"
 #include "unittest/gunit/test_utils.h"
 

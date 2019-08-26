@@ -24,16 +24,19 @@
 #define MOCK_FIELD_DATETIME_H
 
 #include "sql/field.h"
+#include "unittest/gunit/fake_table.h"
 
 class Mock_field_datetime : public Field_datetime {
   void initialize() {
-    ptr = buffer;
-    memset(buffer, 0, PACK_LENGTH);
+    table = new Fake_TABLE(this);
+    ptr = table->record[0];
+    // Make it possible to write into this field
+    bitmap_set_bit(table->write_set, 0);
   }
 
  public:
-  uchar buffer[PACK_LENGTH];
   Mock_field_datetime() : Field_datetime("") { initialize(); }
+  ~Mock_field_datetime() override { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif  // MOCK_FIELD_DATETIME_H

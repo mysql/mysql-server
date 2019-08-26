@@ -151,12 +151,11 @@ class Mock_protocol : public Protocol {
 };
 
 TEST_F(FieldTest, FieldTimef) {
-  uchar fieldBuf[6];
-  uchar nullPtr[1] = {0};
+  uchar fieldBuf[7];
   MYSQL_TIME time = {0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME};
 
   Field_timef *field = new (thd()->mem_root)
-      Field_timef(fieldBuf, nullPtr, false, Field::NONE, "f1", 4);
+      Field_timef(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1", 4);
   // Test public member functions
   EXPECT_EQ(4UL, field->decimals());  // TS-TODO
   EXPECT_EQ(MYSQL_TYPE_TIME, field->type());
@@ -302,8 +301,7 @@ TEST_F(FieldTest, FieldTimef) {
 
 TEST_F(FieldTest, FieldTimefCompare) {
   const int nFields = 7;
-  uchar fieldBufs[nFields][6];
-  uchar nullPtrs[nFields];
+  uchar fieldBufs[nFields][7];
 
   MYSQL_TIME times[nFields] = {
       {0, 0, 0, 12, 23, 12, 100000, true, MYSQL_TIMESTAMP_TIME},
@@ -320,7 +318,7 @@ TEST_F(FieldTest, FieldTimefCompare) {
     char fieldName[3];
     sprintf(fieldName, "f%c", i);
     fields[i] = new (thd()->mem_root) Field_timef(
-        fieldBufs[i], nullPtrs + i, false, Field::NONE, fieldName, 6);
+        fieldBufs[i] + 1, fieldBufs[i], false, Field::NONE, fieldName, 6);
 
     longlong packed = TIME_to_longlong_packed(times[i]);
     EXPECT_EQ(0, fields[i]->store_packed(packed));
@@ -359,13 +357,12 @@ TEST_F(FieldTest, FieldTimefCompare) {
 }
 
 TEST_F(FieldTest, FieldTime) {
-  uchar fieldBuf[6];
-  uchar nullPtr[1] = {0};
+  uchar fieldBuf[7];
   MYSQL_TIME bigTime = {
       0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME};
 
   Field_time *field = new (thd()->mem_root)
-      Field_time(fieldBuf, nullPtr, false, Field::NONE, "f1");
+      Field_time(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1");
   EXPECT_EQ(0, field->store_time(&bigTime, 4));
   MYSQL_TIME t;
   EXPECT_FALSE(field->get_time(&t));

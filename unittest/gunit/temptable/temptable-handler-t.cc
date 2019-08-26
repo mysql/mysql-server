@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ TEST_F(Handler_test, SimpleTableCreate) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col0", false);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -109,8 +109,8 @@ TEST_F(Handler_test, SimpleTableOpsFixedSize) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
-  table_helper.add_field_long("col1", true, false);
+  table_helper.add_field_long("col0", false);
+  table_helper.add_field_long("col1", true);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -204,8 +204,8 @@ TEST_F(Handler_test, SingleIndex) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
-  table_helper.add_field_long("col1", false, false);
+  table_helper.add_field_long("col0", false);
+  table_helper.add_field_long("col1", false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.finalize();
 
@@ -270,9 +270,9 @@ TEST_F(Handler_test, MultiIndex) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
-  table_helper.add_field_long("col1", false, false);
-  table_helper.add_field_long("col2", false, false);
+  table_helper.add_field_long("col0", false);
+  table_helper.add_field_long("col1", false);
+  table_helper.add_field_long("col2", false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.add_index(HA_KEY_ALG_BTREE, true, {1});
   table_helper.add_index(HA_KEY_ALG_HASH, false, {0, 1});
@@ -438,7 +438,7 @@ TEST_F(Handler_test, IndexOnOff) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col0", false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.finalize();
 
