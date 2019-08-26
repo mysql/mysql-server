@@ -1804,3 +1804,50 @@ WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
 col1
 1
 DROP TABLE t1, t2;
+#
+# Bug#30224582 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED
+#
+# Set up a query where the hash join build input consists of a
+# materialized table, where we do an index lookup on the materialized
+# table. The LIMIT is also needed in order to trigger a second build
+# phase in the hash join.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(table1, t2) */
+*
+FROM
+(
+SELECT
+DISTINCT t1.*
+FROM
+t1
+) AS table1 JOIN t2
+WHERE table1.col1 = 1
+LIMIT 50;
+EXPLAIN
+-> Limit: 50 row(s)
+    -> Inner hash join
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Hash
+            -> Index lookup on table1 using <auto_key0> (col1=1)
+                -> Materialize
+                    -> Table scan on <temporary>
+                        -> Temporary table with deduplication
+                            -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT /*+ JOIN_ORDER(table1, t2) */
+*
+FROM
+(
+SELECT
+DISTINCT t1.*
+FROM
+t1
+) AS table1 JOIN t2
+WHERE table1.col1 = 1
+LIMIT 50;
+col1	col1
+1	1
+DROP TABLE t1, t2;

@@ -364,8 +364,15 @@ class HashJoinIterator final : public RowIterator {
   // read the first row from the probe input.
   bool m_enable_batch_mode_for_probe_input{false};
 
-  // Wether we are allowed to spill to disk.
+  // Whether we are allowed to spill to disk.
   bool m_allow_spill_to_disk{true};
+
+  // Whether the build iterator has more rows. This is used to stop the hash
+  // join iterator asking for more rows when we know for sure that the entire
+  // build input is consumed. The variable is only used if m_allow_spill_to_disk
+  // is false, as we have to see if there are more rows in the build input after
+  // the probe input is consumed.
+  bool m_build_iterator_has_more_rows{true};
 };
 
 #endif  // SQL_HASH_JOIN_ITERATOR_H_

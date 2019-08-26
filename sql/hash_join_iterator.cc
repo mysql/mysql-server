@@ -162,6 +162,7 @@ bool HashJoinIterator::Init() {
     DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
     return true;
   }
+  m_build_iterator_has_more_rows = true;
 
   // Set up the buffer that is used when
   // a) moving a row between the tables' record buffers, and,
@@ -350,6 +351,11 @@ static bool InitializeChunkFiles(
 }
 
 bool HashJoinIterator::BuildHashTable() {
+  if (!m_build_iterator_has_more_rows) {
+    m_state = State::END_OF_ROWS;
+    return false;
+  }
+
   if (InitRowBuffer()) {
     return true;
   }
@@ -362,6 +368,7 @@ bool HashJoinIterator::BuildHashTable() {
     }
 
     if (res == -1) {
+      m_build_iterator_has_more_rows = false;
       if (m_row_buffer.empty()) {
         m_state = State::END_OF_ROWS;
         return false;
