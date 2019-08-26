@@ -631,8 +631,8 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
 WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
 EXPLAIN
--> Remove duplicate (t1, t3, t4) rows using temporary table (weedout)
-    -> Nested loop semijoin  (cost=1.04 rows=1)
+-> Remove duplicate (t1, t3) rows using temporary table (weedout)
+    -> Nested loop inner join  (cost=1.04 rows=1)
         -> Nested loop left join  (cost=0.81 rows=0)
             -> Nested loop inner join  (cost=0.64 rows=0)
                 -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
