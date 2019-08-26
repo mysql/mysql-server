@@ -2176,13 +2176,13 @@ done:
   thd->proc_info = 0;
   thd->lex->sql_command = SQLCOM_END;
 
-  /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
-  thd->rewritten_query.mem_free();
-
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi = NULL;
   thd->m_digest = NULL;
+
+  /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
+  thd->rewritten_query.mem_free();
 
   thd_manager->dec_thread_running();
 
