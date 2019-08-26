@@ -3,7 +3,6 @@
 ### correctly and it eases the resource usage like job buffer ###
 
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 ### Test a table with many immediate triggers in breadth
 
