@@ -38,27 +38,17 @@
 */
 
 class Base_mock_field_longlong : public Field_longlong {
-  uchar buffer[PACK_LENGTH + 1];
-
-  void initialize() {
-    ptr = buffer + 1;
-    memset(buffer, 0, sizeof(buffer));
-    set_null_ptr(buffer, 1);
-  }
-
  public:
   Base_mock_field_longlong()
-      : Field_longlong(0,             // ptr_arg
-                       8,             // len_arg
-                       NULL,          // null_ptr_arg
-                       1,             // null_bit_arg
-                       Field::NONE,   // auto_flags_arg
-                       "field_name",  // field_name_arg
-                       false,         // zero_arg
-                       false)         // unsigned_arg
-  {
-    initialize();
-  }
+      : Field_longlong(nullptr,                    // ptr_arg
+                       8,                          // len_arg
+                       &Field::dummy_null_buffer,  // null_ptr_arg
+                       1,                          // null_bit_arg
+                       Field::NONE,                // auto_flags_arg
+                       "field_name",               // field_name_arg
+                       false,                      // zero_arg
+                       false)                      // unsigned_arg
+  {}
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index); }
@@ -72,26 +62,12 @@ class Base_mock_field_varstring : public Field_varstring {
                         "field_NAME",        // field_name_arg
                         share,               // share
                         &my_charset_latin1)  // char set
-  {
-    // Allocate place for storing the field value
-    ptr = new uchar[length + 1];
-  }
-
-  ~Base_mock_field_varstring() {
-    delete[] ptr;
-    ptr = NULL;
-  }
+  {}
 };
 
 class Base_mock_field_json : public Field_json {
-  uchar buffer[MAX_FIELD_WIDTH + 1];
-
  public:
-  Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, true, "json_field") {
-    ptr = buffer + 1;
-    memset(buffer, 0, sizeof(buffer));
-    set_null_ptr(buffer, 1);
-  }
+  Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, true, "json_field") {}
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
 };
 

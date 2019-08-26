@@ -222,8 +222,7 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   table->s->default_values = new uchar[table->s->reclength];
   table->s->tmp_table = NON_TRANSACTIONAL_TMP_TABLE;
 
-  // Allocate dummy records to avoid failures in the handler functions.
-  table->record[0] = new uchar[table->s->reclength];
+  // Allocate dummy record[1] to avoid failures in the handler functions.
   table->record[1] = new uchar[table->s->reclength];
 
   return table;

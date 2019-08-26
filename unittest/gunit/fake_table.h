@@ -235,13 +235,16 @@ class Fake_TABLE : public TABLE {
       : table_share(column_values.size()),
         mock_handler(static_cast<handlerton *>(NULL), &table_share) {
     field = m_field_array;
+    initialize();
     for (size_t i = 0; i < column_values.size(); ++i) {
       std::stringstream s;
       s << "field_" << i + 1;
       field[i] = new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
       field[i]->table = this;
+      const ptrdiff_t field_offset = i * MAX_FIELD_WIDTH;
+      field[i]->ptr = record[0] + field_offset + 1;
+      if (are_nullable) field[i]->set_null_ptr(record[0] + field_offset, 1);
     }
-    initialize();
     int i = 0;
     for (auto column_value : column_values) {
       auto item = new Item_int(column_value);
@@ -278,6 +281,10 @@ class Fake_TABLE : public TABLE {
     new_field->table_name = &table_name;
     new_field->field_index = pos;
     bitmap_set_bit(read_set, pos);
+    const ptrdiff_t field_offset = pos * MAX_FIELD_WIDTH;
+    new_field->ptr = record[0] + field_offset + 1;
+    if (new_field->get_null_ptr() != nullptr)
+      new_field->set_null_ptr(record[0] + field_offset, 1);
   }
 };
 
