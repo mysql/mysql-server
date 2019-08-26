@@ -427,3 +427,43 @@ EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 F
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
 
 DROP TABLE t1;
+
+#
+# Bug #30220791: INCORRECT RESULT WHEN THE ITERATOR EXECUTOR IS USED
+#
+
+# This query happens to set up a “split jump” first match (firstmatch_return
+# is set on two different tables for what's logically a single jump back,
+# since the tables are non-contiguous).
+#
+# Non-tree EXPLAIN doesn't show this very clearly (it shows FirstMatch on both
+# the first and third tables), but for correctness of execution, we need to
+# to rewrite it into a single semijoin block, ie., we do a weedout at the end
+# (and no LIMIT 1 in the middle). Otherwise, the results would depend on the
+# order of rows coming from t2.
+
+CREATE TABLE t1 (
+  b INTEGER,
+  UNIQUE KEY ix1 (b)
+);
+
+INSERT INTO t1 VALUES (5),(7);
+
+CREATE TABLE t2 (
+  a INTEGER NOT NULL,
+  b INTEGER DEFAULT NULL,
+  KEY ix1 (b)
+);
+
+INSERT INTO t2 VALUES (40, 1), (45, 12), (11, 23), (10, 7);
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+  SELECT * FROM t1 AS table1
+    WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t2 USING (b) WHERE t2.a = t2.a AND t2.b <= 7 );
+
+eval EXPLAIN $query;
+eval EXPLAIN FORMAT=tree $query;
+
+DROP TABLE t1, t2;

@@ -1529,6 +1529,77 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
   return CreateWeedoutIterator(thd, move(iterator), sjtbl);
 }
 
+/**
+  Find out whether there is a first-match jump from "last_idx" to before
+  "first_idx".
+
+  This is made a bit trickier by the existence of “split jumps”. A split jump is
+  set up when there is a semijoin against two or more inner tables, but the join
+  optimizer has decided to put more tables in-between. Consider e.g. the query
+
+    (A sj (B ij C)) ij D
+
+  where the join optimizer has decided that the order should be A, B, D, C!
+  In this case, there's no direct jump from C to A, but a jump first from C to
+  D, and then when D has been processed, a jump back from B to A. As with other
+  non-hierarchical semijoin setups, we don't try to execute these directly,
+  but rather set them up as weedouts, by adding elements to
+  "unhandled_duplicates".
+
+  @return true if there is a first match jump, split or not, from "last_idx" to
+    just before "split_idx". If it's a split jump, "is_split" is set to true.
+    (If the function returns false, "is_split" is undefined.)
+ */
+static bool FirstMatchBetween(QEP_TAB *qep_tabs, const plan_idx first_idx,
+                              const plan_idx last_idx, bool *is_split,
+                              vector<QEP_TAB *> *unhandled_duplicates) {
+  if (qep_tabs[last_idx].match_tab != last_idx) {
+    // last_idx doesn't contain a first match, or its first match is
+    // the middle part of a split jump. Ignore.
+    return false;
+  }
+  if (qep_tabs[last_idx].firstmatch_return == first_idx - 1) {
+    for (plan_idx i = 0; i < first_idx; ++i) {
+      if (qep_tabs[i].firstmatch_return != NO_PLAN_IDX &&
+          qep_tabs[i].match_tab == last_idx) {
+        // The jump from <last_idx> back to <first_idx> is the last part of a
+        // larger, split jump. Ignore.
+        return false;
+      }
+    }
+
+    // Regular, non-split first match jump.
+    *is_split = false;
+    return true;
+  }
+
+  // See if there's a first match jump chain that starts at <last_idx>
+  // and ends up jumping to before <first_idx>.
+  for (plan_idx i = first_idx; i < last_idx; ++i) {
+    if (qep_tabs[i].firstmatch_return == first_idx - 1 &&
+        qep_tabs[i].match_tab == last_idx) {
+      // OK, there is. We will be solving it by adding these tables to
+      // unhandled_duplicates, so they will be solved with weedout at
+      // the very top. Go through all the different segments of the split jump
+      // to figure out which tables are supposed to be part of this semijoin.
+      plan_idx this_segment_end = MAX_TABLES + 1;
+      for (plan_idx j = last_idx; j >= first_idx; --j) {
+        if (qep_tabs[j].match_tab == last_idx) {
+          this_segment_end = qep_tabs[j].firstmatch_return;
+        }
+        if (j > this_segment_end) {
+          unhandled_duplicates->push_back(&qep_tabs[j]);
+        }
+      }
+
+      *is_split = true;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 enum class Substructure { NONE, OUTER_JOIN, SEMIJOIN, WEEDOUT };
 
 /**
@@ -1563,10 +1634,19 @@ static Substructure FindSubstructure(
   bool is_semijoin = false;
   plan_idx semijoin_end = NO_PLAN_IDX;
   for (plan_idx j = this_idx; j < last_idx; ++j) {
-    if (qep_tabs[j].firstmatch_return == this_idx - 1) {
-      is_semijoin = true;
-      semijoin_end = j + 1;
-      break;
+    bool is_split;
+    if (FirstMatchBetween(qep_tabs, this_idx, j, &is_split,
+                          unhandled_duplicates)) {
+      if (is_split) {
+        // Split first-match jumps are fully handled by adding to
+        // <unhandled_duplicates>, so don't communicate the semijoin upwards;
+        // keep looking for other substructures instead (including smaller
+        // semijoins).
+      } else {
+        is_semijoin = true;
+        semijoin_end = j + 1;
+        break;
+      }
     }
   }
 
