@@ -3585,7 +3585,7 @@ SELECT t1.col_varchar_256 AS field1
 FROM t1 WHERE t1.col_int_unique <> 8
 ORDER BY field1;
 EXPLAIN
--> Sort: t1.col_varchar_256  (cost=3.21 rows=6)
+-> Sort row IDs: t1.col_varchar_256  (cost=3.21 rows=6)
     -> Index range scan on t1 using ix1, with pushed condition: (t1.col_int_unique <> 8)
 
 DROP TABLE t1;
