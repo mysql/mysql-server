@@ -29,7 +29,7 @@ call mtr.add_suppression("Fatal error during the incremental recovery process of
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
-call mtr.add_suppression("All donors left. Aborting group replication recovery.*");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.*");
 set session sql_log_bin=1;
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_cleanup';

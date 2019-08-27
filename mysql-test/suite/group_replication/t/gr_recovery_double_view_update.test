@@ -70,7 +70,7 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 # TODO: the sleeps below should be replaced by debug sync points
 # For now ensure that we get coverage in most of the runs and
 # do not fail on valgrind
-call mtr.add_suppression("All donors left. Aborting group replication recovery.*");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.*");
 set session sql_log_bin=1;
 
 SET @debug_save= @@GLOBAL.DEBUG;
