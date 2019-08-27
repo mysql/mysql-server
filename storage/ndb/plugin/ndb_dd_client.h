@@ -34,6 +34,7 @@
 #include "my_inttypes.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
+#include "sql/mdl.h"
 
 namespace dd {
 typedef String_type sdi_t;
@@ -85,7 +86,11 @@ class Ndb_dd_client {
   class THD *const m_thd;
   dd::cache::Dictionary_client *m_client;
   void *m_auto_releaser;  // Opaque pointer
+  // List of MDL locks taken in EXPLICIT scope by Ndb_dd_client
   std::vector<class MDL_ticket *> m_acquired_mdl_tickets;
+  // MDL savepoint which allows releasing MDL locks taken by called
+  // functions in TRANSACTIONAL and STATEMENT scope
+  const MDL_savepoint m_save_mdl_locks;
   ulonglong m_save_option_bits{0};
   bool m_comitted{false};
   bool m_auto_rollback{true};

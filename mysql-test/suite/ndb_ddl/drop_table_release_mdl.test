@@ -1,0 +1,41 @@
+--source connect.inc
+
+--echo # Create logfile group, tablespace, and table in the tablespace
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE t10 (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB
+  TABLESPACE ts1
+  STORAGE DISK;
+
+--echo # Drop the table, this caused problem on participant which didn't
+--echo # release an MDL lock in TRANSACTIONAL scope
+DROP TABLE t10;
+
+--connection mysqld2
+--echo # mysqld2> Run query accessing the tablespace where t10 was located
+SELECT LOGFILE_GROUP_NAME, FILE_NAME, TOTAL_EXTENTS, INITIAL_SIZE, ENGINE, EXTRA
+  FROM INFORMATION_SCHEMA.FILES
+  WHERE FILE_TYPE = 'UNDO LOG'
+    AND FILE_NAME IS NOT NULL
+    AND LOGFILE_GROUP_NAME IS NOT NULL
+  ORDER BY LOGFILE_GROUP_NAME;
+
+--echo # Cleanup
+--connection mysqld1
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1 ENGINE NDB;

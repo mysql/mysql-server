@@ -34,7 +34,6 @@
 #include "sql/dd/properties.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
-#include "sql/mdl.h"            // MDL_*
 #include "sql/query_options.h"  // OPTION_AUTOCOMMIT
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_trigger.h"    // remove_all_triggers_from_perfschema
@@ -52,7 +51,9 @@
 #include "storage/ndb/plugin/ndb_thd.h"
 
 Ndb_dd_client::Ndb_dd_client(THD *thd)
-    : m_thd(thd), m_client(thd->dd_client()) {
+    : m_thd(thd),
+      m_client(thd->dd_client()),
+      m_save_mdl_locks(thd->mdl_context.mdl_savepoint()) {
   disable_autocommit();
 
   // Create dictionary client auto releaser, stored as
@@ -63,9 +64,6 @@ Ndb_dd_client::Ndb_dd_client(THD *thd)
 }
 
 Ndb_dd_client::~Ndb_dd_client() {
-  // Automatically release acquired MDL locks
-  mdl_locks_release();
-
   // Automatically restore the option_bits in THD if they have
   // been modified
   if (m_save_option_bits) m_thd->variables.option_bits = m_save_option_bits;
@@ -74,6 +72,9 @@ Ndb_dd_client::~Ndb_dd_client() {
     // Automatically rollback unless commit has been called
     if (!m_comitted) rollback();
   }
+
+  // Release MDL locks
+  mdl_locks_release();
 
   // Free the dictionary client auto releaser
   dd::cache::Dictionary_client::Auto_releaser *ar =
@@ -328,9 +329,12 @@ bool Ndb_dd_client::mdl_locks_acquire_exclusive(const char *schema_name,
 }
 
 void Ndb_dd_client::mdl_locks_release() {
+  // Release MDL locks acquired in EXPLICIT scope
   for (MDL_ticket *ticket : m_acquired_mdl_tickets) {
     m_thd->mdl_context.release_lock(ticket);
   }
+  // Release new MDL locks acquired in TRANSACTIONAL and STATEMENT scope
+  m_thd->mdl_context.rollback_to_savepoint(m_save_mdl_locks);
 }
 
 void Ndb_dd_client::disable_autocommit() {
