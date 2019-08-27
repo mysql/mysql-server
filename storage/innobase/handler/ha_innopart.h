@@ -463,8 +463,6 @@ class ha_innopart : public ha_innobase,
   @return 0 or error code. */
   int repair(THD *thd, HA_CHECK_OPT *repair_opt) override;
 
-  uint referenced_by_foreign_key() override;
-
   void get_auto_increment(ulonglong offset, ulonglong increment,
                           ulonglong nb_desired_values, ulonglong *first_value,
                           ulonglong *nb_reserved_values) override;

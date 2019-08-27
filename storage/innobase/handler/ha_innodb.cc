@@ -17623,20 +17623,6 @@ int ha_innobase::get_cascade_foreign_key_table_list(
   return (0);
 }
 
-/** Checks if a table is referenced by a foreign key. The MySQL manual states
- that a REPLACE is either equivalent to an INSERT, or DELETE(s) + INSERT. Only a
- delete is then allowed internally to resolve a duplicate key conflict in
- REPLACE, not an update.
- @return > 0 if referenced by a FOREIGN KEY */
-
-uint ha_innobase::referenced_by_foreign_key(void) {
-  if (dict_table_is_referenced_by_foreign_key(m_prebuilt->table)) {
-    return (1);
-  }
-
-  return (0);
-}
-
 /** Frees the foreign key create info for a table stored in InnoDB, if it is
  non-NULL. */
 

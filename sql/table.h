@@ -940,7 +940,8 @@ struct TABLE_SHARE {
   /**
     Arrays with descriptions of foreign keys in which this table participates
     as child or parent. We only cache in them information from dd::Table object
-    which is sufficient for use by prelocking algorithm.
+    which is sufficient for use by prelocking algorithm/to check if table is
+    referenced by a foreign key.
   */
   uint foreign_keys{0};
   TABLE_SHARE_FOREIGN_KEY_INFO *foreign_key{nullptr};
@@ -1153,6 +1154,9 @@ struct TABLE_SHARE {
   bool has_secondary_engine() const {
     return is_primary_engine() && secondary_engine.str != nullptr;
   }
+
+  /** Returns whether this table is referenced by a foreign key. */
+  bool is_referenced_by_foreign_key() const { return foreign_key_parents != 0; }
 
  private:
   /// How many TABLE objects use this TABLE_SHARE.

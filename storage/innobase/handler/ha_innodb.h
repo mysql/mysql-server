@@ -316,8 +316,6 @@ class ha_innobase : public handler {
   int get_cascade_foreign_key_table_list(
       THD *thd, List<st_handler_tablename> *fk_table_list) override;
 
-  uint referenced_by_foreign_key() override;
-
   void free_foreign_key_create_info(char *str) override;
 
   uint lock_count(void) const override;

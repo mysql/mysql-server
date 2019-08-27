@@ -258,7 +258,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
                            List<FOREIGN_KEY_INFO> *f_key_list) override;
   int get_parent_foreign_key_list(THD *thd,
                                   List<FOREIGN_KEY_INFO> *f_key_list) override;
-  uint referenced_by_foreign_key() override;
 
   char *get_foreign_key_create_info() override;
   void free_foreign_key_create_info(char *str) override;

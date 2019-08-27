@@ -10224,7 +10224,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
 
         DBUG_ASSERT(table->table);
 
-        if (table->table->file->referenced_by_foreign_key()) {
+        if (table->table->s->is_referenced_by_foreign_key()) {
           /*
              FK-referenced dbs can't be gathered currently. The following
              event will be marked for sequential execution on slave.

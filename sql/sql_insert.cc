@@ -1887,7 +1887,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
           ON UPDATE triggers.
         */
         if (last_uniq_key(table, key_nr) &&
-            !table->file->referenced_by_foreign_key() &&
+            !table->s->is_referenced_by_foreign_key() &&
             (!table->triggers || !table->triggers->has_delete_triggers())) {
           if ((error = table->file->ha_update_row(table->record[1],
                                                   table->record[0])) &&

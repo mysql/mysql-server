@@ -11859,7 +11859,7 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
        the correct row.
      */
     if (last_uniq_key(table, keynum) &&
-        !table->file->referenced_by_foreign_key()) {
+        !table->s->is_referenced_by_foreign_key()) {
       DBUG_PRINT("info", ("Updating row using ha_update_row()"));
       error = table->file->ha_update_row(table->record[1], table->record[0]);
       switch (error) {
