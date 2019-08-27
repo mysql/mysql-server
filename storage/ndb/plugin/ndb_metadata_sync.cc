@@ -33,6 +33,7 @@
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"  // ndb_dd_disk_data_get_object_id_and_version
 #include "storage/ndb/plugin/ndb_dd_table.h"  // ndb_dd_table_get_object_id_and_version
 #include "storage/ndb/plugin/ndb_log.h"          // ndb_log_*
+#include "storage/ndb/plugin/ndb_metadata.h"     // Ndb_metadata
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"  // ndb_logfile_group_exists
 #include "storage/ndb/plugin/ndb_schema_dist.h"  // Ndb_schema_dist
 #include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
@@ -700,15 +701,15 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   }
 
   Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
-  const NdbDictionary::Table *tab = ndbtab_guard.get_table();
-  if (tab == nullptr) {
+  const NdbDictionary::Table *ndbtab = ndbtab_guard.get_table();
+  if (ndbtab == nullptr) {
     // Mismatch doesn't exist any more, return success
     return true;
   }
   Uint32 extra_metadata_version, unpacked_len;
   void *unpacked_data;
-  const int get_result = tab->getExtraMetadata(extra_metadata_version,
-                                               &unpacked_data, &unpacked_len);
+  const int get_result = ndbtab->getExtraMetadata(
+      extra_metadata_version, &unpacked_data, &unpacked_len);
   if (get_result != 0) {
     ndb_log_info("Failed to get extra metadata of table '%s.%s'",
                  db_name.c_str(), table_name.c_str());
@@ -720,7 +721,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     if (!dd_client.migrate_table(
             db_name.c_str(), table_name.c_str(),
             static_cast<const unsigned char *>(unpacked_data), unpacked_len,
-            false)) {
+            false, true)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to migrate table '%s.%s' with extra metadata "
@@ -745,7 +746,6 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
                     db_name.c_str(), table_name.c_str());
       return false;
     }
-    dd_client.commit();
     ndb_log_info("Table '%s.%s' installed in DD", db_name.c_str(),
                  table_name.c_str());
     return true;
@@ -754,7 +754,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   sdi.assign(static_cast<const char *>(unpacked_data), unpacked_len);
   free(unpacked_data);
 
-  const std::string tablespace_name = ndb_table_tablespace_name(dict, tab);
+  const std::string tablespace_name = ndb_table_tablespace_name(dict, ndbtab);
   if (!tablespace_name.empty()) {
     // Acquire IX MDL on tablespace
     if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
@@ -804,10 +804,10 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     }
   }
   Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
-  if (!dd_client.install_table(db_name.c_str(), table_name.c_str(), sdi,
-                               tab->getObjectId(), tab->getObjectVersion(),
-                               tab->getPartitionCount(), tablespace_name, false,
-                               &invalidator)) {
+  if (!dd_client.install_table(
+          db_name.c_str(), table_name.c_str(), sdi, ndbtab->getObjectId(),
+          ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
+          tablespace_name, false, &invalidator)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install table '%s.%s' in DD", db_name.c_str(),
                   table_name.c_str());
@@ -824,6 +824,11 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   if (!dd_client.get_table(db_name.c_str(), table_name.c_str(), &dd_table)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to get table '%s.%s' from DD after it was installed",
+                  db_name.c_str(), table_name.c_str());
+    return false;
+  }
+  if (!Ndb_metadata::compare(thd, ndbtab, dd_table, true, dict)) {
+    ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                   db_name.c_str(), table_name.c_str());
     return false;
   }

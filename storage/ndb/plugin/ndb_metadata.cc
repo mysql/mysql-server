@@ -221,44 +221,45 @@ bool Ndb_metadata::lookup_tablespace_id(THD *thd, dd::Table *table_def) {
   return false;
 }
 
+class Compare_context {
+  std::vector<std::string> diffs;
+  void add_diff(const char *property, std::string a, std::string b) {
+    std::string diff;
+    diff.append("Diff in '")
+        .append(property)
+        .append("' detected, '")
+        .append(a)
+        .append("' != '")
+        .append(b)
+        .append("'");
+    diffs.push_back(diff);
+  }
+
+ public:
+  void compare(const char *property, dd::String_type a, dd::String_type b) {
+    if (a == b) return;
+    add_diff(property, a.c_str(), b.c_str());
+  }
+
+  void compare(const char *property, unsigned long long a,
+               unsigned long long b) {
+    if (a == b) return;
+    add_diff(property, std::to_string(a), std::to_string(b));
+  }
+
+  bool equal() {
+    if (diffs.size() == 0) return true;
+
+    // Print the list of diffs
+    for (std::string diff : diffs) std::cout << diff << std::endl;
+
+    return false;
+  }
+};
+
 bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
   DBUG_TRACE;
-
-  class Compare_context {
-    std::vector<std::string> diffs;
-    void add_diff(const char *property, std::string a, std::string b) {
-      std::string diff;
-      diff.append("Diff in '")
-          .append(property)
-          .append("' detected, '")
-          .append(a)
-          .append("' != '")
-          .append(b)
-          .append("'");
-      diffs.push_back(diff);
-    }
-
-   public:
-    void compare(const char *property, dd::String_type a, dd::String_type b) {
-      if (a == b) return;
-      add_diff(property, a.c_str(), b.c_str());
-    }
-
-    void compare(const char *property, unsigned long long a,
-                 unsigned long long b) {
-      if (a == b) return;
-      add_diff(property, std::to_string(a), std::to_string(b));
-    }
-
-    bool equal() {
-      if (diffs.size() == 0) return true;
-
-      // Print the list of diffs
-      for (std::string diff : diffs) std::cout << diff << std::endl;
-
-      return false;
-    }
-  } ctx;
+  Compare_context ctx;
 
   // name
   // When using lower_case_table_names==2 the table will be
@@ -361,55 +362,61 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
                 t2->subpartition_expression_utf8());
   }
 
-  if (ctx.equal()) return true;  // Tables are identical
-  return false;
+  return ctx.equal();
 }
 
 bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
   DBUG_TRACE;
+  Compare_context ctx;
 
   // Compare the partition count of the NDB table with the partition
   // count of the table definition used by the caller
-  const size_t dd_num_partitions = table_def->partitions().size();
-  const size_t ndb_num_partitions = m_ndbtab->getPartitionCount();
-  if (ndb_num_partitions != dd_num_partitions) {
-    std::cout << "Diff in 'partition count' detected, '"
-              << std::to_string(ndb_num_partitions) << "' != '"
-              << std::to_string(dd_num_partitions) << "'" << std::endl;
-    return false;
-  }
+  ctx.compare("partition_count", table_def->partitions().size(),
+              m_ndbtab->getPartitionCount());
 
   // Check if the engine of the partitions are as expected
-  std::vector<std::string> diffs;
-  for (size_t i = 0; i < dd_num_partitions; i++) {
-    auto partition = table_def->partitions().at(i);
-    // engine
-    if (table_def->engine() != partition->engine()) {
-      std::string diff;
-      diff.append("Diff in 'engine' for partition '")
-          .append(partition->name().c_str())
-          .append("' detected, '")
-          .append(table_def->engine().c_str())
-          .append("' != '")
-          .append(partition->engine().c_str())
-          .append("'");
-      diffs.push_back(diff);
-    }
+  for (size_t i = 0; i < table_def->partitions().size(); i++) {
+    const dd::Partition *partition = table_def->partitions().at(i);
+    ctx.compare("partition_engine", "ndbcluster", partition->engine());
   }
 
-  if (diffs.size() != 0) {
-    // Print the list of diffs
-    for (std::string diff : diffs) {
-      std::cout << diff << std::endl;
-    }
+  return ctx.equal();
+}
+
+bool Ndb_metadata::compare_indexes(const dd::Table *table_def,
+                                   NdbDictionary::Dictionary *dict) {
+  DBUG_TRACE;
+  unsigned int ndb_index_count;
+  if (!ndb_table_index_count(dict, m_ndbtab, ndb_index_count)) {
     return false;
   }
-
-  return true;
+  size_t dd_index_count = table_def->indexes().size();
+  for (size_t i = 0; i < table_def->indexes().size(); i++) {
+    const dd::Index *index = table_def->indexes().at(i);
+    if (index->type() == dd::Index::enum_index_type::IT_PRIMARY &&
+        index->algorithm() == dd::Index::enum_index_algorithm::IA_HASH) {
+      // PKs using hash are a special case since there's no separate index
+      // created in NDB
+      dd_index_count--;
+    }
+    if (index->type() == dd::Index::enum_index_type::IT_UNIQUE &&
+        index->algorithm() == dd::Index::enum_index_algorithm::IA_HASH) {
+      // In case the table is not created with a primary key, unique keys using
+      // hash could be mapped to being a primary key which will once again lead
+      // to no separate index created in NDB
+      if (ndb_index_count == 0) {
+        dd_index_count--;
+      }
+    }
+  }
+  Compare_context ctx;
+  ctx.compare("index_count", dd_index_count, ndb_index_count);
+  return ctx.equal();
 }
 
 bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,
-                           const dd::Table *table_def) {
+                           const dd::Table *table_def, bool compare_indexes,
+                           NdbDictionary::Dictionary *dict) {
   Ndb_metadata ndb_metadata(m_ndbtab);
 
   // Transform NDB table to DD table def
@@ -436,6 +443,14 @@ bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,
   if (!ndb_metadata.check_partition_info(table_def)) {
     DBUG_ASSERT(false);
     return false;
+  }
+
+  if (compare_indexes) {
+    // Check if the number of indexes match
+    DBUG_ASSERT(dict != nullptr);
+    if (!ndb_metadata.compare_indexes(table_def, dict)) {
+      return false;
+    }
   }
 
   return true;

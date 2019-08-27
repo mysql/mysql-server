@@ -3,10 +3,6 @@ Restart server 1 to trigger schema distribution synchronization
 # restart
 Restart server 2 to trigger schema distribution synchronization
 # restart
-SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
-SET GLOBAL ndb_metadata_check = false;
-SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
-SET GLOBAL ndb_metadata_check = false;
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
@@ -78,5 +74,3 @@ c1	c2
 3	3
 DROP TABLE child;
 DROP TABLE parent;
-SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
-SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
