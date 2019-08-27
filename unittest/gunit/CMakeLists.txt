@@ -43,6 +43,17 @@ SET(DISABLE_PSI_DEFINITIONS
 # Set these in the cache to make them available globally
 SET(DISABLE_PSI_DEFINITIONS ${DISABLE_PSI_DEFINITIONS} CACHE INTERNAL "")
 
+# Set up valgrind options to use with ctest.
+# Use `ctest (...) -D ExperimentalMemCheck` to run.
+IF(LINUX OR FREEBSD)
+  FIND_PROGRAM(MEMORYCHECK_COMMAND valgrind)
+  SET(MEMORYCHECK_COMMAND_OPTIONS
+    "--leak-check=full --errors-for-leak-kinds=definite,indirect --error-exitcode=42"
+    CACHE INTERNAL "")
+  SET(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/mysql-test/valgrind.supp"
+    CACHE INTERNAL "")
+ENDIF()
+
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 
 # main-wrapper libraries (with tap-compatible option).
