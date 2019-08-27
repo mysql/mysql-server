@@ -32,7 +32,6 @@ mysqld = CHOOSE_host1
 loose-default-authentication-plugin=mysql_native_password
 loose-mysqlx=0
 socket=mysql.sock
-skip-grant-tables
 
 [client]
 protocol=tcp
