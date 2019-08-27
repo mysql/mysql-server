@@ -127,6 +127,7 @@ class Ndb_schema_dist_client {
   class THD *const m_thd;
   class Thd_ndb *const m_thd_ndb;
   struct NDB_SHARE *m_share{nullptr};
+  const std::string m_share_reference;
   class Prepared_keys {
     using Key = std::pair<std::string, std::string>;
     std::vector<Key> m_keys;
