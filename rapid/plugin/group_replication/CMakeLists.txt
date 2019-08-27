@@ -212,15 +212,18 @@ ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
 ENDIF()
 
+IF (WIN32)
+  SET(LIBRARIES_TO_LINK ${LZ4_LIBRARY} ${SSL_LIBRARIES} ${TIRPC_LIBRARIES} crypt32)
+ELSE()
+  SET(LIBRARIES_TO_LINK ${LZ4_LIBRARY} ${SSL_LIBRARIES} ${TIRPC_LIBRARIES})
+ENDIF()
+
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication
                  ${XCOM_SOURCES}
                  ${GCS_SOURCES}
                  ${GROUP_REPLICATION_SOURCES}
-                 LINK_LIBRARIES
-                 ${LZ4_LIBRARY}
-                 ${SSL_LIBRARIES}
-                 ${TIRPC_LIBRARIES}
+                 LINK_LIBRARIES ${LIBRARIES_TO_LINK}
                  MODULE_ONLY MODULE_OUTPUT_NAME "group_replication")
 
 ### INSTALLATION ###
