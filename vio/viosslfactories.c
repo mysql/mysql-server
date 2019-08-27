@@ -80,13 +80,21 @@ static DH *get_dh2048(void)
   DH *dh;
   if ((dh=DH_new()))
   {
-    dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-    dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
-    if (! dh->p || ! dh->g)
-    {
+    BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
+    BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    if (!p || !g
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+        || !DH_set0_pqg(dh, p, NULL, g)
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+    ) {
+      /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
-      dh=0;
+      return NULL;
     }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    dh->p= p;
+    dh->g= g;
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
   return(dh);
 }
@@ -216,10 +224,12 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options= (SSL_OP_NO_SSLv2 |
-                         SSL_OP_NO_SSLv3
-                         | SSL_OP_NO_TICKET
-                        );
+  /* MySQL 5.6 supports TLS up to v1.2, explicitly disable TLSv1.3. */
+  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+#ifdef HAVE_TLSv13
+                        SSL_OP_NO_TLSv1_3 |
+#endif /* HAVE_TLSv13 */
+                        SSL_OP_NO_TICKET;
 
   DBUG_ENTER("new_VioSSLFd");
   DBUG_PRINT("enter",
@@ -240,8 +250,14 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
 
   if (!(ssl_fd->ssl_context= SSL_CTX_new(is_client ?
-                                         TLSv1_client_method() :
-                                         TLSv1_server_method())))
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+                                         SSLv23_client_method() :
+                                         SSLv23_server_method()
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+                                         TLS_client_method() :
+                                         TLS_server_method()
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+                                        )))
   {
     *error= SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
@@ -251,6 +267,21 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
+
+#ifdef HAVE_TLSv13
+  /*
+    MySQL 5.6 doesn't support TLSv1.3 - set empty TLSv1.3 ciphersuites.
+  */
+  if (0 == SSL_CTX_set_ciphersuites(ssl_fd->ssl_context, ""))
+  {
+    *error = SSL_INITERR_CIPHERS;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(0);
+  }
+#endif /* HAVE_TLSv13 */
 
   /*
     Set the ciphers that can be used
