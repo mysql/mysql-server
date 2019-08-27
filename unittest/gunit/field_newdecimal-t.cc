@@ -49,27 +49,18 @@ class FieldNewDecimalTest : public ::testing::Test {
 };
 
 class Mock_field_new_decimal : public Field_new_decimal {
-  uchar buffer[MAX_FIELD_WIDTH + 1];
-  void initialize() {
-    ptr = buffer + 1;
-    memset(buffer, 0, MAX_FIELD_WIDTH + 1);
-    set_null_ptr(buffer, 1);
-  }
-
  public:
   Mock_field_new_decimal(int decimals)
-      : Field_new_decimal(0,             // ptr_arg
-                          8,             // len_arg
-                          NULL,          // null_ptr_arg
-                          1,             // null_bit_arg
-                          Field::NONE,   // auto_flags_arg
-                          "field_name",  // field_name_arg
-                          decimals,      // dec_arg
-                          false,         // zero_arg
-                          false)         // unsigned_arg
-  {
-    initialize();
-  }
+      : Field_new_decimal(nullptr,                    // ptr_arg
+                          8,                          // len_arg
+                          &Field::dummy_null_buffer,  // null_ptr_arg
+                          1,                          // null_bit_arg
+                          Field::NONE,                // auto_flags_arg
+                          "field_name",               // field_name_arg
+                          decimals,                   // dec_arg
+                          false,                      // zero_arg
+                          false)                      // unsigned_arg
+  {}
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index); }

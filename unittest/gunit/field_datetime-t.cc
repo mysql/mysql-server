@@ -48,48 +48,28 @@ class FieldDatetimeTest : public ::testing::Test {
 };
 
 class Mock_field_datetime : public Field_datetime {
- private:
-  uchar buffer[PACK_LENGTH + 1];
-
-  void initialize() {
-    ptr = buffer + 1;
-    memset(buffer, 0, PACK_LENGTH + 1);
-    set_null_ptr(buffer, 1);
-  }
-
  public:
   Mock_field_datetime()
-      : Field_datetime(0,             // ptr_arg
-                       NULL,          // null_ptr_arg
-                       1,             // null_bit_arg
-                       Field::NONE,   // auto_flags_arg
-                       "field_name")  // field_name_arg
-  {
-    initialize();
-  }
+      : Field_datetime(nullptr,                    // ptr_arg
+                       &Field::dummy_null_buffer,  // null_ptr_arg
+                       1,                          // null_bit_arg
+                       Field::NONE,                // auto_flags_arg
+                       "field_name")               // field_name_arg
+  {}
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 };
 
 class Mock_field_datetimef : public Field_datetimef {
-  void initialize() {
-    ptr = buffer + 1;
-    memset(buffer, 0, 8 + 1);
-    set_null_ptr(buffer, 1);
-  }
-
  public:
-  uchar buffer[8 + 1];
   Mock_field_datetimef(uint scale)
-      : Field_datetimef(0,             // ptr_arg
-                        NULL,          // null_ptr_arg
-                        1,             // null_bit_arg
-                        Field::NONE,   // unireg_check_arg
-                        "field_name",  // field_name_arg
-                        scale) {
-    initialize();
-  }
+      : Field_datetimef(nullptr,                    // ptr_arg
+                        &Field::dummy_null_buffer,  // null_ptr_arg
+                        1,                          // null_bit_arg
+                        Field::NONE,                // unireg_check_arg
+                        "field_name",               // field_name_arg
+                        scale) {}
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index); }
