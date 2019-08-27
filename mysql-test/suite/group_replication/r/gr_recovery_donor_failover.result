@@ -18,7 +18,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 # Start recovery on a new member and kill the donor
 #
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
+call mtr.add_suppression(".*Error when configuring the asynchronous recovery channel connection *.*");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 # Find if server 1 or 2 is the donor
