@@ -10177,6 +10177,12 @@ extern void ndb_fk_util_resolve_mock_tables(THD *thd,
                                             const char *new_parent_db,
                                             const char *new_parent_name);
 
+extern int ndb_fk_util_rename_foreign_keys(
+    THD *thd, NdbDictionary::Dictionary *dict,
+    const NdbDictionary::Table *renamed_table,
+    const std::string &old_table_name, const std::string &new_db_name,
+    const std::string &new_table_name);
+
 int rename_table_impl(THD *thd, Ndb *ndb,
                       Ndb_schema_dist_client *schema_dist_client,
                       const NdbDictionary::Table *orig_tab,
@@ -10338,13 +10344,14 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   // Release the unused old_key
   NDB_SHARE::free_key(old_key);
 
+  // Load the altered table
+  Ndb_table_guard ndbtab_g(dict, new_tabname);
+  const NDBTAB *ndbtab = ndbtab_g.get_table();
+
   if (!rollback_in_progress) {
     // This is an actual rename and not a rollback of the rename
     // Fetch the new table version and write it to the table definition,
     // the caller will then save it into DD
-    Ndb_table_guard ndbtab_g(dict, new_tabname);
-    const NDBTAB *ndbtab = ndbtab_g.get_table();
-
     // The id should still be the same as before the rename
     DBUG_ASSERT(ndbtab->getObjectId() == ndb_table_id);
     // The version should have been changed by the rename
@@ -10409,6 +10416,18 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   }
 
   if (real_rename) {
+    /*
+      This is a real rename - either the final phase of a copy alter involving
+      a table rename or a simple rename. In either case, the generated names
+      of foreign keys has to be renamed.
+     */
+    int error;
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
+    if ((error = ndb_fk_util_rename_foreign_keys(
+             thd, dict, ndbtab, real_rename_name, new_dbname, new_tabname))) {
+      return error;
+    }
+
     /*
       Commit of "real" rename table on participant i.e make the participant
       extract the original table name which it got in prepare.

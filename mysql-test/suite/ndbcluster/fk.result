@@ -505,7 +505,7 @@ fk7 INT, fk8 INT, fk9 INT, fk10 INT,
 CONSTRAINT c1 FOREIGN KEY (fk1) REFERENCES parent (pk),
 FOREIGN KEY (fk2) REFERENCES parent (pk),
 FOREIGN KEY (fk3) REFERENCES parent (pk)) ENGINE=NDB;
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE test.child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `fk1` int DEFAULT NULL,
@@ -525,17 +525,12 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
-CONSTRAINT_NAME
-c1
-child_fk_1
-child_fk_2
+Foreign keys consistent across NDB and DD
 # Similar check for ALTER TABLE.
 ALTER TABLE child ADD FOREIGN KEY (fk4) REFERENCES parent (pk),
 ADD CONSTRAINT c2 FOREIGN KEY (fk5) REFERENCES parent (pk),
 ADD FOREIGN KEY (fk6) REFERENCES parent (pk);
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE test.child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `fk1` int DEFAULT NULL,
@@ -561,20 +556,12 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
-CONSTRAINT_NAME
-c1
-c2
-child_fk_1
-child_fk_2
-child_fk_3
-child_fk_4
+Foreign keys consistent across NDB and DD
 # Adding foreign key with explicit name matching pattern of generated
 # names should be correctly handled by increasing generated name counter.
 ALTER TABLE child ADD CONSTRAINT child_fk_10 FOREIGN KEY (fk7) REFERENCES parent (pk);
 ALTER TABLE child ADD FOREIGN KEY (fk8) REFERENCES parent (pk);
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE test.child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `fk1` int DEFAULT NULL,
@@ -604,21 +591,11 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
-CONSTRAINT_NAME
-c1
-c2
-child_fk_1
-child_fk_10
-child_fk_11
-child_fk_2
-child_fk_3
-child_fk_4
+Foreign keys consistent across NDB and DD
 # Dropping foreign key with generated name doesn't cause name changes for
 # other foreign keys with generated names.
 ALTER TABLE child DROP FOREIGN KEY child_fk_4;
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE test.child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `fk1` int DEFAULT NULL,
@@ -647,20 +624,11 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
-CONSTRAINT_NAME
-c1
-c2
-child_fk_1
-child_fk_10
-child_fk_11
-child_fk_2
-child_fk_3
+Foreign keys consistent across NDB and DD
 # Generation of new names is not affected by presence of holes
 # in the sequence of generated names.
 ALTER TABLE child ADD FOREIGN KEY (fk9) REFERENCES parent (pk);
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE test.child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `fk1` int DEFAULT NULL,
@@ -691,22 +659,12 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
-CONSTRAINT_NAME
-c1
-c2
-child_fk_1
-child_fk_10
-child_fk_11
-child_fk_12
-child_fk_2
-child_fk_3
+Foreign keys consistent across NDB and DD
 # However, if foreign key with last generated name is dropped,
 # name can be reused later.
 ALTER TABLE child DROP FOREIGN KEY child_fk_12;
 ALTER TABLE child ADD FOREIGN KEY (fk10) REFERENCES parent (pk);
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE test.child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `fk1` int DEFAULT NULL,
@@ -738,25 +696,85 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
-CONSTRAINT_NAME
-c1
-c2
-child_fk_1
-child_fk_10
-child_fk_11
-child_fk_12
-child_fk_2
-child_fk_3
+Foreign keys consistent across NDB and DD
+# Renaming of table updates generated names to preserve the pattern.
+RENAME TABLE child TO child1;
+SHOW CREATE TABLE test.child1;
+Table	Create Table
+child1	CREATE TABLE `child1` (
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
+  KEY `c1` (`fk1`),
+  KEY `fk2` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `fk4` (`fk4`),
+  KEY `c2` (`fk5`),
+  KEY `fk6` (`fk6`),
+  KEY `child_fk_10` (`fk7`),
+  KEY `fk8` (`fk8`),
+  KEY `fk9` (`fk9`),
+  KEY `fk10` (`fk10`),
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child1_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child1_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child1_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child1_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child1_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child1_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+Foreign keys consistent across NDB and DD
+# Similar test for ALTER TABLE RENAME.
+ALTER TABLE child1 RENAME TO child2;
+SHOW CREATE TABLE test.child2;
+Table	Create Table
+child2	CREATE TABLE `child2` (
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
+  KEY `c1` (`fk1`),
+  KEY `fk2` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `fk4` (`fk4`),
+  KEY `c2` (`fk5`),
+  KEY `fk6` (`fk6`),
+  KEY `child_fk_10` (`fk7`),
+  KEY `fk8` (`fk8`),
+  KEY `fk9` (`fk9`),
+  KEY `fk10` (`fk10`),
+  CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+Foreign keys consistent across NDB and DD
 # Currently changing SE of table with foreign key is not supported.
 # If it is ever supported we need to handle somehow difference in
 # suffixes for generated foreign key names.
-ALTER TABLE child ENGINE=InnoDB;
+ALTER TABLE child2 ENGINE=InnoDB;
 ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
-SHOW CREATE TABLE child;
+SHOW CREATE TABLE child2;
 Table	Create Table
-child	CREATE TABLE `child` (
+child2	CREATE TABLE `child2` (
   `fk1` int DEFAULT NULL,
   `fk2` int DEFAULT NULL,
   `fk3` int DEFAULT NULL,
@@ -779,25 +797,25 @@ child	CREATE TABLE `child` (
   KEY `fk10` (`fk10`),
   CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
   CONSTRAINT `c2` FOREIGN KEY (`fk5`) REFERENCES `parent` (`pk`),
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
-  CONSTRAINT `child_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
-  CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
-  CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
-  CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
-  CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
+  CONSTRAINT `child2_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_10` FOREIGN KEY (`fk7`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child2_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
-WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
+WHERE constraint_schema='test' AND table_name='child2' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
 c1
 c2
-child_fk_1
-child_fk_10
-child_fk_11
-child_fk_12
-child_fk_2
-child_fk_3
-DROP TABLES child, parent;
+child2_fk_1
+child2_fk_10
+child2_fk_11
+child2_fk_12
+child2_fk_2
+child2_fk_3
+DROP TABLES child2, parent;
 #
 # Additional coverage for bug#30267236 "REPLACE DICT_FOREIGN_PARSE...
 #                                       WITH SQL-LAYER CHECK."
