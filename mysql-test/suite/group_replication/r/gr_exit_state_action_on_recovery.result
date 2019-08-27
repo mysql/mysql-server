@@ -27,7 +27,7 @@ call mtr.add_suppression("Fatal error during the incremental recovery process of
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error in the recovery module of Group Replication.");
-call mtr.add_suppression("Error while starting the group replication recovery receiver/applier threads");
+call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
 SET sql_log_bin = 1;
 
 #########################################################################
