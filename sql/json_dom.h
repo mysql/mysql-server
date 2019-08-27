@@ -1852,13 +1852,11 @@ bool is_valid_json_syntax(const char *text, size_t length);
   A class that is capable of holding objects of any sub-type of
   Json_scalar. Used for pre-allocating space in query-duration memory
   for JSON scalars that are to be returned by get_json_atom_wrapper().
+
+  This class should be replaced by std::variant when moving to C++17.
 */
 class Json_scalar_holder {
-  /**
-    Union of all concrete subclasses of Json_scalar. The union is
-    never instantiated. It is only used for finding how much space
-    needs to be allocated for #m_buffer.
-  */
+  /// Union of all concrete subclasses of Json_scalar.
   union Any_json_scalar {
     Json_string m_string;
     Json_decimal m_decimal;
@@ -1869,33 +1867,27 @@ class Json_scalar_holder {
     Json_null m_null;
     Json_datetime m_datetime;
     Json_opaque m_opaque;
-    // Need explicitly deleted destructor to silence warning on MSVC.
-    ~Any_json_scalar() = delete;
+    /// Constructor which initializes the union to hold a Json_null value.
+    Any_json_scalar() : m_null() {}
+    /// Destructor which delegates to Json_scalar's virtual destructor.
+    ~Any_json_scalar() {
+      // All members have the same address, and all members are sub-types of
+      // Json_scalar, so we can take the address of an arbitrary member and
+      // convert it to Json_scalar.
+      Json_scalar *scalar = &m_null;
+      scalar->~Json_scalar();
+    }
   };
 
   /// The buffer in which the Json_scalar value is stored.
-  char m_buffer[sizeof(Any_json_scalar)];
+  Any_json_scalar m_buffer;
 
-  /// True if and only if a value has been assigned to the holder.
-  bool m_assigned = false;
-
-  /// Clear the holder, and destroy the held value if there is one.
-  void clear() {
-    if (m_assigned) {
-      get()->~Json_scalar();
-      m_assigned = false;
-    }
-  }
+  /// Pointer to the held scalar, or nullptr if no value is held.
+  Json_scalar *m_scalar_ptr{nullptr};
 
  public:
-  /// Destructor. The held value is destroyed, if there is one.
-  ~Json_scalar_holder() { clear(); }
-
   /// Get a pointer to the held object, or nullptr if there is none.
-  Json_scalar *get() {
-    void *ptr = m_assigned ? &m_buffer : nullptr;
-    return static_cast<Json_scalar *>(ptr);
-  }
+  Json_scalar *get() { return m_scalar_ptr; }
 
   /**
     Construct a new Json_scalar value in this Json_scalar_holder.
@@ -1907,9 +1899,9 @@ class Json_scalar_holder {
   void emplace(Args &&... args) {
     static_assert(std::is_base_of<Json_scalar, T>::value, "Not a Json_scalar");
     static_assert(sizeof(T) <= sizeof(m_buffer), "Buffer is too small");
-    clear();
-    ::new (&m_buffer) T(std::forward<Args>(args)...);
-    m_assigned = true;
+    m_scalar_ptr = &m_buffer.m_null;
+    m_scalar_ptr->~Json_scalar();
+    ::new (m_scalar_ptr) T(std::forward<Args>(args)...);
   }
 };
 
