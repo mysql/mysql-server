@@ -348,7 +348,6 @@ ERROR 23000: Duplicate entry '11' for key 't1.a'
 SHOW WARNINGS;
 Level	Code	Message
 Error	1062	Duplicate entry '11' for key 't1.a'
-Error	1028	Sort aborted: Duplicate entry '11' for key 't1.a'
 
 DROP TABLE t1;
 DROP FUNCTION f1;

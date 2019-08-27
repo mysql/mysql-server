@@ -667,7 +667,7 @@ ER_FILE_USED
         spa "'%-.192s' esta bloqueado contra cambios"
         swe "'%-.192s' är låst mot användning"
         ukr "'%-.192s' заблокований на внесення змін"
-ER_FILSORT_ABORT
+OBSOLETE_ER_FILSORT_ABORT
         cze "Třídění přerušeno"
         dan "Sortering afbrudt"
         nla "Sorteren afgebroken"
@@ -11998,7 +11998,7 @@ ER_MUST_CHANGE_EXPIRED_PASSWORD
 ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE
   eng "Storage engine '%s' does not support system tables. [%s.%s]."
 
-ER_FILESORT_TERMINATED
+OBSOLETE_ER_FILESORT_TERMINATED
   eng "Sort aborted"
 
 ER_SERVER_STARTUP_MSG

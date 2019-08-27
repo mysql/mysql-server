@@ -648,37 +648,6 @@ err:
   }
   if (error) {
     DBUG_ASSERT(thd->is_error() || thd->killed);
-
-    /*
-      Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
-      to client!
-    */
-    const char *cause = thd->killed
-                            ? ((thd->killed == THD::KILL_CONNECTION &&
-                                !connection_events_loop_aborted())
-                                   ? ER_THD_NONCONST(thd, THD::KILL_QUERY)
-                                   : ER_THD_NONCONST(thd, thd->killed))
-                            : thd->get_stmt_da()->message_text();
-    const char *msg = ER_THD(thd, ER_FILESORT_TERMINATED);
-
-    my_printf_error(ER_FILSORT_ABORT, "%s: %s", MYF(0), msg, cause);
-
-    if (thd->is_fatal_error()) {
-      LogEvent()
-          .type(LOG_TYPE_ERROR)
-          .subsys(LOG_SUBSYSTEM_TAG)
-          .prio(INFORMATION_LEVEL)
-          .errcode(ER_FILESORT_TERMINATED)
-          .user(thd->security_context()->priv_user())
-          .host(thd->security_context()->host_or_ip())
-          .thread_id(thd->thread_id())
-          .message(
-              "%s, host: %s, user: %s, thread: %u, error: %s, "
-              "query: %-.4096s",
-              msg, thd->security_context()->host_or_ip().str,
-              thd->security_context()->priv_user().str, thd->thread_id(), cause,
-              thd->query().str);
-    }
   } else
     thd->inc_status_sort_rows(num_rows_found);
 
