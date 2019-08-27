@@ -33,7 +33,6 @@
 
 #include <openssl/sha.h>
 #include <openssl/rand.h>
-
 #include "crypt_genhash_impl.h"
 
 #include "m_string.h"
