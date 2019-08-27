@@ -258,9 +258,6 @@ COUNT(*)
 200
 ************ Restore the slave ************************
 CREATE DATABASE tpcb;
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 5;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 ***** Check a few slave restore values ***************
 USE tpcb;
 SELECT COUNT(*) FROM account;

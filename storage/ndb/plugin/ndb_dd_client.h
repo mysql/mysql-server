@@ -147,7 +147,7 @@ class Ndb_dd_client {
                      Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool migrate_table(const char *schema_name, const char *table_name,
                      const unsigned char *frm_data, unsigned int unpacked_len,
-                     bool force_overwrite);
+                     bool force_overwrite, bool compare_definitions = false);
   bool get_table(const char *schema_name, const char *table_name,
                  const dd::Table **table_def);
   bool table_exists(const char *schema_name, const char *table_name,

@@ -431,3 +431,45 @@ bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
   version = ts.getObjectVersion();
   return true;
 }
+
+bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
+                           const NdbDictionary::Table *ndbtab,
+                           unsigned int &index_count) {
+  NdbDictionary::Dictionary::List list;
+  if (dict->listIndexes(list, *ndbtab) != 0) {
+    // List indexes failed
+    return false;
+  }
+  // Separate indexes into ordered and unique indexes
+  std::unordered_set<std::string> ordered_indexes;
+  std::unordered_set<std::string> unique_indexes;
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    switch (elmt.type) {
+      case NdbDictionary::Object::UniqueHashIndex:
+        unique_indexes.insert(elmt.name);
+        break;
+      case NdbDictionary::Object::OrderedIndex:
+        ordered_indexes.insert(elmt.name);
+        break;
+      default:
+        // Unexpected object type
+        return false;
+    }
+  }
+  index_count = ordered_indexes.size();
+  // Iterate through the ordered indexes and check if any of them are
+  // "companion" ordered indexes. This is required since creating a unique key
+  // leads to 2 indexes being created - a unique hash index (of the form
+  // <index_name>$unique) and a companion ordered index. Note that this is not
+  // the case for hash based unique indexes which have no companion ordered
+  // index
+  for (auto &ordered_index : ordered_indexes) {
+    const std::string unique_index = ordered_index + "$unique";
+    if (unique_indexes.find(unique_index) != unique_indexes.end()) {
+      index_count--;
+    }
+  }
+  index_count += unique_indexes.size();
+  return true;
+}

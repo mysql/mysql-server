@@ -16,3 +16,6 @@ ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},r
 # No io binding
 #ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},rep={cpubind=0}
 
+[mysqld]
+# Turn off auto sync so it doesn't interfere with the test
+ndb-metadata-check = false

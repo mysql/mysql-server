@@ -40,6 +40,10 @@ namespace ndb_upgrade {
   @param[in]  unpacked_len               Unpacked length of frm data.
   @param[in]  is_fix_view_cols_and_deps  Fix view col data, table and
                                          routines dependency.
+  @param[in]  compare_definitions        Controls whether a check is done to see
+                                         if the DD table definition created
+                                         matches the NDB Dictionary table
+                                         definition
 
   @retval true   ON SUCCESS
   @retval false  ON FAILURE
@@ -48,7 +52,8 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                          const String_type &table_name,
                          const unsigned char *frm_data,
                          const unsigned int unpacked_len,
-                         bool is_fix_view_cols_and_deps);
+                         bool is_fix_view_cols_and_deps,
+                         bool compare_definitions);
 
 }  // namespace ndb_upgrade
 }  // namespace dd

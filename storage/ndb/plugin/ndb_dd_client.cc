@@ -679,7 +679,8 @@ bool Ndb_dd_client::migrate_table(const char *schema_name,
                                   const char *table_name,
                                   const unsigned char *frm_data,
                                   unsigned int unpacked_len,
-                                  bool force_overwrite) {
+                                  bool force_overwrite,
+                                  bool compare_definitions) {
   if (force_overwrite) {
     // Remove the old table before migrating
     DBUG_PRINT("info", ("dropping existing table"));
@@ -691,7 +692,8 @@ bool Ndb_dd_client::migrate_table(const char *schema_name,
   }
 
   const bool migrate_result = dd::ndb_upgrade::migrate_table_to_dd(
-      m_thd, schema_name, table_name, frm_data, unpacked_len, false);
+      m_thd, schema_name, table_name, frm_data, unpacked_len, false,
+      compare_definitions);
 
   return migrate_result;
 }

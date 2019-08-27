@@ -43,8 +43,7 @@
 # Restore checked in backup
 CREATE DATABASE db1;
 
---exec $NDB_RESTORE -b 1 -n 1 -m --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
 
 # Create more tables if requested. Number of tables created = db_number*100
 --let $i=1

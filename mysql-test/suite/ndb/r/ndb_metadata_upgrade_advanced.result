@@ -3,10 +3,11 @@ Restart server 1 to trigger schema synchronization
 # restart
 Restart server 2 to trigger schema synchronization
 # restart
-SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
-SET GLOBAL ndb_metadata_check = false;
-SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
-SET GLOBAL ndb_metadata_check = false;
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -136,13 +137,26 @@ c1	c2	c3	c4
 1	a	a	NULL
 2	b	b	2
 DROP TABLE t3;
-SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
-SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
+SHOW TABLES;
+Tables_in_test
+SELECT * FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+1	1	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	c	d
+SELECT * FROM t2;
+c1	c2
+2	4
+SELECT * FROM t3;
+c1	c2	c3
+1	a	a
+DROP TABLE t1,t2,t3;
 Backup from 7.6 restored
 Restart server 1 to trigger schema synchronization
 # restart
 Restart server 2 to trigger schema synchronization
 # restart
+SHOW TABLES;
+Tables_in_test
+t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

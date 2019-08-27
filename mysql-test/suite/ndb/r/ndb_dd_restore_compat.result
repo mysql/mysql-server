@@ -1,7 +1,3 @@
-SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check = true;
-SET GLOBAL ndb_metadata_check_interval = 0;
 SHOW CREATE TABLE t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
@@ -9,8 +5,6 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
-SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 ALTER TABLESPACE ts
 DROP DATAFILE 'datafile.dat';
 DROP TABLESPACE ts;

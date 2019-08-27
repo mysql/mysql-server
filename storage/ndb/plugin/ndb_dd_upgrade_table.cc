@@ -86,6 +86,8 @@
 #include "sql/transaction.h"  // trans_commit
 #include "sql_string.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_metadata.h"     // Ndb_metadata::compare
+#include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"  // Thd_ndb
 #include "thr_lock.h"
@@ -567,7 +569,8 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                          const String_type &table_name,
                          const unsigned char *frm_data,
                          const unsigned int unpacked_len,
-                         bool is_fix_view_cols_and_deps) {
+                         bool is_fix_view_cols_and_deps,
+                         bool compare_definitions) {
   DBUG_TRACE;
 
   FRM_context frm_context;
@@ -677,6 +680,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   // since it's not possible to upgrade such tables
   const bool check_temporal_upgrade = true;
   const int error = check_table_for_old_types(&table, check_temporal_upgrade);
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
   if (error) {
     if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
       ndb_log_error(
@@ -689,7 +693,6 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
           "Table upgrade required. Please do \"REPAIR TABLE `%s`\" "
           "or dump/reload to fix it",
           table_name.c_str());
-    Thd_ndb *thd_ndb = get_thd_ndb(thd);
     thd_ndb->push_warning(
         "Table definition contains obsolete data types such "
         "as old temporal or decimal types");
@@ -863,6 +866,34 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
     return false;
+  }
+
+  if (compare_definitions) {
+    if (table.file->ha_upgrade_table(thd, schema_name.c_str(),
+                                     table_name.c_str(), table_def.get(),
+                                     &table)) {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+      return false;
+    }
+    Ndb *ndb = thd_ndb->ndb;
+    Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
+    const NdbDictionary::Table *ndbtab = ndbtab_guard.get_table();
+    if (ndbtab == nullptr) {
+      ndb_log_error("Failed to get table '%s.%s' from NDB Dictionary",
+                    schema_name.c_str(), table_name.c_str());
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+      return false;
+    }
+    if (!Ndb_metadata::compare(thd, ndbtab, table_def.get(), true,
+                               ndb->getDictionary())) {
+      ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
+                    schema_name.c_str(), table_name.c_str());
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+      return false;
+    }
   }
 
   if (trans_commit_stmt(thd) || trans_commit(thd)) {

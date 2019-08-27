@@ -285,4 +285,15 @@ bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
                                        const std::string &tablespace_name,
                                        int &id, int &version);
 
+/**
+ * @brief Return the number of indexes created on an NDB table
+ * @param dict               NDB Dictionary
+ * @param ndbtab             NDB Table object
+ * @param index_count [out]  Number of indexes
+ * @return true if the number of indexes could be determined, false if not
+ */
+bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
+                           const NdbDictionary::Table *ndbtab,
+                           unsigned int &index_count);
+
 #endif
