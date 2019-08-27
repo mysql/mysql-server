@@ -33,25 +33,10 @@
 
 #include <openssl/sha.h>
 #include <openssl/rand.h>
-
 #include "crypt_genhash_impl.h"
-
-/* Pre VS2010 compilers doesn't support stdint.h */
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#else
-#ifndef uint32_t
-typedef unsigned long uint32_t;
-#endif
-#ifndef uint8_t
-typedef unsigned char uint8_t;
-#endif
-#endif // !HAVE_STDINT_H
-
 #include <time.h>
 #include <string.h>
-
-
 
 #define	DIGEST_CTX	SHA256_CTX
 #define	DIGESTInit	SHA256_Init

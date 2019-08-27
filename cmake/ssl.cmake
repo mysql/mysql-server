@@ -126,6 +126,7 @@ MACRO (MYSQL_CHECK_SSL)
         # OpenSSL-1.1 requires backport of the patch for
         # Bug #28179051: ADD SUPPORT FOR OPENSSL 1.1 ON WINDOWS
         # SET(WITH_SSL_PATH "C:/OpenSSL-1.1-Win64/")
+        SET(WITH_SSL_PATH "C:/Program Files/OpenSSL-Win64/")
       ENDIF()
     ENDIF()
 
@@ -251,7 +252,7 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
       IF(WIN32 AND WITH_SSL STREQUAL "system")
-        MESSAGE(STATUS "Please do\nPATH=${WITH_SSL_PATH}:$PATH")
+        MESSAGE(STATUS "Please do\nPATH=\"${WITH_SSL_PATH}/bin\":$PATH")
       ENDIF()
       SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")

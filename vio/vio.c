@@ -394,7 +394,9 @@ void vio_end(void)
 {
 #if defined(HAVE_OPENSSL)
   // This one is needed on the client side
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   ERR_free_strings();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
