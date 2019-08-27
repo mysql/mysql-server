@@ -2038,18 +2038,18 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
 
 bool Sql_cmd_show_grants::execute(THD *thd) {
   DBUG_TRACE;
-  bool show_mandatory_roles = false;
-  if (for_user == 0) show_mandatory_roles = true;
+  bool show_mandatory_roles = (for_user == 0);
+  bool have_using_clause = (using_users != 0 && using_users->elements > 0);
 
   if (for_user == 0 || for_user->user.str == 0) {
     /* SHOW PRIVILEGE FOR CURRENT_USER */
     LEX_USER current_user;
     get_default_definer(thd, &current_user);
-    if (using_users == 0 || using_users->elements == 0) {
+    if (!have_using_clause) {
       const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
       return mysql_show_grants(thd, &current_user, *active_list,
-                               show_mandatory_roles);
+                               show_mandatory_roles, have_using_clause);
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
@@ -2064,8 +2064,7 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     }
   }
   List_of_auth_id_refs authid_list;
-  if (using_users != 0 && using_users->elements > 0) {
-    /* We have a USING clause */
+  if (have_using_clause) {
     for (const LEX_USER &user : *using_users) {
       authid_list.emplace_back(user.user, user.host);
     }
@@ -2073,7 +2072,8 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
 
   LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
   tmp_user = get_current_user(thd, tmp_user);
-  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles);
+  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles,
+                           have_using_clause);
 }
 
 bool Sql_cmd_show::execute(THD *thd) {
