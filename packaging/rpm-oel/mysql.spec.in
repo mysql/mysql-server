@@ -53,7 +53,7 @@
 %endif
 
 %if 0%{?rhel} == 6
-%global compatver             5.1.72
+%global compatver             5.1.73
 %global compatlib             16
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
 %endif
