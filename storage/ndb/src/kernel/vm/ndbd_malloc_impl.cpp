@@ -653,43 +653,81 @@ Ndbd_mem_manager::get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const
 Uint32
 Ndbd_mem_manager::get_allocated() const
 {
-  return m_resource_limits.get_allocated();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_allocated();
+  mt_mem_manager_unlock();
+  return val;
 }
 
 Uint32
 Ndbd_mem_manager::get_reserved() const
 {
-  return m_resource_limits.get_reserved();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_reserved();
+  mt_mem_manager_unlock();
+  return val;
 }
 
 Uint32
 Ndbd_mem_manager::get_shared() const
 {
-  return m_resource_limits.get_shared();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_shared();
+  mt_mem_manager_unlock();
+  return val;
+}
+
+Uint32
+Ndbd_mem_manager::get_free_shared() const
+{
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_free_shared();
+  mt_mem_manager_unlock();
+  return val;
+}
+
+Uint32
+Ndbd_mem_manager::get_free_shared_nolock() const
+{
+  /* Used by mt_getSendBufferLevel for quick read. */
+  const Uint32 val = m_resource_limits.get_free_shared(); // racy
+  return val;
 }
 
 Uint32
 Ndbd_mem_manager::get_spare() const
 {
-  return m_resource_limits.get_spare();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_spare();
+  mt_mem_manager_unlock();
+  return val;
 }
 
 Uint32
 Ndbd_mem_manager::get_in_use() const
 {
-  return m_resource_limits.get_in_use();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_in_use();
+  mt_mem_manager_unlock();
+  return val;
 }
 
 Uint32
 Ndbd_mem_manager::get_reserved_in_use() const
 {
-  return m_resource_limits.get_reserved_in_use();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_reserved_in_use();
+  mt_mem_manager_unlock();
+  return val;
 }
 
 Uint32
 Ndbd_mem_manager::get_shared_in_use() const
 {
-  return m_resource_limits.get_shared_in_use();
+  mt_mem_manager_lock();
+  const Uint32 val = m_resource_limits.get_shared_in_use();
+  mt_mem_manager_unlock();
+  return val;
 }
 
 int

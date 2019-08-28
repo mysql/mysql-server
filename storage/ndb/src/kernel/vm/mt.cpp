@@ -5247,22 +5247,23 @@ mt_get_send_buffer_bytes(NodeId node)
 void
 mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level)
 {
-  Resource_limit rl, rl_shared;
+  Resource_limit rl;
   const Uint32 page_size = thr_send_page::PGSIZE;
   thr_repository *rep = g_thr_repository;
   thr_repository::send_buffer *sb = &rep->m_send_buffers[node];
   const Uint64 current_node_send_buffer_size = sb->m_buffered_size + sb->m_sending_size;
   
+  /* Memory barrier to get a fresher value for rl.m_curr */
+  mb();
   rep->m_mm->get_resource_limit_nolock(RG_TRANSPORTER_BUFFERS, rl);
   Uint64 current_send_buffer_size = rl.m_min * page_size;
-  Uint64 current_used_send_buffer_size = rl.m_curr * page_size * 100;
+  Uint64 current_used_send_buffer_size = rl.m_curr * page_size;
   Uint64 current_percentage =
-    current_used_send_buffer_size / current_send_buffer_size;
+    (100 * current_used_send_buffer_size) / current_send_buffer_size;
 
   if (current_percentage >= 90)
   {
-    rep->m_mm->get_resource_limit(0, rl_shared);
-    Uint32 avail_shared = rl_shared.m_max - rl_shared.m_curr;
+    const Uint32 avail_shared = rep->m_mm->get_free_shared_nolock();
     if (rl.m_min + avail_shared > rl.m_max)
     {
       current_send_buffer_size = rl.m_max * page_size;
