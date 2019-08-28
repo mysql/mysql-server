@@ -9,7 +9,8 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --let $shutdown_server_timeout = 300
 --source include/restart_mysqld.inc
 
-# Let each undo truncation occur explicitly.
+# Let each undo truncation occur explicitly. This does not need to be
+# set back to default since there is another restart below.
 SET GLOBAL innodb_undo_log_truncate = OFF;
 
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
@@ -37,7 +38,6 @@ BEGIN
 END|
 DELIMITER ;|
 CALL populate_t1(1, 1000);
-
 
 --echo #
 --echo # Show that the implicit undo tablespaces may be set inactive
