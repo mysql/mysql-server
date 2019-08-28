@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,32 +57,41 @@ Undo_buffer::Undo_buffer(Ndbd_mem_manager* mm)
 }
 
 Uint32 *
-Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words, bool locked)
+Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
 {
   UndoPage* page;
   assert(words);
 #ifdef SAFE_UB
   words += 2; // header + footer
 #endif
+  assert(words <= UndoPage::DATA_WORDS);
+  if (unlikely(words > UndoPage::DATA_WORDS))
+  {
+    return nullptr;
+  }
+  Uint32 pos;
+  if (m_first_free != RNIL)
+  {
+    page = get_page(m_mm, m_first_free);
+
+    pos = page->m_words_used;
+
+    if (words + pos > UndoPage::DATA_WORDS)
+    {
+      m_first_free = RNIL;
+    }
+  }
   if (m_first_free == RNIL)
   {
-    page= (UndoPage*)m_mm->alloc_page(RT_DBTUP_COPY_PAGE,
-                                      &m_first_free,
-                                      Ndbd_mem_manager::NDB_ZONE_LE_32,
-                                      locked);
-    if(page == 0)
-      return 0;
-    page->m_words_used= 0;
-    page->m_ref_count= 0;
-  }
-  
-  page = get_page(m_mm, m_first_free);
-  Uint32 pos= page->m_words_used;
+    page = (UndoPage*)m_mm->alloc_page(RT_DBTUP_COPY_PAGE,
+                                       &m_first_free,
+                                       Ndbd_mem_manager::NDB_ZONE_LE_32);
+    if (page == 0)
+      return nullptr;
 
-  if (words + pos > UndoPage::DATA_WORDS)
-  {
-    m_first_free= RNIL;
-    return alloc_copy_tuple(dst, words, locked);
+    page->m_words_used = 0;
+    pos = 0;
+    page->m_ref_count = 0;
   }
   
   dst->m_page_no = m_first_free;
@@ -96,6 +105,22 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words, bool locked)
   pos ++;
 #endif
   return page->m_data + pos;
+}
+
+bool
+Undo_buffer::reuse_page_for_copy_tuple(Uint32 reuse_page)
+{
+  require(reuse_page != RNIL);
+  if (!m_mm->take_pages(RT_DBTUP_COPY_PAGE, 1))
+  {
+    return false;
+  }
+  require(m_first_free == RNIL);
+  m_first_free = reuse_page;
+  UndoPage* page = get_page(m_mm, m_first_free);
+  page->m_words_used = 0;
+  page->m_ref_count = 0;
+  return true;
 }
 
 void

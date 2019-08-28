@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2969,16 +2969,14 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
    * in a local data array on the stack before we start writing them
    * into the LCP keep list.
    *
-   * The page itself that we are scanning will be returned to the same
-   * memory pool as we are allocating copy tuples from. So after
-   * scanning the page we will do the following:
-   * 1) Acquire a global lock on the NDB memory manager to ensure that
-   *    no other thread is allowed to snatch the page from us until
-   *    we are sure that we got what we needed.
-   * 2) Release the page with the lock held
-   * 3) Acquire the needed set of copy tuples (called with a lock flag
-   *    set).
-   * 4) Release the lock on the NDB memory manager
+   * We depend on that allocation of copy tuple will always succeed.
+   * Since we always will release the page we are scanning we hold
+   * that page until we know that copy tuple allocation succeeded.
+   * If not, we do not release the scanned page, rather only change
+   * resource type of it in memory manager.  The latter is done by
+   * a two step operation.  First account page as unused but do not
+   * put it in any kind of free list.  Then account it as a copy
+   * tuple page.
    *
    * This procedure will guarantee that we have space to record the
    * DELETE by ROWIDs in the LCP keep list.
@@ -3104,10 +3102,18 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
     return;
   }
   Uint32 words = 6 + ((found_idx_count + 1) / 2);
-  m_ctx.m_mm.lock();
-  returnCommonArea(pagePtr.i, 1, true);
-  ndbrequire(c_undo_buffer.alloc_copy_tuple(&location, words, true) != 0);
-  m_ctx.m_mm.unlock();
+  if (likely(c_undo_buffer.alloc_copy_tuple(&location, words) != nullptr))
+  {
+    jam();
+    returnCommonArea(pagePtr.i, 1);
+  }
+  else
+  {
+    jam();
+    ndbrequire(returnCommonArea_for_reuse(pagePtr.i, 1));
+    ndbrequire(c_undo_buffer.reuse_page_for_copy_tuple(pagePtr.i));
+    ndbrequire(c_undo_buffer.alloc_copy_tuple(&location, words) != nullptr);
+  }
   Uint32 * copytuple = get_copy_tuple_raw(&location);
   Local_key flag_key;
   flag_key.m_page_no = FREE_PAGE_RNIL;

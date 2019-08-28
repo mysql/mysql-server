@@ -28,6 +28,8 @@
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
 
+#define JAM_FILE_ID 296
+
 #define PAGES_PER_REGION_LOG BPP_2LOG
 
 #ifdef _WIN32
@@ -419,8 +421,11 @@ Resource_limits::Resource_limits()
   m_free_reserved = 0;
   m_in_use = 0;
   m_spare = 0;
+  m_untaken = 0;
   m_max_page = 0;
   m_prio_free_limit = 0;
+  m_lent = 0;
+  m_borrowed = 0;
   memset(m_limit, 0, sizeof(m_limit));
 }
 
@@ -434,42 +439,51 @@ Resource_limits::check() const
   const Resource_limit* rl = m_limit;
   Uint32 curr = 0;
   Uint32 spare = 0;
-  Uint32 res_alloc = 0;
+  Uint32 lent = 0;
+  Uint32 borrowed = 0;
+  Uint32 sumres_lent = 0;
+  Uint32 sumres_alloc = 0; // includes spare and lent pages
   Uint32 shared_alloc = 0;
   Uint32 sumres = 0;
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
     curr += rl[i].m_curr;
     spare += rl[i].m_spare;
+    lent += rl[i].m_lent;
+    borrowed += rl[i].m_borrowed;
+    sumres_lent += rl[i].m_lent;
     sumres += rl[i].m_min;
-    // assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
-    if (rl[i].m_curr + rl[i].m_spare > rl[i].m_min)
+    const Uint32 res_alloc = rl[i].m_curr + rl[i].m_spare + rl[i].m_lent;
+    require(res_alloc <= rl[i].m_max);
+    if (res_alloc > rl[i].m_min)
     {
-      shared_alloc += rl[i].m_curr + rl[i].m_spare - rl[i].m_min;
-      res_alloc += rl[i].m_min;
+      shared_alloc += res_alloc - rl[i].m_min;
+      sumres_alloc += rl[i].m_min;
     }
     else
     {
-      res_alloc += rl[i].m_curr + rl[i].m_spare;
+      sumres_alloc += res_alloc;
     }
   }
 
-  if(!((curr == get_in_use()) &&
+  if(!((curr + m_untaken == get_in_use()) &&
        (spare == get_spare()) &&
-       (res_alloc + shared_alloc == curr + spare) &&
-       (res_alloc <= sumres) &&
-       (sumres == res_alloc + get_free_reserved()) &&
-       (get_in_use() + get_spare() <= get_allocated())))
+       (sumres_alloc + shared_alloc == curr + spare + sumres_lent) &&
+       (sumres == sumres_alloc + get_free_reserved()) &&
+       (get_in_use() + get_spare() <= get_allocated()) &&
+       (lent == m_lent) &&
+       (borrowed == m_borrowed)))
   {
     dump();
   }
 
-  assert(curr == get_in_use());
-  assert(spare == get_spare());
-  assert(res_alloc + shared_alloc == curr + spare);
-  assert(res_alloc <= sumres);
-  assert(sumres == res_alloc + get_free_reserved());
-  assert(get_in_use() + get_spare() <= get_allocated());
+  require(curr + m_untaken == get_in_use());
+  require(spare == get_spare());
+  require(sumres_alloc + shared_alloc == curr + spare + sumres_lent);
+  require(sumres == sumres_alloc + get_free_reserved());
+  require(get_in_use() + get_spare() <= get_allocated());
+  require(lent == m_lent);
+  require(borrowed == m_borrowed);
 #endif
 }
 
@@ -477,20 +491,36 @@ void
 Resource_limits::dump() const
 {
   printf("ri: global "
-         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u\n",
+         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u: untaken: %u: lent: %u: borrowed: %u\n",
          m_max_page,
          m_free_reserved,
          m_in_use,
          m_allocated,
-         m_spare);
+         m_spare,
+         m_untaken,
+         m_lent,
+         m_borrowed);
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
-    printf("ri: %u id: %u min: %u curr: %u max: %u spare: %u spare_pct: %u\n",
+    if (m_limit[i].m_resource_id == 0 &&
+        m_limit[i].m_min == 0 &&
+        m_limit[i].m_curr == 0 &&
+        m_limit[i].m_max == 0 &&
+        m_limit[i].m_lent == 0 &&
+        m_limit[i].m_borrowed == 0 &&
+        m_limit[i].m_spare == 0 &&
+        m_limit[i].m_spare_pct == 0)
+    {
+      continue;
+    }
+    printf("ri: %u id: %u min: %u curr: %u max: %u lent: %u borrowed: %u spare: %u spare_pct: %u\n",
            i,
            m_limit[i].m_resource_id,
            m_limit[i].m_min,
            m_limit[i].m_curr,
            m_limit[i].m_max,
+           m_limit[i].m_lent,
+           m_limit[i].m_borrowed,
            m_limit[i].m_spare,
            m_limit[i].m_spare_pct);
   }
@@ -502,7 +532,7 @@ Resource_limits::dump() const
  *
  * m_min = reserved
  * m_curr = currently used
- * m_max = max alloc, 0 = no limit
+ * m_max = max alloc
  *
  */
 void
@@ -608,7 +638,7 @@ Ndbd_mem_manager::get_memroot() const
  *
  * m_min = reserved
  * m_curr = currently used including spare pages
- * m_max = max alloc, 0 = no limit
+ * m_max = max alloc
  * m_spare = pages reserved for restart or special use
  *
  */
@@ -1396,12 +1426,16 @@ void
 Ndbd_mem_manager::dump() const
 {
   mt_mem_manager_lock();
+  printf("Begin Ndbd_mem_manager::dump\n");
   for (Uint32 zone = 0; zone < ZONE_COUNT; zone ++)
   {
+    printf("zone %u\n", zone);
     for (Uint32 i = 0; i<16; i++)
     {
-      printf(" list: %d - ", i);
       Uint32 head = m_buddy_lists[zone][i];
+      if (head == 0)
+        continue;
+      printf(" list: %d - ", i);
       while(head)
       {
         Free_page_data* fd = get_free_page_data(m_base_page+head, head);
@@ -1411,9 +1445,9 @@ Ndbd_mem_manager::dump() const
       }
       printf("EOL\n");
     }
-
-    m_resource_limits.dump();
   }
+  m_resource_limits.dump();
+  printf("End Ndbd_mem_manager::dump\n");
   mt_mem_manager_unlock();
 }
 
@@ -1445,6 +1479,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
   assert(idx && idx <= MM_RG_COUNT);
   if (!locked)
     mt_mem_manager_lock();
+
+  m_resource_limits.reclaim_lent_pages(idx, 1);
 
   Uint32 cnt = 1;
   const Uint32 min = 1;
@@ -1553,6 +1589,8 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
     mt_mem_manager_lock();
 
   Uint32 req = *cnt;
+  m_resource_limits.reclaim_lent_pages(idx, req);
+
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
   if (free_res < req)
   {
@@ -1617,10 +1655,180 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
     mt_mem_manager_unlock();
 }
 
-#ifdef UNIT_TEST
+/** Transfer pages between resource groups without risk that some other
+ * resource gets them in betweeen.
+ *
+ * In some cases allocating pages fail.  Preferable the application can handle
+ * the allocation failure gracefully.
+ * In other cases application really need to have those pages.
+ * For that the memory manager support giving up and taking pages.
+ *
+ * The allocation may fail, either because there are no free pages at all, or
+ * that all free pages are reserved by other resources, or that the current
+ * resource have reached it upper limit of allowed allocations.
+ *
+ * One can use a combination of give_up_pages() and take_pages() instead of
+ * release_pages() and alloc_pages() to avoid that the pages are put into the
+ * global free list of pages but rather only the book keeping about how many
+ * pages are used in what way.
+ *
+ * An examples transferring pages from DM to TM.
+ *
+ * 1) Try do an ordinary alloc_pages(TM) first. If that succeed there is no
+ *    need for special page transfer.  Follow up with release_pages(DM).
+ *
+ * 2) When alloc_pages(TM) fail, do give_up_pages(DM) instead of
+ *    release_pages(DM).  This function should never fail.
+ *    All given up pages will be counted as lent.
+ *    These pages may not be further used by DM until lent count is decreased.
+ *    See point 5) how lent pages are reclaimed.
+ *
+ * 3) Call take_pages(TM).  This will increase the count of pages in use for
+ *    TM, as a normal alloc_pages() would do.  And the borrowed pages count is
+ *    increased.
+ *
+ * 4) When later calling release_pages(TM), it will decrease both the global
+ *    and the TM resource borrow count.  This will eventually allow reclaim of
+ *    lent DM pages, see next point.
+ *
+ * 5) When later calling alloc_pages(DM) it will first try to reclaim lent out
+ *    pages.
+ *    If the global counts for untaken and borrowed toghether is less than the
+ *    global lent count, that means that some lent pages have been
+ *    taken/borrowed and also released and those we may reclaim that many lent
+ *    pages.
+ *    If DM has lent pages, The minimum of globally reclaimable lent pages and
+ *    request count of pages and the number of lent pages in resource are
+ *    reclaimed.
+ *
+ * Code example:
+ *
+    ...
+    Uint32 page_count = 3;
+    Uint32 DM_page_no;
+    Uint32 DM_page_count = page_count;
+    mem.alloc_pages(RG_DM, &DM_page_no, &DM_page_count, page_count);
+    ...
+    assert(DM_page_count == page_count);
+    Uint32 TM_page_no;
+    Uint32 TM_page_count = page_count;
+    mem.alloc_pages(RG_TM, &TM_page_no, &TM_page_count, page_count);
+    if (TM_page_count != 0)
+    {
+      mem.release_pages(RG_DM, DM_page_no, page_count);
+    }
+    else
+    {
+      require(mem.give_up_pages(RG_DM, page_count));
+      require(mem.take_pages(RG_TM, page_count));
+      DM_page_no = TM_page_no;
+      TM_page_count = page_count;
+    }
+    ...
+    mem.release_pages(RG_TM, TM_page_no, TM_page_count);
+    ...
+    DM_page_count = 1;
+    // Typically will reclaim one lent out DM page
+    mem.alloc_pages(RG_DM, &DM_page_no, &DM_page_count, 1);
+    ...
+    mem.release_pages(RG_DM, DM_page_no, DM_page_count);
+    ...
+ */
+
+bool Resource_limits::give_up_pages(Uint32 id, Uint32 cnt)
+{
+  const Resource_limit& rl = m_limit[id - 1];
+
+  /* Only support give up pages for resources with only reserved pages to
+   * simplify logic.
+   */
+
+  require(rl.m_min == rl.m_max);
+
+  if (get_resource_in_use(id) < cnt)
+  {
+    // Can not pass more pages than actually in use!
+    return false;
+  }
+
+  post_release_resource_pages(id, cnt);
+  inc_untaken(cnt);
+  inc_resource_lent(id, cnt);
+  inc_lent(cnt);
+  dec_free_reserved(cnt);
+
+  return true;
+}
+
+bool Ndbd_mem_manager::give_up_pages(Uint32 type, Uint32 cnt)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx <= MM_RG_COUNT);
+  mt_mem_manager_lock();
+
+  if (!m_resource_limits.give_up_pages(idx, cnt))
+  {
+    m_resource_limits.dump();
+    mt_mem_manager_unlock();
+    return false;
+  }
+
+  m_resource_limits.check();
+  mt_mem_manager_unlock();
+  return true;
+}
+
+bool Resource_limits::take_pages(Uint32 id, Uint32 cnt)
+{
+  const Resource_limit& rl = m_limit[id - 1];
+
+  /* Support take pages only for "unlimited" resources (m_max == HIGHEST_LIMIT)
+   * and with no spare pages (m_spare_pct == 0) to simplify logic.
+   */
+
+  require(rl.m_max == Resource_limit::HIGHEST_LIMIT);
+  require(rl.m_spare_pct == 0);
+
+  if (m_untaken < cnt)
+  {
+    return false;
+  }
+
+  inc_resource_borrowed(id, cnt);
+  inc_borrowed(cnt);
+  dec_untaken(cnt);
+  const Uint32 spare_taken = post_alloc_resource_pages(id, cnt);
+  require(spare_taken == 0);
+
+  return true;
+}
+
+bool Ndbd_mem_manager::take_pages(Uint32 type, Uint32 cnt)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx <= MM_RG_COUNT);
+  mt_mem_manager_lock();
+
+  if (!m_resource_limits.take_pages(idx, cnt))
+  {
+    m_resource_limits.dump();
+    mt_mem_manager_unlock();
+    return false;
+  }
+
+  m_resource_limits.check();
+  mt_mem_manager_unlock();
+  return true;
+}
+
+template class Vector<InitChunk>;
+
+#if defined(TEST_NDBD_MALLOC)
 
 #include <Vector.hpp>
 #include <NdbHost.h>
+#include "portlib/ndb_stacktrace.h"
+#include "portlib/NdbTick.h"
 
 struct Chunk {
   Uint32 pageId;
@@ -1634,21 +1842,16 @@ struct Timer
 
   Timer() { sum = cnt = 0;}
 
-  struct timeval st;
+  NDB_TICKS st;
 
   void start() {
-    gettimeofday(&st, 0);
+    st = NdbTick_getCurrentTicks();
   }
 
   Uint64 calc_diff() {
-    struct timeval st2;
-    gettimeofday(&st2, 0);
-    Uint64 diff = st2.tv_sec;
-    diff -= st.tv_sec;
-    diff *= 1000000;
-    diff += st2.tv_usec;
-    diff -= st.tv_usec;
-    return diff;
+    const NDB_TICKS st2 = NdbTick_getCurrentTicks();
+    const NdbDuration dur = NdbTick_Elapsed(st, st2);
+    return dur.microSec();
   }
   
   void stop() {
@@ -1664,136 +1867,343 @@ struct Timer
   }
 };
 
+void abort_handler(int signum)
+{
+  ndb_print_stacktrace();
+  signal(SIGABRT, SIG_DFL);
+  abort();
+}
+
+class Test_mem_manager: public Ndbd_mem_manager
+{
+public:
+  static constexpr Uint32 ZONE_COUNT = Ndbd_mem_manager::ZONE_COUNT;
+  Test_mem_manager(Uint32 tot_mem,
+                   Uint32 data_mem,
+                   Uint32 trans_mem,
+                   Uint32 data_mem2 = 0,
+                   Uint32 trans_mem2 = 0);
+  ~Test_mem_manager();
+};
+
+enum Resource_groups {
+  RG_DM = 1,
+  RG_TM = 2,
+  RG_QM = 3,
+  RG_DM2 = 4,
+  RG_TM2 = 5,
+  RG_QM2 = 6
+};
+
+Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
+                                   Uint32 data_mem,
+                                   Uint32 trans_mem,
+                                   Uint32 data_mem2,
+                                   Uint32 trans_mem2)
+{
+  assert(tot_mem >= data_mem + trans_mem + data_mem2 + trans_mem2);
+
+  Resource_limit rl;
+  // Data memory
+  rl.m_min = data_mem;
+  rl.m_max = rl.m_min;
+  rl.m_resource_id = RG_DM;
+  set_resource_limit(rl);
+
+  // Transaction memory
+  rl.m_min = trans_mem;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_TM;
+  set_resource_limit(rl);
+
+  // Query memory
+  rl.m_min = 0;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_QM;
+  set_resource_limit(rl);
+
+  // Data memory
+  rl.m_min = data_mem2;
+  rl.m_max = rl.m_min;
+  rl.m_resource_id = RG_DM2;
+  set_resource_limit(rl);
+
+  // Transaction memory
+  rl.m_min = trans_mem2;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_TM2;
+  set_resource_limit(rl);
+
+  // Query memory
+  rl.m_min = 0;
+  rl.m_max = Resource_limit::HIGHEST_LIMIT;
+  rl.m_resource_id = RG_QM2;
+  set_resource_limit(rl);
+
+  init(NULL, tot_mem);
+  map(NULL);
+}
+
+Test_mem_manager::~Test_mem_manager()
+{
+  require(m_resource_limits.get_in_use() == 0);
+}
+
+#define NDBD_MALLOC_PERF_TEST 0
+static void perf_test(int sz, int run_time);
+static void transfer_test();
+
 int 
 main(int argc, char** argv)
 {
-  int sz = 1*32768;
+  ndb_init();
+  ndb_init_stacktrace();
+  signal(SIGABRT, abort_handler);
+
+  int sz = 1 * 32768;
   int run_time = 30;
   if (argc > 1)
-    sz = 32*atoi(argv[1]);
+    sz = 32 * atoi(argv[1]);
 
   if (argc > 2)
     run_time = atoi(argv[2]);
 
-  char buf[255];
-  Timer timer[4];
-  printf("Startar modul test av Page Manager %dMb %ds\n", 
-	 (sz >> 5), run_time);
   g_eventLogger->createConsoleHandler();
-  g_eventLogger->setCategory("keso");
+  g_eventLogger->setCategory("ndbd_malloc-t");
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_INFO);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
-  
+
+  transfer_test();
+
+  if (NDBD_MALLOC_PERF_TEST)
+  {
+    perf_test(sz, run_time);
+  }
+
+  ndb_end(0);
+}
+
 #define DEBUG 0
 
-  Ndbd_mem_manager mem;
-  Resource_limit rl;
-  rl.m_min = 0;
-  rl.m_max = sz;
-  rl.m_curr = 0;
-  rl.m_spare = 0;
-  rl.m_resource_id = 0;
-  mem.set_resource_limit(rl);
-  rl.m_min = sz < 16384 ? sz : 16384;
-  rl.m_max = 0;
-  rl.m_resource_id = 1;
-  mem.set_resource_limit(rl);
-  
-  mem.init(NULL);
+void transfer_test()
+{
+  const Uint32 data_pages = 18;
+#ifndef USE_DO_VIRTUAL_ALLOC
+  const Uint32 meta_pages = 1;
+#else
+  const Uint32 meta_pages = Test_mem_manager::ZONE_COUNT;
+#endif
+  Test_mem_manager mem(meta_pages + data_pages, 4, 4, 4, 4);
+  Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
+
+  Uint32 dm[4 + 1];
+  Uint32 dm2[4];
+  Uint32 tm[6];
+  Uint32 tm2[6];
+
+  if (DEBUG) mem.dump();
+
+  // Allocate 4 pages each from DM and DM2 resources.
+  for (int i = 0; i < 4; i++)
+  {
+    require(mem.alloc_page(RG_DM, &dm[i], zone));
+    require(mem.alloc_page(RG_DM2, &dm2[i], zone));
+  }
+
+  // Allocate 5 pages each from TM and TM2 resources.
+  for (int i = 0; i < 5; i++)
+  {
+    require(mem.alloc_page(RG_TM, &tm[i], zone));
+    require(mem.alloc_page(RG_TM2, &tm2[i], zone));
+  }
+
+  // Allocating a 6th page for TM should fail since all 18 pages are allocated.
+  require(mem.alloc_page(RG_TM, &tm[5], zone) == nullptr);
+
+  // Start transfer of pages from RG_DM to RG_TM
+  require(mem.give_up_pages(RG_DM, 1));
+
+  /* Start and complete transfer between RG_DM2 to RG_TM2 before completing
+   * transfer from RG_DM to RG_TM started above.
+   */
+  require(mem.alloc_page(RG_TM2, &tm2[5], zone) == nullptr);
+  require(mem.give_up_pages(RG_DM2, 1));
+  require(mem.take_pages(RG_TM2, 1));
+  tm2[5] = dm2[3];
+  dm2[3] = RNIL;
+  mem.release_page(RG_TM2, tm2[5]);
+
+  /* Verify that one can not allocate a page for RG_DM since it already have
+   * reached its maximum of 4 (including the lent page)
+   */
+  require(mem.alloc_page(RG_DM, &dm[4], zone) != nullptr);
+
+  // Proceed with taking over the page to RG_TM
+  require(mem.take_pages(RG_TM, 1));
+  tm[5] = dm[3];
+  dm[3] = RNIL;
+
+  require(mem.alloc_page(RG_DM, &dm[3], zone) == nullptr);
+
+  mem.release_page(RG_DM, dm[4]);
+  mem.release_page(RG_TM, tm[5]);
+
+  require(mem.alloc_page(RG_DM, &dm[3], zone));
+  require(mem.alloc_page(RG_DM2, &dm2[3], zone));
+
+  // Cleanup, release all allocated pages.
+  for (int i = 0; i < 4; i++)
+  {
+    mem.release_page(RG_DM, dm[i]);
+    mem.release_page(RG_DM2, dm2[i]);
+  }
+
+  for (int i = 0; i < 5; i++)
+  {
+    mem.release_page(RG_TM, tm[i]);
+    mem.release_page(RG_TM2, tm2[i]);
+  }
+
+  if (DEBUG) mem.dump();
+}
+
+void perf_test(int sz, int run_time)
+{
+  char buf[255];
+  Timer timer[4];
+  printf("Startar modul test av Page Manager %dMb %ds\n",
+         (sz >> 5), run_time);
+
+  const Uint32 data_sz = sz / 3;
+  const Uint32 trans_sz = sz / 3;
+  Test_mem_manager mem(sz, data_sz, trans_sz);
   mem.dump();
+
   printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
   fgets(buf, sizeof(buf), stdin);
+
   Vector<Chunk> chunks;
+  Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
   time_t stop = time(0) + run_time;
-  for(Uint32 i = 0; time(0) < stop; i++){
-    //mem.dump();
-    
-    // Case
-    Uint32 c = (rand() % 100);
-    if (c < 50)
+  for (Uint32 i = 0; time(0) < stop; i++)
+  {
+    mem.dump();
+    printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
+    fgets(buf, sizeof(buf), stdin);
+    time_t stop = time(0) + run_time;
+    for (Uint32 i = 0; time(0) < stop; i++)
     {
-      c = 0;
-    } 
-    else if (c < 93)
-    {
-      c = 1;
-    }
-    else
-    {
-      c = 2;
-    }
-    
-    Uint32 alloc = 1 + rand() % 3200;
-    
-    if(chunks.size() == 0 && c == 0)
-    {
-      c = 1 + rand() % 2;
-    }
-    
-    if(DEBUG)
-      printf("loop=%d ", i);
-    switch(c){ 
-    case 0:{ // Release
-      const int ch = rand() % chunks.size();
-      Chunk chunk = chunks[ch];
-      chunks.erase(ch);
-      timer[0].start();
-      mem.release(chunk.pageId, chunk.pageCount);
-      timer[0].stop();
-      if(DEBUG)
-	printf(" release %d %d\n", chunk.pageId, chunk.pageCount);
-    }
-      break;
-    case 2: { // Seize(n) - fail
-      alloc += sz;
-      // Fall through
-    }
-    case 1: { // Seize(n) (success)
-      Chunk chunk;
-      chunk.pageCount = alloc;
-      if (DEBUG)
+      // Case
+      Uint32 c = (rand() % 100);
+      if (c < 50)
       {
-	printf(" alloc %d -> ", alloc); fflush(stdout);
+        c = 0;
       }
-      timer[0].start();
-      mem.alloc(&chunk.pageId, &chunk.pageCount, 1);
-      Uint64 diff = timer[0].calc_diff();
+      else if (c < 93)
+      {
+        c = 1;
+      }
+      else
+      {
+        c = 2;
+      }
+
+      Uint32 alloc = 1 + rand() % 3200;
+
+      if (chunks.size() == 0 && c == 0)
+      {
+        c = 1 + rand() % 2;
+      }
 
       if (DEBUG)
-	printf("%d %d", chunk.pageId, chunk.pageCount);
-      assert(chunk.pageCount <= alloc);
-      if(chunk.pageCount != 0){
-	chunks.push_back(chunk);
-	if(chunk.pageCount != alloc) {
-	  timer[2].add(diff);
-	  if (DEBUG)
-	    printf(" -  Tried to allocate %d - only allocated %d - free: %d",
-		   alloc, chunk.pageCount, 0);
-	}
-	else
-	{
-	  timer[1].add(diff);
-	}
-      } else {
-	timer[3].add(diff);
-	if (DEBUG)
-	  printf("  Failed to alloc %d pages with %d pages free",
-		 alloc, 0);
+      {
+        printf("loop=%d ", i);
       }
-      if (DEBUG)
-	printf("\n");
-    }
+      switch (c)
+      {
+      case 0:
+      { // Release
+        const int ch = rand() % chunks.size();
+        Chunk chunk = chunks[ch];
+        chunks.erase(ch);
+        timer[0].start();
+        mem.release_pages(RG_DM, chunk.pageId, chunk.pageCount);
+        timer[0].stop();
+        if (DEBUG)
+        {
+          printf(" release %d %d\n", chunk.pageId, chunk.pageCount);
+        }
+      }
       break;
+      case 2:
+      { // Seize(n) - fail
+        alloc += sz;
+      }
+      // Fall through
+      case 1:
+      { // Seize(n) (success)
+        Chunk chunk;
+        chunk.pageCount = alloc;
+        if (DEBUG)
+        {
+          printf(" alloc %d -> ", alloc);
+          fflush(stdout);
+        }
+        timer[0].start();
+        mem.alloc_pages(RG_DM, &chunk.pageId, &chunk.pageCount, 1, zone);
+        Uint64 diff = timer[0].calc_diff();
+
+        if (DEBUG)
+        {
+          printf("%d %d", chunk.pageId, chunk.pageCount);
+        }
+        assert(chunk.pageCount <= alloc);
+        if (chunk.pageCount != 0)
+        {
+          chunks.push_back(chunk);
+          if (chunk.pageCount != alloc)
+          {
+            timer[2].add(diff);
+            if (DEBUG)
+            {
+              printf(" -  Tried to allocate %d - only allocated %d - free: %d",
+                     alloc, chunk.pageCount, 0);
+            }
+          }
+          else
+          {
+            timer[1].add(diff);
+          }
+        }
+        else
+        {
+          timer[3].add(diff);
+          if (DEBUG)
+          {
+            printf("  Failed to alloc %d pages with %d pages free",
+                   alloc, 0);
+          }
+        }
+        if (DEBUG)
+        {
+          printf("\n");
+        }
+      }
+      break;
+      }
     }
   }
   if (!DEBUG)
-    while(chunks.size() > 0){
+  {
+    while (chunks.size() > 0)
+    {
       Chunk chunk = chunks.back();
-      mem.release(chunk.pageId, chunk.pageCount);      
+      mem.release_pages(RG_DM, chunk.pageId, chunk.pageCount);
       chunks.erase(chunks.size() - 1);
     }
+  }
 
   const char *title[] = {
     "release   ",
@@ -1801,17 +2211,13 @@ main(int argc, char** argv)
     "alloc part",
     "alloc fail"
   };
-  for(Uint32 i = 0; i<4; i++)
+  for (Uint32 i = 0; i < 4; i++)
+  {
     timer[i].print(title[i]);
-
+  }
   mem.dump();
 }
 
 template class Vector<Chunk>;
 
 #endif
-
-#define JAM_FILE_ID 296
-
-
-template class Vector<InitChunk>;

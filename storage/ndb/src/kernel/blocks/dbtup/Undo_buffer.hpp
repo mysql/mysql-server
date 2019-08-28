@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #define JAM_FILE_ID 404
 
+struct UndoPage;
 
 struct Undo_buffer 
 {
@@ -42,7 +43,8 @@ struct Undo_buffer
    *
    * @return 0 if unable to alloc space
    */
-  Uint32 * alloc_copy_tuple(Local_key* dst, Uint32 words, bool locked = false);
+  Uint32 * alloc_copy_tuple(Local_key* dst, Uint32 words);
+  bool reuse_page_for_copy_tuple(Uint32 reuse_page);
 
   /**
    * Shrink size of copy tuple
@@ -61,6 +63,8 @@ struct Undo_buffer
   Uint32 * get_ptr(const Local_key* key);
   
 private:
+  void init_copy_tuple_page(UndoPage* page);
+
   class Ndbd_mem_manager* m_mm;
   Uint32 m_first_free;
 };

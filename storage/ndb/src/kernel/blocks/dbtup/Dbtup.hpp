@@ -3401,7 +3401,8 @@ private:
                       Uint32 noOfPagesToAllocate,
                       Uint32& noOfPagesAllocated,
                       Uint32& allocPageRef);
-  void returnCommonArea(Uint32 retPageRef, Uint32 retNo, bool locked = false);
+  void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
+  bool returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo);
   void initializePage();
 
   Uint32 nextHigherTwoLog(Uint32 input);
