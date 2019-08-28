@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,16 @@ using std::max;
 #define MYSQL_CLIENT
 #endif /*EMBEDDED_LIBRARY */
 
+// Workaround for compiler bug
+// ld.so.1: mysqld: fatal: relocation error: file sql/mysqld:
+//          symbol OPENSSL_sk_new_null: referenced symbol not found
+// openssl/safestack.h has lots of pragma weak <function>
+// Taking the address of the function solves the problem.
+// (note, do not make it static, it may be optimized away)
+#if defined(HAVE_TLSv13) && defined(__SUNPRO_CC)
+#include <openssl/ssl.h>
+void *address_of_sk_new_null = &OPENSSL_sk_new_null;
+#endif
 
 /*
   The following handles the differences when this is linked between the
