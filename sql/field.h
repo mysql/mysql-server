@@ -2612,30 +2612,22 @@ class Field_double final : public Field_real {
 /* Everything saved in this will disappear. It will always return NULL */
 
 class Field_null final : public Field_str {
-  static uchar null[1];
-
  public:
   Field_null(uchar *ptr_arg, uint32 len_arg, uchar auto_flags_arg,
              const char *field_name_arg, const CHARSET_INFO *cs)
-      : Field_str(ptr_arg, len_arg, null, 1, auto_flags_arg, field_name_arg,
-                  cs) {}
+      // (dummy_null_buffer & 32) is true, so is_null() always returns true.
+      : Field_str(ptr_arg, len_arg, &dummy_null_buffer, 32, auto_flags_arg,
+                  field_name_arg, cs) {}
   enum_field_types type() const final override { return MYSQL_TYPE_NULL; }
   type_conversion_status store(const char *, size_t,
                                const CHARSET_INFO *) final override {
-    null[0] = 1;
     return TYPE_OK;
   }
-  type_conversion_status store(double) final override {
-    null[0] = 1;
-    return TYPE_OK;
-  }
-  type_conversion_status store(
-      longlong, bool unsigned_val MY_ATTRIBUTE((unused))) final override {
-    null[0] = 1;
+  type_conversion_status store(double) final override { return TYPE_OK; }
+  type_conversion_status store(longlong, bool) final override {
     return TYPE_OK;
   }
   type_conversion_status store_decimal(const my_decimal *) final override {
-    null[0] = 1;
     return TYPE_OK;
   }
   type_conversion_status reset() final override { return TYPE_OK; }

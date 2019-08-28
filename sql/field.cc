@@ -104,7 +104,6 @@ using std::min;
 /**
   Static variables
 */
-uchar Field_null::null[1] = {1};
 const char field_separator = ',';
 uchar Field::dummy_null_buffer = ' ';
 

@@ -588,6 +588,8 @@ TEST_F(FieldTest, MakeSortKey) {
     cs.state = MY_CHARSET_UNDEFINED;  // Avoid valgrind warning.
     cs.mbmaxlen = 1;
     Field_null fn(NULL, 0, Field::NONE, "", &cs);
+    EXPECT_TRUE(fn.real_maybe_null());
+    EXPECT_TRUE(fn.is_null());
     test_make_sort_key(&fn);
   }
   {
