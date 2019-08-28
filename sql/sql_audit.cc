@@ -604,6 +604,7 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table) {
       break;
     case SQLCOM_SELECT:
     case SQLCOM_HA_READ:
+    case SQLCOM_ANALYZE:
       set_table_access_subclass(&subclass, &subclass_name,
                                 AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
       break;
