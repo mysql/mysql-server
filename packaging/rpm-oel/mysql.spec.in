@@ -56,13 +56,13 @@
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %if 0%{?rhel} == 6
-%global compatver             5.1.72
+%global compatver             5.1.73
 %global compatlib             16
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.42
+%global compatver             5.6.45
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -690,11 +690,6 @@ fi
 
 # Build compat libs
 %if 0%{?compatlib}
-%if 0%{?commercial}
-%global compat_ssl_option -DWITH_SSL=system
-%else
-%global compat_ssl_option -DWITH_SSL=bundled
-%endif
 %if 0%{?rhel} < 7
 (
   export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
@@ -741,7 +736,7 @@ fi
     -DFEATURE_SET="%{feature_set}" \
     -DWITH_EMBEDDED_SERVER=1 \
     -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
-    %{?compat_ssl_option} \
+    -DWITH_SSL=system \
     -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
     -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
     -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
