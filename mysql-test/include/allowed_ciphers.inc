@@ -1,0 +1,10 @@
+
+# List of allowed ciphers which will be
+# replaced with "SSL_CIPHER" in the result files.
+# DHE-XXX ciphers are for OpenSSL 1.0.X while
+# ECDHE-XXX for OpenSSL 1.1.X
+# Usage: --replace_regex $ALLOWED_CIPHERS_REGEX
+#
+
+LET $ALLOWED_CIPHERS_REGEX =
+/DHE-RSA-AES128-GCM-SHA256|ECDHE-RSA-AES128-GCM-SHA256|DHE-RSA-AES256-SHA|ECDHE-RSA-AES256-SHA|DHE-RSA-AES256-GCM-SHA384|ECDHE-RSA-AES256-GCM-SHA384/SSL_CIPHER/;

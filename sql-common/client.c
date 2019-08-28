@@ -1,13 +1,25 @@
 /* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -801,9 +813,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
             if (is_charset == 1) {
               char charset_name[MY_CS_NAME_SIZE * 8]; // MY_CS_BUFFER_SIZE
-              size_t length = data->length > (sizeof(charset_name) - 1)
-                                  ? sizeof(charset_name - 1)
-                                  : data->length;
+              size_t length = MY_MIN(data->length, (sizeof(charset_name) - 1));
               saved_cs = mysql->charset;
 
               memcpy(charset_name, data->str, length);
@@ -2024,9 +2034,21 @@ int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
   }
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
   else {
+    /*
+      If any of the row->data[] below is NULL, it can result in a
+      crash. Error out early as it indicates a malformed packet.
+      For data[0], data[1] and data[5], strmake_root will handle
+      NULL values.
+    */
+    if (!row->data[2] || !row->data[3] || !row->data[4]) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
+
     cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-    field->org_table = field->table = strdup_root(alloc, (char *)row->data[0]);
-    field->name = strdup_root(alloc, (char *)row->data[1]);
+    field->org_table = field->table = strmake_root(alloc, (char *)row->data[0], lengths[0]);
+    field->name = strmake_root(alloc, (char *)row->data[1], lengths[1]);
+
     field->length = (uint)uint3korr((uchar *)row->data[2]);
     field->type = (enum enum_field_types)(uchar)row->data[3][0];
 
@@ -2047,7 +2069,7 @@ int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
     if (IS_NUM(field->type))
       field->flags |= NUM_FLAG;
     if (default_value && row->data[5]) {
-      field->def = strdup_root(alloc, (char *)row->data[5]);
+      field->def = strmake_root(alloc, (char *)row->data[5], lengths[5]);
       field->def_length = lengths[5];
     } else
       field->def = 0;
@@ -2107,13 +2129,19 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
   MYSQL_FIELD *fields, *result;
   MYSQL_ROWS data;
   NET *net = &mysql->net;
+  size_t size;
 
   DBUG_ENTER("cli_read_metadata");
 
   len = (ulong *)alloc_root(alloc, sizeof(ulong) * field);
+  size = sizeof(MYSQL_FIELD) * field_count;
 
-  fields = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(MYSQL_FIELD) * field_count);
+  if (field_count != (size / sizeof(MYSQL_FIELD))) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+
+  fields = result = (MYSQL_FIELD *)alloc_root(alloc, size);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);

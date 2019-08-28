@@ -1,0 +1,86 @@
+# Starting server with keyring plugin  
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+#
+# BUG#29543447: ALTER TABLE ALLOWS TDE ENCRYPTION ON MYISAM ENGINE
+# We disallow ENCRYPTION clause requesting for table encryption.
+# We allow ENCRYPTION clause with 'n' or 'N' for Heap/CSV engines.
+# MyISAM engine rejects even 'n' or 'N' in some cases, we keep
+# this behavior as is for now.
+#
+# CREATE TABLE requesting ENCRYPTION
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='Y', ENGINE= MyISAM;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='n', ENGINE= MyISAM;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='n', ENGINE= HEAP;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1 ENCRYPTION='n'
+DROP TABLE t1;
+# ALTER TABLE requesting ENCRYPTION
+CREATE TABLE t1 (fld1 INT) ENGINE=MyISAM;
+ALTER TABLE t1 ENCRYPTION= 'Y';
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'
+ALTER TABLE t1 ENCRYPTION= 'N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ENCRYPTION='N'
+# ALTER TABLE requesting ENCRYPTION with INPLACE algo.
+# Without patch, no error was reported.
+ALTER TABLE t1 ENCRYPTION= 'y', ALGORITHM=INPLACE;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'
+ALTER TABLE t1 ENCRYPTION= 'n', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ENCRYPTION='n'
+DROP TABLE t1;
+# ALTER TABLE requesting ENCRYPTION with COPY algo.
+# Without patch, error was reported by SE. With
+# this patch the error is reported by SQL server.
+CREATE TABLE t1 (fld1 INT NOT NULL) ENGINE=MyISAM;
+ALTER TABLE t1 ENCRYPTION= 'y', ALGORITHM=COPY;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'
+ALTER TABLE t1 ENCRYPTION= 'n', ALGORITHM=COPY;
+ERROR HY000: Table storage engine for '#sql-temporary' doesn't have this option
+# CSV/Heap allows values 'n' or 'N'.
+ALTER TABLE t1 ENGINE=CSV, ENCRYPTION= 'n', ALGORITHM=COPY;
+ALTER TABLE t1 ENGINE=Heap, ENCRYPTION= 'n', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1 ENCRYPTION='n'
+DROP TABLE t1;
+# CREATE TABLE with ENCRYPTION=''.
+# Allow it as it is not requesting for encryption.
+CREATE TABLE t1 (fld1 INT) ENGINE=MyISAM, ENCRYPTION="";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t1 ENCRYPTION= '';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+# Move encrypted InnoDB table to Heap.
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='Y', ENGINE=InnoDB;
+ALTER TABLE t1 ENGINE= Heap;
+ERROR HY000: Table storage engine 'MEMORY' does not support the create option 'ENCRYPTION'
+DROP TABLE t1;
+# Starting server without keyring
+# restart: 
+SET GLOBAL innodb_file_per_table=1;

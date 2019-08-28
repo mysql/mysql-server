@@ -10,11 +10,11 @@ if (!$crllen)
 }
 
 --echo # test --crl for the client : should connect
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test --ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl -e "SHOW VARIABLES like '%ssl%';"
 
 --echo # test --crlpath for the client : should connect
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir test -e "SHOW VARIABLES like '%ssl%';"
 
 --echo # try logging in with a certificate in the server's --ssl-crl : should fail
