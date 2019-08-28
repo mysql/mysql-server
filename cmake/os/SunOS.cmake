@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,11 @@
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
+
+SET(SOLARIS 1)
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  SET(SOLARIS_SPARC 1)
+ENDIF()
 
 # We require SunStudio 12u2 (CC 5.11)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
