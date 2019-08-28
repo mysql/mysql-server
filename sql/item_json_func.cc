@@ -3547,6 +3547,8 @@ Item_func_array_cast::Item_func_array_cast(const POS &pos, Item *a,
         len_arg, decimals, unsigned_flag));
 }
 
+Item_func_array_cast::~Item_func_array_cast() = default;
+
 bool Item_func_array_cast::val_json(Json_wrapper *wr) {
   try {
     String data_buf;
@@ -3570,6 +3572,13 @@ bool Item_func_array_cast::fix_fields(THD *thd, Item **ref) {
              "CREATE(non-SELECT)/ALTER TABLE or in general expressions");
     return true;
   }
+
+  if (m_result_array == nullptr) {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    m_result_array.reset(::new (thd->mem_root) Json_array);
+    if (m_result_array == nullptr) return true;
+  }
+
   return Item_func::fix_fields(thd, ref);
 }
 
@@ -3697,14 +3706,25 @@ enum Item_result Item_func_array_cast::result_type() const {
   return INT_RESULT;
 }
 
+type_conversion_status Item_func_array_cast::save_in_field_inner(Field *field,
+                                                                 bool) {
+  // Array of any type is stored as JSON.
+  Json_wrapper wr;
+  if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
+
+  if (null_value) return set_field_to_null(field);
+
+  field->set_notnull();
+  return down_cast<Field_typed_array *>(field)->store_array(
+      &wr, m_result_array.get());
+}
+
 Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
-  unique_ptr_destroy_only<Json_array> array{::new (*THR_MALLOC) Json_array};
-  if (array == nullptr) return nullptr;
-  auto array_field = make_unique_destroy_only<Field_typed_array>(
-      *THR_MALLOC, data_type(), unsigned_flag, max_length, decimals, nullptr,
-      nullptr, 0, 0, "", table->s, 4, collation.collation, std::move(array));
+  auto array_field = new (*THR_MALLOC) Field_typed_array(
+      data_type(), unsigned_flag, max_length, decimals, nullptr, nullptr, 0, 0,
+      "", table->s, 4, collation.collation);
   array_field->init(table);
-  return array_field.release();
+  return array_field;
 }
 
 void Item_func_array_cast::cleanup() {

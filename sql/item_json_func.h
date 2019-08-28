@@ -29,6 +29,7 @@
 #include <utility>  // std::forward
 
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
@@ -48,6 +49,7 @@
 #include "sql_string.h"
 
 class Json_schema_validator;
+class Json_array;
 class Json_dom;
 class Json_scalar_holder;
 class Json_wrapper;
@@ -853,9 +855,17 @@ class Item_func_array_cast final : public Item_func {
   */
   bool m_is_allowed{false};
 
+  /**
+    An array used by #save_in_field_inner() to store the result of an array cast
+    operation. It is cached in the Item in order to avoid the need for
+    reallocation on each row.
+  */
+  unique_ptr_destroy_only<Json_array> m_result_array;
+
  public:
   Item_func_array_cast(const POS &pos, Item *a, Cast_target type, uint len_arg,
                        uint dec_arg, const CHARSET_INFO *cs_arg);
+  ~Item_func_array_cast() override;
   const char *func_name() const override { return "cast"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool returns_array() const override { return true; }
@@ -868,6 +878,8 @@ class Item_func_array_cast final : public Item_func {
   bool fix_fields(THD *thd, Item **ref) override;
   void cleanup() override;
   void allow_array_cast() override { m_is_allowed = true; }
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override;
   // Regular val_x() funcs shouldn't be called
   /* purecov: begin inspected */
   longlong val_int() override  // For tests only

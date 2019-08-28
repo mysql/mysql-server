@@ -5944,17 +5944,8 @@ type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
 
 type_conversion_status Item::save_in_field_inner(Field *field,
                                                  bool no_conversions) {
-  // Array of any type is stored as JSON
-  if (returns_array()) {
-    Field_typed_array *fld = down_cast<Field_typed_array *>(field);
-    Json_wrapper wr;
-    if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
-
-    if (null_value) return set_field_to_null(fld);
-
-    fld->set_notnull();
-    return fld->store_json(&wr);
-  }
+  // Storing of arrays should be handled by specialized subclasses.
+  DBUG_ASSERT(!returns_array());
 
   if (result_type() == STRING_RESULT) {
     const enum Type typ = type();

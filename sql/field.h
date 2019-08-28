@@ -30,7 +30,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
-#include <memory>
 
 #include "decimal.h"      // E_DEC_OOM
 #include "field_types.h"  // enum_field_types
@@ -4221,7 +4220,7 @@ class Field_json : public Field_blob {
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override;
   type_conversion_status store_decimal(const my_decimal *) final override;
-  virtual type_conversion_status store_json(const Json_wrapper *json);
+  type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime,
                                     uint8 dec_arg) final override;
   type_conversion_status store(const Field_json *field);
@@ -4371,17 +4370,13 @@ class Field_typed_array final : public Field_json {
   uint m_elt_decimals;
   /// Element's charset
   const CHARSET_INFO *m_elt_charset;
-  /// Result array
-  unique_ptr_destroy_only<Json_array> m_array;
 
  public:
   /**
     Constructs a Field_typed_array that is a copy of another Field_typed_array.
     @param other the other Field_typed_array object
-    @param array the Json_array in which to store the result
   */
-  Field_typed_array(const Field_typed_array &other,
-                    unique_ptr_destroy_only<Json_array> array);
+  Field_typed_array(const Field_typed_array &other);
   /**
     Constructs a Field_typed_array object.
   */
@@ -4390,10 +4385,7 @@ class Field_typed_array final : public Field_json {
                     uchar *null_ptr_arg, uint null_bit_arg,
                     uchar auto_flags_arg, const char *field_name_arg,
                     TABLE_SHARE *share, uint blob_pack_length,
-                    const CHARSET_INFO *cs,
-                    unique_ptr_destroy_only<Json_array> array);
-  /// Destructs a Field_type_array.
-  ~Field_typed_array() override;
+                    const CHARSET_INFO *cs);
   uint32 char_length() const override {
     return field_length / charset()->mbmaxlen;
   }
@@ -4426,7 +4418,14 @@ class Field_typed_array final : public Field_json {
   type_conversion_status store(longlong nr, bool unsigned_val) override {
     return m_conv_field->store(nr, unsigned_val);
   }
-  type_conversion_status store_json(const Json_wrapper *json) override;
+  /**
+    Store a value as an array.
+    @param data   the value to store as an array
+    @param array  scratch space for building the array to store
+    @return the status of the operation
+  */
+  type_conversion_status store_array(const Json_wrapper *data,
+                                     Json_array *array);
   size_t get_key_image(uchar *buff, size_t length,
                        imagetype type) const override {
     return m_conv_field->get_key_image(buff, length, type);

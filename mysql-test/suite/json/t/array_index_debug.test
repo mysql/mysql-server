@@ -3,3 +3,14 @@ CREATE TABLE t1 (
   KEY mv_idx ((CAST(j->'$[*]' AS UNSIGNED ARRAY))));
 INSERT INTO t1 VALUES();
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30227756: JSON.JSON_PERFSCHEMA FAILS ON WINDOWS
+--echo #
+# This query should return zero rows unless some allocated JSON data
+# has not been freed. It used to return a row on Windows due to a
+# memory leak in the CREATE TABLE statement above.
+SELECT * FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/sql/JSON' AND
+      (count_alloc <> count_free OR
+       sum_number_of_bytes_alloc <> sum_number_of_bytes_free);

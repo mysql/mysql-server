@@ -9337,13 +9337,9 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
     uint pack_length = calc_pack_length(MYSQL_TYPE_JSON, field_length) -
                        portable_sizeof_char_ptr;
 
-    unique_ptr_destroy_only<Json_array> array{::new (mem_root) Json_array};
-    if (array == nullptr) return nullptr;
-    auto array_field = make_unique_destroy_only<Field_typed_array>(
-        mem_root, field_type, is_unsigned, field_length, decimals, ptr,
-        null_pos, null_bit, auto_flags, field_name, share, pack_length,
-        field_charset, std::move(array));
-    return array_field.release();
+    return new (mem_root) Field_typed_array(
+        field_type, is_unsigned, field_length, decimals, ptr, null_pos,
+        null_bit, auto_flags, field_name, share, pack_length, field_charset);
   }
   /*
     FRMs from 3.23/4.0 can have strings with field_type == MYSQL_TYPE_DECIMAL.
@@ -9753,14 +9749,12 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
              : part_of_key_not_extended.is_set(cur_index);
 }
 
-Field_typed_array::Field_typed_array(const Field_typed_array &other,
-                                     unique_ptr_destroy_only<Json_array> array)
+Field_typed_array::Field_typed_array(const Field_typed_array &other)
     : Field_json(other),
       m_conv_field(other.m_conv_field),
       m_elt_type(other.m_elt_type),
       m_elt_decimals(other.m_elt_decimals),
-      m_elt_charset(other.m_elt_charset),
-      m_array(std::move(array)) {
+      m_elt_charset(other.m_elt_charset) {
   /*
     When conv_field is null the field is cloned from share and isn't
     attached to any table yet (this will happen later).
@@ -9773,15 +9767,13 @@ Field_typed_array::Field_typed_array(
     enum_field_types elt_type, bool elt_is_unsigned, size_t elt_length,
     uint elt_decimals, uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
     uchar auto_flags_arg, const char *field_name_arg, TABLE_SHARE *share,
-    uint blob_pack_length, const CHARSET_INFO *cs,
-    unique_ptr_destroy_only<Json_array> array)
+    uint blob_pack_length, const CHARSET_INFO *cs)
     : Field_json(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                  field_name_arg, share, blob_pack_length),
       m_conv_field(nullptr),
       m_elt_type(elt_type),
       m_elt_decimals(elt_decimals),
-      m_elt_charset(cs),
-      m_array(std::move(array)) {
+      m_elt_charset(cs) {
   if (elt_is_unsigned) {
     unsigned_flag = true;
     flags |= UNSIGNED_FLAG;
@@ -9797,8 +9789,6 @@ Field_typed_array::Field_typed_array(
               elt_type != MYSQL_TYPE_VAR_STRING);
 }
 
-Field_typed_array::~Field_typed_array() = default;
-
 uint32 Field_typed_array::key_length() const {
   return calc_key_length(m_elt_type, field_length, m_elt_decimals,
                          unsigned_flag,
@@ -9808,11 +9798,7 @@ uint32 Field_typed_array::key_length() const {
 
 Field_typed_array *Field_typed_array::clone(MEM_ROOT *mem_root) const {
   DBUG_ASSERT(is_array());
-  unique_ptr_destroy_only<Json_array> array{::new (mem_root) Json_array};
-  if (array == nullptr) return nullptr;
-  auto cloned_field = make_unique_destroy_only<Field_typed_array>(
-      mem_root, *this, std::move(array));
-  return cloned_field.release();
+  return new (mem_root) Field_typed_array(*this);
 }
 
 Field_typed_array *Field_typed_array::clone() const {
@@ -9823,14 +9809,13 @@ Item_result Field_typed_array::result_type() const {
   return field_types_result_type[field_type2index(m_elt_type)];
 }
 
-type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
-  m_array->clear();
+type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
+                                                      Json_array *array) {
+  array->clear();
 
   set_null();
 
   try {
-    String data_buf;
-
     // How to store values
     switch (data->type()) {
       case enum_json_type::J_NULL: {
@@ -9857,15 +9842,16 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
         if (coerce_json_value(data, false, &coerced))
           return TYPE_ERR_BAD_VALUE; /* purecov: inspected */
         coerced.set_alias();
-        m_array->append_alias(coerced.to_dom(table->in_use));
-        Json_wrapper wr(m_array.get(), true);
+        if (array->append_alias(coerced.to_dom(table->in_use)))
+          return TYPE_ERR_OOM;
+        Json_wrapper wr(array, true);
         /*
           No need to check multi-valued key limits, as single value is always
           allowed if engine supports multi-valued index, and single value
           can't outgrow index length limit.
         */
         set_notnull();
-        return Field_json::store_json(&wr);
+        return store_json(&wr);
       }
       case enum_json_type::J_ARRAY: {
         // Handle array
@@ -9875,9 +9861,9 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
 
         // Empty array stored as non-NULL empty array
         if (data->length() == 0) {
-          Json_wrapper wr(m_array.get(), true);
+          Json_wrapper wr(array, true);
           set_notnull();
-          return Field_json::store_json(&wr);
+          return store_json(&wr);
         }
         table->file->ha_mv_key_capacity(&max_num_keys, &max_keys_length);
         DBUG_ASSERT(max_num_keys && max_keys_length);
@@ -9897,7 +9883,8 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
           if (coerce_json_value(&elt, false, &coerced))
             return TYPE_ERR_BAD_VALUE;
           coerced.set_alias();
-          m_array->append_alias(coerced.to_dom(table->in_use));
+          if (array->append_alias(coerced.to_dom(table->in_use)))
+            return TYPE_ERR_OOM;
           if (type() == MYSQL_TYPE_VARCHAR)
             keys_length += coerced.get_data_length();
           else
@@ -9910,12 +9897,12 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
           This is why we need to sort & remove duplicates only after
           processing all keys.
         */
-        if (m_array->size() > 1)
-          m_array->remove_duplicates(
-              type() == MYSQL_TYPE_VARCHAR ? m_elt_charset : nullptr);
-        if (m_array->size() > max_num_keys) {
+        if (array->size() > 1)
+          array->remove_duplicates(type() == MYSQL_TYPE_VARCHAR ? m_elt_charset
+                                                                : nullptr);
+        if (array->size() > max_num_keys) {
           my_error(ER_EXCEEDED_MV_KEYS_NUM, MYF(0), get_index_name(),
-                   m_array->size() - max_num_keys);
+                   array->size() - max_num_keys);
           return TYPE_ERR_BAD_VALUE;
         }
         if (keys_length > max_keys_length) {
@@ -9924,9 +9911,9 @@ type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
                    (keys_length - max_keys_length));
           return TYPE_ERR_BAD_VALUE;
         }
-        Json_wrapper wr(m_array.get(), true);
+        Json_wrapper wr(array, true);
         set_notnull();
-        return Field_json::store_json(&wr);
+        return store_json(&wr);
       }
       case enum_json_type::J_BOOLEAN: {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
