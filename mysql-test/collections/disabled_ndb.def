@@ -57,5 +57,3 @@ ndb.ndb_read_location_domain : BUG#27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN 
 
 # Problem with upper case database names with lower_case_table_names = 2
 ndb.ndb_database_lctn @darwin: Bug#30455400 INCORRECT SCHEMA NAME PASSED TO HA_BINLOG_LOG_QUERY DURING ALTER DATABASE
-
-ndb_ddl.alter_rename_update_fk_name_fail : Bug#30191068 MYSQLD PARTICIPANT CRASHES DURING RENAME QUERY
