@@ -36,6 +36,7 @@
 # [--let $rpl_unconditional_change_master= 1]
 # [--let $rpl_privilege_checks_user= *:'user'@'host',1:'user'@'host',2:NULL]
 # [--let $rpl_privilege_checks_user_dont_create_user= 0]
+# [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 # --source include/rpl_change_topology.inc
 #
 # Parameters:
@@ -86,8 +87,9 @@
 #     on the check this parameter we execute change master or not in this
 #     inc file.
 #
-#   $rpl_privilege_checks_user By default, CHANGE MASTER is executed without
-#     specifying the `PRIVILEGE_CHECKS_USER` parameter. Instantiating
+#   $rpl_privilege_checks_user
+#     By default, CHANGE MASTER is executed without specifying the
+#     `PRIVILEGE_CHECKS_USER` parameter. Instantiating
 #     `$rpl_privilege_checks_user` sets the `PRIVILEGE_CHECKS_USER` option for
 #     the `CHANGE MASTER TO...` command, bounding the replication applier to
 #     execute within the security context of the given user. For example, to
@@ -106,6 +108,10 @@
 #     Force to not create the user provided in `$rpl_privilege_checks_user`. If
 #     set to 0, creates it if doesn't exists and, if created, assigns the
 #     `REPLICATION_APPLIER` privilege.
+#
+#   $rpl_privilege_checks_user_additional_grants
+#     Specify additional privileges to be granted to the
+#     $rpl_privilege_checks_user user.
 #
 # ==== Internal variables configured by this file ====
 #

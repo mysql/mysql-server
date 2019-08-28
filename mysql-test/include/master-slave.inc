@@ -17,6 +17,7 @@
 #   [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #   [--let $rpl_skip_group_replication_start= 1]
 #   [--let $rpl_privilege_checks_user= 2:'user'@'host' | 1:NULL]
+#   [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 #   --source include/master-slave.inc
 #
 # Parameters:
@@ -24,7 +25,8 @@
 #   $rpl_skip_reset_master_and_slave, $rpl_skip_change_master,
 #   $rpl_skip_start_slave, $rpl_debug, $slave_timeout, $use_gtids,
 #   $rpl_gtid_utils, $rpl_set_gtid_next_anonymous_in_new_connection,
-#   $rpl_skip_group_replication_start $rpl_privilege_checks_user
+#   $rpl_skip_group_replication_start $rpl_privilege_checks_user,
+#   $rpl_privilege_checks_user_additional_grants
 #     See include/rpl_init.inc
 #
 #   $rpl_server_count
