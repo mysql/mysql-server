@@ -15,12 +15,9 @@
 # backward compatibility.
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
-call mtr.add_suppression("Slave: Could not start slave for channel");
-call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the master");
-call mtr.add_suppression("slave with the same server_uuid as this slave has connected to the master");
-call mtr.add_suppression("Failed to create or recover replication info repositories");
-call mtr.add_suppression("Got fatal error .* from master .* slave with the same server_uuid/server_id");
+CALL mtr.add_suppression("Got fatal error .* from master .* slave with the same server_uuid/server_id");
+CALL mtr.add_suppression("Error during --relay-log-recovery.*");
+CALL mtr.add_suppression("Server was not able to find a rotate event from master server.*");
 --source include/stop_slave.inc
 
 # On the slave
@@ -41,27 +38,18 @@ SET GLOBAL relay_log_info_repository='TABLE';
 --let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE --slave-parallel-workers=4 --relay-log-purge=0
 --source include/rpl_restart_server.inc
 
-# slave fails to initialize due to BUG#19021091 (default
-# channel cannot recover valid positions from the SQL
-# applier thread).
---error ER_SLAVE_RLI_INIT_REPOSITORY
-START SLAVE;
-
-# This command would fail with an error, which would
-# fail with error ER_MASTER_INFO . Later when start
-# slave was issued, the server would crash.
+# This command earlier failed with error ER_MASTER_INFO and the server would
+# crash when start slave was issued in the later stages.
 #
-# Now, CHANGE MASTER succeeds (and later START SLAVE
-# fails).
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 --enable_warnings
 
-# This would have crashed, but it does not anymore.
---error ER_SLAVE_RLI_INIT_REPOSITORY
-START SLAVE;
+--source include/start_slave.inc
 
+# Stop the slave to execute RESET SLAVE ALL in next step.
+--source include/stop_slave.inc
 # Lets clear the offending channel and recreate it.
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 --disable_warnings
