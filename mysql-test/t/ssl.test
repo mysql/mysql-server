@@ -11,6 +11,7 @@
 connect (ssl_con,localhost,root,,,,,SSL);
 
 # Check ssl turned on
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 
 # Check ssl expiration
@@ -21,6 +22,7 @@ SHOW STATUS LIKE 'Ssl_server_not_after';
 -- source include/common-tests.inc
 
 # Check ssl turned on
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 
 connection default;
