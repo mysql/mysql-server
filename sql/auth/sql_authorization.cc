@@ -4653,7 +4653,7 @@ void get_privilege_access_maps(
   @param lex_user
   @param using_roles An forward iterable container of LEX_STRING std::pair
   @param show_mandatory_roles true means mandatory roles are listed
-  @param has_using_clause true means there's a non-empty USING clause specified
+  @param have_using_clause true means there's a non-empty USING clause specified
 
   @return Success status
 */
