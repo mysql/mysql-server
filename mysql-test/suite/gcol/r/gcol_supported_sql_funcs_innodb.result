@@ -1208,7 +1208,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_latin1'aa',_latin1'bb')) VIRTUAL
+  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_utf8mb4'aa',_utf8mb4'bb')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('maa',default);
 select * from t1;
@@ -1385,7 +1385,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(15) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (substring_index(`a`,_latin1'.',2)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (substring_index(`a`,_utf8mb4'.',2)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('www.mysql.com',default);
 select * from t1;

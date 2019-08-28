@@ -431,19 +431,7 @@ class Item_func : public Item_result_field {
     return agg_item_charsets_for_comparison(c, func_name(), items, nitems,
                                             item_sep);
   }
-  /*
-    Aggregate arguments for string result, when some comparison
-    is involved internally, e.g: REPLACE(a,b,c)
-    - convert to @@character_set_connection if all arguments are numbers
-    - disallow DERIVATION_NONE
-  */
-  bool agg_arg_charsets_for_string_result_with_comparison(DTCollation &c,
-                                                          Item **items,
-                                                          uint nitems,
-                                                          int item_sep = 1) {
-    return agg_item_charsets_for_string_result_with_comparison(
-        c, func_name(), items, nitems, item_sep);
-  }
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
   Item *compile(Item_analyzer analyzer, uchar **arg_p,

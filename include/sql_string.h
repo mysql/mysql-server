@@ -471,6 +471,10 @@ class String {
   bool copy(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   static bool needs_conversion(size_t arg_length, const CHARSET_INFO *cs_from,
                                const CHARSET_INFO *cs_to, size_t *offset);
+  bool needs_conversion(const CHARSET_INFO *cs_to) const {
+    size_t offset;
+    return needs_conversion(length(), charset(), cs_to, &offset);
+  }
   static bool needs_conversion_on_storage(size_t arg_length,
                                           const CHARSET_INFO *cs_from,
                                           const CHARSET_INFO *cs_to);

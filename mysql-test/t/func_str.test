@@ -260,15 +260,13 @@ select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
 
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
 
-# fix this:
---disable_testcase BUG#0000
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
---enable_testcase
 
---error 1267
+# 'd' converts from _latin2 to _latin1, 0xa3 does not
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
---error 1267
+--error ER_CANNOT_CONVERT_STRING
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2 0xa3, 2);
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
 
 select _latin1'B' between _latin1'a' and _latin1'c';
@@ -2020,3 +2018,45 @@ do repeat(row_count()  ,((-9223372036854775808 )<<('{ }'  ))  );
 do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
 
 set sql_mode=default;
+
+--echo #
+--echo # Bug #30114420 ASSERTION `CURRENT_THD->IS_ERROR()'
+--echo #               FAILED|SQL/ITEM_STRFUNC.CC
+--echo #
+
+CREATE TABLE t1(c1 VARCHAR(10));
+INSERT INTO t1 VALUES ('Alaska');
+SELECT HEX(LPAD('', 42, REPLACE(COMPRESS(42),c1,''))) FROM t1;
+SELECT HEX(LPAD('', 42, SUBSTRING_INDEX(COMPRESS(42),c1,1))) FROM t1;
+--disable_result_log
+SELECT LPAD('', 42, REPLACE(RANDOM_BYTES(42),c1,'')) FROM t1;
+SELECT LPAD('', 42, REPLACE(AES_ENCRYPT(c1, 'key'),c1,'')) FROM t1;
+SELECT LPAD('', 42, TRIM(BOTH c1 FROM RANDOM_BYTES(1))) FROM t1;
+SELECT LPAD('', 42, TRIM(BOTH RANDOM_BYTES(42) FROM c1)) FROM t1;
+--enable_result_log
+
+SELECT LPAD('', 42, REPLACE(MD5(c1),c1,'')) FROM t1;
+SELECT HEX(LPAD('', 42, TRIM(BOTH c1 FROM x'ff'))) FROM t1;
+
+SELECT HEX(LPAD('', 42, REPLACE(x'ffff',c1,''))) FROM t1;
+SELECT HEX(LPAD('', 42, TRIM(x'ffff' FROM c1))) FROM t1;
+
+DROP TABLE t1;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT TRIM(_latin2 x'a3' from _latin1 "hello");
+--error ER_CANNOT_CONVERT_STRING
+SELECT REPLACE(_latin1 "hello", _latin2 x'a3', "hei");
+--error ER_CANNOT_CONVERT_STRING
+SELECT REPLACE(_latin1 "hello", "hei", _latin2 x'a3');
+--error ER_CANNOT_CONVERT_STRING
+SELECT SUBSTRING_INDEX(_latin1 "hello", _latin2 x'a3', 42);
+
+# F09F8DA3 == sushi
+SELECT TRIM(leading _utf8mb4 x'F09F8DA3' from _gb18030 x'9439B9376181308B33');
+SELECT SUBSTRING_INDEX(_utf8mb4 x'C3A6C3B8F09F8DA361C3A6C3B8F09F8DA362',
+                       _gb18030 x'81308B339439B937', 2);
+
+# 9439B937 == sushi
+SELECT REPLACE('æøåæøå',_utf16 x'00e5', _gb18030 x'9439B937');
+SELECT REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061');

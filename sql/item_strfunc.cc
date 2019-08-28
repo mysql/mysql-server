@@ -105,6 +105,21 @@
 using std::max;
 using std::min;
 
+static void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
+                                    size_t from_length,
+                                    const CHARSET_INFO *from_cs) {
+  char printable_buff[32];
+  convert_to_printable(printable_buff, sizeof(printable_buff), from,
+                       from_length, from_cs, 6);
+  const char *from_name =
+      native_strcasecmp(from_cs->csname, "utf8") ? from_cs->csname : "utf8mb3";
+  const char *to_name =
+      native_strcasecmp(to_cs->csname, "utf8") ? to_cs->csname : "utf8mb3";
+
+  my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff, from_name,
+           to_name);
+}
+
 /*
   For the Items which have only val_str_ascii() method
   and don't have their own "native" val_str(),
@@ -1108,14 +1123,37 @@ String *Item_func_replace::val_str(String *str) {
   res1->set_charset(collation.collation);
   if (res1->length() == 0 || res2->length() == 0) return res1;
 
-  const bool binary_cmp =
-      ((res1->charset()->state & MY_CS_BINSORT) || !use_mb(res1->charset()));
-
-  if (binary_cmp && res1->strstr(*res2) < 0) return res1;
-
   tmp_value_res.length(0);
   tmp_value_res.set_charset(collation.collation);
   String *result = &tmp_value_res;
+
+  char res2_buff[STRING_BUFFER_USUAL_SIZE];
+  String res2_converted(res2_buff, sizeof(res2_buff), nullptr);
+  char res3_buff[STRING_BUFFER_USUAL_SIZE];
+  String res3_converted(res3_buff, sizeof(res3_buff), nullptr);
+  uint errors = 0;
+
+  if (res2->needs_conversion(collation.collation)) {
+    res2_converted.copy(res2->ptr(), res2->length(), res2->charset(),
+                        collation.collation, &errors);
+    if (errors) {
+      report_conversion_error(collation.collation, res2->ptr(), res2->length(),
+                              res2->charset());
+      return error_str();
+    }
+    res2 = &res2_converted;
+  }
+
+  if (res3->needs_conversion(collation.collation)) {
+    res3_converted.copy(res3->ptr(), res3->length(), res3->charset(),
+                        collation.collation, &errors);
+    if (errors) {
+      report_conversion_error(collation.collation, res3->ptr(), res3->length(),
+                              res3->charset());
+      return error_str();
+    }
+    res3 = &res3_converted;
+  }
 
   THD *thd = current_thd;
   const unsigned long max_size = thd->variables.max_allowed_packet;
@@ -1159,8 +1197,9 @@ bool Item_func_replace::resolve_type(THD *thd) {
     char_length += max_substrs * (uint)diff;
   }
 
-  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
-    return true;
+  // We let the first argument (only) determine the character set of the result.
+  // REPLACE(str, from_str, to_str)
+  if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   set_data_type_string(char_length);
   maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
@@ -1453,8 +1492,9 @@ end:
 }
 
 bool Item_func_substr_index::resolve_type(THD *) {
-  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
-    return true;
+  // We let the first argument (only) determine the character set of the result.
+  // SUBSTRING_INDEX(str, delim, count)
+  if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   set_data_type_string(args[0]->max_char_length());
   return false;
 }
@@ -1479,6 +1519,22 @@ String *Item_func_substr_index::val_str(String *str) {
     return make_empty_result();  // Wrong parameters
 
   res->set_charset(collation.collation);
+
+  char delimiter_buff[STRING_BUFFER_USUAL_SIZE];
+  String delimiter_converted(delimiter_buff, sizeof(delimiter_buff), nullptr);
+  uint errors = 0;
+  if (delimiter->needs_conversion(collation.collation)) {
+    delimiter_converted.copy(delimiter->ptr(), delimiter->length(),
+                             delimiter->charset(), collation.collation,
+                             &errors);
+    if (errors) {
+      report_conversion_error(collation.collation, delimiter->ptr(),
+                              delimiter->length(), delimiter->charset());
+      return error_str();
+    }
+    delimiter = &delimiter_converted;
+    delimiter_length = delimiter->length();
+  }
 
   Integer_value count_val(count, args[2]->unsigned_flag);
 
@@ -1572,13 +1628,6 @@ String *Item_func_substr_index::val_str(String *str) {
   return (&tmp_value);
 }
 
-/*
-** The trim functions are extension to ANSI SQL because they trim substrings
-** They ltrim() and rtrim() functions are optimized for 1 byte strings
-** They also return the original string if possible, else they return
-** a substring that points at the original string.
-*/
-
 String *Item_func_trim::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
 
@@ -1589,9 +1638,24 @@ String *Item_func_trim::val_str(String *str) {
   String tmp(buff, sizeof(buff), system_charset_info);
   const String *remove_str = &remove;  // Default value.
 
+  char remove_buff[STRING_BUFFER_USUAL_SIZE];
+  String remove_converted(remove_buff, sizeof(remove_buff), nullptr);
+  uint errors = 0;
+
   if (arg_count == 2) {
     remove_str = args[1]->val_str(&tmp);
     if ((null_value = args[1]->null_value)) return NULL;
+    if (remove_str->needs_conversion(collation.collation)) {
+      remove_converted.copy(remove_str->ptr(), remove_str->length(),
+                            remove_str->charset(), collation.collation,
+                            &errors);
+      if (errors) {
+        report_conversion_error(collation.collation, remove_str->ptr(),
+                                remove_str->length(), remove_str->charset());
+        return error_str();
+      }
+      remove_str = &remove_converted;
+    }
   }
 
   const size_t remove_length = remove_str->length();
@@ -1672,17 +1736,17 @@ String *Item_func_trim::val_str(String *str) {
 }
 
 bool Item_func_trim::resolve_type(THD *) {
+  // The parser swaps arguments, so args[0] is FROM str.
+  // We let the first argument (only) determine the character set of the
+  // result.
+  // TRIM([{BOTH | LEADING | TRAILING} [remstr] FROM] str)
+  // TRIM([remstr FROM] str)
+  if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+
   if (arg_count == 1) {
-    if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
-    DBUG_ASSERT(collation.collation != NULL);
+    DBUG_ASSERT(collation.collation != nullptr);
     remove.set_charset(collation.collation);
     remove.set_ascii(" ", 1);
-  } else {
-    // Handle character set for args[1] and args[0].
-    // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets_for_string_result_with_comparison(collation, &args[1],
-                                                           2, -1))
-      return true;
   }
   set_data_type_string(args[0]->max_char_length());
   return false;
