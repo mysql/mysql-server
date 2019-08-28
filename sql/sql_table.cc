@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -10714,6 +10721,11 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+// Return true if ENCRYPTION clause requests for table encryption.
+static inline bool is_encrypted(const std::string type) {
+  return (type.empty() == false && type != "" && type != "N" && type != "n");
+}
+
 /**
   @brief Check if the table can be created in the specified storage engine.
 
@@ -10773,6 +10785,16 @@ static bool check_engine(THD *thd, const char *db_name,
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
     *new_engine= NULL;
     DBUG_RETURN(true);
+  }
+
+  // Check if the storage engine supports encryption.
+  if (create_info->encrypt_type.str &&
+      is_encrypted(create_info->encrypt_type.str) &&
+      !((*new_engine)->flags & HTON_SUPPORTS_TABLE_ENCRYPTION))
+  {
+     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+	      ha_resolve_storage_engine_name(*new_engine), "ENCRYPTION");
+     DBUG_RETURN(true);
   }
 
   DBUG_RETURN(false);

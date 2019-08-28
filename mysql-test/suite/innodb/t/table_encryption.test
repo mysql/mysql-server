@@ -1,0 +1,90 @@
+#
+# Test cases for bugs fixes related to InnoDB table encryption
+#
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+
+--echo # Starting server with keyring plugin  
+let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
+
+#------------------------------------------------------------------------------
+# Initial setup for test which create encrypt and non encrypt tables
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+--echo #
+--echo # BUG#29543447: ALTER TABLE ALLOWS TDE ENCRYPTION ON MYISAM ENGINE
+--echo # We disallow ENCRYPTION clause requesting for table encryption.
+--echo # We allow ENCRYPTION clause with 'n' or 'N' for Heap/CSV engines.
+--echo # MyISAM engine rejects even 'n' or 'N' in some cases, we keep
+--echo # this behavior as is for now.
+--echo #
+
+--echo # CREATE TABLE requesting ENCRYPTION
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='Y', ENGINE= MyISAM;
+--error ER_ILLEGAL_HA
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='n', ENGINE= MyISAM;
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='n', ENGINE= HEAP;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # ALTER TABLE requesting ENCRYPTION
+CREATE TABLE t1 (fld1 INT) ENGINE=MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ENCRYPTION= 'Y';
+ALTER TABLE t1 ENCRYPTION= 'N';
+SHOW CREATE TABLE t1;
+
+--echo # ALTER TABLE requesting ENCRYPTION with INPLACE algo.
+--echo # Without patch, no error was reported.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ENCRYPTION= 'y', ALGORITHM=INPLACE;
+ALTER TABLE t1 ENCRYPTION= 'n', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # ALTER TABLE requesting ENCRYPTION with COPY algo.
+--echo # Without patch, error was reported by SE. With
+--echo # this patch the error is reported by SQL server.
+CREATE TABLE t1 (fld1 INT NOT NULL) ENGINE=MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ENCRYPTION= 'y', ALGORITHM=COPY;
+
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
+--error ER_ILLEGAL_HA
+ALTER TABLE t1 ENCRYPTION= 'n', ALGORITHM=COPY;
+--echo # CSV/Heap allows values 'n' or 'N'.
+ALTER TABLE t1 ENGINE=CSV, ENCRYPTION= 'n', ALGORITHM=COPY;
+ALTER TABLE t1 ENGINE=Heap, ENCRYPTION= 'n', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # CREATE TABLE with ENCRYPTION=''.
+--echo # Allow it as it is not requesting for encryption.
+CREATE TABLE t1 (fld1 INT) ENGINE=MyISAM, ENCRYPTION="";
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENCRYPTION= '';
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Move encrypted InnoDB table to Heap.
+CREATE TABLE t1 (fld1 INT) ENCRYPTION='Y', ENGINE=InnoDB;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ENGINE= Heap;
+DROP TABLE t1;
+
+--echo # Starting server without keyring
+let $restart_parameters = restart: ;
+--source include/restart_mysqld.inc
+
+# Cleanup
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
