@@ -27,6 +27,7 @@ Grants for u1@localhost
 GRANT INSERT ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 REVOKE INSERT ON `rpl_priv`.* FROM `u1`@`localhost`
+GRANT INSERT ON `mtr`.`test_suppressions` TO `u1`@`localhost`
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;

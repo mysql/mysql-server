@@ -14,6 +14,7 @@
 # [--let $rpl_master_log_file= <master log file list>]
 # [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
 # [--let $rpl_privilege_checks_user_dont_create_user= 0]
+# [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 # --let $rpl_source_file= rpl_change_topology_helper.inc
 # --source include/rpl_for_each_connection.inc
 #
@@ -141,17 +142,24 @@ if (!$_rpl_change_topology_helper_skip)
       --eval CREATE USER $_rpl_change_topology_helper_privilege_checks
       if ($rpl_skip_grant_privilege_checks_user_roles != 1)
       {
+        --let $_rpl_privilege_checks_user_additional_grants=
+        if($rpl_privilege_checks_user_additional_grants != '')
+        {
+          --let $_rpl_privilege_checks_user_additional_grants= ,$rpl_privilege_checks_user_additional_grants
+        }
         if ($rpl_privilege_checks_use_roles != '')
         {
           --let $RPL_PRIV_ROLE = 'sql_applier_thread'
           --eval CREATE ROLE $RPL_PRIV_ROLE
-          --eval GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $RPL_PRIV_ROLE
+          --eval GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN$_rpl_privilege_checks_user_additional_grants ON *.* TO $RPL_PRIV_ROLE
+          --eval GRANT INSERT ON mtr.test_suppressions TO $RPL_PRIV_ROLE
           --eval GRANT $RPL_PRIV_ROLE TO $_rpl_change_topology_helper_privilege_checks
           --eval SET DEFAULT ROLE $RPL_PRIV_ROLE TO $_rpl_change_topology_helper_privilege_checks
         }
         if ($rpl_privilege_checks_use_roles == '')
         {
-          --eval GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $_rpl_change_topology_helper_privilege_checks
+          --eval GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN$_rpl_privilege_checks_user_additional_grants ON *.* TO $_rpl_change_topology_helper_privilege_checks
+          --eval GRANT INSERT ON mtr.test_suppressions TO $_rpl_change_topology_helper_privilege_checks
         }
       }
       --let $rpl_change_topology_user_created = $rpl_change_topology_user_created $rpl_slave:$_rpl_change_topology_helper_privilege_checks
