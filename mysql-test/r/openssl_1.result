@@ -211,8 +211,6 @@ Variable_name	Value
 Ssl_cipher	DHE-RSA-AES128-SHA
 Variable_name	Value
 Ssl_cipher	AES256-SHA
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES128-SHA
 select 'is still running; no cipher request crashed the server' as result from dual;
 result
 is still running; no cipher request crashed the server

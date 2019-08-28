@@ -1,13 +1,25 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -487,7 +499,12 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  /* MySQL 5.7 supports TLS up to v1.2, explicitly disable TLSv1.3. */
+  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
+#ifdef HAVE_TLSv13
+                        | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
+                        ;
   int ret_set_cipherlist= 0;
   char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
   DBUG_ENTER("new_VioSSLFd");
@@ -517,6 +534,9 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
                     SSL_OP_NO_TLSv1 |
                     SSL_OP_NO_TLSv1_1
                     | SSL_OP_NO_TLSv1_2
+#ifdef HAVE_TLSv13
+                    | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
                     | SSL_OP_NO_TICKET
                    );
   if (!(ssl_fd= ((struct st_VioSSLFd*)
@@ -536,6 +556,21 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
+
+#ifdef HAVE_TLSv13
+  /*
+    MySQL 5.7 doesn't support TLSv1.3 - set empty TLSv1.3 ciphersuites.
+  */
+  if (0 == SSL_CTX_set_ciphersuites(ssl_fd->ssl_context, ""))
+  {
+    *error = SSL_INITERR_CIPHERS;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(0);
+  }
+#endif /* HAVE_TLSv13 */
 
   /*
     We explicitly prohibit weak ciphers.
