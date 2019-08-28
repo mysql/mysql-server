@@ -60,7 +60,7 @@ then
 
 	set -e
 
-	PKG_LIST=mysql-server-5.5:mysql-server-5.6:mysql-server-5.7:mysql-community-server:mysql-commercial-server
+	PKG_LIST=mysql-server-5.5:mysql-server-5.6:mysql-server-5.7:mysql-server-8.0:mysql-community-server:mysql-commercial-server
 	INSTALLED_PKG=none
 	MYSQLDATA=/var/lib/mysql
 
