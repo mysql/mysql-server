@@ -13,14 +13,14 @@ show warnings;
 Level	Code	Message
 insert into t select x + 80, y + 80 from t;
 Warnings:
-Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction' from NDB
+Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction/MaxNoOfConcurrentOp' from NDB
 
 commit;
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4350 'Transaction already aborted' from NDB
 Error	1296	Got error 4350 'Transaction already aborted' from NDBCLUSTER
-Error	1180	Got error 4350 - 'Unknown error 4350' during COMMIT
+Error	1180	Got error 4350 - 'Unknown error: 4350' during COMMIT
 ROWID	x	y
 0 rows returned
 
