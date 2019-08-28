@@ -39,7 +39,7 @@ let $tls_default= TLSv1.2;
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
 
 --echo #T2: Default SSL cipher
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo #T3: Setting TLS version TLSv1.2 from the client

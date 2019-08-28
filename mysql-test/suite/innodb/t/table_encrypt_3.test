@@ -211,7 +211,7 @@ DROP TABLESPACE s_alt1;
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
 
 # Now error/warning shown
---error ER_ILLEGAL_HA
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
 
 # Create a table with encryption and different row format
