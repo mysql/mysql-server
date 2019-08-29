@@ -192,6 +192,25 @@ SELECT @@global.innodb_undo_log_encrypt ;
 SET GLOBAL innodb_undo_log_encrypt = OFF;
 --force-rmdir $CLONE_DATADIR
 
+--echo # 3. Enable sql_require_primary_key
+
+UNINSTALL PLUGIN clone;
+
+SELECT @@sql_require_primary_key into @saved_sql_require_primary_key;
+SET sql_require_primary_key = OFF;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+UNINSTALL PLUGIN clone;
+
+SET sql_require_primary_key = ON;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SET global sql_require_primary_key = @saved_sql_require_primary_key;
+
 --echo #Cleanup
 
 UNINSTALL PLUGIN clone;

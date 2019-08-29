@@ -7727,9 +7727,12 @@ bool mysql_prepare_create_table(
     }
   }
   // If the table is created without PK, we must check if this has
-  // been disabled and return error.
+  // been disabled and return error. Limit the effect of sql_require_primary_key
+  // to only those SEs that can participate in replication.
   if (!primary_key && !thd->is_dd_system_thread() &&
       !thd->is_initialize_system_thread() &&
+      (file->ha_table_flags() &
+       (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)) != 0 &&
       thd->variables.sql_require_primary_key) {
     my_error(ER_TABLE_WITHOUT_PK, MYF(0));
     return true;
