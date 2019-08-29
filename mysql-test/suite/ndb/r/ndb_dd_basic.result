@@ -660,7 +660,7 @@ insert into t1 values(1, 1, 3);
 insert into t1 values(2, 2, 3);
 # Confirm that the update fails
 update t1 set c1 = 1 where id = 2;
-ERROR 23000: Can't write; duplicate key in table ''
+ERROR 23000: Duplicate entry '1' for key 't1.c1'
 # Cleanup
 drop table t1;
 ALTER TABLESPACE ts1

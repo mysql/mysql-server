@@ -103,7 +103,7 @@ a
 600
 set @@insert_id=600;
 insert into t1 values(600),(NULL),(NULL);
-ERROR 23000: Can't write; duplicate key in table ''
+ERROR 23000: Duplicate entry '601' for key 't1.PRIMARY'
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
 Warnings:
