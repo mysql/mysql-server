@@ -97,8 +97,6 @@ URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
-Source90:       filter-provides.sh
-Source91:       filter-requires.sh
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  bison >= 2.1
 BuildRequires:  perl
@@ -136,17 +134,10 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-%if 0%{?rhel} > 6
-# For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
 %global _privatelibs libprotobuf.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*)$
-%else
-# https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
-%global __perl_provides %{SOURCE90}
-%global __perl_requires %{SOURCE91}
-%endif
 
 %description
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
