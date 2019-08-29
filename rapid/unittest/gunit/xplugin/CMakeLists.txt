@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,10 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
+IF(SOLARIS AND HAVE_TLSv13)
+  SET(FORCE_SSL "-Wl,--undefined,address_of_sk_new_null")
 ENDIF()
 
 INCLUDE(CTest)
@@ -158,6 +162,7 @@ TARGET_LINK_LIBRARIES(
   regex
   gmock
   mysqlservices
+  ${FORCE_SSL}
   mysqlclient
   ${LIBEVENT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
