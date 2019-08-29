@@ -43,6 +43,10 @@ ADD_SUBDIRECTORY(dump)
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
+IF(SOLARIS AND HAVE_TLSv13)
+  SET(FORCE_SSL "-Wl,--undefined,address_of_sk_new_null")
+ENDIF()
+
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
@@ -100,7 +104,7 @@ SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
+TARGET_LINK_LIBRARIES(mysql_config_editor ${FORCE_SSL} mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
@@ -108,7 +112,7 @@ TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 IF(UNIX AND NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_install_db
     mysql_install_db.cc auth_utils.cc path.cc logger.cc)
-  TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+  TARGET_LINK_LIBRARIES(mysql_install_db ${FORCE_SSL} mysqlclient)
   ADD_COMPILE_FLAGS(
     auth_utils.cc mysql_install_db.cc
     COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
