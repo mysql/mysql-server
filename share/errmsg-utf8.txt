@@ -19724,6 +19724,9 @@ ER_WARN_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 ER_IB_MSG_SKIP_HIDDEN_DIR
   eng "Directory '%s' will not be scanned because it is a hidden directory."
 
+ER_WARN_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_MASTER_EOF
+  eng "Server was not able to find a rotate event from master server to initialize relay log recovery for channel '%s'. Skipping relay log recovery for the channel."
+
 # DO NOT add server-to-client messages here!
 # This range is for messages intended for the error log only.
 # See the FAQ at the end of the file for further information.
