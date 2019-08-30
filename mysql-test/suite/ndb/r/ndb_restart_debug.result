@@ -1,0 +1,9 @@
+Waiting for node 1 to enter start phase 100
+Giving BI threads time to get stuck
+Removing error insert
+Wait for cluster to become writeable
+Show cluster writeable
+create table test.t1 (a int primary key, b text, c int, unique(c)) engine=ndb;
+insert into test.t1 values (1, repeat("BJC", 1000), 2);
+drop table test.t1;
+Done
