@@ -12,6 +12,11 @@ source include/wait_until_disconnected.inc;
 enable_reconnect;
 connection default;
 --echo Connected to server1 as root
+
+# Disable warnings to suppress a "Node unsubscribed" warning that may appear
+# at some unpredictable time after the shutdown of mysqld2
+--disable_warnings ER_GET_ERRMSG
+
 #
 # Create test tables. These are not in database "test" due to the customary
 # "GRANT ALL ON test.* to '%'@'localhost'" in effect there.
@@ -182,6 +187,7 @@ DROP TABLE t2, t3;
 
 # ======= CLEANUP
 # =======
+--enable_warnings
 connection default;
 
 DROP DATABASE auth_test_db;
@@ -194,3 +200,8 @@ DROP USER Monty@localhost, David@localhost;
 DROP USER ndb_u4@localhost, ndb_u5@localhost;
 DROP USER ndb_u6@a;
 DROP ROLE R3;
+
+# Sometimes check_testcase runs before the cleanup has finished on mysqld2.
+# Connect once more to mysqld2. The connection will have to acquire a
+# read lock on the ACL cache, hopefully allowing cleanup to finish there.
+connect(mysqld2b,127.0.0.1,root,,test,$MASTER_MYPORT1);
