@@ -1827,6 +1827,7 @@ template class Vector<InitChunk>;
 
 #include <Vector.hpp>
 #include <NdbHost.h>
+#include "portlib/ndb_stacktrace.h"
 #include "portlib/NdbTick.h"
 
 struct Chunk {
@@ -1868,6 +1869,7 @@ struct Timer
 
 void abort_handler(int signum)
 {
+  ndb_print_stacktrace();
   signal(SIGABRT, SIG_DFL);
   abort();
 }
@@ -1955,6 +1957,7 @@ int
 main(int argc, char** argv)
 {
   ndb_init();
+  ndb_init_stacktrace();
   signal(SIGABRT, abort_handler);
 
   int sz = 1 * 32768;
