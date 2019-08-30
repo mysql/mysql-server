@@ -1,0 +1,16 @@
+#
+# Bug #29846292 ROLLBACK OF BIG TRANSACTION DUE TO CONFLICT REMAINS IN HUNG STATE
+#
+
+# In this scenario, we create a LOB which does not fit in the buffer pool, thus
+# the rollback has to be smart about managing pages.
+# In particular a buggy implementaiton which tries to keep all pages of the LOB
+# in the memory until mini transaction commits, will deadlock with itself at
+# some point when trying to fetch next page of the LOB from storage to already
+# fully saturated buffer pool.
+
+CREATE TABLE t1 (id INT PRIMARY KEY NOT NULL, val LONGTEXT);
+BEGIN;
+INSERT INTO t1 VALUES (1, repeat('a',6000000));
+ROLLBACK;
+DROP TABLE t1;
