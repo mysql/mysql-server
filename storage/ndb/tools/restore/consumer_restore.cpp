@@ -2823,18 +2823,25 @@ BackupRestore::table(const TableS & table){
 
     NdbDictionary::Object::PartitionBalance part_bal;
     part_bal = copy.getPartitionBalance();
-    if (part_bal == 0)
+    assert(part_bal != 0);
+    if (part_bal == NdbDictionary::Object::PartitionBalance_ForRPByLDM)
     {
-      /* Pre 7.5.2 */
-      if (copy.getDefaultNoPartitionsFlag())
+      /**
+       * For backups created by versions prior to the introduction of
+       * PartitionBalance, we may have picked up the default partition
+       * balance member, but we should have a specific setting.
+       */
+      if (!copy.getDefaultNoPartitionsFlag())
       {
-        part_bal = NdbDictionary::Object::PartitionBalance_ForRPByLDM;
-      }
-      else
-      {
+        /* This is actually a specifically partitioned table, check that
+         * it has a specific fragment count we can reuse
+         */
+        assert(copy.getFragmentCount() != 0);
         part_bal = NdbDictionary::Object::PartitionBalance_Specific;
+        copy.setPartitionBalance(part_bal);
+        info << "Setting " << name << " to specific partition balance with "
+             << copy.getFragmentCount() << " fragments." << endl;
       }
-      copy.setPartitionBalance(part_bal);
     }
     if (part_bal != NdbDictionary::Object::PartitionBalance_Specific)
     {
