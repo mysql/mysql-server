@@ -3518,16 +3518,13 @@ class Ndb_schema_event_handler {
     return false;
   }
 
-  bool install_table_in_dd(const char *schema_name, const char *table_name,
-                           dd::sdi_t sdi, int table_id, int table_version,
-                           size_t num_partitions,
+  bool install_table_in_dd(Ndb_dd_client &dd_client, const char *schema_name,
+                           const char *table_name, dd::sdi_t sdi, int table_id,
+                           int table_version, size_t num_partitions,
                            const std::string &tablespace_name,
                            bool force_overwrite,
                            bool invalidate_referenced_tables) const {
     DBUG_TRACE;
-
-    // Found table, now install it in DD
-    Ndb_dd_client dd_client(m_thd);
 
     // First acquire exclusive MDL lock on schema and table
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
@@ -3601,10 +3598,14 @@ class Ndb_schema_event_handler {
       return false;
     }
 
-    // Deserialize the metadata from NDB
+    Ndb_dd_client dd_client(m_thd);
+
+    // Deserialize the metadata from NDB, this is done like this in order to
+    // allow the table to be setup for binlogging independently of whether it
+    // works to install it into DD.
     Ndb_dd_table dd_table(m_thd);
     const dd::sdi_t sdi = serialized_metadata.c_str();
-    if (!dd_table.deserialize(sdi)) {
+    if (!dd_client.deserialize_table(sdi, dd_table.get_table_def())) {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
                     schema_name, table_name);
@@ -3626,7 +3627,7 @@ class Ndb_schema_event_handler {
     // Install the table definition in DD
     // NOTE! This is done after create/setup the NDB_SHARE to avoid that
     // server tries to open the table before the NDB_SHARE has been created
-    if (!install_table_in_dd(schema_name, table_name, sdi,
+    if (!install_table_in_dd(dd_client, schema_name, table_name, sdi,
                              ndbtab->getObjectId(), ndbtab->getObjectVersion(),
                              ndbtab->getPartitionCount(), tablespace_name,
                              force_overwrite, invalidate_referenced_tables)) {
@@ -3873,9 +3874,10 @@ class Ndb_schema_event_handler {
     }
 
     // Deserialize the metadata from NDB
+    Ndb_dd_client dd_client(m_thd);
     Ndb_dd_table dd_table(m_thd);
     const dd::sdi_t sdi = serialized_metadata.c_str();
-    if (!dd_table.deserialize(sdi)) {
+    if (!dd_client.deserialize_table(sdi, dd_table.get_table_def())) {
       log_and_clear_THD_conditions();
       ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
                     schema_name, table_name);
@@ -4161,7 +4163,7 @@ class Ndb_schema_event_handler {
       // Deserialize the metadata from NDB
       Ndb_dd_table dd_table(m_thd);
       const dd::sdi_t sdi = serialized_metadata.c_str();
-      if (!dd_table.deserialize(sdi)) {
+      if (!dd_client.deserialize_table(sdi, dd_table.get_table_def())) {
         log_and_clear_THD_conditions();
         ndb_log_error("Failed to deserialized metadata for table '%s.%s'",
                       new_schema_name, new_table_name);
@@ -5242,6 +5244,9 @@ class Ndb_schema_event_handler {
 
     // Errors should have been reported to log and then cleared
     DBUG_ASSERT(!m_thd->is_error());
+
+    // There should be no MDL locks left now
+    DBUG_ASSERT(!m_thd->mdl_context.has_locks());
 
     return;
   }

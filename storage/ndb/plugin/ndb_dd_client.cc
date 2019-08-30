@@ -54,6 +54,7 @@ Ndb_dd_client::Ndb_dd_client(THD *thd)
     : m_thd(thd),
       m_client(thd->dd_client()),
       m_save_mdl_locks(thd->mdl_context.mdl_savepoint()) {
+  DBUG_TRACE;
   disable_autocommit();
 
   // Create dictionary client auto releaser, stored as
@@ -64,6 +65,7 @@ Ndb_dd_client::Ndb_dd_client(THD *thd)
 }
 
 Ndb_dd_client::~Ndb_dd_client() {
+  DBUG_TRACE;
   // Automatically restore the option_bits in THD if they have
   // been modified
   if (m_save_option_bits) m_thd->variables.option_bits = m_save_option_bits;
@@ -474,6 +476,14 @@ bool Ndb_dd_client::remove_table(const char *schema_name,
     return false;
   }
 
+  return true;
+}
+
+bool Ndb_dd_client::deserialize_table(const dd::sdi_t &sdi,
+                                      dd::Table *table_def) {
+  if (ndb_dd_sdi_deserialize(m_thd, sdi, table_def)) {
+    return false;
+  }
   return true;
 }
 

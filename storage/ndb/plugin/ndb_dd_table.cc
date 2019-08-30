@@ -33,7 +33,6 @@
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/partition.h"
 #include "sql/dd/types/table.h"
-#include "storage/ndb/plugin/ndb_dd_sdi.h"
 
 // The key used to store the NDB tables object version in the
 // se_private_data field of DD
@@ -205,10 +204,3 @@ Ndb_dd_table::Ndb_dd_table(THD *thd)
     : m_thd(thd), m_table_def{dd::create_object<dd::Table>()} {}
 
 Ndb_dd_table::~Ndb_dd_table() { delete m_table_def; }
-
-bool Ndb_dd_table::deserialize(const dd::sdi_t &sdi) {
-  if (ndb_dd_sdi_deserialize(m_thd, sdi, m_table_def)) {
-    return false;
-  }
-  return true;
-}

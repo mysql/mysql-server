@@ -31,7 +31,6 @@
 
 namespace dd {
 class Table;
-typedef String_type sdi_t;
 typedef unsigned long long Object_id;
 }  // namespace dd
 
@@ -128,8 +127,6 @@ class Ndb_dd_table {
   Ndb_dd_table(THD *thd);
 
   ~Ndb_dd_table();
-
-  bool deserialize(const dd::sdi_t &sdi);
 
   dd::Table *get_table_def() { return m_table_def; }
 };

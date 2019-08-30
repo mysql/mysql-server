@@ -1,0 +1,43 @@
+#
+# Bug#29871406 HANG IN ACQUIRE_LOCK WHEN ALTERING TABLESPACE
+# Create table in tablespace with RANGE partition caused MDL lock
+# on the tablespace to be left behind on the participant, thus
+# preventing further use of the tablespace
+#
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile1.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 64M
+ENGINE NDB;
+set new=on;
+CREATE TABLE t1 (
+a INT NOT NULL,
+PRIMARY KEY (a)
+) ENGINE=NDB
+PARTITION BY RANGE (a)
+PARTITIONS 1
+(PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+# Workaround BUG#30248840 which describes problem with updating
+# tablespace id on participant when altering tablespace where table
+# has RANGE partitions
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+PRIMARY KEY (a)
+) ENGINE=NDB;
+# End Workaround
+# mysqld2> Check that tablespace can be altered on participant
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+# Cleanup
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile1.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1 ENGINE = NDB;

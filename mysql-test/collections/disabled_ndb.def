@@ -27,7 +27,6 @@ ndb_rpl.ndb_rpl_stm_innodb                 : BUG#16321437 NDB_APPLY_STATUS START
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_parallel_undo_log : BUG#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE FAILURE
-ndb.ndb_dd_schema_distribution : Bug#29871406 HANG IN ACQUIRE_LOCK WHEN ALTERING TABLESPACE
 
 # Problem with ndb_index_stat tables missing from DD
 ndb.ndb_statistics0 : BUG#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART

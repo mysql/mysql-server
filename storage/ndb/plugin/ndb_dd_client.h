@@ -145,6 +145,7 @@ class Ndb_dd_client {
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool remove_table(const char *schema_name, const char *table_name,
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
+  bool deserialize_table(const dd::sdi_t &sdi, dd::Table *table_def);
   bool install_table(const char *schema_name, const char *table_name,
                      const dd::sdi_t &sdi, int ndb_table_id,
                      int ndb_table_version, size_t ndb_num_partitions,
