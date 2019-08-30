@@ -1,12 +1,12 @@
 use test;
 show tables;
 Tables_in_test
-maxrows_high
 another
-standard
 bykeycount
-maxrows_low
 bykeycount_big
+maxrows_high
+maxrows_low
+standard
 show create table standard;
 Table	Create Table
 standard	CREATE TABLE `standard` (
