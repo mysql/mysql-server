@@ -3935,7 +3935,6 @@ class Ft_hints {
     get_foreign_key_create_info()
     free_foreign_key_create_info()
     get_foreign_key_list()
-    referenced_by_foreign_key()
 
   -------------------------------------------------------------------------
   MODULE fulltext index
@@ -5331,7 +5330,6 @@ class handler {
       List<st_handler_tablename> *fk_table_list MY_ATTRIBUTE((unused))) {
     return 0;
   }
-  virtual uint referenced_by_foreign_key() { return 0; }
   virtual void init_table_handle_for_HANDLER() {
     return;
   } /* prepare InnoDB for HANDLER */

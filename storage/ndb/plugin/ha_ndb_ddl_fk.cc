@@ -1538,20 +1538,6 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb) {
   return 0;
 }
 
-uint ha_ndbcluster::referenced_by_foreign_key() {
-  DBUG_TRACE;
-
-  Ndb_fk_data *data = m_fk_data;
-  if (data == 0) {
-    DBUG_ASSERT(false);
-    return 0;
-  }
-
-  DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
-                      data->list.elements, data->cnt_child, data->cnt_parent));
-  return data->cnt_parent != 0;
-}
-
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
     root_ptr = THR_MALLOC;

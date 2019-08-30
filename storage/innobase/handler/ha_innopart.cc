@@ -3879,22 +3879,6 @@ int ha_innopart::repair(THD *thd, HA_CHECK_OPT *repair_opt) {
   return error;
 }
 
-/** Checks if a table is referenced by a foreign key.
-The MySQL manual states that a REPLACE is either equivalent to an INSERT,
-or DELETE(s) + INSERT. Only a delete is then allowed internally to resolve
-a duplicate key conflict in REPLACE, not an update.
-@return	> 0 if referenced by a FOREIGN KEY. */
-uint ha_innopart::referenced_by_foreign_key() {
-  if (dict_table_is_referenced_by_foreign_key(m_prebuilt->table)) {
-#ifndef HA_INNOPART_SUPPORTS_FOREIGN_KEYS
-    ut_ad(0);
-#endif /* HA_INNOPART_SUPPORTS_FOREIGN_KEYS */
-    return (1);
-  }
-
-  return (0);
-}
-
 /** Start statement.
 MySQL calls this function at the start of each SQL statement inside LOCK
 TABLES. Inside LOCK TABLES the "::external_lock" method does not work to
