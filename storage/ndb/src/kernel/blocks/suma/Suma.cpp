@@ -371,6 +371,15 @@ Suma::execSTTOR(Signal* signal) {
   
   if (m_startphase == 101)
   {
+    if (ERROR_INSERTED(13053))
+    {
+      jam();
+      ndbout_c("SUMA : ERROR 13053 : Stalling phase 101");
+      sendSignalWithDelay(SUMA_REF, GSN_STTOR, signal,
+                          1000, signal->getLength());
+      return;
+    }
+
     if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
 	m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
     {

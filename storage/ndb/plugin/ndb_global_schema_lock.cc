@@ -157,18 +157,16 @@ static NdbTransaction *gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   ndb->setDatabaseName("sys");
   ndb->setDatabaseSchemaName("def");
   NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
-  const NdbDictionary::Table *ndbtab = nullptr;
   NdbOperation *op = nullptr;
   NdbTransaction *trans = nullptr;
 
   while (1) {
-    if (!ndbtab) {
-      if (!(ndbtab = ndbtab_g.get_table())) {
-        if (dict->getNdbError().status == NdbError::TemporaryError) goto retry;
-        ndb_error = dict->getNdbError();
-        goto error_handler;
-      }
+    Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
+    const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
+    if (ndbtab == nullptr) {
+      if (dict->getNdbError().status == NdbError::TemporaryError) goto retry;
+      ndb_error = dict->getNdbError();
+      goto error_handler;
     }
 
     trans = ndb->startTransaction();
@@ -179,8 +177,8 @@ static NdbTransaction *gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
 
     op = trans->getNdbOperation(ndbtab);
     if (op == nullptr) {
-      if (dict->getNdbError().status == NdbError::TemporaryError) goto retry;
-      ndb_error = dict->getNdbError();
+      if (trans->getNdbError().status == NdbError::TemporaryError) goto retry;
+      ndb_error = trans->getNdbError();
       goto error_handler;
     }
     if (op->readTuple(NdbOperation::LM_Exclusive)) goto error_handler;
