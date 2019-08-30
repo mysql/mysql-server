@@ -63,7 +63,7 @@ show create table bykeycount;
 show create table bykeycount_big;
 show create table another;
 
---sorted-result
+--sorted_result
 show tables;
 
 
