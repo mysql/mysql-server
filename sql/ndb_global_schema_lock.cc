@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,22 +102,19 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
   ndb->setDatabaseName("sys");
   ndb->setDatabaseSchemaName("def");
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
-  const NdbDictionary::Table *ndbtab= NULL;
   NdbOperation *op;
   NdbTransaction *trans= NULL;
 
   while (1)
   {
-    if (!ndbtab)
+    Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
+    const NdbDictionary::Table *ndbtab= ndbtab_g.get_table();
+    if (ndbtab == NULL)
     {
-      if (!(ndbtab= ndbtab_g.get_table()))
-      {
-        if (dict->getNdbError().status == NdbError::TemporaryError)
-          goto retry;
-        ndb_error= dict->getNdbError();
-        goto error_handler;
-      }
+      if (dict->getNdbError().status == NdbError::TemporaryError)
+        goto retry;
+      ndb_error= dict->getNdbError();
+      goto error_handler;
     }
 
     trans= ndb->startTransaction();
