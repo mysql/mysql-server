@@ -53,6 +53,17 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
   ut_a(err == DB_SUCCESS);
 }
 
+#ifdef UNIV_DEBUG
+/** Waits for a given committed mtr to be flushed to disc.
+It's a helper debug function used to make tests involving DBUG_SUICIDE more
+deterministic w.r.t. to the content of redo log
+@param[in]      mtr             A committed mtr
+*/
+static void wait_for_mtr_flush(const mtr_t &mtr) {
+  log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+}
+#endif /* UNIV_DEBUG */
+
 /** Rollback modification of a uncompressed LOB.
 @param[in]	ctx		the delete operation context information.
 @param[in]	index		clustered index in which LOB is present
@@ -77,28 +88,69 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     return;
   }
 
-  mtr_t *mtr = ctx->get_mtr();
+  /* Our local_mtr needs to use the same mode as the ctx's mtr, as for example
+  built-in tables do not expect redo logging, so we should respect that */
+  mtr_log_t parent_mtr_log_mode = ctx->get_mtr()->get_log_mode();
+
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(parent_mtr_log_mode);
+
+  ctx->x_latch_rec_page(&local_mtr);
+  /* We mark the LOB as partially deleted here, so that if we crash during the
+  while() loop below, then during recovery we will know that the remaining LOB
+  data should not be read. OTOH we do not ref.set_page_no(FIL_NULL, &local_mtr)
+  until we delete all the pages, so that the recovery can use the reference to
+  find the remaining parts of the LOB. */
+  ref.set_length(0, &local_mtr);
 
   page_no_t first_page_no = ref.page_no();
   page_id_t page_id(ref.space_id(), first_page_no);
   page_size_t page_size(dict_table_page_size(index->table));
 
-  first_page_t first(mtr, index);
+  first_page_t first(&local_mtr, index);
   first.load_x(page_id, page_size);
 
   flst_base_node_t *flst = first.index_list();
-  fil_addr_t node_loc = flst_get_first(flst, mtr);
+  fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node = first.addr2ptr_x(node_loc);
-    index_entry_t cur_entry(node, mtr, index);
-
+    index_entry_t cur_entry(node, &local_mtr, index);
     if (cur_entry.can_rollback(trxid, undo_no)) {
       node_loc = cur_entry.make_old_version_current(index, trxid, first);
-
     } else {
       node_loc = cur_entry.get_next();
     }
+
+#ifdef UNIV_DEBUG
+    const ulint index_len = flst_get_len(first.index_list());
+    DBUG_EXECUTE_IF("lob_rollback_print_index_size", {
+      ib::info(ER_IB_LOB_ROLLBACK_INDEX_LEN, ulonglong{trxid},
+               ulonglong{undo_no}, ulonglong{index_len});
+    });
+#endif /* UNIV_DEBUG */
+
+    mtr_commit(&local_mtr);
+
+#ifdef UNIV_DEBUG
+    DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
+      if (index_len == 6) {
+        wait_for_mtr_flush(local_mtr);
+        DBUG_SUICIDE();
+      }
+    });
+    DBUG_EXECUTE_IF("crash_almost_end_lob_rollback",
+                    { wait_for_mtr_flush(local_mtr); });
+#endif /* UNIV_DEBUG */
+
+    mtr_start(&local_mtr);
+    local_mtr.set_log_mode(parent_mtr_log_mode);
+    /* We need to reacquire the first page, because in the next iteration of
+    the loop we might access not only the FIL_PAGE_TYPE_LOB_INDEX page which
+    contains node_loc, but also the FIL_PAGE_TYPE_LOB_FIRST which contains
+    the crucial entry index lists base nodes */
+    first.load_x(page_id, page_size);
   }
 
   if (rec_type == TRX_UNDO_INSERT_REC || first.is_empty()) {
@@ -110,17 +162,26 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     first.dealloc();
 
   } else {
+    ut_ad(first.validate());
 #ifdef UNIV_DEBUG
     const ulint lob_size = ref.length();
-    fil_addr_t first_node_loc = flst_get_first(flst, mtr);
-    ut_ad(validate_size(lob_size, index, first_node_loc, mtr));
+    fil_addr_t first_node_loc = flst_get_first(flst, &local_mtr);
+    ut_ad(validate_size(lob_size, index, first_node_loc, &local_mtr));
 #endif /* UNIV_DEBUG */
   }
 
-  ref.set_page_no(FIL_NULL, mtr);
-  ref.set_length(0, mtr);
+  DBUG_EXECUTE_IF("crash_almost_end_lob_rollback", { DBUG_SUICIDE(); });
+  /* We are done with cleaning up index entries for the given version, so now we
+  can modify the reference, so that it is no longer reachable. */
+  ctx->x_latch_rec_page(&local_mtr);
+  ref.set_page_no(FIL_NULL, &local_mtr);
+  ut_ad(ref.length() == 0);
+  mtr_commit(&local_mtr);
 
-  DBUG_EXECUTE_IF("crash_endof_lob_rollback", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_endof_lob_rollback", {
+    wait_for_mtr_flush(local_mtr);
+    DBUG_SUICIDE();
+  });
 }
 
 /** Rollback modification of a compressed LOB.
@@ -134,11 +195,18 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
                        undo_no_t undo_no, ref_t &ref, ulint rec_type) {
   ut_ad(ctx->m_rollback);
-  const ulint commit_freq = 1;
-  ulint n_entries = 0;
 
   mtr_t local_mtr;
   mtr_start(&local_mtr);
+
+  ctx->x_latch_rec_page(&local_mtr);
+  /* We mark the LOB as partially deleted here, so that if we crash during the
+  while() loop below, then during recovery we will know that the remaining LOB
+  data should not be read. OTOH we do not ref.set_page_no(FIL_NULL, 0)
+  until we delete all the pages, so that the recovery can use the reference to
+  find the remaining parts of the LOB. */
+  ref.set_length(0, 0);
+  ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
 
   page_no_t first_page_no = ref.page_no();
   page_id_t page_id(ref.space_id(), first_page_no);
@@ -154,31 +222,35 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     flst_node_t *node = first.addr2ptr_x(node_loc);
     z_index_entry_t cur_entry(node, &local_mtr, index);
 
-#ifdef UNIV_DEBUG
-    ulint idx_len = first.get_index_list_length();
-#endif /* UNIV_DEBUG */
-
     if (cur_entry.can_rollback(trxid, undo_no)) {
       node_loc = cur_entry.make_old_version_current(index, trxid, first);
-
-      n_entries++;
-
     } else {
       node_loc = cur_entry.get_next();
     }
 
-    if ((n_entries % commit_freq == 0) && !first.is_empty()) {
-      mtr_commit(&local_mtr);
-
 #ifdef UNIV_DEBUG
-      if (idx_len == 1) {
-        DBUG_EXECUTE_IF("crash_middle_zlob_rollback", DBUG_SUICIDE(););
-      }
+    const ulint index_len = flst_get_len(first.index_list());
+    DBUG_EXECUTE_IF("lob_rollback_print_index_size", {
+      ib::info(ER_IB_LOB_ROLLBACK_INDEX_LEN, ulonglong{trxid},
+               ulonglong{undo_no}, ulonglong{index_len});
+    });
 #endif /* UNIV_DEBUG */
 
-      mtr_start(&local_mtr);
-      first.load_x(page_id, page_size);
-    }
+    mtr_commit(&local_mtr);
+
+#ifdef UNIV_DEBUG
+    DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
+      if (index_len == 6) {
+        wait_for_mtr_flush(local_mtr);
+        DBUG_SUICIDE();
+      }
+    });
+    DBUG_EXECUTE_IF("crash_almost_endof_zlob_rollback",
+                    { wait_for_mtr_flush(local_mtr); });
+#endif /* UNIV_DEBUG */
+
+    mtr_start(&local_mtr);
+    first.load_x(page_id, page_size);
   }
 
   if (rec_type == TRX_UNDO_INSERT_REC || first.is_empty()) {
@@ -199,15 +271,21 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     ut_ad(first.validate());
   }
 
+  DBUG_EXECUTE_IF("crash_almost_endof_zlob_rollback", DBUG_SUICIDE(););
   ut_ad(ctx->get_page_zip() != nullptr);
+  /* We are done with cleaning up index entries for the given version, so now we
+  can modify the reference, so that it is no longer reachable. */
   ref.set_page_no(FIL_NULL, 0);
-  ref.set_length(0, 0);
+  ut_ad(ref.length() == 0);
   ctx->x_latch_rec_page(&local_mtr);
   ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
 
   mtr_commit(&local_mtr);
 
-  DBUG_EXECUTE_IF("crash_endof_zlob_rollback", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_endof_zlob_rollback", {
+    wait_for_mtr_flush(local_mtr);
+    DBUG_SUICIDE();
+  });
 }
 
 /** Purge a compressed LOB.
@@ -324,8 +402,12 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     ut_a(ctx->m_rollback);
     return;
   }
-
-  if (!ref.is_owner() || ref.page_no() == FIL_NULL || ref.length() == 0 ||
+  /* In case ref.length()==0, the LOB might be partially deleted (for example
+  a crash has happened during a rollback() of insert operation) and we want
+  to make sure we delete the remaining parts of the LOB so we don't exit here.
+  OTOH, if the reason for ref.length()==0, is because of ref.is_null_relaxed(),
+  then we should exit.*/
+  if (!ref.is_owner() || ref.page_no() == FIL_NULL || ref.is_null_relaxed() ||
       (ctx->m_rollback && ref.is_inherited())) {
     return;
   }

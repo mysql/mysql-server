@@ -1,0 +1,19 @@
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB, KEY(f2(50)))
+ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` longblob,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+START TRANSACTION;
+INSERT INTO t1 VALUES (1, REPEAT('abcdefghijklmnopqrstuvwxyz1234', 6006));
+SET DEBUG = '+d,crash_almost_end_lob_rollback';
+ROLLBACK;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT * FROM t1;
+f1	f2
+DROP TABLE t1;
