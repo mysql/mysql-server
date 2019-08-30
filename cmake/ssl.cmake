@@ -27,8 +27,7 @@
 #   or
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
 #
-# The default value for WITH_SSL is "system"
-# set in cmake/build_configurations/feature_set.cmake
+# The default value for WITH_SSL is "system".
 #
 # WITH_SSL="system" means: use the SSL library that comes with the operating
 # system. This typically means you have to do 'yum install openssl-devel'
@@ -37,7 +36,7 @@
 # For Windows or macOS, WITH_SSL="system" is handled a bit differently:
 # We assume you have installed
 #     https://slproweb.com/products/Win32OpenSSL.html
-#     We look for "C:/OpenSSL-Win64/"
+#     We look for "C:/Program Files/OpenSSL-Win64/"
 #     The .dll files must be in your PATH.
 # or
 #     http://brewformulas.org/Openssl
@@ -122,10 +121,6 @@ MACRO (MYSQL_CHECK_SSL)
       IF(APPLE)
         SET(WITH_SSL_PATH "/usr/local/opt/openssl")
       ELSE()
-        SET(WITH_SSL_PATH "C:/OpenSSL-Win64/")
-        # OpenSSL-1.1 requires backport of the patch for
-        # Bug #28179051: ADD SUPPORT FOR OPENSSL 1.1 ON WINDOWS
-        # SET(WITH_SSL_PATH "C:/OpenSSL-1.1-Win64/")
         SET(WITH_SSL_PATH "C:/Program Files/OpenSSL-Win64/")
       ENDIF()
     ENDIF()
@@ -150,6 +145,7 @@ MACRO (MYSQL_CHECK_SSL)
     IF (WIN32)
       FIND_FILE(OPENSSL_APPLINK_C
         NAMES openssl/applink.c
+        NO_DEFAULT_PATH
         HINTS ${OPENSSL_ROOT_DIR}/include
       )
       MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
@@ -252,7 +248,9 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
       IF(WIN32 AND WITH_SSL STREQUAL "system")
-        MESSAGE(STATUS "Please do\nPATH=\"${WITH_SSL_PATH}/bin\":$PATH")
+        MESSAGE(STATUS "Please do\nPATH=\"${WITH_SSL_PATH}bin\":$PATH")
+        FILE(TO_NATIVE_PATH "${WITH_SSL_PATH}" WITH_SSL_PATH_XX)
+        MESSAGE(STATUS "or\nPATH=\"${WITH_SSL_PATH_XX}bin\":$PATH")
       ENDIF()
       SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
