@@ -56,6 +56,7 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m $backup_data_dir/pre_75_partitioning_variants >> $NDB_TOOLS_OUTPUT
 
 use test;
+--sorted_result
 show tables;
 
 show create table standard;
