@@ -234,6 +234,8 @@ ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1.2.ctl
 37317 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1.2.log
 108087 bytes in output
+ndb_print_backup_file suite/ndb/backups/pre_75_partitioning_variants/BACKUP-1.1.ctl
+52242 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/undo_backup/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
