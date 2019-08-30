@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -228,11 +228,18 @@ ulint innobase_get_table_cache_size(void);
  @return value of lower_case_table_names */
 ulint innobase_get_lower_case_table_names(void);
 
-/** compare two character string case insensitively according to their charset.
- */
-int innobase_fts_text_case_cmp(const void *cs,  /*!< in: Character set */
-                               const void *p1,  /*!< in: key */
-                               const void *p2); /*!< in: node */
+/** Get the current setting of the lower_case_file_system global parameter from
+mysqld.cc. We do a dirty read because it is set at startup and never changes.
+@return true if the file system is case insensitive. False if not. */
+bool is_file_system_case_insensitive(void);
+
+/** Compare two character strings case insensitively according to their
+charset.
+@parameter[in]  cs  character set
+@parameter[in]  s1  string 1
+@parameter[in]  s2  string 2
+@return 0 if the two strings are equal */
+int innobase_nocase_compare(const void *cs, const char *s1, const char *s2);
 
 /** Returns true if transaction should be flagged as read-only.
  @return true if the thd is marked as read-only */

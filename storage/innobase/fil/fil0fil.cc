@@ -238,6 +238,9 @@ members as noted in the fil_space_t and fil_node_t definition. */
 /** Reference to the server data directory. */
 Fil_path MySQL_datadir_path;
 
+/** Reference to the server undo directory. */
+Fil_path MySQL_undo_path;
+
 /** Sentinel value to check for "NULL" Fil_path. */
 Fil_path Fil_path::s_null_path;
 
@@ -430,7 +433,7 @@ class Tablespace_files {
   Paths m_undo_paths;
 
   /** Top level directory where the above files were found. */
-  const Fil_path m_dir;
+  Fil_path m_dir;
 };
 
 /** Directories scanned during startup and the files discovered. */
@@ -451,11 +454,20 @@ class Tablespace_dirs {
 #endif /* __SUNPRO_CC */
   }
 
+  /** Normalize and save a directory to scan for IBD and IBU datafiles
+  before recovery.
+  @param[in]  directory    directory to scan for ibd and ibu files
+  @param[in]  is_undo_dir  true for an undo directory */
+  void set_scan_dir(const std::string &directory, bool is_undo_dir = false);
+
+  /** Normalize and save a list of directories to scan for IBD and IBU
+  datafiles before recovery.
+  @param[in]  directories  Directories to scan for ibd and ibu files */
+  void set_scan_dirs(const std::string &directories);
+
   /** Discover tablespaces by reading the header from .ibd files.
-  @param[in]	in_directories	Directories to scan
   @return DB_SUCCESS if all goes well */
-  dberr_t scan(const std::string &in_directories)
-      MY_ATTRIBUTE((warn_unused_result));
+  dberr_t scan() MY_ATTRIBUTE((warn_unused_result));
 
   /** Clear all the tablespace file data but leave the list of
   scanned directories in place. */
@@ -541,13 +553,21 @@ class Tablespace_dirs {
   /** first=dir path from the user, second=files found under first. */
   using Scanned = std::vector<Tablespace_files>;
 
-  /** Tokenize a path specification. Convert relative paths to
-  absolute paths. Check if the paths are valid and filter out
-  invalid or unreadable directories.  Sort and filter out duplicates
-  from dirs.
+  /** Report a warning that a path is being ignored and include the reason. */
+  void warn_ignore(std::string path_in, const char *reason);
+
+  /** Add a single path specification to this list of tablespace directories.
+  Convert it to an absolute path. Check if the path is valid.  Ignore
+  unreadable, duplicate or invalid directories.
+  @param[in]  str  Path specification to tokenize */
+  void add_path(const std::string &str, bool is_undo_dir = false);
+
+  /** Add a delimited list of path specifications to this list of tablespace
+  directories. Convert relative paths to absolute paths. Check if the paths
+  are valid.  Ignore unreadable, duplicate or invalid directories.
   @param[in]	str		Path specification to tokenize
   @param[in]	delimiters	Delimiters */
-  void tokenize_paths(const std::string &str, const std::string &delimiters);
+  void add_paths(const std::string &str, const std::string &delimiters);
 
   using Const_iter = Scanned_files::const_iterator;
 
@@ -1384,11 +1404,24 @@ class Fil_system {
   static bool space_belongs_in_LRU(const fil_space_t *space)
       MY_ATTRIBUTE((warn_unused_result));
 
+  /** Normalize and save a directory to scan for IBD and IBU datafiles
+  before recovery.
+  @param[in]  directory    Directory to scan
+  @param[in]  is_undo_dir  true for an undo directory */
+  void set_scan_dir(const std::string &directory, bool is_undo_dir) {
+    m_dirs.set_scan_dir(directory, is_undo_dir);
+  }
+
+  /** Normalize and save a list of directories to scan for IBD and IBU
+  datafiles before recovery.
+  @param[in]  directories  Directories to scan */
+  void set_scan_dirs(const std::string &directories) {
+    m_dirs.set_scan_dirs(directories);
+  }
+
   /** Scan the directories to build the tablespace ID to file name
   mapping table. */
-  dberr_t scan(const std::string &directories) {
-    return (m_dirs.scan(directories));
-  }
+  dberr_t scan() { return (m_dirs.scan()); }
 
   /** Get the tablespace ID from an .ibd and/or an undo tablespace.
   If the ID is == 0 on the first page then check for at least
@@ -3807,7 +3840,7 @@ symlinked files. If path doesn't exist it will be ignored.
 @param[in]	path		Directory or filename
 @return the absolute path of path, or "" on error.  */
 std::string Fil_path::get_real_path(const std::string &path) {
-  char abspath[FN_REFLEN + 2];
+  char abspath[OS_FILE_MAX_PATH];
 
   /* FIXME: This should be an assertion eventually. */
   if (path.empty()) {
@@ -3819,7 +3852,11 @@ std::string Fil_path::get_real_path(const std::string &path) {
   if (ret == -1) {
     ib::info(ER_IB_MSG_289) << "my_realpath(" << path << ") failed!";
 
-    return (path);
+    strncpy(abspath, path.c_str(), sizeof(abspath));
+  }
+
+  if (is_file_system_case_insensitive()) {
+    my_casedn_str(&my_charset_filename, abspath);
   }
 
   std::string real_path(abspath);
@@ -7271,7 +7308,8 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes; in aio this
-                                must be divisible by the OS block size
+                                must be divisible by the OS block
+                                size
 @param[in]	len		how many bytes to read or write; this must
                                 not cross a file boundary; in AIO this must
                                 be a block size multiple
@@ -10143,110 +10181,121 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   return (ptr);
 }
 
-/** Tokenize a path specification. Convert relative paths to absolute paths.
-Check if the paths are valid and filter out invalid or unreadable directories.
-Sort and filter out duplicates from dirs.
-@param[in]	str		Path specification to tokenize
-@param[in]	delimiters	Delimiters */
-void Tablespace_dirs::tokenize_paths(const std::string &str,
-                                     const std::string &delimiters) {
-  std::string::size_type start = str.find_first_not_of(delimiters);
-  std::string::size_type end = str.find_first_of(delimiters, start);
+void Tablespace_dirs::warn_ignore(std::string ignore_path, const char *reason) {
+  ib::warn(ER_IB_MSG_IGNORE_SCAN_PATH, ignore_path.c_str(), reason);
+}
 
-  using Paths = std::vector<std::pair<std::string, std::string>>;
+void Tablespace_dirs::add_path(const std::string &path_in, bool is_undo_dir) {
+  /* Ignore an invalid path. */
+  if (path_in == "/") {
+    warn_ignore(path_in,
+                "the root directory '/' is not allowed to be scanned.");
+    return;
+  }
+  if (std::string::npos != path_in.find('*')) {
+    warn_ignore(path_in, "it contains '*'.");
+    return;
+  }
 
-  Paths dirs;
+  std::array<char, OS_FILE_MAX_PATH> path_array;
+  ut_a(path_in.length() < path_array.max_size());
 
-  /* Scan until 'end' and 'start' don't reach the end of string (npos) */
-  while (std::string::npos != start || std::string::npos != end) {
-    std::array<char, OS_FILE_MAX_PATH> dir;
+  path_array.fill(0);
 
-    dir.fill(0);
+  std::copy(path_in.begin(), path_in.end(), path_array.data());
+
+  Fil_path::normalize(path_array.data());
+
+  std::string normal_path = path_array.data();
+
+  /* Assume this path is a directory and try to get the absolute path.
+  if get_real_path() fails it will return the path as provided. */
+  std::string abs_path = Fil_path::get_real_path(normal_path);
+  if (!Fil_path::is_separator(normal_path.back())) {
+    normal_path.push_back(Fil_path::OS_SEPARATOR);
+  }
+  if (!Fil_path::is_separator(abs_path.back())) {
+    abs_path.push_back(Fil_path::OS_SEPARATOR);
+  }
+
+  /* Exclude this path if it is a duplicate of a path already stored or
+  if a previously stored path is an ancestor.  Remove any previously stored
+  path that is a descendant of this path. */
+  for (auto it = m_dirs.cbegin(); it != m_dirs.cend(); /* No op */) {
+    const auto &dir_abs_path = it->real_path();
+
+    bool same_paths = (dir_abs_path == abs_path);
+    if (same_paths) {
+      /* The exact same path is obviously ignored, so there is no need to
+      log a warning. */
+      return;
+    }
+
+    /* Check if these two paths are the same except for case. If
+    dir_abs_path is equal to this path, we do not need to check any
+    other. This path will not be inserted since it is not unique.*/
+    if (is_file_system_case_insensitive() &&
+        (0 == innobase_nocase_compare(&my_charset_filename,
+                                      dir_abs_path.c_str(),
+                                      abs_path.c_str()))) {
+      warn_ignore(path_in, "it is a duplicate path.");
+      return;
+    }
+
+    /* Check if dir_abs_path is an ancestor of this path */
+    if (Fil_path::is_ancestor(dir_abs_path, abs_path)) {
+      /* Descendant directories will be scanned recursively, so don't
+      add it to the scan list.  Log a warning unless this descendant
+      is the undo directory since it must be supplied even if it is
+      a descendant of another data location. */
+      if (!is_undo_dir) {
+        std::string reason = "it is a sub-directory of '";
+        reason += dir_abs_path;
+        warn_ignore(path_in, reason.c_str());
+      }
+      return;
+    }
+
+    if (Fil_path::is_ancestor(abs_path, dir_abs_path)) {
+      /* This path is an ancestor of an existing dir in fil_system::m_dirs.
+      The settings have overlapping locations.  Put a note about it to
+      the error log. The undo_dir is added last, so if it is an ancestor,
+      the descendant was listed as a datafile directory. So always issue
+      this message*/
+      std::string reason = "it is a sub-directory of '";
+      reason += abs_path;
+      warn_ignore(dir_abs_path, reason.c_str());
+
+      /* It might also be an ancestor to another dir as well, so keep looking.
+      We must delete this descendant because we know that this ancestor path
+      will be inserted and all its descendants will be scanned. */
+      it = m_dirs.erase(it);
+    } else {
+      it++;
+    }
+  }
+
+  m_dirs.push_back(Tablespace_files{normal_path});
+  return;
+}
+
+void Tablespace_dirs::add_paths(const std::string &str,
+                                const std::string &delimiters) {
+  std::string::size_type start = 0;
+  std::string::size_type end = 0;
+
+  /* Scan until 'start' reaches the end of the string (npos) */
+  for (;;) {
+    start = str.find_first_not_of(delimiters, end);
+    if (std::string::npos == start) {
+      break;
+    }
+
+    end = str.find_first_of(delimiters, start);
 
     const auto path = str.substr(start, end - start);
 
-    ut_a(path.length() < dir.max_size());
-
-    std::copy(path.begin(), path.end(), dir.data());
-
-    /* Filter out paths that contain '*'. */
-    auto pos = path.find('*');
-
-    /* Filter out invalid path components. */
-
-    if (path == "/") {
-      ib::warn(ER_IB_MSG_365) << "Scan path '" << path << "' ignored";
-
-    } else if (pos == std::string::npos) {
-      Fil_path::normalize(dir.data());
-
-      std::string cur_path;
-      std::string d{dir.data()};
-
-      if (Fil_path::get_file_type(dir.data()) == OS_FILE_TYPE_DIR) {
-        cur_path = Fil_path::get_real_path(d);
-
-      } else {
-        cur_path = d;
-      }
-
-      if (!Fil_path::is_separator(d.back())) {
-        d.push_back(Fil_path::OS_SEPARATOR);
-      }
-
-      using value = Paths::value_type;
-
-      dirs.push_back(value(d, cur_path));
-
-    } else {
-      ib::warn(ER_IB_MSG_366) << "Scan path '" << path << "' ignored"
-                              << " contains '*'";
-    }
-
-    start = str.find_first_not_of(delimiters, end);
-
-    end = str.find_first_of(delimiters, start);
-  }
-
-  /* Remove duplicate paths by comparing the real paths.  Note, this
-  will change the order of the directory scan because of the sort. */
-
-  using type = Paths::value_type;
-
-  std::sort(dirs.begin(), dirs.end(), [](const type &lhs, const type &rhs) {
-    return (lhs.second < rhs.second);
-  });
-
-  dirs.erase(std::unique(dirs.begin(), dirs.end(),
-                         [](const type &lhs, const type &rhs) {
-                           return (lhs.second == rhs.second);
-                         }),
-             dirs.end());
-
-  /* Eliminate sub-trees */
-
-  Dirs scan_dirs;
-
-  for (size_t i = 0; i < dirs.size(); ++i) {
-    const auto &path_i = dirs[i].second;
-
-    for (size_t j = i + 1; j < dirs.size(); ++j) {
-      auto &path_j = dirs[j].second;
-
-      if (Fil_path::is_ancestor(path_i, path_j)) {
-        path_j.resize(0);
-      }
-    }
-  }
-
-  for (auto &dir : dirs) {
-    if (dir.second.length() == 0) {
-      continue;
-    }
-
-    Fil_path::normalize(dir.first);
-
-    m_dirs.push_back(Tablespace_files{dir.first});
+    add_path(path);
   }
 }
 
@@ -10632,27 +10681,32 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
   }
 }
 
-/** Discover tablespaces by reading the header from .ibd files.
-@param[in]	in_directories	Directories to scan
-@return DB_SUCCESS if all goes well */
-dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
+void Tablespace_dirs::set_scan_dir(const std::string &in_directory,
+                                   bool is_undo_dir) {
+  std::string directory(in_directory);
+
+  Fil_path::normalize(directory);
+
+  add_path(directory, is_undo_dir);
+}
+
+void Tablespace_dirs::set_scan_dirs(const std::string &in_directories) {
   std::string directories(in_directories);
 
   Fil_path::normalize(directories);
 
-  ib::info(ER_IB_MSG_378) << "Directories to scan '" << directories << "'";
+  std::string separators;
 
+  separators.push_back(FIL_PATH_SEPARATOR);
+
+  add_paths(directories, separators);
+}
+
+/** Discover tablespaces by reading the header from .ibd files.
+@return DB_SUCCESS if all goes well */
+dberr_t Tablespace_dirs::scan() {
   Scanned_files ibd_files;
   Scanned_files undo_files;
-
-  {
-    std::string separators;
-
-    separators.push_back(FIL_PATH_SEPARATOR);
-
-    tokenize_paths(directories, separators);
-  }
-
   uint16_t count = 0;
   bool print_msg = false;
   auto start_time = ut_time_monotonic();
@@ -10766,12 +10820,17 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
   return (err);
 }
 
-/** Discover tablespaces by reading the header from .ibd files.
-@param[in]	directories	Directories to scan
-@return DB_SUCCESS if all goes well */
-dberr_t fil_scan_for_tablespaces(const std::string &directories) {
-  return (fil_system->scan(directories));
+void fil_set_scan_dir(const std::string &directory, bool is_undo_dir) {
+  fil_system->set_scan_dir(directory, is_undo_dir);
 }
+
+void fil_set_scan_dirs(const std::string &directories) {
+  fil_system->set_scan_dirs(directories);
+}
+
+/** Discover tablespaces by reading the header from .ibd files.
+@return DB_SUCCESS if all goes well */
+dberr_t fil_scan_for_tablespaces() { return (fil_system->scan()); }
 
 /** Check if a path is known to InnoDB.
 @param[in]	path		Path to check

@@ -367,6 +367,10 @@ Currently we support native aio on windows and linux */
 extern bool srv_use_native_aio;
 extern bool srv_numa_interleave;
 
+/* The innodb_directories variable value. This a list of directories
+deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
+extern char *srv_innodb_directories;
+
 /** Server undo tablespaces directory, can be absolute path. */
 extern char *srv_undo_dir;
 

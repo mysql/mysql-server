@@ -65,6 +65,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /*Initial byte length for 'words' in fts_ranking_t */
 #define RANKING_WORDS_INIT_LEN 4
 
+/** Compare two FTS character strings case insensitively according to their
+charset. This assumes that s1 is already in lower case.
+@parameter[in]  cs  character set
+@parameter[in]  s1  key
+@parameter[in]  s2  node
+@return 0 if the two strings are equal */
+int innobase_fts_nocase_compare(const CHARSET_INFO *charset,
+                                const fts_string_t *s1, const fts_string_t *s2);
+
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
 typedef std::vector<fts_string_t, ut_allocator<fts_string_t>> word_vector_t;
@@ -1482,7 +1491,7 @@ static ibool fts_query_match_phrase_terms(
 
       fts_string_dup(&cmp_str, &match, heap);
 
-      result = innobase_fts_text_case_cmp(phrase->charset, token, &cmp_str);
+      result = innobase_fts_nocase_compare(phrase->charset, token, &cmp_str);
 
       /* Skip the rest of the tokens if this one doesn't
       match and the proximity distance is exceeded. */
@@ -1622,7 +1631,7 @@ static int fts_query_match_phrase_add_word_for_parser(
 
     fts_string_dup(&cmp_str, &match, heap);
 
-    result = innobase_fts_text_case_cmp(phrase->charset, token, &cmp_str);
+    result = innobase_fts_nocase_compare(phrase->charset, token, &cmp_str);
 
     if (result == 0) {
       phrase_param->token_index++;
@@ -1749,7 +1758,7 @@ static ibool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
 
       fts_string_dup(&cmp_str, &match, heap);
 
-      if (innobase_fts_text_case_cmp(phrase->charset, first, &cmp_str) == 0) {
+      if (innobase_fts_nocase_compare(phrase->charset, first, &cmp_str) == 0) {
         /* This is the case for the single word
         in the phrase. */
         if (ib_vector_size(phrase->tokens) == 1) {

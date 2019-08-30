@@ -378,3 +378,7 @@ DROP TABLE tab6;
 
 DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
+
+--disable_query_log
+call mtr.add_suppression("Scan path '.*' is ignored because it is a sub-directory of");
+--enable_query_log

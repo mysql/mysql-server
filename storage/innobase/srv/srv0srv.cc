@@ -123,6 +123,10 @@ names, where the file name itself may also contain a path */
 
 char *srv_data_home = NULL;
 
+/* The innodb_directories variable value. This a list of directories
+deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
+char *srv_innodb_directories = NULL;
+
 /** Undo tablespace directories.  This can be multiple paths
 separated by ';' and can also be absolute paths. */
 char *srv_undo_dir = NULL;

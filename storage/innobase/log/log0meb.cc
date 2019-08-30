@@ -843,7 +843,7 @@ static bool verify_no_server_directory(const Fil_path &path) {
   std::vector<Fil_path> directories;
   append_path("datadir", mysql_real_data_home_ptr, &variables, &directories);
   append_path("innodb_data_home_dir", srv_data_home, &variables, &directories);
-  append_path("innodb_directories", innobase_directories, &variables,
+  append_path("innodb_directories", srv_innodb_directories, &variables,
               &directories);
   append_path("innodb_log_group_home_dir", srv_log_group_home_dir, &variables,
               &directories);

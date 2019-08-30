@@ -15781,8 +15781,8 @@ ER_IB_MSG_364
 ER_IB_MSG_365
   eng "%s"
 
-ER_IB_MSG_366
-  eng "%s"
+ER_IB_MSG_IGNORE_SCAN_PATH
+  eng "Scan path '%s' is ignored because %s"
 
 ER_IB_MSG_367
   eng "%s"
