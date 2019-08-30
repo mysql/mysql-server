@@ -303,7 +303,8 @@ enum_nested_loop_state evaluate_join_record(JOIN *join, QEP_TAB *qep_tab,
 enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab);
 
 MY_ATTRIBUTE((warn_unused_result))
-bool copy_fields(Temp_table_param *param, const THD *thd);
+bool copy_fields(Temp_table_param *param, const THD *thd,
+                 bool reverse_copy = false);
 
 enum Copy_func_type {
   /**

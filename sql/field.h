@@ -4869,7 +4869,7 @@ class Send_field {
 /**
   Constitutes a mapping from columns of tables in the from clause to
   aggregated columns. Typically, this means that they represent the mapping
-  between columns of temporary tables used for aggregatation, but not
+  between columns of temporary tables used for aggregation, but not
   always. They are also used for aggregation that can be executed "on the
   fly" without a temporary table.
 */
@@ -4877,96 +4877,45 @@ class Send_field {
 class Copy_field {
   /**
     Convenience definition of a copy function returned by
-    get_copy_func.
+    get_copy_func. The parameters are:
+    Copy_field*   Instance of this class. Used for accessing 'tmp' and
+                  calling invoke_do_copy2().
+    const Field*  Field copying from.
+    Field*        Field copying to.
+    Note that 'from' is 'm_to_field' if invoke_do_copy()
+    is called with 'reverse' = true.
   */
-  typedef void Copy_func(Copy_field *);
-  Copy_func *get_copy_func(Field *to, Field *from);
+  using Copy_func = void(Copy_field *, const Field *, Field *);
+  Copy_func *get_copy_func(bool save);
 
  public:
   String tmp;  // For items
 
-  Copy_field() : m_from_field(NULL), m_to_field(NULL) {}
+  Copy_field() = default;
 
   Copy_field(Field *to, Field *from, bool save) : Copy_field() {
     set(to, from, save);
   }
 
-  Copy_field(uchar *to, Field *from) : Copy_field() { set(to, from); }
+  Copy_field(MEM_ROOT *mem_root, Field *from);
 
   void set(Field *to, Field *from, bool save);  // Field to field
-  void set(uchar *to, Field *from);             // Field to string
-
-  /// Whether the from field is currently NULL or not (by itself, or by
-  /// means of being in a NULL row).
-  bool from_is_null() const;
-
-  /// Set the to field to NULL or not NULL (if it is non-nullable,
-  /// sets the NULL row in the containing row).
-  void set_to_is_null(bool is_null);
 
  private:
-  void (*m_do_copy)(Copy_field *);
-  void (*m_do_copy2)(Copy_field *);  // Used to handle null values
+  void (*m_do_copy)(Copy_field *, const Field *, Field *);
+  void (*m_do_copy2)(Copy_field *, const Field *,
+                     Field *);  // Used to handle null values
 
-  /**
-    Number of bytes in the fields pointed to by 'from_ptr' and
-    'to_ptr'. Usually this is the number of bytes that are copied from
-    'from_ptr' to 'to_ptr'.
-
-    For variable-length fields (VARCHAR), the first byte(s) describe
-    the actual length of the text. For VARCHARs with length
-       < 256 there is 1 length byte
-       >= 256 there is 2 length bytes
-    Thus, if from_field is VARCHAR(10), from_length (and in most cases
-    to_length) is 11. For VARCHAR(1024), the length is 1026. @see
-    Field_varstring::length_bytes
-
-    Note that for VARCHARs, do_copy() will be do_varstring*() which
-    only copies the length-bytes (1 or 2) + the actual length of the
-    text instead of from/to_length bytes. @see get_copy_func()
-  */
-  uint m_from_length;
-  uint m_to_length;
-
-  /**
-    The field in the table in the from clause that is read from. If this
-    Copy_field is used without a temporary table, this member is nullptr.
-  */
-  Field *m_from_field;
-  Field *m_to_field;
-
-  // Pointing into the NULL information of the fields in question,
-  // if they are nullable. See from_is_null().
-  uchar *from_null_ptr;
+  Field *m_from_field{nullptr};
+  Field *m_to_field{nullptr};
 
  public:
-  uchar *from_ptr, *to_ptr;  // Public by legacy only.
-  uchar *to_null_ptr;        // Needs to be public for the time being; see
-                             // setup_copy_fields().
- private:
-  uint from_bit, to_bit;
-
-  void check_and_set_temporary_null() {
-    if (m_from_field && m_from_field->is_tmp_null() &&
-        !m_to_field->is_tmp_null()) {
-      m_to_field->set_tmp_nullable();
-      m_to_field->set_tmp_null();
-    }
-  }
-
- public:
-  void invoke_do_copy(Copy_field *f);
-  void invoke_do_copy2(Copy_field *f);
+  void invoke_do_copy(bool reverse = false);
+  void invoke_do_copy2(const Field *from_field, Field *to_field);
 
   Field *from_field() { return m_from_field; }
 
   Field *to_field() { return m_to_field; }
-
-  uint from_length() const { return m_from_length; }
-
-  uint to_length() const { return m_to_length; }
-
-  void swap_direction();
 };
 
 enum_field_types get_blob_type_from_length(size_t length);

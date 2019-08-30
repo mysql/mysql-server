@@ -2425,7 +2425,7 @@ bool Query_result_update::do_updates(THD *thd) {
       /* Copy data from temporary table to current table */
       for (copy_field_ptr = copy_field; copy_field_ptr != copy_field_end;
            copy_field_ptr++)
-        copy_field_ptr->invoke_do_copy(copy_field_ptr);
+        copy_field_ptr->invoke_do_copy();
 
       if (thd->is_error()) goto err;
 

@@ -72,59 +72,38 @@ inline static bool is_subtype_of(Field::geometry_type sub,
         sub == Field::GEOM_MULTIPOLYGON)));
 }
 
-static void do_field_eq(Copy_field *copy) {
-  memcpy(copy->to_ptr, copy->from_ptr, copy->from_length());
+static void do_field_eq(Copy_field *, const Field *from_field,
+                        Field *to_field) {
+  memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
 }
 
-static void do_field_1(Copy_field *copy) {
-  copy->to_ptr[0] = copy->from_ptr[0];
-}
-
-static void do_field_2(Copy_field *copy) {
-  copy->to_ptr[0] = copy->from_ptr[0];
-  copy->to_ptr[1] = copy->from_ptr[1];
-}
-
-static void do_field_3(Copy_field *copy) {
-  copy->to_ptr[0] = copy->from_ptr[0];
-  copy->to_ptr[1] = copy->from_ptr[1];
-  copy->to_ptr[2] = copy->from_ptr[2];
-}
-
-static void do_field_4(Copy_field *copy) {
-  copy->to_ptr[0] = copy->from_ptr[0];
-  copy->to_ptr[1] = copy->from_ptr[1];
-  copy->to_ptr[2] = copy->from_ptr[2];
-  copy->to_ptr[3] = copy->from_ptr[3];
-}
-
-static void do_field_6(Copy_field *copy) {  // For blob field
-  copy->to_ptr[0] = copy->from_ptr[0];
-  copy->to_ptr[1] = copy->from_ptr[1];
-  copy->to_ptr[2] = copy->from_ptr[2];
-  copy->to_ptr[3] = copy->from_ptr[3];
-  copy->to_ptr[4] = copy->from_ptr[4];
-  copy->to_ptr[5] = copy->from_ptr[5];
-}
-
-static void do_field_8(Copy_field *copy) {
-  copy->to_ptr[0] = copy->from_ptr[0];
-  copy->to_ptr[1] = copy->from_ptr[1];
-  copy->to_ptr[2] = copy->from_ptr[2];
-  copy->to_ptr[3] = copy->from_ptr[3];
-  copy->to_ptr[4] = copy->from_ptr[4];
-  copy->to_ptr[5] = copy->from_ptr[5];
-  copy->to_ptr[6] = copy->from_ptr[6];
-  copy->to_ptr[7] = copy->from_ptr[7];
-}
-
-static void do_field_to_null_str(Copy_field *copy) {
-  if (copy->from_is_null()) {
-    memset(copy->to_ptr, 0, copy->from_length());
-    copy->set_to_is_null(true);
+static void set_to_is_null(Field *to_field, bool is_null) {
+  if (to_field->real_maybe_null()) {
+    if (is_null) {
+      to_field->set_null();
+    } else {
+      to_field->set_notnull();
+    }
   } else {
-    memcpy(copy->to_ptr, copy->from_ptr, copy->from_length());
-    copy->set_to_is_null(false);
+    // This is used in the case of window functions, where
+    // bring_back_frame_row() may want to set TABLE::null_row to be what it was
+    // when the row was buffered.
+    if (is_null) {
+      to_field->table->set_null_row();
+    } else {
+      to_field->table->reset_null_row();
+    }
+  }
+}
+
+static void do_field_to_null_str(Copy_field *, const Field *from_field,
+                                 Field *to_field) {
+  if (from_field->is_null()) {
+    memset(to_field->ptr, 0, from_field->pack_length());
+    set_to_is_null(to_field, true);
+  } else {
+    memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+    set_to_is_null(to_field, false);
   }
 }
 
@@ -259,140 +238,150 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
-static void do_skip(Copy_field *copy MY_ATTRIBUTE((unused))) {}
+static void do_skip(Copy_field *, const Field *, Field *) {}
 
-static void do_copy_null(Copy_field *copy) {
-  if (copy->from_is_null()) {
-    copy->set_to_is_null(true);
-    copy->to_field()->reset();
+static void do_copy_null(Copy_field *copy, const Field *from_field,
+                         Field *to_field) {
+  if (from_field->is_null()) {
+    set_to_is_null(to_field, true);
+    to_field->reset();
   } else {
-    copy->set_to_is_null(false);
-    copy->invoke_do_copy2(copy);
+    set_to_is_null(to_field, false);
+    copy->invoke_do_copy2(from_field, to_field);
   }
 }
 
-static void do_copy_not_null(Copy_field *copy) {
-  if (copy->from_is_null()) {
-    if (copy->to_field()->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+static void do_copy_not_null(Copy_field *copy, const Field *from_field,
+                             Field *to_field) {
+  if (from_field->is_null()) {
+    if (to_field->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       my_error(ER_INVALID_USE_OF_NULL, MYF(0));
     else
-      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
-                                    WARN_DATA_TRUNCATED, 1);
+      to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   } else
-    copy->invoke_do_copy2(copy);
+    copy->invoke_do_copy2(from_field, to_field);
 }
 
-static void do_copy_maybe_null(Copy_field *copy) {
+static void do_copy_maybe_null(Copy_field *copy, const Field *from_field,
+                               Field *to_field) {
   /*
     NOTE: In reverse copying (see bring_back_frame_row() for windowing),
     "to" is "from".
   */
-  copy->set_to_is_null(false);
-  copy->invoke_do_copy2(copy);
+  set_to_is_null(to_field, false);
+  copy->invoke_do_copy2(from_field, to_field);
 }
 
 /* timestamp and next_number has special handling in case of NULL values */
 
-static void do_copy_timestamp(Copy_field *copy) {
-  if (copy->from_is_null()) {
+static void do_copy_timestamp(Copy_field *copy, const Field *from_field,
+                              Field *to_field) {
+  if (from_field->is_null()) {
     /* Same as in set_field_to_null_with_conversions() */
-    Item_func_now_local::store_in(copy->to_field());
+    Item_func_now_local::store_in(to_field);
   } else
-    copy->invoke_do_copy2(copy);
+    copy->invoke_do_copy2(from_field, to_field);
 }
 
-static void do_copy_next_number(Copy_field *copy) {
-  if (copy->from_is_null()) {
+static void do_copy_next_number(Copy_field *copy, const Field *from_field,
+                                Field *to_field) {
+  if (from_field->is_null()) {
     /* Same as in set_field_to_null_with_conversions() */
-    copy->to_field()->table->autoinc_field_has_explicit_non_null_value = false;
-    copy->to_field()->reset();
+    to_field->table->autoinc_field_has_explicit_non_null_value = false;
+    to_field->reset();
   } else
-    copy->invoke_do_copy2(copy);
+    copy->invoke_do_copy2(from_field, to_field);
 }
 
-static void do_copy_blob(Copy_field *copy) {
-  ulong from_length = ((Field_blob *)copy->from_field())->get_length();
-  ((Field_blob *)copy->to_field())->store_length(from_length);
-  memcpy(copy->to_ptr, copy->from_ptr, sizeof(char *));
-  ulong to_length = ((Field_blob *)copy->to_field())->get_length();
-  if (to_length < from_length) {
-    if (copy->to_field()->table->in_use->is_strict_mode()) {
-      copy->to_field()->set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG,
-                                    1);
+static void do_copy_blob(Copy_field *, const Field *from_field,
+                         Field *to_field) {
+  const Field_blob *from_blob = down_cast<const Field_blob *>(from_field);
+  Field_blob *to_blob = down_cast<Field_blob *>(to_field);
+  uint32 from_length = from_blob->get_length();
+  to_blob->set_ptr(from_length, from_blob->get_ptr());
+  if (to_blob->get_length() < from_length) {
+    if (to_field->table->in_use->is_strict_mode()) {
+      to_field->set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     } else {
-      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
-                                    WARN_DATA_TRUNCATED, 1);
+      to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     }
   }
 }
 
-static void do_conv_blob(Copy_field *copy) {
-  copy->from_field()->val_str(&copy->tmp);
-  ((Field_blob *)copy->to_field())
-      ->store(copy->tmp.ptr(), copy->tmp.length(), copy->tmp.charset());
+static void do_conv_blob(Copy_field *copy, const Field *from_field,
+                         Field *to_field) {
+  from_field->val_str(&copy->tmp);
+  static_cast<Field_blob *>(to_field)->store(
+      copy->tmp.ptr(), copy->tmp.length(), copy->tmp.charset());
 }
 
 /** Save blob in copy->tmp for GROUP BY. */
 
-static void do_save_blob(Copy_field *copy) {
+static void do_save_blob(Copy_field *copy, const Field *from_field,
+                         Field *to_field) {
   char buff[MAX_FIELD_WIDTH];
   String res(buff, sizeof(buff), copy->tmp.charset());
-  copy->from_field()->val_str(&res);
+  from_field->val_str(&res);
   copy->tmp.copy(res);
-  ((Field_blob *)copy->to_field())
-      ->store(copy->tmp.ptr(), copy->tmp.length(), copy->tmp.charset());
+  down_cast<Field_blob *>(to_field)->store(copy->tmp.ptr(), copy->tmp.length(),
+                                           copy->tmp.charset());
 }
 
 /**
   Copy the contents of one Field_json into another Field_json.
 */
-static void do_save_json(Copy_field *copy) {
-  Field_json *from = down_cast<Field_json *>(copy->from_field());
-  Field_json *to = down_cast<Field_json *>(copy->to_field());
+static void do_save_json(Copy_field *, const Field *from_field,
+                         Field *to_field) {
+  const Field_json *from = down_cast<const Field_json *>(from_field);
+  Field_json *to = down_cast<Field_json *>(to_field);
   to->store(from);
 }
 
-static void do_field_string(Copy_field *copy) {
-  char buff[MAX_FIELD_WIDTH];
-  String res(buff, sizeof(buff), copy->from_field()->charset());
+static void do_field_string(Copy_field *, const Field *from_field,
+                            Field *to_field) {
+  StringBuffer<MAX_FIELD_WIDTH> res(from_field->charset());
   res.length(0U);
 
-  copy->from_field()->val_str(&res);
-  copy->to_field()->store(res.c_ptr_quick(), res.length(), res.charset());
+  from_field->val_str(&res);
+  to_field->store(res.ptr(), res.length(), res.charset());
 }
 
-static void do_field_enum(Copy_field *copy) {
-  if (copy->from_field()->val_int() == 0)
-    ((Field_enum *)copy->to_field())->store_type((ulonglong)0);
-  else
-    do_field_string(copy);
+static void do_field_enum(Copy_field *copy, const Field *from_field,
+                          Field *to_field) {
+  if (from_field->val_int() == 0) {
+    down_cast<Field_enum *>(to_field)->store_type(0ULL);
+  } else
+    do_field_string(copy, from_field, to_field);
 }
 
-static void do_field_varbinary_pre50(Copy_field *copy) {
+static void do_field_varbinary_pre50(Copy_field *copy, const Field *from_field,
+                                     Field *to_field) {
   char buff[MAX_FIELD_WIDTH];
   copy->tmp.set_quick(buff, sizeof(buff), copy->tmp.charset());
-  copy->from_field()->val_str(&copy->tmp);
+  from_field->val_str(&copy->tmp);
 
   /* Use the same function as in 4.1 to trim trailing spaces */
   size_t length = my_lengthsp_8bit(&my_charset_bin, copy->tmp.c_ptr_quick(),
-                                   copy->from_field()->field_length);
+                                   from_field->field_length);
 
-  copy->to_field()->store(copy->tmp.c_ptr_quick(), length, copy->tmp.charset());
+  to_field->store(copy->tmp.c_ptr_quick(), length, copy->tmp.charset());
 }
 
-static void do_field_int(Copy_field *copy) {
-  longlong value = copy->from_field()->val_int();
-  copy->to_field()->store(value, copy->from_field()->flags & UNSIGNED_FLAG);
+static void do_field_int(Copy_field *, const Field *from_field,
+                         Field *to_field) {
+  longlong value = from_field->val_int();
+  to_field->store(value, from_field->flags & UNSIGNED_FLAG);
 }
 
-static void do_field_real(Copy_field *copy) {
-  double value = copy->from_field()->val_real();
-  copy->to_field()->store(value);
+static void do_field_real(Copy_field *, const Field *from_field,
+                          Field *to_field) {
+  to_field->store(from_field->val_real());
 }
 
-static void do_field_decimal(Copy_field *copy) {
+static void do_field_decimal(Copy_field *, const Field *from_field,
+                             Field *to_field) {
   my_decimal value;
-  copy->to_field()->store_decimal(copy->from_field()->val_decimal(&value));
+  to_field->store_decimal(from_field->val_decimal(&value));
 }
 
 inline type_conversion_status copy_time_to_time(const Field *from, Field *to) {
@@ -404,8 +393,9 @@ inline type_conversion_status copy_time_to_time(const Field *from, Field *to) {
 /**
   Convert between fields using time representation.
 */
-static void do_field_time(Copy_field *copy) {
-  (void)copy_time_to_time(copy->from_field(), copy->to_field());
+static void do_field_time(Copy_field *, const Field *from_field,
+                          Field *to_field) {
+  (void)copy_time_to_time(from_field, to_field);
 }
 
 /**
@@ -413,16 +403,20 @@ static void do_field_time(Copy_field *copy) {
   from string.
 */
 
-static void do_cut_string(Copy_field *copy) {
-  const CHARSET_INFO *cs = copy->from_field()->charset();
-  memcpy(copy->to_ptr, copy->from_ptr, copy->to_length());
+static void do_cut_string(Copy_field *, const Field *from_field,
+                          Field *to_field) {
+  const CHARSET_INFO *cs = from_field->charset();
+  memcpy(to_field->ptr, from_field->ptr, to_field->pack_length());
 
   /* Check if we loosed any important characters */
-  if (cs->cset->scan(cs, (char *)copy->from_ptr + copy->to_length(),
-                     (char *)copy->from_ptr + copy->from_length(),
-                     MY_SEQ_SPACES) < copy->from_length() - copy->to_length()) {
-    copy->to_field()->set_warning(Sql_condition::SL_WARNING,
-                                  WARN_DATA_TRUNCATED, 1);
+  if (cs->cset->scan(
+          cs,
+          pointer_cast<const char *>(from_field->ptr + to_field->pack_length()),
+          pointer_cast<const char *>(from_field->ptr +
+                                     from_field->pack_length()),
+          MY_SEQ_SPACES) <
+      from_field->pack_length() - to_field->pack_length()) {
+    to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   }
 }
 
@@ -431,44 +425,51 @@ static void do_cut_string(Copy_field *copy) {
   from string.
 */
 
-static void do_cut_string_complex(Copy_field *copy) {  // Shorter string field
+static void do_cut_string_complex(Copy_field *, const Field *from_field,
+                                  Field *to_field) {  // Shorter string field
   int well_formed_error;
-  const CHARSET_INFO *cs = copy->from_field()->charset();
-  const uchar *from_end = copy->from_ptr + copy->from_length();
+  const CHARSET_INFO *cs = from_field->charset();
+  const uchar *from_end = from_field->ptr + from_field->pack_length();
   size_t copy_length = cs->cset->well_formed_len(
-      cs, pointer_cast<const char *>(copy->from_ptr),
-      pointer_cast<const char *>(from_end), copy->to_length() / cs->mbmaxlen,
-      &well_formed_error);
-  if (copy->to_length() < copy_length) copy_length = copy->to_length();
-  memcpy(copy->to_ptr, copy->from_ptr, copy_length);
+      cs, pointer_cast<const char *>(from_field->ptr),
+      pointer_cast<const char *>(from_end),
+      to_field->pack_length() / cs->mbmaxlen, &well_formed_error);
+  if (to_field->pack_length() < copy_length) {
+    copy_length = to_field->pack_length();
+  }
+  memcpy(to_field->ptr, from_field->ptr, copy_length);
 
   /* Check if we lost any important characters */
   if (well_formed_error ||
       cs->cset->scan(cs,
-                     pointer_cast<const char *>(copy->from_ptr) + copy_length,
-                     pointer_cast<const char *>(from_end),
-                     MY_SEQ_SPACES) < (copy->from_length() - copy_length)) {
-    copy->to_field()->set_warning(Sql_condition::SL_WARNING,
-                                  WARN_DATA_TRUNCATED, 1);
+                     pointer_cast<const char *>(from_field->ptr) + copy_length,
+                     pointer_cast<const char *>(from_end), MY_SEQ_SPACES) <
+          (from_field->pack_length() - copy_length)) {
+    to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   }
 
-  if (copy_length < copy->to_length())
-    cs->cset->fill(cs, (char *)copy->to_ptr + copy_length,
-                   copy->to_length() - copy_length, ' ');
+  if (copy_length < to_field->pack_length()) {
+    cs->cset->fill(cs, pointer_cast<char *>(to_field->ptr) + copy_length,
+                   to_field->pack_length() - copy_length, ' ');
+  }
 }
 
-static void do_expand_binary(Copy_field *copy) {
-  const CHARSET_INFO *cs = copy->from_field()->charset();
-  memcpy(copy->to_ptr, copy->from_ptr, copy->from_length());
-  cs->cset->fill(cs, (char *)copy->to_ptr + copy->from_length(),
-                 copy->to_length() - copy->from_length(), '\0');
+static void do_expand_binary(Copy_field *, const Field *from_field,
+                             Field *to_field) {
+  const CHARSET_INFO *cs = from_field->charset();
+  memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+  cs->cset->fill(
+      cs, pointer_cast<char *>(to_field->ptr) + from_field->pack_length(),
+      to_field->pack_length() - from_field->pack_length(), '\0');
 }
 
-static void do_expand_string(Copy_field *copy) {
-  const CHARSET_INFO *cs = copy->from_field()->charset();
-  memcpy(copy->to_ptr, copy->from_ptr, copy->from_length());
-  cs->cset->fill(cs, (char *)copy->to_ptr + copy->from_length(),
-                 copy->to_length() - copy->from_length(), ' ');
+static void do_expand_string(Copy_field *, const Field *from_field,
+                             Field *to_field) {
+  const CHARSET_INFO *cs = from_field->charset();
+  memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+  cs->cset->fill(
+      cs, pointer_cast<char *>(to_field->ptr) + from_field->pack_length(),
+      to_field->pack_length() - from_field->pack_length(), ' ');
 }
 
 /**
@@ -556,25 +557,31 @@ static void copy_field_varstring(Field_varstring *const to,
   memcpy(to->ptr + length_bytes, from->ptr + length_bytes, bytes_to_copy);
 }
 
-static void do_varstring(Copy_field *copy) {
-  copy_field_varstring(static_cast<Field_varstring *>(copy->to_field()),
-                       static_cast<Field_varstring *>(copy->from_field()));
+static void do_varstring(Copy_field *, const Field *from_field,
+                         Field *to_field) {
+  copy_field_varstring(static_cast<Field_varstring *>(to_field),
+                       static_cast<const Field_varstring *>(from_field));
 }
 
 /***************************************************************************
 ** The different functions that fills in a Copy_field class
 ***************************************************************************/
 
-void Copy_field::invoke_do_copy(Copy_field *f) {
-  (*(this->m_do_copy))(f);
+void Copy_field::invoke_do_copy(bool reverse) {
+  const Field *from = reverse ? m_to_field : m_from_field;
+  Field *to = reverse ? m_from_field : m_to_field;
 
-  f->check_and_set_temporary_null();
+  (*(m_do_copy))(this, from, to);
+
+  if (from->is_tmp_null() && !to->is_tmp_null()) {
+    to->set_tmp_nullable();
+    to->set_tmp_null();
+  }
 }
 
-void Copy_field::invoke_do_copy2(Copy_field *f) {
-  (*(this->m_do_copy2))(f);
-
-  f->check_and_set_temporary_null();
+void Copy_field::invoke_do_copy2(const Field *from, Field *to) {
+  // from will be m_to_field if invoke_do_copy was called with reverse = true
+  (*(m_do_copy2))(this, from, to);
 }
 
 /**
@@ -582,23 +589,48 @@ void Copy_field::invoke_do_copy2(Copy_field *f) {
   If field is null then the all bytes are set to 0.
   if field is not null then the first byte is set to 1 and the rest of the
   string is the field value.
-  The 'to' buffer should have a size of field->pack_length()+1
 */
 
-void Copy_field::set(uchar *to, Field *from) {
-  from_ptr = from->ptr;
-  to_ptr = to;
-  m_from_length = from->pack_length();
-  m_from_field = from;
+Copy_field::Copy_field(MEM_ROOT *mem_root, Field *from) : Copy_field() {
+  // Clone the from field as it will be modified and used as to field.
+  m_from_field = from->clone(mem_root);
   if (from->maybe_null()) {
-    if ((from_null_ptr = from->get_null_ptr())) from_bit = from->null_bit;
-    to_ptr[0] = 1;  // Null as default value
-    to_null_ptr = to_ptr++;
-    to_bit = 1;
+    // We need to allocate one extra byte for null handling.
+    uchar *ptr = mem_root->ArrayAlloc<uchar>(from->pack_length() + 1);
+    from->move_field(ptr + 1, ptr, 1);
+    from->set_null();  // Null as default value
     m_do_copy = do_field_to_null_str;
   } else {
-    to_null_ptr = 0;  // For easy debugging
+    uchar *ptr = mem_root->ArrayAlloc<uchar>(from->pack_length());
+    from->move_field(ptr, nullptr, 1);
     m_do_copy = do_field_eq;
+  }
+  m_to_field = from;
+}
+
+void Copy_field::set(Field *to, Field *from, bool save) {
+  if (to->type() == MYSQL_TYPE_NULL) {
+    m_do_copy = do_skip;
+    return;
+  }
+  m_from_field = from;
+  m_to_field = to;
+
+  m_do_copy2 = get_copy_func(save);
+
+  if (m_from_field->maybe_null()) {
+    if (m_to_field->real_maybe_null())
+      m_do_copy = do_copy_null;
+    else if (m_to_field->type() == MYSQL_TYPE_TIMESTAMP)
+      m_do_copy = do_copy_timestamp;  // Automatic timestamp
+    else if (m_to_field == m_to_field->table->next_number_field)
+      m_do_copy = do_copy_next_number;
+    else
+      m_do_copy = do_copy_not_null;
+  } else if (m_to_field->real_maybe_null()) {
+    m_do_copy = do_copy_maybe_null;
+  } else {
+    m_do_copy = m_do_copy2;
   }
 }
 
@@ -614,99 +646,25 @@ void Copy_field::set(uchar *to, Field *from) {
     well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
     That call will take place anyway in all known cases.
  */
-void Copy_field::set(Field *to, Field *from, bool save) {
-  if (to->type() == MYSQL_TYPE_NULL) {
-    to_null_ptr = 0;  // For easy debugging
-    to_ptr = 0;
-    m_do_copy = do_skip;
-    return;
-  }
-  m_from_field = from;
-  m_to_field = to;
-  from_ptr = from->ptr;
-  m_from_length = from->pack_length();
-  to_ptr = to->ptr;
-  m_to_length = m_to_field->pack_length();
-
-  // set up null handling
-  from_null_ptr = to_null_ptr = 0;
-  if (from->maybe_null()) {
-    if ((from_null_ptr = from->get_null_ptr())) from_bit = from->null_bit;
-    if (m_to_field->real_maybe_null()) {
-      to_null_ptr = to->get_null_ptr();
-      to_bit = to->null_bit;
-      m_do_copy = do_copy_null;
-    } else {
-      if (m_to_field->type() == MYSQL_TYPE_TIMESTAMP)
-        m_do_copy = do_copy_timestamp;  // Automatic timestamp
-      else if (m_to_field == m_to_field->table->next_number_field)
-        m_do_copy = do_copy_next_number;
-      else
-        m_do_copy = do_copy_not_null;
-    }
-  } else if (m_to_field->real_maybe_null()) {
-    to_null_ptr = to->get_null_ptr();
-    to_bit = to->null_bit;
-    m_do_copy = do_copy_maybe_null;
-  } else
-    m_do_copy = NULL;
-
-  if ((to->flags & BLOB_FLAG) && save) {
-    if (to->real_type() == MYSQL_TYPE_JSON &&
-        from->real_type() == MYSQL_TYPE_JSON)
-      m_do_copy2 = do_save_json;
+Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
+  if ((m_to_field->flags & BLOB_FLAG) && save) {
+    if (m_to_field->real_type() == MYSQL_TYPE_JSON &&
+        m_from_field->real_type() == MYSQL_TYPE_JSON)
+      return do_save_json;
     else
-      m_do_copy2 = do_save_blob;
-  } else
-    m_do_copy2 = get_copy_func(to, from);
-
-  if (!m_do_copy)  // Not null
-    m_do_copy = m_do_copy2;
-}
-
-bool Copy_field::from_is_null() const {
-  if (from_null_ptr != nullptr) {
-    return *from_null_ptr & from_bit;
-  } else if (m_from_field != nullptr) {
-    // Even if the source field is not nullable (from_null_ptr is nullptr),
-    // we can still read NULLs out of it if the table row is nullable.
-    // (The typical case is that the table is on the inner side of an outer
-    // join, but it can also happen with aggregation.)
-    return m_from_field->table->has_null_row();
-  } else {
-    return false;
+      return do_save_blob;
   }
-}
 
-void Copy_field::set_to_is_null(bool is_null) {
-  if (to_null_ptr != nullptr) {
-    if (is_null) {
-      *to_null_ptr |= to_bit;
-    } else {
-      *to_null_ptr &= ~to_bit;
-    }
-  } else if (m_to_field != nullptr) {
-    // This is used in the case of window functions, where
-    // bring_back_frame_row() may want to set TABLE::null_row to be what it was
-    // when the row was buffered. See also from_is_null().
-    if (is_null) {
-      m_to_field->table->set_null_row();
-    } else {
-      m_to_field->table->reset_null_row();
-    }
-  }
-}
-
-Copy_field::Copy_func *Copy_field::get_copy_func(Field *to, Field *from) {
   bool compatible_db_low_byte_first =
-      (to->table->s->db_low_byte_first == from->table->s->db_low_byte_first);
-  if (to->type() == MYSQL_TYPE_GEOMETRY) {
-    if (from->type() != MYSQL_TYPE_GEOMETRY ||
-        to->maybe_null() != from->maybe_null())
+      (m_to_field->table->s->db_low_byte_first ==
+       m_from_field->table->s->db_low_byte_first);
+  if (m_to_field->type() == MYSQL_TYPE_GEOMETRY) {
+    if (m_from_field->type() != MYSQL_TYPE_GEOMETRY ||
+        m_to_field->maybe_null() != m_from_field->maybe_null())
       return do_conv_blob;
 
-    const Field_geom *to_geom = down_cast<const Field_geom *>(to);
-    const Field_geom *from_geom = down_cast<const Field_geom *>(from);
+    const Field_geom *to_geom = down_cast<const Field_geom *>(m_to_field);
+    const Field_geom *from_geom = down_cast<const Field_geom *>(m_from_field);
 
     // If changing the SRID property of the field, we must do a full conversion.
     if (to_geom->get_srid() != from_geom->get_srid() &&
@@ -720,34 +678,34 @@ Copy_field::Copy_func *Copy_field::get_copy_func(Field *to, Field *from) {
       return do_field_eq;
 
     return do_conv_blob;
-  } else if (to->flags & BLOB_FLAG) {
+  } else if (m_to_field->flags & BLOB_FLAG) {
     /*
       We need to do conversion if we are copying from BLOB to
       non-BLOB, or if we are copying between BLOBs with different
       character sets, or if we are copying between JSON and non-JSON.
     */
-    if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset() ||
-        ((to->type() == MYSQL_TYPE_JSON) != (from->type() == MYSQL_TYPE_JSON)))
+    if (!(m_from_field->flags & BLOB_FLAG) ||
+        m_from_field->charset() != m_to_field->charset() ||
+        ((m_to_field->type() == MYSQL_TYPE_JSON) !=
+         (m_from_field->type() == MYSQL_TYPE_JSON)))
       return do_conv_blob;
-    if (m_from_length != m_to_length || !compatible_db_low_byte_first) {
-      // Correct pointer to point at char pointer
-      to_ptr += m_to_length - portable_sizeof_char_ptr;
-      from_ptr += m_from_length - portable_sizeof_char_ptr;
+    if (m_from_field->pack_length() != m_to_field->pack_length() ||
+        !compatible_db_low_byte_first) {
       return do_copy_blob;
     }
   } else {
-    if (to->real_type() == MYSQL_TYPE_BIT ||
-        from->real_type() == MYSQL_TYPE_BIT)
+    if (m_to_field->real_type() == MYSQL_TYPE_BIT ||
+        m_from_field->real_type() == MYSQL_TYPE_BIT)
       return do_field_int;
-    if (to->result_type() == DECIMAL_RESULT) return do_field_decimal;
+    if (m_to_field->result_type() == DECIMAL_RESULT) return do_field_decimal;
     // Check if identical fields
-    if (from->result_type() == STRING_RESULT) {
-      if (from->is_temporal()) {
-        if (to->is_temporal()) {
+    if (m_from_field->result_type() == STRING_RESULT) {
+      if (m_from_field->is_temporal()) {
+        if (m_to_field->is_temporal()) {
           return do_field_time;
         } else {
-          if (to->result_type() == INT_RESULT) return do_field_int;
-          if (to->result_type() == REAL_RESULT) return do_field_real;
+          if (m_to_field->result_type() == INT_RESULT) return do_field_int;
+          if (m_to_field->result_type() == REAL_RESULT) return do_field_real;
           /* Note: conversion from any to DECIMAL_RESULT is handled earlier */
         }
       }
@@ -756,65 +714,70 @@ Copy_field::Copy_func *Copy_field::get_copy_func(Field *to, Field *from) {
         use special copy function that removes trailing spaces and thus
         repairs data.
       */
-      if (from->type() == MYSQL_TYPE_VAR_STRING && !from->has_charset() &&
-          to->type() == MYSQL_TYPE_VARCHAR && !to->has_charset())
+      if (m_from_field->type() == MYSQL_TYPE_VAR_STRING &&
+          !m_from_field->has_charset() &&
+          m_to_field->type() == MYSQL_TYPE_VARCHAR &&
+          !m_to_field->has_charset())
         return do_field_varbinary_pre50;
 
       /*
         If we are copying date or datetime's we have to check the dates
         if we don't allow 'all' dates.
       */
-      if (to->real_type() != from->real_type() ||
-          to->decimals() != from->decimals() /* e.g. TIME vs TIME(6) */ ||
-          !compatible_db_low_byte_first ||
-          (((to->table->in_use->variables.sql_mode &
+      if (m_to_field->real_type() != m_from_field->real_type() ||
+          m_to_field->decimals() !=
+              m_from_field->decimals() /* e.g. TIME vs TIME(6) */
+          || !compatible_db_low_byte_first ||
+          (((m_to_field->table->in_use->variables.sql_mode &
              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-            to->type() == MYSQL_TYPE_DATE) ||
-           to->type() == MYSQL_TYPE_DATETIME)) {
-        if (from->real_type() == MYSQL_TYPE_ENUM ||
-            from->real_type() == MYSQL_TYPE_SET)
-          if (to->result_type() != STRING_RESULT)
+            m_to_field->type() == MYSQL_TYPE_DATE) ||
+           m_to_field->type() == MYSQL_TYPE_DATETIME)) {
+        if (m_from_field->real_type() == MYSQL_TYPE_ENUM ||
+            m_from_field->real_type() == MYSQL_TYPE_SET)
+          if (m_to_field->result_type() != STRING_RESULT)
             return do_field_int;  // Convert SET to number
         return do_field_string;
       }
-      if (to->real_type() == MYSQL_TYPE_ENUM ||
-          to->real_type() == MYSQL_TYPE_SET) {
-        if (!to->eq_def(from)) {
-          if (from->real_type() == MYSQL_TYPE_ENUM &&
-              to->real_type() == MYSQL_TYPE_ENUM)
+      if (m_to_field->real_type() == MYSQL_TYPE_ENUM ||
+          m_to_field->real_type() == MYSQL_TYPE_SET) {
+        if (!m_to_field->eq_def(m_from_field)) {
+          if (m_from_field->real_type() == MYSQL_TYPE_ENUM &&
+              m_to_field->real_type() == MYSQL_TYPE_ENUM)
             return do_field_enum;
           else
             return do_field_string;
         }
-      } else if (to->charset() != from->charset())
+      } else if (m_to_field->charset() != m_from_field->charset())
         return do_field_string;
-      else if (to->real_type() == MYSQL_TYPE_VARCHAR) {
-        if (((Field_varstring *)to)->length_bytes !=
-            ((Field_varstring *)from)->length_bytes)
+      else if (m_to_field->real_type() == MYSQL_TYPE_VARCHAR) {
+        if (down_cast<Field_varstring *>(m_to_field)->length_bytes !=
+            down_cast<Field_varstring *>(m_from_field)->length_bytes)
           return do_field_string;
         else
           return do_varstring;
-      } else if (m_to_length < m_from_length)
-        return (from->charset()->mbmaxlen == 1 ? do_cut_string
-                                               : do_cut_string_complex);
-      else if (m_to_length > m_from_length) {
-        if (to->charset() == &my_charset_bin)
+      } else if (m_to_field->pack_length() < m_from_field->pack_length())
+        return (m_from_field->charset()->mbmaxlen == 1 ? do_cut_string
+                                                       : do_cut_string_complex);
+      else if (m_to_field->pack_length() > m_from_field->pack_length()) {
+        if (m_to_field->charset() == &my_charset_bin)
           return do_expand_binary;
         else
           return do_expand_string;
       }
 
-    } else if (to->real_type() != from->real_type() ||
-               m_to_length != m_from_length || !compatible_db_low_byte_first) {
-      if (to->real_type() == MYSQL_TYPE_DECIMAL ||
-          to->result_type() == STRING_RESULT)
+    } else if (m_to_field->real_type() != m_from_field->real_type() ||
+               m_to_field->pack_length() != m_from_field->pack_length() ||
+               !compatible_db_low_byte_first) {
+      if (m_to_field->real_type() == MYSQL_TYPE_DECIMAL ||
+          m_to_field->result_type() == STRING_RESULT)
         return do_field_string;
-      if (to->result_type() == INT_RESULT) return do_field_int;
+      if (m_to_field->result_type() == INT_RESULT) return do_field_int;
       return do_field_real;
     } else {
-      if (!to->eq_def(from) || !compatible_db_low_byte_first) {
-        if (to->real_type() == MYSQL_TYPE_DECIMAL) return do_field_string;
-        if (to->result_type() == INT_RESULT)
+      if (!m_to_field->eq_def(m_from_field) || !compatible_db_low_byte_first) {
+        if (m_to_field->real_type() == MYSQL_TYPE_DECIMAL)
+          return do_field_string;
+        if (m_to_field->result_type() == INT_RESULT)
           return do_field_int;
         else
           return do_field_real;
@@ -822,29 +785,8 @@ Copy_field::Copy_func *Copy_field::get_copy_func(Field *to, Field *from) {
     }
   }
   /* Eq fields */
-  switch (m_to_length) {
-    case 1:
-      return do_field_1;
-    case 2:
-      return do_field_2;
-    case 3:
-      return do_field_3;
-    case 4:
-      return do_field_4;
-    case 6:
-      return do_field_6;
-    case 8:
-      return do_field_8;
-  }
+  DBUG_ASSERT(m_to_field->pack_length() == m_from_field->pack_length());
   return do_field_eq;
-}
-
-void Copy_field::swap_direction() {
-  std::swap(from_ptr, to_ptr);
-  std::swap(from_null_ptr, to_null_ptr);
-  std::swap(from_bit, to_bit);
-  std::swap(m_from_length, m_to_length);
-  std::swap(m_from_field, m_to_field);
 }
 
 static inline bool is_blob_type(Field *to) {

@@ -5875,16 +5875,6 @@ static inline void reset_non_framing_wf_state(Func_ptr_array *func_ptr) {
 }
 
 /**
-  Dirty trick to be able to copy fields *back* from the frame buffer tmp table
-  to the input table's buffer, cf. #bring_back_frame_row.
-
-  @param param  represents the frame buffer tmp file
-*/
-static void swap_copy_field_direction(Temp_table_param *param) {
-  for (Copy_field &copy_field : param->copy_fields) copy_field.swap_direction();
-}
-
-/**
   Save a window frame buffer to frame buffer temporary table.
 
   @param thd      The current thread
@@ -6264,11 +6254,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
     Do the inverse of copy_fields to get the row's fields back to the input
     table from the frame buffer.
   */
-  swap_copy_field_direction(fb_info);
-
-  bool rc = copy_fields(fb_info, thd);
-
-  swap_copy_field_direction(fb_info);  // reset original direction
+  bool rc = copy_fields(fb_info, thd, true);
 
 #if !defined(DBUG_OFF)
   dbug_restore_all_columns(saved_map);
@@ -8282,17 +8268,9 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
         Field *field = item->field;
         item->result_field =
             field->new_field(thd->mem_root, field->table, true);
-        /*
-          We need to allocate one extra byte for null handling.
-        */
-        uchar *tmp = new (*THR_MALLOC) uchar[field->pack_length() + 1];
-        if (tmp == nullptr) return true;
 
         DBUG_ASSERT(param->field_count > param->copy_fields.size());
-        param->copy_fields.emplace_back(tmp, item->result_field);
-        item->result_field->move_field(param->copy_fields.back().to_ptr,
-                                       param->copy_fields.back().to_null_ptr,
-                                       1);
+        param->copy_fields.emplace_back(thd->mem_root, item->result_field);
 
         /*
           We have created a new Item_field; its field points into the
@@ -8356,15 +8334,18 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
 
   @param param     Represents the current temporary file being produced
   @param thd       The current thread
+  @param reverse_copy   If true, copies fields *back* from the frame buffer
+                        tmp table to the input table's buffer,
+                        cf. #bring_back_frame_row.
 
   @returns false if OK, true on error.
 */
 
-bool copy_fields(Temp_table_param *param, const THD *thd) {
+bool copy_fields(Temp_table_param *param, const THD *thd, bool reverse_copy) {
   DBUG_TRACE;
 
   DBUG_PRINT("enter", ("for param %p", param));
-  for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(&ptr);
+  for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(reverse_copy);
 
   if (thd->is_error()) return true;
 
