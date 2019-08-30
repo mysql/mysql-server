@@ -1010,3 +1010,61 @@ field1
 05:29:04
 16:51:14
 DROP TABLE t1;
+#
+# Bug #30250091: CONDITIONS WITHIN MATERIALIZED SEMIJOINS ARE FLOATING UP
+#
+CREATE TABLE t1 (
+f1 INTEGER
+);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (
+f2 VARCHAR(10)
+);
+CREATE TABLE t3 (
+f3 INTEGER UNIQUE NOT NULL
+);
+CREATE TABLE t4 (
+f4 INTEGER
+);
+INSERT INTO t4 VALUES (13), (14), (NULL);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+explain format=tree SELECT * FROM t1
+WHERE NOT EXISTS (
+SELECT *
+FROM t4 LEFT JOIN t3 ON t4.f4 = t3.f3
+WHERE 'abc' IN (
+SELECT t2.f2 FROM t2 WHERE t3.f3 = 1 HAVING t2.f2 = 'xyz'
+     )
+);
+EXPLAIN
+-> Nested loop anti-join
+    -> Table scan on t1  (cost=0.55 rows=3)
+    -> Constant row from <subquery2>
+        -> Materialize with deduplication
+            -> Filter: <in_optimizer>('abc',<exists>(select #3))  (cost=1.60 rows=3)
+                -> Nested loop left join  (cost=1.60 rows=3)
+                    -> Table scan on t4  (cost=0.55 rows=3)
+                    -> Single-row index lookup on t3 using f3 (f3=t4.f4)  (cost=0.28 rows=1)
+                -> Select #3 (subquery in condition; dependent)
+                    -> Zero rows (Impossible HAVING)
+
+Warnings:
+Note	1276	Field or reference 'test.t3.f3' of SELECT #3 was resolved in SELECT #2
+SELECT * FROM t1
+WHERE NOT EXISTS (
+SELECT *
+FROM t4 LEFT JOIN t3 ON t4.f4 = t3.f3
+WHERE 'abc' IN (
+SELECT t2.f2 FROM t2 WHERE t3.f3 = 1 HAVING t2.f2 = 'xyz'
+     )
+);
+f1
+1
+2
+3
+DROP TABLE t1, t2, t3, t4;

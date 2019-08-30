@@ -812,3 +812,49 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #30250091: CONDITIONS WITHIN MATERIALIZED SEMIJOINS ARE FLOATING UP
+--echo #
+
+# This query gets a condition posted on the materialized semijoin that cannot
+# readily be pushed higher up the tree without causing wrong results
+# (it needs to be before the antijoin). Verify that it is kept below the
+# materialization, and thus outputs the correct values.
+
+CREATE TABLE t1 (
+  f1 INTEGER
+);
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE TABLE t2 (
+  f2 VARCHAR(10)
+);
+
+CREATE TABLE t3 (
+  f3 INTEGER UNIQUE NOT NULL
+);
+
+CREATE TABLE t4 (
+  f4 INTEGER
+);
+
+INSERT INTO t4 VALUES (13), (14), (NULL);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query =
+  SELECT * FROM t1
+  WHERE NOT EXISTS (
+     SELECT *
+     FROM t4 LEFT JOIN t3 ON t4.f4 = t3.f3
+     WHERE 'abc' IN (
+        SELECT t2.f2 FROM t2 WHERE t3.f3 = 1 HAVING t2.f2 = 'xyz'
+     )
+   );
+
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;

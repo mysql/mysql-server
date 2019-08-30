@@ -1823,11 +1823,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   Get the RowIterator used for scanning the given table, with any required
   materialization operations done first.
  */
-unique_ptr_destroy_only<RowIterator> GetTableIterator(
-    THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs,
-    vector<PendingCondition> *pending_conditions,
-    vector<PendingInvalidator> *pending_invalidators,
-    vector<QEP_TAB *> *unhandled_duplicates) {
+unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
+                                                      QEP_TAB *qep_tab,
+                                                      QEP_TAB *qep_tabs) {
   unique_ptr_destroy_only<RowIterator> table_iterator;
   if (qep_tab->materialize_table == join_materialize_derived) {
     SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
@@ -1931,9 +1929,24 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
 
     int join_start = sjm->inner_table_index;
     int join_end = join_start + sjm->table_count;
-    unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
-        join_start, join_end, qep_tabs, thd, TOP_LEVEL, pending_conditions,
-        pending_invalidators, unhandled_duplicates);
+
+    // Handle this subquery as a we would a completely separate join,
+    // even though the tables are part of the same JOIN object
+    // (so in effect, a “virtual join”).
+    vector<QEP_TAB *> unhandled_duplicates;
+    unique_ptr_destroy_only<RowIterator> subtree_iterator =
+        ConnectJoins(join_start, join_end, qep_tabs, thd, TOP_LEVEL,
+                     /*pending_conditions=*/nullptr,
+                     /*pending_invalidators=*/nullptr, &unhandled_duplicates);
+
+    // If there were any weedouts that we had to drop during ConnectJoins()
+    // (ie., the join left some tables that were supposed to be deduplicated
+    // but were not), handle them now at the end of the virtual join.
+    if (!unhandled_duplicates.empty()) {
+      subtree_iterator = CreateWeedoutIteratorForTables(
+          thd, unhandled_duplicates, qep_tab, qep_tab->join()->primary_tables,
+          move(subtree_iterator));
+    }
 
     // Since materialized semijoins are based on ref access against the table,
     // and ref access has NULL = NULL (while IN expressions should not),
@@ -2430,8 +2443,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     }
 
     unique_ptr_destroy_only<RowIterator> table_iterator =
-        GetTableIterator(thd, qep_tab, qep_tabs, pending_conditions,
-                         pending_invalidators, unhandled_duplicates);
+        GetTableIterator(thd, qep_tab, qep_tabs);
     MultiRangeRowIterator *mrr_iterator_ptr = nullptr;
 
     vector<Item *> predicates_below_join;
