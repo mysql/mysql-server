@@ -2,3 +2,12 @@
 [cluster_config]
 SharedGlobalMemory=0
 MaxNoOfLocalOperations=1000
+#ReservedConcurrentOperations=100
+#ReservedConcurrentTransactions=100
+#MaxNoOfConcurrentOperations=500
+#MaxNoOfConcurrentTransactions=200
+#MaxNoOfLocalOperations=500
+#ReservedConcurrentIndexOperations=100
+#MaxNoOfConcurrentIndexOperations=100
+#BatchSizePerLocalScan=5
+#ThreadConfig=main={count=1},tc={count=1},ldm={count=1},io={count=1},rep={count=1},recv={count=1},send={count=1}

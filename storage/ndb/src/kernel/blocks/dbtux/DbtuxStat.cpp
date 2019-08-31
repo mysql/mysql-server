@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
-  c_scanOpPool.getPtr(scanPtr);
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   StatOpPtr statPtr;
   statPtr.i = scanPtr.p->m_statOpPtrI;
 
@@ -215,8 +215,11 @@ int
 Dbtux::statScanInit(StatOpPtr statPtr, const Uint32* data, Uint32 len,
                     Uint32* usedLen)
 {
+  ScanOpPtr scanPtr;
   StatOp& stat = *statPtr.p;
-  ScanOp& scan = *c_scanOpPool.getPtr(stat.m_scanOpPtrI);
+  scanPtr.i = stat.m_scanOpPtrI;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
+  ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
   D("statScanInit");
@@ -304,7 +307,10 @@ int
 Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
 {
   StatOp& stat = *statPtr.p;
-  ScanOp& scan = *c_scanOpPool.getPtr(stat.m_scanOpPtrI);
+  ScanOpPtr scanPtr;
+  scanPtr.i = stat.m_scanOpPtrI;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
+  ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   D("statScanAddRow" << V(stat));
 

@@ -14,7 +14,7 @@ PRIMARY KEY (`b`,`a`),
 unique key(d)
 ) ENGINE=ndbcluster;
 insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
-ERROR HY000: Got temporary error 221 'Too many concurrently fired triggers (increase MaxNoOfFiredTriggers)' from NDBCLUSTER
+ERROR HY000: Got temporary error 221 'Too many concurrently fired triggers, increase SharedGlobalMemory' from NDBCLUSTER
 select sum(used) from ndbinfo.ndb$pools where pool_name='Fired Trigger';
 sum(used)
 0

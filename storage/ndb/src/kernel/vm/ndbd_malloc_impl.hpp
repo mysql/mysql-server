@@ -26,6 +26,12 @@
 #define NDBD_MALLOC_IMPL_H
 
 #include <algorithm>
+#ifdef VM_TRACE
+#ifndef NDBD_RANDOM_START_PAGE
+#define NDBD_RANDOM_START_PAGE
+#endif
+#endif
+
 #include <cstdint>
 #include <kernel_types.h>
 #include <Bitmask.hpp>
@@ -37,6 +43,9 @@
 
 #define JAM_FILE_ID 291
 
+#ifdef NDBD_RANDOM_START_PAGE
+extern Uint32 g_random_start_page_id;
+#endif
 
 /**
  * Ndbd_mem_manager handles memory in pages of size 32KiB.

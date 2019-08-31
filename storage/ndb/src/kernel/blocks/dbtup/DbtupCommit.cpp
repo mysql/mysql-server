@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,16 +135,17 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
     tmp.m_page_idx= page_index;
-    DEB_DELETE(("(%u)dealloc tab(%u,%u), row(%u,%u)",
+    PagePtr pagePtr;
+    Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
+
+    DEB_DELETE(("(%u)dealloc tab(%u,%u), row(%u,%u), header: %x",
                  instance(),
                  regTabPtr.i,
                  frag_id,
                  frag_page_id,
-                 page_index));
+                 page_index,
+                 ptr->m_header_bits));
     
-    PagePtr pagePtr;
-    Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
-
     ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
 
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
@@ -169,11 +170,11 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   loopOpPtr.i= signal->theData[0];
   Uint32 gci_hi = signal->theData[1];
   Uint32 gci_lo = signal->theData[2];
-  c_operation_pool.getPtr(loopOpPtr);
+  ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   while (loopOpPtr.p->prevActiveOp != RNIL) {
     jam();
     loopOpPtr.i= loopOpPtr.p->prevActiveOp;
-    c_operation_pool.getPtr(loopOpPtr);
+    ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   }
   do {
     ndbrequire(get_trans_state(loopOpPtr.p) == TRANS_STARTED);
@@ -189,7 +190,7 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
     EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
     jamEntry();
     loopOpPtr.i= loopOpPtr.p->nextActiveOp;
-    c_operation_pool.getPtr(loopOpPtr);
+    ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   } while (true);
 }
 
@@ -390,7 +391,8 @@ Dbtup::dealloc_tuple(Signal* signal,
   {
     jam();
     ScanOpPtr scanOp;
-    c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
+    scanOp.i = lcpScan_ptr_i;
+    ndbrequire(c_scanOpPool.getValidPtr(scanOp));
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
     if (is_rowid_in_remaining_lcp_set(page, regFragPtr, rowid, *scanOp.p, 0))
@@ -504,7 +506,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     rowid.m_page_no = page->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
                         ", bits: %x, row_count = %llu"
-                        ", tuple_header_ptr: %p",
+                        ", tuple_header_ptr: %p, gci: %u",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
@@ -512,7 +514,8 @@ Dbtup::dealloc_tuple(Signal* signal,
                         rowid.m_page_idx,
                         ptr->m_header_bits,
                         regFragPtr->m_row_count,
-                        ptr);
+                        ptr,
+                        gci_hi);
 #endif
   }
 }
@@ -945,7 +948,8 @@ Dbtup::commit_operation(Signal* signal,
   {
     jam();
     ScanOpPtr scanOp;
-    c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
+    scanOp.i = lcpScan_ptr_i;
+    ndbrequire(c_scanOpPool.getValidPtr(scanOp));
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
@@ -1070,7 +1074,7 @@ Dbtup::commit_operation(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
-                        ", bits: %x, row_count = %llu, tuple_ptr: %p",
+                        ", bits: %x, row_count = %llu, tuple_ptr: %p, gci: %u",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
@@ -1078,7 +1082,8 @@ Dbtup::commit_operation(Signal* signal,
                         rowid.m_page_idx,
                         tuple_ptr->m_header_bits,
                         regFragPtr->m_row_count,
-                        tuple_ptr);
+                        tuple_ptr,
+                        gci_hi);
 #endif
   }
   else
@@ -1098,8 +1103,9 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   Ptr<GlobalPage> diskPagePtr;
 
   jamEntry();
-  
-  c_operation_pool.getPtr(regOperPtr, opPtrI);
+
+  regOperPtr.i = opPtrI;
+  ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
   c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo,
                      &transId1, &transId2);
 
@@ -1144,7 +1150,8 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
 
   jamEntry();
   
-  c_operation_pool.getPtr(regOperPtr, opPtrI);
+  regOperPtr.i = opPtrI;
+  ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
   c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo,
                      &transId1, &transId2);
   Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
@@ -1269,7 +1276,7 @@ Dbtup::findFirstOp(OperationrecPtr & firstPtr)
   while(firstPtr.p->prevActiveOp != RNIL)
   {
     firstPtr.i = firstPtr.p->prevActiveOp;
-    c_operation_pool.getPtr(firstPtr);    
+    ndbrequire(c_operation_pool.getValidPtr(firstPtr));
   }
   ndbout_c("%u", firstPtr.i);
 }
@@ -1298,24 +1305,27 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
   jamEntry();
 
-  c_operation_pool.getPtr(regOperPtr);
+  ndbrequire(c_operation_pool.getUncheckedPtrRW(regOperPtr));
  
   diskPagePtr.i = tupCommitReq->diskpage;
   regFragPtr.i= regOperPtr.p->fragmentPtr;
-  trans_state= get_trans_state(regOperPtr.p);
-
   no_of_fragrec= cnoOfFragrec;
-
-  ndbrequire(trans_state == TRANS_STARTED);
-  ptrCheckGuard(regFragPtr, no_of_fragrec, fragrecord);
-
   no_of_tablerec= cnoOfTablerec;
-  regTabPtr.i= regFragPtr.p->fragTableId;
 
   req_struct.signal= signal;
   req_struct.hash_value= hash_value;
   req_struct.gci_hi = gci_hi;
   req_struct.gci_lo = gci_lo;
+
+  ndbrequire(Magic::check_ptr(regOperPtr.p));
+  trans_state= get_trans_state(regOperPtr.p);
+
+
+  ndbrequire(trans_state == TRANS_STARTED);
+  ptrCheckGuard(regFragPtr, no_of_fragrec, fragrecord);
+
+  regTabPtr.i= regFragPtr.p->fragTableId;
+
   /* Put transid in req_struct, so detached triggers can access it */
   req_struct.trans_id1 = transId1;
   req_struct.trans_id2 = transId2;
@@ -1374,7 +1384,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       goto first;
       while(loopPtr.i != RNIL)
       {
-	c_operation_pool.getPtr(loopPtr);
+        ndbrequire(c_operation_pool.getValidPtr(loopPtr));
     first:
 	executeTuxCommitTriggers(signal,
 				 loopPtr.p,
@@ -1584,12 +1594,18 @@ skip_disk:
 
   if (nextOp != RNIL)
   {
-    c_operation_pool.getPtr(nextOp)->prevActiveOp = prevOp;
+    OperationrecPtr opPtr;
+    opPtr.i = nextOp;
+    ndbrequire(c_operation_pool.getValidPtr(opPtr));
+    opPtr.p->prevActiveOp = prevOp;
   }
   
   if (prevOp != RNIL)
   {
-    c_operation_pool.getPtr(prevOp)->nextActiveOp = nextOp;
+    OperationrecPtr opPtr;
+    opPtr.i = prevOp;
+    ndbrequire(c_operation_pool.getValidPtr(opPtr));
+    opPtr.p->nextActiveOp = nextOp;
   }
   
   if(!regOperPtr.p->m_copy_tuple_location.isNull())

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,9 @@ class TuxContinueB {
 private:
   enum {
     DropIndex = 1, // unused
-    StatMon = 2
+    StatMon = 2,
+    ShrinkTransientPools = 3,
+    TransientPoolStat = 4
   };
 };
 

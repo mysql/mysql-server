@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,6 +226,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define ZCLOSE_FILE 2
 #define ZNIL 0xffff
 #define Z8NIL 255
+#define UINT28_MAX ((1 << 28) - 1)
 
 /* ------------------------------------------------------------------------- */
 // Number of fragments stored per node. Should be settable on a table basis
@@ -251,7 +252,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 /* ------------------------------------------------------------------ */
 // We have these constants to ensure that we can easily change the
 // parallelism of node recovery and the amount of scan 
-// operations needed for node recoovery.
+// operations needed for node recovery.
 /* ------------------------------------------------------------------ */
 #define MAX_NO_WORDS_OUTSTANDING_COPY_FRAGMENT 6000
 #define MAGIC_CONSTANT 56

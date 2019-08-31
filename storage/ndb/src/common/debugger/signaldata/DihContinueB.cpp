@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
     return true;
     break;
   case DihContinueB::ZINIT_LCP:
-    fprintf(output, " Init LCP: Table: %d\n", theData[1]);
+    fprintf(output, " Init LCP: Table: %d\n", theData[2]);
     return true;
     break;
   case DihContinueB::ZADD_TABLE_MASTER_PAGES:

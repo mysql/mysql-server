@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,6 @@ public:
       NoError = 0
     };
     Error();
-    ~Error() {}
     int get_error_code() const;
     int get_error_line() const;
 
@@ -141,7 +140,6 @@ public:
   public:
     Type();
     Type(int typeId, Uint32 byteSize, bool nullable, Uint32 csNumber);
-    ~Type() {}
     /*
      * Define the type.  Size is fixed or max size.  Values of variable
      * length have length bytes.  The definition is verified when the

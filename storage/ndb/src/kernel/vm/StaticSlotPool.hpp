@@ -178,12 +178,6 @@ inline bool StaticSlotPool::getValidPtr(Ptr<Slot>& p,
   Uint32 page_number = p.i / slots_per_page;
   Page* page = m_page_base;
 
-  if (unlikely(p.i == RNIL))
-  {
-    p.p = NULL;
-    return true;
-  }
-
   if (unlikely(p.i >= slot_count))
   {
     return false;
@@ -207,12 +201,6 @@ inline bool StaticSlotPool::getUncheckedPtrRO(Ptr<Slot>& p,
   Uint32 page_number = p.i / slots_per_page;
   Page* page = m_page_base;
 
-  if (unlikely(p.i == RNIL))
-  {
-    p.p = NULL;
-    return true;
-  }
-
   if (unlikely(p.i >= slot_count))
   {
     return false;
@@ -234,12 +222,6 @@ inline bool StaticSlotPool::getUncheckedPtrRW(Ptr<Slot>& p,
   Uint32 page_index = p.i % slots_per_page;
   Uint32 page_number = p.i / slots_per_page;
   Page* page = m_page_base;
-
-  if (unlikely(p.i == RNIL))
-  {
-    p.p = NULL;
-    return true;
-  }
 
   if (unlikely(p.i >= slot_count))
   {

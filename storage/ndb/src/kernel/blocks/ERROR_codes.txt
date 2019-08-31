@@ -351,7 +351,7 @@ Error insertions used to test ACCKEYCONF/ABORT interleaving
       Allow one ABORT signal to be processed then set 5096
 5096: Cause ABORT messages to be indefinitely stalled
       ACCKEYCONF signal clears ERROR Insertion
-5097: ndbrequire(false)
+5097: ndbabort()
 
 
 

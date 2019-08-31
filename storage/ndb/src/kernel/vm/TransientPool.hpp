@@ -82,6 +82,9 @@ template<typename T, Uint32 Slot_size> inline bool TransientPool<T, Slot_size>::
     return false;
   }
   p.i = slot.i;
+#if defined VM_TRACE || defined ERROR_INSERT
+  memset(reinterpret_cast<void*>(slot.p), 0xF4, Slot_size * sizeof(Uint32));
+#endif
   p.p = new (slot.p) T;
   if (unlikely(!Magic::match(p.p->m_magic, T::TYPE_ID)))
   {

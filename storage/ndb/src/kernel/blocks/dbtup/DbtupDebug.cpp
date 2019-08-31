@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -413,7 +413,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     }
     while(chunks.size() > 0){
       Chunk chunk = chunks.back();
-      returnCommonArea(chunk.pageId, chunk.pageCount);      
+      returnCommonArea(chunk.pageId, chunk.pageCount);
       chunks.erase(chunks.size() - 1);
     }
 
@@ -459,6 +459,31 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     RSS_OP_SNAPSHOT_CHECK(cnoOfFreeTabDescrRec);
 
     RSS_AP_SNAPSHOT_CHECK2(c_storedProcPool, c_storedProcCountNonAPI);
+    return;
+  }
+#endif
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  if (type == DumpStateOrd::TupSetTransientPoolMaxSize)
+  {
+    jam();
+    if (signal->getLength() < 3)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    const Uint32 new_size = signal->theData[2];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->setMaxSize(new_size);
+    return;
+  }
+  if (type == DumpStateOrd::TupResetTransientPoolMaxSize)
+  {
+    jam();
+    if(signal->getLength() < 2)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->resetMaxSize();
     return;
   }
 #endif

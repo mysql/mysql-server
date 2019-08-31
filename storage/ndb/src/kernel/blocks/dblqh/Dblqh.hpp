@@ -51,6 +51,9 @@
 #include "../backup/Backup.hpp"
 #include "../restore.hpp"
 
+#include "TransientPool.hpp"
+#include "TransientSlotPool.hpp"
+
 class Dbacc;
 class Dbtup;
 class Dbtux;
@@ -271,6 +274,8 @@ class Lgman;
 #define ZSTART_LOCAL_LCP 28
 #define ZCHECK_SYSTEM_SCANS 29
 #define ZSTART_QUEUED_SCAN 30
+#define ZLQH_SHRINK_TRANSIENT_POOLS 31
+#define ZLQH_TRANSIENT_POOL_STAT 32
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -501,7 +506,26 @@ public:
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
   struct ScanRecord {
-    ScanRecord() {}
+    STATIC_CONST( TYPE_ID = RT_DBLQH_SCAN_RECORD);
+    Uint32 m_magic;
+
+    ScanRecord() :
+      m_magic(Magic::make(TYPE_ID)),
+      scan_acc_index(0),
+      scan_acc_segments(0),
+      nextHash(RNIL),
+      prevHash(RNIL),
+      scanTcWaiting(0),
+      scanState(SCAN_FREE),
+      scanType(ST_IDLE),
+      m_reserved(0)
+    {
+    }
+
+    ~ScanRecord()
+    {
+    }
+
     enum ScanState {
       SCAN_FREE = 0,
       WAIT_NEXT_SCAN_COPY = 1,
@@ -613,13 +637,20 @@ public:
     Uint8 m_stop_batch;
     Uint8 prioAFlag;
   };
+  STATIC_CONST(DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1);
   typedef Ptr<ScanRecord> ScanRecordPtr;
-  typedef ArrayPool<ScanRecord> ScanRecord_pool;
+  typedef TransientPool<ScanRecord> ScanRecord_pool;
   typedef DLCList<ScanRecord_pool> ScanRecord_list;
   typedef LocalDLCList<ScanRecord_pool> Local_ScanRecord_list;
   typedef DLCFifoList<ScanRecord_pool> ScanRecord_fifo;
   typedef LocalDLCFifoList<ScanRecord_pool> Local_ScanRecord_fifo;
   typedef DLHashTable<ScanRecord_pool> ScanRecord_hash;
+
+// Configurable
+  ScanRecord_pool c_scanRecordPool;
+  ScanRecord_list m_reserved_scans; // LCP + NR
+  ScanRecord_hash c_scanTakeOverHash;
+
 
 /**
  * Constants for scan_direct_count
@@ -2319,13 +2350,111 @@ public:
       LOG_CONNECTED = 3
     };
 #ifndef DBLQH_STATE_EXTRACT
+    STATIC_CONST( TYPE_ID = RT_DBLQH_TC_CONNECT);
+    Uint32 m_magic;
+
+    TcConnectionrec() :
+      m_magic(Magic::make(TYPE_ID)),
+      accConnectrec(RNIL),
+      tupConnectrec(RNIL),
+      nextTcConnectrec(RNIL),
+      connectState(CONNECTED),
+      keyInfoIVal(RNIL),
+      attrInfoIVal(RNIL),
+      //transid has no special value indicating not set
+      abortState(ABORT_IDLE),
+      applOprec(RNIL),
+      clientConnectrec(RNIL),
+      //tcTimer must be set before used
+      currReclenAi(0),
+      currTupAiLen(0),
+      //fragmentid must be set in all paths before use
+      //fragmentptr must be set in all paths before use
+      gci_hi(0),
+      gci_lo(0),
+      //hashValue has no special value indicating not set
+      logWriteState(NOT_STARTED),
+      nextHashRec(RNIL),
+      nextLogTcrec(RNIL),
+      nextTcLogQueue(RNIL),
+      prevHashRec(RNIL),
+      prevLogTcrec(RNIL),
+      prevTcLogQueue(RNIL),
+      //readlenAi must be set before used
+      //reqinfo must be set before used
+      //schemaVersion must be set before used
+      //tableref must be set before used
+      tcOprec(RNIL),
+      hashIndex(RNIL),
+      //tcHashKeyHi must be set before used
+      tcScanInfo(Uint32(~0)),
+      tcScanRec(RNIL),
+      totReclenAi(0),
+      totSendlenAi(0),
+      savePointId(0),
+      transactionState(TC_NOT_CONNECTED),
+      applRef(Uint32(~0)),
+      clientBlockref(Uint32(~0)),
+      //tcBlockref must be set before used
+      commitAckMarker(RNIL),
+      numFiredTriggers(0),
+      lqhKeyReqId(0),
+      //errCode must be set before used
+      //nextReplica must be set before used
+      primKeyLen(0),
+      //save1 only used with short signals, must be set before used
+      //nodeAfterNext must be set before used
+      //activeCreat must be set before used
+      //dirtyOp must be set before used
+      //indTakeOver must be set before used
+      //lastReplicaNo must be set before used
+      //lockType only used for key operations, must be set before used
+      nextSeqNoReplica(0),
+      //opSimple only used for key operations, must be set before used
+      //opExec must be set before used
+      //operation must be set before used
+      //m_reorg must be set before used
+      //reclenAiLqhKey used for short signals, must be set before used
+      //replicaType only used for write key operations, must be set before used
+      seqNoReplica(0),
+      //tcNodeFailrec only set when abortState is set to NEW_FROM_TC
+      //m_disk_table set before used
+      //m_use_rowid used for key operations, set before used
+      //m_dealloc must be set before used
+      //m_fire_trig_pass must be set before used
+      m_committed_log_space(0),
+      m_flags(0),
+      //m_log_part_ptr_i set before used, only key ops
+      //m_rowid set before used
+      
+      //logStartFileNo must be set before used
+      //logStartPageIndex must be set before used
+      //logStartPageNo must be set before used
+      //logStopPageNo must be set before used
+
+      //copyCountWords must be set before used
+      reqRef(Uint32(~0)),
+      reqBlockref(Uint32(~0))
+      //m_corrFactorLo must be set before used
+      //m_corrFactorHi must be set before used
+      //scanKeyInfoPos only used when m_flags has OP_SCANKEYINFOPOSSAVED set
+      //m_nr_delete only used in Copy fragment, set before used
+    {
+    }
+
+    ~TcConnectionrec()
+    {
+    }
+    UintR accConnectrec;
+    UintR tupConnectrec;
+    Uint32 nextTcConnectrec;
+    Dbacc::Operationrec *accConnectPtrP;
+    Dbtup::Operationrec *tupConnectPtrP;
     ConnectState connectState;
-    UintR copyCountWords;
     Uint32 keyInfoIVal;
     Uint32 attrInfoIVal;
     UintR transid[2];
     AbortState abortState;
-    UintR accConnectrec;
     UintR applOprec;
     UintR clientConnectrec;
     UintR tcTimer;
@@ -2337,20 +2466,16 @@ public:
     UintR gci_lo;
     UintR hashValue;
     
-    UintR logStartFileNo;
     LogWriteState logWriteState;
     UintR nextHashRec;
     UintR nextLogTcrec;
     UintR nextTcLogQueue;
-    UintR nextTcConnectrec;
     UintR prevHashRec;
     UintR prevLogTcrec;
     UintR prevTcLogQueue;
     UintR readlenAi;
-    UintR reqRef;
     UintR reqinfo;
     UintR schemaVersion;
-    UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
     UintR hashIndex;
@@ -2359,29 +2484,19 @@ public:
     UintR tcScanRec;
     UintR totReclenAi;
     UintR totSendlenAi;
-    UintR tupConnectrec;
     UintR savePointId;
     TransactionState transactionState;
     BlockReference applRef;
     BlockReference clientBlockref;
 
-    BlockReference reqBlockref;
     BlockReference tcBlockref;
-    BlockReference tcAccBlockref;
-    BlockReference tcTuxBlockref;
-    BlockReference tcTupBlockref;
     Uint32 commitAckMarker;
     union {
       Uint32 m_scan_curr_range_no;
       UintR numFiredTriggers;
     };
-    Uint32 m_corrFactorLo; // For result correlation for linked operations.
-    Uint32 m_corrFactorHi;
     Uint64 lqhKeyReqId;
     Uint16 errorCode;
-    Uint16 logStartPageIndex;
-    Uint16 logStartPageNo;
-    Uint16 logStopPageNo;
     Uint16 nextReplica;
     Uint16 primKeyLen;
     Uint16 save1;
@@ -2451,8 +2566,26 @@ public:
       // unused, m_dealloc_state = DA_IDLE
       Uint32 m_unused;
     } m_dealloc_data;
-    SectionReader::PosInfo scanKeyInfoPos;
     Local_key m_row_id;
+
+    /**
+     * Variables only used for Write operations.
+     */
+    Uint16 logStartFileNo;
+    Uint16 logStartPageIndex;
+    Uint16 logStartPageNo;
+    Uint16 logStopPageNo;
+
+    /**
+     * Variables used in special cases like Copy Fragment, special
+     * scan variants and special commit and abort situations.
+     */
+    UintR copyCountWords;
+    UintR reqRef;
+    BlockReference reqBlockref;
+    Uint32 m_corrFactorLo; // For result correlation for linked operations.
+    Uint32 m_corrFactorHi;
+    SectionReader::PosInfo scanKeyInfoPos;
 
     struct {
       Uint32 m_cnt;
@@ -2461,10 +2594,18 @@ public:
     } m_nr_delete;
     Uint32 accOpPtr; /* for scan lock take over */
 #endif // DBLQH_STATE_EXTRACT
-  }; /* p2c: size = 280 bytes */
+  }; /* p2c: size = 308 bytes */
 
 #ifndef DBLQH_STATE_EXTRACT
+  STATIC_CONST(DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
+  Uint32 ctcConnectReservedCount;
+  Uint32 ctcConnectReserved;
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
+  typedef TransientPool<TcConnectionrec> TcConnectionrec_pool;
+  TcConnectionrec_pool tcConnect_pool;
+  TcConnectionrecPtr m_tc_connect_ptr;
+  UintR cfirstfreeTcConrec;
+  Uint32 ctcNumFree;
 
   struct TcNodeFailRecord {
     enum TcFailStatus {
@@ -2746,7 +2887,6 @@ private:
   void LQHKEY_error(Signal* signal, int errortype);
   void nextRecordCopy(Signal* signal, TcConnectionrecPtr);
   Uint32 calculateHash(Uint32 tableId, const Uint32* src);
-  void checkLcpStopBlockedLab(Signal* signal, Uint32);
   void sendCommittedTc(Signal* signal,
                        BlockReference atcBlockref,
                        const TcConnectionrec*);
@@ -3165,11 +3305,12 @@ private:
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
   void initData();
-  void initRecords();
+  void initRecords(const ndb_mgm_configuration_iterator *mgm_cfg);
 protected:
   virtual bool getParam(const char* name, Uint32* count);
 
 public:
+  void checkLcpStopBlockedLab(Signal* signal, Uint32);
   void lcp_max_completed_gci(Uint32 & maxCompletedGci,
                              Uint32 max_gci_written,
                              Uint32 restorable_gci);
@@ -3438,20 +3579,10 @@ private:
   UintR cfirstfreePageRef;
   UintR cpageRefFileSize;
 
-// Configurable
-  ScanRecord_pool c_scanRecordPool;
-  Uint32 cscanrecFileSize;
-  ScanRecord_list m_reserved_scans; // LCP + NR
 
 // Configurable
   Tablerec *tablerec;
   UintR ctabrecFileSize;
-
-// Configurable
-  TcConnectionrec *tcConnectionrec;
-  UintR cfirstfreeTcConrec;
-  UintR ctcConnectrecFileSize;
-  Uint32 ctcNumFree;
 
 // MAX_NDB_NODES is the size of this array
   TcNodeFailRecord *tcNodeFailRecord;
@@ -3467,7 +3598,6 @@ private:
    * Most of them are set up again after each real-time break.
    */
   ScanRecordPtr scanptr;
-  TcConnectionrecPtr m_tc_connect_ptr;
   FragrecordPtr fragptr;
   FragrecordPtr prim_tab_fragptr;
   TablerecPtr tabptr;
@@ -3663,7 +3793,8 @@ private:
 /* ACTUALLY USED FOR ALL ABORTS COMMANDED BY TC.                             */
 /* ------------------------------------------------------------------------- */
   UintR preComputedRequestInfoMask;
-  UintR ctransidHash[1024];
+#define TRANSID_HASH_SIZE 4096
+  UintR ctransidHash[TRANSID_HASH_SIZE];
   
   Uint32 c_diskless;
   Uint32 c_o_direct;
@@ -3778,7 +3909,16 @@ public:
    *
    */
   struct CommitAckMarker {
-    CommitAckMarker() {}
+    STATIC_CONST( TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER );
+    Uint32 m_magic;
+
+    CommitAckMarker() :
+      m_magic(Magic::make(TYPE_ID))
+    {}
+
+    ~CommitAckMarker()
+    {}
+
     Uint32 transid1;
     Uint32 transid2;
     
@@ -3799,16 +3939,16 @@ public:
       return transid1;
     }
   };
-
+  STATIC_CONST(DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2);
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
-  typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
+  typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
 
   CommitAckMarker_pool m_commitAckMarkerPool;
   CommitAckMarker_hash m_commitAckMarkerHash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   void execREMOVE_MARKER_ORD(Signal* signal);
-  void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 bucket, Uint32 i);
+  void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 i);
   bool check_tc_and_update_max_instance(BlockReference ref,
                                         TcNodeFailRecord *tcNodeFailPtr);
 
@@ -4048,8 +4188,6 @@ public:
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }
 
-  ScanRecord_hash c_scanTakeOverHash;
-
   inline bool TRACE_OP_CHECK(const TcConnectionrec* regTcPtr);
 #ifdef ERROR_INSERT
   void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
@@ -4094,10 +4232,50 @@ public:
   bool is_full_local_lcp_running();
   bool is_lcp_idle(LcpRecord *lcpPtrP);
   Uint32 m_restart_local_latest_lcp_id;
+private:
+  bool getNextTcConRec(Uint32 &next,
+                       TcConnectionrecPtr &tcConnectptr,
+                       Uint32 max_loops);
+  bool getNextScanRec(Uint32 &next,
+                      ScanRecordPtr &loc_scanptr,
+                      Uint32 max_loops);
+  bool getNextCommitAckMarker(Uint32 &next,
+                              CommitAckMarkerPtr &commitAckMarkerPtr,
+                              Uint32 max_loops);
+  void checkPoolShrinkNeed(Uint32 pool_index,
+                           const TransientFastSlotPool& pool);
+  void sendPoolShrink(Uint32 pool_index);
+  void shrinkTransientPools(Uint32 pool_index);
+
+  static const Uint32 c_transient_pool_count = 3;
+  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  Bitmask<1> c_transient_pools_shrinking;
+
+  bool seize_op_rec(TcConnectionrecPtr &tcConnectptr);
+  void release_op_rec(TcConnectionrecPtr tcConnectptr);
+  void send_scan_fragref(Signal*, Uint32, Uint32, Uint32, Uint32, Uint32);
+  void init_release_scanrec(ScanRecord*);
+public:
+  static Uint64 getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const bool use_reserved);
 #endif
 };
 
 #ifndef DBLQH_STATE_EXTRACT
+inline void Dblqh::checkPoolShrinkNeed(const Uint32 pool_index,
+                                       const TransientFastSlotPool& pool)
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools[pool_index] == &pool);
+#endif
+  if (pool.may_shrink())
+  {
+    sendPoolShrink(pool_index);
+  }
+}
 
 inline
 bool
@@ -4160,7 +4338,7 @@ Dblqh::is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2)
 {
   TcConnectionrecPtr regTcPtr;  
   regTcPtr.i= opId;
-  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
   return ((regTcPtr.p->transid[0] == trid1) &&
           (regTcPtr.p->transid[1] == trid2));
 }
@@ -4172,7 +4350,7 @@ Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
 {
   TcConnectionrecPtr regTcPtr;  
   regTcPtr.i= opId;
-  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
   *hash = regTcPtr.p->hashValue;
   *gci_hi = regTcPtr.p->gci_hi;
   *gci_lo = regTcPtr.p->gci_lo;
@@ -4186,11 +4364,12 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
 {
   TcConnectionrecPtr regTcPtr;  
   regTcPtr.i= opId;
-  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-  signal->theData[0] = regTcPtr.p->accConnectrec;
-  signal->theData[1] = key->m_page_no;
-  signal->theData[2] = key->m_page_idx;
-  c_acc->execACCMINUPDATE(signal);
+  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
+  c_acc->execACCMINUPDATE(signal,
+                          regTcPtr.p->accConnectrec,
+                          regTcPtr.p->accConnectPtrP,
+                          key->m_page_no,
+                          key->m_page_idx);
 
   if (ERROR_INSERTED(5714))
   {
@@ -4212,7 +4391,7 @@ Dblqh::accremoverow(Signal* signal, Uint32 opId, const Local_key* key)
 {
   TcConnectionrecPtr regTcPtr;
   regTcPtr.i= opId;
-  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
   c_acc->removerow(regTcPtr.p->accConnectrec, key);
 }
 

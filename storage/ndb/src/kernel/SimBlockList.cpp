@@ -205,27 +205,30 @@ SimBlockList::unload(){
 
 Uint64 SimBlockList::getTransactionMemoryNeed(
   const Uint32 dbtc_instance_count,
+  const Uint32 ldm_instance_count,
   const ndb_mgm_configuration_iterator * mgm_cfg,
-  const Uint32 TakeOverOperations,
-  const Uint32 MaxNoOfConcurrentIndexOperations,
-  const Uint32 MaxNoOfConcurrentOperations,
-  const Uint32 MaxNoOfConcurrentScans,
-  const Uint32 MaxNoOfConcurrentTransactions,
-  const Uint32 MaxNoOfFiredTriggers,
-  const Uint32 MaxNoOfLocalScans,
-  const Uint32 TransactionBufferMemory) const
+  const bool use_reserved) const
 {
   Uint64 byte_count = Dbtc::getTransactionMemoryNeed(
-  dbtc_instance_count,
-  mgm_cfg,
-  TakeOverOperations,
-  MaxNoOfConcurrentIndexOperations,
-  MaxNoOfConcurrentOperations,
-  MaxNoOfConcurrentScans,
-  MaxNoOfConcurrentTransactions,
-  MaxNoOfFiredTriggers,
-  MaxNoOfLocalScans,
-  TransactionBufferMemory);
+    dbtc_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dbacc::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dblqh::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dbtup::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dbtux::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
   return byte_count;
 }
 

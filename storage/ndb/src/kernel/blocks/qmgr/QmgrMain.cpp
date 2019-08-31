@@ -1699,7 +1699,7 @@ retry:
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
     rep->failNodeId = nodeId;
@@ -1736,7 +1736,7 @@ retry:
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
     return;
   }
@@ -5362,7 +5362,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false);
+          ndbabort();
         }
       }//if
     }//for
@@ -5592,7 +5592,7 @@ void Qmgr::execREAD_NODESREQ(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }//Qmgr::execREAD_NODESREQ()
 
@@ -5891,7 +5891,7 @@ Qmgr::sendPrepFailReqRef(Signal* signal,
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 

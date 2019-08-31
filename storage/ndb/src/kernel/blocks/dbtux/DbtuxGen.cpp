@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,10 @@
 
 #include <signaldata/NodeStateSignalData.hpp>
 
+#ifdef VM_TRACE
+//#define DO_TRANSIENT_POOL_STAT
+#endif
+
 #define JAM_FILE_ID 365
 
 Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
@@ -36,7 +40,7 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
-  debugOut(*new NullOutputStream()),
+  tuxDebugOut(*new NullOutputStream()),
   debugFlags(0),
 #endif
   c_internalStartPhase(0),
@@ -102,10 +106,54 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtux::execDROP_FRAG_REQ);
 
   c_signal_bug32040 = 0;
+
+  c_transient_pools[DBTUX_SCAN_OPERATION_TRANSIENT_POOL_INDEX] =
+    &c_scanOpPool;
+  c_transient_pools[DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX] =
+    &c_scanLockPool;
+  c_transient_pools[DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX] =
+    &c_scanBoundPool;
+  NDB_STATIC_ASSERT(c_transient_pool_count == 3);
+  c_transient_pools_shrinking.clear();
 }
 
 Dbtux::~Dbtux()
 {
+}
+
+Uint64 Dbtux::getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    bool use_reserved)
+{
+  Uint64 scan_op_byte_count = 0;
+  Uint32 tux_scan_recs = 0;
+  Uint32 tux_scan_lock_recs = 0;
+  if (use_reserved)
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_TUX_RESERVED_SCAN_RECORDS,
+                                       &tux_scan_recs));
+    tux_scan_lock_recs = 1000;
+  }
+  else
+  {
+    Uint32 scanBatch = 0;
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TUX_SCAN_OP, &tux_scan_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LDM_BATCH_SIZE, &scanBatch));
+    tux_scan_lock_recs = tux_scan_recs * scanBatch;
+  }
+  scan_op_byte_count += ScanOp_pool::getMemoryNeed(tux_scan_recs);
+  scan_op_byte_count *= ldm_instance_count;
+
+  Uint64 scan_lock_byte_count = 0;
+  scan_lock_byte_count += ScanLock_pool::getMemoryNeed(tux_scan_lock_recs);
+  scan_lock_byte_count *= ldm_instance_count;
+
+  const Uint32 nScanBoundWords = tux_scan_recs * ScanBoundSegmentSize * 4;
+  Uint64 scan_bound_byte_count = nScanBoundWords * ldm_instance_count;
+
+  return (scan_op_byte_count + scan_lock_byte_count + scan_bound_byte_count);
 }
 
 void
@@ -114,6 +162,41 @@ Dbtux::execCONTINUEB(Signal* signal)
   jamEntry();
   const Uint32* data = signal->getDataPtr();
   switch (data[0]) {
+  case TuxContinueB::ShrinkTransientPools:
+  {
+    jam();
+    Uint32 pool_index = signal->theData[1];
+    ndbassert(signal->getLength() == 2);
+    shrinkTransientPools(pool_index);
+    return;
+  }
+#if (defined(VM_TRACE) || \
+     defined(ERROR_INSERT)) && \
+    defined(DO_TRANSIENT_POOL_STAT)
+
+  case TuxContinueB::TransientPoolStat:
+  {
+    for (Uint32 pool_index = 0;
+         pool_index < c_transient_pool_count;
+         pool_index++)
+    {
+      g_eventLogger->info(
+        "DBTUP %u: Transient slot pool %u %p: Entry size %u:"
+       " Free %u: Used %u: Used high %u: Size %u: For shrink %u",
+       instance(),
+       pool_index,
+       c_transient_pools[pool_index],
+       c_transient_pools[pool_index]->getEntrySize(),
+       c_transient_pools[pool_index]->getNoOfFree(),
+       c_transient_pools[pool_index]->getUsed(),
+       c_transient_pools[pool_index]->getUsedHi(),
+       c_transient_pools[pool_index]->getSize(),
+       c_transient_pools_shrinking.get(pool_index));
+    }
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5000, 1);
+    break;
+  }
+#endif
   case TuxContinueB::DropIndex: // currently unused
     {
       IndexPtr indexPtr;
@@ -169,6 +252,13 @@ Dbtux::execSTTOR(Signal* signal)
     break;
   case 3:
     jam();
+#if (defined(VM_TRACE) || \
+     defined(ERROR_INSERT)) && \
+    defined(DO_TRANSIENT_POOL_STAT)
+    /* Start reporting statistics for transient pools */
+    signal->theData[0] = TuxContinueB::TransientPoolStat;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+#endif
     c_typeOfStart = signal->theData[7];
     break;
     return;
@@ -297,18 +387,16 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_UPDATE_DELAY,
                             &nStatUpdateDelay);
 
-  const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * KeyTypeSize + nAttribute * AttributeHeaderSize + DescPageSize - 1) / DescPageSize;
-  const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
-  const Uint32 nScanLock = nScanOp * nScanBatch;
+  const Uint32 nDescPage = (nIndex * DescHeadSize +
+                            nAttribute * KeyTypeSize +
+                            nAttribute * AttributeHeaderSize +
+                            DescPageSize - 1) / DescPageSize;
   const Uint32 nStatOp = 8;
   
   c_indexPool.setSize(nIndex);
   c_fragPool.setSize(nFragment);
   c_descPagePool.setSize(nDescPage);
   c_fragOpPool.setSize(MaxIndexFragments);
-  c_scanOpPool.setSize(nScanOp);
-  c_scanBoundPool.setSize(nScanBoundWords);
-  c_scanLockPool.setSize(nScanLock);
   c_statOpPool.setSize(nStatOp);
   c_indexStatAutoUpdate = nStatAutoUpdate;
   c_indexStatSaveSize = nStatSaveSize;
@@ -354,6 +442,44 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 #ifdef VM_TRACE
   c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer", sizeof(char), DebugBufferBytes);
 #endif
+
+  Pool_context pc;
+  pc.m_block = this;
+
+  Uint32 reserveScanOpRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_RESERVED_SCAN_RECORDS,
+                                        &reserveScanOpRecs));
+  c_scanOpPool.init(
+    ScanOp::TYPE_ID,
+    pc,
+    reserveScanOpRecs,
+    UINT32_MAX);
+  while (c_scanOpPool.startup())
+  {
+    refresh_watch_dog();
+  }
+
+  c_freeScanLock = RNIL;
+  Uint32 reserveScanLockRecs = 1000;
+  c_scanLockPool.init(
+    ScanLock::TYPE_ID,
+    pc,
+    reserveScanLockRecs,
+    UINT32_MAX);
+  while (c_scanLockPool.startup())
+  {
+    refresh_watch_dog();
+  }
+  const Uint32 nScanBoundWords = reserveScanOpRecs * ScanBoundSegmentSize * 4;
+  c_scanBoundPool.init(
+    RT_DBTUX_SCAN_BOUND,
+    pc,
+    nScanBoundWords,
+    UINT32_MAX);
+  while (c_scanBoundPool.startup())
+  {
+    refresh_watch_dog();
+  }
 
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -414,10 +540,11 @@ Dbtux::readKeyAttrs(TuxCtx& ctx,
 
 #ifdef VM_TRACE
   if (debugFlags & (DebugMaint | DebugScan)) {
-    debugOut << "readKeyAttrs: ";
-    debugOut << " ent:" << ent << " count:" << count;
-    debugOut << " data:" << keyData.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
+    tuxDebugOut << "readKeyAttrs: ";
+    tuxDebugOut << " ent:" << ent << " count:" << count;
+    tuxDebugOut << " data:" << keyData.print(ctx.c_debugBuffer,
+                                             DebugBufferBytes);
+    tuxDebugOut << endl;
   }
 #endif
 }
@@ -522,6 +649,37 @@ Dbtux::findFrag(EmulatedJamBuffer* jamBuf, const Index& index,
     }
   }
   fragPtr.i = RNIL;
+}
+
+void
+Dbtux::sendPoolShrink(const Uint32 pool_index)
+{
+  const bool need_send = c_transient_pools_shrinking.get(pool_index) == 0;
+  c_transient_pools_shrinking.set(pool_index);
+  if (need_send)
+  {
+    SignalT<2> signal2[1];
+    Signal* signal = new (&signal2[0]) Signal(0);
+    memset(signal2, 0, sizeof(signal2));
+    signal->theData[0] = TuxContinueB::ShrinkTransientPools;
+    signal->theData[1] = pool_index;
+    sendSignal(reference(), GSN_CONTINUEB, (Signal*)signal, 2, JBB);
+  }
+}
+
+void
+Dbtux::shrinkTransientPools(Uint32 pool_index)
+{
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools_shrinking.get(pool_index));
+  if (c_transient_pools[pool_index]->rearrange_free_list_and_shrink(1))
+  {
+    sendPoolShrink(pool_index);
+  }
+  else
+  {
+    c_transient_pools_shrinking.clear(pool_index);
+  }
 }
 
 BLOCK_FUNCTIONS(Dbtux)

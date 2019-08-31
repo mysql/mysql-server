@@ -163,19 +163,30 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     {
       jam();
       bits |= ScanOp::SCAN_LCP;
-      c_scanOpPool.getPtr(scanPtr, c_lcp_scan_op);
+      scanPtr.i = c_lcp_scan_op;
+      ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
       ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i);
       ndbrequire(scanPtr.p->m_state == ScanOp::First);
+    }
+    else if (AccScanReq::getCopyFragScanFlag(req->requestInfo))
+    {
+      jam();
+      bits |= ScanOp::SCAN_COPY_FRAG;
+      scanPtr.i = c_copy_frag_scan_op;
+      ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
+      ndbrequire(scanPtr.p->m_state == ScanOp::First);
+      ndbrequire(scanPtr.p->m_bits == 0);
     }
     else
     {
       // seize from pool and link to per-fragment list
-      Local_ScanOp_list list(c_scanOpPool, frag.m_scanList);
-      if (! list.seizeFirst(scanPtr)) {
-	jam();
-	break;
+      if (!c_scanOpPool.seize(scanPtr))
+      {
+        jam();
+        break;
       }
-      new (scanPtr.p) ScanOp;
+      Local_ScanOp_list list(c_scanOpPool, frag.m_scanList);
+      list.addFirst(scanPtr);
       jam();
     }
 
@@ -259,6 +270,8 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     scan.m_transId1 = req->transId1;
     scan.m_transId2 = req->transId2;
     scan.m_savePointId = req->savePointId;
+    scan.m_accLockOp = RNIL;
+    scan.m_last_seen = __LINE__;
 
     // conf
     AccScanConf* const conf = (AccScanConf*)signal->getDataPtrSend();
@@ -269,13 +282,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     /* Return ACC_SCANCONF */
     return;
   } while (0);
-  if (scanPtr.i != RNIL) {
-    jam();
-    releaseScanOp(scanPtr);
-  }
-  // LQH does not handle REF
-  ndbabort();
-  signal->theData[8] = 1; /* Failure */
+  signal->theData[8] = AccScanRef::TupNoFreeScanOp; /* Failure */
   /* Return ACC_SCANREF */
 }
 
@@ -286,7 +293,8 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
   const NextScanReq reqCopy = *(const NextScanReq*)signal->getDataPtr();
   const NextScanReq* const req = &reqCopy;
   ScanOpPtr scanPtr;
-  c_scanOpPool.getPtr(scanPtr, req->accPtr);
+  scanPtr.i = req->accPtr;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   switch (req->scanFlag) {
   case NextScanReq::ZSCAN_NEXT:
@@ -373,32 +381,89 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   const AccCheckScan reqCopy = *(const AccCheckScan*)signal->getDataPtr();
   const AccCheckScan* const req = &reqCopy;
   ScanOpPtr scanPtr;
-  c_scanOpPool.getPtr(scanPtr, req->accPtr);
+  scanPtr.i = req->accPtr;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   // fragment
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
+  bool wait_for_scan_lock_record = false;
+  if (scan.m_bits & ScanOp::SCAN_LOCK &&
+      c_freeScanLock == RNIL)
+  {
+    ScanLockPtr allocPtr;
+    if (likely((scan.m_bits & ScanOp::SCAN_COPY_FRAG) == 0))
+    {
+      if (likely(c_scanLockPool.seize(allocPtr)))
+      {
+        c_freeScanLock = allocPtr.i;
+      }
+      else
+      {
+        jam();
+        wait_for_scan_lock_record = true;
+      }
+    }
+    else
+    {
+      jam();
+      /**
+       * Copy fragment scans use a preallocated scan lock record to avoid
+       * risk of not getting a scan lock record.
+       */
+      c_freeScanLock = c_copy_frag_scan_lock;
+    }
+  }
   if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP &&
-      scan.m_bits & ScanOp::SCAN_LOCK_WAIT)
+      (scan.m_bits & ScanOp::SCAN_LOCK_WAIT ||
+       wait_for_scan_lock_record))
   {
     /**
      * Go to sleep for 1 millisecond while we are waiting for a
-     * row lock.
+     * row lock or the scan lock record to store the row lock in.
+     *
+     * Could also be that we are waiting for a lock record to become
+     * available.
      */
     jam();
     CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
     cls->scanPtrI = scan.m_userPtr;
-    cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+    if (wait_for_scan_lock_record)
+    {
+      jam();
+      cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
+    }
+    else
+    {
+      jam();
+      cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+    }
     EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+    if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
+    {
+      jamEntry();
+      release_c_free_scan_lock();
+      return;
+    }
     jamEntry();
-    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
-    return;
+    ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+    /* Fall through, we will send NEXT_SCANCONF, this will detect close */
   }
-  if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
+  if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT ||
+      wait_for_scan_lock_record)
+  {
     jam();
-    // LQH asks if we are waiting for lock and we tell it to ask again
+    /**
+     * LQH asks if we are waiting for lock and we tell it to ask again
+     * The reason to go back to LQH here is to ensure that the scan can be
+     * closed if TC asked LQH to close the scan in the middle of the scan
+     * process.
+     * We go this path also when we could not allocate a lock record and
+     * it is time to go to LQH to check status before we go to sleep.
+     */
+    release_c_free_scan_lock();
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
@@ -426,6 +491,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
        */
       scan.m_last_seen = __LINE__;
       handle_lcp_keep(signal, fragPtr, scanPtr.p);
+      release_c_free_scan_lock();
       return;
     }
     jam();
@@ -438,6 +504,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     if (! immediate) {
       jam();
       // time-slicing via TUP or PGMAN
+      release_c_free_scan_lock();
       return;
     }
     jam();
@@ -461,7 +528,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     jamDebug();
     ndbrequire(scan.m_accLockOp == RNIL);
     Uint32 scan_bits = scan.m_bits;
-    if (scan_bits & ScanOp::SCAN_LOCK) {
+    if (scan_bits & ScanOp::SCAN_LOCK)
+    {
       jam();
       ndbrequire((scan_bits & ScanOp::SCAN_LCP) == 0);
       scan.m_last_seen = __LINE__;
@@ -495,6 +563,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->page_idx = key_mm.m_page_idx;
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
+      lockReq->isCopyFragScan = ((scan.m_bits & ScanOp::SCAN_COPY_FRAG) != 0);
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
           signal, AccLockReq::LockSignalLength);
       jamEntryDebug();
@@ -518,9 +587,18 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
+        {
+          jamEntry();
+          /* Normal path */
+          release_c_free_scan_lock();
+          return;
+        }
         jamEntry();
-        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
-        return;
+        /* DBTC has most likely aborted due to timeout */
+        ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+        /* Ensure that we send NEXT_SCANCONF immediately to close */
+        scan.m_state = ScanOp::Last;
         break;
       }
       case AccLockReq::Refused:
@@ -534,36 +612,56 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
+        {
+          jamEntry();
+          release_c_free_scan_lock();
+          return;
+        }
         jamEntry();
+        ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+        /* Ensure that we send NEXT_SCANCONF immediately to close */
+        scan.m_state = ScanOp::Last;
+        break;
         ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;
-        break;
       }
       case AccLockReq::NoFreeOp:
       {
         jam();
-        // max ops should depend on max scans (assert only)
-        ndbassert(false);
         // stay in Current state
+        ndbrequire((scan.m_bits & ScanOp::SCAN_COPY_FRAG) == 0);
         scan.m_state = ScanOp::Current;
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
-        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
+        {
+          jamEntry();
+          release_c_free_scan_lock();
+          return;
+        }
         jamEntry();
-        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
-        return;
+        ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+        /* Ensure that we send NEXT_SCANCONF immediately to close */
+        scan.m_state = ScanOp::Last;
         break;
       }
       default:
         ndbabort();
       }
-    } else {
+      ndbassert(c_freeScanLock != RNIL);
+    }
+    else
+    {
+      ndbassert(c_freeScanLock == RNIL);
       scan.m_state = ScanOp::Locked;
     }
-  } 
+  }
 
-  if (scan.m_state == ScanOp::Locked) {
+  if (scan.m_state == ScanOp::Locked)
+  {
     // we have lock or do not need one
     jamDebug();
     // conf signal
@@ -582,6 +680,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       accLockOp = (Uint32)-1;
       scan.m_last_seen = __LINE__;
     }
+    release_c_free_scan_lock();
     const ScanPos& pos = scan.m_scanPos;
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.fragmentId;
@@ -603,6 +702,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
   if (scan.m_state == ScanOp::Last ||
       scan.m_state == ScanOp::Invalid) {
     jam();
+    release_c_free_scan_lock();
     scan.m_last_seen = __LINE__;
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
@@ -634,7 +734,7 @@ Dbtup::execACCKEYCONF(Signal* signal)
   tmp.m_page_no = localKey1;
   tmp.m_page_idx = localKey2;
 
-  c_scanOpPool.getPtr(scanPtr);
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_bits & ScanOp::SCAN_LOCK_WAIT && scan.m_accLockOp != RNIL);
   scan.m_bits &= ~ ScanOp::SCAN_LOCK_WAIT;
@@ -701,7 +801,7 @@ Dbtup::execACCKEYREF(Signal* signal)
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
-  c_scanOpPool.getPtr(scanPtr);
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_bits & ScanOp::SCAN_LOCK_WAIT && scan.m_accLockOp != RNIL);
   scan.m_bits &= ~ ScanOp::SCAN_LOCK_WAIT;
@@ -758,7 +858,7 @@ Dbtup::execACC_ABORTCONF(Signal* signal)
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
-  c_scanOpPool.getPtr(scanPtr);
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_state == ScanOp::Aborting);
   c_lqh->setup_scan_pointers(scan.m_userPtr);
@@ -2993,7 +3093,8 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
    */
   ScanOpPtr scanPtr;
   TablerecPtr tablePtr;
-  c_scanOpPool.getPtr(scanPtr, fragPtrP->m_lcp_scan_op);
+  scanPtr.i = fragPtrP->m_lcp_scan_op;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   tablePtr.i = fragPtrP->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
   Uint32 scanGCI = scanPtr.p->m_scanGCI;
@@ -3190,7 +3291,8 @@ void
 Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_i)
 {
   ScanOpPtr scanPtr;
-  c_scanOpPool.getPtr(scanPtr, scanPtrI);
+  scanPtr.i = scanPtrI;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   c_lqh->setup_scan_pointers(scan.m_userPtr);
   ScanPos& pos = scan.m_scanPos;
@@ -3199,6 +3301,12 @@ Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_
   m_global_page_pool.getPtr(gptr, page_i);
   pos.m_page = (Page*)gptr.p;
   // continue
+  ndbrequire((scan.m_bits & ScanOp::SCAN_LOCK) == 0);
+  /**
+   * Since Disk scans can only scan read only and without locks we can bypass
+   * the code in execACC_CHECK_SCAN and move directly to scanNext and
+   * scanReply.
+   */
   scanCont(signal, scanPtr);
 }
 
@@ -3225,9 +3333,12 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
-      list.release(lockPtr);
+      list.remove(lockPtr);
+      release_scan_lock(lockPtr);
     }
   }
+  checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
+                      c_scanLockPool);
   // send conf
   scan.m_last_seen = __LINE__;
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
@@ -3238,6 +3349,35 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
   signal->setLength(NextScanConf::SignalLengthNoTuple);
   c_lqh->exec_next_scan_conf(signal);
   return;
+}
+
+void Dbtup::release_scan_lock(ScanLockPtr releasePtr)
+{
+  if (likely(releasePtr.i != c_copy_frag_scan_lock))
+  {
+    c_scanLockPool.release(releasePtr);
+  }
+  else
+  {
+    jam();
+    releasePtr.p->m_accLockOp = RNIL;
+    releasePtr.p->prevList = RNIL;
+    releasePtr.p->nextList = RNIL;
+  }
+}
+
+void Dbtup::release_c_free_scan_lock()
+{
+  if (c_freeScanLock != RNIL)
+  {
+    ScanLockPtr releasePtr;
+    releasePtr.i = c_freeScanLock;
+    ndbrequire(c_scanLockPool.getValidPtr(releasePtr));
+    release_scan_lock(releasePtr);
+    c_freeScanLock = RNIL;
+    checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
+                        c_scanLockPool);
+  }
 }
 
 void
@@ -3252,9 +3392,11 @@ Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
     list.next(lockPtr);
   }
 #endif
-  bool ok = list.seizeLast(lockPtr);
-  ndbrequire(ok);
+  lockPtr.i = c_freeScanLock;
+  c_freeScanLock = RNIL;
+  ndbrequire(c_scanLockPool.getValidPtr(lockPtr));
   lockPtr.p->m_accLockOp = accLockOp;
+  list.addLast(lockPtr);
 }
 
 void
@@ -3271,7 +3413,10 @@ Dbtup::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
     list.next(lockPtr);
   }
   ndbrequire(lockPtr.i != RNIL);
-  list.release(lockPtr);
+  list.remove(lockPtr);
+  release_scan_lock(lockPtr);
+  checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
+                      c_scanLockPool);
 }
 
 void
@@ -3290,7 +3435,8 @@ Dbtup::stop_lcp_scan(Uint32 tableId, Uint32 fragId)
 
   ndbrequire(frag.m_lcp_scan_op != RNIL && c_lcp_scan_op != RNIL);
   ScanOpPtr scanPtr;
-  c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+  scanPtr.i = frag.m_lcp_scan_op;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ndbrequire(scanPtr.p->m_fragPtrI != RNIL);
 
   fragPtr.p->m_lcp_scan_op = RNIL;
@@ -3305,7 +3451,7 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
   fragPtr.i = scanPtr.p->m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
 
-  if(scanPtr.p->m_bits & ScanOp::SCAN_LCP)
+  if (scanPtr.p->m_bits & ScanOp::SCAN_LCP)
   {
     jam();
     /**
@@ -3313,11 +3459,21 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
      * can happen in several scans, one per LCP file.
      */
   }
+  else if ((scanPtr.p->m_bits & ScanOp::SCAN_COPY_FRAG) != 0)
+  {
+    jam();
+    ndbrequire(c_copy_frag_scan_op == scanPtr.i);
+    scanPtr.p->m_state = ScanOp::First;
+    scanPtr.p->m_bits = 0;
+  }
   else
   {
     jam();
     Local_ScanOp_list list(c_scanOpPool, fragPtr.p->m_scanList);
-    list.release(scanPtr);
+    list.remove(scanPtr);
+    c_scanOpPool.release(scanPtr);
+    checkPoolShrinkNeed(DBTUP_SCAN_OPERATION_TRANSIENT_POOL_INDEX,
+                        c_scanOpPool);
   }
 }
 
@@ -3340,7 +3496,8 @@ Dbtup::start_lcp_scan(Uint32 tableId,
   ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
   frag.m_lcp_scan_op = c_lcp_scan_op;
   ScanOpPtr scanPtr;
-  c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+  scanPtr.i = frag.m_lcp_scan_op;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
   new (scanPtr.p) ScanOp;
   scanPtr.p->m_fragPtrI = fragPtr.i;
@@ -3396,7 +3553,8 @@ Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId)
   {
     jam();
     ScanOpPtr scanPtr;
-    c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+    scanPtr.i = frag.m_lcp_scan_op;
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
     g_eventLogger->info("LCP Frag watchdog: tab(%u,%u), state: %u,"
                         " last seen line %u",
                         tableId, fragId,

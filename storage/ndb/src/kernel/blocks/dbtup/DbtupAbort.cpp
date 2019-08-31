@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,7 +182,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   TablerecPtr regTabPtr;
 
   regOperPtr.i = signal->theData[0];
-  c_operation_pool.getPtr(regOperPtr);
+  ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
   TransState trans_state= get_trans_state(regOperPtr.p);
   ndbrequire((trans_state == TRANS_STARTED) ||
              (trans_state == TRANS_TOO_MUCH_AI) ||
@@ -234,7 +234,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       while (loopOpPtr.i != RNIL) 
       {
         jam();
-        c_operation_pool.getPtr(loopOpPtr);
+        ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
         if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
         {
           jam();
@@ -262,7 +262,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       while (loopOpPtr.i != RNIL) 
       {
         jam();
-        c_operation_pool.getPtr(loopOpPtr);
+        ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
         if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
         {
           jam();
@@ -539,7 +539,7 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
     if (nextOperPtr.i != RNIL)
     {
       jam();
-      c_operation_pool.getPtr(nextOperPtr);
+      ndbrequire(c_operation_pool.getValidPtr(nextOperPtr));
       nextOperPtr.p->prevActiveOp = prevOperPtr.i;
     }
     else
@@ -550,7 +550,7 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
     if (prevOperPtr.i != RNIL)
     {
       jam();
-      c_operation_pool.getPtr(prevOperPtr);
+      ndbrequire(c_operation_pool.getValidPtr(prevOperPtr));
       prevOperPtr.p->nextActiveOp = nextOperPtr.i;
       if (nextOperPtr.i == RNIL)
       {

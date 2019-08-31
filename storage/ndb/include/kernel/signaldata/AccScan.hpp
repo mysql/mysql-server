@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 
 /*
- * Used by ACC and TUX scan.
+ * Used by ACC and TUX and TUP scan.
  */
 
 class AccScanReq {
@@ -85,6 +85,9 @@ private:
 
   static Uint32 getStatScanFlag(const Uint32 & requestInfo);
   static void setStatScanFlag(Uint32 & requestInfo, Uint32 nr);
+
+  static Uint32 getCopyFragScanFlag(const Uint32 & requestInfo);
+  static void setCopyFragScanFlag(Uint32 & requestInfo, Uint32 nr);
 };
 
 /**
@@ -97,10 +100,11 @@ private:
  * n = Node recovery scan    - 1  Bit 8
  * c = LCP scan              - 1  Bit 9
  * s = Statistics scan       - 1  Bit 4
+ * f = Copy fragment scan    - 1  Bit 10
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *   l shzdn   
+ *   l shzdncf   
  */
 #define AS_LOCK_MODE_SHIFT       (2)
 #define AS_LOCK_MODE_MASK        (1)
@@ -110,6 +114,7 @@ private:
 #define AS_NR_SCAN               (8)
 #define AS_LCP_SCAN              (9)
 #define AS_STAT_SCAN             (4)
+#define AS_COPY_FRAG_SCAN        (10)
 
 inline 
 Uint32
@@ -202,6 +207,19 @@ AccScanReq::setStatScanFlag(UintR & requestInfo, UintR val){
   requestInfo |= (val << AS_STAT_SCAN);
 }
 
+inline
+Uint32
+AccScanReq::getCopyFragScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> AS_COPY_FRAG_SCAN) & 1;
+}
+
+inline
+void
+AccScanReq::setCopyFragScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "AccScanReq::setCopyFragScanFlag");
+  requestInfo |= (val << AS_COPY_FRAG_SCAN);
+}
+
 class AccScanConf {
   /**
    * Sender(s)
@@ -237,6 +255,8 @@ private:
 class AccScanRef {
   friend class Dbtux;
   friend class Dblqh;
+  friend class Dbtup;
+  friend class Dbacc;
 
   enum ErrorCode {
     TuxNoFreeScanOp = 909,
@@ -244,6 +264,8 @@ class AccScanRef {
     TuxInvalidKeySize = 911,
     TuxInvalidLockMode = 912,
     TuxNoFreeStatOp = 915,
+    TupNoFreeScanOp = 925,
+    AccNoFreeScanOp = 926,
   };
 
 public:
@@ -281,14 +303,17 @@ class CheckLcpStop
 
   enum ScanState
   {
-    ZSCAN_RUNNABLE = 0,        // Scan runnable immediately
-    ZSCAN_RESOURCE_WAIT = 1,   // Scan waiting for something
-    ZSCAN_RUNNABLE_YIELD = 2   // Scan runnable, yielding cpu
+    ZSCAN_RUNNABLE = 0,               // Scan runnable immediately
+    ZSCAN_RESOURCE_WAIT = 1,          // Scan waiting for something
+    ZSCAN_RUNNABLE_YIELD = 2,         // Scan runnable, yielding cpu
+    ZSCAN_RESOURCE_WAIT_STOPPABLE = 3 // Scan waiting for something
   };
 
   enum Reply
   {
-    ZTAKE_A_BREAK = RNIL       // In signal[0] after EXECUTE_DIRECT
+    // In signal[0] after EXECUTE_DIRECT
+    ZTAKE_A_BREAK = RNIL,
+    ZABORT_SCAN = 0
   };
 public:
   STATIC_CONST( SignalLength = 2);

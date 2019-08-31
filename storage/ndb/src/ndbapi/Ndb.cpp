@@ -1141,7 +1141,7 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
 {
   DBUG_ENTER("Ndb::closeTransaction");
   NdbTransaction* tCon;
-  NdbTransaction* tPreviousCon;
+  NdbTransaction* tPreviousCon = nullptr;
 
   if (aConnection == NULL) {
 //-----------------------------------------------------

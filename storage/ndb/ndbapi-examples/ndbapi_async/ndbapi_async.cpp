@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -342,8 +342,8 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 	}
 	asynchExitHandler(myNdb);
       } // if
-      char mercedes[20];
-      char blue[20];
+      char mercedes[22];
+      char blue[22];
       memset(mercedes, 0, sizeof(mercedes));
       memset(blue, 0, sizeof(blue));
       strcpy(mercedes, "mercedes");
@@ -445,9 +445,9 @@ void ndb_run_async_inserts(const char * connectstring)
     exit(-1);
   }
 
-  Ndb myNdb( &cluster_connection, "ndb_examples" );
-  if (myNdb.init(1024) == -1) {      // Set max 1024 parallel transactions
-    APIERROR(myNdb.getNdbError());
+  Ndb *myNdb = new Ndb( &cluster_connection, "ndb_examples" );
+  if (myNdb->init(1024) == -1) {      // Set max 1024 parallel transactions
+    APIERROR(myNdb->getNdbError());
   }
 
   /**
@@ -455,7 +455,7 @@ void ndb_run_async_inserts(const char * connectstring)
    */
   for(int i = 0 ; i < 1234 ; i++) 
   {
-    while(populate(&myNdb, i, 0) < 0)  // <0, no space on free list. Sleep and try again.
+    while(populate(myNdb, i, 0) < 0)  // <0, no space on free list. Sleep and try again.
       milliSleep(10);
   }
   /**
@@ -464,10 +464,10 @@ void ndb_run_async_inserts(const char * connectstring)
    */
   while (nPreparedTransactions > 0)
   {
-    const int nCompleted = myNdb.sendPollNdb(3000, nPreparedTransactions);
+    const int nCompleted = myNdb->sendPollNdb(3000, nPreparedTransactions);
     nPreparedTransactions -= nCompleted;
   }
-
+  delete myNdb;
   std::cout << "Number of temporary errors: " << tempErrors << std::endl;
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,6 @@ protected:
 private:
   bool _shmSegCreated;
   bool _attached;
-  bool m_connected;
   
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;

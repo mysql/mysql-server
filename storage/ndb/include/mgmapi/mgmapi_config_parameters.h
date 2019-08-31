@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,6 +247,8 @@
 #define CFG_DB_RESERVED_TRANSACTIONS  664
 #define CFG_DB_RESERVED_SCANS         665
 #define CFG_DB_RESERVED_TRANS_BUFFER_MEM 666
+
+#define CFG_DB_TRANSACTION_MEM        667
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

@@ -34,6 +34,42 @@
 
 #define LQH_DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
+Uint64 Dblqh::getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const bool use_reserved)
+{
+  Uint32 lqh_scan_recs = 0;
+  Uint32 lqh_op_recs = 0;
+  if (use_reserved)
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_LDM_RESERVED_OPERATIONS,
+                                       &lqh_op_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_LQH_RESERVED_SCAN_RECORDS,
+                                       &lqh_scan_recs));
+  }
+  else
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LQH_SCAN, &lqh_scan_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LQH_TC_CONNECT, &lqh_op_recs));
+  }
+  Uint64 scan_byte_count = 0;
+  scan_byte_count += ScanRecord_pool::getMemoryNeed(lqh_scan_recs);
+  scan_byte_count *= ldm_instance_count;
+
+  Uint64 op_byte_count = 0;
+  op_byte_count += TcConnectionrec_pool::getMemoryNeed(lqh_op_recs);
+  op_byte_count *= ldm_instance_count;
+
+  Uint32 lqh_commit_ack_markers = 4096;
+  Uint64 commit_ack_marker_byte_count = 0;
+  commit_ack_marker_byte_count +=
+    CommitAckMarker_pool::getMemoryNeed(lqh_commit_ack_markers);
+  return (op_byte_count + scan_byte_count + commit_ack_marker_byte_count);
+}
+
 void Dblqh::initData() 
 {
 #ifdef ERROR_INSERT
@@ -68,9 +104,7 @@ void Dblqh::initData()
   clogPartFileSize = lpinfo.partCount;
 
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
-  cscanrecFileSize = 0;
   ctabrecFileSize = 0;
-  ctcConnectrecFileSize = 0;
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
   cTransactionDeadlockDetectionTimeout = 100;
 
@@ -84,7 +118,6 @@ void Dblqh::initData()
   logPageRecord = 0;
   pageRefRecord = 0;
   tablerec = 0;
-  tcConnectionrec = 0;
   tcNodeFailRecord = 0;
   
   // Records with constant sizes
@@ -113,7 +146,7 @@ void Dblqh::initData()
   m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
-  for (Uint32 i = 0; i < 1024; i++) {
+  for (Uint32 i = 0; i < 4096; i++) {
     ctransidHash[i] = RNIL;
   }//for
 
@@ -193,7 +226,7 @@ void Dblqh::initData()
   m_restart_local_latest_lcp_id = 0;
 }//Dblqh::initData()
 
-void Dblqh::initRecords() 
+void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg) 
 {
 #if defined(USE_INIT_GLOBAL_VARIABLES)
   {
@@ -311,19 +344,58 @@ void Dblqh::initRecords()
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
 
-  c_scanRecordPool.setSize(cscanrecFileSize);
-  c_scanTakeOverHash.setSize(64);
+  c_scanTakeOverHash.setSize(128);
 
   tablerec = (Tablerec*)allocRecord("Tablerec",
 				    sizeof(Tablerec), 
 				    ctabrecFileSize);
 
-  tcConnectionrec = (TcConnectionrec*)allocRecord("TcConnectionrec",
-						  sizeof(TcConnectionrec),
-						  ctcConnectrecFileSize);
-  
-  m_commitAckMarkerPool.setSize(ctcConnectrecFileSize);
-  m_commitAckMarkerHash.setSize(1024);
+  Pool_context pc;
+  pc.m_block = this;
+
+  Uint32 reserveTcConnRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
+              CFG_LDM_RESERVED_OPERATIONS, &reserveTcConnRecs));
+
+  ctcConnectReserved = reserveTcConnRecs;
+  ctcNumFree = reserveTcConnRecs;
+
+  tcConnect_pool.init(
+    TcConnectionrec::TYPE_ID,
+    pc,
+    reserveTcConnRecs,
+    ((1 << 28) - 1));
+  while (tcConnect_pool.startup())
+  {
+    refresh_watch_dog();
+  }
+
+  Uint32 reserveScanRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
+                            CFG_LQH_RESERVED_SCAN_RECORDS,
+                            &reserveScanRecs));
+  c_scanRecordPool.init(
+    ScanRecord::TYPE_ID,
+    pc,
+    reserveScanRecs,
+    UINT32_MAX);
+  while (c_scanRecordPool.startup())
+  {
+    refresh_watch_dog();
+  }
+
+  Uint32 reserveCommitAckMarkers = 1024;
+
+  m_commitAckMarkerPool.init(
+    CommitAckMarker::TYPE_ID,
+    pc,
+    reserveCommitAckMarkers,
+    UINT32_MAX);
+  while (m_commitAckMarkerPool.startup())
+  {
+    refresh_watch_dog();
+  }
+  m_commitAckMarkerHash.setSize(4096);
   
   tcNodeFailRecord = (TcNodeFailRecord*)allocRecord("TcNodeFailRecord",
 						    sizeof(TcNodeFailRecord),
@@ -382,12 +454,12 @@ Dblqh::getParam(const char* name, Uint32* count)
 Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBLQH, ctx, instanceNumber),
   m_reserved_scans(c_scanRecordPool),
+  c_scanTakeOverHash(c_scanRecordPool),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
   c_queued_lcp_frag_ord(c_fragment_pool),
-  m_commitAckMarkerHash(m_commitAckMarkerPool),
-  c_scanTakeOverHash(c_scanRecordPool)
+  m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
   BLOCK_CONSTRUCTOR(Dblqh);
 
@@ -584,6 +656,14 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 
   initData();
 
+  c_transient_pools[DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX] =
+    &tcConnect_pool;
+  c_transient_pools[DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX] =
+    &c_scanRecordPool;
+  c_transient_pools[DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX] =
+    &m_commitAckMarkerPool;
+  NDB_STATIC_ASSERT(c_transient_pool_count == 3);
+  c_transient_pools_shrinking.clear();
 }//Dblqh::Dblqh()
 
 Dblqh::~Dblqh() 
@@ -641,11 +721,6 @@ Dblqh::~Dblqh()
 		"Tablerec",
 		sizeof(Tablerec), 
 		ctabrecFileSize);
-  
-  deallocRecord((void**)&tcConnectionrec,
-		"TcConnectionrec",
-		sizeof(TcConnectionrec),
-		ctcConnectrecFileSize);
   
   deallocRecord((void**)&tcNodeFailRecord,
 		"TcNodeFailRecord",

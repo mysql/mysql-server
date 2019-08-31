@@ -88,7 +88,7 @@ static const Uint32 WaitScanTempErrorRetryMillis = 10;
 static NDB_TICKS startTime;
 
 #ifdef VM_TRACE
-//#define DEBUG_LCP 1
+#define DEBUG_LCP 1
 //#define DEBUG_LCP_ROW 1
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1
@@ -3470,7 +3470,7 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         usableBytes = c_defaults.m_logBufferSize;
         break;
       default:
-        ndbrequire(false);
+        ndbabort();
         break;
       };
 

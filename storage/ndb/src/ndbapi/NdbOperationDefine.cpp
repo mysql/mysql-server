@@ -1001,8 +1001,8 @@ insertATTRINFO_error1:
  *                ATTRINFO signal.
  *****************************************************************************/
 int
-NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr, 
-				 register Uint32 aLength)
+NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr, 
+				 Uint32 aLength)
 {
   NdbApiSignal* tSignal;
   Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;

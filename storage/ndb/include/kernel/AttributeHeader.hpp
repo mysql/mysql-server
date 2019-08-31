@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,6 @@ public:
 public:
   AttributeHeader(Uint32 = 0);
   AttributeHeader(Uint32 anAttributeId, Uint32 aByteSize);
-  ~AttributeHeader();
   
   Uint32 m_value;
 };
@@ -182,10 +181,6 @@ AttributeHeader::AttributeHeader(Uint32 anAttributeId, Uint32 aByteSize)
   this->setAttributeId(anAttributeId);
   this->setByteSize(aByteSize);
 }
-
-inline
-AttributeHeader::~AttributeHeader()
-{}
 
 inline
 Uint32 AttributeHeader::getHeaderSize() const

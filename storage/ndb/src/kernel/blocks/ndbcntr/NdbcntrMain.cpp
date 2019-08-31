@@ -2490,7 +2490,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   /**
    * A node restart is ongoing where we are master and we just accepted this
@@ -2729,7 +2729,7 @@ Ndbcntr::trySystemRestart(Signal* signal){
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
   

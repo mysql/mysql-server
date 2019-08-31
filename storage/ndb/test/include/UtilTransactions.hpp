@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,14 @@ typedef int (ReadCallBackFn)(NDBT_ResultRow*);
 
 class UtilTransactions {
 public:
-  Uint64 m_latest_gci;
+  Uint64 m_util_latest_gci;
   Uint32 get_high_latest_gci()
   {
-    return Uint32(Uint64(m_latest_gci >> 32));
+    return Uint32(Uint64(m_util_latest_gci >> 32));
   }
   Uint32 get_low_latest_gci()
   {
-    return Uint32(Uint64(m_latest_gci & 0xFFFFFFFF));
+    return Uint32(Uint64(m_util_latest_gci & 0xFFFFFFFF));
   }
   UtilTransactions(const NdbDictionary::Table&,
 		   const NdbDictionary::Index* idx = 0);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ void StaticSlotPool::init(Uint32 type_id,
   const Uint32 min_pages = (*min_recs + slots_per_page - 1) / slots_per_page;
 
   Uint32 page_count = min_pages;
-  Uint32 page_number;
+  Uint32 page_number = 0;
   if (likely(page_count != 0))
   {
     mem_manager->alloc_pages(type_id,

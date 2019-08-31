@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ UtilTransactions::clearTable(Ndb* pNdb,
       if(check != -1){
 	check = pTrans->execute(Commit, AbortOnError);
         if (check != -1)
-          pTrans->getGCI(&m_latest_gci);
+          pTrans->getGCI(&m_util_latest_gci);
 	pTrans->restart();
       }
       
@@ -287,7 +287,7 @@ UtilTransactions::copyTableData(Ndb* pNdb,
       
       check = pTrans->execute(Commit, AbortOnError);   
       if (check != -1)
-        pTrans->getGCI(&m_latest_gci);
+        pTrans->getGCI(&m_util_latest_gci);
       pTrans->restart();
       if( check == -1 ) {
 	const NdbError err = pTrans->getNdbError();    

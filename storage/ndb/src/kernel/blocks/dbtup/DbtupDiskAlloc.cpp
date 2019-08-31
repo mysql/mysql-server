@@ -200,7 +200,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   }
 }
 
-#define ddrequire(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbrequire(false); } } while(0)
+#define ddrequire(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbabort(); } } while(0)
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbabort(); } } while(0)
 #else

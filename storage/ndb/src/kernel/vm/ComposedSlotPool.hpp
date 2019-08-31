@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,11 +216,11 @@ template <typename Pool1, typename Pool2>
 inline bool ComposedSlotPool<Pool1, Pool2>::seize_pool2(Ptr<Slot>& p,
                                                   Uint32 slot_size)
 {
-    if (!m_pool2.seize(p, slot_size))
-    {
-      return false;
-    }
-    p.i = fromPool2(p.i);
+  if (!m_pool2.seize(p, slot_size))
+  {
+    return false;
+  }
+  p.i = fromPool2(p.i);
   return true;
 }
 

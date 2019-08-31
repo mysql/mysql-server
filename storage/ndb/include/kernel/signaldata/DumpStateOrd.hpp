@@ -120,6 +120,8 @@ public:
     CmvmiExecuteLockCPU = 504,
     CmvmiMaintLockCPU = 505,
     CmvmiSchedulerSpinTimer = 506,
+    TupSetTransientPoolMaxSize = 1214,
+    TupResetTransientPoolMaxSize = 1215,
     // 1222-1225 DICT
     DictDumpLockQueue = 1228,
     DictDumpGetTabInfoQueue = 1229,
@@ -132,6 +134,8 @@ public:
     LqhErrorInsert5042 = 2315,
     LqhDumpPoolLevels = 2353,
     LqhReportCopyInfo = 2354,
+    LqhSetTransientPoolMaxSize = 2355,
+    LqhResetTransientPoolMaxSize = 2356,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
@@ -140,6 +144,8 @@ public:
     AccDumpNumOpRecs = 2404,
     AccDumpFreeOpRecs = 2405,
     AccDumpNotFreeOpRecs = 2406,
+    AccSetTransientPoolMaxSize = 2407,
+    AccResetTransientPoolMaxSize = 2408,
     DumpPageMemory = 1000, // Acc & TUP
     DumpPageMemoryOnFail = 1001,
     TcDumpSetOfScanFragRec = 2500,
@@ -229,6 +235,8 @@ public:
     TuxLogToFile = 12001,
     TuxSetLogFlags = 12002,
     TuxMetaDataJunk = 12009,
+    TuxSetTransientPoolMaxSize = 12010,
+    TuxResetTransientPoolMaxSize = 12011,
     
     DumpTsman = 9800,
  

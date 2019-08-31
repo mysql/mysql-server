@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -205,7 +205,7 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
     opPtr.i= tuple_ptr->m_operation_ptr_i;
     Uint32 loopGuard= 0;
     while (opPtr.i != RNIL) {
-      c_operation_pool.getPtr(opPtr);
+      ndbrequire(c_operation_pool.getValidPtr(opPtr));
       if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
         thrjamDebug(req_struct.jamBuffer);
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
@@ -273,11 +273,12 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
 
     if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
     {
-      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
-      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
-      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
+      OperationrecPtr opPtr;
+      opPtr.i = req_struct.m_tuple_ptr->m_operation_ptr_i;
+      ndbrequire(c_operation_pool.getValidPtr(opPtr));
+      ndbassert(!opPtr.p->m_copy_tuple_location.isNull());
       req_struct.m_tuple_ptr=
-	get_copy_tuple(&opPtrP->m_copy_tuple_location);
+	get_copy_tuple(&opPtr.p->m_copy_tuple_location);
     }
     prepare_read(&req_struct, tablePtrP, false);
     
@@ -377,7 +378,7 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
 
   OperationrecPtr currOpPtr;
   currOpPtr.i = opPtrI;
-  c_operation_pool.getPtr(currOpPtr);
+  ndbrequire(c_operation_pool.getValidPtr(currOpPtr));
 
   const bool sameTrans =
     c_lqh->is_same_trans(currOpPtr.p->userpointer, transId1, transId2);
@@ -749,12 +750,12 @@ next_tuple:
        * Start from first operation.  This is only to make things more
        * clear.  It is not required by ordered index implementation.
        */
-      c_operation_pool.getPtr(pageOperPtr);
+      ndbrequire(c_operation_pool.getValidPtr(pageOperPtr));
       while (pageOperPtr.p->prevActiveOp != RNIL)
       {
         jam();
         pageOperPtr.i = pageOperPtr.p->prevActiveOp;
-        c_operation_pool.getPtr(pageOperPtr);
+        ndbrequire(c_operation_pool.getValidPtr(pageOperPtr));
       }
       /*
        * Do not use req->errorCode as global control.
@@ -795,7 +796,7 @@ next_tuple:
       while (pageOperPtr.i != RNIL && ok)
       {
         jam();
-        c_operation_pool.getPtr(pageOperPtr);
+        ndbrequire(c_operation_pool.getValidPtr(pageOperPtr));
         req->errorCode = RNIL;
         req->tupVersion = pageOperPtr.p->op_struct.bit_field.tupVersion;
         EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,

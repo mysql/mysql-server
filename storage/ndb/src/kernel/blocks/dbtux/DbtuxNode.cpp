@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -262,15 +262,16 @@ Dbtux::nodePushUpScans(NodeHandle& node, unsigned pos)
   scanPtr.i = node.getNodeScan();
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getUncheckedPtrRW(scanPtr));
     TreePos& scanPos = scanPtr.p->m_scanPos;
     ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
+    ndbrequire(Magic::check_ptr(scanPtr.p));
     if (scanPos.m_pos >= pos) {
       jam();
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "At pushUp pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "At pushUp pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos++;
@@ -329,7 +330,7 @@ Dbtux::nodePopDownScans(NodeHandle& node, unsigned pos)
   scanPtr.i = node.getNodeScan();
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
     TreePos& scanPos = scanPtr.p->m_scanPos;
     ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     // handled before
@@ -338,8 +339,8 @@ Dbtux::nodePopDownScans(NodeHandle& node, unsigned pos)
       jam();
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "At popDown pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "At popDown pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos--;
@@ -406,7 +407,7 @@ Dbtux::nodePushDownScans(NodeHandle& node, unsigned pos)
   scanPtr.i = node.getNodeScan();
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
     TreePos& scanPos = scanPtr.p->m_scanPos;
     ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     // handled before
@@ -415,8 +416,8 @@ Dbtux::nodePushDownScans(NodeHandle& node, unsigned pos)
       jam();
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "At pushDown pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "At pushDown pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos--;
@@ -476,7 +477,7 @@ Dbtux::nodePopUpScans(NodeHandle& node, unsigned pos)
   scanPtr.i = node.getNodeScan();
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
     TreePos& scanPos = scanPtr.p->m_scanPos;
     ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != pos);
@@ -484,8 +485,8 @@ Dbtux::nodePopUpScans(NodeHandle& node, unsigned pos)
       jam();
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "At popUp pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "At popUp pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos++;
@@ -528,11 +529,11 @@ Dbtux::addScanList(NodeHandle& node, unsigned pos, Uint32 scanList)
   scanPtr.i = scanList;
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Add scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "To pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Add scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "To pos=" << pos << " " << node << endl;
       }
 #endif
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
@@ -561,7 +562,7 @@ Dbtux::removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList)
   scanPtr.i = node.getNodeScan();
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     TreePos& scanPos = scanPtr.p->m_scanPos;
     ndbrequire(scanPos.m_loc == node.m_loc);
@@ -569,8 +570,8 @@ Dbtux::removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList)
       jam();
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Remove scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "Fron pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Remove scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "Fron pos=" << pos << " " << node << endl;
       }
 #endif
       unlinkScan(node, scanPtr);
@@ -595,7 +596,7 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
   scanPtr.i = node.getNodeScan();
   do {
     jam();
-    c_scanOpPool.getPtr(scanPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
     TreePos& scanPos = scanPtr.p->m_scanPos;
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     ndbrequire(scanPos.m_loc == node.m_loc);
@@ -603,8 +604,8 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
       jam();
 #ifdef VM_TRACE
       if (debugFlags & DebugScan) {
-        debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        debugOut << "At pos=" << pos << " " << node << endl;
+        tuxDebugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        tuxDebugOut << "At pos=" << pos << " " << node << endl;
       }
 #endif
       prepare_move_scan_ctx(scanPtr);
@@ -644,7 +645,7 @@ Dbtux::unlinkScan(NodeHandle& node, ScanOpPtr scanPtr)
   prevPtr.i = RNIL;
   while (true) {
     jamDebug();
-    c_scanOpPool.getPtr(currPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(currPtr));
     Uint32 nextPtrI = currPtr.p->m_nodeScan;
     if (currPtr.i == scanPtr.i) {
       jamDebug();
@@ -674,7 +675,7 @@ Dbtux::islinkScan(NodeHandle& node, ScanOpPtr scanPtr)
   currPtr.i = node.getNodeScan();
   while (currPtr.i != RNIL) {
     jamDebug();
-    c_scanOpPool.getPtr(currPtr);
+    ndbrequire(c_scanOpPool.getValidPtr(currPtr));
     if (currPtr.i == scanPtr.i) {
       jamDebug();
       return true;

@@ -60,6 +60,9 @@
 #define dump_lock_queue(x)
 #endif
 
+#ifdef VM_TRACE
+//#define DO_TRANSIENT_POOL_STAT 1
+#endif
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
@@ -251,6 +254,41 @@ void Dbacc::execCONTINUEB(Signal* signal)
       releaseDirResources(signal);
       break;
     }
+  case ZACC_SHRINK_TRANSIENT_POOLS:
+  {
+    jam();
+    Uint32 pool_index = signal->theData[1];
+    ndbassert(signal->getLength() == 2);
+    shrinkTransientPools(pool_index);
+    break;
+  }
+#if (defined(VM_TRACE) || \
+     defined(ERROR_INSERT)) && \
+    defined(DO_TRANSIENT_POOL_STAT)
+
+  case ZACC_TRANSIENT_POOL_STAT:
+  {
+    for (Uint32 pool_index = 0;
+         pool_index < c_transient_pool_count;
+         pool_index++)
+    {
+      g_eventLogger->info(
+        "DBACC %u: Transient slot pool %u %p: Entry size %u:"
+       " Free %u: Used %u: Used high %u: Size %u: For shrink %u",
+       instance(),
+       pool_index,
+       c_transient_pools[pool_index],
+       c_transient_pools[pool_index]->getEntrySize(),
+       c_transient_pools[pool_index]->getNoOfFree(),
+       c_transient_pools[pool_index]->getUsed(),
+       c_transient_pools[pool_index]->getUsedHi(),
+       c_transient_pools[pool_index]->getSize(),
+       c_transient_pools_shrinking.get(pool_index));
+    }
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5000, 1);
+    break;
+  }
+#endif
   default:
     ndbabort();
   }//switch
@@ -314,6 +352,16 @@ void Dbacc::execSTTOR(Signal* signal)
     ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance())) != 0);
     ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     break;
+  case 3:
+#if (defined(VM_TRACE) || \
+     defined(ERROR_INSERT)) && \
+    defined(DO_TRANSIENT_POOL_STAT)
+
+    /* Start reporting statistics for transient pools */
+    signal->theData[0] = ZACC_TRANSIENT_POOL_STAT;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+#endif
+    break;
   }
   Uint32 signalkey = signal->theData[6];
   sttorrysignalLab(signal, signalkey);
@@ -355,20 +403,12 @@ void Dbacc::initialiseRecordsLab(Signal* signal,
     break;
   case 8:
     jam();
-    initialiseOperationRec();
+    initialisePageRec();
     break;
   case 9:
     jam();
-    initialisePageRec();
     break;
   case 10:
-    jam();
-    break;
-  case 11:
-    jam();
-    initialiseScanRec();
-    break;
-  case 12:
     jam();
 
     {
@@ -407,10 +447,8 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_FRAGMENT, &cfragmentsize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_OP_RECS, &coprecsize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_TABLE, &ctablesize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_SCAN, &cscanRecSize));
-  initRecords();
+  initRecords(p);
 
   initialiseRecordsLab(signal, 0, ref, senderData);
   return;
@@ -427,9 +465,10 @@ void Dbacc::sttorrysignalLab(Signal* signal, Uint32 signalkey) const
   signal->theData[2] = 2;
   /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSPH1;
-  signal->theData[4] = 255;
+  signal->theData[4] = ZSPH3;
+  signal->theData[5] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBACC_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
   /* END OF START PHASES */
   return;
 }//Dbacc::sttorrysignalLab()
@@ -456,25 +495,6 @@ void Dbacc::initialiseFragRec()
 }//Dbacc::initialiseFragRec()
 
 /* --------------------------------------------------------------------------------- */
-/* INITIALISE_OPERATION_REC                                                          */
-/*              INITIALATES THE OPERATION RECORDS.                                   */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseOperationRec()
-{
-  ndbrequire(coprecsize > 0);
-  for (operationRecPtr.i = 0; operationRecPtr.i < coprecsize; operationRecPtr.i++) {
-    refresh_watch_dog();
-    ptrAss(operationRecPtr, operationrec);
-    operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-    operationRecPtr.p->nextOp = operationRecPtr.i + 1;
-  }//for
-  operationRecPtr.i = coprecsize - 1;
-  ptrAss(operationRecPtr, operationrec);
-  operationRecPtr.p->nextOp = RNIL;
-  cfreeopRec = 0;
-}//Dbacc::initialiseOperationRec()
-
-/* --------------------------------------------------------------------------------- */
 /* INITIALISE_PAGE_REC                                                               */
 /*              INITIALATES THE PAGE RECORDS.                                        */
 /* --------------------------------------------------------------------------------- */
@@ -483,31 +503,6 @@ void Dbacc::initialisePageRec()
   cnoOfAllocatedPages = 0;
   cnoOfAllocatedPagesMax = 0;
 }//Dbacc::initialisePageRec()
-
-
-/* --------------------------------------------------------------------------------- */
-/* INITIALISE_ROOTFRAG_REC                                                           */
-/*              INITIALATES THE ROOTFRAG  RECORDS.                                   */
-/* --------------------------------------------------------------------------------- */
-/* --------------------------------------------------------------------------------- */
-/* INITIALISE_SCAN_REC                                                               */
-/*              INITIALATES THE QUE_SCAN RECORDS.                                    */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseScanRec()
-{
-  ndbrequire(cscanRecSize > 0);
-  for (scanPtr.i = 0; scanPtr.i < cscanRecSize; scanPtr.i++) {
-    ptrAss(scanPtr, scanRec);
-    scanPtr.p->scanNextfreerec = scanPtr.i + 1;
-    scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
-    scanPtr.p->activeLocalFrag = RNIL;
-    scanPtr.p->initContainer();
-  }//for
-  scanPtr.i = cscanRecSize - 1;
-  ptrAss(scanPtr, scanRec);
-  scanPtr.p->scanNextfreerec = RNIL;
-  cfirstFreeScanRec = 0;
-}//Dbacc::initialiseScanRec()
 
 
 /* --------------------------------------------------------------------------------- */
@@ -934,7 +929,8 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
   /* CONECTION PTR OF LQH            */
   BlockReference userblockref = signal->theData[1];
   /* BLOCK REFERENCE OF LQH          */
-  if (cfreeopRec == RNIL) {
+  if (!oprec_pool.seize(operationRecPtr))
+  {
     jam();
     Uint32 result = ZCONNECT_SIZE_ERROR;
     signal->theData[0] = userptr;
@@ -942,11 +938,8 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
     sendSignal(userblockref, GSN_ACCSEIZEREF, signal, 2, JBB);
     return;
   }//if
-  seizeOpRec();
-  ptrGuard(operationRecPtr);
   operationRecPtr.p->userptr = userptr;
   operationRecPtr.p->userblockref = userblockref;
-  operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
   /* ******************************< */
   /* ACCSEIZECONF                    */
   /* ******************************< */
@@ -955,6 +948,33 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
   sendSignal(userblockref, GSN_ACCSEIZECONF, signal, 2, JBB);
   return;
 }//Dbacc::execACCSEIZEREQ()
+
+Dbacc::Operationrec*
+Dbacc::get_operation_ptr(Uint32 i)
+{
+  OperationrecPtr opPtr;
+  opPtr.i = i;
+  ndbrequire(oprec_pool.getValidPtr(opPtr));
+  return opPtr.p;
+}
+
+bool Dbacc::seize_op_rec(Uint32 userptr,
+                         BlockReference ref,
+                         Uint32 &i_val,
+                         Dbacc::Operationrec **ptr)
+{
+  OperationrecPtr opPtr;
+  if (unlikely(!oprec_pool.seize(opPtr)))
+  {
+    jam();
+    return false;
+  }
+  opPtr.p->userptr = userptr;
+  opPtr.p->userblockref = ref;
+  i_val = opPtr.i;
+  *ptr = opPtr.p;
+  return true;
+}
 
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
@@ -1021,6 +1041,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
   }
   
   //operationRecPtr.p->nodeType = AccKeyReq::getReplicaType(Treqinfo);
+  ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
   operationRecPtr.p->fid = fragrecptr.p->myfid;
   operationRecPtr.p->fragptr = fragrecptr.i;
   operationRecPtr.p->nextParallelQue = RNIL;
@@ -1073,20 +1094,19 @@ void Dbacc::sendAcckeyconf(Signal* signal) const
 /*                    TKEY3,                         PRIMARY KEY 3                   */
 /*                    TKEY4,                         PRIMARY KEY 4                   */
 /* ******************--------------------------------------------------------------- */
-void Dbacc::execACCKEYREQ(Signal* signal) 
+void Dbacc::execACCKEYREQ(Signal* signal,
+                          Uint32 opPtrI,
+                          Dbacc::Operationrec *opPtrP) 
 {
   jamEntryDebug();
   AccKeyReq* const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
-  operationRecPtr.i = req->connectPtr;   /* CONNECTION PTR */
   fragrecptr.i = req->fragmentPtr;        /* FRAGMENT RECORD POINTER         */
-  ndbrequire((operationRecPtr.i < coprecsize) ||
-	     (fragrecptr.i < cfragmentsize));
-  ptrAss(operationRecPtr, operationrec);
-  ptrAss(fragrecptr, fragmentrec);  
-
-  ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
-
+  ndbrequire(fragrecptr.i < cfragmentsize);
+  ptrAss(fragrecptr, fragmentrec);
+  operationRecPtr.i = opPtrI;
+  operationRecPtr.p = opPtrP;
   initOpRec(req, signal->getLength());
+  ndbrequire(Magic::check_ptr(operationRecPtr.p));
 
   /*---------------------------------------------------------------*/
   /*                                                               */
@@ -1118,7 +1138,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
      */
     OperationrecPtr lockOpPtr;
     lockOpPtr.i = req->lockConnectPtr;
-    ptrAss(lockOpPtr, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(lockOpPtr));
     if (lockOwnerPtr.i == RNIL ||
         !(lockOwnerPtr.i == lockOpPtr.i ||
           lockOwnerPtr.i == lockOpPtr.p->m_lock_owner_ptr_i))
@@ -1247,12 +1267,24 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 }//Dbacc::execACCKEYREQ()
 
 void
-Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
+Dbacc::execACCKEY_ORD_no_ptr(Signal *signal,
+                             Uint32 opPtrI)
+{
+  OperationrecPtr opPtr;
+  opPtr.i = opPtrI;
+  ndbrequire(oprec_pool.getValidPtr(opPtr));
+  execACCKEY_ORD(signal, opPtrI, opPtr.p);
+}
+
+void
+Dbacc::execACCKEY_ORD(Signal* signal,
+                      Uint32 opPtrI,
+                      Dbacc::Operationrec *opPtrP)
 {
   jamEntryDebug();
   OperationrecPtr lastOp;
   lastOp.i = opPtrI;
-  ptrCheckGuard(lastOp, coprecsize, operationrec);
+  lastOp.p = opPtrP;
   Uint32 opbits = lastOp.p->m_op_bits;
   Uint32 opstate = opbits & Operationrec::OP_STATE_MASK;
   
@@ -1299,7 +1331,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   if (nextOp.i != RNIL)
   {
     jam();
-    ptrCheckGuard(nextOp, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(nextOp));
     nextbits = nextOp.p->m_op_bits;
     goto checkop;
   }
@@ -1307,7 +1339,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   if ((opbits & Operationrec::OP_LOCK_OWNER) == 0)
   {
     jam();
-    ptrCheckGuard(loPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(loPtr));
   }
   else
   {
@@ -1328,7 +1360,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
    * There is an op in serie queue...
    *   Check if it can run
    */
-  ptrCheckGuard(nextOp, coprecsize, operationrec);  
+  ndbrequire(oprec_pool.getValidPtr(nextOp));
   nextbits = nextOp.p->m_op_bits;
   
   {
@@ -1411,7 +1443,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   tmp= loPtr;
   while (tmp.i != RNIL)
   {
-    ptrCheckGuard(tmp, coprecsize, operationrec);      
+    ndbrequire(oprec_pool.getValidPtr(tmp));
     if (!nextOp.p->is_same_trans(tmp.p))
     {
       jam();
@@ -1440,7 +1472,7 @@ upgrade:
   if (tmp.i != RNIL)
   {
     jam();
-    ptrCheckGuard(tmp, coprecsize, operationrec);      
+    ndbrequire(oprec_pool.getValidPtr(tmp));
     tmp.p->prevSerialQue = loPtr.i;
   }
   else
@@ -1723,7 +1755,7 @@ Dbacc::getNoParallelTransaction(const Operationrec * op) const
   while (tmp.i != RNIL) 
   {
     jam();
-    ptrCheckGuard(tmp, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tmp));
     if (tmp.p->transId1 == transId[0] && tmp.p->transId2 == transId[1])
       tmp.i = tmp.p->nextParallelQue;
     else
@@ -1734,9 +1766,9 @@ Dbacc::getNoParallelTransaction(const Operationrec * op) const
 
 #ifdef VM_TRACE
 Uint32
-Dbacc::getNoParallelTransactionFull(const Operationrec * op) const
+Dbacc::getNoParallelTransactionFull(Operationrec * op) const
 {
-  ConstPtr<Operationrec> tmp;
+  OperationrecPtr tmp;
   
   tmp.p = op;
   while ((tmp.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0)
@@ -1744,7 +1776,7 @@ Dbacc::getNoParallelTransactionFull(const Operationrec * op) const
     tmp.i = tmp.p->prevParallelQue;
     if (tmp.i != RNIL)
     {
-      ptrCheckGuard(tmp, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(tmp));
     }
     else
     {
@@ -1765,7 +1797,7 @@ Dbacc::get_parallel_head(OperationrecPtr opPtr) const
 	 opPtr.p->prevParallelQue != RNIL)
   {
     opPtr.i = opPtr.p->prevParallelQue;
-    ptrCheckGuard(opPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
   }    
   
   return opPtr.i;
@@ -1776,13 +1808,13 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
 {
   OperationrecPtr loPtr;
   loPtr.i = get_parallel_head(opPtr);
-  ptrCheckGuard(loPtr, coprecsize, operationrec);
+  ndbrequire(oprec_pool.getValidPtr(loPtr));
   
   while((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0 &&
 	loPtr.p->prevSerialQue != RNIL)
   {
     loPtr.i = loPtr.p->prevSerialQue;
-    ptrCheckGuard(loPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(loPtr));
   }
   
   // Now we have lock owner...
@@ -1833,7 +1865,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
     {
       Uint32 prev = lastP.i;
       lastP.i = lastP.p->nextParallelQue;
-      ptrCheckGuard(lastP, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(lastP));
       
       vlqrequire(lastP.p->prevParallelQue == prev);
 
@@ -1912,7 +1944,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
     lastS.i = loPtr.p->nextSerialQue;
     while (true)
     {
-      ptrCheckGuard(lastS, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(lastS));
       vlqrequire(lastS.p->prevSerialQue == prev);
       vlqrequire(getNoParallelTransaction(lastS.p) == 1);
       vlqrequire((lastS.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0);
@@ -2052,14 +2084,14 @@ Dbacc::dump_lock_queue(OperationrecPtr loPtr)const
 	   loPtr.p->prevParallelQue != RNIL)
     {
       loPtr.i = loPtr.p->prevParallelQue;
-      ptrCheckGuard(loPtr, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(loPtr));
     }
     
     while ((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0 &&
 	   loPtr.p->prevSerialQue != RNIL)
     {
       loPtr.i = loPtr.p->prevSerialQue;
-      ptrCheckGuard(loPtr, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(loPtr));
     }
 
     ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
@@ -2069,7 +2101,7 @@ Dbacc::dump_lock_queue(OperationrecPtr loPtr)const
   OperationrecPtr tmp = loPtr;
   while (tmp.i != RNIL)
   {
-    ptrCheckGuard(tmp, coprecsize, operationrec);      
+    ndbrequire(oprec_pool.getValidPtr(tmp));
     ndbout << tmp << " ";
     tmp.i = tmp.p->nextParallelQue;
     
@@ -2084,7 +2116,7 @@ Dbacc::dump_lock_queue(OperationrecPtr loPtr)const
   tmp.i = loPtr.p->nextSerialQue;
   while (tmp.i != RNIL)
   {
-    ptrCheckGuard(tmp, coprecsize, operationrec);      
+    ndbrequire(oprec_pool.getValidPtr(tmp));
     OperationrecPtr tmp2 = tmp;
     
     if (tmp.i == loPtr.i)
@@ -2095,7 +2127,7 @@ Dbacc::dump_lock_queue(OperationrecPtr loPtr)const
 
     while (tmp2.i != RNIL)
     {
-      ptrCheckGuard(tmp2, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(tmp2));
       ndbout << tmp2 << " ";
       tmp2.i = tmp2.p->nextParallelQue;
 
@@ -2136,7 +2168,7 @@ Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const
   }
   else
   {
-    ptrCheckGuard(lastOpPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(lastOpPtr));
   }
   
   ndbassert(get_parallel_head(lastOpPtr) == lockOwnerPtr.i);
@@ -2163,7 +2195,7 @@ Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const
     OperationrecPtr loopPtr = lockOwnerPtr;
     do
     {
-      ptrCheckGuard(loopPtr, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(loopPtr));
       if (!loopPtr.p->is_same_trans(operationRecPtr.p))
       {
 	goto serial;
@@ -2257,7 +2289,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
   }
   else
   {
-    ptrCheckGuard(lastOpPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(lastOpPtr));
   }
 
   ndbassert(get_parallel_head(lastOpPtr) == lockOwnerPtr.i);
@@ -2295,7 +2327,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
    */
   do
   {
-    ptrCheckGuard(loopPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(loopPtr));
     if (loopPtr.p->is_same_trans(operationRecPtr.p))
       goto checkop;
     loopPtr.i = loopPtr.p->nextParallelQue;
@@ -2370,7 +2402,7 @@ void Dbacc::placeSerialQueue(OperationrecPtr lockOwnerPtr,
   }
   else
   {
-    ptrCheckGuard(lastOpPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(lastOpPtr));
   }
   
   operationRecPtr.p->prevSerialQue = lastOpPtr.i;
@@ -2401,21 +2433,26 @@ void Dbacc::acckeyref1Lab(Signal* signal, Uint32 result_code) const
 /*                    CLOCALKEY(0),         LOCAL KEY 1                    */
 /*                    CLOCALKEY(1)          LOCAL KEY 2                    */
 /* ******************----------------------------------------------------- */
-void Dbacc::execACCMINUPDATE(Signal* signal) 
+void Dbacc::execACCMINUPDATE(Signal* signal,
+                             Uint32 opPtrI,
+                             Dbacc::Operationrec *opPtrP,
+                             Uint32 page_no,
+                             Uint32 page_idx)
 {
   Page8Ptr ulkPageidptr;
   Uint32 tulkLocalPtr;
   Local_key localkey;
 
+  operationRecPtr.i = opPtrI;
+  operationRecPtr.p = opPtrP;
   jamEntry();
-  operationRecPtr.i = signal->theData[0];
-  localkey.m_page_no = signal->theData[1];
-  localkey.m_page_idx = signal->theData[2];
-  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  localkey.m_page_no = page_no;
+  localkey.m_page_idx = page_idx;
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
   ulkPageidptr.i = operationRecPtr.p->elementPage;
   tulkLocalPtr = operationRecPtr.p->elementPointer + 1;
+  ndbrequire(Magic::check_ptr(operationRecPtr.p));
 
   if ((opbits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_RUNNING)
   {
@@ -2435,7 +2472,7 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
 {
   jamEntry();
   operationRecPtr.i = opPtrI;
-  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
 
@@ -2467,20 +2504,23 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
 /*                                                     SENDER: LQH,    LEVEL B       */
 /*       INPUT:  OPERATION_REC_PTR ,                                                 */
 /* ******************--------------------------------------------------------------- */
-void Dbacc::execACC_COMMITREQ(Signal* signal) 
+void Dbacc::execACC_COMMITREQ(Signal* signal,
+                              Uint32 opPtrI,
+                              Dbacc::Operationrec *opPtrP)
 {
   Uint8 Toperation;
   jamEntry();
-  operationRecPtr.i = signal->theData[0];
-  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  operationRecPtr.i = opPtrI;
+  operationRecPtr.p = opPtrP;
 #ifdef VM_TRACE
   Uint32 tmp = operationRecPtr.i;
   void* ptr = operationRecPtr.p;
 #endif
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
-  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   Toperation = opbits & Operationrec::OP_MASK;
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  ndbrequire(Magic::check_ptr(operationRecPtr.p));
   commitOperation(signal);
   ndbassert(operationRecPtr.i == tmp);
   ndbassert(operationRecPtr.p == ptr);
@@ -2554,15 +2594,18 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 /* ACC ABORT REQ                                         ABORT TRANSACTION   */
 /* ******************------------------------------+                         */
 /*   SENDER: LQH,    LEVEL B       */
-void Dbacc::execACC_ABORTREQ(Signal* signal) 
+void Dbacc::execACC_ABORTREQ(Signal* signal,
+                             Uint32 opPtrI,
+                             Dbacc::Operationrec *opPtrP,
+                             Uint32 sendConf)
 {
   jamEntry();
-  operationRecPtr.i = signal->theData[0];
-  Uint32 sendConf = signal->theData[1];
-  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  operationRecPtr.i = opPtrI;
+  operationRecPtr.p = opPtrP;
   fragrecptr.i = operationRecPtr.p->fragptr;
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   Uint32 opstate = opbits & Operationrec::OP_STATE_MASK;
+  ndbrequire(Magic::check_ptr(operationRecPtr.p));
 
   if (opbits == Operationrec::OP_EXECUTED_DIRTY_READ)
   {
@@ -2631,13 +2674,28 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     // caller must be explicit here
     ndbrequire(req->accOpPtr == RNIL);
     // seize operation to hold the lock
-    if (cfreeopRec != RNIL) {
+    bool succ = true;
+    if (unlikely(req->isCopyFragScan))
+    {
       jam();
-      seizeOpRec();
+      operationRecPtr.i = c_copy_frag_oprec;
+      ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
+      ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
+    }
+    else
+    {
+      if (unlikely(!oprec_pool.seize(operationRecPtr)))
+      {
+        jam();
+        succ = false;
+      }
+    }
+    if (likely(succ))
+    {
+      jam();
       // init as in ACCSEIZEREQ
       operationRecPtr.p->userptr = req->userPtr;
       operationRecPtr.p->userblockref = req->userRef;
-      operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
       operationRecPtr.p->scanRecPtr = RNIL;
       // do read with lock via ACCKEYREQ
       Uint32 lockMode = (lockOp == AccLockReq::LockShared) ? 0 : 1;
@@ -2651,7 +2709,6 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         accreq = AccKeyReq::setTakeOver(accreq, false);
         accreq = AccKeyReq::setLockReq(accreq, true);
         AccKeyReq* keyreq = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
-        keyreq->connectPtr = operationRecPtr.i;
         keyreq->fragmentPtr = fragrecptr.i;
         keyreq->requestInfo = accreq;
         keyreq->hashValue = req->hashValue;
@@ -2664,7 +2721,10 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         keyreq->localKey[1] = req->page_idx;
         NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
       }
-        EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, AccKeyReq::SignalLength_localKey);
+      signal->setLength(AccKeyReq::SignalLength_localKey);
+      execACCKEYREQ(signal,
+                    operationRecPtr.i,
+                    operationRecPtr.p);
         /* keyreq invalid, signal now contains return value */
       // translate the result
       if (signal->theData[0] < RNIL) {
@@ -2681,18 +2741,24 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         req->returnCode = AccLockReq::Refused;
         req->accOpPtr = RNIL;
       }
-    } else {
+    }
+    else
+    {
       jam();
+      ndbrequire(req->isCopyFragScan == ZFALSE);
       req->returnCode = AccLockReq::NoFreeOp;
     }
     *sig = *req;
     return;
   }
+  operationRecPtr.i = req->accOpPtr;
+  ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
   if (lockOp == AccLockReq::Unlock) {
     jam();
     // do unlock via ACC_COMMITREQ (immediate)
-    signal->theData[0] = req->accOpPtr;
-    EXECUTE_DIRECT(DBACC, GSN_ACC_COMMITREQ, signal, 1);
+    execACC_COMMITREQ(signal,
+                      operationRecPtr.i,
+                      operationRecPtr.p);
     releaseOpRec();
     req->returnCode = AccLockReq::Success;
     *sig = *req;
@@ -2701,9 +2767,10 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
   if (lockOp == AccLockReq::Abort) {
     jam();
     // do abort via ACC_ABORTREQ (immediate)
-    signal->theData[0] = req->accOpPtr;
-    signal->theData[1] = 0; // Dont send abort
-    execACC_ABORTREQ(signal);
+    execACC_ABORTREQ(signal,
+                     operationRecPtr.i,
+                     operationRecPtr.p,
+                     0);
     releaseOpRec();
     req->returnCode = AccLockReq::Success;
     *sig = *req;
@@ -2712,9 +2779,10 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
   if (lockOp == AccLockReq::AbortWithConf) {
     jam();
     // do abort via ACC_ABORTREQ (with conf signal)
-    signal->theData[0] = req->accOpPtr;
-    signal->theData[1] = 1; // send abort
-    execACC_ABORTREQ(signal);
+    execACC_ABORTREQ(signal,
+                     operationRecPtr.i,
+                     operationRecPtr.p,
+                     1);
     releaseOpRec();
     req->returnCode = AccLockReq::Success;
     *sig = *req;
@@ -3749,7 +3817,7 @@ Dbacc::getElement(const AccKeyReq* signal,
         if (ElementHeader::getLocked(tgeElementHeader)) {
           jamDebug();
 	  lockOwnerPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
-          ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
+          ndbrequire(oprec_pool.getValidPtr(lockOwnerPtr));
           possible_match = lockOwnerPtr.p->hashValue.match(operationRecPtr.p->hashValue);
           reducedHashValue = lockOwnerPtr.p->reducedHashValue;
 	  localkey = lockOwnerPtr.p->localdata;
@@ -4022,7 +4090,7 @@ void Dbacc::commitdelete(Signal* signal)
         {
           ScanRecPtr scanPtr;
           scanPtr.i = fragrecptr.p->scan[i];
-          ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+          ndbrequire(scanRec_pool.getValidPtr(scanPtr));
           scanPtr.p->moveScanBit(delElemptr, tlastElementptr);
         }
       }
@@ -4060,7 +4128,7 @@ void Dbacc::commitdelete(Signal* signal)
         {
           ScanRecPtr scanPtr;
           scanPtr.i = fragrecptr.p->scan[i];
-          ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+          ndbrequire(scanRec_pool.getValidPtr(scanPtr));
           if(scanPtr.p->isScanned(delElemptr))
           {
             scanPtr.p->clearScanned(delElemptr);
@@ -4130,7 +4198,7 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
       /* TO UPDATE THE OPERATION RECORD WITH THE NEW REFERENCE TO THE ELEMENT.             */
       /* --------------------------------------------------------------------------------- */
       deOperationRecPtr.i = ElementHeader::getOpPtrI(tdeElemhead);
-      ptrCheckGuard(deOperationRecPtr, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(deOperationRecPtr));
       deOperationRecPtr.p->elementPage = delPageptr.i;
       deOperationRecPtr.p->elementContainer = delConptr;
       deOperationRecPtr.p->elementPointer = delElemptr;
@@ -4322,7 +4390,7 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
           {
             ScanRecPtr scanPtr;
             scanPtr.i = fragrecptr.p->scan[i];
-            ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+            ndbrequire(scanRec_pool.getValidPtr(scanPtr));
             scanPtr.p->leaveContainer(lastPageptr.i, tlastContainerptr);
             lastPageptr.p->clearScanContainer(scanbit, tlastContainerptr);
           }
@@ -4546,7 +4614,7 @@ Dbacc::mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp)
   follower.i = nextParallelOp;
   while (follower.i != RNIL)
   {
-    ptrCheckGuard(follower, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(follower));
     if (likely(follower.p->is_same_trans(abortingOp.p)))
     {
       jam();
@@ -4563,7 +4631,7 @@ Dbacc::mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp)
     {
       /* Follower is not same trans - unexpected as we hold EX lock */
       dump_lock_queue(follower);
-      ndbrequire(false);
+      ndbabort();
     }
     follower.i = follower.p->nextParallelQue;
   }
@@ -4582,7 +4650,7 @@ Dbacc::checkOpPendingAbort(Uint32 accConnectPtr) const
 {
   OperationrecPtr opPtr;
   opPtr.i = accConnectPtr;
-  ptrCheckGuard(opPtr, coprecsize, operationrec);
+  ndbrequire(oprec_pool.getValidPtr(opPtr));
   
   return ((opPtr.p->m_op_bits & 
            Operationrec::OP_PENDING_ABORT) != 0);
@@ -4620,20 +4688,20 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
   ndbassert(! (opbits & Operationrec::OP_LOCK_OWNER));
   ndbassert(opbits & Operationrec::OP_RUN_QUEUE);
 
-  ptrCheckGuard(prevP, coprecsize, operationrec);    
+  ndbrequire(oprec_pool.getValidPtr(prevP));
   ndbassert(prevP.p->nextParallelQue == opPtr.i);
   prevP.p->nextParallelQue = nextP.i;
   
   if (nextP.i != RNIL)
   {
-    ptrCheckGuard(nextP, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(nextP));
     ndbassert(nextP.p->prevParallelQue == opPtr.i);
     nextP.p->prevParallelQue = prevP.i;
   }
   else if (prevP.i != loPtr.i)
   {
     jam();
-    ptrCheckGuard(loPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(loPtr));
     ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
     ndbassert(loPtr.p->m_lo_last_parallel_op_ptr_i == opPtr.i);
     loPtr.p->m_lo_last_parallel_op_ptr_i = prevP.i;
@@ -4682,7 +4750,7 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
       if (nextP.p->nextParallelQue != RNIL)
       {
 	nextP.i = nextP.p->nextParallelQue;
-	ptrCheckGuard(nextP, coprecsize, operationrec);
+        ndbrequire(oprec_pool.getValidPtr(nextP));
 	nextbits = nextP.p->m_op_bits;
       }
       else
@@ -4713,12 +4781,12 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
   {
     jam();
     nextP.i = nextP.p->nextParallelQue;
-    ptrCheckGuard(nextP, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(nextP));
   }
 
 #ifdef VM_TRACE
   loPtr.i = nextP.p->m_lock_owner_ptr_i;
-  ptrCheckGuard(loPtr, coprecsize, operationrec);
+  ndbrequire(oprec_pool.getValidPtr(loPtr));
   ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
   ndbassert(loPtr.p->m_lo_last_parallel_op_ptr_i == nextP.i);
 #endif
@@ -4764,13 +4832,13 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
     /**
      * We're not list head...
      */
-    ptrCheckGuard(prevP, coprecsize, operationrec);    
+    ndbrequire(oprec_pool.getValidPtr(prevP));
     ndbassert(prevP.p->nextParallelQue == opPtr.i);
     prevP.p->nextParallelQue = nextP.i;
 
     if (nextP.i != RNIL)
     {
-      ptrCheckGuard(nextP, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(nextP));
       ndbassert(nextP.p->prevParallelQue == opPtr.i);
       ndbassert((nextP.p->m_op_bits & Operationrec::OP_STATE_MASK) == 
 		Operationrec::OP_STATE_WAITING);
@@ -4789,7 +4857,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 	  nextP.i = nextP.p->nextParallelQue;
 	  if (nextP.i == RNIL)
 	    break;
-	  ptrCheckGuard(nextP, coprecsize, operationrec);	  
+          ndbrequire(oprec_pool.getValidPtr(nextP));
 	}
       }
     }
@@ -4801,7 +4869,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
     /**
      * We're a list head
      */
-    ptrCheckGuard(prevS, coprecsize, operationrec);      
+    ndbrequire(oprec_pool.getValidPtr(prevS));
     ndbassert(prevS.p->nextSerialQue == opPtr.i);
     
     if (nextP.i != RNIL)
@@ -4809,7 +4877,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
       /**
        * Promote nextP to list head
        */
-      ptrCheckGuard(nextP, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(nextP));
       ndbassert(nextP.p->prevParallelQue == opPtr.i);
       prevS.p->nextSerialQue = nextP.i;
       nextP.p->prevParallelQue = RNIL;
@@ -4817,7 +4885,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
       if (nextS.i != RNIL)
       {
 	jam();
-	ptrCheckGuard(nextS, coprecsize, operationrec); 	
+        ndbrequire(oprec_pool.getValidPtr(nextS));
 	ndbassert(nextS.p->prevSerialQue == opPtr.i);
 	nextS.p->prevSerialQue = nextP.i;
 	validate_lock_queue(prevS);
@@ -4831,7 +4899,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 	while ((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0)
 	{
 	  loPtr.i = loPtr.p->prevSerialQue;
-	  ptrCheckGuard(loPtr, coprecsize, operationrec);	  
+          ndbrequire(oprec_pool.getValidPtr(loPtr));
 	}
 	ndbassert(loPtr.p->m_lo_last_serial_op_ptr_i == opPtr.i);
 	loPtr.p->m_lo_last_serial_op_ptr_i = nextP.i;
@@ -4855,7 +4923,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
       while ((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0)
       {
 	loPtr.i = loPtr.p->prevSerialQue;
-	ptrCheckGuard(loPtr, coprecsize, operationrec);	  
+        ndbrequire(oprec_pool.getValidPtr(loPtr));
       }
       ndbassert(loPtr.p->m_lo_last_serial_op_ptr_i == opPtr.i);
       if (prevS.i != loPtr.i)
@@ -4871,7 +4939,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
     }
     else if (nextP.i == RNIL)
     {
-      ptrCheckGuard(nextS, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(nextS));
       ndbassert(nextS.p->prevSerialQue == opPtr.i);
       prevS.p->nextSerialQue = nextS.i;
       nextS.p->prevSerialQue = prevS.i;
@@ -4886,7 +4954,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 	if (lastOp.i != RNIL)
 	{
 	  jam();
-	  ptrCheckGuard(lastOp, coprecsize, operationrec);	
+          ndbrequire(oprec_pool.getValidPtr(lastOp));
 	  ndbassert(lastOp.p->m_lock_owner_ptr_i == prevS.i);
 	}
 	else
@@ -4986,7 +5054,7 @@ Dbacc::commitDeleteCheck(Signal* signal)
   opPtr.i = operationRecPtr.p->nextParallelQue;
   while (opPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(opPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
     lastOpPtr = opPtr;
     opPtr.i = opPtr.p->nextParallelQue;
   }//while
@@ -5026,7 +5094,7 @@ Dbacc::commitDeleteCheck(Signal* signal)
         deleteCheckOngoing = false;
       } else {
         jam();
-        ptrCheckGuard(deleteOpPtr, coprecsize, operationrec);
+        ndbrequire(oprec_pool.getValidPtr(deleteOpPtr));
       }//if
     } else {
       jam();
@@ -5053,7 +5121,7 @@ Dbacc::commitDeleteCheck(Signal* signal)
       jam();
       break;
     }//if
-    ptrCheckGuard(opPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
   } while (true);
 }//Dbacc::commitDeleteCheck()
 
@@ -5152,13 +5220,13 @@ void Dbacc::commitOperation(Signal* signal)
     prev.i = operationRecPtr.p->prevParallelQue;
     next.i = operationRecPtr.p->nextParallelQue;
     lockOwner.i = operationRecPtr.p->m_lock_owner_ptr_i;
-    ptrCheckGuard(prev, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(prev));
     
     prev.p->nextParallelQue = next.i;
     if (next.i != RNIL) 
     {
       jam();
-      ptrCheckGuard(next, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(next));
       next.p->prevParallelQue = prev.i;
     }
     else if (prev.p->m_op_bits & Operationrec::OP_LOCK_OWNER)
@@ -5175,7 +5243,7 @@ void Dbacc::commitOperation(Signal* signal)
        * Last operation in parallel queue
        */
       ndbassert(prev.i != lockOwner.i);
-      ptrCheckGuard(lockOwner, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(lockOwner));
       ndbassert(lockOwner.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
       lockOwner.p->m_lo_last_parallel_op_ptr_i = prev.i;
       prev.p->m_lock_owner_ptr_i = lockOwner.i;
@@ -5218,7 +5286,7 @@ void Dbacc::commitOperation(Signal* signal)
     {
       jam();
       next.i = next.p->nextParallelQue;
-      ptrCheckGuard(next, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(next));
       
       if ((next.p->m_op_bits & Operationrec::OP_STATE_MASK) != 
 	  Operationrec::OP_STATE_EXECUTED)
@@ -5260,7 +5328,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
   if (nextP.i != RNIL)
   {
     jam();
-    ptrCheckGuard(nextP, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(nextP));
     newOwner = nextP;
 
     if (lastP.i == newOwner.i)
@@ -5270,7 +5338,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     }
     else
     {
-      ptrCheckGuard(lastP, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(lastP));
       newOwner.p->m_lo_last_parallel_op_ptr_i = lastP.i;
       lastP.p->m_lock_owner_ptr_i = newOwner.i;
     }
@@ -5281,7 +5349,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     if (nextS.i != RNIL)
     {
       jam();
-      ptrCheckGuard(nextS, coprecsize, operationrec);
+      ndbrequire(oprec_pool.getValidPtr(nextS));
       ndbassert(nextS.p->prevSerialQue == opPtr.i);
       nextS.p->prevSerialQue = newOwner.i;
     }
@@ -5355,7 +5423,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 	  if (nextP.p->nextParallelQue != RNIL)
 	  {
 	    nextP.i = nextP.p->nextParallelQue;
-	    ptrCheckGuard(nextP, coprecsize, operationrec);
+            ndbrequire(oprec_pool.getValidPtr(nextP));
 	    nextbits = nextP.p->m_op_bits;
 	  }
 	  else
@@ -5369,7 +5437,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
   else
   {
     jam();
-    ptrCheckGuard(nextS, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(nextS));
     newOwner = nextS;
     
     newOwner.p->m_op_bits |= Operationrec::OP_RUN_QUEUE;
@@ -5389,7 +5457,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     while (lastP.p->nextParallelQue != RNIL)
     {
       lastP.i = lastP.p->nextParallelQue;
-      ptrCheckGuard(lastP, coprecsize, operationrec);      
+      ndbrequire(oprec_pool.getValidPtr(lastP));
       lastP.p->m_op_bits |= Operationrec::OP_RUN_QUEUE;
     }
     
@@ -5592,7 +5660,7 @@ void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) const
   bool inList = false;
   tmpOperPtr.i = fragrecptr.p->lockOwnersList;
   while (tmpOperPtr.i != RNIL){
-    ptrCheckGuard(tmpOperPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
     if (tmpOperPtr.i == outOperPtr.i)
       inList = true;
     tmpOperPtr.i = tmpOperPtr.p->nextLockOwnerOp;
@@ -5610,10 +5678,12 @@ void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) const
   } 
 
   // Check previous operation 
-  if (Tprev != RNIL) {    
+  if (Tprev != RNIL) {
     jam();
-    arrGuard(Tprev, coprecsize);
-    operationrec[Tprev].nextLockOwnerOp = Tnext;
+    OperationrecPtr prevOp;
+    prevOp.i = Tprev;
+    ndbrequire(oprec_pool.getValidPtr(prevOp));
+    prevOp.p->nextLockOwnerOp = Tnext;
   } else {
     fragrecptr.p->lockOwnersList = Tnext;
   }//if
@@ -5623,8 +5693,10 @@ void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) const
     return;
   } else {
     jam();
-    arrGuard(Tnext, coprecsize);
-    operationrec[Tnext].prevLockOwnerOp = Tprev;
+    OperationrecPtr nextOp;
+    nextOp.i = Tnext;
+    ndbrequire(oprec_pool.getValidPtr(nextOp));
+    nextOp.p->prevLockOwnerOp = Tprev;
   }//if
 
   return;
@@ -5644,7 +5716,7 @@ void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
   // Check that operation is not already in list
   tmpOperPtr.i = fragrecptr.p->lockOwnersList;
   while(tmpOperPtr.i != RNIL){
-    ptrCheckGuard(tmpOperPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
     ndbrequire(tmpOperPtr.i != insOperPtr.i);
     tmpOperPtr.i = tmpOperPtr.p->nextLockOwnerOp;    
   }
@@ -5662,7 +5734,7 @@ void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
     return;
   } else {
     jam();
-    ptrCheckGuard(tmpOperPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
     tmpOperPtr.p->prevLockOwnerOp = insOperPtr.i;
   }//if
 }//Dbacc::insertLockOwnersList()
@@ -5743,7 +5815,7 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
       // to check its current state.
       //-------------------------------------------------------------
       TscanPtr.i = fragrecptr.p->scan[Ti];
-      ptrCheckGuard(TscanPtr, cscanRecSize, scanRec);
+      ndbrequire(scanRec_pool.getValidPtr(TscanPtr));
       if (TscanPtr.p->activeLocalFrag == fragrecptr.i) {
         if (TscanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
           if (TSplit == TscanPtr.p->nextBucketIndex) {
@@ -6090,7 +6162,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, OperationrecPtr& oprec)
   {
     jam();
     oprec.i = ElementHeader::getOpPtrI(elemhead);
-    ptrCheckGuard(oprec, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(oprec));
     return getElementHash(oprec);
   }
 }
@@ -6168,7 +6240,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   {
     jam();
     oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(oprecptr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(oprecptr));
     ndbassert(oprecptr.p->reducedHashValue.valid_bits() >= 1);
     move = oprecptr.p->reducedHashValue.get_bit(1);
     oprecptr.p->reducedHashValue.shift_out();
@@ -6284,7 +6356,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   {
     jam();
     oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(oprecptr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(oprecptr));
     ndbassert(oprecptr.p->reducedHashValue.valid_bits() >= 1);
     move = oprecptr.p->reducedHashValue.get_bit(1);
     oprecptr.p->reducedHashValue.shift_out();
@@ -6428,7 +6500,7 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
     actions[Ti].clear();
     if (fragrecptr.p->scan[Ti] != RNIL) {
       scanPtr.i = fragrecptr.p->scan[Ti];
-      ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+      ndbrequire(scanRec_pool.getValidPtr(scanPtr));
       if (scanPtr.p->activeLocalFrag == fragrecptr.i) {
 	//-------------------------------------------------------------
 	// A scan is ongoing on this particular local fragment. We have
@@ -6533,7 +6605,7 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
       {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
-        ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+        ndbrequire(scanRec_pool.getValidPtr(scanPtr));
         if (actions[Ti].get(ReduceUndefined))
         {
           scanPtr.p->startNoOfBuckets --;
@@ -6955,7 +7027,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
           jam();
           OperationrecPtr oprec;
           oprec.i = ElementHeader::getOpPtrI(tgeElementHeader);
-          ptrCheckGuard(oprec, coprecsize, operationrec);
+          ndbrequire(oprec_pool.getValidPtr(oprec));
           oprec.p->reducedHashValue.shift_in(false);
         }
         else
@@ -7038,7 +7110,7 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
     /*       FROM THE ELEMENT HEADER.                                                    */
     /* --------------------------------------------------------------------------------- */
     oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(oprecptr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(oprecptr));
     oprecptr.p->reducedHashValue.shift_in(true);
   }//if
   else
@@ -7180,14 +7252,16 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
     }
   }
   ndbrequire(i != MAX_PARALLEL_SCANS_PER_FRAG);
-  ndbrequire(cfirstFreeScanRec != RNIL);
-  seizeScanRec();
+  if (unlikely(!scanRec_pool.seize(scanPtr)))
+  {
+    signal->theData[8] = AccScanRef::AccNoFreeScanOp;
+    return;
+  }
 
   fragrecptr.p->scan[i] = scanPtr.i;
   scanPtr.p->scanBucketState =  ScanRec::FIRST_LAP;
   scanPtr.p->scanLockMode = AccScanReq::getLockMode(scanFlag);
   scanPtr.p->scanReadCommittedFlag = AccScanReq::getReadCommittedFlag(scanFlag);
-  
   /* TWELVE BITS OF THE ELEMENT HEAD ARE SCAN */
   /* CHECK BITS. THE MASK NOTES WHICH BIT IS */
   /* ALLOCATED FOR THE ACTIVE SCAN */
@@ -7196,14 +7270,6 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   scanPtr.p->scanUserblockref = userblockref;
   scanPtr.p->scanTrid1 = scanTrid1;
   scanPtr.p->scanTrid2 = scanTrid2;
-  scanPtr.p->scanLockHeld = 0;
-  scanPtr.p->scanLockCount = 0;
-  scanPtr.p->scanOpsAllocated = 0;
-  scanPtr.p->scanFirstActiveOp = RNIL;
-  scanPtr.p->scanFirstQueuedOp = RNIL;
-  scanPtr.p->scanLastQueuedOp = RNIL;
-  scanPtr.p->scanFirstLockedOp = RNIL;
-  scanPtr.p->scanLastLockedOp = RNIL;
   scanPtr.p->scanState = ScanRec::WAIT_NEXT;
   scanPtr.p->scan_lastSeen = __LINE__;
   initScanFragmentPart();
@@ -7234,6 +7300,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
   Uint32 tscanNextFlag;
   jamEntryDebug();
   scanPtr.i = signal->theData[0];
+  ndbrequire(scanRec_pool.getUncheckedPtrRW(scanPtr));
   operationRecPtr.i = signal->theData[1];
   tscanNextFlag = signal->theData[2];
   /* ------------------------------------------ */
@@ -7245,8 +7312,8 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
   /* 5 = ZCOPY_ABORT RELOCK THE ACTIVE ELEMENT  */
   /* 6 = ZCOPY_CLOSE THE SCAN PROCESS IS READY  */
   /* ------------------------------------------ */
-  ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
   ndbrequire(scanPtr.p->scanState == ScanRec::WAIT_NEXT);
+  ndbrequire(Magic::check_ptr(scanPtr.p));
 
   switch (tscanNextFlag) {
   case NextScanReq::ZSCAN_NEXT:
@@ -7260,9 +7327,10 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     /* COMMIT ACTIVE OPERATION. 
      * SEND NEXT SCAN ELEMENT IF IT IS ZCOPY_NEXT_COMMIT.
      * --------------------------------------------------------------------- */
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec); 
+    ndbrequire(oprec_pool.getUncheckedPtrRW(operationRecPtr));
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    ndbrequire(Magic::check_ptr(operationRecPtr.p));
     if (!scanPtr.p->scanReadCommittedFlag) {
       commitOperation(signal);
     }//if
@@ -7327,8 +7395,10 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   if (!getScanElement(pageptr, conidx, conptr, isforward, elemptr, islocked))
   {
     scanPtr.p->nextBucketIndex++;
-    if (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
-      if (scanPtr.p->nextBucketIndex > scanPtr.p->maxBucketIndexToRescan) {
+    if (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP)
+    {
+      if (scanPtr.p->nextBucketIndex > scanPtr.p->maxBucketIndexToRescan)
+      {
 	/* ---------------------------------------------------------------- */
 	// We have finished the rescan phase. 
 	// We are ready to proceed with the next fragment part.
@@ -7337,12 +7407,16 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         checkNextFragmentLab(signal);
         return;
       }//if
-    } else if (scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
-      if (fragrecptr.p->level.getTop() < scanPtr.p->nextBucketIndex) {
+    }
+    else if (scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP)
+    {
+      if (fragrecptr.p->level.getTop() < scanPtr.p->nextBucketIndex)
+      {
 	/* ---------------------------------------------------------------- */
 	// All buckets have been scanned a first time.
 	/* ---------------------------------------------------------------- */
-        if (scanPtr.p->minBucketIndexToRescan == 0xFFFFFFFF) {
+        if (scanPtr.p->minBucketIndexToRescan == 0xFFFFFFFF)
+        {
           jam();
 	  /* -------------------------------------------------------------- */
 	  // We have not had any merges behind the scan. 
@@ -7351,24 +7425,30 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	  /* --------------------------------------------------------------- */
           checkNextFragmentLab(signal);
           return;
-        } else {
+        }
+        else
+        {
           jam();
-	  /* --------------------------------------------------------------------------------- */
-	  // Some buckets are in the need of rescanning due to merges that have moved records
-	  // from in front of the scan to behind the scan. During the merges we kept track of
-	  // which buckets that need a rescan. We start with the minimum and end with maximum.
-	  /* --------------------------------------------------------------------------------- */
+	  /**
+	   * Some buckets are in the need of rescanning due to merges that have
+           * moved records from in front of the scan to behind the scan. During
+           * the merges we kept track of which buckets that need a rescan.
+           * We start with the minimum and end with maximum.
+           */
           scanPtr.p->nextBucketIndex = scanPtr.p->minBucketIndexToRescan;
 	  scanPtr.p->scanBucketState =  ScanRec::SECOND_LAP;
-          if (scanPtr.p->maxBucketIndexToRescan > fragrecptr.p->level.getTop()) {
+          if (scanPtr.p->maxBucketIndexToRescan > fragrecptr.p->level.getTop())
+          {
             jam();
-	    /* --------------------------------------------------------------------------------- */
-	    // If we have had so many merges that the maximum is bigger than the number of buckets
-	    // then we will simply satisfy ourselves with scanning to the end. This can only happen
-	    // after bringing down the total of buckets to less than half and the minimum should
-	    // be 0 otherwise there is some problem.
-	    /* --------------------------------------------------------------------------------- */
-            if (scanPtr.p->minBucketIndexToRescan != 0) {
+	    /**
+	     * If we have had so many merges that the maximum is bigger than
+             * the number of buckets then we will simply satisfy ourselves with
+             * scanning to the end. This can only happen after bringing down
+             * the total of buckets to less than half and the minimum should
+	     * be 0 otherwise there is some problem.
+             */
+            if (scanPtr.p->minBucketIndexToRescan != 0)
+            {
               jam();
               sendSystemerror(__LINE__);
               return;
@@ -7379,13 +7459,16 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       }//if
     }//if
     if ((scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) &&
-        (scanPtr.p->nextBucketIndex <= scanPtr.p->startNoOfBuckets)) {
-      /* --------------------------------------------------------------------------------- */
-      // We will only reset the scan indicator on the buckets that existed at the start of the
-      // scan. The others will be handled by the split and merge code.
-      /* --------------------------------------------------------------------------------- */
+        (scanPtr.p->nextBucketIndex <= scanPtr.p->startNoOfBuckets))
+    {
+      /**
+       * We will only reset the scan indicator on the buckets that existed at
+       * the start of the scan. The others will be handled by the split and
+       * merge code.
+       */
       Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
-      if (conidx == 0) {
+      if (conidx == 0)
+      {
         jam();
         Uint32 pagei = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
         gnsPageidptr.i = getPagePtr(fragrecptr.p->directory, pagei);
@@ -7394,6 +7477,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       ndbassert(!scanPtr.p->isInContainer());
       releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
+    releaseFreeOpRec();
     scanPtr.p->scan_lastSeen = __LINE__;
     BlockReference ref = scanPtr.p->scanUserblockref;
     signal->theData[0] = scanPtr.p->scanUserptr;
@@ -7413,7 +7497,10 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   tnsContainerptr = conptr;
   nsPageptr.i = pageptr.i;
   nsPageptr.p = pageptr.p;
-  seizeOpRec();
+  ndbrequire(cfreeopRec != RNIL);
+  operationRecPtr.i = cfreeopRec;
+  cfreeopRec = RNIL;
+  ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
   initScanOpRec(nsPageptr, tnsContainerptr, tnsElementptr);
  
   if (!tnsIsLocked){
@@ -7434,7 +7521,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
     arrGuard(tnsElementptr, 2048);
     queOperPtr.i = 
       ElementHeader::getOpPtrI(nsPageptr.p->word32[tnsElementptr]);
-    ptrCheckGuard(queOperPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(queOperPtr));
     if (queOperPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED ||
 	queOperPtr.p->localdata.isInvalid())
     {
@@ -7525,6 +7612,7 @@ void Dbacc::checkNextFragmentLab(Signal* signal)
   // The scan is completed. ACC_CHECK_SCAN will perform all the necessary 
   // checks to see
   // what the next step is.
+  releaseFreeOpRec();
   signal->theData[0] = scanPtr.i;
   signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
   execACC_CHECK_SCAN(signal);
@@ -7543,7 +7631,6 @@ void Dbacc::initScanFragmentPart()
   //    larger than.
   // Reset the scan indicator on the first bucket.
   /* ----------------------------------------------------------------------- */
-  ndbassert(scanPtr.p->activeLocalFrag == RNIL);
   scanPtr.p->activeLocalFrag = fragrecptr.i;
   scanPtr.p->nextBucketIndex = 0;	/* INDEX OF SCAN BUCKET */
   ndbassert(!scanPtr.p->isInContainer());
@@ -7624,7 +7711,6 @@ void Dbacc::releaseScanLab(Signal* signal)
   conf->accOperationPtr = RNIL;
   conf->fragId = RNIL;
   fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
-  scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
   signal->setLength(NextScanConf::SignalLengthNoTuple);
   c_lqh->exec_next_scan_conf(signal);
@@ -7638,7 +7724,7 @@ void Dbacc::releaseAndCommitActiveOps(Signal* signal)
   operationRecPtr.i = scanPtr.p->scanFirstActiveOp;
   while (operationRecPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
     trsoOperPtr.i = operationRecPtr.p->nextOp;
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -7669,7 +7755,7 @@ void Dbacc::releaseAndCommitQueuedOps(Signal* signal)
   operationRecPtr.i = scanPtr.p->scanFirstQueuedOp;
   while (operationRecPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
     trsoOperPtr.i = operationRecPtr.p->nextOp;
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -7699,7 +7785,7 @@ void Dbacc::releaseAndAbortLockedOps(Signal* signal) {
   operationRecPtr.i = scanPtr.p->scanFirstLockedOp;
   while (operationRecPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
     trsoOperPtr.i = operationRecPtr.p->nextOp;
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -7729,9 +7815,12 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
   Uint32 TcheckLcpStop;
   jamEntry();
   scanPtr.i = signal->theData[0];
+  ndbrequire(scanRec_pool.getUncheckedPtrRW(scanPtr));
   TcheckLcpStop = signal->theData[1];
-  ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-  while (scanPtr.p->scanFirstQueuedOp != RNIL) {
+  Uint32 firstQueuedOp = scanPtr.p->scanFirstQueuedOp;
+  ndbrequire(Magic::check_ptr(scanPtr.p));
+  while (firstQueuedOp != RNIL)
+  {
     jam();
     //---------------------------------------------------------------------
     // An operation has been released from the lock queue. 
@@ -7739,7 +7828,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     // ready to report the tuple now.
     //------------------------------------------------------------------------
     operationRecPtr.i = scanPtr.p->scanFirstQueuedOp;
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
     takeOutReadyScanQueue();
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -7762,6 +7851,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
       releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
+      firstQueuedOp = scanPtr.p->scanFirstQueuedOp;
       continue;
     }//if
     scanPtr.p->scan_lastSeen = __LINE__;
@@ -7779,6 +7869,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     // we will report the scan as completed to LQH.
     //----------------------------------------------------------------------------
     scanPtr.p->scan_lastSeen = __LINE__;
+    releaseFreeOpRec();
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scanPtr.p->scanUserptr;
     conf->accOperationPtr = RNIL;
@@ -7813,7 +7904,37 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
    * If we have more than max locks held OR
    * scan is completed AND at least one lock held
    *  - Inform LQH about this condition
+   * Also when no free operation records to handle lock
+   * operations.
    */
+  if (cfreeopRec == RNIL)
+  {
+    OperationrecPtr opPtr;
+    if (oprec_pool.seize(opPtr))
+    {
+      jam();
+      cfreeopRec = opPtr.i;
+    }
+    else
+    {
+      signal->theData[0] = scanPtr.p->scanUserptr;
+      signal->theData[1] = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
+      EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+      if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
+      {
+        jamEntry();
+        scanPtr.p->scan_lastSeen = __LINE__;
+        return;
+      }
+      jamEntry();
+      ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+      /*
+       * Fall through, cfreeOpRec == RNIL will lead to NEXT_SCANCONF
+       * CHECK_LCP_STOP has already prepared LQH by setting complete
+       * status to true.
+       */
+    }
+  }
   if ((scanPtr.p->scanLockHeld >= ZSCAN_MAX_LOCK) ||
       (cfreeopRec == RNIL) ||
       ((scanPtr.p->scanBucketState == ScanRec::SCAN_COMPLETED) &&
@@ -7833,6 +7954,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
   }
   if (scanPtr.p->scanBucketState == ScanRec::SCAN_COMPLETED) {
     jam();
+    releaseFreeOpRec();
     signal->theData[0] = scanPtr.i;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
     execACC_CHECK_SCAN(signal);
@@ -7856,7 +7978,7 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
 
   jamEntry();
   tatrOpPtr.i = signal->theData[1];     /*  OPER PTR OF ACC                */
-  ptrCheckGuard(tatrOpPtr, coprecsize, operationrec);
+  ndbrequire(oprec_pool.getValidPtr(tatrOpPtr));
 
   /* Only scan locks can be taken over */
   if ((tatrOpPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP)
@@ -8055,7 +8177,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   {
     OperationrecPtr oprec;
     oprec.i = ElementHeader::getOpPtrI(pageptr.p->word32[elemptr]);
-    ptrCheckGuard(oprec, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(oprec));
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
     ndbrequire(oprec.p->localdata.m_page_no == pageptr.p->word32[tisoLocalPtr]);
 #endif
@@ -8121,7 +8243,7 @@ void Dbacc::putActiveScanOp() const
   pasOperationRecPtr.i = scanPtr.p->scanFirstActiveOp;
   if (pasOperationRecPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(pasOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(pasOperationRecPtr));
     pasOperationRecPtr.p->prevOp = operationRecPtr.i;
   }//if
   operationRecPtr.p->nextOp = pasOperationRecPtr.i;
@@ -8154,7 +8276,7 @@ void Dbacc::putOpScanLockQue() const
   tmpOp.i = scanPtr.p->scanFirstLockedOp;
   while(tmpOp.i != RNIL){
     numLockedOpsBefore++;
-    ptrCheckGuard(tmpOp, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tmpOp));
     if (tmpOp.p->nextOp == RNIL)
     {
       ndbrequire(tmpOp.i == scanPtr.p->scanLastLockedOp);
@@ -8173,7 +8295,7 @@ void Dbacc::putOpScanLockQue() const
   operationRecPtr.p->nextOp = RNIL;
   if (pslOperationRecPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(pslOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(pslOperationRecPtr));
     pslOperationRecPtr.p->nextOp = operationRecPtr.i;
   } else {
     jam();
@@ -8194,7 +8316,7 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
   ScanRecPtr TscanPtr;
 
   TscanPtr.i = scanRecIndex;
-  ptrCheckGuard(TscanPtr, cscanRecSize, scanRec);
+  ndbrequire(scanRec_pool.getValidPtr(TscanPtr));
 
   prsOperationRecPtr.i = TscanPtr.p->scanLastQueuedOp;
   operationRecPtr.p->prevOp = prsOperationRecPtr.i;
@@ -8202,7 +8324,7 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
   TscanPtr.p->scanLastQueuedOp = operationRecPtr.i;
   if (prsOperationRecPtr.i != RNIL) {
     jam();
-    ptrCheckGuard(prsOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(prsOperationRecPtr));
     prsOperationRecPtr.p->nextOp = operationRecPtr.i;
   } else {
     jam();
@@ -8321,11 +8443,9 @@ void Dbacc::releaseScanRec()
   ndbrequire(scanPtr.p->scanLastQueuedOp == RNIL);
 
   // Put scan record in free list
-  scanPtr.p->scanNextfreerec = cfirstFreeScanRec;
-  scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
-  scanPtr.p->scan_lastSeen = __LINE__;
-  cfirstFreeScanRec = scanPtr.i;
-
+  scanRec_pool.release(scanPtr);
+  checkPoolShrinkNeed(DBACC_SCAN_RECORD_TRANSIENT_POOL_INDEX,
+                      scanRec_pool);
 }//Dbacc::releaseScanRec()
 
 /* --------------------------------------------------------------------------------- */
@@ -8475,7 +8595,7 @@ void Dbacc::takeOutActiveScanOp() const
   if (operationRecPtr.p->prevOp != RNIL) {
     jam();
     tasOperationRecPtr.i = operationRecPtr.p->prevOp;
-    ptrCheckGuard(tasOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tasOperationRecPtr));
     tasOperationRecPtr.p->nextOp = operationRecPtr.p->nextOp;
   } else {
     jam();
@@ -8484,7 +8604,7 @@ void Dbacc::takeOutActiveScanOp() const
   if (operationRecPtr.p->nextOp != RNIL) {
     jam();
     tasOperationRecPtr.i = operationRecPtr.p->nextOp;
-    ptrCheckGuard(tasOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tasOperationRecPtr));
     tasOperationRecPtr.p->prevOp = operationRecPtr.p->prevOp;
   }//if
 }//Dbacc::takeOutActiveScanOp()
@@ -8505,12 +8625,12 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) const
   ScanRecPtr TscanPtr;
 
   TscanPtr.i = scanRecIndex;
-  ptrCheckGuard(TscanPtr, cscanRecSize, scanRec);
+  ndbrequire(scanRec_pool.getValidPtr(TscanPtr));
 
   if (operationRecPtr.p->prevOp != RNIL) {
     jam();
     tslOperationRecPtr.i = operationRecPtr.p->prevOp;
-    ptrCheckGuard(tslOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tslOperationRecPtr));
     tslOperationRecPtr.p->nextOp = operationRecPtr.p->nextOp;
   } else {
     jam();
@@ -8521,7 +8641,7 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) const
   if (operationRecPtr.p->nextOp != RNIL) {
     jam();
     tslOperationRecPtr.i = operationRecPtr.p->nextOp;
-    ptrCheckGuard(tslOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tslOperationRecPtr));
     tslOperationRecPtr.p->prevOp = operationRecPtr.p->prevOp;
   } else {
     jam();
@@ -8540,7 +8660,7 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) const
   tmpOp.i = TscanPtr.p->scanFirstLockedOp;
   while(tmpOp.i != RNIL){
     numLockedOps++;
-    ptrCheckGuard(tmpOp, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(tmpOp));
     if (tmpOp.p->nextOp == RNIL)
     {
       ndbrequire(tmpOp.i == TscanPtr.p->scanLastLockedOp);
@@ -8561,7 +8681,7 @@ void Dbacc::takeOutReadyScanQueue() const
   if (operationRecPtr.p->prevOp != RNIL) {
     jam();
     trsOperationRecPtr.i = operationRecPtr.p->prevOp;
-    ptrCheckGuard(trsOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(trsOperationRecPtr));
     trsOperationRecPtr.p->nextOp = operationRecPtr.p->nextOp;
   } else {
     jam();
@@ -8570,7 +8690,7 @@ void Dbacc::takeOutReadyScanQueue() const
   if (operationRecPtr.p->nextOp != RNIL) {
     jam();
     trsOperationRecPtr.i = operationRecPtr.p->nextOp;
-    ptrCheckGuard(trsOperationRecPtr, coprecsize, operationrec);
+    ndbrequire(oprec_pool.getValidPtr(trsOperationRecPtr));
     trsOperationRecPtr.p->prevOp = operationRecPtr.p->prevOp;
   } else {
     jam();
@@ -8767,32 +8887,46 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::releaseOpRec()
 {
-#if 0
-  // DEBUG CODE
-  // Check that the operation to be released isn't 
-  // already in the list of free operations
-  // Since this code loops through the entire list of free operations
-  // it's only enabled in VM_TRACE mode
-  OperationrecPtr opRecPtr;
-  bool opInList = false;
-  opRecPtr.i = cfreeopRec;
-  while (opRecPtr.i != RNIL){
-    if (opRecPtr.i == operationRecPtr.i){
-      opInList = true;
-      break;
-    }
-    ptrCheckGuard(opRecPtr, coprecsize, operationrec);
-    opRecPtr.i = opRecPtr.p->nextOp;
-  }
-  ndbrequire(opInList == false);
-#endif
   ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
+  if (likely(operationRecPtr.i != c_copy_frag_oprec))
+  {
+    oprec_pool.release(operationRecPtr);
+    checkPoolShrinkNeed(DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX,
+                        oprec_pool);
+  }
+  else
+  {
+    /**
+     * We initialise object by releasing it and seizing it again.
+     * This will call both the destructor code and the constructor code
+     * to ensure the operation object is properly initialised before used
+     * again.
+     * Since this is the very first object seized it will get the first
+     * reserved slot and since no one has a chance to come in between AND
+     * we only have this single free reserved slot since all others are
+     * allocated and managed by LQH. Therefore we can be sure to get back
+     * to the same record again.
+     */
+    oprec_pool.release(operationRecPtr);
+    ndbrequire(oprec_pool.seize(operationRecPtr));
+    ndbrequire(operationRecPtr.i == c_copy_frag_oprec);
+  }
+}
 
-  operationRecPtr.p->nextOp = cfreeopRec;
-  cfreeopRec = operationRecPtr.i;	/* UPDATE FREE LIST OF OP RECORDS */
-  operationRecPtr.p->prevOp = RNIL;
-  operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-}//Dbacc::releaseOpRec()
+void Dbacc::releaseFreeOpRec()
+{
+  if (cfreeopRec != RNIL)
+  {
+    OperationrecPtr opPtr;
+    opPtr.i = cfreeopRec;
+    cfreeopRec = RNIL;
+    oprec_pool.getValidPtr(opPtr);
+    ndbrequire(opPtr.p->m_op_bits == Operationrec::OP_INITIAL);
+    oprec_pool.release(opPtr);
+    checkPoolShrinkNeed(DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX,
+                        oprec_pool);
+  }
+}
 
 /* --------------------------------------------------------------------------------- */
 /* RELEASE_OVERPAGE                                                                  */
@@ -8879,19 +9013,6 @@ void Dbacc::seizeFragrec()
   fragrecptr.p->nextfreefrag = RNIL;
 }//Dbacc::seizeFragrec()
 
-/* --------------------------------------------------------------------------------- */
-/* SEIZE_OP_REC                                                                      */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::seizeOpRec()
-{
-  operationRecPtr.i = cfreeopRec;
-  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
-  cfreeopRec = operationRecPtr.p->nextOp;	/* UPDATE FREE LIST OF OP RECORDS */
-  /* PUTS OPERTION RECORD PTR IN THE LIST */
-  /* OF OPERATION IN CONNECTION RECORD */
-  operationRecPtr.p->nextOp = RNIL;
-}//Dbacc::seizeOpRec()
-
 /** 
  * A ZPAGESIZE_ERROR has occurred, out of index pages
  * Print some debug info if debug compiled
@@ -8957,24 +9078,6 @@ Uint32 Dbacc::seizePage(Page8Ptr& spPageptr, int sub_page_id)
 }//Dbacc::seizePage()
 
 /* --------------------------------------------------------------------------------- */
-/* SEIZE_ROOTFRAGREC                                                                 */
-/* --------------------------------------------------------------------------------- */
-
-/* --------------------------------------------------------------------------------- */
-/* SEIZE_SCAN_REC                                                                    */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::seizeScanRec()
-{
-  scanPtr.i = cfirstFreeScanRec;
-  ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-  ndbrequire(scanPtr.p->scanState == ScanRec::SCAN_DISCONNECT);
-  cfirstFreeScanRec = scanPtr.p->scanNextfreerec;
-}//Dbacc::seizeScanRec()
-
-/* --------------------------------------------------------------------------------- */
-/* SEIZE_SR_VERSION_REC                                                              */
-/* --------------------------------------------------------------------------------- */
-/* --------------------------------------------------------------------------------- */
 /* SEND_SYSTEMERROR                                                                  */
 /* --------------------------------------------------------------------------------- */
 void Dbacc::sendSystemerror(int line)const
@@ -8999,6 +9102,20 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
 
     Ndbinfo::pool_entry pools[] =
     {
+      { "ACC Operation Record",
+        oprec_pool.getUsed(),
+        oprec_pool.getSize(),
+        oprec_pool.getEntrySize(),
+        oprec_pool.getUsedHi(),
+        { 0, 0, 0, 0},
+        RT_DBACC_OPERATION},
+      { "ACC Scan Record",
+        scanRec_pool.getUsed(),
+        scanRec_pool.getSize(),
+        scanRec_pool.getEntrySize(),
+        scanRec_pool.getUsedHi(),
+        { 0, 0, 0, 0},
+        RT_DBACC_SCAN},
       { "Index memory",
         cnoOfAllocatedPages,
         cpageCount,
@@ -9128,15 +9245,19 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
   {
     jam();
     /* Take a break periodically when scanning records */
-    Uint32 maxToCheck = 1024;
+    Uint32 maxToCheck = 100;
     NDB_TICKS now = getHighResTimer();
     OperationrecPtr opRecPtr;
-    opRecPtr.i = cursor->data[0];
-
-    while (opRecPtr.i < coprecsize)
+    Uint32 i = cursor->data[0];
+    do
     {
-      ptrCheckGuard(opRecPtr, coprecsize, operationrec);
-     
+      if (rl.need_break(req) || maxToCheck == 0)
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, i);
+        return;
+      }
+      bool found = getNextOpRec(i, opRecPtr, 10);
       /**
        * ACC holds lock requests/operations in a 2D queue 
        * structure.
@@ -9166,8 +9287,10 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
        * and are not always guaranteed to be valid, m_op_bits
        * often must be consulted too.
        */
-      if (opRecPtr.p->m_op_bits != Operationrec::OP_INITIAL)
+      if (found &&
+          opRecPtr.p->m_op_bits != Operationrec::OP_INITIAL)
       {
+        ndbout_c("ACC_OP(3): %u", opRecPtr.i);
         jam();
 
         FragmentrecPtr fp;
@@ -9214,15 +9337,13 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
         ndbinfo_send_row(signal, req, row, rl);
       }
       maxToCheck--;
-      opRecPtr.i++;
-
-      if (rl.need_break(req) || maxToCheck == 0)
+      if (i == RNIL)
       {
-        jam();
-        ndbinfo_send_scan_break(signal, req, rl, opRecPtr.i);
+        /* No more rows left to scan */
+        ndbinfo_send_scan_conf(signal, req, rl);
         return;
       }
-    }
+    } while (true);
 
     break;
   }
@@ -9233,49 +9354,94 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+bool
+Dbacc::getNextScanRec(Uint32 &next, ScanRecPtr &loc_scanptr)
+{
+  Uint32 found = 0;
+  Uint32 loop_count = 0;
+
+  while (found == 0 && next != RNIL && loop_count < 10)
+  {
+    found = scanRec_pool.getUncheckedPtrs(&next, &loc_scanptr, 1);
+    if (found > 0 &&
+        !Magic::check_ptr(loc_scanptr.p))
+      found = 0;
+    loop_count++;
+  }
+  return (found > 0);
+}
+
+bool
+Dbacc::getNextOpRec(Uint32 &next,
+                    OperationrecPtr &loc_opptr,
+                    Uint32 max_loops)
+{
+  Uint32 found = 0;
+  Uint32 loop_count = 0;
+  while (found == 0 && next != RNIL &&
+         (max_loops == 0 || loop_count < max_loops))
+  {
+    found = oprec_pool.getUncheckedPtrs(&next, &loc_opptr, 1);
+    if (found > 0 &&
+        !Magic::check_ptr(loc_opptr.p))
+      found = 0;
+    loop_count++;
+  }
+  return (found > 0);
+}
+
 void
 Dbacc::execDUMP_STATE_ORD(Signal* signal)
 {
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
-  if (dumpState->args[0] == DumpStateOrd::AccDumpOneScanRec){
+  if (dumpState->args[0] == DumpStateOrd::AccDumpOneScanRec)
+  {
+    ScanRecPtr scanPtr;
     Uint32 recordNo = RNIL;
     if (signal->length() == 2)
+    {
+      jam();
       recordNo = dumpState->args[1];
-    else 
+    }
+    else
+    {
+      jam();
       return;
-
-    if (recordNo >= cscanRecSize) 
-      return;
-    
+    }
     scanPtr.i = recordNo;
-    ptrAss(scanPtr, scanRec);
-    infoEvent("Dbacc::ScanRec[%d]: state=%d, transid(0x%x, 0x%x)",
+    if (!scanRec_pool.getValidPtr(scanPtr))
+    {
+      jam();
+      return;
+    }
+    jam();
+    
+    g_eventLogger->info("Dbacc::ScanRec[%d]: state=%d, transid(0x%x, 0x%x)",
 	      scanPtr.i, scanPtr.p->scanState,scanPtr.p->scanTrid1,
 	      scanPtr.p->scanTrid2);
-    infoEvent("activeLocalFrag=%d, nextBucketIndex=%d",
+    g_eventLogger->info("activeLocalFrag=%d, nextBucketIndex=%d",
 	      scanPtr.p->activeLocalFrag,
 	      scanPtr.p->nextBucketIndex);
-    infoEvent("scanNextfreerec=%d firstActOp=%d firstLockedOp=%d",
-	      scanPtr.p->scanNextfreerec,
+    g_eventLogger->info("firstActOp=%d firstLockedOp=%d",
 	      scanPtr.p->scanFirstActiveOp,
 	      scanPtr.p->scanFirstLockedOp);
-    infoEvent("scanLastLockedOp=%d firstQOp=%d lastQOp=%d",
+    g_eventLogger->info("scanLastLockedOp=%d firstQOp=%d lastQOp=%d",
 	      scanPtr.p->scanLastLockedOp,
 	      scanPtr.p->scanFirstQueuedOp,
 	      scanPtr.p->scanLastQueuedOp);
-    infoEvent("scanUserP=%d, startNoBuck=%d, minBucketIndexToRescan=%d",
+    g_eventLogger->info("scanUserP=%d, startNoBuck=%d,"
+                        " minBucketIndexToRescan=%d",
 	      scanPtr.p->scanUserptr,
 	      scanPtr.p->startNoOfBuckets,
 	      scanPtr.p->minBucketIndexToRescan);
-    infoEvent("maxBucketIndexToRescan=%d, scan_lastSeen = %d, cfreeopRec=%d",
+    g_eventLogger->info("maxBucketIndexToRescan=%d, scan_lastSeen = %d, ",
 	      scanPtr.p->maxBucketIndexToRescan,
-              scanPtr.p->scan_lastSeen,
-              cfreeopRec);
-    infoEvent("scanBucketState=%d, scanLockHeld=%d, userBlockRef=%d",
+              scanPtr.p->scan_lastSeen);
+    g_eventLogger->info("scanBucketState=%d, scanLockHeld=%d, userBlockRef=%d",
 	      scanPtr.p->scanBucketState,
 	      scanPtr.p->scanLockHeld,
 	      scanPtr.p->scanUserblockref);
-    infoEvent("scanMask=%d scanLockMode=%d, scanLockCount=%d",
+    g_eventLogger->info("scanMask=%d scanLockMode=%d, scanLockCount=%d",
 	      scanPtr.p->scanMask,
 	      scanPtr.p->scanLockMode,
               scanPtr.p->scanLockCount);
@@ -9283,51 +9449,28 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
   }
 
   // Dump all ScanRec(ords)
-  if (dumpState->args[0] == DumpStateOrd::AccDumpAllScanRec){
+  if (dumpState->args[0] == DumpStateOrd::AccDumpAllScanRec ||
+      dumpState->args[0] == DumpStateOrd::AccDumpAllActiveScanRec)
+  {
     Uint32 recordNo = 0;
     if (signal->length() == 1)
-      infoEvent("ACC: Dump all ScanRec - size: %d",
-		cscanRecSize);
+      infoEvent("ACC: Dump all active ScanRec");
     else if (signal->length() == 2)
       recordNo = dumpState->args[1];
     else
       return;
-    
-    dumpState->args[0] = DumpStateOrd::AccDumpOneScanRec;
-    dumpState->args[1] = recordNo;
-    execDUMP_STATE_ORD(signal);
-    
-    if (recordNo < cscanRecSize-1){
-      dumpState->args[0] = DumpStateOrd::AccDumpAllScanRec;
-      dumpState->args[1] = recordNo+1;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
-    }
-    return;
-  }
-
-  // Dump all active ScanRec(ords)
-  if (dumpState->args[0] == DumpStateOrd::AccDumpAllActiveScanRec){
-    Uint32 recordNo = 0;
-    if (signal->length() == 1)
-      infoEvent("ACC: Dump active ScanRec - size: %d",
-		cscanRecSize);
-    else if (signal->length() == 2)
-      recordNo = dumpState->args[1];
-    else
-      return;
-
-    ScanRecPtr sp;
-    sp.i = recordNo;
-    ptrAss(sp, scanRec);
-    if (sp.p->scanState != ScanRec::SCAN_DISCONNECT){
+    ScanRecPtr loc_scanptr;
+    bool found = getNextScanRec(recordNo, loc_scanptr);
+    if (found)
+    {
       dumpState->args[0] = DumpStateOrd::AccDumpOneScanRec;
-      dumpState->args[1] = recordNo;
+      dumpState->args[1] = loc_scanptr.i;
       execDUMP_STATE_ORD(signal);
     }
-
-    if (recordNo < cscanRecSize-1){
-      dumpState->args[0] = DumpStateOrd::AccDumpAllActiveScanRec;
-      dumpState->args[1] = recordNo+1;
+    if (recordNo != RNIL)
+    {
+      dumpState->args[0] = DumpStateOrd::AccDumpAllScanRec;
+      dumpState->args[1] = recordNo;
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
     }
     return;
@@ -9347,12 +9490,11 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     else 
       return;
 
-    if (recordNo >= coprecsize) 
-      return;
-    
     OperationrecPtr tmpOpPtr;
     tmpOpPtr.i = recordNo;
-    ptrAss(tmpOpPtr, operationrec);
+    if (!oprec_pool.getValidPtr(tmpOpPtr))
+      return;
+    
     infoEvent("Dbacc::operationrec[%d]: transid(0x%x, 0x%x)",
 	      tmpOpPtr.i, tmpOpPtr.p->transId1,
 	      tmpOpPtr.p->transId2);
@@ -9377,71 +9519,16 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-  if(dumpState->args[0] == DumpStateOrd::AccDumpNumOpRecs){
-
-    Uint32 freeOpRecs = 0;
-    OperationrecPtr opRecPtr;
-    opRecPtr.i = cfreeopRec;
-    while (opRecPtr.i != RNIL){
-      freeOpRecs++;
-      ptrCheckGuard(opRecPtr, coprecsize, operationrec);
-      opRecPtr.i = opRecPtr.p->nextOp;
-    }
-
-    infoEvent("Dbacc::OperationRecords: num=%d, free=%d",	      
-	      coprecsize, freeOpRecs);
+#ifdef ERROR_INSERT
+  if(dumpState->args[0] == DumpStateOrd::AccDumpNumOpRecs)
+  {
+    Uint32 freeOpRecs = oprec_pool.getUsed();
+    infoEvent("Dbacc::OperationRecords: free=%d",	      
+	      freeOpRecs);
 
     return;
   }
-  if(dumpState->args[0] == DumpStateOrd::AccDumpFreeOpRecs){
-
-    OperationrecPtr opRecPtr;
-    opRecPtr.i = cfreeopRec;
-    while (opRecPtr.i != RNIL){
-      
-      dumpState->args[0] = DumpStateOrd::AccDumpOneOperationRec;
-      dumpState->args[1] = opRecPtr.i;
-      execDUMP_STATE_ORD(signal);
-
-      ptrCheckGuard(opRecPtr, coprecsize, operationrec);
-      opRecPtr.i = opRecPtr.p->nextOp;
-    }
-
-
-    return;
-  }
-
-  if(dumpState->args[0] == DumpStateOrd::AccDumpNotFreeOpRecs){
-    Uint32 recordStart = RNIL;
-    if (signal->length() == 2)
-      recordStart = dumpState->args[1];
-    else 
-      return;
-
-    if (recordStart >= coprecsize) 
-      return;
-
-    for (Uint32 i = recordStart; i < coprecsize; i++){
-
-      bool inFreeList = false;
-      OperationrecPtr opRecPtr;
-      opRecPtr.i = cfreeopRec;
-      while (opRecPtr.i != RNIL){
-	if (opRecPtr.i == i){
-	  inFreeList = true;
-	  break;
-	}
-	ptrCheckGuard(opRecPtr, coprecsize, operationrec);
-	opRecPtr.i = opRecPtr.p->nextOp;
-      }
-      if (inFreeList == false){
-	dumpState->args[0] = DumpStateOrd::AccDumpOneOperationRec;
-	dumpState->args[1] = i;
-	execDUMP_STATE_ORD(signal);	
-      }
-    }
-    return;
-  }
+#endif
 
 #if 0
   if (type == 100) {
@@ -9517,6 +9604,31 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragrec);
     return;
   }
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  if (signal->theData[0] == DumpStateOrd::AccSetTransientPoolMaxSize)
+  {
+    jam();
+    if (signal->getLength() < 3)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    const Uint32 new_size = signal->theData[2];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->setMaxSize(new_size);
+    return;
+  }
+  if (signal->theData[0] == DumpStateOrd::AccResetTransientPoolMaxSize)
+  {
+    jam();
+    if(signal->getLength() < 2)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->resetMaxSize();
+    return;
+  }
+#endif
 }//Dbacc::execDUMP_STATE_ORD()
 
 Uint32
@@ -9694,4 +9806,35 @@ void Dbacc::Page32Lists::releasePage8(Page32_pool& pool, Page8Ptr p8)
   nonempty_lists |= (1 << new_list_id);
   p.p->list_id = new_list_id;
   sub_page_id_count[sub_page_id] --;
+}
+
+void
+Dbacc::sendPoolShrink(const Uint32 pool_index)
+{
+  const bool need_send = c_transient_pools_shrinking.get(pool_index) == 0;
+  c_transient_pools_shrinking.set(pool_index);
+  if (need_send)
+  {
+    SignalT<2> signal2[1];
+    Signal* signal = new (&signal2[0]) Signal(0);
+    memset(signal2, 0, sizeof(signal2));
+    signal->theData[0] = ZACC_SHRINK_TRANSIENT_POOLS;
+    signal->theData[1] = pool_index;
+    sendSignal(reference(), GSN_CONTINUEB, (Signal*)signal, 2, JBB);
+  }
+}
+
+void
+Dbacc::shrinkTransientPools(Uint32 pool_index)
+{
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools_shrinking.get(pool_index));
+  if (c_transient_pools[pool_index]->rearrange_free_list_and_shrink(1))
+  {
+    sendPoolShrink(pool_index);
+  }
+  else
+  {
+    c_transient_pools_shrinking.clear(pool_index);
+  }
 }

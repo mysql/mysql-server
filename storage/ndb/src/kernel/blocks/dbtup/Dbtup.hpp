@@ -50,9 +50,10 @@
 #include "../backup/BackupFormat.hpp"
 #include <portlib/ndb_prefetch.h>
 #include "util/ndb_math.h"
+#include "TransientPool.hpp"
+#include "TransientSlotPool.hpp"
 
 #define JAM_FILE_ID 414
-
 
 extern EventLogger* g_eventLogger;
 
@@ -168,7 +169,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZTEMPORARY_RESOURCE_FAILURE 891
 #define ZUNSUPPORTED_BRANCH 892
 
-#define ZSTORED_SEIZE_ATTRINBUFREC_ERROR 873 // Part of Scan
 #define ZSTORED_TOO_MUCH_ATTRINFO_ERROR 874
 
 #define ZREAD_ONLY_CONSTRAINT_VIOLATION 893
@@ -182,6 +182,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZOP_AFTER_REFRESH_ERROR 920
 #define ZNO_COPY_TUPLE_MEMORY_ERROR 921
 #define ZNO_UNDO_BUFFER_MEMORY_ERROR 923
+#define ZOUT_OF_STORED_PROC_MEMORY_ERROR 924
 
 #define ZINVALID_CHAR_FORMAT 744
 #define ZROWID_ALLOCATED 899
@@ -243,6 +244,8 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZFREE_PAGES 14
 #define ZREBUILD_FREE_PAGE_LIST 15
 #define ZDISK_RESTART_UNDO 16
+#define ZTUP_SHRINK_TRANSIENT_POOLS 17
+#define ZTUP_TRANSIENT_POOL_STAT 18
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -408,7 +411,18 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   // Scan Lock
   struct ScanLock {
-    ScanLock() {}
+    STATIC_CONST( TYPE_ID = RT_DBTUP_SCAN_LOCK);
+    Uint32 m_magic;
+
+    ScanLock() :
+      m_magic(Magic::make(TYPE_ID))
+    {
+    }
+
+    ~ScanLock()
+    {
+    }
+
     Uint32 m_accLockOp;
     union {
       Uint32 nextPool;
@@ -416,17 +430,27 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     };
     Uint32 prevList;
   };
+  STATIC_CONST( DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX = 2);
   typedef Ptr<ScanLock> ScanLockPtr;
-  typedef ArrayPool<ScanLock> ScanLock_pool;
+  typedef TransientPool<ScanLock> ScanLock_pool;
   typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
   typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
-
   ScanLock_pool c_scanLockPool;
+  /**
+   * To ensure that we have a lock resource before we scan a row
+   * in lock mode, we grab it before the scan and store the
+   * ScanLock i-value in this variable. It can only store a single
+   * object, no list of objects.
+   */
+  Uint32 c_freeScanLock;
 
   // Tup scan, similar to Tux scan.  Later some of this could
   // be moved to common superclass.
   struct ScanOp {
+    STATIC_CONST( TYPE_ID = RT_DBTUP_SCAN_OPERATION);
+    Uint32 m_magic;
     ScanOp() :
+      m_magic(Magic::make(TYPE_ID)),
       m_state(Undef),
       m_bits(0),
       m_last_seen(0),
@@ -463,7 +487,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       SCAN_LOCK_WAIT = 0x40,        // lock wait
       // any lock mode
       SCAN_LOCK      = SCAN_LOCK_SH | SCAN_LOCK_EX,
-      SCAN_NR        = 0x80        // Node recovery scan
+      SCAN_NR        = 0x80,       // Node recovery scan
+      SCAN_COPY_FRAG = 0x100       // Copy fragment scan
     };
     Uint16 m_bits;
     Uint16 m_last_seen;
@@ -493,8 +518,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     };
     Uint32 prevList;
   };
+  STATIC_CONST(DBTUP_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 3);
   typedef Ptr<ScanOp> ScanOpPtr;
-  typedef ArrayPool<ScanOp> ScanOp_pool;
+  typedef TransientPool<ScanOp> ScanOp_pool;
   typedef DLList<ScanOp_pool> ScanOp_list;
   typedef LocalDLList<ScanOp_pool> Local_ScanOp_list;
   ScanOp_pool c_scanOpPool;
@@ -777,6 +803,26 @@ struct Fragrecord {
 typedef Ptr<Fragrecord> FragrecordPtr;
 
 struct Operationrec {
+  STATIC_CONST( TYPE_ID = RT_DBTUP_OPERATION);
+  Uint32 m_magic;
+
+  Operationrec() :
+    m_magic(Magic::make(TYPE_ID)),
+    prevActiveOp(RNIL),
+    nextActiveOp(RNIL),
+    m_any_value(0),
+    op_type(ZREAD),
+    trans_state(Uint32(TRANS_DISCONNECTED))
+  {
+    op_struct.bit_field.in_active_list = false;
+    op_struct.bit_field.tupVersion = ZNIL;
+    op_struct.bit_field.delete_insert_flag = false;
+  }
+
+  ~Operationrec()
+  {
+  }
+
   /*
    * Doubly linked list with anchor on tuple.
    * This is to handle multiple updates on the same tuple
@@ -785,7 +831,6 @@ struct Operationrec {
   Uint32 prevActiveOp;
   Uint32 nextActiveOp;
 
-  Operationrec() {}
   bool is_first_operation() const { return prevActiveOp == RNIL;}
   bool is_last_operation() const { return nextActiveOp == RNIL;}
 
@@ -905,10 +950,11 @@ struct Operationrec {
     RF_MULTI_EXIST      = 4     /* Refresh op !first in trans, row exists */
   };
 };
-typedef Ptr<Operationrec> OperationrecPtr;
-typedef ArrayPool<Operationrec> Operationrec_pool;
-
+  STATIC_CONST(DBTUP_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
+  typedef Ptr<Operationrec> OperationrecPtr;
+  typedef TransientPool<Operationrec> Operationrec_pool;
   OperationrecPtr prepare_oper_ptr;
+
   /* ************* TRIGGER DATA ************* */
   /* THIS RECORD FORMS LISTS OF ACTIVE       */
   /* TRIGGERS FOR EACH TABLE.                 */
@@ -1097,12 +1143,12 @@ TupTriggerData_pool c_triggerPool;
     /**
      * Aggregates
      */
-    Uint16 m_no_of_attributes;
-    Uint16 m_no_of_disk_attributes;
+    Uint16 m_no_of_extra_columns; // "Hidden" columns
+    Uint16 m_dyn_null_bits[2];
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
-    Uint16 m_dyn_null_bits[2];
-    Uint16 m_no_of_extra_columns; // "Hidden" columns
+    Uint16 m_no_of_disk_attributes;
+    Uint16 m_no_of_attributes;
 
     bool need_expand() const { 
       return m_no_of_attributes > m_attributes[MM].m_no_of_fixsize;
@@ -1139,6 +1185,18 @@ TupTriggerData_pool c_triggerPool;
       return no;
     }
 
+    struct {
+      Uint16 m_no_of_fixsize;
+      Uint16 m_no_of_varsize;
+      Uint16 m_no_of_dynamic;                   // Total no. of dynamic attrs
+      Uint16 m_no_of_dyn_fix;                   // No. of fixsize dynamic
+      Uint16 m_no_of_dyn_var;                   // No. of varsize dynamic
+      /*
+        Note that due to bit types, we may have
+            m_no_of_dynamic > m_no_of_dyn_fix + m_no_of_dyn_var
+      */
+    } m_attributes[2];
+    
     /**
      * Descriptors for MM and DD part
      */
@@ -1156,18 +1214,6 @@ TupTriggerData_pool c_triggerPool;
       return m_offsets[mm].m_fix_header_size;
     }
 
-    struct {
-      Uint16 m_no_of_fixsize;
-      Uint16 m_no_of_varsize;
-      Uint16 m_no_of_dynamic;                   // Total no. of dynamic attrs
-      Uint16 m_no_of_dyn_fix;                   // No. of fixsize dynamic
-      Uint16 m_no_of_dyn_var;                   // No. of varsize dynamic
-      /*
-        Note that due to bit types, we may have
-            m_no_of_dynamic > m_no_of_dyn_fix + m_no_of_dyn_var
-      */
-    } m_attributes[2];
-    
     // Lists of trigger data for active triggers
     TupTriggerData_list afterInsertTriggers;
     TupTriggerData_list afterDeleteTriggers;
@@ -1211,7 +1257,7 @@ TupTriggerData_pool c_triggerPool;
 
     State tableStatus;
     Local_key m_default_value_location;
-  };  
+  };
   Uint32
     m_read_ctl_file_data[BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
   /*
@@ -1289,18 +1335,30 @@ TupTriggerData_pool c_triggerPool;
   typedef Ptr<Tablerec> TablerecPtr;
 
   struct storedProc {
+    STATIC_CONST(TYPE_ID = RT_DBTUP_STORED_PROCEDURE);
+    Uint32 m_magic;
+
+    storedProc() :
+      m_magic(Magic::make(TYPE_ID))
+    {
+    }
+
+    ~storedProc()
+    {
+    }
+
     Uint32 storedProcIVal;
     Uint32 nextPool;
     Uint16 storedCode;
   };
+  typedef Ptr<storedProc> StoredProcPtr;
+  typedef TransientPool<storedProc> StoredProc_pool;
+  STATIC_CONST(DBTUP_STORED_PROCEDURE_TRANSIENT_POOL_INDEX = 1);
 
-typedef Ptr<storedProc> StoredProcPtr;
-typedef ArrayPool<storedProc> StoredProc_pool;
-
-StoredProc_pool c_storedProcPool;
-RSS_AP_SNAPSHOT(c_storedProcPool);
-Uint32 c_storedProcCountNonAPI;
-void storedProcCountNonAPI(BlockReference apiBlockref, int add_del);
+  StoredProc_pool c_storedProcPool;
+  RSS_AP_SNAPSHOT(c_storedProcPool);
+  Uint32 c_storedProcCountNonAPI;
+  void storedProcCountNonAPI(BlockReference apiBlockref, int add_del);
 
 /* **************************** TABLE_DESCRIPTOR RECORD ******************************** */
 /* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION IS STORED AS A */
@@ -2300,7 +2358,8 @@ public:
                         Uint32 frag_id);
   void prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx);
   void prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx);
-  void prepare_op_pointer(Uint32 opPtrI);
+  void prepare_op_pointer(Uint32 opPtrI,
+                          Dbtup::Operationrec *opPtrP);
   void prepare_tab_pointers(Uint32 fragPtrI);
   void get_all_tup_ptrs(Uint32 indexFragPtrI,
                         Uint32 tableFragPtrI,
@@ -3292,7 +3351,6 @@ private:
   void initializeAlterTabOperation();
   void initializeHostBuffer();
   void initializeLocalLogInfo();
-  void initializeOperationrec();
   void initializePendingFileOpenInfoRecord();
   void initializeRestartInfoRec();
   void initializeTablerec();
@@ -3339,7 +3397,7 @@ private:
 
   // Initialisation
   void initData();
-  void initRecords();
+  void initRecords(const ndb_mgm_configuration_iterator *mgm_cfg);
 
   // 2 words for optional GCI64 + AUTHOR info
 #define EXTRA_COPY_PROC_WORDS 2
@@ -3556,6 +3614,7 @@ private:
 //---------------------------------------------------------------
 
   Uint32 c_lcp_scan_op;
+  Uint32 c_copy_frag_scan_op;
 
 // readAttributes and updateAttributes module
 //------------------------------------------------------------------------------------------------------
@@ -4087,7 +4146,76 @@ private:
     pageidx &= ~(Uint16(1) << 15);
     assert(!isCopyTuple(pageid, pageidx));
   }
+
+private:
+  void release_c_free_scan_lock();
+  bool getNextTcConRec(Uint32 &next,
+                       OperationrecPtr &opPtr,
+                       Uint32 max_loops);
+
+  void checkPoolShrinkNeed(Uint32 pool_index,
+                           const TransientFastSlotPool& pool);
+  void sendPoolShrink(Uint32 pool_index);
+  void shrinkTransientPools(Uint32 pool_index);
+
+  static const Uint32 c_transient_pool_count = 4;
+  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  Bitmask<1> c_transient_pools_shrinking;
+
+  Uint32 c_copy_frag_scan_lock;
+  void release_scan_lock(ScanLockPtr);
+
+public:
+  static Uint64 getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const bool use_reserved);
+  bool seize_op_rec(Uint32 userptr,
+                    BlockReference ref,
+                    Uint32 &i_val,
+                    Operationrec **opPtrP);
+  Operationrec* get_operation_ptr(Uint32 i);
+  void release_op_rec(Uint32 opPtrI,
+                      Operationrec *opPtrP);
 };
+
+inline void
+Dbtup::prepare_op_pointer(Uint32 opPtrI,
+                          Dbtup::Operationrec *opPtrP)
+{
+  jamDebug();
+  Uint32 *op_ptr = (Uint32*)opPtrP;
+  NDB_PREFETCH_WRITE(op_ptr);
+  NDB_PREFETCH_WRITE(op_ptr + 16);
+  prepare_oper_ptr.i = opPtrI;
+  prepare_oper_ptr.p = opPtrP;
+}
+
+
+inline void
+Dbtup::release_op_rec(Uint32 opPtrI,
+                      Dbtup::Operationrec *opPtrP)
+{
+  OperationrecPtr opPtr;
+  opPtr.i = opPtrI;
+  opPtr.p = opPtrP;
+  c_operation_pool.release(opPtr);
+  checkPoolShrinkNeed(DBTUP_OPERATION_RECORD_TRANSIENT_POOL_INDEX,
+                      c_operation_pool);
+}
+
+inline void Dbtup::checkPoolShrinkNeed(const Uint32 pool_index,
+                                       const TransientFastSlotPool& pool)
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools[pool_index] == &pool);
+#endif
+  if (pool.may_shrink())
+  {
+    sendPoolShrink(pool_index);
+  }
+}
 
 inline
 Uint32
@@ -4249,7 +4377,7 @@ bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
     if (loopOpPtr.i == RNIL) {
       break;
     }
-    c_operation_pool.getPtr(loopOpPtr);
+    ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   }
   return false;
 }

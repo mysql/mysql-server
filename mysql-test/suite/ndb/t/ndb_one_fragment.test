@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source include/have_nodebug.inc
 
 # Test is using error insert, check that binaries support it
 --source suite/ndb/t/have_ndb_error_insert.inc

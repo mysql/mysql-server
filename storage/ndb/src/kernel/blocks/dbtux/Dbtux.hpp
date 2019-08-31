@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,20 +279,36 @@ private:
    * ScanBound instances are members of ScanOp.  Bound data is stored in
    * a separate segmented buffer pool.
    */
-  typedef ArrayPool<DataBufferSegment<ScanBoundSegmentSize> > ScanBoundSegment_pool;
-  typedef DataBuffer<ScanBoundSegmentSize,ScanBoundSegment_pool> ScanBoundBuffer;
-  typedef LocalDataBuffer<ScanBoundSegmentSize,ScanBoundSegment_pool> LocalScanBoundBuffer;
+  typedef DataBufferSegment<ScanBoundSegmentSize, RT_DBTUX_SCAN_BOUND>
+            ScanBoundSegment;
+  typedef TransientPool<ScanBoundSegment> ScanBoundBuffer_pool;
+  STATIC_CONST(DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX = 2);
+  typedef DataBuffer<ScanBoundSegmentSize,
+                     ScanBoundBuffer_pool,
+                     RT_DBTUX_SCAN_BOUND> ScanBoundBuffer;
+  typedef LocalDataBuffer<ScanBoundSegmentSize,
+                          ScanBoundBuffer_pool,
+                          RT_DBTUX_SCAN_BOUND> LocalScanBoundBuffer;
   struct ScanBound {
     ScanBoundBuffer::Head m_head;
     Uint16 m_cnt;       // number of attributes
     Int16 m_side;
     ScanBound();
   };
-  ScanBoundSegment_pool c_scanBoundPool;
+  ScanBoundBuffer_pool c_scanBoundPool;
 
   // ScanLock
   struct ScanLock {
-    ScanLock() {}
+    STATIC_CONST( TYPE_ID = RT_DBTUX_SCAN_LOCK);
+    Uint32 m_magic;
+
+    ScanLock() :
+      m_magic(Magic::make(TYPE_ID))
+    {
+    }
+    ~ScanLock()
+    {
+    }
     Uint32 m_accLockOp;
     union {
     Uint32 nextPool;
@@ -300,12 +316,13 @@ private:
     };
     Uint32 prevList;
   };
+  STATIC_CONST(DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX = 1);
   typedef Ptr<ScanLock> ScanLockPtr;
-  typedef ArrayPool<ScanLock> ScanLock_pool;
+  typedef TransientPool<ScanLock> ScanLock_pool;
   typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
   typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
   typedef ConstLocalDLFifoList<ScanLock_pool> ConstLocal_ScanLock_fifo;
-
+  Uint32 c_freeScanLock;
   ScanLock_pool c_scanLockPool;
  
   /*
@@ -329,9 +346,14 @@ private:
    * and returned to LQH.  No more result rows are returned but normal
    * protocol is still followed until scan close.
    */
-  struct ScanOp;
-  friend struct ScanOp;
   struct ScanOp {
+    STATIC_CONST( TYPE_ID = RT_DBTUX_SCAN_OPERATION);
+    Uint32 m_magic;
+
+    ~ScanOp()
+    {
+    }
+
     enum {
       Undef = 0,
       First = 1,                // before first entry
@@ -374,10 +396,10 @@ private:
     Uint32 prevList;
     ScanOp();
   };
+  STATIC_CONST(DBTUX_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 0);
   typedef Ptr<ScanOp> ScanOpPtr;
-  typedef ArrayPool<ScanOp> ScanOp_pool;
+  typedef TransientPool<ScanOp> ScanOp_pool;
   typedef DLList<ScanOp_pool> ScanOp_list;
-
   ScanOp_pool c_scanOpPool;
 
   // indexes and fragments
@@ -693,7 +715,7 @@ private:
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index);
-  void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag);
+  void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag, bool);
   void scanFind(ScanOpPtr scanPtr, Frag& frag);
   Uint32 scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
   bool scanCheck(ScanOp& scan, TreeEnt ent);
@@ -815,7 +837,7 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const StatOp&);
   friend class NdbOut& operator<<(NdbOut&, const StatMon&);
   FILE* debugFile;
-  NdbOut debugOut;
+  NdbOut tuxDebugOut;
   unsigned debugFlags;
   enum {
     DebugMeta = 1,              // log create and drop index
@@ -919,7 +941,73 @@ private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 
   Signal* c_signal_bug32040;
+
+private:
+  bool check_freeScanLock(ScanOp& scan);
+  void release_c_free_scan_lock();
+  void checkPoolShrinkNeed(Uint32 pool_index,
+                           const TransientFastSlotPool& pool);
+  void sendPoolShrink(Uint32 pool_index);
+  void shrinkTransientPools(Uint32 pool_index);
+
+  static const Uint32 c_transient_pool_count = 3;
+  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  Bitmask<1> c_transient_pools_shrinking;
+
+public:
+  static Uint64 getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator *mgm_cfg,
+    const bool use_reserved);
 };
+
+inline bool Dbtux::check_freeScanLock(ScanOp& scan)
+{
+  if (unlikely((! scan.m_readCommitted) &&
+                c_freeScanLock == RNIL))
+  {
+    ScanLockPtr allocPtr;
+    if (c_scanLockPool.seize(allocPtr))
+    {
+      jam();
+      c_freeScanLock = allocPtr.i;
+    }
+    else
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+inline void
+Dbtux::release_c_free_scan_lock()
+{
+  if (c_freeScanLock != RNIL)
+  {
+    jam();
+    ScanLockPtr releasePtr;
+    releasePtr.i = c_freeScanLock;
+    ndbrequire(c_scanLockPool.getValidPtr(releasePtr));
+    c_scanLockPool.release(releasePtr);
+    c_freeScanLock = RNIL;
+    checkPoolShrinkNeed(DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX,
+                        c_scanLockPool);
+  }
+}
+
+inline void Dbtux::checkPoolShrinkNeed(const Uint32 pool_index,
+                                       const TransientFastSlotPool& pool)
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools[pool_index] == &pool);
+#endif
+  if (pool.may_shrink())
+  {
+    sendPoolShrink(pool_index);
+  }
+}
 
 // Dbtux::TupLoc
 
@@ -1113,26 +1201,14 @@ Dbtux::ScanBound::ScanBound() :
 {
 }
 
-// Dbtux::ScanOp
-
 inline
 Dbtux::ScanOp::ScanOp() :
+  m_magic(Magic::make(ScanOp::TYPE_ID)),
   m_errorCode(0),
   m_lockwait(false),
-  m_state(Undef),
-  m_userPtr(RNIL),
-  m_userRef(RNIL),
-  m_tableId(RNIL),
-  m_indexId(RNIL),
   m_fragPtrI(RNIL),
-  m_transId1(0),
-  m_transId2(0),
-  m_savePointId(0),
   m_accLockOp(RNIL),
   m_accLockOps(),
-  m_readCommitted(0),
-  m_lockMode(0),
-  m_descending(0),
   m_scanBound(),
   m_scanPos(),
   m_scanEnt(),
@@ -1501,10 +1577,10 @@ Dbtux::cmpSearchKey(TuxCtx& ctx,
   int ret = searchKey.cmp(entryKey, cnt, num_eq);
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
-    debugOut << "cmpSearchKey: ret:" << ret;
-    debugOut << " search:" << searchKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
+    tuxDebugOut << "cmpSearchKey: ret:" << ret;
+    tuxDebugOut << " search:" << searchKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << endl;
   }
 #endif
   return ret;
@@ -1518,10 +1594,10 @@ Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC&
   int ret = searchBound.cmp(entryKey, cnt, num_eq);
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
-    debugOut << "cmpSearchBound: res:" << ret;
-    debugOut << " search:" << searchBound.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
+    tuxDebugOut << "cmpSearchBound: res:" << ret;
+    tuxDebugOut << " search:" << searchBound.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << endl;
   }
 #endif
   return ret;

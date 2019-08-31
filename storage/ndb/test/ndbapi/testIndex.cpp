@@ -2270,7 +2270,7 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
     ops.startTransaction(pNdb);
     ops.pkUpdateRecord(pNdb, 10 + rand() % rows, rows);
     int tmp;
-    int arg;
+    int arg = 0;
     switch(rand() % 2){
     case 0:
       arg = AbortOnError;

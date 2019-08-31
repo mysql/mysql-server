@@ -424,7 +424,7 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 
   signal->theData[0] = NDB_LE_StartREDOLog;
@@ -971,7 +971,7 @@ Dbdih::pack_sysfile_format_v2(void)
       default:
       {
         ndbout_c("active_status = %u", active_status);
-        ndbrequire(false);
+        ndbabort();
       }
     }
     if (diff != 0)
@@ -1062,14 +1062,14 @@ Dbdih::pack_sysfile_format_v2(void)
         if (nodeGroup != NO_NODE_GROUP_ID)
         {
           jamDebug();
-          ndbrequire(false);
+          ndbabort();
           diff = 1;
         }
         break;
       }
       default:
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
     if (diff != 0)
@@ -1255,7 +1255,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
       }
       default:
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
     start_bit += 4;
@@ -1319,7 +1319,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
       }
       default:
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
     SYSFILE->setNodeGroup(i,
@@ -3186,7 +3186,7 @@ void Dbdih::execSTART_COPYCONF(Signal* signal)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
     return;
   }
@@ -4095,7 +4095,7 @@ void Dbdih::check_for_pause_action(Signal *signal,
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
     else
@@ -4146,7 +4146,7 @@ void Dbdih::check_for_pause_action(Signal *signal,
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
       return;
     }
@@ -11265,7 +11265,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
 
@@ -17579,7 +17579,7 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   Uint32 saveGCI = old_hi;
   m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_REQ;
   m_gcp_save.m_master.m_new_gci = saveGCI;
-  
+
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(7188))
   {
@@ -20454,7 +20454,7 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }//Dbdih::execSTART_RECCONF()
 
@@ -21307,7 +21307,7 @@ Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
     return;
   }
@@ -21341,7 +21341,7 @@ Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -28593,7 +28593,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     }
     default:
       jamLine(requestType);
-      ndbrequire(false);
+      ndbabort();
     }
     
     return;

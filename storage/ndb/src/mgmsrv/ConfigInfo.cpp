@@ -906,6 +906,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1024G" },
 
   {
+    CFG_DB_TRANSACTION_MEM,
+    "TransactionMemory",
+    DB_TOKEN,
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for operations",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "16384G" },
+
+  {
     CFG_DB_UNDO_INDEX_BUFFER,
     "UndoIndexBuffer",
     DB_TOKEN,
@@ -973,11 +985,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-    "20M",
-#else
     "128M",
-#endif
     "0",
     "65536G" }, // 32k pages * 32-bit i value
   
@@ -2489,7 +2497,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "0", // "8k",
+    "0", // "32k",
     "0",
     STR_VALUE(MAX_INT_RNIL)
   },

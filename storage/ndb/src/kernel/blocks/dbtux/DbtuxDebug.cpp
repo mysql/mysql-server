@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
         if (debugFile != slFile)
           fclose(debugFile);
         debugFile = 0;
-        debugOut = *new NdbOut(*new NullOutputStream());
+        tuxDebugOut = *new NdbOut(*new NullOutputStream());
       }
       if (flag == 1)
         debugFile = fopen(tuxlog, "w");
@@ -169,7 +169,7 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
       if (flag == 3)
         debugFile = slFile;
       if (debugFile != 0)
-        debugOut = *new NdbOut(*new FileOutputStream(debugFile));
+        tuxDebugOut = *new NdbOut(*new FileOutputStream(debugFile));
     }
     return;
   }
@@ -195,6 +195,31 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(c_fragPool);
     RSS_AP_SNAPSHOT_CHECK(c_fragOpPool);
   }
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  if (signal->theData[0] == DumpStateOrd::TuxSetTransientPoolMaxSize)
+  {
+    jam();
+    if (signal->getLength() < 3)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    const Uint32 new_size = signal->theData[2];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->setMaxSize(new_size);
+    return;
+  }
+  if (signal->theData[0] == DumpStateOrd::TuxResetTransientPoolMaxSize)
+  {
+    jam();
+    if(signal->getLength() < 2)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->resetMaxSize();
+    return;
+  }
+#endif
 }
 
 #ifdef VM_TRACE
@@ -215,7 +240,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
       signal->theData[1] = 1;
       execDUMP_STATE_ORD(signal);
       if (debugFile != 0) {
-        printTree(signal, frag, debugOut);
+        printTree(signal, frag, tuxDebugOut);
       }
     }
     ndbabort();

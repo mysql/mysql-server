@@ -124,8 +124,8 @@ void Dbtup::getStoredProcAttrInfo(Uint32 storedId,
 {
   jamDebug();
   StoredProcPtr storedPtr;
-  c_storedProcPool.getPtr(storedPtr, storedId);
-  ndbrequire(storedPtr.i != RNIL);
+  storedPtr.i = storedId;
+  ndbrequire(c_storedProcPool.getValidPtr(storedPtr));
   ndbrequire(((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
                (storedPtr.p->storedCode == ZCOPY_PROCEDURE)));
   /* Setup OperationRec with stored procedure AttrInfo section */
@@ -309,7 +309,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
     return true;
   } else {
     jam();
-    req_struct->prevOpPtr.p= prevOpPtr.p= c_operation_pool.getPtr(prevOpPtr.i);
+    ndbrequire(c_operation_pool.getValidPtr(prevOpPtr));
+    req_struct->prevOpPtr.p = prevOpPtr.p;
     prevOpPtr.p->nextActiveOp= regOperPtr.i;
 
     regOperPtr.p->op_struct.bit_field.m_wait_log_buffer= 
@@ -414,7 +415,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     Uint32 savepointId= regOperPtr->savepointId;
     bool dirty= req_struct->dirty_op;
     
-    c_operation_pool.getPtr(currOpPtr);
+    ndbrequire(c_operation_pool.getValidPtr(currOpPtr));
     const bool sameTrans= c_lqh->is_same_trans(currOpPtr.p->userpointer,
                                                req_struct->trans_id1,
                                                req_struct->trans_id2);
@@ -501,7 +502,8 @@ Dbtup::load_diskpage(Signal* signal,
 {
   Ptr<Operationrec> operPtr;
 
-  c_operation_pool.getPtr(operPtr, opRec);
+  operPtr.i = opRec;
+  ndbrequire(c_operation_pool.getValidPtr(operPtr));
 
   Operationrec *  regOperPtr= operPtr.p;
   Fragrecord * regFragPtr= prepare_fragptr.p;
@@ -603,7 +605,8 @@ void
 Dbtup::disk_page_load_callback(Signal* signal, Uint32 opRec, Uint32 page_id)
 {
   Ptr<Operationrec> operPtr;
-  c_operation_pool.getPtr(operPtr, opRec);
+  operPtr.i = opRec;
+  ndbrequire(c_operation_pool.getValidPtr(operPtr));
   c_lqh->acckeyconf_load_diskpage_callback(signal, 
 					   operPtr.p->userpointer, page_id);
 }
@@ -614,8 +617,8 @@ Dbtup::load_diskpage_scan(Signal* signal,
 			  Uint32 lkey1, Uint32 lkey2, Uint32 tux_flag)
 {
   Ptr<Operationrec> operPtr;
-
-  c_operation_pool.getPtr(operPtr, opRec);
+  operPtr.i = opRec;
+  ndbrequire(c_operation_pool.getValidPtr(operPtr));
 
   Operationrec *  regOperPtr= operPtr.p;
   Fragrecord * regFragPtr= prepare_fragptr.p;
@@ -676,7 +679,8 @@ Dbtup::disk_page_load_scan_callback(Signal* signal,
 				    Uint32 opRec, Uint32 page_id)
 {
   Ptr<Operationrec> operPtr;
-  c_operation_pool.getPtr(operPtr, opRec);
+  operPtr.i = opRec;
+  ndbrequire(c_operation_pool.getValidPtr(operPtr));
   c_lqh->next_scanconf_load_diskpage_callback(signal, 
 					      operPtr.p->userpointer, page_id);
 }
@@ -815,17 +819,6 @@ void Dbtup::prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx)
       NDB_PREFETCH_WRITE(tuple_ptr + i);
     }
   }
-}
-
-void Dbtup::prepare_op_pointer(Uint32 opPtrI)
-{
-  jamDebug();
-  Ptr<Operationrec> operPtr;
-  c_operation_pool.getPtr(operPtr, opPtrI);
-  Uint32 *op_ptr = (Uint32*)operPtr.p;
-  NDB_PREFETCH_WRITE(op_ptr);
-  NDB_PREFETCH_WRITE(op_ptr + 14);
-  prepare_oper_ptr = operPtr;
 }
 
 bool Dbtup::execTUPKEYREQ(Signal* signal) 
@@ -2490,7 +2483,7 @@ size_change_error:
   jam();
   terrorCode = ZMEM_NOMEM_ERROR;
   goto exit_error;
-  
+
 trans_mem_error:
   jam();
   terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
@@ -2500,7 +2493,7 @@ trans_mem_error:
   regOperPtr.p->m_copy_tuple_location.setNull();
   tupkeyErrorLab(req_struct);
   return -1;
-  
+
 null_check_error:
   jam();
   terrorCode= ZNO_ILLEGAL_NULL_ATTR;
@@ -4800,7 +4793,9 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	  }
 	  if(ptr->m_operation_ptr_i != RNIL)
 	  {
-	    c_operation_pool.getPtr(ptr->m_operation_ptr_i);
+            OperationrecPtr operPtr;
+            operPtr.i = ptr->m_operation_ptr_i;
+	    ndbrequire(c_operation_pool.getValidPtr(operPtr));
 	  }
 	} 
 	else if(!(idx & Var_page::FREE))
@@ -5070,11 +5065,12 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   {
     if (bits & Tuple_header::ALLOC)
     {
-      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
-      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
-      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
+      OperationrecPtr opPtr;
+      opPtr.i = req_struct.m_tuple_ptr->m_operation_ptr_i;
+      ndbrequire(c_operation_pool.getValidPtr(opPtr));
+      ndbassert(!opPtr.p->m_copy_tuple_location.isNull());
       req_struct.m_tuple_ptr=
-        get_copy_tuple(&opPtrP->m_copy_tuple_location);
+        get_copy_tuple(&opPtr.p->m_copy_tuple_location);
       copy = true;
     }
     req_struct.check_offset[MM]= tablePtr.p->get_check_offset(MM);
@@ -5189,7 +5185,8 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
      */
     jam();
     ScanOpPtr scanOp;
-    c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
+    scanOp.i = lcpScan_ptr_i;
+    ndbrequire(c_scanOpPool.getValidPtr(scanOp));
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
                                       fragPtr.p,
                                       *key,

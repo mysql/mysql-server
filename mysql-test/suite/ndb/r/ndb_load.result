@@ -109,7 +109,7 @@ SET ndb_use_transactions= 1;
 CREATE TABLE t2 (a int) engine=Ndb;
 Will fail with too many concurrent operations error
 INSERT INTO t2 SELECT * FROM t1;
-ERROR HY000: Got temporary error 1217 'Out of operation records in local data manager (increase MaxNoOfLocalOperations)' from NDBCLUSTER
+Got one of the listed errors
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0

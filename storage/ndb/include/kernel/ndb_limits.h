@@ -155,11 +155,7 @@
 /*
 * The default batch size. Configurable parameter.
 */
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEF_BATCH_SIZE 64
-#else
 #define DEF_BATCH_SIZE 256
-#endif
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals

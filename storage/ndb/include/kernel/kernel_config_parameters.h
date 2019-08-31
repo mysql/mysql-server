@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef DB_CONFIG_PARAMTERS_H
-#define DB_CONFIG_PARAMTERS_H
+#ifndef DB_CONFIG_PARAMETERS_H
+#define DB_CONFIG_PARAMETERS_H
 
 #define PRIVATE_BASE          14000
 
@@ -114,4 +114,10 @@
 #define CFG_TC_RESERVED_COMMIT_ACK_MARKER_BUFFER (PRIVATE_BASE + 89)
 #define CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER_BUFFER (PRIVATE_BASE + 90)
 
+#define CFG_ACC_RESERVED_SCAN_RECORDS (PRIVATE_BASE + 91)
+#define CFG_LDM_RESERVED_OPERATIONS (PRIVATE_BASE + 92)
+#define CFG_LQH_RESERVED_SCAN_RECORDS (PRIVATE_BASE + 93)
+#define CFG_TUP_RESERVED_SCAN_RECORDS (PRIVATE_BASE + 94)
+#define CFG_TUX_RESERVED_SCAN_RECORDS (PRIVATE_BASE + 95)
+#define CFG_LDM_BATCH_SIZE        (PRIVATE_BASE + 96)
 #endif
