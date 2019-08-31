@@ -267,7 +267,7 @@ UPDATE t1, tn SET c1 = 'a';
 DROP TABLE t1, tn;
 call mtr.add_suppression("Table.*is not transactional. This is not compatible with Group Replication");
 call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication.");
-call mtr.add_suppression("Table.*has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication.");
+call mtr.add_suppression("Table.*has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication.");
 call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
