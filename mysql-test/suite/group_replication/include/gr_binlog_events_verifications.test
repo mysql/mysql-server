@@ -174,7 +174,7 @@ SET GTID_NEXT= AUTOMATIC;
 
 --let $rpl_slave_connection_name= server1
 --let $rpl_gr_grep_foreign_cascade_error= 1
---let $rpl_gr_grep_foreign_cascade_error_message= Table tc3 has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication
+--let $rpl_gr_grep_foreign_cascade_error_message= Table tc3 has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication
 --source ../include/gr_binlog_events_assert_error.inc
 
 

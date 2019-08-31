@@ -13826,7 +13826,7 @@ ER_GRP_RPL_PRIMARY_KEY_NOT_DEFINED
   eng "Table %s does not have any PRIMARY KEY. This is not compatible with Group Replication."
 
 ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED
-  eng "Table %s has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication."
+  eng "Table %s has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication."
 
 ER_GRP_RPL_AUTO_INC_RESET
   eng "auto_increment_increment is reset to %lu"
