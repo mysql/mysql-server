@@ -117,7 +117,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   row_convert_impl_to_expl_if_needed(btr_cur, node);
-
   if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
     err = DB_SUCCESS;
     goto func_exit;
@@ -176,6 +175,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   mtr_t mtr;
   enum row_search_result search_result;
   ibool modify_leaf = false;
+  ulint rec_deleted;
 
   log_free_check();
 
@@ -220,9 +220,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       ut_error;
   }
 
+  rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
+                                     dict_table_is_comp(index->table));
+
   if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
-    rec_t *rec = btr_pcur_get_rec(&pcur);
-    if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
+    if (rec_deleted) {
       ib::error(ER_IB_MSG_1036) << "Record found in index " << index->name
                                 << " is deleted marked on insert rollback.";
     }
@@ -230,7 +232,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-  row_convert_impl_to_expl_if_needed(btr_cur, node);
+  if (rec_deleted == 0) {
+    /* This record is not delete marked and has an implicit
+    lock on it. For delete marked record, INSERT has not
+    modified it yet and we don't have implicit lock on it.
+    We must convert to explicit if and only if we have
+    implicit lock on the record.*/
+    row_convert_impl_to_expl_if_needed(btr_cur, node);
+  }
 
   if (modify_leaf) {
     err = btr_cur_optimistic_delete(btr_cur, 0, &mtr) ? DB_SUCCESS : DB_FAIL;

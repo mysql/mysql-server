@@ -131,6 +131,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
     *rebuilt_old_pk = NULL;
   }
 
+  /* Update would release the implicit lock. Must convert to
+  explicit lock before applying update undo.*/
+  row_convert_impl_to_expl_if_needed(btr_cur, node);
+
   if (mode != BTR_MODIFY_TREE) {
     ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
@@ -213,8 +217,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
   than the rolling-back one. */
   ut_ad(rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
                              dict_table_is_comp(node->table)));
-
-  row_convert_impl_to_expl_if_needed(btr_cur, node);
 
   if (mode == BTR_MODIFY_LEAF) {
     err = btr_cur_optimistic_delete(btr_cur, 0, mtr) ? DB_SUCCESS : DB_FAIL;
@@ -329,6 +331,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   btr_pcur_commit_specify_mtr(pcur, &mtr);
 
+  DEBUG_SYNC_C("ib_undo_mod_before_remove_clust");
+
   if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
     mtr_start(&mtr);
 
@@ -386,6 +390,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   mtr_t mtr_vers;
   row_search_result search_result;
   ibool modify_leaf = false;
+  ulint rec_deleted;
 
   log_free_check();
 
@@ -463,6 +468,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur), &mtr_vers);
   ut_a(success);
 
+  /* If the key is delete marked then the statement could not modify the
+  key yet and the transaction has no implicit lock on it. We must convert
+  to explicit lock if and only if we are the transaction which has implicit
+  lock on it.Note that it is still ok to purge the delete mark key if it
+  is purgeable.*/
+  rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
+                                     dict_table_is_comp(index->table));
+  if (rec_deleted == 0) {
+    row_convert_impl_to_expl_if_needed(btr_cur, node);
+  }
+
   old_has = row_vers_old_has_index_entry(FALSE, btr_pcur_get_rec(&(node->pcur)),
                                          &mtr_vers, index, entry, 0, 0);
   if (old_has) {
@@ -473,15 +489,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     /* Remove the index record */
 
     if (dict_index_is_spatial(index)) {
-      rec_t *rec = btr_pcur_get_rec(&pcur);
-      if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
+      if (rec_deleted) {
         ib::error(ER_IB_MSG_1038) << "Record found in index " << index->name
                                   << " is deleted marked"
                                      " on rollback update.";
       }
     }
-
-    row_convert_impl_to_expl_if_needed(btr_cur, node);
 
     if (modify_leaf) {
       success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
