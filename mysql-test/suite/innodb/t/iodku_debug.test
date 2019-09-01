@@ -10,7 +10,6 @@ CREATE TABLE t1(f1 int primary key,
                 f2 int, f3 int, unique key(f2))engine=innodb;
 
 SHOW CREATE TABLE t1;
-
 INSERT INTO t1(f1, f2, f3) VALUES(1, 10, 100);
 
 --echo # Connection default
@@ -42,3 +41,161 @@ SELECT * FROM t1;
 SET DEBUG_SYNC ='RESET';
 DROP TABLE t1;
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug #29195848	ASSERTION "!OTHER_LOCK" IN LOCK_REC_ADD_TO_QUEUE
+--echo #
+# Test 1 :- Partial rollback of Insert (secondary Index):
+# Pre condition-1: Secondary index has one unpurged delete marked key
+#                  [say K1] that matches exactly with the key to be inserted
+#                  (including cluster index key).
+# Pre-condition-2: Secondary index has one committed key [say K2] that matches
+#		   with the key to be inserted but with different cluster index key.
+
+# Test: During Insert, secondary index entry [K1] is not updated (un-delete marked)
+#       because of duplicate key [K2].In this case the transaction doesn't
+#       hold implicit lock on secondary index key and partial rollback should
+#	not try to convert it to explicit lock.
+
+SET GLOBAL innodb_purge_stop_now = ON;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, b INT, UNIQUE KEY(b));
+
+INSERT INTO t1 VALUES(2, 300);
+#It generates the delete marked key [K1]
+DELETE FROM t1;
+
+#It generates the committed key [K2] 300,3 in Secondary index.
+INSERT INTO t1 VALUES(3, 300);
+SELECT * FROM t1;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection conn1;
+SET DEBUG_SYNC='ib_after_row_insert_step SIGNAL after_insert WAIT_FOR
+rollback';
+
+# We have inserted successfully the cluster index key [2]
+# when ib_after_row_insert_step is reached. We failed to un-delete mark
+# the secondary index key K1 [300,2] because of duplicate key K2 [300,3].
+# So key K1 [300,2] stays delete marked and the transaction have shared
+# lock on it instead of implicit lock.
+--send INSERT INTO t1 VALUES(2, 300);
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR after_insert';
+START TRANSACTION;
+# We acquire S lock on delete marked secondary index key K1 [300, 2].
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(1, 300);
+
+connection default;
+# For purge going
+SET GLOBAL innodb_purge_run_now=ON;
+SET DEBUG_SYNC='now SIGNAL rollback';
+
+connection conn1;
+# The transaction is partially rolled back here.
+# Before the fix, it would assert while trying to create explicit lock on K1 [300,2]
+# because other transaction already holds shared lock on it.
+# Since we don't have implicit lock here, the fix makes sure that we don't try to
+# create explicit lock during such partial rollback for a delete marked record.
+--error ER_DUP_ENTRY
+--reap
+
+connection conn2;
+COMMIT;
+
+disconnect conn1;
+disconnect conn2;
+connection default;
+DROP TABLE t1;
+
+# Test 2 Partial Rollback of Insert (Cluster Index):
+# Pre condition-1: Cluster index has one unpurged delete marked key [say PK1]
+#		  that matches exactly with the key to be inserted.
+# Pre-condition-2: Unique 2ndary index has one committed key [say K1] that matches
+#                  with the key to be inserted but with different cluster index key.
+# Test: During Insert, the cluster index Key K1 is reused by undelete marking it.
+#      The command fails and goes for partial rollback because of matching secondary
+#      index key K1. During partial rollback, the implicit lock is released when we
+#      update the cluster index key replacing with previous delete marked key.The
+#      test verifies that the implicit lock is converted to explicit lock before
+#      releasing it.
+
+SET GLOBAL innodb_purge_stop_now = ON;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE KEY(b));
+
+#Create delete marked key PK1 (1) in cluster index and (10, 1) K1 in Secondary index.
+INSERT INTO t1 VALUES(1,10);
+DELETE FROM t1;
+
+#Create committed key (2) in cluster index and (10, 2) K2 in Secondary index.
+INSERT INTO t1 VALUES(2,10);
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection conn1;
+SET DEBUG_SYNC='ib_undo_mod_before_remove_clust SIGNAL during_rollback
+WAIT_FOR rollback';
+
+#Try to Insert with cluster index key matching PK1
+--send INSERT INTO t1 VALUES(1, 10) ;
+
+connection conn2;
+
+SET DEBUG_SYNC='now WAIT_FOR during_rollback';
+# In Conn1, we have got duplicate key error due to mathing secondary index key
+# and at this stage half way through partial rollback. We are waiting after rolling
+# back cluster index key with old delete marked key K1. The implicit lock on PK1
+# is already released.Try to lock the cluster index key PK1. The bug has the issue
+# that Conn1 transaction has not created the explicit lock on PK1 but implicit lock
+# is already released,so taking a shared lock would succeeded which caused assert
+# when conn1 tried to rollback. After the fix we ensure that implicit lock is
+# converted to explicit before the implicit protection is released,therfore the
+# share lock request times out
+
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 WHERE a = 1 LOCK IN SHARE MODE;
+
+connection default;
+SET GLOBAL innodb_purge_run_now=ON;
+SET DEBUG_SYNC='now SIGNAL rollback';
+
+connection conn1;
+--error ER_DUP_ENTRY
+--reap
+
+disconnect conn1;
+disconnect conn2;
+connection default;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo  # Bug #29718243	MYQL SERVER CRASHING
+--echo #
+
+CREATE TEMPORARY TABLE tmpTest(tmpField INT , UNIQUE KEY uq_tmpField (tmpField));
+CREATE TEMPORARY TABLE tmpTest1(tmpField INT , UNIQUE KEY uq_tmpField (tmpField));
+
+DELIMITER |;
+CREATE FUNCTION ZZtest() RETURNS int(11)
+BEGIN
+DECLARE l_total INTEGER;
+SET l_total = 0;
+
+INSERT INTO tmpTest SET tmpField = 40;
+INSERT IGNORE INTO tmpTest SET tmpField = 40;
+INSERT IGNORE INTO tmpTest1 SET tmpField = 40;
+
+DROP TEMPORARY TABLE IF EXISTS tmpTest;
+DROP TEMPORARY TABLE IF EXISTS tmpTest1;
+
+RETURN l_total;
+END|
+DELIMITER ;|
+SELECT ZZtest() AS test;
+DROP FUNCTION ZZtest;
