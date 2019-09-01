@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -333,7 +333,8 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   auto block = btr_cur_get_block(cursor);
   auto heap_no = page_rec_get_heap_no(rec);
 
-  if (heap_no != PAGE_HEAP_NO_SUPREMUM && !dict_index_is_spatial(index)) {
+  if (heap_no != PAGE_HEAP_NO_SUPREMUM && !dict_index_is_spatial(index) &&
+      !index->table->is_temporary() && !index->table->is_intrinsic()) {
     lock_rec_convert_active_impl_to_expl(block, rec, index, offsets, node->trx,
                                          heap_no);
   }
