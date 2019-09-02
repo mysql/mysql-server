@@ -1,6 +1,9 @@
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
 
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
 --echo #
 --echo # Bug #27419474 INNODB: ASSERTION FAILURE: ZLOB0READ.CC.*:FLST_LEN != 0
 --echo #

@@ -5,6 +5,9 @@
 --source include/have_innodb_16k.inc
 --disable_reconnect
 
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
 SET GLOBAL innodb_compression_level = 0;
 
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB, KEY(f2(50)))
