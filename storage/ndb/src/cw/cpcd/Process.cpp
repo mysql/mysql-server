@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,11 @@ void CPCD::Process::print(FILE *f) {
           m_shutdown_options.c_str() ? m_shutdown_options.c_str() : "");
 }
 
-CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
+CPCD::Process::Process(const Properties &props, class CPCD *cpcd,
+                       const uintptr_t sessionid) {
   m_id = -1;
   m_pid = bad_pid;
+  m_sessionid = sessionid;
 
   props.get("id", (Uint32 *)&m_id);
   props.get("name", m_name);
@@ -135,6 +137,10 @@ const char *getProcessStatusName(ProcessStatus status)
 bool CPCD::Process::should_be_erased() const
 {
   return (m_status == STOPPED) && m_remove_on_stopped;
+}
+
+bool CPCD::Process::allowsChangeFromSession(const uintptr_t sessionid) const {
+  return (m_processType == TEMPORARY) && (m_sessionid == sessionid);
 }
 
 void CPCD::Process::monitor()

@@ -41,7 +41,7 @@
 
 #include "common.hpp"
 
-#define CPCD_VERSION_NUMBER 1
+#define CPCD_VERSION_NUMBER 2
 
 static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
 static int unsigned port;

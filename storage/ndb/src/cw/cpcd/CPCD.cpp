@@ -84,8 +84,9 @@ CPCD::findUniqueId() {
 }
 
 bool
-CPCD::defineProcess(const class Properties &args, RequestStatus * rs, int *id) {
-  CPCD::Process *proc = new CPCD::Process(args, this);
+CPCD::defineProcess(const class Properties &args, const uintptr_t sessionid,
+                    RequestStatus * rs, int *id) {
+  CPCD::Process *proc = new CPCD::Process(args, this, sessionid);
 
   if(proc->m_id == -1)
     proc->m_id = findUniqueId();
@@ -124,8 +125,8 @@ CPCD::defineProcess(const class Properties &args, RequestStatus * rs, int *id) {
 }
 
 bool
-CPCD::undefineProcess(const int id, CPCD::RequestStatus *rs) {
-
+CPCD::undefineProcess(const int id, const uintptr_t sessionid,
+                      CPCD::RequestStatus *rs) {
   Guard tmp(m_processes);
 
   Process * proc = 0;
@@ -139,6 +140,13 @@ CPCD::undefineProcess(const int id, CPCD::RequestStatus *rs) {
 
   if(proc == 0){
     rs->err(NotExists, "No such process");
+    return false;
+  }
+
+  if (!proc->allowsChangeFromSession(sessionid)) {
+    logger.error("Process %s:%s:%d undefine attempt from invalid session",
+                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+    rs->err(Error, "Undefine attempt from invalid session");
     return false;
   }
 
@@ -169,8 +177,8 @@ CPCD::undefineProcess(const int id, CPCD::RequestStatus *rs) {
 }
 
 bool
-CPCD::startProcess(const int id, CPCD::RequestStatus *rs) {
-
+CPCD::startProcess(const int id, const uintptr_t sessionid,
+   CPCD::RequestStatus *rs) {
   Process * proc = 0;
   {
 
@@ -185,6 +193,13 @@ CPCD::startProcess(const int id, CPCD::RequestStatus *rs) {
     
     if(proc == 0){
       rs->err(NotExists, "No such process");
+      return false;
+    }
+
+    if (!proc->allowsChangeFromSession(sessionid)) {
+      logger.error("Process %s:%s:%d start attempt from invalid session",
+                  proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+      rs->err(Error, "Start attempt from invalid session");
       return false;
     }
     
@@ -223,7 +238,7 @@ CPCD::startProcess(const int id, CPCD::RequestStatus *rs) {
 }
 
 bool
-CPCD::stopProcess(const int id, CPCD::RequestStatus *rs) {
+CPCD::stopProcess(const int id, uintptr_t sessionid, CPCD::RequestStatus *rs) {
 
   Guard tmp(m_processes);
 
@@ -237,6 +252,13 @@ CPCD::stopProcess(const int id, CPCD::RequestStatus *rs) {
 
   if(proc == 0){
     rs->err(NotExists, "No such process");
+    return false;
+  }
+
+  if (!proc->allowsChangeFromSession(sessionid)) {
+    logger.error("Process %s:%s:%d undefine attempt from invalid session",
+                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+    rs->err(Error, "Undefine attempt from invalid session");
     return false;
   }
 
@@ -436,7 +458,7 @@ CPCD::loadProcessList(){
     //             method to perform cleanup. This is not an issue because we
     //             this code is never reached (as we don't read the database)
     RequestStatus rs;
-    undefineProcess(temporary[i], &rs);
+    undefineProcess(temporary[i], 0, &rs);
   }
   
   /* Don't call notifyChanges here, as that would save the file we just

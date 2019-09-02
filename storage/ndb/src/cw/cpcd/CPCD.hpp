@@ -32,6 +32,8 @@
 #include <Properties.hpp>
 #include <Vector.hpp>
 
+#include <cstdint>
+
 #ifdef _WIN32
 typedef DWORD pid_t;
 #endif
@@ -118,13 +120,17 @@ class CPCD {
     /**
      * @brief Constructs and empty Process
      */
-    Process(const Properties &props, class CPCD *cpcd);
+    Process(const Properties &props, class CPCD *cpcd,
+            uintptr_t sessionid = 0);
     /**
      *  @brief Monitors the process
      *
      *  The process is started or stopped as needed.
      */
     void monitor();
+
+    /** @brief checks if sessionid allows process changes */
+    bool allowsChangeFromSession(uintptr_t sessionid) const;
 
     /**
      *  @brief Checks if the process is running or not
@@ -177,6 +183,14 @@ class CPCD {
      *        protocol, and will not be changed if a processes is restarted.
      */
     int m_id;
+
+    /** Session Id to which the Process belongs
+     *
+     * @note Used to validate if requests are comming from the same session
+     *       that created these processes. Should apply to temporary processes
+     *       only.
+     */
+    uintptr_t m_sessionid;
 
     /** @brief The name shown to the user */
     BaseString m_name;
@@ -342,7 +356,8 @@ class CPCD {
    *          - RequestStatus will be filled in with a suitable error
    *            if an error occurred.
    */
-  bool defineProcess(const class Properties &args, RequestStatus *rs, int *id);
+  bool defineProcess(const class Properties &args, uintptr_t sessionid,
+                     RequestStatus *rs, int *id);
 
   /** Removes a Process from the CPCD.
    *
@@ -354,7 +369,7 @@ class CPCD {
    *          - The RequestStatus will be filled in with a suitable error
    *            if an error occurred.
    */
-  bool undefineProcess(const int id, RequestStatus *rs);
+  bool undefineProcess(const int id, uintptr_t sessionid, RequestStatus *rs);
 
   /** Marks a Process for starting.
    *
@@ -368,7 +383,7 @@ class CPCD {
    *          - RequestStatus will be filled in with a suitable error
    *            if an error occurred.
    */
-  bool startProcess(const int id, RequestStatus *rs);
+  bool startProcess(const int id, uintptr_t sessionid, RequestStatus *rs);
 
   /** Marks a Process for stopping.
    *
@@ -378,7 +393,7 @@ class CPCD {
    *          - The RequestStatus will be filled in with a suitable error
    *            if an error occurred.
    */
-  bool stopProcess(const int id, RequestStatus *rs);
+  bool stopProcess(const int id, uintptr_t sessionid, RequestStatus *rs);
 
   /** Generates a list of processes, and sends them to the CPCD client */
   bool listProcesses(RequestStatus *rs, MutexVector<const char *> &);
