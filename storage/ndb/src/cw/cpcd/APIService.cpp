@@ -177,6 +177,7 @@ void CPCDAPISession::stopSession() {
   CPCD::RequestStatus rs;
   for (unsigned i = 0; i < m_temporaryProcesses.size(); i++) {
     Uint32 id = m_temporaryProcesses[i];
+    m_cpcd.stopProcess(&rs, id);
     m_cpcd.undefineProcess(&rs, id);
   }
 }

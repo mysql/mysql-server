@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,18 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
     return false;
   }
 
+  switch (proc->m_status) {
+    case STARTING:
+    case RUNNING:
+      logger.error("Process %s:%s:%d undefine attempt without stop",
+                   proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+      rs->err(Error, "Undefine attempt for a non-stopped process");
+      return false;
+    case STOPPING:
+    case STOPPED:
+      break;
+  }
+
   if (proc->m_remove_on_stopped)
   {
     rs->err(Error, "Undefine already in progress");
@@ -144,17 +156,6 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   logger.debug("Process %s:%s:%d undefined",
                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
 
-  switch (proc->m_status)
-  {
-  case STARTING:
-  case RUNNING:
-    proc->stop();
-    break;
-  case STOPPING:
-  case STOPPED:
-    break;
-  }
-  
   notifyChanges();
   return true;
 }
@@ -244,7 +245,7 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
     return false;
     break;
   case STOPPING:
-    rs->err(Error, "Already stopping");
+    rs->err(AlreadyStopped, "Already stopping");
     return false;
   }
   
