@@ -3851,7 +3851,8 @@ std::string Fil_path::get_real_path(const std::string &path) {
   if (ret == -1) {
     ib::info(ER_IB_MSG_289) << "my_realpath(" << path << ") failed!";
 
-    strncpy(abspath, path.c_str(), sizeof(abspath));
+    strncpy(abspath, path.c_str(), sizeof(abspath) - 1);
+    abspath[sizeof(abspath) - 1] = '\0';
   }
 
   if (is_file_system_case_insensitive()) {
