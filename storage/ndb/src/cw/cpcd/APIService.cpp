@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,6 +231,13 @@ void CPCDAPISession::undefineProcess(Parser_t::Context & /* unused */,
 
   args.get("id", &id);
   bool ret = m_cpcd.undefineProcess(&rs, id);
+
+  for (unsigned i = 0; i < m_temporaryProcesses.size(); i++) {
+    if (static_cast<int>(id) == m_temporaryProcesses[i]) {
+      m_temporaryProcesses.erase(i);
+      break;
+    }
+  }
 
   m_output->println("undefine process");
   m_output->println("id: %d", id);
