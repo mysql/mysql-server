@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -557,7 +557,7 @@ int SimpleCpcClient::cpc_send(const char *cmd, const Properties &args) {
  */
 SimpleCpcClient::Parser_t::ParserStatus SimpleCpcClient::cpc_recv(
     const ParserRow_t *syntax, const Properties **reply, void **user_value) {
-  SocketInputStream cpc_in(cpc_sock);
+  SocketInputStream cpc_in(cpc_sock, 2 * 60 * 1000);
 
   Parser_t::Context ctx;
   ParserDummy session(cpc_sock);

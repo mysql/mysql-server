@@ -189,10 +189,10 @@ bool stop_processes(atrt_config&, int);
 bool update_status(atrt_config&, int types, bool check_for_missing = true);
 bool wait_for_processes_to_stop(atrt_config& config,
                                 int types = atrt_process::AP_ALL,
-                                int retries = 5,
+                                int retries = 60,
                                 int wait_between_retries_s = 5);
 bool wait_for_process_to_stop(atrt_config& config, atrt_process& proc,
-                              int retries = 5, int wait_between_retries_s = 5);
+                              int retries = 60, int wait_between_retries_s = 5);
 bool shutdown_processes(atrt_config &config, int types);
 const char* get_test_status(int result);
 bool check_cluster_status(atrt_config &config, int types);
