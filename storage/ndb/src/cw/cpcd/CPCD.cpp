@@ -84,7 +84,7 @@ CPCD::findUniqueId() {
 }
 
 bool
-CPCD::defineProcess(RequestStatus * rs, const class Properties &args, int *id) {
+CPCD::defineProcess(const class Properties &args, RequestStatus * rs, int *id) {
   CPCD::Process *proc = new CPCD::Process(args, this);
 
   if(proc->m_id == -1)
@@ -124,7 +124,7 @@ CPCD::defineProcess(RequestStatus * rs, const class Properties &args, int *id) {
 }
 
 bool
-CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
+CPCD::undefineProcess(const int id, CPCD::RequestStatus *rs) {
 
   Guard tmp(m_processes);
 
@@ -169,7 +169,7 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
 }
 
 bool
-CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
+CPCD::startProcess(const int id, CPCD::RequestStatus *rs) {
 
   Process * proc = 0;
   {
@@ -223,7 +223,7 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
 }
 
 bool
-CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
+CPCD::stopProcess(const int id, CPCD::RequestStatus *rs) {
 
   Guard tmp(m_processes);
 
@@ -432,8 +432,11 @@ CPCD::loadProcessList(){
   }
   
   for(i = 0; i<temporary.size(); i++){
+    // TODO(tiago) CPCD should not call an API method but instead an internal
+    //             method to perform cleanup. This is not an issue because we
+    //             this code is never reached (as we don't read the database)
     RequestStatus rs;
-    undefineProcess(&rs, temporary[i]);
+    undefineProcess(temporary[i], &rs);
   }
   
   /* Don't call notifyChanges here, as that would save the file we just
