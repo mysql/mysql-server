@@ -205,18 +205,20 @@ void CPCDAPISession::loadFile() {
 
 void CPCDAPISession::defineProcess(Parser_t::Context & /* unused */,
                                    const class Properties &args) {
-  CPCD::Process *p = new CPCD::Process(args, &m_cpcd);
-
+  int id;
   CPCD::RequestStatus rs;
 
-  bool ret = m_cpcd.defineProcess(&rs, p);
+  bool ret = m_cpcd.defineProcess(&rs, args, &id);
   if (!m_cpcd.loadingProcessList) {
     m_output->println("define process");
     m_output->println("status: %d", rs.getStatus());
     if (ret == true) {
-      m_output->println("id: %d", p->m_id);
-      if (p->m_processType == TEMPORARY) {
-        m_temporaryProcesses.push_back(p->m_id);
+      m_output->println("id: %d", id);
+
+      BaseString procType;
+      args.get("type", procType);
+      if (native_strcasecmp(procType.c_str(), "temporary") == 0) {
+        m_temporaryProcesses.push_back(id);
       }
     } else {
       m_output->println("errormessage: %s", rs.getErrMsg());

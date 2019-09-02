@@ -84,32 +84,36 @@ CPCD::findUniqueId() {
 }
 
 bool
-CPCD::defineProcess(RequestStatus * rs, Process * arg){
-  if(arg->m_id == -1)
-    arg->m_id = findUniqueId();
+CPCD::defineProcess(RequestStatus * rs, const class Properties &args, int *id) {
+  CPCD::Process *proc = new CPCD::Process(args, this);
+
+  if(proc->m_id == -1)
+    proc->m_id = findUniqueId();
+
+  *id = proc->m_id;
 
   Guard tmp(m_processes);
 
   for(unsigned i = 0; i<m_processes.size(); i++) {
-    Process * proc = m_processes[i];
+    Process * existentProc = m_processes[i];
     
-    if((strcmp(arg->m_name.c_str(), proc->m_name.c_str()) == 0) && 
-       (strcmp(arg->m_group.c_str(), proc->m_group.c_str()) == 0)) {
+    if((strcmp(proc->m_name.c_str(), existentProc->m_name.c_str()) == 0) &&
+       (strcmp(proc->m_group.c_str(), existentProc->m_group.c_str()) == 0)) {
       /* Identical names in the same group */
       rs->err(AlreadyExists, "Name already exists");
       return false;
     }
 
-    if(arg->m_id == proc->m_id) {
+    if(proc->m_id == existentProc->m_id) {
       /* Identical ID numbers */
       rs->err(AlreadyExists, "Id already exists");
       return false;
     }
   }
   
-  m_processes.push_back(arg, false);
+  m_processes.push_back(proc, false);
   logger.debug("Process %s:%s:%d defined",
-                arg->m_group.c_str(), arg->m_name.c_str(), arg->m_id);
+                proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
 
   notifyChanges();
   return true;

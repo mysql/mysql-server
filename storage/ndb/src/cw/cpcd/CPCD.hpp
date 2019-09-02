@@ -342,7 +342,7 @@ class CPCD {
    *          - RequestStatus will be filled in with a suitable error
    *            if an error occurred.
    */
-  bool defineProcess(RequestStatus *rs, Process *arg);
+  bool defineProcess(RequestStatus *rs, const class Properties &args, int *id);
 
   /** Removes a Process from the CPCD.
    *
