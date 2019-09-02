@@ -38,19 +38,25 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
+#include "my_thread_local.h"  // set_my_errno
 #include "mysys_err.h"
-#include "template_utils.h"
+#include "template_utils.h"  // pointer_cast
 #if defined(_WIN32)
-#include "mysys/mysys_priv.h"
+#include "mysys/mysys_priv.h"  // my_win_x
 #endif
 
-#ifdef HAVE_FSEEKO
-#undef ftell
-#undef fseek
-#define ftell(A) ftello(A)
-#define fseek(A, B, C) fseeko((A), (B), (C))
-#endif
+namespace {
+/**
+   Portable fseek() wrapper (without the modified semantics of my_fseek()).
+*/
+int64_t fseek_(FILE *stream, int64_t offset, int whence) {
+#ifdef _WIN32
+  return _fseeki64(stream, offset, whence);
+#else
+  return fseeko(stream, offset, whence);
+#endif /* _WIN32 */
+}
+}  // namespace
 
 /**
    Read a chunk of bytes from a FILE stream.
@@ -104,7 +110,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
   DBUG_TRACE;
   DBUG_EXECUTE_IF("simulate_fwrite_error", return -1;);
 
-  seekptr = ftell(stream);
+  seekptr = my_ftell(stream);
   for (;;) {
     errno = 0;
     size_t written =
@@ -119,7 +125,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
       Count -= written;
 
       if (errno == EINTR) {
-        fseek(stream, seekptr, MY_SEEK_SET);
+        fseek_(stream, seekptr, MY_SEEK_SET);
         continue;
       }
       if (ferror(stream) || (MyFlags & (MY_NABP | MY_FNABP))) {
@@ -155,7 +161,8 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
 */
 my_off_t my_fseek(FILE *stream, my_off_t pos, int whence) {
   DBUG_TRACE;
-  return fseek(stream, pos, whence) ? MY_FILEPOS_ERROR : ftell(stream);
+
+  return fseek_(stream, pos, whence) ? MY_FILEPOS_ERROR : my_ftell(stream);
 }
 
 /**
@@ -164,7 +171,12 @@ my_off_t my_fseek(FILE *stream, my_off_t pos, int whence) {
 my_off_t my_ftell(FILE *stream) {
   int64_t pos;
   DBUG_TRACE;
-  pos = ftell(stream);
+
+#ifdef _WIN32
+  pos = _ftelli64(stream);
+#else
+  pos = ftello(stream);
+#endif /* _WIN32 */
   return pos;
 }
 
