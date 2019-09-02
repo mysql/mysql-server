@@ -127,6 +127,7 @@
 #include "sql/window.h"
 #include "sql/window_lex.h"
 #include "sql_string.h"
+#include "tables_contained_in.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -1463,32 +1464,25 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
   contains the deduplication key, which is exactly the complement of the tables
   to be deduplicated.)
  */
-static void MarkUnhandledDuplicates(QEP_TAB *qep_tabs, SJ_TMP_TABLE *weedout,
+static void MarkUnhandledDuplicates(SJ_TMP_TABLE *weedout,
                                     plan_idx weedout_start,
                                     plan_idx weedout_end,
-                                    vector<QEP_TAB *> *unhandled_duplicates) {
+                                    qep_tab_map *unhandled_duplicates) {
+  DBUG_ASSERT(weedout_start >= 0);
+  DBUG_ASSERT(weedout_end >= 0);
+
+  qep_tab_map weedout_range = TablesBetween(weedout_start, weedout_end);
   if (weedout->is_confluent) {
     // Confluent weedout doesn't have tabs or tabs_end set; it just implicitly
     // says none of the tables are allowed to produce duplicates.
-    for (plan_idx i = weedout_start; i < weedout_end; ++i) {
-      unhandled_duplicates->push_back(&qep_tabs[i]);
-    }
   } else {
-    bool part_of_key[MAX_TABLES] = {false};
+    // Remove all tables that are part of the key.
     for (SJ_TMP_TABLE_TAB *tab = weedout->tabs; tab != weedout->tabs_end;
          ++tab) {
-      plan_idx i = tab->qep_tab - qep_tabs;
-      DBUG_ASSERT(i >= weedout_start);
-      DBUG_ASSERT(i < weedout_end);
-      DBUG_ASSERT(i < plan_idx{MAX_TABLES});
-      part_of_key[i] = true;
-    }
-    for (plan_idx i = weedout_start; i < weedout_end; ++i) {
-      if (!part_of_key[i]) {
-        unhandled_duplicates->push_back(&qep_tabs[i]);
-      }
+      weedout_range &= ~tab->qep_tab->idx_map();
     }
   }
+  *unhandled_duplicates |= weedout_range;
 }
 
 static unique_ptr_destroy_only<RowIterator> CreateWeedoutIterator(
@@ -1507,19 +1501,11 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIterator(
 }
 
 static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
-    THD *thd, const vector<QEP_TAB *> &tables_to_deduplicate, QEP_TAB *qep_tabs,
+    THD *thd, const qep_tab_map tables_to_deduplicate, QEP_TAB *qep_tabs,
     uint primary_tables, unique_ptr_destroy_only<RowIterator> iterator) {
-  bool need_dup_removal[MAX_TABLES] = {false};
-  for (QEP_TAB *qep_tab : tables_to_deduplicate) {
-    plan_idx i = qep_tab - qep_tabs;
-    DBUG_ASSERT(i >= 0);
-    DBUG_ASSERT(static_cast<uint>(i) < primary_tables);
-    need_dup_removal[i] = true;
-  }
-
   Prealloced_array<SJ_TMP_TABLE_TAB, MAX_TABLES> sj_tabs(PSI_NOT_INSTRUMENTED);
   for (uint i = 0; i < primary_tables; ++i) {
-    if (!need_dup_removal[i]) {
+    if (!ContainsTable(tables_to_deduplicate, i)) {
       SJ_TMP_TABLE_TAB sj_tab;
       sj_tab.qep_tab = &qep_tabs[i];
       sj_tabs.push_back(sj_tab);
@@ -1534,7 +1520,7 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
     }
   }
 
-  JOIN *join = tables_to_deduplicate[0]->join();
+  JOIN *join = qep_tabs[0].join();
   SJ_TMP_TABLE *sjtbl =
       create_sj_tmp_table(thd, join, &sj_tabs[0], &sj_tabs[0] + sj_tabs.size());
   return CreateWeedoutIterator(thd, move(iterator), sjtbl);
@@ -1563,7 +1549,7 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
  */
 static bool FirstMatchBetween(QEP_TAB *qep_tabs, const plan_idx first_idx,
                               const plan_idx last_idx, bool *is_split,
-                              vector<QEP_TAB *> *unhandled_duplicates) {
+                              qep_tab_map *unhandled_duplicates) {
   if (qep_tabs[last_idx].match_tab != last_idx) {
     // last_idx doesn't contain a first match, or its first match is
     // the middle part of a split jump. Ignore.
@@ -1599,7 +1585,7 @@ static bool FirstMatchBetween(QEP_TAB *qep_tabs, const plan_idx first_idx,
           this_segment_end = qep_tabs[j].firstmatch_return;
         }
         if (j > this_segment_end) {
-          unhandled_duplicates->push_back(&qep_tabs[j]);
+          *unhandled_duplicates |= (qep_tab_map{1} << j);
         }
       }
 
@@ -1634,7 +1620,7 @@ enum class Substructure { NONE, OUTER_JOIN, SEMIJOIN, WEEDOUT };
 static Substructure FindSubstructure(
     QEP_TAB *qep_tabs, const plan_idx first_idx, const plan_idx this_idx,
     const plan_idx last_idx, CallingContext calling_context, bool *add_limit_1,
-    plan_idx *substructure_end, vector<QEP_TAB *> *unhandled_duplicates) {
+    plan_idx *substructure_end, qep_tab_map *unhandled_duplicates) {
   QEP_TAB *qep_tab = &qep_tabs[this_idx];
   bool is_outer_join =
       qep_tab->last_inner() != NO_PLAN_IDX && qep_tab->last_inner() < last_idx;
@@ -1703,8 +1689,8 @@ static Substructure FindSubstructure(
 
   if (weedout_end > last_idx) {
     // See comment above.
-    MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, this_idx,
-                            weedout_end, unhandled_duplicates);
+    MarkUnhandledDuplicates(qep_tab->flush_weedout_table, this_idx, weedout_end,
+                            unhandled_duplicates);
     is_weedout = false;
   }
 
@@ -1714,7 +1700,7 @@ static Substructure FindSubstructure(
       is_weedout = false;
     } else {
       // See comment above.
-      MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, this_idx,
+      MarkUnhandledDuplicates(qep_tab->flush_weedout_table, this_idx,
                               weedout_end, unhandled_duplicates);
       is_weedout = false;
     }
@@ -1725,7 +1711,7 @@ static Substructure FindSubstructure(
       is_weedout = false;
     } else {
       // See comment above.
-      MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, this_idx,
+      MarkUnhandledDuplicates(qep_tab->flush_weedout_table, this_idx,
                               weedout_end, unhandled_duplicates);
       is_weedout = false;
     }
@@ -1754,9 +1740,7 @@ static Substructure FindSubstructure(
       // This forms a non-hierarchical structure and should be exceedingly rare,
       // so we handle it the same way we handle non-hierarchical weedout above,
       // ie., just by removing the added duplicates at the top of the query.
-      for (plan_idx i = this_idx; i < semijoin_end; ++i) {
-        unhandled_duplicates->push_back(&qep_tabs[i]);
-      }
+      *unhandled_duplicates |= TablesBetween(this_idx, semijoin_end);
       is_semijoin = false;
     }
   }
@@ -1769,9 +1753,7 @@ static Substructure FindSubstructure(
     for (plan_idx i = this_idx; i < semijoin_end; ++i) {
       if (qep_tabs[i].last_inner() >= semijoin_end) {
         // Handle this semijoin as non-hierarchical weedout above.
-        for (plan_idx j = this_idx; j < semijoin_end; ++j) {
-          unhandled_duplicates->push_back(&qep_tabs[j]);
-        }
+        *unhandled_duplicates |= TablesBetween(this_idx, semijoin_end);
         is_semijoin = false;
         break;
       }
@@ -1816,7 +1798,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators,
-    vector<QEP_TAB *> *unhandled_duplicates);
+    qep_tab_map *unhandled_duplicates);
 /// @endcond
 
 /**
@@ -1945,7 +1927,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // Handle this subquery as a we would a completely separate join,
     // even though the tables are part of the same JOIN object
     // (so in effect, a “virtual join”).
-    vector<QEP_TAB *> unhandled_duplicates;
+    qep_tab_map unhandled_duplicates = 0;
     unique_ptr_destroy_only<RowIterator> subtree_iterator =
         ConnectJoins(join_start, join_end, qep_tabs, thd, TOP_LEVEL,
                      /*pending_conditions=*/nullptr,
@@ -1954,7 +1936,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // If there were any weedouts that we had to drop during ConnectJoins()
     // (ie., the join left some tables that were supposed to be deduplicated
     // but were not), handle them now at the end of the virtual join.
-    if (!unhandled_duplicates.empty()) {
+    if (unhandled_duplicates != 0) {
       subtree_iterator = CreateWeedoutIteratorForTables(
           thd, unhandled_duplicates, qep_tab, qep_tab->join()->primary_tables,
           move(subtree_iterator));
@@ -2110,11 +2092,12 @@ void SetCostOnHashJoinIterator(const Cost_model_server &cost_model,
 // "conditions_after_hash_join" so that they can be attached as filters after
 // the join.
 static void ExtractHashJoinConditions(
-    const QEP_TAB *current_table, const std::vector<QEP_TAB *> &left_tables,
+    const QEP_TAB *current_table, qep_tab_map left_tables,
     vector<Item *> *predicates, vector<Item_func_eq *> *hash_join_conditions,
     vector<Item *> *conditions_after_hash_join) {
   table_map left_tables_map = 0;
-  for (QEP_TAB *qep_tab : left_tables) {
+  for (QEP_TAB *qep_tab :
+       TablesContainedIn(current_table->join(), left_tables)) {
     left_tables_map = left_tables_map | qep_tab->table_ref->map();
   }
 
@@ -2214,7 +2197,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators,
-    vector<QEP_TAB *> *unhandled_duplicates) {
+    qep_tab_map *unhandled_duplicates) {
   DBUG_ASSERT(last_idx > first_idx);
   DBUG_ASSERT((pending_conditions == nullptr) ==
               (pending_invalidators == nullptr));
@@ -2465,7 +2448,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     SplitConditions(qep_tab->condition(), &predicates_below_join,
                     &predicates_above_join);
 
-    vector<QEP_TAB *> left_tables;
+    qep_tab_map left_tables = 0;
 
     // If this is a BNL, we should replace it with hash join. We did decide
     // during create_iterators that we actually can replace the BNL with a hash
@@ -2485,14 +2468,12 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
     if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
-      for (plan_idx j = first_idx; j < i; ++j) {
-        left_tables.push_back(&qep_tabs[j]);
-      }
+      left_tables |= TablesBetween(first_idx, i);
 
       if (is_bka) {
         table_iterator = NewIterator<MultiRangeRowIterator>(
-            thd, left_tables, qep_tab->cache_idx_cond, qep_tab->table(),
-            qep_tab->copy_current_rowid, &qep_tab->ref(),
+            thd, qep_tab->join(), left_tables, qep_tab->cache_idx_cond,
+            qep_tab->table(), qep_tab->copy_current_rowid, &qep_tab->ref(),
             qep_tab->position()->table->join_cache_flags);
         mrr_iterator_ptr =
             down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
@@ -2591,8 +2572,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         const float rec_per_key =
             table->key_info[ref->key].records_per_key(ref->key_parts - 1);
         iterator = NewIterator<BKAIterator>(
-            thd, move(iterator), left_tables, move(table_iterator),
-            thd->variables.join_buff_size,
+            thd, qep_tab->join(), move(iterator), left_tables,
+            move(table_iterator), thd->variables.join_buff_size,
             table->file->stats.mrr_length_per_rec, rec_per_key,
             mrr_iterator_ptr);
       } else if (replace_with_hash_join) {
@@ -2851,14 +2832,14 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       }
     }
   } else {
-    vector<QEP_TAB *> unhandled_duplicates;
+    qep_tab_map unhandled_duplicates = 0;
     iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd,
                             TOP_LEVEL, nullptr, nullptr, &unhandled_duplicates);
 
     // If there were any weedouts that we had to drop during ConnectJoins()
     // (ie., the join left some tables that were supposed to be deduplicated
     // but were not), handle them now at the very end.
-    if (!unhandled_duplicates.empty()) {
+    if (unhandled_duplicates != 0) {
       iterator = CreateWeedoutIteratorForTables(
           thd, unhandled_duplicates, qep_tab, primary_tables, move(iterator));
     }

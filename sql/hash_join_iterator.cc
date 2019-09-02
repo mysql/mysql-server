@@ -45,6 +45,7 @@
 #include "sql/row_iterator.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_select.h"
 #include "sql/table.h"
 
@@ -65,7 +66,7 @@ static std::vector<HashJoinCondition> ItemToHashJoinConditions(
 
 HashJoinIterator::HashJoinIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
-    const std::vector<QEP_TAB *> &build_input_tables,
+    qep_tab_map build_input_tables,
     unique_ptr_destroy_only<RowIterator> probe_input,
     QEP_TAB *probe_input_table, size_t max_memory_available,
     const std::vector<Item_func_eq *> &join_conditions,
@@ -74,8 +75,8 @@ HashJoinIterator::HashJoinIterator(
       m_state(State::READING_ROW_FROM_PROBE_ITERATOR),
       m_build_input(move(build_input)),
       m_probe_input(move(probe_input)),
-      m_probe_input_table({probe_input_table}),
-      m_build_input_tables(build_input_tables),
+      m_probe_input_table(probe_input_table),
+      m_build_input_tables(probe_input_table->join(), build_input_tables),
       m_row_buffer(m_build_input_tables,
                    ItemToHashJoinConditions(join_conditions, thd->mem_root),
                    max_memory_available),

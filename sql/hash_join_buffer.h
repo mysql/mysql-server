@@ -119,7 +119,12 @@ class TableCollection {
  public:
   TableCollection() = default;
 
-  explicit TableCollection(const std::vector<QEP_TAB *> &tables);
+  explicit TableCollection(QEP_TAB *qep_tab) {
+    // Single table.
+    AddTable(qep_tab);
+  }
+
+  TableCollection(const JOIN *join, qep_tab_map tables);  // Multiple tables.
 
   const Prealloced_array<Table, 4> &tables() const { return m_tables; }
 
@@ -130,21 +135,23 @@ class TableCollection {
   bool has_blob_column() const { return m_has_blob_column; }
 
  private:
+  void AddTable(QEP_TAB *qep_tab);
+
   Prealloced_array<Table, 4> m_tables{PSI_NOT_INSTRUMENTED};
 
   // We frequently use the bitmap to determine which side of the join an Item
   // belongs to, so precomputing the bitmap saves quite some time.
-  table_map m_tables_bitmap;
+  table_map m_tables_bitmap = 0;
 
   // Sum of the NULL bytes and the row ID for all of the tables.
-  size_t m_ref_and_null_bytes_size;
+  size_t m_ref_and_null_bytes_size = 0;
 
   // Whether any of the tables has a BLOB/TEXT column. This is used to determine
   // whether we need to estimate the row size every time we store a row to the
   // row buffer or to a chunk file on disk. If this is set to false, we can
   // pre-allocate any necessary buffers we need during the hash join, and thus
   // eliminate the need for recalculating the row size every time.
-  bool m_has_blob_column;
+  bool m_has_blob_column = false;
 };
 
 /// Count up how many bytes a single row from the given tables will occupy,

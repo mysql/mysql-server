@@ -52,9 +52,9 @@
 using std::string;
 using std::vector;
 
-BKAIterator::BKAIterator(THD *thd,
+BKAIterator::BKAIterator(THD *thd, JOIN *join,
                          unique_ptr_destroy_only<RowIterator> outer_input,
-                         const std::vector<QEP_TAB *> &outer_input_tables,
+                         qep_tab_map outer_input_tables,
                          unique_ptr_destroy_only<RowIterator> inner_input,
                          size_t max_memory_available,
                          size_t mrr_bytes_needed_for_single_inner_row,
@@ -65,7 +65,7 @@ BKAIterator::BKAIterator(THD *thd,
       m_inner_input(move(inner_input)),
       m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
       m_rows(&m_mem_root),
-      m_outer_input_tables(outer_input_tables),
+      m_outer_input_tables(join, outer_input_tables),
       m_max_memory_available(max_memory_available),
       m_mrr_bytes_needed_for_single_inner_row(
           mrr_bytes_needed_for_single_inner_row),
@@ -244,10 +244,11 @@ int BKAIterator::Read() {
   }
 }
 
-MultiRangeRowIterator::MultiRangeRowIterator(
-    THD *thd, const std::vector<QEP_TAB *> &outer_input_tables,
-    Item *cache_idx_cond, TABLE *table, bool keep_current_rowid, TABLE_REF *ref,
-    int mrr_flags)
+MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, JOIN *join,
+                                             qep_tab_map outer_input_tables,
+                                             Item *cache_idx_cond, TABLE *table,
+                                             bool keep_current_rowid,
+                                             TABLE_REF *ref, int mrr_flags)
     : TableRowIterator(thd, table),
       m_cache_idx_cond(cache_idx_cond),
       m_keep_current_rowid(keep_current_rowid),
@@ -255,7 +256,7 @@ MultiRangeRowIterator::MultiRangeRowIterator(
       m_file(table->file),
       m_ref(ref),
       m_mrr_flags(mrr_flags),
-      m_outer_input_tables(outer_input_tables) {}
+      m_outer_input_tables(join, outer_input_tables) {}
 
 bool MultiRangeRowIterator::Init() {
   /*

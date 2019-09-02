@@ -51,19 +51,23 @@ namespace hash_join_unittest {
 
 using std::vector;
 
-static hash_join_buffer::TableCollection CreateTenTableJoin(MEM_ROOT *mem_root,
-                                                            bool store_data) {
+static hash_join_buffer::TableCollection CreateTenTableJoin(
+    const my_testing::Server_initializer &initializer, MEM_ROOT *mem_root,
+    bool store_data) {
   constexpr int kNumColumns = 10;
   constexpr bool kColumnsNullable = true;
   constexpr int kNumTablesInJoin = 10;
 
   // Set up a ten-table join. For simplicity, allocate everything on a MEM_ROOT
   // that will take care of releasing allocated memory.
-  vector<QEP_TAB *> qep_tabs;
+  SELECT_LEX *select_lex = parse(&initializer, "SELECT * FROM dummy", 0);
+  JOIN join(initializer.thd(), select_lex);
+  join.qep_tab = mem_root->ArrayAlloc<QEP_TAB>(kNumTablesInJoin);
+  join.tables = kNumTablesInJoin;
   for (int i = 0; i < kNumTablesInJoin; ++i) {
     Fake_TABLE *fake_table =
         new (mem_root) Fake_TABLE(kNumColumns, kColumnsNullable);
-    QEP_TAB *qep_tab = new (mem_root) QEP_TAB;
+    QEP_TAB *qep_tab = &join.qep_tab[i];
     qep_tab->set_qs(new (mem_root) QEP_shared);
     qep_tab->set_table(fake_table);
     qep_tab->table_ref = fake_table->pos_in_table_list;
@@ -75,11 +79,10 @@ static hash_join_buffer::TableCollection CreateTenTableJoin(MEM_ROOT *mem_root,
         fake_table->field[j]->store(1000, false /* is_unsigned */);
       }
     }
-
-    qep_tabs.push_back(qep_tab);
   }
 
-  return hash_join_buffer::TableCollection(qep_tabs);
+  return hash_join_buffer::TableCollection(&join,
+                                           TablesBetween(0, kNumTablesInJoin));
 }
 
 static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {
@@ -89,7 +92,7 @@ static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {
   initializer.SetUp();
   MEM_ROOT mem_root;
   hash_join_buffer::TableCollection table_collection =
-      CreateTenTableJoin(&mem_root, false);
+      CreateTenTableJoin(initializer, &mem_root, false);
 
   String buffer;
   buffer.reserve(1024);
@@ -114,7 +117,7 @@ static void BM_StoreFromTableBuffersWithData(size_t num_iterations) {
 
   MEM_ROOT mem_root;
   hash_join_buffer::TableCollection table_collection =
-      CreateTenTableJoin(&mem_root, true);
+      CreateTenTableJoin(initializer, &mem_root, true);
 
   String buffer;
   buffer.reserve(1024);
@@ -294,15 +297,19 @@ class HashJoinTestHelper {
         parse(initializer,
               "SELECT * FROM t1 JOIN t2 ON (t1.column1 = t2.column1);", 0);
     JOIN *join = new (&m_mem_root) JOIN(initializer->thd(), select_lex);
+    join->tables = 2;
+    join->qep_tab = m_mem_root.ArrayAlloc<QEP_TAB>(join->tables);
 
-    left_qep_tab = new (&m_mem_root) QEP_TAB;
+    left_qep_tab = &join->qep_tab[0];
     left_qep_tab->set_qs(new (&m_mem_root) QEP_shared);
+    left_qep_tab->set_idx(0);
     left_qep_tab->set_table(left_table);
     left_qep_tab->table_ref = left_table->pos_in_table_list;
     left_qep_tab->set_join(join);
 
-    right_qep_tab = new (&m_mem_root) QEP_TAB;
+    right_qep_tab = &join->qep_tab[1];
     right_qep_tab->set_qs(new (&m_mem_root) QEP_shared);
+    right_qep_tab->set_idx(1);
     right_qep_tab->set_table(right_table);
     right_qep_tab->table_ref = right_table->pos_in_table_list;
     right_qep_tab->set_join(join);
@@ -335,7 +342,7 @@ TEST(HashJoinTest, JoinIntOneToOneMatch) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
+      test_helper.left_qep_tab->map(), std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
       {test_helper.join_condition}, true);
 
@@ -356,7 +363,7 @@ TEST(HashJoinTest, JoinIntNoMatch) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
+      test_helper.left_qep_tab->map(), std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
       {test_helper.join_condition}, true);
 
@@ -373,7 +380,7 @@ TEST(HashJoinTest, JoinIntOneToManyMatch) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
+      test_helper.left_qep_tab->map(), std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
       {test_helper.join_condition}, true);
 
@@ -398,7 +405,7 @@ TEST(HashJoinTest, JoinStringOneToOneMatch) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
+      test_helper.left_qep_tab->map(), std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
       {test_helper.join_condition}, true);
 
@@ -443,7 +450,7 @@ static void BM_HashTableIteratorBuild(size_t num_iterations) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
+      test_helper.left_qep_tab->map(), std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
       {test_helper.join_condition}, true);
 
@@ -486,7 +493,7 @@ static void BM_HashTableIteratorProbe(size_t num_iterations) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      {test_helper.left_qep_tab}, std::move(test_helper.right_iterator),
+      test_helper.left_qep_tab->map(), std::move(test_helper.right_iterator),
       test_helper.right_qep_tab, 10 * 1024 * 1024 /* 10 MB */,
       {test_helper.join_condition}, true);
 

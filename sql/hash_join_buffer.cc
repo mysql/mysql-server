@@ -41,7 +41,9 @@
 #include "sql/psi_memory_key.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"
+#include "sql/sql_optimizer.h"
 #include "sql/table.h"
+#include "tables_contained_in.h"
 #include "template_utils.h"
 
 namespace hash_join_buffer {
@@ -92,56 +94,57 @@ Table::Table(QEP_TAB *qep_tab)
 // with no columns, like t2 in the following query:
 //
 //   SELECT t1.col1 FROM t1, t2;  # t2 will be included without any columns.
-TableCollection::TableCollection(const std::vector<QEP_TAB *> &tables)
-    : m_tables_bitmap(0),
-      m_ref_and_null_bytes_size(0),
-      m_has_blob_column(false) {
-  for (QEP_TAB *qep_tab : tables) {
-    m_tables_bitmap |= qep_tab->table_ref->map();
-
-    // When constructing the iterator tree, we might end up adding a
-    // WeedoutIterator _after_ a HashJoinIterator has been constructed.
-    // When adding the WeedoutIterator, QEP_TAB::rowid_status will be changed
-    // indicate that a row ID is needed. A side effect of this is that
-    // rowid_status might say that no row ID is needed here, while it says
-    // otherwise while hash join is executing. As such, we may write outside of
-    // the allocated buffers since we did not take the size of the row ID into
-    // account here. To overcome this, we always assume that the row ID should
-    // be kept; reserving some extra bytes in a few buffers should not be an
-    // issue.
-    m_ref_and_null_bytes_size += qep_tab->table()->file->ref_length;
-
-    if (qep_tab->table()->is_nullable()) {
-      m_ref_and_null_bytes_size += sizeof(qep_tab->table()->null_row);
-    }
-
-    Table table(qep_tab);
-    for (const hash_join_buffer::Column &column : table.columns) {
-      // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
-      // we will treat all Field_typed_array as blob columns.
-      if ((column.field->flags & BLOB_FLAG) > 0 || column.field->is_array()) {
-        m_has_blob_column = true;
-      }
-
-      // If a column is marked as nullable, we need to copy the NULL flags.
-      if ((column.field->flags & NOT_NULL_FLAG) == 0) {
-        table.copy_null_flags = true;
-      }
-
-      // BIT fields stores some of its data in the NULL flags of the table. So
-      // if we have a BIT field, we must copy the NULL flags.
-      if (column.field->type() == MYSQL_TYPE_BIT &&
-          down_cast<const Field_bit *>(column.field)->bit_len > 0) {
-        table.copy_null_flags = true;
-      }
-    }
-
-    if (table.copy_null_flags) {
-      m_ref_and_null_bytes_size += qep_tab->table()->s->null_bytes;
-    }
-
-    m_tables.push_back(table);
+TableCollection::TableCollection(const JOIN *join, qep_tab_map tables) {
+  for (QEP_TAB *qep_tab : TablesContainedIn(join, tables)) {
+    AddTable(qep_tab);
   }
+}
+
+void TableCollection::AddTable(QEP_TAB *qep_tab) {
+  m_tables_bitmap |= qep_tab->table_ref->map();
+
+  // When constructing the iterator tree, we might end up adding a
+  // WeedoutIterator _after_ a HashJoinIterator has been constructed.
+  // When adding the WeedoutIterator, QEP_TAB::rowid_status will be changed
+  // indicate that a row ID is needed. A side effect of this is that
+  // rowid_status might say that no row ID is needed here, while it says
+  // otherwise while hash join is executing. As such, we may write outside of
+  // the allocated buffers since we did not take the size of the row ID into
+  // account here. To overcome this, we always assume that the row ID should
+  // be kept; reserving some extra bytes in a few buffers should not be an
+  // issue.
+  m_ref_and_null_bytes_size += qep_tab->table()->file->ref_length;
+
+  if (qep_tab->table()->is_nullable()) {
+    m_ref_and_null_bytes_size += sizeof(qep_tab->table()->null_row);
+  }
+
+  Table table(qep_tab);
+  for (const hash_join_buffer::Column &column : table.columns) {
+    // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
+    // we will treat all Field_typed_array as blob columns.
+    if ((column.field->flags & BLOB_FLAG) > 0 || column.field->is_array()) {
+      m_has_blob_column = true;
+    }
+
+    // If a column is marked as nullable, we need to copy the NULL flags.
+    if ((column.field->flags & NOT_NULL_FLAG) == 0) {
+      table.copy_null_flags = true;
+    }
+
+    // BIT fields stores some of its data in the NULL flags of the table. So
+    // if we have a BIT field, we must copy the NULL flags.
+    if (column.field->type() == MYSQL_TYPE_BIT &&
+        down_cast<const Field_bit *>(column.field)->bit_len > 0) {
+      table.copy_null_flags = true;
+    }
+  }
+
+  if (table.copy_null_flags) {
+    m_ref_and_null_bytes_size += qep_tab->table()->s->null_bytes;
+  }
+
+  m_tables.push_back(table);
 }
 
 // Calculate how many bytes the data in the column uses. We don't bother

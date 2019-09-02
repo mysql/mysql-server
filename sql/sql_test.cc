@@ -179,7 +179,7 @@ void print_keyuse_array(Opt_trace_context *trace,
   for (uint i = 0; i < keyuse_array->size(); i++) {
     const Key_use &keyuse = keyuse_array->at(i);
     // those are too obscure for opt trace
-    DBUG_PRINT("opt", ("Key_use: optimize= %d used_tables=0x%llx "
+    DBUG_PRINT("opt", ("Key_use: optimize= %d used_tables=0x%" PRIx64 " "
                        "ref_table_rows= %lu keypart_map= %0lx",
                        keyuse.optimize, keyuse.used_tables,
                        (ulong)keyuse.ref_table_rows, keyuse.keypart_map));

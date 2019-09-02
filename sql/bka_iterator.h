@@ -80,6 +80,7 @@ class BKAIterator final : public RowIterator {
  public:
   /**
     @param thd Thread handle.
+    @param join The JOIN we are part of.
     @param outer_input The iterator to read the outer rows from.
     @param outer_input_tables QEP_TAB for each outer table involved.
       Used to know which fields we are to read into our buffer.
@@ -97,8 +98,9 @@ class BKAIterator final : public RowIterator {
     @param mrr_iterator Pointer to the MRR iterator at the bottom of
       inner_input. Used to send row ranges and buffers.
    */
-  BKAIterator(THD *thd, unique_ptr_destroy_only<RowIterator> outer_input,
-              const std::vector<QEP_TAB *> &outer_input_tables,
+  BKAIterator(THD *thd, JOIN *join,
+              unique_ptr_destroy_only<RowIterator> outer_input,
+              qep_tab_map outer_input_tables,
               unique_ptr_destroy_only<RowIterator> inner_input,
               size_t max_memory_available,
               size_t mrr_bytes_needed_for_single_inner_row,
@@ -233,6 +235,7 @@ class MultiRangeRowIterator final : public TableRowIterator {
  public:
   /**
     @param thd Thread handle.
+    @param join The JOIN we are part of.
     @param outer_input_tables QEP_TAB for each outer table involved.
       Used to know which fields we are to read back from the buffer.
     @param cache_idx_cond See m_cache_idx_cond.
@@ -243,8 +246,7 @@ class MultiRangeRowIterator final : public TableRowIterator {
     @param ref The index condition we are looking up on.
     @param mrr_flags Flags passed on to MRR.
    */
-  MultiRangeRowIterator(THD *thd,
-                        const std::vector<QEP_TAB *> &outer_input_tables,
+  MultiRangeRowIterator(THD *thd, JOIN *join, qep_tab_map outer_input_tables,
                         Item *cache_idx_cond, TABLE *table,
                         bool keep_current_rowid, TABLE_REF *ref, int mrr_flags);
 
