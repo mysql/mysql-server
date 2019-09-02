@@ -65,8 +65,9 @@ Events::Events() {
   m_target_def.add_field(FIELD_CREATED, "CREATED", "evt.created");
   m_target_def.add_field(FIELD_LAST_ALTERED, "LAST_ALTERED",
                          "evt.last_altered");
-  m_target_def.add_field(FIELD_LAST_EXECUTED, "LAST_EXECUTED",
-                         "evt.last_executed");
+  m_target_def.add_field(
+      FIELD_LAST_EXECUTED, "LAST_EXECUTED",
+      "CONVERT_TZ(evt.last_executed,'+00:00', evt.time_zone)");
   m_target_def.add_field(FIELD_EVENT_COMMENT, "EVENT_COMMENT", "evt.comment");
   m_target_def.add_field(FIELD_ORIGINATOR, "ORIGINATOR", "evt.originator");
   m_target_def.add_field(FIELD_CHARACTER_SET_CLIENT, "CHARACTER_SET_CLIENT",

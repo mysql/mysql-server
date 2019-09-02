@@ -877,13 +877,50 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 DROP EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 SET NAMES default;
 #
-# BUG#29269819 - WRONG METADATA WHILE CREATE AN EVENT
+# Bug#29871530 - MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
+# OBSERVING CUSTOM TIMEZONE FOR LAST_EXECU
 #
-CREATE EVENT Fortnight_Event ON SCHEDULE EVERY 2 WEEK DO SELECT 1;
-SELECT EVENT_NAME, INTERVAL_VALUE, INTERVAL_FIELD FROM information_schema.events;
-EVENT_NAME	INTERVAL_VALUE	INTERVAL_FIELD
-Fortnight_Event	2	WEEK
-DROP EVENT Fortnight_Event;
+SET TIMESTAMP= UNIX_TIMESTAMP('2019-08-01 01:20:30');
+SET GLOBAL event_scheduler = ON;
+SET sql_mode='STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SET TIME_ZONE= '+03:00';
+CREATE EVENT my_event
+ON SCHEDULE EVERY 2 SECOND
+STARTS '2019-08-01 01:20:30'
+      ENDS   '2034-08-30 01:20:30'
+    DO DO 1+1;
+# Verify value of 'LAST EXECUTED'.
+# We do not check last executed against timezone change, as it
+# will always be in the timezone at create event, as per:
+# WL#3698: Events: execution in local time zone.
+2019-08-01 01:20:30
+SELECT TIMESTAMP('2019-08-01 01:20:30') < LAST_EXECUTED
+FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
+TIMESTAMP('2019-08-01 01:20:30') < LAST_EXECUTED
+1
+# Verify value of 'LAST ALTERED'.
+SET TIMESTAMP= UNIX_TIMESTAMP('2019-08-01 01:20:50');
+ALTER EVENT my_event COMMENT 'event comment';
+SELECT TIMESTAMP('2019-08-01 01:20:50') = TIMESTAMP('2019-08-01 01:20:50');
+TIMESTAMP('2019-08-01 01:20:50') = TIMESTAMP('2019-08-01 01:20:50')
+1
+# Check that both last altered and created is in the same time zone.
+SELECT (CREATED - TIMESTAMP('2019-08-01 01:20:30')),
+(LAST_ALTERED - TIMESTAMP('2019-08-01 01:20:50'))
+FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
+(CREATED - TIMESTAMP('2019-08-01 01:20:30'))	(LAST_ALTERED - TIMESTAMP('2019-08-01 01:20:50'))
+0	0
+SET TIME_ZONE= '-02:00';
+SELECT (CREATED - CONVERT_TZ('2019-08-01 01:20:30', '+03:00', '-02:00')),
+(LAST_ALTERED - CONVERT_TZ('2019-08-01 01:20:50', '+03:00', '-02:00'))
+FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
+(CREATED - CONVERT_TZ('2019-08-01 01:20:30', '+03:00', '-02:00'))	(LAST_ALTERED - CONVERT_TZ('2019-08-01 01:20:50', '+03:00', '-02:00'))
+0	0
+DROP EVENT my_event;
+SET TIME_ZONE=default;
+SET TIMESTAMP=default;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

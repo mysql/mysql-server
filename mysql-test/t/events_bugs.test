@@ -1369,12 +1369,55 @@ DROP EVENT очень_очень_очень_очень_очень_очень_о�
 SET NAMES default;
 
 --echo #
---echo # BUG#29269819 - WRONG METADATA WHILE CREATE AN EVENT
+--echo # Bug#29871530 - MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
+--echo # OBSERVING CUSTOM TIMEZONE FOR LAST_EXECU
 --echo #
 
-CREATE EVENT Fortnight_Event ON SCHEDULE EVERY 2 WEEK DO SELECT 1;
-SELECT EVENT_NAME, INTERVAL_VALUE, INTERVAL_FIELD FROM information_schema.events;
-DROP EVENT Fortnight_Event;
+SET TIMESTAMP= UNIX_TIMESTAMP('2019-08-01 01:20:30');
+SET GLOBAL event_scheduler = ON;
+SET sql_mode='STRICT_TRANS_TABLES';
+SET TIME_ZONE= '+03:00';
+CREATE EVENT my_event
+    ON SCHEDULE EVERY 2 SECOND
+      STARTS '2019-08-01 01:20:30'
+      ENDS   '2034-08-30 01:20:30'
+    DO DO 1+1;
+
+let $created=`SELECT created FROM INFORMATION_SCHEMA.EVENTS
+              WHERE EVENT_NAME='my_event'`;
+let $wait_condition =
+  SELECT last_executed IS NOT NULL
+  FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'my_event';
+--source include/wait_condition.inc
+
+--echo # Verify value of 'LAST EXECUTED'.
+--echo # We do not check last executed against timezone change, as it
+--echo # will always be in the timezone at create event, as per:
+--echo # WL#3698: Events: execution in local time zone.
+echo $created;
+eval SELECT TIMESTAMP('$created') < LAST_EXECUTED
+     FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
+
+--echo # Verify value of 'LAST ALTERED'.
+SET TIMESTAMP= UNIX_TIMESTAMP('2019-08-01 01:20:50');
+ALTER EVENT my_event COMMENT 'event comment';
+let $last_altered=`SELECT LAST_ALTERED FROM INFORMATION_SCHEMA.EVENTS
+                   WHERE EVENT_NAME='my_event'`;
+eval SELECT TIMESTAMP('$last_altered') = TIMESTAMP('2019-08-01 01:20:50');
+
+--echo # Check that both last altered and created is in the same time zone.
+eval SELECT (CREATED - TIMESTAMP('$created')),
+            (LAST_ALTERED - TIMESTAMP('$last_altered'))
+     FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
+SET TIME_ZONE= '-02:00';
+eval SELECT (CREATED - CONVERT_TZ('$created', '+03:00', '-02:00')),
+            (LAST_ALTERED - CONVERT_TZ('$last_altered', '+03:00', '-02:00'))
+     FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
+
+# Cleanup
+DROP EVENT my_event;
+SET TIME_ZONE=default;
+SET TIMESTAMP=default;
 
 ###########################################################################
 #

@@ -32,6 +32,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/impl/utils.h"
 #include "sql/dd/types/schema.h"
 #include "sql/event_parse_data.h"  // Event_parse_data
 #include "sql/log.h"
@@ -274,6 +275,10 @@ static void set_event_attributes(THD *thd, const dd::Schema &schema,
   // Set Event name and definer.
   event->set_name(event_name);
   event->set_definer(definer->user.str, definer->host.str);
+
+  // Set last altered time.
+  event->set_last_altered(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 
   // Set Event on completion and status.
   event->set_on_completion(get_on_completion(event_data->on_completion));
