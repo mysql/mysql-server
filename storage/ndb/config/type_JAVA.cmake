@@ -95,7 +95,11 @@ MACRO(CREATE_JAR)
 
   # Limit memory of javac, otherwise build might fail for parallel builds.
   # (out-of-memory/timeout if garbage collector kicks in too late)
-  SET(JAVA_ARGS "-J-Xmx3G")
+  IF(SIZEOF_VOIDP EQUAL 8)
+    SET(JAVA_ARGS "-J-Xmx3G")
+  ELSE()
+    SET(JAVA_ARGS "-J-Xmx1G")
+  ENDIF()
 
   # Compile
   IF (JAVA_FILES)
