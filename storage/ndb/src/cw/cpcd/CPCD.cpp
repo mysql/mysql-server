@@ -99,12 +99,16 @@ CPCD::defineProcess(RequestStatus * rs, const class Properties &args, int *id) {
     
     if((strcmp(proc->m_name.c_str(), existentProc->m_name.c_str()) == 0) &&
        (strcmp(proc->m_group.c_str(), existentProc->m_group.c_str()) == 0)) {
+      delete proc;
+
       /* Identical names in the same group */
       rs->err(AlreadyExists, "Name already exists");
       return false;
     }
 
     if(proc->m_id == existentProc->m_id) {
+      delete proc;
+
       /* Identical ID numbers */
       rs->err(AlreadyExists, "Id already exists");
       return false;
