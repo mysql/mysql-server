@@ -558,7 +558,8 @@ class Tablespace_dirs {
   /** Add a single path specification to this list of tablespace directories.
   Convert it to an absolute path. Check if the path is valid.  Ignore
   unreadable, duplicate or invalid directories.
-  @param[in]  str  Path specification to tokenize */
+  @param[in]  str  Path specification to tokenize
+  @param[in]  is_undo_dir  true for an undo directory */
   void add_path(const std::string &str, bool is_undo_dir = false);
 
   /** Add a delimited list of path specifications to this list of tablespace
@@ -3839,7 +3840,7 @@ symlinked files. If path doesn't exist it will be ignored.
 @param[in]	path		Directory or filename
 @return the absolute path of path, or "" on error.  */
 std::string Fil_path::get_real_path(const std::string &path) {
-  char abspath[OS_FILE_MAX_PATH];
+  char abspath[FN_REFLEN + 2];
 
   /* FIXME: This should be an assertion eventually. */
   if (path.empty()) {
@@ -3851,8 +3852,7 @@ std::string Fil_path::get_real_path(const std::string &path) {
   if (ret == -1) {
     ib::info(ER_IB_MSG_289) << "my_realpath(" << path << ") failed!";
 
-    strncpy(abspath, path.c_str(), sizeof(abspath) - 1);
-    abspath[sizeof(abspath) - 1] = '\0';
+    return (path);
   }
 
   if (is_file_system_case_insensitive()) {
