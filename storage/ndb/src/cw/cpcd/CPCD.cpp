@@ -336,7 +336,7 @@ CPCD::saveProcessList(){
     m_processes[i]->print(f);
     fprintf(f, "\n");
 
-    if(m_processes[i]->m_processType == TEMPORARY){
+    if(m_processes[i]->m_type == ProcessType::TEMPORARY){
       /**
        * Interactive process should never be "restarted" on cpcd restart
        */
@@ -448,7 +448,7 @@ CPCD::loadProcessList(){
     logger.debug("Loading Process %s:%s:%d with pid %d ",
                   proc->m_group.c_str(), proc->m_name.c_str(),
                   proc->m_id, proc->getPid());
-    if(proc->m_processType == TEMPORARY){
+    if(proc->m_type == ProcessType::TEMPORARY){
       temporary.push_back(proc->m_id);
     }
   }

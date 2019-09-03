@@ -62,7 +62,7 @@ void CPCD::Process::print(FILE *f) {
   fprintf(f, "env: %s\n", m_env.c_str() ? m_env.c_str() : "");
   fprintf(f, "path: %s\n", m_path.c_str() ? m_path.c_str() : "");
   fprintf(f, "args: %s\n", m_args.c_str() ? m_args.c_str() : "");
-  fprintf(f, "type: %s\n", m_type.c_str() ? m_type.c_str() : "");
+  fprintf(f, "type: %s\n", m_type.c_str());
   fprintf(f, "cwd: %s\n", m_cwd.c_str() ? m_cwd.c_str() : "");
   fprintf(f, "owner: %s\n", m_owner.c_str() ? m_owner.c_str() : "");
   fprintf(f, "runas: %s\n", m_runas.c_str() ? m_runas.c_str() : "");
@@ -89,7 +89,6 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd,
   props.get("args", m_args);
   props.get("cwd", m_cwd);
   props.get("owner", m_owner);
-  props.get("type", m_type);
   props.get("runas", m_runas);
   props.get("cpuset", m_cpuset);
 
@@ -102,15 +101,16 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd,
   m_remove_on_stopped = false;
   m_stopping_time = 0;
 
-  if (native_strcasecmp(m_type.c_str(), "temporary") == 0) {
-    m_processType = TEMPORARY;
-  } else {
+  BaseString procType;
+  props.get("type", procType);
+  m_type = ProcessType(procType.c_str());
+
 #ifdef _WIN32
-    logger.critical("Process type must be 'temporary' on windows");
+  if (m_type == ProcessType::PERMANENT) {
+    logger.critical("Process type must be '%s' on windows", m_type.toString());
     exit(1);
-#endif
-    m_processType = PERMANENT;
   }
+#endif
 
   m_cpcd = cpcd;
 }
@@ -140,7 +140,7 @@ bool CPCD::Process::should_be_erased() const
 }
 
 bool CPCD::Process::allowsChangeFromSession(const uintptr_t sessionid) const {
-  return (m_processType == TEMPORARY) && (m_sessionid == sessionid);
+  return (m_type == ProcessType::TEMPORARY) && (m_sessionid == sessionid);
 }
 
 void CPCD::Process::monitor()
@@ -162,9 +162,9 @@ void CPCD::Process::monitor()
       {
         logger.debug("Monitor : Process %s:%s:%d with pid %d no longer running",
                       m_group.c_str(), m_name.c_str(), m_id, m_pid);
-        switch (m_processType)
+        switch (m_type)
         {
-        case TEMPORARY:
+        case ProcessType::TEMPORARY:
           logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
           m_status = STOPPED;
@@ -172,7 +172,7 @@ void CPCD::Process::monitor()
           m_pid = bad_pid;
           break;
 
-        case PERMANENT:
+        case ProcessType::PERMANENT:
           logger.debug("Monitor : Process %s:%s:%d with previous pid %d is STARTING",
                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
           start();
@@ -668,8 +668,8 @@ int CPCD::Process::start() {
   m_status = STARTING;
 
   int pid = -1;
-  switch (m_processType) {
-    case TEMPORARY: {
+  switch (m_type) {
+    case ProcessType::TEMPORARY: {
 #ifndef _WIN32
       /**
        * Simple fork
@@ -700,7 +700,7 @@ int CPCD::Process::start() {
       break;
     }
 #ifndef _WIN32
-    case PERMANENT: {
+    case ProcessType::PERMANENT: {
       /**
        * PERMANENT
        */
@@ -771,7 +771,7 @@ int CPCD::Process::start() {
     /* retry */
 
     // For processtype PERMANENT pid and pgid must be -1 so never enter here.
-    require(m_processType == TEMPORARY);
+    require(m_type == ProcessType::TEMPORARY);
     logger.error("pgid and m_pid don't match: cpcd pid %d: forked pgid %d "
                  "pid %d: file m_pid %d",
                  getpid(),

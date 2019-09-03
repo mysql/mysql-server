@@ -216,7 +216,8 @@ void CPCDAPISession::defineProcess(Parser_t::Context & /* unused */,
 
       BaseString procType;
       args.get("type", procType);
-      if (native_strcasecmp(procType.c_str(), "temporary") == 0) {
+      CPCD::ProcessType processType(procType.c_str());
+      if (processType == CPCD::ProcessType::TEMPORARY) {
         m_temporaryProcesses.push_back(id);
       }
     } else {

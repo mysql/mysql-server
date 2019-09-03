@@ -60,8 +60,6 @@ inline bool is_bad_pid(pid_t pid) {
 #endif
 enum ProcessStatus { STOPPED = 0, STARTING = 1, RUNNING = 2, STOPPING = 3 };
 
-enum ProcessType { PERMANENT = 0, TEMPORARY = 1 };
-
 /**
  *  @brief Error codes for CPCD requests
  */
@@ -106,6 +104,39 @@ class CPCD {
     enum RequestStatusCode m_status;
     char m_errorstring[256];
   };
+
+  /** @brief Defines processes statuses */
+  class ProcessType {
+   public:
+    enum Value { TEMPORARY, PERMANENT };
+
+    ProcessType() = default;
+
+    constexpr ProcessType(Value aType) : value(aType) {}
+
+    ProcessType(const char *aType) {
+      value =
+          (native_strcasecmp(aType, "temporary") == 0) ? TEMPORARY : PERMANENT;
+    }
+
+    operator Value() const { return value; }
+
+    explicit operator bool() = delete;
+
+    const char *c_str() {
+      switch (value) {
+        case TEMPORARY:
+          return "temporary";
+        case PERMANENT:
+          return "permanent";
+      }
+      return nullptr;
+    }
+
+   private:
+    Value value;
+  };
+
   /**
    *  @brief Manages a process
    */
@@ -224,8 +255,9 @@ class CPCD {
      *
      *  Either set to "interactive" or "permanent".
      */
-    BaseString m_type;
-    ProcessType m_processType;
+    // BaseString m_type;
+    // ProcessType m_processType;
+    ProcessType m_type;
 
     /**
      *  @brief Working directory
