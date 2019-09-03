@@ -235,9 +235,9 @@ bool is_file_system_case_insensitive(void);
 
 /** Compare two character strings case insensitively according to their
 charset.
-@parameter[in]  cs  character set
-@parameter[in]  s1  string 1
-@parameter[in]  s2  string 2
+@param[in]  cs  character set
+@param[in]  s1  string 1
+@param[in]  s2  string 2
 @return 0 if the two strings are equal */
 int innobase_nocase_compare(const void *cs, const char *s1, const char *s2);
 
