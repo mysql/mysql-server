@@ -156,7 +156,7 @@ SELECT CURRENT_USER();
 
 --connection default
 --echo # Show how many active connections currently exist
-SHOW STATUS LIKE 'Threads_connected';
+SELECT name, type, processlist_user, processlist_host, processlist_db, processlist_command, processlist_info FROM performance_schema.threads WHERE type = 'FOREGROUND' AND name LIKE 'thread/sql/one_connection';
 
 --echo # Test case 10
 --echo # Check that the parameter max_connections does affect to an ordinary

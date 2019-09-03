@@ -79,9 +79,9 @@ connect admin_tcp_con_u3,127.0.0.1,u3,,,$ADMIN_PORT,,TCP;
 ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
 connection default;
 # Show how many active connections currently exist
-SHOW STATUS LIKE 'Threads_connected';
-Variable_name	Value
-Threads_connected	1
+SELECT name, type, processlist_user, processlist_host, processlist_db, processlist_command, processlist_info FROM performance_schema.threads WHERE type = 'FOREGROUND' AND name LIKE 'thread/sql/one_connection';
+name	type	processlist_user	processlist_host	processlist_db	processlist_command	processlist_info
+thread/sql/one_connection	FOREGROUND	root	localhost	test	Query	SELECT name, type, processlist_user, processlist_host, processlist_db, processlist_command, processlist_info FROM performance_schema.threads WHERE type = 'FOREGROUND' AND name LIKE 'thread/sql/one_connection'
 # Test case 10
 # Check that the parameter max_connections does affect to an ordinary
 # connection and doesn't affect to a connection made to admin interface
