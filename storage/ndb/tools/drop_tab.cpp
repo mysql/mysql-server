@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,16 +35,21 @@ static const char* _dbname = "TEST_DB";
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_drop_table"),
   { "database", 'd', "Name of database table is in",
     (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static void short_usage_sub() {
+  ndb_short_usage_sub("<table name>[, <table name>[, ...]]");
+}
+
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
   if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc < 1) {
