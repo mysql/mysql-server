@@ -2180,19 +2180,6 @@ enum enum_schema_table_state : int {
   PROCESSED_BY_JOIN_EXEC
 };
 
-struct FOREIGN_KEY_INFO {
-  LEX_STRING *foreign_id;
-  LEX_STRING *foreign_db;
-  LEX_STRING *foreign_table;
-  LEX_STRING *referenced_db;
-  LEX_STRING *referenced_table;
-  LEX_STRING *update_method;
-  LEX_STRING *delete_method;
-  LEX_STRING *referenced_key_name;
-  List<LEX_STRING> foreign_fields;
-  List<LEX_STRING> referenced_fields;
-};
-
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED 2
 

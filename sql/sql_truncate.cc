@@ -59,7 +59,7 @@
 #include "sql/sql_show.h"   // append_identifier()
 #include "sql/sql_table.h"  // write_bin_log
 #include "sql/system_variables.h"
-#include "sql/table.h"        // TABLE, FOREIGN_KEY_INFO
+#include "sql/table.h"        // TABLE
 #include "sql/transaction.h"  // trans_commit_stmt()
 #include "sql/transaction_info.h"
 #include "sql_string.h"

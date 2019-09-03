@@ -305,15 +305,6 @@ class ha_innobase : public handler {
 
   int check(THD *thd, HA_CHECK_OPT *check_opt) override;
 
-  int get_foreign_key_list(THD *thd,
-                           List<FOREIGN_KEY_INFO> *f_key_list) override;
-
-  int get_parent_foreign_key_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO> *f_key_list) override;
-
-  int get_cascade_foreign_key_table_list(
-      THD *thd, List<st_handler_tablename> *fk_table_list) override;
-
   uint lock_count(void) const override;
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
