@@ -13,7 +13,7 @@ show warnings;
 Level	Code	Message
 insert into t select x + 80, y + 80 from t;
 Warnings:
-Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction' from NDB
+Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction/MaxNoOfConcurrentOp' from NDB
 
 commit;
 show warnings;
