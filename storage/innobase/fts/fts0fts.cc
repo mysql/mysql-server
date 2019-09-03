@@ -4066,7 +4066,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   dberr_t error = DB_SUCCESS;
   ibool print_error = FALSE;
   dict_table_t *table = index_cache->index->table;
-  const float cutoff = 0.98;
+  const float cutoff = 0.98f;
   ulint lock_threshold =
       (srv_fatal_semaphore_wait_threshold % SRV_SEMAPHORE_WAIT_EXTENSION) *
       cutoff;

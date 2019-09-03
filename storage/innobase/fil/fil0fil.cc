@@ -3853,7 +3853,11 @@ std::string Fil_path::get_real_path(const std::string &path) {
   if (ret == -1) {
     ib::info(ER_IB_MSG_289) << "my_realpath(" << path << ") failed!";
 
-    return (path);
+    /* Use the path as given. Copy it to local abspath. */
+    ut_ad(path.length() < sizeof(abspath));
+    size_t len = ut_min(path.length(), sizeof(abspath) - 1);
+    memcpy(abspath, path.c_str(), len);
+    abspath[len] = 0;
   }
 
   if (is_file_system_case_insensitive()) {

@@ -1097,7 +1097,7 @@ static bool terminate_consumer(bool rapid) {
     os_event_t consume_event = redo_log_archive_consume_event;
     mutex_exit(&redo_log_archive_admin_mutex);
     os_event_wait_time(consume_event, 100000);  // 0.1 second
-    seconds_to_wait -= 0.1;
+    seconds_to_wait -= 0.1f;
     os_event_reset(consume_event);
     mutex_enter(&redo_log_archive_admin_mutex);
   }
@@ -1256,7 +1256,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     Wait for the consumer to start. We do not want to report success
     before the consumer thread has started to work.
   */
-  float seconds_to_wait = 600.0;
+  float seconds_to_wait = 600.0f;
   DBUG_EXECUTE_IF("innodb_redo_log_archive_start_timeout",
                   seconds_to_wait = -1.0;);
   mutex_enter(&redo_log_archive_admin_mutex);
@@ -1265,11 +1265,11 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     os_event_t consume_event = redo_log_archive_consume_event;
     mutex_exit(&redo_log_archive_admin_mutex);
     os_event_wait_time(consume_event, 100000);  // 0.1 second
-    seconds_to_wait -= 0.1;
+    seconds_to_wait -= 0.1f;
     os_event_reset(consume_event);
     mutex_enter(&redo_log_archive_admin_mutex);
   }
-  if (seconds_to_wait < 0.0) {
+  if (seconds_to_wait < 0.0f) {
     os_event_destroy(redo_log_archive_consume_event);
     redo_log_archive_consume_event = nullptr;
     redo_log_archive_consume_complete = true;
