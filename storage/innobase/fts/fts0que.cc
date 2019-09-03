@@ -67,9 +67,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Compare two FTS character strings case insensitively according to their
 charset. This assumes that s1 is already in lower case.
-@parameter[in]  cs  character set
-@parameter[in]  s1  key
-@parameter[in]  s2  node
+@param[in]  cs  character set
+@param[in]  s1  key
+@param[in]  s2  node
 @return 0 if the two strings are equal */
 int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
                                 const fts_string_t *s2);

@@ -7253,9 +7253,9 @@ int innobase_fts_text_cmp(const void *cs, /*!< in: Character set */
 
 /** Compare two FTS character strings case insensitively according to their
 charset. This assumes that s1 is already in lower case.
-@parameter[in]  cs  character set
-@parameter[in]  s1  key
-@parameter[in]  s2  node
+@param[in]  cs  character set
+@param[in]  s1  key
+@param[in]  s2  node
 @return 0 if the two strings are equal */
 int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
                                 const fts_string_t *s2) {
@@ -7273,9 +7273,9 @@ int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
 
 /** Compare two character strings case insensitively according to their
 charset.
-@parameter[in]  cs  character set
-@parameter[in]  s1  string 1
-@parameter[in]  s2  string 2
+@param[in]  cs  character set
+@param[in]  s1  string 1
+@param[in]  s2  string 2
 @return 0 if the two strings are equal */
 int innobase_nocase_compare(const void *cs, const char *s1, const char *s2) {
   const CHARSET_INFO *charset = static_cast<const CHARSET_INFO *>(cs);
