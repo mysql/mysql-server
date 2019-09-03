@@ -768,30 +768,23 @@ static LF_PINS *get_filename_hash_pins(PFS_thread *thread) {
 }
 
 /**
-  Find or create instrumentation for a file instance by file name.
-  @param thread                       the executing instrumented thread
-  @param klass                        the file class
-  @param filename                     the file name
-  @param len                          the length in bytes of filename
-  @param create                       create a file instance if none found
-  @return a file instance, or NULL
+  Normalize a filename with fully qualified path.
+  @param filename                 file to be normalized, null-terminatd
+  @param name_len                 length in bytes of the filename
+  @param buffer                   output buffer
+  @param buffer_len               size in bytes of buffer, must be >= FN_REFLEN
+  @return normalized, null-terminated filename or NULL
 */
-PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
-                              const char *filename, uint len, bool create) {
-  PFS_file *pfs;
-
-  DBUG_ASSERT(klass != nullptr || !create);
-
-  LF_PINS *pins = get_filename_hash_pins(thread);
-  if (unlikely(pins == nullptr)) {
-    global_file_container.m_lost++;
-    return nullptr;
-  }
-
+char *normalize_filename(const char *filename, uint name_len, char *buffer,
+                         uint buffer_len) {
   char safe_buffer[FN_REFLEN];
   const char *safe_filename;
 
-  if (len >= FN_REFLEN) {
+  DBUG_ASSERT(filename != NULL);
+  DBUG_ASSERT(buffer != NULL);
+  DBUG_ASSERT(buffer_len >= FN_REFLEN);
+
+  if (name_len >= FN_REFLEN) {
     /*
       The instrumented code uses file names that exceeds FN_REFLEN.
       This could be legal for instrumentation on non mysys APIs,
@@ -801,7 +794,7 @@ PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
       - it is safe to use mysys apis to normalize the file name.
     */
     memcpy(safe_buffer, filename, FN_REFLEN - 1);
-    safe_buffer[FN_REFLEN - 1] = 0;
+    safe_buffer[FN_REFLEN - 1] = '\0';
     safe_filename = safe_buffer;
   } else {
     safe_filename = filename;
@@ -830,13 +823,9 @@ PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     Also note that, when creating files, this name resolution
     works properly for files that do not exist (yet) on the file system.
   */
-  char buffer[FN_REFLEN];
   char dirbuffer[FN_REFLEN];
-  size_t dirlen;
-  const char *normalized_filename;
-  uint normalized_length;
+  size_t dirlen = dirname_length(safe_filename);
 
-  dirlen = dirname_length(safe_filename);
   if (dirlen == 0) {
     dirbuffer[0] = FN_CURLIB;
     dirbuffer[1] = FN_LIBCHAR;
@@ -846,14 +835,15 @@ PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     dirbuffer[dirlen] = '\0';
   }
 
+  /* Resolve the absolute directory path. */
   if (my_realpath(buffer, dirbuffer, MYF(0)) != 0) {
-    global_file_container.m_lost++;
+    buffer[0] = '\0';
     return nullptr;
   }
 
-  /* Append the unresolved file name to the resolved path */
+  /* Append the unresolved filename to the resolved path */
   char *ptr = buffer + strlen(buffer);
-  char *buf_end = &buffer[sizeof(buffer) - 1];
+  char *buf_end = &buffer[buffer_len - 1];
   if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) {
     *ptr++ = FN_LIBCHAR;
   }
@@ -862,8 +852,41 @@ PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   }
   *buf_end = '\0';
 
-  normalized_filename = buffer;
+  /* Return normalized filename. */
+  return buffer;
+}
+
+/**
+  Find or create instrumentation for a file instance by file name.
+  @param thread                       the executing instrumented thread
+  @param klass                        the file class
+  @param filename                     the file name
+  @param len                          the length in bytes of filename
+  @param create                       create a file instance if none found
+  @return a file instance, or nullptr
+*/
+PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
+                              const char *filename, uint len, bool create) {
+  DBUG_ASSERT(klass != nullptr || !create);
+
+  PFS_file *pfs;
+  char buffer[FN_REFLEN];
+  const char *normalized_filename;
+  uint normalized_length;
+
+  normalized_filename =
+      normalize_filename(filename, len, buffer, (uint)sizeof(buffer));
+  if (normalized_filename == nullptr) {
+    global_file_container.m_lost++;
+    return nullptr;
+  }
   normalized_length = (uint)strlen(normalized_filename);
+
+  LF_PINS *pins = get_filename_hash_pins(thread);
+  if (unlikely(pins == nullptr)) {
+    global_file_container.m_lost++;
+    return nullptr;
+  }
 
   PFS_file **entry;
   uint retry_count = 0;
@@ -932,142 +955,135 @@ search:
 }
 
 /**
-  Find a file instrumentation instance by name, and rename it
+  Before the rename operation: Find the file instrumentation by name,
+  then delete the filename from the filename hash.
   @param thread                       the executing instrumented thread
-  @param old_filename                 the file to be renamed
-  @param old_len                      the length in bytes of the old filename
-  @param new_filename                 the new file name
-  @param new_len                      the length in bytes of the new filename
+  @param old_name                     the file to be renamed, null-terminated
+  @return a file instance or nullptr
 */
-void find_and_rename_file(PFS_thread *thread, const char *old_filename,
-                          uint old_len, const char *new_filename,
-                          uint new_len) {
-  PFS_file *pfs;
-
+PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
   DBUG_ASSERT(thread != nullptr);
+  DBUG_ASSERT(old_name != nullptr);
+
+  uint old_length = (uint)strlen(old_name);
+  char buffer[FN_REFLEN];
+  const char *normalized_filename;
+  uint normalized_length;
+
+  normalized_filename =
+      normalize_filename(old_name, old_length, buffer, (uint)sizeof(buffer));
+  if (normalized_filename == nullptr) {
+    global_file_container.m_lost++;
+    return nullptr;
+  }
+  normalized_length = (uint)strlen(normalized_filename);
 
   LF_PINS *pins = get_filename_hash_pins(thread);
   if (unlikely(pins == nullptr)) {
     global_file_container.m_lost++;
-    return;
+    return nullptr;
   }
 
-  /*
-    Normalize the old file name.
-  */
-  char safe_buffer[FN_REFLEN];
-  const char *safe_filename;
+  /* Find the file instrumentation by name. */
+  PFS_file **entry = reinterpret_cast<PFS_file **>(lf_hash_search(
+      &filename_hash, pins, normalized_filename, normalized_length));
 
-  if (old_len >= FN_REFLEN) {
-    memcpy(safe_buffer, old_filename, FN_REFLEN - 1);
-    safe_buffer[FN_REFLEN - 1] = 0;
-    safe_filename = safe_buffer;
+  PFS_file *pfs = nullptr;
+  if (entry && (entry != MY_LF_ERRPTR)) {
+    /*
+      Delete the old filename from the hash to avoid a race on the filename.
+      Add the new filename after rename() operation completes.
+    */
+    pfs = *entry;
+    lf_hash_delete(&filename_hash, pins, pfs->m_filename,
+                   pfs->m_filename_length);
+  }
+
+  lf_hash_search_unpin(pins);
+  return pfs;
+}
+
+/**
+  After the rename operation: Assign the new filename to the
+  file instrumentation instance, then add to the filename hash.
+  @param thread                       the executing instrumented thread
+  @param pfs                          the file instrumentation
+  @param new_name                     the new filename, null-terminated
+  @param rename_result                the result from rename operation
+  @return 0 for success
+*/
+int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
+                    int rename_result) {
+  DBUG_ASSERT(thread != nullptr);
+  DBUG_ASSERT(pfs != nullptr);
+  DBUG_ASSERT(new_name != nullptr);
+
+  uint new_length = (uint)strlen(new_name);
+  const char *filename;
+  uint name_length;
+
+  /*
+    If rename() succeeded, than add the new filename to the hash,
+    othwerise restore the old filename.
+  */
+  if (likely(rename_result == 0)) {
+    filename = new_name;
+    name_length = new_length;
   } else {
-    safe_filename = old_filename;
+    filename = pfs->m_filename;
+    name_length = pfs->m_filename_length;
   }
 
   char buffer[FN_REFLEN];
-  char dirbuffer[FN_REFLEN];
-  size_t dirlen;
   const char *normalized_filename;
   uint normalized_length;
 
-  dirlen = dirname_length(safe_filename);
-  if (dirlen == 0) {
-    dirbuffer[0] = FN_CURLIB;
-    dirbuffer[1] = FN_LIBCHAR;
-    dirbuffer[2] = '\0';
-  } else {
-    memcpy(dirbuffer, safe_filename, dirlen);
-    dirbuffer[dirlen] = '\0';
-  }
-
-  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0) {
+  normalized_filename =
+      normalize_filename(filename, name_length, buffer, (uint)sizeof(buffer));
+  if (normalized_filename == nullptr) {
     global_file_container.m_lost++;
-    return;
+    return 1;
   }
 
-  /* Append the unresolved file name to the resolved path */
-  char *ptr = buffer + strlen(buffer);
-  char *buf_end = &buffer[sizeof(buffer) - 1];
-  if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) {
-    *ptr++ = FN_LIBCHAR;
-  }
-  if (buf_end > ptr) {
-    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
-  }
-  *buf_end = '\0';
-
-  normalized_filename = buffer;
   normalized_length = (uint)strlen(normalized_filename);
 
-  PFS_file **entry;
-  entry = reinterpret_cast<PFS_file **>(lf_hash_search(
-      &filename_hash, pins, normalized_filename, normalized_length));
-
-  if (entry && (entry != MY_LF_ERRPTR)) {
-    pfs = *entry;
-  } else {
-    lf_hash_search_unpin(pins);
-    return;
+  /* Update the file instance with the new filename. */
+  if (rename_result == 0) {
+    memcpy(pfs->m_filename, normalized_filename, normalized_length);
+    pfs->m_filename[normalized_length] = '\0';
+    pfs->m_filename_length = normalized_length;
   }
 
-  lf_hash_delete(&filename_hash, pins, pfs->m_filename, pfs->m_filename_length);
+  LF_PINS *pins = get_filename_hash_pins(thread);
 
-  /*
-    Normalize the new file name.
-  */
-  if (new_len >= FN_REFLEN) {
-    memcpy(safe_buffer, new_filename, FN_REFLEN - 1);
-    safe_buffer[FN_REFLEN - 1] = 0;
-    safe_filename = safe_buffer;
-  } else {
-    safe_filename = new_filename;
-  }
-
-  dirlen = dirname_length(safe_filename);
-  if (dirlen == 0) {
-    dirbuffer[0] = FN_CURLIB;
-    dirbuffer[1] = FN_LIBCHAR;
-    dirbuffer[2] = '\0';
-  } else {
-    memcpy(dirbuffer, safe_filename, dirlen);
-    dirbuffer[dirlen] = '\0';
-  }
-
-  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0) {
+  if (unlikely(pins == nullptr)) {
     global_file_container.m_lost++;
-    return;
+    return 1;
   }
 
-  /* Append the unresolved file name to the resolved path */
-  ptr = buffer + strlen(buffer);
-  buf_end = &buffer[sizeof(buffer) - 1];
-  if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) {
-    *ptr++ = FN_LIBCHAR;
-  }
-  if (buf_end > ptr) {
-    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
-  }
-  *buf_end = '\0';
+  /* Add the new filename or restore the old filename to the hash. */
+  int res = lf_hash_insert(&filename_hash, pins, &pfs);
+  lf_hash_search_unpin(pins);
 
-  normalized_filename = buffer;
-  normalized_length = (uint)strlen(normalized_filename);
-
-  memcpy(pfs->m_filename, normalized_filename, normalized_length);
-  pfs->m_filename[normalized_length] = '\0';
-  pfs->m_filename_length = normalized_length;
-
-  int res;
-  res = lf_hash_insert(&filename_hash, pins, &pfs);
-
-  if (likely(res == 0)) {
-    return;
-  } else {
+  if (unlikely(res != 0)) {
     global_file_container.deallocate(pfs);
     global_file_container.m_lost++;
-    return;
   }
+
+  return res;
+}
+
+/**
+  Find a file instrumentation instance by name.
+  @param thread                       the executing instrumented thread
+  @param klass                        the file class
+  @param filename                     the file name
+  @param len                          the length in bytes of filename
+  @return a file instance, or nullptr
+*/
+PFS_file *find_file(PFS_thread *thread, PFS_file_class *klass,
+                    const char *filename, uint len) {
+  return find_or_create_file(thread, klass, filename, len, false);
 }
 
 /**
@@ -1080,11 +1096,26 @@ void release_file(PFS_file *pfs) {
 }
 
 /**
+  Delete file name from the hash table.
+  @param thread                       the executing thread instrumentation
+  @param pfs                          the file instrumentation
+*/
+void delete_file_name(PFS_thread *thread, PFS_file *pfs) {
+  if (thread == nullptr || pfs == nullptr) return;
+
+  LF_PINS *pins = get_filename_hash_pins(thread);
+  DBUG_ASSERT(pins != nullptr);
+
+  lf_hash_delete(&filename_hash, pins, pfs->m_filename, pfs->m_filename_length);
+}
+
+/**
   Destroy instrumentation for a file instance.
   @param thread                       the executing thread instrumentation
   @param pfs                          the file to destroy
+  @param delete_name                  if true, delete the filename from the hash
 */
-void destroy_file(PFS_thread *thread, PFS_file *pfs) {
+void destroy_file(PFS_thread *thread, PFS_file *pfs, bool delete_name) {
   DBUG_ASSERT(thread != nullptr);
   DBUG_ASSERT(pfs != nullptr);
   PFS_file_class *klass = pfs->m_class;
@@ -1097,12 +1128,8 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs) {
     klass->m_singleton = nullptr;
   }
 
-  LF_PINS *pins = get_filename_hash_pins(thread);
-  DBUG_ASSERT(pins != nullptr);
-
-  lf_hash_delete(&filename_hash, pins, pfs->m_filename, pfs->m_filename_length);
-  if (klass->is_singleton()) {
-    klass->m_singleton = nullptr;
+  if (delete_name) {
+    delete_file_name(thread, pfs);
   }
 
   global_file_container.deallocate(pfs);

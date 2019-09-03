@@ -723,11 +723,15 @@ void destroy_thread(PFS_thread *pfs);
 PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                               const char *filename, uint len, bool create);
 
-void find_and_rename_file(PFS_thread *thread, const char *old_filename,
-                          uint old_len, const char *new_filename, uint new_len);
+PFS_file *start_file_rename(PFS_thread *thread, const char *old_name);
+int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
+                    int rename_result);
 
+PFS_file *find_file(PFS_thread *thread, PFS_file_class *klass,
+                    const char *filename, uint len);
 void release_file(PFS_file *pfs);
-void destroy_file(PFS_thread *thread, PFS_file *pfs);
+void delete_file_name(PFS_thread *thread, PFS_file *pfs);
+void destroy_file(PFS_thread *thread, PFS_file *pfs, bool delete_name);
 PFS_table *create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);

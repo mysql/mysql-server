@@ -215,8 +215,8 @@ static void test_bootstrap() {
 
   psi = file_boot->get_interface(0);
   ok(psi == nullptr, "no file version 0");
-  psi = file_boot->get_interface(PSI_FILE_VERSION_1);
-  ok(psi != nullptr, "file version 1");
+  psi = file_boot->get_interface(PSI_FILE_VERSION_2);
+  ok(psi != nullptr, "file version 2");
 
   psi = socket_boot->get_interface(0);
   ok(psi == nullptr, "no socket version 0");
@@ -371,7 +371,7 @@ static void load_perfschema(
   *cond_service =
       (PSI_cond_service_t *)cond_boot->get_interface(PSI_COND_VERSION_1);
   *file_service =
-      (PSI_file_service_t *)file_boot->get_interface(PSI_FILE_VERSION_1);
+      (PSI_file_service_t *)file_boot->get_interface(PSI_FILE_VERSION_2);
   *socket_service =
       (PSI_socket_service_t *)socket_boot->get_interface(PSI_SOCKET_VERSION_1);
   *table_service =
@@ -1887,7 +1887,7 @@ static void test_event_name_index() {
       (PSI_cond_service_t *)cond_boot->get_interface(PSI_COND_VERSION_1);
   ok(cond_service != nullptr, "cond_service");
   file_service =
-      (PSI_file_service_t *)file_boot->get_interface(PSI_FILE_VERSION_1);
+      (PSI_file_service_t *)file_boot->get_interface(PSI_FILE_VERSION_2);
   ok(file_service != nullptr, "file_service");
   socket_service =
       (PSI_socket_service_t *)socket_boot->get_interface(PSI_SOCKET_VERSION_1);
@@ -2187,6 +2187,308 @@ static void test_leaks() {
   /* Leaks will be reported with valgrind */
 }
 
+const char *temp_filename1 = "MLfd=12";
+const char *temp_filename2 = "MLfd=13";
+
+/* Simulated my_create_temp_file() */
+File my_create_temp_file(const char **filename) {
+  *filename = temp_filename1;
+  return 12;
+}
+
+/* Simulated my_close() */
+int my_close(File fd MY_ATTRIBUTE((unused)), bool success) {
+  return (success ? 0 : 1);
+}
+
+/* Simulated my_delete() */
+int my_delete(const char *filename MY_ATTRIBUTE((unused)), bool success) {
+  return (success ? 0 : 1);
+}
+
+/* Simulated my_rename() */
+int my_rename(const char *from MY_ATTRIBUTE((unused)),
+              const char *to MY_ATTRIBUTE((unused)), bool success) {
+  return (success ? 0 : 1);
+}
+
+static void test_file_operations() {
+  PSI_thread_service_t *thread_service;
+  PSI_mutex_service_t *mutex_service;
+  PSI_rwlock_service_t *rwlock_service;
+  PSI_cond_service_t *cond_service;
+  PSI_file_service_t *file_service;
+  PSI_socket_service_t *socket_service;
+  PSI_table_service_t *table_service;
+  PSI_mdl_service_t *mdl_service;
+  PSI_idle_service_t *idle_service;
+  PSI_stage_service_t *stage_service;
+  PSI_statement_service_t *statement_service;
+  PSI_transaction_service_t *transaction_service;
+  PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
+  PSI_data_lock_service_t *data_lock_service;
+  PSI_system_service_t *system_service;
+
+  diag("test_file_operations SETUP");
+
+  load_perfschema(&thread_service, &mutex_service, &rwlock_service,
+                  &cond_service, &file_service, &socket_service, &table_service,
+                  &mdl_service, &idle_service, &stage_service,
+                  &statement_service, &transaction_service, &memory_service,
+                  &error_service, &data_lock_service, &system_service);
+
+  PFS_file_class *file_class;
+  PSI_thread *thread_A, *thread_B;
+  PSI_file_locker *locker_A, *locker_B;
+  PSI_file_locker_state state_A, state_B;
+  File fd1, fd2;
+  const char *filename1, *filename2;
+  int rc = 0;
+
+  PSI_file_key file_key;
+  PSI_file_info all_file[] = {{&file_key, "File Class", 0, 0, ""}};
+  PSI_thread_key thread_key;
+  PSI_thread_info all_thread[] = {{&thread_key, "Thread Class", 0, 0, ""}};
+
+  file_service->register_file("test", all_file, 1);
+  thread_service->register_thread("test", all_thread, 1);
+
+  /* Create Thread A and B to simulate operations from different threads. */
+  thread_A = thread_service->new_thread(thread_key, NULL, 0);
+  ok(thread_A != NULL, "Thread A");
+  thread_service->set_thread_id(thread_A, 1);
+
+  thread_B = thread_service->new_thread(thread_key, NULL, 0);
+  ok(thread_B != NULL, "Thread B");
+  thread_service->set_thread_id(thread_B, 1);
+
+  file_class = find_file_class(file_key);
+  ok(file_class != NULL, "File Class");
+
+  flag_global_instrumentation = true;
+  flag_thread_instrumentation = true;
+  file_class->m_enabled = true;
+  file_class->m_timed = true;
+  update_instruments_derived_flags();
+
+  setup_thread(thread_A, true);
+  setup_thread(thread_B, true);
+  flag_events_waits_current = true;
+  file_class->m_enabled = true;
+
+  /*
+    TEST 1: Simulate race of mysql_file_close() on Thread A and
+            mysql_file_create_temp() on Thread B
+  */
+  diag("test_file_operations TEST 1");
+
+  /* THREAD A */
+  thread_service->set_thread(thread_A);
+  /* Create a temporary file */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+  /* THREAD A */
+  /* Start mysql_file_close */
+  locker_A = file_service->get_thread_file_descriptor_locker(&state_A, fd1,
+                                                             PSI_FILE_CLOSE);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
+  rc = my_close(fd1, true); /* successful close, FD released */
+
+  /* THREAD B */
+  thread_service->set_thread(thread_B);
+  /* Create a temporary file with the same FD before Thread A completes
+     mysql_file_close()
+  */
+  locker_B = file_service->get_thread_file_name_locker(
+      &state_B, file_key, PSI_FILE_CREATE, NULL, &locker_B);
+  ok(locker_B != NULL, "locker B");
+  file_service->start_file_open_wait(locker_B, __FILE__, __LINE__);
+  /* Returns same FD and filename as Thread A */
+  fd2 = my_create_temp_file(&filename2);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_B, fd2,
+                                                               filename2);
+  /* THREAD A */
+  thread_service->set_thread(thread_A);
+  /* Complete mysql_file_close() */
+  file_service->end_file_close_wait(locker_A, rc);
+
+  /* THREAD B */
+  /* Close the file and clean up */
+  locker_B = file_service->get_thread_file_descriptor_locker(&state_B, fd2,
+                                                             PSI_FILE_CLOSE);
+  ok(locker_B != NULL, "locker A");
+  file_service->start_file_close_wait(locker_B, __FILE__, __LINE__);
+  rc = my_close(fd2, true); /* successful close, FD released */
+  file_service->end_file_close_wait(locker_B, rc);
+
+  /*
+    TEST 2: Disable file instrumentation after a file has been created and
+            before it is closed. Re-enable the instrumentation, then create the
+            and close the file again.
+  */
+  diag("test_file_operations TEST 2");
+
+  /* Create a temporary file */
+  thread_service->set_thread(thread_A);
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+  /* Disable file instrumentation */
+  file_class->m_enabled = false;
+  update_instruments_derived_flags();
+
+  /* mysql_file_close() */
+  locker_A = file_service->get_thread_file_descriptor_locker(&state_A, fd1,
+                                                             PSI_FILE_CLOSE);
+  /* File instrumentation should be deleted for temporary files. */
+  ok(locker_A == NULL, "locker A is NULL");
+  rc = my_close(fd1, true); /* successful close, FD released */
+
+  /* Re-enable the file instrumentation */
+  file_class->m_enabled = true;
+  update_instruments_derived_flags();
+
+  /* Open the same temporary file with the same FD */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+  /* mysql_file_close() */
+  locker_A = file_service->get_thread_file_descriptor_locker(&state_A, fd1,
+                                                             PSI_FILE_CLOSE);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
+  rc = my_close(fd1, true); /* successful close, FD released */
+  /* Checks for correct open count */
+  file_service->end_file_close_wait(locker_A, rc);
+
+  /*
+    TEST 3: Disable file instrumentation after a file has been created and
+            before it is deleted. Re-enable the instrumentation, then create
+            and delete the file again.
+  */
+  diag("test_file_operations TEST 3");
+
+  /* Create a temporary file */
+  thread_service->set_thread(thread_A);
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+  /* Disable file instrumentation */
+  file_class->m_enabled = false;
+  update_instruments_derived_flags();
+
+  /* mysql_file_delete() */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_DELETE, temp_filename1, &locker_A);
+  /* Locker should be NULL if instrumentation disabled. */
+  ok(locker_A == NULL, "locker A");
+  rc = my_delete(temp_filename1, true); /* successful delete */
+
+  /* Re-enable the file instrumentation */
+  file_class->m_enabled = true;
+  update_instruments_derived_flags();
+
+  /* Open the same temporary file with the same FD */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+
+  /* mysql_file_delete() */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_DELETE, temp_filename1, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
+  rc = my_delete(temp_filename1, true); /* successful delete */
+  file_service->end_file_close_wait(locker_A, rc);
+
+  /*
+    TEST 4: Disable file instrumentation after a file has been created and
+            before it is renamed. Re-enable the instrumentation, then delete,
+            create and delete the file again.
+  */
+  diag("test_file_operations TEST 4");
+
+  /* Create a temporary file */
+  thread_service->set_thread(thread_A);
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+  /* Disable file instrumentation */
+  file_class->m_enabled = false;
+  update_instruments_derived_flags();
+
+  /* mysql_file_rename() */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_RENAME, temp_filename1, &locker_A);
+  /* Locker should be NULL if file instrumentation disabled. */
+  ok(locker_A == NULL, "locker A");
+  rc = my_rename(temp_filename1, temp_filename2, true); /* success */
+
+  /* Re-enable the file instrumentation */
+  file_class->m_enabled = true;
+  update_instruments_derived_flags();
+
+  /* mysql_file_delete() */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_DELETE, temp_filename2, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
+  rc = my_delete(temp_filename2, true); /* success */
+  file_service->end_file_close_wait(locker_A, rc);
+
+  /* Open the original file with the same FD */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
+  /* Returns filename with embedded FD */
+  fd1 = my_create_temp_file(&filename1);
+  file_service->end_temp_file_open_wait_and_bind_to_descriptor(locker_A, fd1,
+                                                               filename1);
+  /* mysql_file_delete() */
+  locker_A = file_service->get_thread_file_name_locker(
+      &state_A, file_key, PSI_FILE_DELETE, temp_filename1, &locker_A);
+  ok(locker_A != NULL, "locker A");
+  file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
+  rc = my_delete(temp_filename1, true); /* successful delete */
+  file_service->end_file_close_wait(locker_A, rc);
+
+  shutdown_performance_schema();
+}
+
 static void do_all_tests() {
   /* system charset needed by pfs_statements_digest */
   system_charset_info = &my_charset_latin1;
@@ -2200,10 +2502,11 @@ static void do_all_tests() {
   test_event_name_index();
   test_memory_instruments();
   test_leaks();
+  test_file_operations();
 }
 
 int main(int, char **) {
-  plan(332);
+  plan(352);
 
   MY_INIT("pfs-t");
   do_all_tests();
