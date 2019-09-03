@@ -20,7 +20,7 @@ show warnings;
 Level	Code	Message
 Warning	1296	Got error 4350 'Transaction already aborted' from NDB
 Error	1296	Got error 4350 'Transaction already aborted' from NDBCLUSTER
-Error	1180	Got error 4350 - 'Unknown error: 4350' during COMMIT
+Error	1180	Got error 4350 - 'Unknown error 4350' during COMMIT
 ROWID	x	y
 0 rows returned
 
