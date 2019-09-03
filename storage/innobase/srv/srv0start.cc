@@ -2058,14 +2058,6 @@ dberr_t srv_start(bool create_new_db) {
       }
     }
 
-    mutex_create(LATCH_ID_SRV_DICT_TMPFILE, &srv_dict_tmpfile_mutex);
-
-    srv_dict_tmpfile = os_file_create_tmpfile(NULL);
-
-    if (!srv_dict_tmpfile) {
-      return (srv_init_abort(DB_ERROR));
-    }
-
     mutex_create(LATCH_ID_SRV_MISC_TMPFILE, &srv_misc_tmpfile_mutex);
 
     srv_misc_tmpfile = os_file_create_tmpfile(NULL);
@@ -3517,9 +3509,6 @@ void srv_shutdown() {
   if (srv_monitor_file) {
     fclose(srv_monitor_file);
   }
-  if (srv_dict_tmpfile) {
-    fclose(srv_dict_tmpfile);
-  }
   if (srv_misc_tmpfile) {
     fclose(srv_misc_tmpfile);
   }
@@ -3545,11 +3534,6 @@ void srv_shutdown() {
       ut_free(srv_monitor_file_name);
     }
     mutex_free(&srv_monitor_file_mutex);
-  }
-
-  if (srv_dict_tmpfile) {
-    srv_dict_tmpfile = 0;
-    mutex_free(&srv_dict_tmpfile_mutex);
   }
 
   if (srv_misc_tmpfile) {

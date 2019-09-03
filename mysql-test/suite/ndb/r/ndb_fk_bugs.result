@@ -483,7 +483,7 @@ t2	CREATE TABLE `t2` (
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`) USING HASH,
   KEY `xbc` (`b`,`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,b,c) values (4,3,33);
@@ -508,7 +508,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`) USING HASH,
   KEY `xbc` (`b`,`c`),
   KEY `fk1` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
@@ -542,7 +542,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`) USING HASH,
   UNIQUE KEY `xbc` (`b`,`c`) USING HASH,
   KEY `fk1` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
@@ -628,8 +628,8 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
-  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2
 drop foreign key fkb,
@@ -646,8 +646,8 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
-  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 # algorithm=copy
@@ -673,8 +673,8 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
-  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2
 drop foreign key fkb,
@@ -691,8 +691,8 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
-  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 # bug#18662582 - NDB_FK_DISABLE.TEST FAILS TO DROP FOREIGN KEY
@@ -753,14 +753,14 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
-  CONSTRAINT `myfk2` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `myfk2` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
-  CONSTRAINT `myfk4` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `myfk4` FOREIGN KEY (`a`) REFERENCES `t3` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 drop table t4, t3;
@@ -856,9 +856,9 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `uniquet2a` (`a`),
   UNIQUE KEY `uniquet2b` (`b`),
   UNIQUE KEY `uniquet2c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Drop tables
 drop table t2, t1;

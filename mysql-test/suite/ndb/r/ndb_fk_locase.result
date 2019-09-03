@@ -1,7 +1,7 @@
 select @@global.lower_case_table_names;
 @@global.lower_case_table_names
 1
-# test FK name is stored lower case
+# Test that FK names are stored in lower case by SE
 create table T1 (
 a int primary key
 ) engine=ndb;
@@ -14,6 +14,10 @@ key XB (b)
 ) engine=ndb;
 alter table T2
 add constraint MYfk2 foreign key (b) references test.t1 (a);
+# In the past SHOW CREATE TABLE has shown FK name retrieved from SE,
+# which stores FK names in lower case.
+# After move of related to code to SQL-layer this no longer the case,
+# as SQL-layer data-dictionary preserves FK names as is.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -21,8 +25,8 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `XB` (`b`),
-  CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `myfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `myFK1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
+  CONSTRAINT `MYfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 values (2,1);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
@@ -35,10 +39,12 @@ select count(*) from ndb_show_tables_results
 where type = "'UserTable'" and name in ( "'t1'", "'t2'");
 count(*)
 2
-select count(*) from ndb_show_tables_results
-where type = "'ForeignKey'" and name like "'%myfk%'";
-count(*)
-2
+# Internally SE still stores names in lower case.
+select substr(name, -6, 5) as n from ndb_show_tables_results
+where type = "'ForeignKey'" and name like "'%myfk%'" order by n;
+n
+myfk1
+myfk2
 alter table T2
 drop foreign key MYfk1;
 alter table t2
@@ -69,11 +75,20 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `XB` (`b`),
-  CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `myfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `myFK1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
+  CONSTRAINT `MYfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 values (2,1);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into t2 values (1,2);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `myfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+
+ndb_show_tables completed.....
+
+# Internally SE still stores names in lower case.
+select substr(name, -6, 5) as n from ndb_show_tables_results
+where type = "'ForeignKey'" and name like "'%myfk%'" order by n;
+n
+myfk1
+myfk2
 drop table t2,t1;

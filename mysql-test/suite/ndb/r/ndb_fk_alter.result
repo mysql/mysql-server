@@ -22,9 +22,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk1;
 show create table child;
@@ -36,8 +36,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk2;
 show create table child;
@@ -49,7 +49,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
@@ -188,7 +188,7 @@ t2	CREATE TABLE `t2` (
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
-  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 PARTITION BY KEY ();
 SHOW CREATE TABLE t1;
@@ -234,7 +234,7 @@ t2	CREATE TABLE `t2` (
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
-  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY () */
 ALTER TABLE t2 PARTITION BY KEY (col1);
@@ -246,7 +246,7 @@ t2	CREATE TABLE `t2` (
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
-  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1) */
 ALTER TABLE t2 REMOVE PARTITIONING;
@@ -258,7 +258,7 @@ t2	CREATE TABLE `t2` (
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
-  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN col3 TO col3_new;
 ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
@@ -286,6 +286,6 @@ t2	CREATE TABLE `t2` (
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
-  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;

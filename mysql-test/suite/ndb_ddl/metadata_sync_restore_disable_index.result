@@ -102,7 +102,7 @@ child	CREATE TABLE `child` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `xc2` (`c2`),
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE ON UPDATE NO ACTION
+  CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM child;
 c1	c2

@@ -108,8 +108,12 @@ show warnings;
 Level	Code	Message
 Error	1103	Incorrect table name 'abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuv'
 #
-# show create of table with mock table references
+# SHOW CREATE TABLE for table with mock table references
 #
+# In the past SHOW CREATE TABLE has shown mock table names
+# in @@ndb_show_foreign_key_mock_tables=1 mode. However,
+# after move of related code to SQL-layer, this is no
+# longer supported.
 create table t1 (
 a int not null,
 b int not null,
@@ -133,12 +137,12 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t3` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t4` (`a`),
+  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`),
+  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`),
+  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 (
 a int primary key,
@@ -156,12 +160,12 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t3` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t4` (`a`),
+  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`),
+  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`),
+  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @@ndb_show_foreign_key_mock_tables= 1;
 show create table t1;
@@ -173,12 +177,12 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `NDB$FKM_<child_id>_<id>_t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `NDB$FKM_<child_id>_<id>_t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `NDB$FKM_<child_id>_<id>_t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `NDB$FKM_<child_id>_<id>_t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t3` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t4` (`a`),
+  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`),
+  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`),
+  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @@ndb_show_foreign_key_mock_tables= 0;
 drop table t1, t2;
@@ -738,7 +742,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `b` (`b`),
-  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3;
 create table t2 (
@@ -786,7 +790,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
-  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
@@ -858,7 +862,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
-  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
@@ -898,10 +902,10 @@ t1	CREATE TABLE `t1` (
   KEY `fk2` (`c`),
   KEY `fk3` (`d`),
   KEY `fk4` (`e`),
-  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `t1_fk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `t1_fk_3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `t1_fk_4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`),
+  CONSTRAINT `t1_fk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`),
+  CONSTRAINT `t1_fk_3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`),
+  CONSTRAINT `t1_fk_4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #

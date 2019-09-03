@@ -586,12 +586,6 @@ ib_mutex_t srv_monitor_file_mutex;
 
 /** Temporary file for innodb monitor output */
 FILE *srv_monitor_file;
-/** Mutex for locking srv_dict_tmpfile. Not created if srv_read_only_mode.
-This mutex has a very high rank; threads reserving it should not
-be holding any InnoDB latches. */
-ib_mutex_t srv_dict_tmpfile_mutex;
-/** Temporary file for output from the data dictionary */
-FILE *srv_dict_tmpfile;
 /** Mutex for locking srv_misc_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */

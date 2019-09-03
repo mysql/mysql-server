@@ -918,9 +918,6 @@ class Fk_util {
                                 table with this table id, is the child table of
                                 the passed fk. This is > 0 only if the caller is
                                 ha_ndbcluster:get_foreign_key_create_info().
-    @param    print_mock_table_names
-                                If true, mock tables names are printed rather
-                                than the real parent names.
     @param    fk_string         String in which the fk info is to be printed.
 
     @retval   true              on success
@@ -928,9 +925,7 @@ class Fk_util {
   */
   bool generate_fk_constraint_string(Ndb *ndb,
                                      const NdbDictionary::ForeignKey &fk,
-                                     const int tab_id,
-                                     const bool print_mock_table_names,
-                                     String &fk_string) {
+                                     const int tab_id, String &fk_string) {
     DBUG_TRACE;
 
     const NDBTAB *parenttab = 0;
@@ -1026,8 +1021,7 @@ class Fk_util {
       fk_string.append("`.`");
     }
     const char *real_parent_name;
-    if (!print_mock_table_names &&
-        Fk_util::split_mock_name(parenttab->getName(), NULL, NULL,
+    if (Fk_util::split_mock_name(parenttab->getName(), NULL, NULL,
                                  &real_parent_name)) {
       /* print the real table name */
       DBUG_PRINT("info", ("real_parent_name: %s", real_parent_name));
@@ -1182,11 +1176,9 @@ bool ndb_fk_util_truncate_allowed(THD *thd, NdbDictionary::Dictionary *dict,
 bool ndb_fk_util_generate_constraint_string(THD *thd, Ndb *ndb,
                                             const NdbDictionary::ForeignKey &fk,
                                             const int tab_id,
-                                            const bool print_mock_table_names,
                                             String &fk_string) {
   Fk_util fk_util(thd);
-  return fk_util.generate_fk_constraint_string(
-      ndb, fk, tab_id, print_mock_table_names, fk_string);
+  return fk_util.generate_fk_constraint_string(ndb, fk, tab_id, fk_string);
 }
 
 /**
@@ -1803,88 +1795,6 @@ int ha_ndbcluster::get_parent_foreign_key_list(
   int res = get_child_or_parent_fk_list(f_key_list, false, true);
   DBUG_PRINT("info", ("count FKs parent %u", f_key_list->elements));
   return res;
-}
-
-namespace {
-
-struct cmp_fk_name {
-  bool operator()(const NDBDICT::List::Element &e0,
-                  const NDBDICT::List::Element &e1) const {
-    int res;
-    if ((res = strcmp(e0.name, e1.name)) != 0) return res < 0;
-
-    if ((res = strcmp(e0.database, e1.database)) != 0) return res < 0;
-
-    if ((res = strcmp(e0.schema, e1.schema)) != 0) return res < 0;
-
-    return e0.id < e1.id;
-  }
-};
-
-}  // namespace
-
-char *ha_ndbcluster::get_foreign_key_create_info() {
-  DBUG_TRACE;
-
-  /**
-   * List foreigns for this table
-   */
-  if (m_table == 0) {
-    return 0;
-  }
-
-  if (table == 0) {
-    return 0;
-  }
-
-  THD *thd = table->in_use;
-  if (thd == 0) {
-    return 0;
-  }
-
-  Ndb *ndb = get_ndb(thd);
-  if (ndb == 0) {
-    return 0;
-  }
-
-  NDBDICT *dict = ndb->getDictionary();
-  NDBDICT::List obj_list;
-
-  dict->listDependentObjects(obj_list, *m_table);
-  /**
-   * listDependentObjects will return FK's in order that they
-   *   are stored in hash-table in Dbdict (i.e random)
-   *
-   * sort them to make MTR and similar happy
-   */
-  std::sort(obj_list.elements, obj_list.elements + obj_list.count,
-            cmp_fk_name());
-  String fk_string;
-  for (unsigned i = 0; i < obj_list.count; i++) {
-    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    NdbDictionary::ForeignKey fk;
-    int res = dict->getForeignKey(fk, obj_list.elements[i].name);
-    if (res != 0) {
-      // Push warning??
-      return 0;
-    }
-
-    if (!ndb_fk_util_generate_constraint_string(
-            thd, ndb, fk, m_table->getTableId(),
-            ndb_show_foreign_key_mock_tables(thd), fk_string)) {
-      return 0;  // How to report error ??
-    }
-  }
-
-  return strdup(fk_string.c_ptr());
-}
-
-void ha_ndbcluster::free_foreign_key_create_info(char *str) {
-  if (str != 0) {
-    free(str);
-  }
 }
 
 int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,

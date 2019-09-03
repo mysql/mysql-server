@@ -111,7 +111,6 @@ mysql_pfs_key_t rtr_path_mutex_key;
 mysql_pfs_key_t rtr_ssn_mutex_key;
 mysql_pfs_key_t rw_lock_list_mutex_key;
 mysql_pfs_key_t rw_lock_mutex_key;
-mysql_pfs_key_t srv_dict_tmpfile_mutex_key;
 mysql_pfs_key_t srv_innodb_monitor_mutex_key;
 mysql_pfs_key_t srv_misc_tmpfile_mutex_key;
 mysql_pfs_key_t srv_monitor_file_mutex_key;

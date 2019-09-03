@@ -22,9 +22,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child add constraint fk4 foreign key (a) references parent(b);
 alter table child add constraint fk5 foreign key (b) references parent(b);
@@ -38,12 +38,12 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk7' in the referenced table 'parent'
@@ -87,12 +87,12 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
-  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table child, parent;
 #
@@ -206,9 +206,9 @@ parent	CREATE TABLE `parent` (
   UNIQUE KEY `a` (`a`),
   KEY `b_key` (`b`),
   KEY `c_key` (`c`),
-  CONSTRAINT `fk_p1` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_p2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_p3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_p1` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_p2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_p3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table child;
 Table	Create Table
@@ -217,8 +217,8 @@ child	CREATE TABLE `child` (
   `b` int(11) DEFAULT NULL,
   KEY `a_key` (`a`),
   KEY `b_key` (`b`),
-  CONSTRAINT `fk_c1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_c2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk_c1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_c2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup
 drop table child, parent;

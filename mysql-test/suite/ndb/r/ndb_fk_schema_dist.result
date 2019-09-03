@@ -120,7 +120,7 @@ Table	Create Table
 child	CREATE TABLE `child` (
   `ref` int(11) DEFAULT NULL,
   KEY `fk2` (`ref`),
-  CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child
 drop foreign key fk2,

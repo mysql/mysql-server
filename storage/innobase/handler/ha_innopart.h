@@ -499,8 +499,6 @@ class ha_innopart : public ha_innobase,
 
   int enable_indexes(uint mode) override { return (HA_ERR_WRONG_COMMAND); }
 
-  void free_foreign_key_create_info(char *str) override { ut_ad(0); }
-
   int ft_init() override {
     ut_ad(0);
     return (HA_ERR_WRONG_COMMAND);
@@ -528,9 +526,6 @@ class ha_innopart : public ha_innobase,
     ut_ad(0);
     return (false);
   }
-
-  // TODO: not yet supporting FK.
-  char *get_foreign_key_create_info() override { return (NULL); }
 
   // TODO: not yet supporting FK.
   int get_foreign_key_list(THD *thd,
