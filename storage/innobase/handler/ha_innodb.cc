@@ -7265,16 +7265,15 @@ charset. This assumes that s1 is already in lower case.
 @parameter[in]  s1  key
 @parameter[in]  s2  node
 @return 0 if the two strings are equal */
-int innobase_fts_nocase_compare(const CHARSET_INFO *charset,
-                                const fts_string_t *s1,
+int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
                                 const fts_string_t *s2) {
   ulint newlen;
 
-  my_casedn_str(charset, (char *)s2->f_str);
+  my_casedn_str(cs, (char *)s2->f_str);
 
   newlen = strlen((const char *)s2->f_str);
 
-  return (ha_compare_text(charset, s1->f_str, static_cast<uint>(s1->f_len),
+  return (ha_compare_text(cs, s1->f_str, static_cast<uint>(s1->f_len),
                           s2->f_str, static_cast<uint>(newlen), false));
 }
 

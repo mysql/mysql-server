@@ -417,7 +417,7 @@ class Fil_path {
   }
 
   /** Check if m_path is the same as path.
-  @param[in]	path	directory path to compare to
+  @param[in]	other	directory path to compare to
   @return true if m_path is the same as path */
   bool is_same_as(const std::string &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
@@ -429,7 +429,7 @@ class Fil_path {
   }
 
   /** Check if m_path is the same as this other path.
-  @param[in]	path	directory path to compare to
+  @param[in]	other	directory path to compare to
   @return true if m_path is the same as path */
   bool is_same_as(const Fil_path &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
@@ -441,7 +441,7 @@ class Fil_path {
   }
 
   /** Check if m_path is the parent of name.
-  @param[in]	name		Path to compare to
+  @param[in]	other		Path to compare to
   @return true if m_path is an ancestor of name */
   bool is_ancestor(const std::string &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
