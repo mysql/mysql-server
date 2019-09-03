@@ -134,8 +134,9 @@ public:
     LqhErrorInsert5042 = 2315,
     LqhDumpPoolLevels = 2353,
     LqhReportCopyInfo = 2354,
-    LqhSetTransientPoolMaxSize = 2355,
-    LqhResetTransientPoolMaxSize = 2356,
+    LqhKillAndSendToDead = 2355,
+    LqhSetTransientPoolMaxSize = 2356,
+    LqhResetTransientPoolMaxSize = 2357,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,

@@ -73,13 +73,13 @@ while (`select @pool > 0`)
   echo === Make DBLQH pool $pool out of memory ===;
 
   # Send DUMP to all data nodes to set new max size of pool for fired triggers.
-  #   LqhSetTransientPoolMaxSize(2355)
+  #   LqhSetTransientPoolMaxSize(2356)
   #   MAX_SIZE(0)
-  exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2355 $pool 0";
+  exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2356 $pool 0";
   source ndb_transaction_memory_shortage.inc;
   # Send DUMP to all data nodes to reset max size of pool for fired triggers.
-  #   LqhResetTransientPoolMaxSize(2356)
-  exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2356 $pool";
+  #   LqhResetTransientPoolMaxSize(2357)
+  exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2357 $pool";
   sleep 0.1;
   delete from t0;
 }
