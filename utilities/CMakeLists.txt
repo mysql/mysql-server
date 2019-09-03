@@ -86,14 +86,10 @@ MYSQL_ADD_EXECUTABLE(range_check_err
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
 ## Most executables depend on SSL shared libraries (through mysys).
-## For 'comp_err' we need it to be available during build.
-IF(WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
-  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
-ENDIF()
-
-IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+## For these executables, we need them to be available during build.
+IF( (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL) OR
+    (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+    )
   ADD_DEPENDENCIES(GenError copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
