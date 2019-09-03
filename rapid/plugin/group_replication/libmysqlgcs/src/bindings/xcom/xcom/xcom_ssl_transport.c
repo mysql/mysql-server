@@ -232,7 +232,12 @@ static int configure_ssl_algorithms(SSL_CTX* ssl_ctx, const char* cipher,
                                     const char* tls_version)
 {
   DH *dh= NULL;
+#ifdef HAVE_TLSv13
+  /* We support TLS up to 1.2, so explicitly disable TLS 1.3. */
+  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1_3;
+#else
   long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+#endif
   char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
   long ssl_ctx_flags= -1;
 
@@ -252,9 +257,22 @@ static int configure_ssl_algorithms(SSL_CTX* ssl_ctx, const char* cipher,
                     SSL_OP_NO_TLSv1 |
                     SSL_OP_NO_TLSv1_1
                     | SSL_OP_NO_TLSv1_2
+#ifdef HAVE_TLSv13
+                    | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
                    );
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
+
+#ifdef HAVE_TLSv13
+  /* We do not support TLS 1.3.
+     Setting empty TLS 1.3 ciphersuites disables them. */
+  if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0)
+  {
+    G_ERROR("Failed to disable the TLS 1.3 ciphersuites.");
+    goto error;
+  }
+#endif /* HAVE_TLSv13 */
 
   /*
     Set the ciphers that can be used. Note, howerver, that the
