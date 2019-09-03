@@ -663,11 +663,14 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   }
 
   /* Read username from environment, default to sakila */
-  g_user = strdup(getenv("LOGNAME"));
-  if (g_user == 0) {
+  const char * logname = getenv("LOGNAME");
+  if ((logname != nullptr) && (strlen(logname) > 0)) {
+    g_user = strdup(logname);
+  } else {
     g_user = "sakila";
-    g_logger.info("No default user specified, will use 'sakila'.");
-    g_logger.info("Please set LOGNAME environment variable for other username");
+    g_logger.info(
+      "No default user specified, will use 'sakila'. "
+      "Please set LOGNAME environment variable for other username");
   }
 
   return true;
