@@ -109,10 +109,13 @@ MACRO (MYSQL_CHECK_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
-  IF(WITH_SSL STREQUAL "system" OR
-      WITH_SSL STREQUAL "yes" OR
-      WITH_SSL_PATH
-      )
+  # A legacy option: used to be "system" or "bundled" (in that order)
+  IF(WITH_SSL STREQUAL "yes")
+    SET(WITH_SSL "system")
+    SET(WITH_SSL "system" CACHE INTERNAL "Use system SSL libraries" FORCE)
+  ENDIF()
+
+  IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH)
     # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
     IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
       # FindOpenSSL.cmake knows about
@@ -264,6 +267,18 @@ MACRO (MYSQL_CHECK_SSL)
 
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
+
+    # The whitspace here C:/Program Files/OpenSSL-Win64
+    # creates problems for transitive library dependencies.
+    # Copy the .lib files to the build directory, and link with the copies.
+    IF(WIN32 AND WITH_SSL STREQUAL "system")
+      CONFIGURE_FILE(${MY_CRYPTO_LIBRARY}
+        "${CMAKE_BINARY_DIR}/copied_crypto.lib" COPYONLY)
+      CONFIGURE_FILE(${MY_OPENSSL_LIBRARY}
+        "${CMAKE_BINARY_DIR}/copied_openssl.lib" COPYONLY)
+      SET(MY_CRYPTO_LIBRARY  "${CMAKE_BINARY_DIR}/copied_crypto.lib")
+      SET(MY_OPENSSL_LIBRARY "${CMAKE_BINARY_DIR}/copied_openssl.lib")
+    ENDIF()
 
     MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
     MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
