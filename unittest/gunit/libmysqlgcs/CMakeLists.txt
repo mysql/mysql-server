@@ -89,9 +89,11 @@ SET(GCS_XCOM_TESTS
 
 FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
   GET_FILENAME_COMPONENT(test ${tpath} NAME)
-  MYSQL_ADD_EXECUTABLE(${test}-t ${tpath}-t.cc ADD_TEST ${test})
-  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_small ${GCS_LIBRARY} ${LZ4_LIBRARY})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${tpath}-t.cc
+    ADD_TEST ${test}
+    ENABLE_EXPORTS
+    LINK_LIBRARIES gunit_small mysqlgcs ${LZ4_LIBRARY}
+    )
   SET(GCS_UNIT_TESTS "${GCS_UNIT_TESTS}" "${test}-t")
 ENDFOREACH()
 
@@ -102,6 +104,6 @@ ENDIF()
 ADD_CUSTOM_TARGET(
   libmysqlgcs-tests
   DEPENDS
-  ${GCS_LIBRARY}
+  mysqlgcs
   ${LZ4_LIBRARY}
   ${GCS_UNIT_TESTS})
