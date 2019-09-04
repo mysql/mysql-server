@@ -315,8 +315,18 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
   auto next_page = buf_block_get_frame(next_block);
 
 #ifdef UNIV_BTR_DEBUG
-  ut_a(page_is_comp(next_page) == page_is_comp(page));
-  ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
+  if (!import_ctx) {
+    ut_a(page_is_comp(next_page) == page_is_comp(page));
+    ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
+  } else {
+    if (page_is_comp(next_page) != page_is_comp(page) ||
+        btr_page_get_prev(next_page, mtr) != get_block()->page.id.page_no()) {
+      /* next page does not contain valid previous page number,
+      next page is corrupted, can't move cursor to the next page*/
+      import_ctx->is_error = true;
+    }
+    DBUG_EXECUTE_IF("ib_import_page_corrupt", import_ctx->is_error = true;);
+  }
 #endif /* UNIV_BTR_DEBUG */
 
   btr_leaf_page_release(get_block(), mode, mtr);
