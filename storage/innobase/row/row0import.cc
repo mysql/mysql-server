@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1485,6 +1485,8 @@ IndexPurge::garbage_collect() UNIV_NOTHROW
 	/* Open the persistent cursor and start the mini-transaction. */
 
 	open();
+	import_ctx_t import_ctx = {false};
+	m_pcur.import_ctx = &import_ctx;
 
 	while ((err = next()) == DB_SUCCESS) {
 
@@ -1501,6 +1503,12 @@ IndexPurge::garbage_collect() UNIV_NOTHROW
 	/* Close the persistent cursor and commit the mini-transaction. */
 
 	close();
+	if (m_pcur.import_ctx->is_error == true) {
+		m_pcur.import_ctx = NULL;
+		return DB_TABLE_CORRUPT;
+	}
+
+	m_pcur.import_ctx = NULL;
 
 	return(err == DB_END_OF_INDEX ? DB_SUCCESS : err);
 }
@@ -1561,7 +1569,7 @@ IndexPurge::next() UNIV_NOTHROW
 		return(DB_END_OF_INDEX);
 	}
 
-	return(DB_SUCCESS);
+	return (DB_SUCCESS);
 }
 
 /**
@@ -3881,7 +3889,9 @@ row_import_for_mysql(
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	}
-
+	DBUG_EXECUTE_IF("ib_import_page_corrupt",
+			row_index_t* i_index = cfg.get_index(index->name);
+			++i_index->m_stats.m_n_purge_failed;);
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	} else if (cfg.requires_purge(index->name)) {
