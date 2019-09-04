@@ -4726,3 +4726,34 @@ t3	CREATE TABLE `t3` (
   CONSTRAINT `b` FOREIGN KEY (`fk2`) REFERENCES `t2` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES t3, t2, t1;
+#
+# Bug#30214965 "GENERATION OF FK NAMES IS NOT RE-EXECUTION SAFE".
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, a INT);
+PREPARE stmt1 FROM 'ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent (pk)';
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE child RENAME COLUMN fk TO fkold, RENAME COLUMN a TO fk;
+# Re-execution of ALTER TABLE ADD FOREIGN KEY should succeed.
+# New foreign key should get new foreign key name.
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fkold` int(11) DEFAULT NULL,
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fkold`),
+  KEY `fk_2` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fkold`) REFERENCES `parent` (`pk`),
+  CONSTRAINT `child_ibfk_2` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DEALLOCATE PREPARE stmt1;
+DROP TABLES child, parent;

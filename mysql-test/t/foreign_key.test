@@ -4521,3 +4521,20 @@ ALTER TABLE t3 DROP KEY k1, DROP FOREIGN KEY b, ALGORITHM=COPY;
 --echo # Failed ALTER TABLE should have left table intact!
 SHOW CREATE TABLE t3;
 DROP TABLES t3, t2, t1;
+
+
+--echo #
+--echo # Bug#30214965 "GENERATION OF FK NAMES IS NOT RE-EXECUTION SAFE".
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, a INT);
+PREPARE stmt1 FROM 'ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent (pk)';
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+ALTER TABLE child RENAME COLUMN fk TO fkold, RENAME COLUMN a TO fk;
+--echo # Re-execution of ALTER TABLE ADD FOREIGN KEY should succeed.
+--echo # New foreign key should get new foreign key name.
+EXECUTE stmt1;
+SHOW CREATE TABLE child;
+DEALLOCATE PREPARE stmt1;
+DROP TABLES child, parent;

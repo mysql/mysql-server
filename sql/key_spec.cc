@@ -123,7 +123,7 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
   List_iterator<Create_field> it(table_fields);
   if (ref_columns.size() != columns.size()) {
     my_error(ER_WRONG_FK_DEF, MYF(0),
-             (name.str ? name.str : "foreign key without name"),
+             (has_explicit_name ? name.str : "foreign key without name"),
              ER_THD(thd, ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
     return true;
   }

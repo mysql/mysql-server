@@ -6255,17 +6255,19 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
 
   if (!se_supports_fks) return false;
 
-  if (fk_key->name.str)
+  if (fk_key->has_explicit_name) {
+    DBUG_ASSERT(fk_key->name.str);
     fk_info->name = fk_key->name.str;
-  else {
+  } else {
     fk_info->name = generate_fk_name(table_name, create_info->db_type,
                                      fk_max_generated_name_number);
     /*
       Update Foreign_key_spec::name member as some storage engines
-      (e.g. NDB) rely on this information.
-      TODO: This is not safe for PS re-execution. Solving this issue
-            requires change of approach which NDB uses to get info about
-            added foreign keys.
+      (e.g. NDB) rely on this information. To make this safe for
+      prepared statement re-execution we have to employ
+      Foreign_key_spec::has_explicit_name. Solving this issue in a
+      better way requires change of approach which NDB uses to get
+      info about added foreign keys.
     */
     fk_key->name.str = thd->stmt_arena->mem_strdup(fk_info->name);
     fk_key->name.length = strlen(fk_info->name);
@@ -9462,7 +9464,8 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
     if (key->type == KEYTYPE_FOREIGN) {
       const Foreign_key_spec *fk = down_cast<const Foreign_key_spec *>(key);
 
-      if (fk->name.str) {
+      if (fk->has_explicit_name) {
+        DBUG_ASSERT(fk->name.str);
         /*
           Since foreign key names are case-insesitive we need to lowercase
           them before passing to MDL subsystem.
