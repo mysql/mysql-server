@@ -27,14 +27,13 @@
 #   or
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
 #
-# The default value for WITH_SSL is "system"
-# set in cmake/build_configurations/feature_set.cmake
+# The default value for WITH_SSL is "system".
 #
 # WITH_SSL="system" means: use the SSL library that comes with the operating
 # system. This typically means you have to do 'yum install openssl-devel'
 # or something similar.
 #
-# For Windows or OsX, WITH_SSL="system" is handled a bit differently:
+# For Windows or macOS, WITH_SSL="system" is handled a bit differently:
 # We assume you have installed
 #     https://slproweb.com/products/Win32OpenSSL.html
 #     find_package(OpenSSL) will locate it
@@ -110,15 +109,18 @@ MACRO (MYSQL_CHECK_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
-  IF(WITH_SSL STREQUAL "system" OR
-      WITH_SSL STREQUAL "yes" OR
-      WITH_SSL_PATH
-      )
+  # A legacy option: used to be "system" or "bundled" (in that order)
+  IF(WITH_SSL STREQUAL "yes")
+    SET(WITH_SSL "system")
+    SET(WITH_SSL "system" CACHE INTERNAL "Use system SSL libraries" FORCE)
+  ENDIF()
+
+  IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH)
     # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
     IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
       # FindOpenSSL.cmake knows about
       # http://www.slproweb.com/products/Win32OpenSSL.html
-      # and will look for "C:/OpenSSL-Win64/" (and others)
+      # and will look for "C:/Program Files/OpenSSL-Win64/" (and others)
       # For APPLE we set the hint /usr/local/opt/openssl
       IF(LINK_STATIC_RUNTIME_LIBRARIES)
         SET(OPENSSL_MSVC_STATIC_RT ON)
@@ -177,6 +179,7 @@ MACRO (MYSQL_CHECK_SSL)
     IF (WIN32)
       FIND_FILE(OPENSSL_APPLINK_C
         NAMES openssl/applink.c
+        NO_DEFAULT_PATH
         HINTS ${OPENSSL_ROOT_DIR}/include
       )
       MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
@@ -265,6 +268,18 @@ MACRO (MYSQL_CHECK_SSL)
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
 
+    # The whitspace here C:/Program Files/OpenSSL-Win64
+    # creates problems for transitive library dependencies.
+    # Copy the .lib files to the build directory, and link with the copies.
+    IF(WIN32 AND WITH_SSL STREQUAL "system")
+      CONFIGURE_FILE(${MY_CRYPTO_LIBRARY}
+        "${CMAKE_BINARY_DIR}/copied_crypto.lib" COPYONLY)
+      CONFIGURE_FILE(${MY_OPENSSL_LIBRARY}
+        "${CMAKE_BINARY_DIR}/copied_openssl.lib" COPYONLY)
+      SET(MY_CRYPTO_LIBRARY  "${CMAKE_BINARY_DIR}/copied_crypto.lib")
+      SET(MY_OPENSSL_LIBRARY "${CMAKE_BINARY_DIR}/copied_openssl.lib")
+    ENDIF()
+
     MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
     MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
     MESSAGE(STATUS "CRYPTO_LIBRARY = ${CRYPTO_LIBRARY}")
@@ -277,7 +292,6 @@ MACRO (MYSQL_CHECK_SSL)
     CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h"
                         HAVE_SHA512_DIGEST_LENGTH)
     IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
-      SET(SSL_SOURCES "")
       SET(SSL_LIBRARIES ${MY_OPENSSL_LIBRARY} ${MY_CRYPTO_LIBRARY})
       IF(SOLARIS)
         SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
@@ -287,7 +301,6 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
       INCLUDE_DIRECTORIES(SYSTEM ${OPENSSL_INCLUDE_DIR})
-      SET(SSL_INTERNAL_INCLUDE_DIRS "")
     ELSE()
       RESET_SSL_VARIABLES()
       FATAL_SSL_NOT_FOUND_ERROR(
