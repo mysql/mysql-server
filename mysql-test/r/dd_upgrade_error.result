@@ -47,6 +47,7 @@ Pattern "Got error 197 from SE while migrating tablespaces" found
 # a table and a stored program with a too long enum literals.
 Pattern "Error in Creating DD entry for test.t_long_enum" found
 Pattern "Error in creating stored program 'test.p_long_enum'" found
+Pattern "Error in processing \(possibly deprecated\) expression or function 'des_encrypt\(`b`\)' for generated column test.t_gcol_dep.c" found
 Pattern "Error in processing generated columns for table test.t_gcol_dep" found
 Pattern "No database selected" not found
 Pattern "Incorrect column name 'a123456789012345678901234567890123456789012345678901234567890123456789'" found
