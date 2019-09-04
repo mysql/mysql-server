@@ -30,10 +30,6 @@ IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-IF(SOLARIS AND HAVE_TLSv13)
-  SET(FORCE_SSL "-Wl,--undefined,address_of_sk_new_null")
-ENDIF()
-
 INCLUDE(CTest)
 
 INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlx_protobuf.cmake)
@@ -162,7 +158,7 @@ TARGET_LINK_LIBRARIES(
   regex
   gmock
   mysqlservices
-  ${FORCE_SSL}
+  ${FORCE_SSL_SOLARIS}
   mysqlclient
   ${LIBEVENT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
