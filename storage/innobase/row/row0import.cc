@@ -1561,6 +1561,8 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
   /* Open the persistent cursor and start the mini-transaction. */
 
   open();
+  import_ctx_t import_ctx = {false};
+  m_pcur.import_ctx = &import_ctx;
 
   while ((err = next()) == DB_SUCCESS) {
     rec_t *rec = btr_pcur_get_rec(&m_pcur);
@@ -1576,6 +1578,12 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
   /* Close the persistent cursor and commit the mini-transaction. */
 
   close();
+  if (m_pcur.import_ctx->is_error == true) {
+    m_pcur.import_ctx = nullptr;
+    return DB_TABLE_CORRUPT;
+  }
+
+  m_pcur.import_ctx = nullptr;
 
   return (err == DB_END_OF_INDEX ? DB_SUCCESS : err);
 }
@@ -3798,6 +3806,10 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   if (err != DB_SUCCESS) {
     return (row_import_error(prebuilt, trx, err));
   }
+
+  DBUG_EXECUTE_IF("ib_import_page_corrupt",
+                  row_index_t *i_index = cfg.get_index(index->name);
+                  ++i_index->m_stats.m_n_purge_failed;);
 
   if (err != DB_SUCCESS) {
     return (row_import_error(prebuilt, trx, err));

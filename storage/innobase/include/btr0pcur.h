@@ -165,6 +165,12 @@ enum pcur_pos_t {
   BTR_PCUR_IS_POSITIONED
 };
 
+/* Import tablespace context for persistent B-tree cursor. */
+struct import_ctx_t {
+  /* true if cursor fails to move to the next page during import. */
+  bool is_error;
+};
+
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
 
@@ -579,6 +585,10 @@ struct btr_pcur_t {
 
   /** old_rec_buf size if old_rec_buf is not nullptr */
   size_t m_buf_size{0};
+
+  /* NOTE that the following field is initialized only during import
+  tablespace, otherwise undefined */
+  import_ctx_t *import_ctx{nullptr};
 };
 
 inline void btr_pcur_t::init() {
