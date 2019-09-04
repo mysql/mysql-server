@@ -144,6 +144,8 @@ SELECT CURRENT_USER();
 --echo # Test case 9
 --echo # Check that the user u2 can't establish connection to admin interface since
 --echo # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
+--connection default
+--source include/count_sessions.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $ADMIN_PORT ADMIN_PORT
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --connect(admin_tcp_con_u2,127.0.0.1,u2,,,$ADMIN_PORT,,TCP)
@@ -153,10 +155,10 @@ SELECT CURRENT_USER();
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $ADMIN_PORT ADMIN_PORT
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --connect(admin_tcp_con_u3,127.0.0.1,u3,,,$ADMIN_PORT,,TCP)
-
 --connection default
---echo # Show how many active connections currently exist
-SELECT name, type, processlist_user, processlist_host, processlist_db, processlist_command, processlist_info FROM performance_schema.threads WHERE type = 'FOREGROUND' AND name LIKE 'thread/sql/one_connection';
+
+--echo # Wait until the failed connections are gone.
+--source include/wait_until_count_sessions.inc
 
 --echo # Test case 10
 --echo # Check that the parameter max_connections does affect to an ordinary

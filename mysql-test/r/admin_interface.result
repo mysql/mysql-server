@@ -69,6 +69,7 @@ disconnect admin_tcp_con_u1;
 # Test case 9
 # Check that the user u2 can't establish connection to admin interface since
 # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
+connection default;
 connect(127.0.0.1,u2,,test,ADMIN_PORT,MASTER_SOCKET);
 connect admin_tcp_con_u2,127.0.0.1,u2,,,$ADMIN_PORT,,TCP;
 ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
@@ -78,10 +79,7 @@ connect(127.0.0.1,u3,,test,ADMIN_PORT,MASTER_SOCKET);
 connect admin_tcp_con_u3,127.0.0.1,u3,,,$ADMIN_PORT,,TCP;
 ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
 connection default;
-# Show how many active connections currently exist
-SELECT name, type, processlist_user, processlist_host, processlist_db, processlist_command, processlist_info FROM performance_schema.threads WHERE type = 'FOREGROUND' AND name LIKE 'thread/sql/one_connection';
-name	type	processlist_user	processlist_host	processlist_db	processlist_command	processlist_info
-thread/sql/one_connection	FOREGROUND	root	localhost	test	Query	SELECT name, type, processlist_user, processlist_host, processlist_db, processlist_command, processlist_info FROM performance_schema.threads WHERE type = 'FOREGROUND' AND name LIKE 'thread/sql/one_connection'
+# Wait until the failed connections are gone.
 # Test case 10
 # Check that the parameter max_connections does affect to an ordinary
 # connection and doesn't affect to a connection made to admin interface
