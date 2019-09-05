@@ -78,7 +78,7 @@ static void do_field_eq(Copy_field *, const Field *from_field,
 }
 
 static void set_to_is_null(Field *to_field, bool is_null) {
-  if (to_field->real_maybe_null()) {
+  if (to_field->real_maybe_null() || to_field->is_tmp_nullable()) {
     if (is_null) {
       to_field->set_null();
     } else {
@@ -619,7 +619,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
   m_do_copy2 = get_copy_func(save);
 
   if (m_from_field->maybe_null()) {
-    if (m_to_field->real_maybe_null())
+    if (m_to_field->real_maybe_null() || m_to_field->is_tmp_nullable())
       m_do_copy = do_copy_null;
     else if (m_to_field->type() == MYSQL_TYPE_TIMESTAMP)
       m_do_copy = do_copy_timestamp;  // Automatic timestamp

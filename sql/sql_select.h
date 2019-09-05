@@ -777,10 +777,10 @@ constexpr const char *STORE_KEY_CONST_NAME = "const";
 
 class store_key {
  public:
-  bool null_key; /* true <=> the value of the key has a null part */
+  bool null_key{false}; /* true <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length);
-  virtual ~store_key() {} /** Not actually needed */
+  virtual ~store_key() = default;
   virtual const char *name() const = 0;
 
   /**
@@ -793,8 +793,6 @@ class store_key {
 
  protected:
   Field *to_field;  // Store data here
-  uchar *null_ptr;
-  uchar err;
 
   virtual enum store_key_result copy_inner() = 0;
 };
@@ -805,12 +803,7 @@ class store_key_item : public store_key {
 
  public:
   store_key_item(THD *thd, Field *to_field_arg, uchar *ptr, uchar *null_ptr_arg,
-                 uint length, Item *item_arg)
-      : store_key(thd, to_field_arg, ptr,
-                  null_ptr_arg ? null_ptr_arg
-                               : item_arg->maybe_null ? &err : (uchar *)0,
-                  length),
-        item(item_arg) {}
+                 uint length, Item *item_arg);
   const char *name() const override { return "func"; }
 
  protected:
@@ -823,8 +816,7 @@ class store_key_item : public store_key {
   that, copy_inner calculates hash of each key part for unique constraint.
 */
 
-class store_key_hash_item : public store_key_item {
- protected:
+class store_key_hash_item final : public store_key_item {
   ulonglong *hash;
 
  public:
