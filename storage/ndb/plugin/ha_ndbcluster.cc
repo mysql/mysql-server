@@ -12366,20 +12366,6 @@ void ha_ndbcluster::print_error(int error, myf errflag) {
     return;
   }
 
-  if (error == ER_CANT_DROP_FIELD_OR_KEY) {
-    /*
-      Called on drop unknown FK by server when algorithm=copy or
-      by handler when algorithm=inplace.  In both cases the error
-      was already printed in ha_ndb_ddl_fk.cc.
-    */
-    THD *thd = NULL;
-    if (table != NULL && (thd = table->in_use) != NULL && thd->lex != NULL &&
-        thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
-      return;
-    }
-    DBUG_ASSERT(false);
-  }
-
   handler::print_error(error, errflag);
 }
 

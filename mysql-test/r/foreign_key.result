@@ -4757,3 +4757,37 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DEALLOCATE PREPARE stmt1;
 DROP TABLES child, parent;
+#
+# Bug#30267236 "REPLACE DICT_FOREIGN_PARSE_DROP_CONSTRAINTS() WITH
+#               SQL-LAYER CHECK."
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk));
+CREATE TABLE unrelated (a INT);
+#
+# Dropping non-existing foreign key should fail with consistent error.
+ALTER TABLE child DROP FOREIGN KEY no_such_fk;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+#
+# Dropping existing foreign key using wrong table name should fail
+# with consistent error as well.
+ALTER TABLE unrelated DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+#
+# The same should happen if one tries to drop foreign key using
+# parent table.
+ALTER TABLE parent DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+DROP TABLES unrelated, child, parent;

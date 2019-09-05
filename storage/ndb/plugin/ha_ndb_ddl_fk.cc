@@ -1551,51 +1551,6 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
     ERR_RETURN(dict->getNdbError());
   }
 
-  // check if fk to drop exists
-  {
-    for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list) {
-      if (drop_item->type != Alter_drop::FOREIGN_KEY) continue;
-      bool found = false;
-      for (unsigned i = 0; i < obj_list.count; i++) {
-        // Skip if the element is not a foreign key
-        if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-          continue;
-
-        // Check if this is the fk being dropped
-        char db_and_name[FN_LEN + 1];
-        const char *name =
-            fk_split_name(db_and_name, obj_list.elements[i].name);
-        if (ndb_fk_casecmp(drop_item->name, name) != 0) continue;
-
-        NdbDictionary::ForeignKey fk;
-        if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0) {
-          // should never happen
-          DBUG_ASSERT(false);
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_CANT_DROP_FIELD_OR_KEY,
-                              "INTERNAL ERROR: Could not find foreign key '%s'",
-                              obj_list.elements[i].name);
-          ERR_RETURN(dict->getNdbError());
-        }
-
-        // The FK we are looking for is on src_tab.
-        char child_db_and_name[FN_LEN + 1];
-        const char *child_name =
-            fk_split_name(child_db_and_name, fk.getChildTable());
-        if (strcmp(child_db_and_name, src_db) == 0 &&
-            strcmp(child_name, src_tab) == 0) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        // FK not found
-        my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
-        return ER_CANT_DROP_FIELD_OR_KEY;
-      }
-    }
-  }
-
   for (unsigned i = 0; i < obj_list.count; i++) {
     if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey) {
       NdbDictionary::ForeignKey fk;
@@ -1819,7 +1774,12 @@ int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, NDBDICT *dict,
       }
     }
     if (!found) {
-      // FK not found
+      /*
+        Since we check that foreign key to be dropped exists on SQL-layer,
+        we should not come here unless there is some bug and data-dictionary
+        and NDB internal structures got out of sync.
+      */
+      DBUG_ASSERT(false);
       my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
       return ER_CANT_DROP_FIELD_OR_KEY;
     }

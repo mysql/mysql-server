@@ -13208,22 +13208,33 @@ static void to_lex_cstring(MEM_ROOT *mem_root, LEX_CSTRING *target,
 /**
   Remember information about pre-existing foreign keys so
   that they can be added to the new version of the table later.
-  Also check that the foreign keys are still valid.
+  Omit foreign keys to be dropped. Also check that the foreign
+  keys to be kept are still valid.
 
-  @param      thd              Thread handle.
-  @param      src_table        The source table.
-  @param      src_db_name      Original database name of table.
-  @param      src_table_name   Original table name of table.
-  @param      hton             Original storage engine.
-  @param      alter_info       Info about ALTER TABLE statement.
-  @param      alter_ctx        Runtime context for ALTER TABLE.
-  @param      new_create_list  List of new columns, used for rename check.
+  @note This function removes pre-existing foreign keys from the
+        drop_list, while Alter_info::drop_list is kept intact.
+        A non-empty drop_list upon return of this function indicates
+        an error, and means that the statement tries to drop a
+        foreign key that did not exist in the first place.
+
+  @param[in]      thd               Thread handle.
+  @param[in]      src_table         The source table.
+  @param[in]      src_db_name       Original database name of table.
+  @param[in]      src_table_name    Original table name of table.
+  @param[in]      hton              Original storage engine.
+  @param[in]      alter_info        Info about ALTER TABLE statement.
+  @param[in]      new_create_list   List of new columns, used for rename check.
+  @param[in,out]  drop_list         Copy of list of foreign keys to be dropped.
+  @param[in,out]  alter_ctx         Runtime context for ALTER TABLE to which
+                                    information about pre-existing foreign
+                                    keys is added.
 */
 
 static bool transfer_preexisting_foreign_keys(
     THD *thd, const dd::Table *src_table, const char *src_db_name,
-    const char *src_table_name, handlerton *hton, Alter_info *alter_info,
-    Alter_table_ctx *alter_ctx, List<Create_field> *new_create_list) {
+    const char *src_table_name, handlerton *hton, const Alter_info *alter_info,
+    List<Create_field> *new_create_list, Alter_table_ctx *alter_ctx,
+    Prealloced_array<const Alter_drop *, 1> *drop_list) {
   if (src_table == nullptr)
     return false;  // Could be temporary table or during upgrade.
 
@@ -13235,17 +13246,21 @@ static bool transfer_preexisting_foreign_keys(
     const dd::Foreign_key *dd_fk = src_table->foreign_keys()[i];
 
     // Skip foreign keys that are to be dropped
-    bool is_dropped = false;
-    for (const Alter_drop *drop : alter_info->drop_list) {
+    size_t k = 0;
+    while (k < drop_list->size()) {
+      const Alter_drop *drop = (*drop_list)[k];
       // Index names are always case insensitive
       if (drop->type == Alter_drop::FOREIGN_KEY &&
           my_strcasecmp(system_charset_info, drop->name,
                         dd_fk->name().c_str()) == 0) {
-        is_dropped = true;
         break;
       }
+      k++;
     }
-    if (is_dropped) continue;
+    if (k < drop_list->size()) {
+      drop_list->erase(k);
+      continue;
+    }
 
     // Self-referencing foreign keys will need additional handling later.
     bool is_self_referencing =
@@ -14220,13 +14235,41 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       new_key_list.push_back(alter_info->key_list[i]);  // Add new keys
   }
 
+  /*
+    Copy existing foreign keys from the source table into
+    Alter_table_ctx so that they can be added to the new table
+    later. Omits foreign keys to be dropped and removes them
+    from the drop_list. Checks that foreign keys to be kept
+    are still valid.
+  */
+  if (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
+    if (transfer_preexisting_foreign_keys(
+            thd, src_table, table->s->db.str, table->s->table_name.str,
+            table->s->db_type(), alter_info, &new_create_list, alter_ctx,
+            &drop_list))
+      return true;
+  }
+
   if (drop_list.size() > 0) {
-    // Now this contains only DROP for foreign keys and not-found objects.
+    // Now this contains only DROP for not-found objects.
     for (const Alter_drop *drop : drop_list) {
       switch (drop->type) {
+        case Alter_drop::FOREIGN_KEY:
+          if (!(create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS)) {
+            /*
+              For historical reasons we silently ignore attempts to drop
+              foreign keys from tables in storage engines which don't
+              support them. This is in sync with the fact that attempts
+              to add foreign keys to such tables are silently ignored
+              as well. Once the latter is changed the former hack can
+              be removed as well.
+            */
+            break;
+          }
+          // Fall-through.
         case Alter_drop::KEY:
         case Alter_drop::COLUMN:
-          my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_list[0]->name);
+          my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop->name);
           return true;
         case Alter_drop::CHECK_CONSTRAINT:
           /*
@@ -14235,25 +14278,11 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           */
           DBUG_ASSERT(false);
           break;
-        case Alter_drop::FOREIGN_KEY:
-          break;
         default:
           DBUG_ASSERT(false);
           break;
       }
     }
-  }
-
-  /*
-    Copy existing foreign keys from the source table into
-    Alter_table_ctx so that they can be added to the new table
-    later. Also checks that these foreign keys are still valid.
-  */
-  if (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
-    if (transfer_preexisting_foreign_keys(
-            thd, src_table, table->s->db.str, table->s->table_name.str,
-            table->s->db_type(), alter_info, alter_ctx, &new_create_list))
-      return true;
   }
 
   if (rename_key_list.size() > 0) {

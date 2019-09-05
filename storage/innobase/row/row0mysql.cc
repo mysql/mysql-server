@@ -4180,9 +4180,6 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   dict_table_t *table = NULL;
   ibool dict_locked = FALSE;
   dberr_t err = DB_ERROR;
-  mem_heap_t *heap = NULL;
-  const char **constraints_to_drop = NULL;
-  ulint n_constraints_to_drop = 0;
   int retry;
 
   ut_a(old_name != NULL);
@@ -4218,22 +4215,6 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                              << TROUBLESHOOTING_MSG;
 
     goto funct_exit;
-
-  } else if (new_is_tmp) {
-    /* MySQL is doing an ALTER TABLE command and it renames the
-    original table to a temporary table name. We want to preserve
-    the original foreign key constraint definitions despite the
-    name change. An exception is those constraints for which
-    the ALTER TABLE contained DROP FOREIGN KEY <foreign key id>.*/
-
-    heap = mem_heap_create(100);
-
-    err = dict_foreign_parse_drop_constraints(
-        heap, trx, table, &n_constraints_to_drop, &constraints_to_drop);
-
-    if (err != DB_SUCCESS) {
-      goto funct_exit;
-    }
   }
 
   /* Is a foreign key check running on this table? */
@@ -4390,10 +4371,6 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
 funct_exit:
   if (table != NULL) {
     dd_table_close(table, thd, NULL, dict_locked);
-  }
-
-  if (UNIV_LIKELY_NULL(heap)) {
-    mem_heap_free(heap);
   }
 
   trx->op_info = "";

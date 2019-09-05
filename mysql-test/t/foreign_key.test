@@ -4538,3 +4538,43 @@ EXECUTE stmt1;
 SHOW CREATE TABLE child;
 DEALLOCATE PREPARE stmt1;
 DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#30267236 "REPLACE DICT_FOREIGN_PARSE_DROP_CONSTRAINTS() WITH
+--echo #               SQL-LAYER CHECK."
+--echo #
+
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk));
+CREATE TABLE unrelated (a INT);
+
+--echo #
+--echo # Dropping non-existing foreign key should fail with consistent error.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE child DROP FOREIGN KEY no_such_fk;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=INPLACE;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=COPY;
+
+--echo #
+--echo # Dropping existing foreign key using wrong table name should fail
+--echo # with consistent error as well.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE unrelated DROP FOREIGN KEY c;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=COPY;
+
+--echo #
+--echo # The same should happen if one tries to drop foreign key using
+--echo # parent table.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE parent DROP FOREIGN KEY c;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
+DROP TABLES unrelated, child, parent;

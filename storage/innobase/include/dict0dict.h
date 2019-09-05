@@ -359,19 +359,6 @@ dberr_t dict_create_foreign_constraints(trx_t *trx, const char *sql_string,
                                         size_t sql_length, const char *name,
                                         ibool reject_fks)
     MY_ATTRIBUTE((warn_unused_result));
-/** Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
- @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
- constraint id does not match */
-dberr_t dict_foreign_parse_drop_constraints(
-    mem_heap_t *heap,                  /*!< in: heap from which we can
-                                       allocate memory */
-    trx_t *trx,                        /*!< in: transaction */
-    dict_table_t *table,               /*!< in: table */
-    ulint *n,                          /*!< out: number of constraints
-                                       to drop */
-    const char ***constraints_to_drop) /*!< out: id's of the
-                                       constraints to drop */
-    MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /** Returns a table object and increments its open handle count.
  NOTE! This is a high-level function to be used mainly from outside the
