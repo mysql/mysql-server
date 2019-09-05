@@ -178,7 +178,7 @@ ENDIF()
 ADD_LIBRARY(mysqlgcs STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
 # Dependency on mysys from gcs_logging_system.cc
 # but pick up symbols from the server:
-# TARGET_LINK_LIBRARIES(${GCS_LIBRARY} mysys)
+# TARGET_LINK_LIBRARIES(mysqlgcs mysys)
 
 IF(TIRPC_LIBRARIES)
   TARGET_LINK_LIBRARIES(mysqlgcs ${TIRPC_LIBRARIES})
@@ -189,4 +189,4 @@ IF(MSVC)
 ENDIF()
 
 # convenience target
-ADD_CUSTOM_TARGET(libmysqlgcs DEPENDS ${GCS_LIBRARY})
+ADD_CUSTOM_TARGET(libmysqlgcs DEPENDS mysqlgcs)
