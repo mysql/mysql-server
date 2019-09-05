@@ -190,8 +190,6 @@ DROP TABLE t2, t3;
 --enable_warnings
 connection default;
 
-DROP DATABASE auth_test_db;
-
 DROP USER local_u1@a, local_u3@a, local_u4@a;
 DROP USER local_u2@localhost, local_u5@localhost;
 DROP ROLE L3;
@@ -201,7 +199,4 @@ DROP USER ndb_u4@localhost, ndb_u5@localhost;
 DROP USER ndb_u6@a;
 DROP ROLE R3;
 
-# Sometimes check_testcase runs before the cleanup has finished on mysqld2.
-# Connect once more to mysqld2. The connection will have to acquire a
-# read lock on the ACL cache, hopefully allowing cleanup to finish there.
-connect(mysqld2b,127.0.0.1,root,,test,$MASTER_MYPORT1);
+DROP DATABASE auth_test_db;

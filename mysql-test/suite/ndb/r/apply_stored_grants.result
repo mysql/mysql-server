@@ -75,7 +75,6 @@ INSERT INTO t1 values (45);
 ERROR 42000: INSERT command denied to user 'David'@'localhost' for table 't1'
 DROP TABLE t1;
 DROP TABLE t2, t3;
-DROP DATABASE auth_test_db;
 DROP USER local_u1@a, local_u3@a, local_u4@a;
 DROP USER local_u2@localhost, local_u5@localhost;
 DROP ROLE L3;
@@ -83,3 +82,4 @@ DROP USER Monty@localhost, David@localhost;
 DROP USER ndb_u4@localhost, ndb_u5@localhost;
 DROP USER ndb_u6@a;
 DROP ROLE R3;
+DROP DATABASE auth_test_db;

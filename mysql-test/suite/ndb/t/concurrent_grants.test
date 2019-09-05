@@ -72,5 +72,5 @@ reap;
 #
 
 connection default;
-drop table t1;
 drop user priv_test_U@localhost;
+drop table t1;
