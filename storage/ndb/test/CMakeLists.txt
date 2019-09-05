@@ -22,7 +22,7 @@
 
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
           "unused-but-set-variable"
@@ -46,7 +46,7 @@ ENDIF()
 
 ADD_SUBDIRECTORY(src)
 IF(WITH_NDB_TEST)
-ADD_SUBDIRECTORY(tools)
-ADD_SUBDIRECTORY(ndbapi)
-ADD_SUBDIRECTORY(run-test)
+  ADD_SUBDIRECTORY(tools)
+  ADD_SUBDIRECTORY(ndbapi)
+  ADD_SUBDIRECTORY(run-test)
 ENDIF(WITH_NDB_TEST)

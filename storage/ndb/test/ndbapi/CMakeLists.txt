@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,11 @@ NDB_ADD_EXECUTABLE(testRestartGci testRestartGci.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testScan testScan.cpp ScanFunctions.hpp NDBTEST)
 NDB_ADD_EXECUTABLE(testInterpreter testInterpreter.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testScanFilter testScanFilter.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testScanInterpreter testScanInterpreter.cpp ScanFilter.hpp
-                   ScanInterpretTest.hpp NDBTEST)
+NDB_ADD_EXECUTABLE(testScanInterpreter
+  testScanInterpreter.cpp
+  ScanFilter.hpp
+  ScanInterpretTest.hpp
+  NDBTEST)
 NDB_ADD_EXECUTABLE(testScanPerf testScanPerf.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testSystemRestart testSystemRestart.cpp NDBTEST MYSQLCLIENT)
 NDB_ADD_EXECUTABLE(testTimeout testTimeout.cpp NDBTEST)
@@ -64,15 +67,28 @@ NDB_ADD_EXECUTABLE(testLcp testLcp.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testPartitioning testPartitioning.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testBitfield testBitfield.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(DbCreate
-        bench/mainPopulate.cpp bench/dbPopulate.cpp
-        bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h
-        bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp
-        bench/ndb_error.hpp NDBTEST)
+  bench/dbPopulate.cpp
+  bench/dbPopulate.h
+  bench/mainPopulate.cpp
+  bench/ndb_error.hpp
+  bench/ndb_schema.hpp
+  bench/testData.h
+  bench/testDefinitions.h
+  bench/userInterface.cpp
+  bench/userInterface.h
+  NDBTEST)
 NDB_ADD_EXECUTABLE(DbAsyncGenerator
-       bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp
-       bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h
-       bench/userInterface.h bench/testData.h bench/testDefinitions.h
-       bench/ndb_schema.hpp bench/ndb_error.hpp NDBTEST)
+  bench/asyncGenerator.cpp
+  bench/dbGenerator.h
+  bench/macros.h
+  bench/mainAsyncGenerator.cpp
+  bench/ndb_async2.cpp
+  bench/ndb_error.hpp
+  bench/ndb_schema.hpp
+  bench/testData.h
+  bench/testDefinitions.h
+  bench/userInterface.h
+  NDBTEST)
 NDB_ADD_EXECUTABLE(testSRBank testSRBank.cpp)
 NDB_ADD_EXECUTABLE(test_event_merge test_event_merge.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(testNdbinfo testNdbinfo.cpp NDBTEST)
@@ -96,4 +112,3 @@ IF(WIN32)
 ELSE()
   NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST)
 ENDIF()
-

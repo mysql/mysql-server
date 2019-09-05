@@ -118,9 +118,9 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 
 # Disable strict-aliasing for storage/ndb
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS   " -fno-strict-aliasing")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -fno-strict-aliasing")
 ENDIF()
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -145,9 +145,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/logger
   ${CMAKE_CURRENT_BINARY_DIR}/include
 )
-
-# The root of storage/ndb/
-SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
@@ -210,9 +207,10 @@ ENDIF()
 # Set extra compiler switches from WITH_NDB_CCFLAGS
 SET(WITH_NDB_CCFLAGS "" CACHE STRING "Extra compiler flags for NDB")
 IF(WITH_NDB_CCFLAGS)
-  MESSAGE(STATUS "Appending extra compiler flags for NDB: \"${WITH_NDB_CCFLAGS}\"")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WITH_NDB_CCFLAGS}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WITH_NDB_CCFLAGS}")
+  MESSAGE(STATUS
+    "Appending extra compiler flags for NDB: \"${WITH_NDB_CCFLAGS}\"")
+  STRING_APPEND(CMAKE_C_FLAGS   " ${WITH_NDB_CCFLAGS}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${WITH_NDB_CCFLAGS}")
 ENDIF()
 
 # Set extra compiler switches from environment variable NDB_EXTRA_FLAGS
@@ -220,8 +218,8 @@ SET(ndb_flags_env $ENV{NDB_EXTRA_FLAGS})
 IF(ndb_flags_env)
   MESSAGE(STATUS "Appending extra compiler flags for NDB from "
                  "environment: \"${ndb_flags_env}\"")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ndb_flags_env}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ndb_flags_env}")
+  STRING_APPEND(CMAKE_C_FLAGS   " ${ndb_flags_env}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${ndb_flags_env}")
 ENDIF()
 
 SET(HAVE_JAVA FALSE)
@@ -231,7 +229,8 @@ SET(WITH_NDB_JAVA_DEFAULT ON)
 # by environment variable
 IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
   SET(WITH_NDB_JAVA_DEFAULT $ENV{WITH_NDB_JAVA_DEFAULT})
-  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to ${WITH_NDB_JAVA_DEFAULT}")
+  MESSAGE(STATUS
+    "Default value for WITH_NDB_JAVA set to ${WITH_NDB_JAVA_DEFAULT}")
 ELSE()
   # Check if the default for WITH_NDB_JAVA should be
   # magically overriden
@@ -344,7 +343,7 @@ ELSEIF(WITH_NDB_JAVA)
   MESSAGE(STATUS "JNI_LIBRARIES: ${JNI_LIBRARIES}")
   NDB_REQUIRE_VARIABLE(JNI_INCLUDE_DIRS)
 
-  INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
+  INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/config/type_JAVA.cmake")
   SET(HAVE_JAVA TRUE)
   SET(HAVE_JDK TRUE)
   SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
@@ -372,8 +371,10 @@ SET(WITH_NDB_NODEJS_DEFAULT ON)
 # by environment variable
 IF(DEFINED ENV{WITH_NDB_NODEJS_DEFAULT})
   SET(WITH_NDB_NODEJS_DEFAULT $ENV{WITH_NDB_NODEJS_DEFAULT})
-  MESSAGE(STATUS "Default value for WITH_NDB_NODEJS set to ${WITH_NDB_NODEJS_DEFAULT}")
+  MESSAGE(STATUS
+    "Default value for WITH_NDB_NODEJS set to ${WITH_NDB_NODEJS_DEFAULT}")
 ENDIF(DEFINED ENV{WITH_NDB_NODEJS_DEFAULT})
+
 OPTION(WITH_NDB_NODEJS
   "Include NDB Cluster node.js components" ${WITH_NDB_NODEJS_DEFAULT})
 IF(WITH_NDB_NODEJS)

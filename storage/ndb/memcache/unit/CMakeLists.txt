@@ -1,5 +1,5 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -21,33 +21,33 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ######### run_unit_tests ##############
-set(UNIT_SOURCE_FILES
-    harness.cc
-    alloc.cc
-    cas.cc
-    casbits.cc
-    connpool.cc
-    incr.cc
-    queue.cc
-    stub_logger.cc
-    tsv.cc
-    lookuptable.cc
+SET(UNIT_SOURCE_FILES
+  harness.cc
+  alloc.cc
+  cas.cc
+  casbits.cc
+  connpool.cc
+  incr.cc
+  queue.cc
+  stub_logger.cc
+  tsv.cc
+  lookuptable.cc
  )
-add_executable(run_unit_tests ${UNIT_SOURCE_FILES})
-target_link_libraries(run_unit_tests ndbmemcache)
+ADD_EXECUTABLE(run_unit_tests ${UNIT_SOURCE_FILES})
+TARGET_LINK_LIBRARIES(run_unit_tests ndbmemcache)
 ##########################################
 
 
 ### test_workqueue #####################
-set(TEST_WORKQUEUE_SOURCES test_workqueue.cc ../src/workqueue.cc) 
-if(HAVE_SOLARIS_ATOMICS) 
-  set(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.cc)
-endif()
+SET(TEST_WORKQUEUE_SOURCES test_workqueue.cc ../src/workqueue.cc)
+IF(HAVE_SOLARIS_ATOMICS)
+  SET(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.cc)
+ENDIF()
 
-set(libs)
+SET(libs)
 
-if(LIBRT) 
-  set(libs rt)
-endif()
+IF(LIBRT)
+  SET(libs rt)
+ENDIF()
 #NDB_ADD_TEST(test_workqueue-t "${TEST_WORKQUEUE_SOURCES}" LIBS "${libs}")
 ##########################################

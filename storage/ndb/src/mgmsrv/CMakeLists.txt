@@ -21,19 +21,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-  ${NDB_SOURCE_DIR}/src/mgmapi
-  ${NDB_SOURCE_DIR}/src/ndbapi
-  ${NDB_SOURCE_DIR}/src/mgmclient
-  ${NDB_SOURCE_DIR}/src/common/mgmcommon
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
   )
 
 ADD_CONVENIENCE_LIBRARY(ndbconf
   Config.cpp
   ConfigInfo.cpp
   InitConfigFileParser.cpp
-  ${NDB_SOURCE_DIR}/src/common/mgmcommon/ConfigObject.cpp
-  ${NDB_SOURCE_DIR}/src/common/mgmcommon/ConfigSection.cpp
-  ${NDB_SOURCE_DIR}/src/kernel/vm/mt_thr_config.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigObject.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigSection.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm/mt_thr_config.cpp
   LINK_LIBRARIES ndbmgmapi
   )
 

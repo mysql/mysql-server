@@ -34,4 +34,3 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
   ConfigSection.cpp
   IPCConfig.cpp
   )
-

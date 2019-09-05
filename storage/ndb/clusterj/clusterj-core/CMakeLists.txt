@@ -104,7 +104,7 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_CORE_PREFIX}/util/LoggerFactoryService.java
   )
 
-SET ( CLASSPATH 
+SET(CLASSPATH
   target/classes
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
 

@@ -22,11 +22,11 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${NDB_SOURCE_DIR}/src/mgmapi)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 
 ADD_CONVENIENCE_LIBRARY(ndbapi
-  ${NDB_SOURCE_DIR}/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
-  ${NDB_SOURCE_DIR}/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
   AssembleFragments.cpp
   ClusterMgr.cpp
   DictCache.cpp

@@ -49,5 +49,5 @@ TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT ndbclient_static)
 
 IF(NOT WIN32)
   NDB_ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp
-                     NDBTEST MYSQLCLIENT)
+    NDBTEST MYSQLCLIENT)
 ENDIF()

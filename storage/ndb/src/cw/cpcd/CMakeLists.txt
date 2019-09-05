@@ -34,22 +34,23 @@ FOREACH(warning
   ENDIF()
 ENDFOREACH()
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient)
-
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
+  )
 
 ADD_EXECUTABLE(ndb_cpcd
-        APIService.cpp
-        CPCD.cpp
-        Monitor.cpp
-        Process.cpp
-        common.cpp
-        main.cpp)
+  APIService.cpp
+  CPCD.cpp
+  Monitor.cpp
+  Process.cpp
+  common.cpp
+  main.cpp
+  )
 
-TARGET_LINK_LIBRARIES(ndb_cpcd
-               ndbclient_static)
+TARGET_LINK_LIBRARIES(ndb_cpcd ndbclient_static)
 
 INSTALL(TARGETS ndb_cpcd DESTINATION bin)

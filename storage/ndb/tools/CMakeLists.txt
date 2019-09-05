@@ -60,10 +60,10 @@ ADD_LIBRARY(ndbtools STATIC
   NdbImportCsvGram.cpp
   NdbImportUtil.cpp)
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-                    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
 BISON_TARGET(ndb_import
@@ -118,8 +118,8 @@ MYSQL_ADD_EXECUTABLE(ndb_select_count
   )
 MYSQL_ADD_EXECUTABLE(ndb_perror
   ndb_perror.cpp
-  ${NDB_SOURCE_DIR}/src/mgmapi/mgmapi_error.cpp
-  ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi/mgmapi_error.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
   COMPONENT ClusterTools
   LINK_LIBRARIES ndbclient_static
   )
@@ -200,8 +200,7 @@ IF(NOT WIN32 AND NOT SOLARIS)
     CHECK_LIBRARY_EXISTS("${NCURSESW_LIB}"
       stdscr "" NCURSES_HAS_STDSCR)
     IF(NOT NCURSES_HAS_STDSCR)
-      FIND_LIBRARY(NCURSES_TINFO_LIB
-                   NAMES tinfo)
+      FIND_LIBRARY(NCURSES_TINFO_LIB NAMES tinfo)
     ENDIF()
     MYSQL_ADD_EXECUTABLE(ndb_top
       ndb_top.cpp
@@ -211,9 +210,9 @@ IF(NOT WIN32 AND NOT SOLARIS)
       TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
     ELSE()
       TARGET_LINK_LIBRARIES(ndb_top
-                            mysqlclient
-                            ${NCURSESW_LIB}
-                            ${NCURSES_TINFO_LIB})
+        mysqlclient
+        ${NCURSESW_LIB}
+        ${NCURSES_TINFO_LIB})
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR
@@ -221,7 +220,7 @@ IF(NOT WIN32 AND NOT SOLARIS)
   ENDIF()
 ENDIF()
 
-if(NOT WIN32)
+IF(NOT WIN32)
   SET(TARGET_RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR}/runtime_output_directory)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter.pl
@@ -229,8 +228,8 @@ if(NOT WIN32)
   EXECUTE_PROCESS(COMMAND chmod +x
     ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter)
   INSTALL_SCRIPT(${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter
-         DESTINATION ${INSTALL_BINDIR}
-         COMPONENT ClusterTools)
+    DESTINATION ${INSTALL_BINDIR}
+    COMPONENT ClusterTools)
 ENDIF()
 
 INSTALL(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/ndb_size.pl
