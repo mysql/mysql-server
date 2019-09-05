@@ -244,6 +244,15 @@ class Foreign_key_spec : public Key_spec {
   const fk_option delete_opt;
   const fk_option update_opt;
   const fk_match_opt match_opt;
+  /**
+    Indicates whether foreign key name was provided explicitly or
+    was generated automatically.
+
+    @todo Get rid of this flag once we implement a better way for
+          NDB SE to get generated foreign key name from SQL-layer.
+    @sa   prepare_foreign_key().
+  */
+  const bool has_explicit_name;
 
   Foreign_key_spec(MEM_ROOT *mem_root, const LEX_CSTRING &name_arg,
                    List<Key_part_spec> cols, const LEX_CSTRING &ref_db_arg,
@@ -263,7 +272,8 @@ class Foreign_key_spec : public Key_spec {
         ref_columns(mem_root),
         delete_opt(delete_opt_arg),
         update_opt(update_opt_arg),
-        match_opt(match_opt_arg) {
+        match_opt(match_opt_arg),
+        has_explicit_name(name_arg.str != nullptr) {
     if (ref_cols) {
       ref_columns.reserve(ref_cols->elements);
       List_iterator<Key_part_spec> it(*ref_cols);
