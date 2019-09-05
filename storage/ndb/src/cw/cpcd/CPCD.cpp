@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,40 +84,49 @@ CPCD::findUniqueId() {
 }
 
 bool
-CPCD::defineProcess(RequestStatus * rs, Process * arg){
-  if(arg->m_id == -1)
-    arg->m_id = findUniqueId();
+CPCD::defineProcess(const class Properties &args, const uintptr_t sessionid,
+                    RequestStatus * rs, int *id) {
+  CPCD::Process *proc = new CPCD::Process(args, this, sessionid);
+
+  if(proc->m_id == -1)
+    proc->m_id = findUniqueId();
+
+  *id = proc->m_id;
 
   Guard tmp(m_processes);
 
   for(unsigned i = 0; i<m_processes.size(); i++) {
-    Process * proc = m_processes[i];
+    Process * existentProc = m_processes[i];
     
-    if((strcmp(arg->m_name.c_str(), proc->m_name.c_str()) == 0) && 
-       (strcmp(arg->m_group.c_str(), proc->m_group.c_str()) == 0)) {
+    if((strcmp(proc->m_name.c_str(), existentProc->m_name.c_str()) == 0) &&
+       (strcmp(proc->m_group.c_str(), existentProc->m_group.c_str()) == 0)) {
+      delete proc;
+
       /* Identical names in the same group */
       rs->err(AlreadyExists, "Name already exists");
       return false;
     }
 
-    if(arg->m_id == proc->m_id) {
+    if(proc->m_id == existentProc->m_id) {
+      delete proc;
+
       /* Identical ID numbers */
       rs->err(AlreadyExists, "Id already exists");
       return false;
     }
   }
   
-  m_processes.push_back(arg, false);
+  m_processes.push_back(proc, false);
   logger.debug("Process %s:%s:%d defined",
-                arg->m_group.c_str(), arg->m_name.c_str(), arg->m_id);
+                proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
 
   notifyChanges();
   return true;
 }
 
 bool
-CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
-
+CPCD::undefineProcess(const int id, const uintptr_t sessionid,
+                      CPCD::RequestStatus *rs) {
   Guard tmp(m_processes);
 
   Process * proc = 0;
@@ -134,6 +143,25 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
     return false;
   }
 
+  if (!proc->allowsChangeFromSession(sessionid)) {
+    logger.error("Process %s:%s:%d undefine attempt from invalid session",
+                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+    rs->err(Error, "Undefine attempt from invalid session");
+    return false;
+  }
+
+  switch (proc->m_status) {
+    case STARTING:
+    case RUNNING:
+      logger.error("Process %s:%s:%d undefine attempt without stop",
+                   proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+      rs->err(Error, "Undefine attempt for a non-stopped process");
+      return false;
+    case STOPPING:
+    case STOPPED:
+      break;
+  }
+
   if (proc->m_remove_on_stopped)
   {
     rs->err(Error, "Undefine already in progress");
@@ -144,24 +172,13 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   logger.debug("Process %s:%s:%d undefined",
                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
 
-  switch (proc->m_status)
-  {
-  case STARTING:
-  case RUNNING:
-    proc->stop();
-    break;
-  case STOPPING:
-  case STOPPED:
-    break;
-  }
-  
   notifyChanges();
   return true;
 }
 
 bool
-CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
-
+CPCD::startProcess(const int id, const uintptr_t sessionid,
+   CPCD::RequestStatus *rs) {
   Process * proc = 0;
   {
 
@@ -176,6 +193,13 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
     
     if(proc == 0){
       rs->err(NotExists, "No such process");
+      return false;
+    }
+
+    if (!proc->allowsChangeFromSession(sessionid)) {
+      logger.error("Process %s:%s:%d start attempt from invalid session",
+                  proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+      rs->err(Error, "Start attempt from invalid session");
       return false;
     }
     
@@ -214,7 +238,7 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
 }
 
 bool
-CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
+CPCD::stopProcess(const int id, uintptr_t sessionid, CPCD::RequestStatus *rs) {
 
   Guard tmp(m_processes);
 
@@ -231,6 +255,13 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
     return false;
   }
 
+  if (!proc->allowsChangeFromSession(sessionid)) {
+    logger.error("Process %s:%s:%d undefine attempt from invalid session",
+                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+    rs->err(Error, "Undefine attempt from invalid session");
+    return false;
+  }
+
   switch(proc->m_status){
   case STARTING:
   case RUNNING:
@@ -244,7 +275,7 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
     return false;
     break;
   case STOPPING:
-    rs->err(Error, "Already stopping");
+    rs->err(AlreadyStopped, "Already stopping");
     return false;
   }
   
@@ -305,7 +336,7 @@ CPCD::saveProcessList(){
     m_processes[i]->print(f);
     fprintf(f, "\n");
 
-    if(m_processes[i]->m_processType == TEMPORARY){
+    if(m_processes[i]->m_type == ProcessType::TEMPORARY){
       /**
        * Interactive process should never be "restarted" on cpcd restart
        */
@@ -417,14 +448,17 @@ CPCD::loadProcessList(){
     logger.debug("Loading Process %s:%s:%d with pid %d ",
                   proc->m_group.c_str(), proc->m_name.c_str(),
                   proc->m_id, proc->getPid());
-    if(proc->m_processType == TEMPORARY){
+    if(proc->m_type == ProcessType::TEMPORARY){
       temporary.push_back(proc->m_id);
     }
   }
   
   for(i = 0; i<temporary.size(); i++){
+    // TODO(tiago) CPCD should not call an API method but instead an internal
+    //             method to perform cleanup. This is not an issue because we
+    //             this code is never reached (as we don't read the database)
     RequestStatus rs;
-    undefineProcess(&rs, temporary[i]);
+    undefineProcess(temporary[i], 0, &rs);
   }
   
   /* Don't call notifyChanges here, as that would save the file we just

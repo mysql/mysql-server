@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,27 +65,29 @@ CPCD::Monitor::run() {
 			     m_changeMutex,
 			     m_pollingInterval * 1000);
 
-    MutexVector<CPCD::Process *> &proc = *m_cpcd->getProcessList();
+    MutexVector<CPCD::Process *> &processes = *m_cpcd->getProcessList();
 
-    proc.lock();
+    processes.lock();
 
-    for (unsigned i = 0; i < proc.size(); i++)
+    for (unsigned i = 0; i < processes.size(); i++)
     {
-      proc[i]->monitor();
+      processes[i]->monitor();
     }
 
     // Erase in reverse order to let i always step down
-    for (unsigned i = proc.size(); i > 0; i--)
+    for (unsigned i = processes.size(); i > 0; i--)
     {
-      if (!proc[i - 1]->should_be_erased())
+      CPCD::Process *proc = processes[i - 1];
+      if (!proc->should_be_erased())
       {
         continue;
       }
 
-      proc.erase(i - 1, false /* already locked */);
+      processes.erase(i - 1, false /* already locked */);
+      delete proc;
     }
 
-    proc.unlock();
+    processes.unlock();
 
     NdbMutex_Unlock(m_changeMutex);
   }
