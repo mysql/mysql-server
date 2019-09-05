@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_PRODUCTNAMEC "Commercial")
   SET (DEB_NOTPRODUCTNAME "community")
   SET (DEB_LICENSENAME "Advanced")
-  SET (DEB_INSTALL_LICENSEFILE "LICENSE.mysql")
   SET (DEB_SERVERVERSION "${VERSION}+commercial-1")
   SET (DEB_PLUGIN_SETPERMISSION "")
   SET (DEB_MAN_SETPERMISSION "")
@@ -91,12 +90,12 @@ ELSE()
   SET (DEB_PRODUCTNAMEC "Community")
   SET (DEB_NOTPRODUCTNAME "commercial")
   SET (DEB_LICENSENAME "GPL")
-  SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
   SET (DEB_PLUGIN_SETPERMISSION "usr/bin/mysql_setpermission")
   SET (DEB_MAN_SETPERMISSION "usr/share/man/man1/mysql_setpermission.1")
 ENDIF()
+SET (DEB_INSTALL_LICENSEFILE "LICENSE")
 
 # Platform specifics. The differences are generally only distro version
 # and whether or not systemd and/or apparmor are available

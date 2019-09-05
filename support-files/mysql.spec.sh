@@ -234,11 +234,10 @@
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
 
+%define license_files_server    %{src_dir}/LICENSE %{src_dir}/README
 %if 0%{?commercial}
-%define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            GPL
 %endif
 
@@ -1236,6 +1235,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Sep 05 2019 Bjorn Munch <bjorn.munch@oracle.com>
+- Add License Book, remove COPYING
+
 * Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com>
 - No longer need to remove obsoleted mysqltest man pages
 
