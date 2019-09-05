@@ -2663,8 +2663,9 @@ sub read_plugin_defs($) {
       $ENV{$plug_var}            = "";
       $ENV{ $plug_var . '_DIR' } = "";
       $ENV{ $plug_var . '_OPT' } = "";
-      $ENV{ $plug_var . '_LOAD' }     = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_ADD' } = "" if $plug_names;
+      $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
+      $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
+      $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
     }
   }
   close PLUGDEF;
