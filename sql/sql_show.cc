@@ -558,6 +558,23 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     }
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error())) goto exit;
+
+    /*
+      Table_function::print() only works after the table function has been
+      resolved. If resolving the view fails, and the view references an
+      unresolved table function, raise an error instead of calling print() on
+      the unresolved table function.
+    */
+    if (open_error && table_list->is_view()) {
+      for (TABLE_LIST *tl = table_list; tl != nullptr; tl = tl->next_global) {
+        if (tl->is_table_function() && tl->table == nullptr) {
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                   "SHOW CREATE VIEW on a view that references a non-existent "
+                   "table and a table function.");
+          goto exit;
+        }
+      }
+    }
   }
 
   /* TODO: add environment variables show when it become possible */
