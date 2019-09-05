@@ -223,6 +223,17 @@ class Parallel_reader {
   /** @return the configured max threads size. */
   size_t max_threads() const MY_ATTRIBUTE((warn_unused_result));
 
+  /** @return true if in error state. */
+  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_err.load(std::memory_order_relaxed) != DB_SUCCESS);
+  }
+
+  /** Set the error state.
+  @param[in] err                Error state to set to. */
+  void set_error_state(dberr_t err) {
+    m_err.store(err, std::memory_order_relaxed);
+  }
+
   // Disable copying.
   Parallel_reader(const Parallel_reader &) = delete;
   Parallel_reader(const Parallel_reader &&) = delete;
@@ -230,23 +241,12 @@ class Parallel_reader {
   Parallel_reader &operator=(const Parallel_reader &) = delete;
 
  private:
-  /** Set the error state.
-  @param[in] err                Error state to set to. */
-  void set_error_state(dberr_t err) {
-    m_err.store(err, std::memory_order_relaxed);
-  }
-
   /** Release unused threads back to the pool.
   @param[in] unused_threads     Number of threads to "release". */
   void release_unused_threads(size_t unused_threads) {
     ut_a(m_max_threads >= unused_threads);
     release_threads(unused_threads);
     m_max_threads -= unused_threads;
-  }
-
-  /** @return true if in error state. */
-  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_err.load(std::memory_order_relaxed) != DB_SUCCESS);
   }
 
   /** Add an execution context to the run queue.

@@ -130,6 +130,7 @@ dberr_t Parallel_reader_adapter::send_batch(size_t thread_id, uint64_t n_recs) {
 
   if (m_load_fn(m_thread_contexts[thread_id], n_recs, p)) {
     err = DB_INTERRUPTED;
+    m_parallel_reader.set_error_state(DB_INTERRUPTED);
   }
 
   Counter::add(m_n_sent, thread_id, n_recs);
@@ -192,7 +193,12 @@ dberr_t Parallel_reader_adapter::process_rows(const Parallel_reader::Ctx *ctx) {
                               m_blob_heaps[thread_id])) {
     Counter::inc(m_n_read, thread_id);
 
-    if (is_buffer_full(thread_id)) {
+    if (m_parallel_reader.is_error_set()) {
+      /* Simply skip sending the records to RAPID in case of an error in the
+      parallel reader and return DB_ERROR as the error could have been
+      originated from RAPID threads. */
+      err = DB_ERROR;
+    } else if (is_buffer_full(thread_id)) {
       err = send_batch(thread_id, pending(thread_id));
     }
   } else {
@@ -212,12 +218,15 @@ dberr_t Parallel_reader_adapter::end(size_t thread_id) {
   ut_a((Counter::get(m_n_read, thread_id) -
         Counter::get(m_n_sent, thread_id)) <= m_batch_size);
 
-  /* It's possible that we might not have sent the records in the buffer
-  when we have reached the end of records and the buffer is not full.
-  Send them now. */
-  auto err = (pending(thread_id) != 0)
-                 ? send_batch(thread_id, pending(thread_id))
-                 : DB_SUCCESS;
+  dberr_t err{DB_SUCCESS};
+
+  if (!m_parallel_reader.is_error_set()) {
+    /* It's possible that we might not have sent the records in the buffer
+    when we have reached the end of records and the buffer is not full.
+    Send them now. */
+    err = (pending(thread_id) != 0) ? send_batch(thread_id, pending(thread_id))
+                                    : DB_SUCCESS;
+  }
 
   m_end_fn(m_thread_contexts[thread_id]);
 
