@@ -17,7 +17,7 @@
 # GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING. If not, write to the
+# along with this program. If not, write to the
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
@@ -53,11 +53,10 @@
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
 
+%global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -726,6 +725,9 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Thu Sep 05 2019 Bjorn Munch <bjorn.munch@oracle.com> - 5.6.46-1
+- Add License Book, remove COPYING
+
 * Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com> - 5.6.40-1
 - No longer need to remove obsoleted mysqltest man pages
 
