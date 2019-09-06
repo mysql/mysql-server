@@ -25,10 +25,9 @@
 #include "sql/sql_delete.h"
 
 #include <limits.h>
-#include <algorithm>
 #include <atomic>
 #include <memory>
-#include <new>
+#include <utility>
 
 #include "lex_string.h"
 #include "my_alloc.h"
@@ -60,6 +59,7 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -70,6 +70,8 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"
 #include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"

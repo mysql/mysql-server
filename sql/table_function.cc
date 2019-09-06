@@ -50,6 +50,7 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 
 /******************************************************************************

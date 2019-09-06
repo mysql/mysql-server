@@ -36,7 +36,6 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
-#include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Item_cond_and
 #include "sql/opt_costmodel.h"
 #include "sql/sql_bitmap.h"
@@ -45,6 +44,7 @@
 #include "sql/sql_opt_exec_shared.h"  // join_type
 
 class Field;
+class Item;
 class Item_func;
 class JOIN_TAB;
 class KEY;

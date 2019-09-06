@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ class COPY_INFO;
 class Copy_field;
 class Item;
 class SELECT_LEX_UNIT;
+class Select_lex_visitor;
 class THD;
 class Temp_table_param;
 struct TABLE;

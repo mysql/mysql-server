@@ -64,6 +64,7 @@
 #include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/handler.h"
 #include "sql/intrusive_list_iterator.h"
+#include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
@@ -104,6 +105,7 @@
 #include "sql/table.h"
 #include "sql/table_function.h"
 #include "sql/temp_table_param.h"
+#include "sql/thd_raii.h"
 #include "sql/window.h"  // ignore_gaf_const_opt
 #include "sql_string.h"
 #include "template_utils.h"

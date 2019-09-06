@@ -26,11 +26,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <algorithm>
 #include <atomic>
 #include <memory>
-#include <new>
+#include <utility>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -97,6 +97,7 @@
 #include "sql/table.h"                     // TABLE
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
+#include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"

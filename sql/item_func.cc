@@ -130,6 +130,7 @@
 #include "sql/sql_time.h"       // TIME_from_longlong_packed
 #include "sql/strfunc.h"        // find_type
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql/val_int_compare.h"  // Integer_value
 #include "template_utils.h"       // pointer_cast
 #include "thr_mutex.h"

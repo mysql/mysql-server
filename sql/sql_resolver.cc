@@ -36,7 +36,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <functional>
+#include <utility>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
@@ -68,6 +71,7 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"  // Query_result
 #include "sql/sql_base.h"      // setup_fields
@@ -81,7 +85,7 @@
 #include "sql/sql_test.h"  // print_where
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/table_function.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "template_utils.h"

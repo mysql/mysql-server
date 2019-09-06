@@ -24,15 +24,15 @@
 #define PARSER_YYSTYPE_INCLUDED
 
 #include "my_base.h"
-#include "my_time.h"                                    // interval_type
-#include "resourcegroups/platform/thread_attrs_api.h"   // ...::cpu_id_t
-#include "resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
+#include "my_time.h"  // interval_type
 #include "sql/handler.h"
 #include "sql/item_create.h"    // Cast_target
 #include "sql/key_spec.h"       // keytype, fk_option
 #include "sql/lexer_yystype.h"  // Lexer_yystype
 #include "sql/opt_hints.h"      // opt_hints_enum
 #include "sql/parse_tree_hints.h"
+#include "sql/resourcegroups/platform/thread_attrs_api.h"  // ...::cpu_id_t
+#include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
 #include "sql/sql_admin.h"     // Sql_cmd_analyze_table::Histogram_command
 #include "sql/sql_alter.h"     // Alter_info::enum_with_validation
 #include "sql/sql_exchange.h"  // Line_separators, enum_filetype

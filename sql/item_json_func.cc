@@ -59,6 +59,7 @@
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_time.h"               // field_type_to_timestamp_type
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "table_function.h"  // save_json_to_field
 #include "template_utils.h"  // down_cast

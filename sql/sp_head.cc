@@ -88,6 +88,7 @@
 #include "sql/sql_parse.h"  // cleanup_items
 #include "sql/sql_profile.h"
 #include "sql/sql_show.h"  // append_identifier
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/trigger_def.h"

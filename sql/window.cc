@@ -64,6 +64,7 @@
 #include "sql/sql_tmp_table.h"  // free_tmp_table
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/window_lex.h"
 #include "sql_string.h"
 #include "template_utils.h"

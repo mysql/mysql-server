@@ -81,6 +81,7 @@
 #include "sql/sql_select.h"
 #include "sql/sql_time.h"  // str_to_datetime
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 
 using std::max;

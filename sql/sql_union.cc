@@ -34,10 +34,13 @@
 
 #include "sql/sql_union.h"
 
-#include "my_config.h"
-
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -85,6 +88,7 @@
 #include "sql/sql_tmp_table.h"  // tmp tables
 #include "sql/system_variables.h"
 #include "sql/table_function.h"  // Table_function
+#include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"

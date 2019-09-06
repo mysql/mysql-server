@@ -70,7 +70,6 @@
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/lock.h"    // mysql_unlock_some_tables
@@ -98,6 +97,7 @@
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"

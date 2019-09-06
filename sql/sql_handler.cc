@@ -63,6 +63,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
+#include <new>
 #include <unordered_map>
 #include <utility>
 
@@ -88,7 +89,6 @@
 #include "sql/item.h"
 #include "sql/key.h"   // key_copy
 #include "sql/lock.h"  // mysql_unlock_tables
-#include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
@@ -100,6 +100,7 @@
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql/transaction_info.h"
 #include "sql/xa.h"

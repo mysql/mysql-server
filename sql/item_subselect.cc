@@ -43,9 +43,9 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -84,11 +84,11 @@
 #include "sql/table.h"
 #include "sql/table_function.h"
 #include "sql/temp_table_param.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_lock.h"
 
 class Json_wrapper;
 

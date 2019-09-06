@@ -23,10 +23,7 @@
 #ifndef SQL_CHECK_CONSTRAINT_INCLUDED
 #define SQL_CHECK_CONSTRAINT_INCLUDED
 
-#include <map>
-
 #include "lex_string.h"          // LEX_STRING
-#include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/mem_root_array.h"  // Mem_root_array
 
 class Item;

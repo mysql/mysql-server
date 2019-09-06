@@ -31,12 +31,18 @@
 #include <algorithm>
 #include <utility>
 
+#include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_thread.h"
+#include "my_time.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_error_bits.h"
+#include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_ps.h"
@@ -54,9 +60,13 @@
 #include "sql/dd/dd_kill_immunizer.h"        // dd:DD_kill_immunizer
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/derror.h"                      // ER_THD
-#include "sql/error_handler.h"               // Internal_error_handler
-#include "sql/item_func.h"                   // user_var_entry
-#include "sql/lock.h"                        // mysql_lock_abort_for_thread
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"        // user_var_entry
+#include "sql/lock.h"             // mysql_lock_abort_for_thread
 #include "sql/locking_service.h"  // release_all_locking_service_locks
 #include "sql/log_event.h"
 #include "sql/mdl_context_backup.h"  // MDL context backup for XA
@@ -76,15 +86,14 @@
 #include "sql/sql_backup_lock.h"  // release_backup_lock
 #include "sql/sql_base.h"         // close_temporary_tables
 #include "sql/sql_callback.h"     // MYSQL_CALLBACK
-#include "sql/sql_handler.h"      // mysql_ha_cleanup
+#include "sql/sql_cmd.h"
+#include "sql/sql_handler.h"  // mysql_ha_cleanup
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"    // is_update_query
 #include "sql/sql_plugin.h"   // plugin_thdvar_init
 #include "sql/sql_prepare.h"  // Prepared_statement
 #include "sql/sql_profile.h"
-#include "sql/sql_time.h"   // my_timeval_trunc
 #include "sql/sql_timer.h"  // thd_timer_destroy
-#include "sql/strfunc.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
@@ -92,6 +101,8 @@
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "thr_mutex.h"
+
+class Parse_tree_root;
 
 using std::max;
 using std::min;

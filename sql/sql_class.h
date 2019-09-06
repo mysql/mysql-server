@@ -37,12 +37,34 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <atomic>
+#include <bitset>
 #include <memory>
+#include <new>
+#include <string>
 
+#include "dur_prop.h"  // durability_properties
+#include "lex_string.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_alloc.h"
+#include "my_base.h"
+#include "my_command.h"
 #include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_table_map.h"
+#include "my_thread_local.h"
+#include "mysql/components/services/my_thread_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_idle_bits.h"
@@ -50,41 +72,15 @@
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/psi_transaction_bits.h"
-#include "mysql/psi/mysql_thread.h"
-#include "pfs_thread_provider.h"
-#include "sql/psi_memory_key.h"
-#include "sql/resourcegroups/resource_group_basic_types.h"
-#include "sql/xa.h"
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-#include <sys/types.h>
-#include <time.h>
-#include <atomic>
-#include <bitset>
-#include <new>
-#include <string>
-
-#include "dur_prop.h"  // durability_properties
-#include "lex_string.h"
-#include "map_helpers.h"
-#include "my_base.h"
-#include "my_command.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_psi_config.h"
-#include "my_sqlcommand.h"
-#include "my_sys.h"
-#include "my_table_map.h"
-#include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER
 #include "mysqld_error.h"
+#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
@@ -93,7 +89,9 @@
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
+#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/rpl_context.h"  // Rpl_thd_context
 #include "sql/rpl_gtid.h"
 #include "sql/session_tracker.h"  // Session_tracker
@@ -106,14 +104,15 @@
 #include "sql/sys_vars_resource_mgr.h"  // Session_sysvar_resource_manager
 #include "sql/system_variables.h"       // system_variables
 #include "sql/transaction_info.h"       // Ha_trx_info
+#include "sql/xa.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
 
 enum enum_check_fields : int;
 enum enum_tx_isolation : int;
 enum ha_notification_type : int;
-class Field;
 class Item;
 class Parser_state;
 class PROFILING;
@@ -129,9 +128,9 @@ class sp_rcontext;
 class user_var_entry;
 struct LEX;
 struct LEX_USER;
-struct ORDER;
 struct TABLE;
 struct TABLE_LIST;
+struct timeval;
 struct User_level_lock;
 struct YYLTYPE;
 
@@ -152,7 +151,6 @@ class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
 struct LOG_INFO;
-class Check_constraints_adjusted_names_map;
 
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
@@ -4170,90 +4168,6 @@ inline bool secondary_engine_lock_tables_mode(const THD &cthd) {
           cthd.locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES);
 }
 
-/**
-  A simple holder for Internal_error_handler.
-  The class utilizes RAII technique to not forget to pop the handler.
-
-  @tparam Error_handler      Internal_error_handler to instantiate.
-  @tparam Error_handler_arg  Type of the error handler ctor argument.
-*/
-template <typename Error_handler, typename Error_handler_arg>
-class Internal_error_handler_holder {
-  THD *m_thd;
-  bool m_activate;
-  Error_handler m_error_handler;
-
- public:
-  Internal_error_handler_holder(THD *thd, bool activate, Error_handler_arg *arg)
-      : m_thd(thd), m_activate(activate), m_error_handler(arg) {
-    if (activate) thd->push_internal_handler(&m_error_handler);
-  }
-
-  ~Internal_error_handler_holder() {
-    if (m_activate) m_thd->pop_internal_handler();
-  }
-};
-
-/**
-  A simple holder for the Prepared Statement Query_arena instance in THD.
-  The class utilizes RAII technique to not forget to restore the THD arena.
-*/
-class Prepared_stmt_arena_holder {
- public:
-  /**
-    Constructs a new object, activates the persistent arena if requested and if
-    a prepared statement or a stored procedure statement is being executed.
-
-    @param thd                    Thread context.
-    @param activate_now_if_needed Attempt to activate the persistent arena in
-                                  the constructor or not.
-  */
-  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed = true)
-      : m_thd(thd), m_arena(NULL) {
-    if (activate_now_if_needed && !m_thd->stmt_arena->is_regular() &&
-        m_thd->mem_root != m_thd->stmt_arena->mem_root) {
-      m_thd->swap_query_arena(*m_thd->stmt_arena, &m_backup);
-      m_arena = m_thd->stmt_arena;
-    }
-  }
-
-  /**
-    Deactivate the persistent arena (restore the previous arena) if it has
-    been activated.
-  */
-  ~Prepared_stmt_arena_holder() {
-    if (is_activated()) m_thd->swap_query_arena(m_backup, m_arena);
-  }
-
-  bool is_activated() const { return m_arena != NULL; }
-
- private:
-  /// The thread context to work with.
-  THD *const m_thd;
-
-  /// The arena set by this holder (by activate()).
-  Query_arena *m_arena;
-
-  /// The arena state to be restored.
-  Query_arena m_backup;
-};
-
-/**
-  RAII class for column privilege checking
-*/
-class Column_privilege_tracker {
- public:
-  Column_privilege_tracker(THD *thd, ulong privilege)
-      : thd(thd), saved_privilege(thd->want_privilege) {
-    thd->want_privilege = privilege;
-  }
-  ~Column_privilege_tracker() { thd->want_privilege = saved_privilege; }
-
- private:
-  THD *const thd;
-  const ulong saved_privilege;
-};
-
 /** A short cut for thd->get_stmt_da()->set_ok_status(). */
 
 inline void my_ok(THD *thd, ulonglong affected_rows = 0, ulonglong id = 0,
@@ -4299,7 +4213,7 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
   @retval            false otherwise
 */
 
-static inline bool is_engine_substitution_allowed(const THD *thd) {
+inline bool is_engine_substitution_allowed(const THD *thd) {
   return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
 }
 

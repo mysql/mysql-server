@@ -76,6 +76,7 @@
 #include "sql/sql_time.h"  // Date_time_format
 #include "sql/sql_view.h"  // VIEW_ANY_ACL
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "unsafe_string_append.h"

@@ -38,6 +38,8 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h"  // Item_result_field
 #include "sql/parse_tree_node_base.h"
+#include "sql/sql_const.h"
+#include "template_utils.h"
 
 class Comp_creator;
 class Field;

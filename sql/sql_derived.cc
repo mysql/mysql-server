@@ -29,6 +29,7 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -55,10 +56,9 @@
 #include "sql/sql_tmp_table.h"  // Tmp tables
 #include "sql/sql_union.h"      // Query_result_union
 #include "sql/sql_view.h"       // check_duplicate_names
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"
-#include "sql/temp_table_param.h"
+#include "sql/thd_raii.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;

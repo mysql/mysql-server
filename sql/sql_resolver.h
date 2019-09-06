@@ -24,8 +24,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 class Item;
-class Item_in_subselect;
-class SELECT_LEX;
 class THD;
 struct TABLE;
 struct TABLE_LIST;
