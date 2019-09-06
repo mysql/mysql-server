@@ -61,7 +61,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Commercial")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}community")
   SET (DEB_LICENSENAME "Advanced")
-  SET (DEB_INSTALL_LICENSEFILE "LICENSE.mysql")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
@@ -132,10 +131,10 @@ ELSE()
   SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Community")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}commercial")
   SET (DEB_LICENSENAME "GPL")
-  SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
 ENDIF()
+SET (DEB_INSTALL_LICENSEFILE "LICENSE")
 
 # Generate debug symbol packages (this is done automatically in Debian9+)
 SET (DEB_RULES_STRIP_DEFAULT
