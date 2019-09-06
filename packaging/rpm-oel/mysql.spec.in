@@ -102,6 +102,8 @@ Vendor:         %{mysql_vendor}
 Source7:        %{compatsrc}
 %endif
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+Source90:       filter-provides.sh
+Source91:       filter-requires.sh
 %if 0%{?rhel} >= 8
 BuildRequires:  cmake >= 3.6.1
 BuildRequires:  gcc
@@ -170,10 +172,8 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
-# Patterns for sed, separated by semicolon. Do not quote it here, filter_setup will do that
-%filter_from_provides /libprotobuf/d;/perl.hostnames/d;/perl.lib::mtr/d;/perl.lib::v1/d;/perl.mtr_/d;/perl.My::/d
-%filter_from_requires /libprotobuf/d;/perl.hostnames/d;/perl.lib::mtr/d;/perl.lib::v1/d;/perl.mtr_/d;/perl.My::/d;/perl.GD/d
-%filter_setup
+%global __perl_provides %{SOURCE90}
+%global __perl_requires %{SOURCE91}
 %endif
 
 %description
