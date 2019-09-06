@@ -1,0 +1,385 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# TC1. Add one of the columns after `CREATE` with `ALTER TABLE`
+#
+SET @@global.binlog_row_image = FULL;
+#
+# Add one of the columns in the master, with binlog_row_image equal to
+# FULL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one of the columns in the master, with binlog_row_image equal to
+# FULL and aditional columns props equal to ''
+#
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT ,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one of the columns in the slave, with binlog_row_image equal to
+# FULL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one of the columns in the slave, with binlog_row_image equal to
+# FULL and aditional columns props equal to ''
+#
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT ,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+SET @@global.binlog_row_image = MINIMAL;
+#
+# Add one of the columns in the master, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one of the columns in the master, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to ''
+#
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT ,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one of the columns in the slave, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one of the columns in the slave, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to ''
+#
+[connection slave]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT ,
+INDEX ((a+1)), KEY ((a+10)));
+ALTER TABLE t ADD COLUMN b INT;
+SET @@session.sql_log_bin = 1;
+[connection master]
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t, slave:t]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# TC2. Add one extra column with `ALTER TABLE`
+#
+SET @@global.binlog_row_image = FULL;
+#
+# Add one extra column in the master, with binlog_row_image equal to
+# FULL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection master]
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one extra column in the master, with binlog_row_image equal to
+# FULL and aditional columns props equal to ''
+#
+[connection master]
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one extra column in the slave, with binlog_row_image equal to
+# FULL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection master]
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one extra column in the slave, with binlog_row_image equal to
+# FULL and aditional columns props equal to ''
+#
+[connection master]
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+SET @@global.binlog_row_image = MINIMAL;
+#
+# Add one extra column in the master, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection master]
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one extra column in the master, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to ''
+#
+[connection master]
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one extra column in the slave, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to 'PRIMARY KEY'
+#
+[connection master]
+CREATE TABLE t (a INT PRIMARY KEY, b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Add one extra column in the slave, with binlog_row_image equal to
+# MINIMAL and aditional columns props equal to ''
+#
+[connection master]
+CREATE TABLE t (a INT , b INT,
+INDEX ((a+1)), KEY ((a+10)));
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SET @@session.sql_log_bin = 0;
+ALTER TABLE t ADD COLUMN c INT DEFAULT 1;
+SET @@session.sql_log_bin = 1;
+[connection master]
+INSERT INTO t (a, b) VALUES (1, 2);
+UPDATE t SET b = 1 WHERE a = 1;
+INSERT INTO t (a, b) VALUES (2, 2);
+DELETE FROM t WHERE b = 2;
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+SET @@global.binlog_row_image = INITIAL_ROW_IMAGE;
+include/rpl_end.inc

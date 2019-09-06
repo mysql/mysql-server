@@ -483,17 +483,20 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
   /*
     We only check the initial columns for the tables.
   */
-  uint const cols_to_check = min<ulong>(table->s->fields, size());
+  Replicated_columns_view fields{table, Replicated_columns_view::INBOUND, thd};
+  uint const cols_to_check = min<ulong>(fields.filtered_size(), size());
   TABLE *tmp_table = nullptr;
 
-  for (uint col = 0; col < cols_to_check; ++col) {
-    Field *const field = table->field[col];
+  for (auto it = fields.begin(); it.filtered_pos() < cols_to_check; ++it) {
+    Field *const field = *it;
+    size_t col = it.filtered_pos();
     int order;
     if (can_convert_field_to(field, type(col), field_metadata(col),
                              is_array(col), rli, m_flags, &order)) {
-      DBUG_PRINT("debug", ("Checking column %d -"
+      DBUG_PRINT("debug", ("Checking column %lu -"
                            " field '%s' can be converted - order: %d",
-                           col, field->field_name, order));
+                           static_cast<long unsigned int>(col),
+                           field->field_name, order));
       DBUG_ASSERT(order >= -1 && order <= 1);
 
       /*
@@ -515,9 +518,10 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
 
       if (order == 0 && tmp_table != nullptr) tmp_table->field[col] = nullptr;
     } else {
-      DBUG_PRINT("debug", ("Checking column %d -"
-                           " field '%s' can not be converted",
-                           col, field->field_name));
+      DBUG_PRINT("debug",
+                 ("Checking column %lu -"
+                  " field '%s' can not be converted",
+                  static_cast<long unsigned int>(col), field->field_name));
       DBUG_ASSERT(col < size() && col < table->s->fields);
       DBUG_ASSERT(table->s->db.str && table->s->table_name.str);
       const char *db_name = table->s->db.str;
@@ -1078,7 +1082,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
     @c record_compare, as it also skips null_flags if the read_set
     was not marked completely.
    */
-  if (bitmap_is_set_all(cols)) {
+  if (bitmap_is_set_all(cols) && cols->n_bits == table->s->fields) {
     crc = checksum_crc32(crc, table->null_flags, table->s->null_bytes);
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }

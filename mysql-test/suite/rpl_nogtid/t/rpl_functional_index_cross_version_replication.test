@@ -1,0 +1,88 @@
+# ==== Purpose ====
+#
+# Tests the row-based replication of tables with functional indexes and with
+# extra columns or columns added with `ALTER TABLE` in a cross-version scenario
+# by replacing the slave's relay-log for a relay-log produced with a version
+# prior to the code changes being tested.
+#
+# ==== Requirements ====
+#
+# R1. It should be possible to replicate from an 8.0.17 master where a
+#     replicated column was added after a hidden generated column.
+#
+# ==== Implementation ====
+#
+# TC1. Apply OLD-generated relay log on NEW server
+# ------------------------------------------------------------------------
+# 1) Stop the slave.
+# 2) Setup the previous saved log - from a 8.0.17 server - as the slave relay
+#    log which contains:
+#
+#    CREATE TABLE t (a INT, INDEX i((a+1)));
+#    ALTER TABLE t ADD COLUMN b TEXT;
+#    INSERT INTO t(a, b) VALUES (1, '1');
+#
+# 3) Start the slave.
+# 4) Check table included in the relay log exists.
+#
+# ==== References ====
+#
+# BUG#29390506 HIDDEN GENERATED COLUMNS PREVENT SLAVE FROM HAVING EXTRA COLUMNS IN TABLES
+#
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # TC1. Apply OLD-generated relay log on NEW server
+--echo #
+
+#
+# 1) Stop the slave.
+#
+--source include/rpl_connection_slave.inc
+
+#
+# 2) Setup the previous saved log as the slave relay log which contains:
+#
+#    CREATE TABLE t (a INT, INDEX i((a+1)));
+#    ALTER TABLE t ADD COLUMN b TEXT;
+#    INSERT INTO t(a, b) VALUES (1, '1');
+#
+--let $fake_relay_log = $MYSQL_TEST_DIR/std_data/rpl_unfiltered_hidden_gcol.000001
+--source include/setup_fake_relay_log.inc
+
+#
+# 3) Start the slave.
+#
+START SLAVE SQL_THREAD;
+
+#
+# 4) Check table included in the relay log exists.
+#
+# Test if the slave arrived at a sane state and finished processing all
+# relay-logs.
+#
+--let $slave_param = Slave_SQL_Running_State
+--let $slave_param_value= Slave has read all relay log; waiting for more updates
+--let $slave_io_running_check_disable = 1
+--source include/wait_for_slave_param.inc
+
+# Even with the above validation, we should protect against future changes that
+# bipass _OLD_ relay-logs. Therefore, making the test fail if the table doesn't
+# exist.
+#
+--let $table_t = `SHOW TABLES LIKE "t"`
+--let $assert_text = Slave was able to apply the provided relay log.
+--let $assert_cond = "$table_t" = "t"
+--source include/assert.inc
+
+# Clean up
+DROP TABLE t;
+
+STOP SLAVE SQL_THREAD;
+--source include/cleanup_fake_relay_log.inc
+--source include/start_slave.inc
+
+--source include/rpl_end.inc
