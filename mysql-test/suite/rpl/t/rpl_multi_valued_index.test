@@ -42,6 +42,7 @@
   --source include/rpl_reset.inc
   --source include/rpl_connection_master.inc
   drop table t1;
+  --source include/sync_slave_sql_with_master.inc
 # END OF
 PROCEDURE
 
@@ -172,6 +173,7 @@ DROP TABLE t1;
 --let $array_on = master
 --source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
 
+--source include/rpl_connection_master.inc
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
 

@@ -109,6 +109,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as char(10) array))));
@@ -122,6 +123,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as decimal(64,1)))));
@@ -135,6 +137,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as decimal array))));
@@ -148,6 +151,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as unsigned))));
@@ -161,6 +165,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as signed array))));
@@ -174,6 +179,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as datetime(6)))));
@@ -187,6 +193,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as datetime(6) array))));
@@ -200,6 +207,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as date))));
@@ -213,6 +221,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as date array))));
@@ -226,6 +235,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as time(6)))));
@@ -239,6 +249,7 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 set @@session.sql_log_bin = 0;
 create table t1(j json, key mvi((cast(j as time(6) array))));
@@ -252,6 +263,8 @@ include/wait_for_slave_sql_error.inc [errno=13146]
 include/rpl_reset.inc
 [connection master]
 drop table t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
 SET @@global.transaction_write_set_extraction = 'XXHASH64';
