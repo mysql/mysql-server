@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 09/06/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.339.\ \&Command\-line options for the ndb_config program
+.B Table\ \&22.330.\ \&Command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -131,10 +131,9 @@ T{
 .PP
 --connections
 T}:T{
-Print connections information ([tcp], [tcp default], [sci], [sci
-              default], [shm], or [shm default] sections of cluster
-              configuration file) only. Cannot be used with --system or
-              --nodes.
+Print connections information ([tcp], [tcp default], [shm], or [shm
+              default] sections of cluster configuration file) only.
+              Cannot be used with --system or --nodes.
 T}:T{
 .PP
 All NDB 8.0 releases
@@ -528,13 +527,10 @@ CONNECTIONS
 information only\(emthat is, information about parameters found in the
 [tcp],
 [tcp default],
-[sci],
-[sci default],
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&22.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq,
-Section\ \&22.3.3.13, \(lqSCI Transport Connections in NDB Cluster\(rq, and
+Section\ \&22.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
 Section\ \&22.3.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
@@ -1303,7 +1299,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.26\-ndb\-7\&.5\&.15"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.28\-ndb\-7\&.5\&.16"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">

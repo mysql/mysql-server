@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_secure_installation\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 09/06/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -289,7 +289,7 @@ always prompts the user for a password\&.
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection\&.
+For TCP/IP connections, the port number to use\&.
 .RE
 .sp
 .RS 4
@@ -318,8 +318,8 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.3, \(lqConnecting to the MySQL Server\(rq\&.
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -335,6 +335,12 @@ Section\ \&4.2.3, \(lqConnecting to the MySQL Server\(rq\&.
 .sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.sp
+On Windows, this option applies only if the server was started with the
+named_pipe
+system variable enabled to support named\-pipe connections\&. In addition, the the connection must be a member of the Windows group specified by the
+named_pipe_full_access_group
+system variable\&.
 .RE
 .sp
 .RS 4
@@ -350,7 +356,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -444,8 +450,8 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 .\}
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
 .sp
-For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.16\&.
 .RE
@@ -460,8 +466,8 @@ This option was added in MySQL 8\&.0\&.16\&.
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -488,7 +494,7 @@ Execute noninteractively\&. This option can be used for unattended installation 
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server\&.
+The user name of the MySQL account to use for connecting to the server\&.
 .RE
 .SH "COPYRIGHT"
 .br
