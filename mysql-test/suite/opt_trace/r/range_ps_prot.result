@@ -6808,7 +6808,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                       "range_analysis": {
                         "table_scan": {
                           "rows": 2,
-                          "cost": 2e308
+                          "cost": 1e308
                         } /* table_scan */,
                         "potential_range_indexes": [
                           {
@@ -6925,4 +6925,11 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
     }
   ] /* steps */
 }	0	0
+#
+# Bug#30266767 OPTIMIZER TRACE CONTAINS INVALID JSON FOR FORCE INDEX QUERIES
+#
+SELECT JSON_TYPE(REGEXP_SUBSTR(TRACE, "1.*e308"))
+FROM information_schema.OPTIMIZER_TRACE;
+JSON_TYPE(REGEXP_SUBSTR(TRACE, "1.*e308"))
+DOUBLE
 DROP TABLE t1;

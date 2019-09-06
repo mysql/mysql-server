@@ -317,4 +317,15 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1;
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+--echo #
+--echo # Bug#30266767 OPTIMIZER TRACE CONTAINS INVALID JSON FOR FORCE INDEX QUERIES
+--echo #
+
+# Validate that the "infinite cost" value present in the previous
+# trace is parsable; if not, JSON_TYPE returns an error; if the regex
+# is not matched, NULL.
+
+SELECT JSON_TYPE(REGEXP_SUBSTR(TRACE, "1.*e308"))
+FROM information_schema.OPTIMIZER_TRACE;
+
 DROP TABLE t1;
