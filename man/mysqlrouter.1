@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlrouter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 09/06/2019
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Router"
+.TH "\FBMYSQLROUTER\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -210,7 +210,7 @@ T}
 .TE
 .sp 1
 The main option to perform a bootstrap of MySQL Router by connecting to the InnoDB cluster metadata server at the URI provided\&. MySQL Router configures itself based on the information retrieved from the InnoDB cluster metadata server\&. A password is prompted for if needed\&. If a username is not provided as part of the URI then the default user name "root" is used\&. See
-\m[blue]\fBConnecting using a URI String\fR\m[]\&\s-2\u[1]\d\s+2
+\m[blue]\fBConnecting Using URI\-Like Connection Strings\fR\m[]\&\s-2\u[1]\d\s+2
 for information on using a path to specify a server instance\&.
 .if n \{\
 .sp
@@ -235,7 +235,7 @@ option with the socket on the same machine\&.
 .RE
 By default, the bootstrap process performs a system\-wide configuration of MySQL Router\&. Only one instance of MySQL Router can be configured for system\-wide operation\&. The system instance of MySQL Router has a
 router_name
-of "default"\&. If additional instances are desired, use the
+of "system"\&. If additional instances are desired, use the
 \fB\-\-directory\fR
 option to create self\-contained MySQL Router installations\&.
 .sp
@@ -267,7 +267,40 @@ The
 \fB\-\-user\fR
 option is required if executing a bootstrap with a super user (uid=0)\&. Although not recommended, forcing the super user is possible by passing its name as an argument such as
 \fI\-\-user=root\fR\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+The minimum GRANT permissions required to execute
+\fB\-\-boostrap\fR
+are:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+GRANT CREATE USER ON *\&.* TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq WITH GRANT OPTION;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql_innodb_cluster_metadata\&.* TO
+\*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT ON mysql\&.user TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT ON performance_schema\&.replication_group_members TO
+\*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT ON performance_schema\&.replication_group_member_stats TO
+\*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+.fi
+.if n \{\
+.RE
+.\}
+.sp .5v
+.RE
 Using
 \fB\-\-bootstrap\fR
 adds default values to the generated MySQL Router configuration file, and some of these default values depend on other conditions\&. Listed below are some of the conditions that affect the generated default values, where default is defined by passing in
@@ -288,7 +321,6 @@ T}:T{
 Description
 T}
 .T&
-l l
 l l
 l l
 l l
@@ -320,16 +352,6 @@ T{
 \fB--directory\fR
 T}:T{
 Affects all file paths, and also generates additional files.
-T}
-T{
-\fBSingle primary mode is disabled\fR
-T}:T{
-If the
-                group_replication_single_primary_mode
-                MySQL Server option is disabled (it is enabled by
-                default), only Read-Write (and not Read-Only)
-                connections are defined. For additional information, see
-                ???.
 T}
 T{
 Other
@@ -825,6 +847,43 @@ This option is not available on Windows\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-conf\-use\-gr\-notifications\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--conf-use-gr-notifications
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.17
+T}
+.TE
+.sp 1
+Enables the
+\fBuse_gr_notifications\fR
+[metadata_cache] option during bootstrap\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-report\-host\fR
 .TS
 allbox tab(:);
@@ -1240,6 +1299,7 @@ Value
 T}
 .T&
 l l
+l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -1250,6 +1310,11 @@ T{
 \fBType\fR
 T}:T{
 String
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+system
 T}
 .TE
 .sp 1
@@ -2135,7 +2200,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-Connecting using a URI String
+Connecting Using URI-Like Connection Strings
 .RS 4
 \%https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri
 .RE

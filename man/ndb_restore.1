@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2019
+.\"      Date: 09/06/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "05/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,10 +34,28 @@ ndb_restore \- restore an NDB Cluster backup
 \fBndb_restore \fR\fB\fIoptions\fR\fR
 .SH "DESCRIPTION"
 .PP
-The cluster restoration program is implemented as a separate command\-line utility
+The NDB Cluster restoration program is implemented as a separate command\-line utility
 \fBndb_restore\fR, which can normally be found in the MySQL
 bin
 directory\&. This program reads the files created as a result of the backup and inserts the stored information into the database\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+Beginning with NDB 8\&.0\&.17, this program no longer prints
+NDBT_ProgramExit: \&.\&.\&.
+when it finishes its run\&. Applications depending on this behavior should be modified accordingly when upgrading from NDB 8\&.0\&.16 or earlier to a NDB 8\&.0 later release\&.
+.sp .5v
+.RE
 .PP
 \fBndb_restore\fR
 must be executed once for each of the backup files that were created by the
@@ -72,7 +90,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.350.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&22.341.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -654,7 +672,9 @@ shell> \fBndb_mgm \-e "SHOW"\fR
 .RE
 .\}
 .PP
-More detailed information about all options used by ndb_restore can be found in the following list:
+More detailed information about all options used by
+\fBndb_restore\fR
+can be found in the following list:
 .sp
 .RS 4
 .ie n \{\
@@ -767,9 +787,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.15 to a cluster running NDB Cluster 7\&.4\&.25, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.16 to a cluster running NDB Cluster 7\&.4\&.26, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.15 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.16 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1175,7 +1195,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.351.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&22.342.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1593,7 +1613,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.352.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&22.343.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -2725,9 +2745,15 @@ restoration program, you also need to restore the metadata\&. In other words, yo
 \fB\-\-restore\-meta\fR
 (\fB\-m\fR) option\&. Restoring the metadata need be done only on a single data node; this is sufficient to restore it to the entire cluster\&.
 .sp
-In older versions of NDB Cluster, tables whose schemas were restored using this option used the same number of partitions as they did on the original cluster, even if it had a differing number of data nodes from the new cluster\&. In NDB 7\&.5\&.2 and later, when restoring metadata, this is no longer an issue;
+In older versions of NDB Cluster, tables whose schemas were restored using this option used the same number of partitions as they did on the original cluster, even if it had a differing number of data nodes from the new cluster\&. In NDB 8\&.0, when restoring metadata, this is no longer an issue;
 \fBndb_restore\fR
 now uses the default number of partitions for the target cluster, unless the number of local data manager threads is also changed from what it was for data nodes in the original cluster\&.
+.sp
+When using this option in NDB 8\&.0\&.16 or later, it is recommended that auto synchronization be disabled by setting
+ndb_metadata_check=OFF
+until
+\fBndb_restore\fR
+has completed restoring the metadata, after which it can it turned on again to synchronize objects newly created in the NDB dictionary\&.
 .if n \{\
 .sp
 .\}
@@ -3181,6 +3207,12 @@ statement on that SQL node before running
 START SLAVE\&. This is a known issue in NDB Cluster\&.
 .sp .5v
 .RE
+.PP
+\fBRestoring a backup to a previous version of NDB Cluster\fR. You may encounter issues when restoring a backup taken from a later version of NDB Cluster to a previous one, due to the use of features which do not exist in the earlier version\&. For example, tables created in NDB 8\&.0 by default use the
+utf8mb4_ai_ci
+character set, which is not available in NDB 7\&.6 and earlier, and so cannot be read by an
+\fBndb_restore\fR
+binary from one of these earlier versions\&.
 .SS "Restoring to a different number of data nodes"
 .PP
 It is possible to restore from an NDB backup to a cluster having a different number of data nodes than the original from which the backup was taken\&. The following two sections discuss, respectively, the cases where the target cluster has a lesser or greater number of data nodes than the source of the backup\&.
