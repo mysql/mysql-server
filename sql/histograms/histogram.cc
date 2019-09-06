@@ -44,6 +44,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"  // my_micro_time, get_charset
+#include "my_systime.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_time.h"
@@ -73,7 +74,6 @@
 // close_thread_tables
 #include "sql/sql_class.h"  // make_lex_string_root
 #include "sql/sql_const.h"
-#include "sql/sql_error.h"
 #include "sql/strfunc.h"  // find_type2, find_set
 #include "sql/system_variables.h"
 #include "sql/table.h"

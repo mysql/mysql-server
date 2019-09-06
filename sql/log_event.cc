@@ -53,6 +53,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "my_systime.h"
 #include "my_table_map.h"
 #include "my_time.h"  // MAX_DATE_STRING_REP_LENGTH
 #include "mysql.h"    // MYSQL_OPT_MAX_ALLOWED_PACKET

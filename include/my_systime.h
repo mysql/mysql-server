@@ -40,6 +40,9 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>  // clock_gettime()
 #endif                 /* HAVE_SYS_TIME_H */
+#ifdef _WIN32
+#include <winsock2.h>  // struct timeval
+#endif                 /* _WIN32 */
 
 using UTC_clock = std::chrono::system_clock;
 
@@ -193,6 +196,17 @@ inline unsigned long long int my_micro_time() {
   }
   return (static_cast<unsigned long long int>(t.tv_sec) * 1000000 + t.tv_usec);
 #endif /* _WIN32 */
+}
+
+/**
+  Convert microseconds since epoch to timeval.
+  @param      micro_time  Microseconds.
+  @param[out] tm          A timeval variable to write to.
+*/
+inline void my_micro_time_to_timeval(std::uint64_t micro_time,
+                                     struct timeval *tm) {
+  tm->tv_sec = micro_time / 1000000;
+  tm->tv_usec = micro_time % 1000000;
 }
 
 void get_date(char *to, int flag, time_t date);

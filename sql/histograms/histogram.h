@@ -48,8 +48,7 @@
 #include <utility>  // std::pair
 
 #include "lex_string.h"  // LEX_CSTRING
-#include "m_ctype.h"
-#include "my_base.h"  // ha_rows
+#include "my_base.h"     // ha_rows
 #include "sql/histograms/value_map_type.h"
 #include "sql/memroot_allocator.h"    // Memroot_allocator
 #include "sql/stateless_allocator.h"  // Stateless_allocator
@@ -68,6 +67,7 @@ struct Histogram_comparator;
 template <class T>
 class Value_map;
 }  // namespace histograms
+struct CHARSET_INFO;
 struct MEM_ROOT;
 struct TABLE_LIST;
 

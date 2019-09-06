@@ -61,7 +61,6 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "my_systime.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/components/services/my_thread_bits.h"
@@ -755,17 +754,6 @@ class Global_read_lock {
 };
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
-
-/**
-  Convert microseconds since epoch to timeval.
-  @param      micro_time  Microseconds.
-  @param[out] tm          A timeval variable to write to.
-*/
-static inline void my_micro_time_to_timeval(ulonglong micro_time,
-                                            struct timeval *tm) {
-  tm->tv_sec = (long)(micro_time / 1000000);
-  tm->tv_usec = (long)(micro_time % 1000000);
-}
 
 /**
   @class THD
@@ -2650,34 +2638,12 @@ class THD : public MDL_context_owner,
   }
   time_t query_start_in_secs() const { return start_time.tv_sec; }
   timeval query_start_timeval_trunc(uint decimals);
-  void set_time() {
-    start_utime = utime_after_lock = my_micro_time();
-    if (user_time.tv_sec || user_time.tv_usec)
-      start_time = user_time;
-    else
-      my_micro_time_to_timeval(start_utime, &start_time);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
-#endif
-  }
+  void set_time();
   void set_time(const struct timeval *t) {
     user_time = *t;
     set_time();
   }
-  void set_time_after_lock() {
-    /*
-      If mysql_lock_tables() is called multiple times,
-      we stick with the first timestamp. This prevents
-      anomalities with things like CREATE INDEX, where
-      otherwise, we'll get the lock timestamp for the
-      data dictionary update.
-    */
-    if (utime_after_lock != start_utime) return;
-    utime_after_lock = my_micro_time();
-    MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
-                                  (utime_after_lock - start_utime));
-  }
+  void set_time_after_lock();
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
@@ -2686,10 +2652,8 @@ class THD : public MDL_context_owner,
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
   */
-  void update_slow_query_status() {
-    if (my_micro_time() > utime_after_lock + variables.long_query_time)
-      server_status |= SERVER_QUERY_WAS_SLOW;
-  }
+  void update_slow_query_status();
+
   ulonglong found_rows() const { return previous_found_rows; }
 
   /*
@@ -4169,24 +4133,11 @@ inline bool secondary_engine_lock_tables_mode(const THD &cthd) {
 }
 
 /** A short cut for thd->get_stmt_da()->set_ok_status(). */
-
-inline void my_ok(THD *thd, ulonglong affected_rows = 0, ulonglong id = 0,
-                  const char *message = NULL) {
-  thd->set_row_count_func(affected_rows);
-  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
-}
+void my_ok(THD *thd, ulonglong affected_rows = 0, ulonglong id = 0,
+           const char *message = nullptr);
 
 /** A short cut for thd->get_stmt_da()->set_eof_status(). */
-
-inline void my_eof(THD *thd) {
-  thd->set_row_count_func(-1);
-  thd->get_stmt_da()->set_eof_status(thd);
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->add_trx_state(thd, TX_RESULT_SET);
-  }
-}
+void my_eof(THD *thd);
 
 bool add_item_to_list(THD *thd, Item *item);
 

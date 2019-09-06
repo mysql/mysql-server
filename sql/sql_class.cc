@@ -37,6 +37,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "my_time.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
@@ -100,6 +101,7 @@
 #include "sql/transaction.h"  // trans_rollback
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 
 class Parse_tree_root;
@@ -2809,4 +2811,51 @@ void THD::pop_protocol() {
   DBUG_ASSERT(m_protocol != nullptr);
   m_protocol = m_protocol->pop_protocol();
   DBUG_ASSERT(m_protocol != nullptr);
+}
+
+void THD::set_time() {
+  start_utime = utime_after_lock = my_micro_time();
+  if (user_time.tv_sec || user_time.tv_usec)
+    start_time = user_time;
+  else
+    my_micro_time_to_timeval(start_utime, &start_time);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
+#endif
+}
+
+void THD::set_time_after_lock() {
+  /*
+    If mysql_lock_tables() is called multiple times,
+    we stick with the first timestamp. This prevents
+    anomalities with things like CREATE INDEX, where
+    otherwise, we'll get the lock timestamp for the
+    data dictionary update.
+  */
+  if (utime_after_lock != start_utime) return;
+  utime_after_lock = my_micro_time();
+  MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
+                                (utime_after_lock - start_utime));
+}
+
+void THD::update_slow_query_status() {
+  if (my_micro_time() > utime_after_lock + variables.long_query_time)
+    server_status |= SERVER_QUERY_WAS_SLOW;
+}
+
+void my_ok(THD *thd, ulonglong affected_rows, ulonglong id,
+           const char *message) {
+  thd->set_row_count_func(affected_rows);
+  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
+}
+
+void my_eof(THD *thd) {
+  thd->set_row_count_func(-1);
+  thd->get_stmt_da()->set_eof_status(thd);
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
+    down_cast<Transaction_state_tracker *>(
+        thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+        ->add_trx_state(thd, TX_RESULT_SET);
+  }
 }
