@@ -3843,6 +3843,7 @@ dberr_t btr_cur_pessimistic_update(
   ulint n_reserved = 0;
   ulint n_ext;
   ulint max_ins_size = 0;
+  trx_t *const trx = (thr == nullptr) ? nullptr : thr_get_trx(thr);
 
   *offsets = NULL;
   *big_rec = NULL;
@@ -3925,31 +3926,6 @@ dberr_t btr_cur_pessimistic_update(
   ut_ad(rec_offs_validate(rec, index, *offsets));
   n_ext += lob::btr_push_update_extern_fields(new_entry, update, entry_heap);
 
-  /* UNDO logging is also turned-off during normal operation on intrinsic
-  table so condition needs to ensure that table is not intrinsic. */
-  if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(*offsets) &&
-      !index->table->is_intrinsic()) {
-    /* We are in a transaction rollback undoing a row
-    update: we must free possible externally stored fields
-    which got new values in the update, if they are not
-    inherited values. They can be inherited if we have
-    updated the primary key to another value, and then
-    update it back again. */
-
-    ut_ad(big_rec_vec == NULL);
-    ut_ad(index->is_clustered());
-    ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
-              (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG) ||
-          thr_get_trx(thr)->id == trx_id);
-
-    DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
-    RECOVERY_CRASH(99);
-
-    lob::BtrContext ctx(mtr, nullptr, index, rec, *offsets, block);
-
-    ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
-  }
-
   if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry, n_ext),
                              page_is_comp(page), dict_index_get_n_fields(index),
                              block->page.size)) {
@@ -3980,6 +3956,34 @@ dberr_t btr_cur_pessimistic_update(
                                   thr, mtr, &roll_ptr);
   if (err != DB_SUCCESS) {
     goto err_exit;
+  }
+
+  /* Check for an update that moved an ext field to inline */
+  lob::mark_not_partially_updatable(trx, index, update, mtr);
+
+  /* UNDO logging is also turned-off during normal operation on intrinsic
+  table so condition needs to ensure that table is not intrinsic. */
+  if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(*offsets) &&
+      !index->table->is_intrinsic()) {
+    /* We are in a transaction rollback undoing a row
+    update: we must free possible externally stored fields
+    which got new values in the update, if they are not
+    inherited values. They can be inherited if we have
+    updated the primary key to another value, and then
+    update it back again. */
+
+    ut_ad(big_rec_vec == NULL);
+    ut_ad(index->is_clustered());
+    ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
+              (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG) ||
+          thr_get_trx(thr)->id == trx_id);
+
+    DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
+    RECOVERY_CRASH(99);
+
+    lob::BtrContext ctx(mtr, nullptr, index, rec, *offsets, block);
+
+    ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
   }
 
   if (optim_err == DB_OVERFLOW) {
