@@ -3657,7 +3657,6 @@ class Item_func_sp final : public Item_func {
   sp_name *m_name;
   mutable sp_head *m_sp;
   TABLE *dummy_table;
-  uchar result_buf[64];
   /*
      The result field of the concrete stored function.
   */

@@ -7452,15 +7452,14 @@ bool Item_func_sp::init_result_field(THD *thd) {
     return true;
   }
 
-  if (sp_result_field->pack_length() > sizeof(result_buf)) {
-    void *tmp;
-    if (!(tmp = (*THR_MALLOC)->Alloc(sp_result_field->pack_length())))
-      return true;
-    sp_result_field->move_field((uchar *)tmp);
-  } else
-    sp_result_field->move_field(result_buf);
+  // Add 1 for null byte.
+  dummy_table->record[0] =
+      thd->mem_root->ArrayAlloc<uchar>(sp_result_field->pack_length() + 1);
+  if (dummy_table->record[0] == nullptr) return true;
 
-  sp_result_field->set_null_ptr((uchar *)&null_value, 1);
+  sp_result_field->move_field(dummy_table->record[0] + 1,
+                              dummy_table->record[0], 1);
+
   return false;
 }
 
