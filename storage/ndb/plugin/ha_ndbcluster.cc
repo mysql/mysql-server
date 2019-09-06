@@ -2567,9 +2567,10 @@ bool ha_ndbcluster::check_index_fields_not_null(KEY *key_info) const {
   return false;
 }
 
-void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb) {
+void ha_ndbcluster::release_metadata(THD *thd) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
+  Ndb *ndb = thd ? check_ndb_in_thd(thd) : g_ndb;
 
   if (m_table == NULL) {
     return;  // table already released
@@ -2595,6 +2596,10 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb) {
   m_table_info = NULL;
 
   release_indexes(dict, invalidate_indexes);
+
+  //  Release field to column map
+  delete m_table_map;
+  m_table_map = NULL;
 
   m_table = NULL;
 }
@@ -11048,7 +11053,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
 
 ha_ndbcluster::~ha_ndbcluster() {
   THD *thd = current_thd;
-  Ndb *ndb = thd ? check_ndb_in_thd(thd) : g_ndb;
   DBUG_TRACE;
 
   if (m_share) {
@@ -11059,7 +11063,7 @@ ha_ndbcluster::~ha_ndbcluster() {
 
     NDB_SHARE::release_for_handler(m_share, this);
   }
-  release_metadata(thd, ndb);
+  release_metadata(thd);
   release_blobs_buffer();
 
   // Check for open cursor/transaction
@@ -11103,21 +11107,68 @@ std::string ha_ndbcluster::explain_extra() const {
   - fetch metadata for this table from NDB
   - check that table exists
 
-  @retval
-    0    ok
-  @retval
-    < 0  Table has changed
+  Returns a handler error code, 0 on success.
 */
-
 int ha_ndbcluster::open(const char *name, int, uint,
                         const dd::Table *table_def) {
   THD *thd = current_thd;
   int res;
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("name: %s", name));
+
+  set_dbname(name);
+  set_tabname(name);
+
+  if ((res = check_ndb_connection(thd)) != 0) {
+    return res;
+  }
+
+  if (open_table_set_key_fields()) {
+    release_key_fields();
+    return HA_ERR_OUT_OF_MEM;
+  }
+
+  if (ndb_binlog_is_read_only())
+    m_share = open_table_before_schema_sync(thd, name);
+  else
+    m_share = NDB_SHARE::acquire_for_handler(name, this);
+
+  if (m_share == nullptr) {
+    // The NDB_SHARE should have been created by CREATE TABLE, or during
+    // schema synchronization, or by auto discovery. Push warning explaining
+    // the problem and return a sensible error.
+    get_thd_ndb(thd)->push_warning("Could not open NDB_SHARE for '%s'", name);
+    release_key_fields();
+    return HA_ERR_NO_CONNECTION;
+  }
+
+  // Init table lock structure
+  thr_lock_data_init(&m_share->lock, &m_lock, (void *)0);
+
+  if ((res = get_metadata(thd, table_def))) {
+    release_key_fields();
+    release_ndb_share();
+    return res;
+  }
+
+  if ((res = update_stats(thd, 1)) || (res = info(HA_STATUS_CONST))) {
+    release_key_fields();
+    release_ndb_share();
+    release_metadata(thd);
+    return res;
+  }
+
+  return 0;
+}
+
+/* Set up key-related data structures for open().
+   Returns false on success; true on failed memory allocation.
+*/
+bool ha_ndbcluster::open_table_set_key_fields() {
   KEY *key;
   KEY_PART_INFO *key_part_info;
   uint key_parts, i, j;
-  DBUG_TRACE;
-  DBUG_PRINT("enter", ("name: %s", name));
+  char *bitmap_array;
 
   if (table_share->primary_key != MAX_KEY) {
     /*
@@ -11134,103 +11185,66 @@ int ha_ndbcluster::open(const char *name, int, uint,
   }
   DBUG_PRINT("info", ("ref_length: %d", ref_length));
 
-  {
-    char *bitmap_array;
-    uint extra_hidden_keys = table_share->primary_key != MAX_KEY ? 0 : 1;
-    uint n_keys = table_share->keys + extra_hidden_keys;
-    uint ptr_size = sizeof(MY_BITMAP *) * (n_keys + 1 /* null termination */);
-    uint map_size = sizeof(MY_BITMAP) * n_keys;
-    m_key_fields = (MY_BITMAP **)my_malloc(
-        PSI_INSTRUMENT_ME, ptr_size + map_size, MYF(MY_WME + MY_ZEROFILL));
-    if (!m_key_fields) {
-      local_close(thd, false);
-      return 1;
+  uint extra_hidden_keys = table_share->primary_key != MAX_KEY ? 0 : 1;
+  uint n_keys = table_share->keys + extra_hidden_keys;
+  uint ptr_size = sizeof(MY_BITMAP *) * (n_keys + 1 /* null termination */);
+  uint map_size = sizeof(MY_BITMAP) * n_keys;
+  m_key_fields = (MY_BITMAP **)my_malloc(PSI_INSTRUMENT_ME, ptr_size + map_size,
+                                         MYF(MY_WME + MY_ZEROFILL));
+  if (!m_key_fields) return true;  // alloc failed
+
+  bitmap_array = ((char *)m_key_fields) + ptr_size;
+  for (i = 0; i < n_keys; i++) {
+    my_bitmap_map *bitbuf = NULL;
+    bool is_hidden_key = (i == table_share->keys);
+    m_key_fields[i] = (MY_BITMAP *)bitmap_array;
+    if (is_hidden_key || (i == table_share->primary_key)) {
+      m_pk_bitmap_p = m_key_fields[i];
+      bitbuf = m_pk_bitmap_buf;
     }
-    bitmap_array = ((char *)m_key_fields) + ptr_size;
-    for (i = 0; i < n_keys; i++) {
-      my_bitmap_map *bitbuf = NULL;
-      bool is_hidden_key = (i == table_share->keys);
-      m_key_fields[i] = (MY_BITMAP *)bitmap_array;
-      if (is_hidden_key || (i == table_share->primary_key)) {
-        m_pk_bitmap_p = m_key_fields[i];
-        bitbuf = m_pk_bitmap_buf;
-      }
-      if (bitmap_init(m_key_fields[i], bitbuf, table_share->fields, false)) {
-        m_key_fields[i] = NULL;
-        local_close(thd, false);
-        return 1;
-      }
-      if (!is_hidden_key) {
-        key = table->key_info + i;
-        key_part_info = key->key_part;
-        key_parts = key->user_defined_key_parts;
-        for (j = 0; j < key_parts; j++, key_part_info++)
-          bitmap_set_bit(m_key_fields[i], key_part_info->fieldnr - 1);
-      } else {
-        uint field_no = table_share->fields;
-        ((uchar *)m_pk_bitmap_buf)[field_no >> 3] |= (1 << (field_no & 7));
-      }
-      bitmap_array += sizeof(MY_BITMAP);
+    if (bitmap_init(m_key_fields[i], bitbuf, table_share->fields, false)) {
+      m_key_fields[i] = NULL;
+      return true;  // alloc failed
     }
-    m_key_fields[i] = NULL;
-  }
-
-  set_dbname(name);
-  set_tabname(name);
-
-  if ((res = check_ndb_connection(thd)) != 0) {
-    local_close(thd, false);
-    return res;
-  }
-
-  /* Don't allow opening table unless schema distribution is ready and
-     schema synchronization has completed. The user who wants to use
-     this table has to wait. The exception: when upgrading from legacy
-     distributed privilege tables, proceed even though the server is
-     not fully bootstrapped.
-  */
-  if (ndb_binlog_is_read_only() &&
-      !Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
-    const Thd_ndb *thd_ndb = get_thd_ndb(thd);
-    thd_ndb->push_warning(
-        "Can't open table '%s' from NDB, schema distribution is not ready",
-        name);
-    local_close(thd, false);
-    return HA_ERR_NO_CONNECTION;
-  }
-
-  // Acquire NDB_SHARE reference for handler
-  m_share = NDB_SHARE::acquire_for_handler(name, this);
-  if (m_share == nullptr) {
-    if (Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
-      // Create the NDB_SHARE. It will be opened, renamed, and then dropped,
-      // as the privilege table is migrated from NDB to InnoDB.
-      m_share = NDB_SHARE::create_and_acquire_reference(name, this);
+    if (!is_hidden_key) {
+      key = table->key_info + i;
+      key_part_info = key->key_part;
+      key_parts = key->user_defined_key_parts;
+      for (j = 0; j < key_parts; j++, key_part_info++)
+        bitmap_set_bit(m_key_fields[i], key_part_info->fieldnr - 1);
     } else {
-      // Failed to acquire the NDB_SHARE. This is a rare case, it should already
-      // have been created when table was created, during schema synchronization
-      // or by auto discovery. Push warning explaining the problem and return a
-      // sensible error.
-      const Thd_ndb *thd_ndb = get_thd_ndb(thd);
-      thd_ndb->push_warning("Could not open NDB_SHARE for '%s'", name);
-      local_close(thd, false);
-      return HA_ERR_NO_CONNECTION;
+      uint field_no = table_share->fields;
+      ((uchar *)m_pk_bitmap_buf)[field_no >> 3] |= (1 << (field_no & 7));
     }
+    bitmap_array += sizeof(MY_BITMAP);
+  }
+  m_key_fields[i] = NULL;
+  return false;
+}
+
+/* Handle open() before schema distribution is ready and schema synchronization
+   has completed. As a rule, the user who wants to use the table will have
+   to wait, but there are some exceptions.
+*/
+NDB_SHARE *ha_ndbcluster::open_table_before_schema_sync(THD *thd,
+                                                        const char *name) {
+  /* Migrating distributed privilege tables. Create the NDB_SHARE. It will be
+     opened, renamed, and then dropped, as the table is migrated to InnoDB.
+  */
+  if (Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
+    return NDB_SHARE::create_and_acquire_reference(name, this);
   }
 
-  // Init table lock structure
-  thr_lock_data_init(&m_share->lock, &m_lock, (void *)0);
+  /* Running CHECK TABLE FOR UPGRADE in a server upgrade thread.
+   */
+  if (thd->system_thread == SYSTEM_THREAD_SERVER_UPGRADE)
+    return NDB_SHARE::create_and_acquire_reference(name, this);
 
-  if ((res = get_metadata(thd, table_def))) {
-    local_close(thd, false);
-    return res;
-  }
-
-  if ((res = update_stats(thd, 1)) || (res = info(HA_STATUS_CONST))) {
-    local_close(thd, true);
-    return res;
-  }
-  return 0;
+  /* User must wait until schema distribution is ready.
+   */
+  get_thd_ndb(thd)->push_warning(
+      "Can't open table '%s' from NDB, schema distribution is not ready", name);
+  return nullptr;
 }
 
 /*
@@ -11406,14 +11420,14 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early) {
   }
 }
 
-/**
-  Close the table
-  - release resources setup by open()
- */
+inline void ha_ndbcluster::release_ndb_share() {
+  if (m_share) {
+    NDB_SHARE::release_for_handler(m_share, this);
+    m_share = nullptr;
+  }
+}
 
-void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag) {
-  Ndb *ndb;
-  DBUG_TRACE;
+inline void ha_ndbcluster::release_key_fields() {
   if (m_key_fields) {
     MY_BITMAP **inx_bitmap;
     for (inx_bitmap = m_key_fields;
@@ -11422,24 +11436,14 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag) {
     my_free(m_key_fields);
     m_key_fields = NULL;
   }
-  if (m_share) {
-    NDB_SHARE::release_for_handler(m_share, this);
-    m_share = nullptr;
-  }
-  if (release_metadata_flag) {
-    ndb = thd ? check_ndb_in_thd(thd) : g_ndb;
-    release_metadata(thd, ndb);
-  }
-
-  //  Release field to column map when table is closed
-  delete m_table_map;
-  m_table_map = NULL;
 }
 
 int ha_ndbcluster::close(void) {
   DBUG_TRACE;
   THD *thd = table->in_use;
-  local_close(thd, true);
+  release_key_fields();
+  release_ndb_share();
+  release_metadata(thd);
   return 0;
 }
 

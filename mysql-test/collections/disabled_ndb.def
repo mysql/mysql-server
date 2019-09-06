@@ -57,6 +57,3 @@ rpl_ndb.rpl_ndb_row_implicit_commit_binlog   : BUG#12586131 Fails on SET PASSWOR
 ndb.ndb_read_location_domain : BUG#27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN PB2.
 # Flaky test
 ndb.ndb_import2 : BUG#28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
-
-# Disabled due to Bug#29305977 which is waiting on Bug#29205142 to be fixed
-ndb.ndbinfo_upgrade: Bug#29305977 NDB.NDBINFO_UPGRADE TEST FAILS

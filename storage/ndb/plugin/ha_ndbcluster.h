@@ -140,10 +140,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;
 
- private:
-  void local_close(THD *thd, bool release_metadata);
-
- public:
   int close(void) override;
 
   int optimize(THD *thd, HA_CHECK_OPT *) override;
@@ -413,6 +409,10 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void notify_table_changed(Alter_inplace_info *alter_info) override;
 
  private:
+  bool open_table_set_key_fields();
+  void release_key_fields();
+  void release_ndb_share();
+  NDB_SHARE *open_table_before_schema_sync(THD *, const char *);
   void prepare_inplace__drop_index(uint key_num);
   int inplace__final_drop_index(TABLE *table_arg);
 
@@ -477,7 +477,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool has_fk_dependency(THD *, const NdbDictionary::Column *) const;
   int check_default_values(const NdbDictionary::Table *ndbtab);
   int get_metadata(THD *thd, const dd::Table *table_def);
-  void release_metadata(THD *thd, Ndb *ndb);
+  void release_metadata(THD *thd);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info,
