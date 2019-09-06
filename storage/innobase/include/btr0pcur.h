@@ -168,7 +168,7 @@ enum pcur_pos_t {
 /* Import tablespace context for persistent B-tree cursor. */
 struct import_ctx_t {
   /* true if cursor fails to move to the next page during import. */
-  bool is_error;
+  bool is_error{false};
 };
 
 /* The persistent B-tree cursor structure. This is used mainly for SQL
@@ -598,6 +598,7 @@ inline void btr_pcur_t::init() {
   m_old_rec_buf = nullptr;
   m_old_rec = nullptr;
   m_btr_cur.rtr_info = nullptr;
+  import_ctx = nullptr;
 }
 
 /** Initializes and opens a persistent cursor to an index tree
