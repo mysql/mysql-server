@@ -49,21 +49,46 @@ extern EventLogger *g_eventLogger;
  * Requests that make page dirty
  */
 #define DIRTY_FLAGS (Page_request::COMMIT_REQ | \
+                     Page_request::ABORT_REQ | \
                      Page_request::DIRTY_REQ | \
                      Page_request::ALLOC_REQ)
 
 static bool g_dbg_lcp = false;
 
 #ifdef VM_TRACE
-//#define DEBUG_PGMAN 1
 //#define DEBUG_PGMAN_IO 1
+//#define DEBUG_PGMAN_PAGE 1
+//#define DEBUG_PGMAN_EXTRA 1
+//#define DEBUG_PGMAN_LCP_TIME_STAT 1
+//#define DEBUG_PGMAN 1
+//#define DEBUG_PGMAN_LCP_EXTRA 1
 //#define DEBUG_PGMAN_LCP 1
+//#define DEBUG_PGMAN_LCP_STAT 1
+//#define DEBUG_PGMAN_PREP_PAGE 1
 #endif
 
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_PGMAN_EXTRA
+#define DEB_PGMAN_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_EXTRA(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_PGMAN_PAGE
+#define DEB_PGMAN_PAGE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_PAGE(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_PGMAN_PREP_PAGE
+#define DEB_PGMAN_PREP_PAGE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_PREP_PAGE(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_PGMAN_IO
@@ -78,9 +103,26 @@ static bool g_dbg_lcp = false;
 #define DEB_PGMAN_LCP(arglist) do { } while (0)
 #endif
 
+#ifdef DEBUG_PGMAN_LCP_EXTRA
+#define DEB_PGMAN_LCP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_LCP_EXTRA(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_PGMAN_LCP_STAT
+#define DEB_PGMAN_LCP_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_LCP_STAT(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_PGMAN_LCP_TIME_STAT
+#define DEB_PGMAN_LCP_TIME_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_LCP_TIME_STAT(arglist) do { } while (0)
+#endif
+
 Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(PGMAN, ctx, instanceNumber),
-  m_fragmentRecordList(m_fragmentRecordPool),
   m_fragmentRecordHash(m_fragmentRecordPool),
   m_dirty_list_lcp(m_page_entry_pool),
   m_dirty_list_lcp_out(m_page_entry_pool),
@@ -94,6 +136,14 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
 #endif
 {
   BLOCK_CONSTRUCTOR(Pgman);
+
+  for (Uint32 i = 0; i < NUM_ORDERED_LISTS; i++)
+  {
+    m_fragmentRecordList[i].init();
+  }
+
+  m_access_extent_page_mutex = NdbMutex_Create();
+  ndbrequire(m_access_extent_page_mutex != 0);
 
   // Add received signals
   addRecSignal(GSN_STTOR, &Pgman::execSTTOR);
@@ -119,15 +169,17 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   m_stats_loop_on = false;
   m_busy_loop_on = false;
   m_cleanup_loop_on = false;
-  m_lcp_loop_ongoing = false;
 
   // LCP variables
   m_sync_extent_pages_ongoing = false;
   m_lcp_loop_ongoing = false;
   m_lcp_outstanding = 0;
+  m_prep_lcp_outstanding = 0;
   m_locked_pages_written = 0;
   m_lcp_table_id = RNIL;
   m_lcp_fragment_id = 0;
+  m_prev_lcp_table_id = RNIL;
+  m_prev_lcp_fragment_id = 0;
 
   // clean-up variables
   m_cleanup_ptr.i = RNIL;
@@ -158,10 +210,90 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
     ct.m_entry = m_callbackEntry;
     m_callbackTableAddr = &ct;
   }
+  m_time_track_histogram_upper_bound[0] = 0;
+  m_time_track_histogram_upper_bound[1] = 16;
+  for (Uint32 i = 2; i < PGMAN_TIME_TRACK_NUM_RANGES; i++)
+  {
+    m_time_track_histogram_upper_bound[i] =
+      2 * m_time_track_histogram_upper_bound[i - 1];
+  }
+  m_time_track_histogram_upper_bound[PGMAN_TIME_TRACK_NUM_RANGES - 1] =
+    Uint64(~0);
+
+  for (Uint32 i = 0; i < PGMAN_TIME_TRACK_NUM_RANGES; i++)
+  {
+    m_time_track_reads[i] = 0;
+    m_time_track_writes[i] = 0;
+    m_time_track_log_waits[i] = 0;
+  }
+  m_pages_made_dirty = Uint64(0);
+  m_tot_pages_made_dirty = Uint64(0);
+  m_reads_completed = Uint64(0);
+  m_reads_issued = Uint64(0);
+  m_writes_issued = Uint64(0);
+  m_writes_completed = Uint64(0);
+  m_tot_writes_completed = Uint64(0);
+  m_get_page_calls_issued = Uint64(0);
+  m_get_page_reqs_issued = Uint64(0);
+  m_get_page_reqs_completed = Uint64(0);
+  m_last_stat_index = NUM_STAT_HISTORY - 1;
+  memset(m_pages_made_dirty_history, 0, sizeof(m_pages_made_dirty_history));
+  memset(m_reads_completed_history, 0, sizeof(m_reads_completed_history));
+  memset(m_reads_issued_history, 0, sizeof(m_reads_issued_history));
+  memset(m_writes_completed_history, 0, sizeof(m_writes_completed_history));
+  memset(m_writes_issued_history, 0, sizeof(m_writes_issued_history));
+  memset(m_get_page_calls_issued_history,
+         0,
+         sizeof(m_get_page_calls_issued_history));
+  memset(m_get_page_reqs_issued_history,
+         0,
+         sizeof(m_get_page_reqs_issued_history));
+  memset(m_get_page_reqs_completed_history,
+         0,
+         sizeof(m_get_page_reqs_completed_history));
+  memset(m_stat_time_delay, 0, sizeof(m_stat_time_delay));
+  m_num_dd_accesses = Uint64(0);
+  m_total_dd_latency_us = Uint64(0);
+  m_outstanding_dd_requests = Uint64(0);
+  m_abort_counter = 0;
+  m_abort_level = 0;
+  m_lcp_dd_percentage = Uint64(0);
+  m_num_dirty_pages = Uint64(0);
+  m_track_lcp_speed_loop_ongoing = false;
+  m_dirty_page_rate_per_sec = Uint64(0);
+  m_current_lcp_pageouts = Uint64(0);
+  m_start_lcp_made_dirty = Uint64(0);
+  m_last_lcp_made_dirty = Uint64(0);
+  m_last_pageouts = Uint64(0);
+  m_last_made_dirty = Uint64(0);
+  m_current_lcp_flushes = Uint64(0);
+  m_last_flushes = Uint64(0);
+  m_max_lcp_pages_outstanding = Uint64(4);
+  m_prep_max_lcp_pages_outstanding = Uint64(4);
+  m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_redo_alert_state_last_lcp = RedoStateRep::NO_REDO_ALERT;
+  m_raise_redo_alert_state = 0;
+  m_available_lcp_pageouts = Uint64(100);
+  m_prep_available_lcp_pageouts = Uint64(100);
+  m_available_lcp_pageouts_used = Uint64(0);
+  m_redo_alert_factor = Uint64(100);
+  m_total_write_latency_us = Uint64(0);
+  m_last_lcp_writes_completed = Uint64(0);
+  m_last_lcp_total_write_latency_us = Uint64(0);
+  /* 1 ms is the default estimate for latency to disk drives */
+  m_last_lcp_write_latency_us = Uint64(1000);
+  m_mm_curr_disk_write_speed = Uint64(0);
+  m_percent_spent_in_checkpointing = Uint64(100);
+  m_lcp_time_in_ms = Uint64(0);
+  m_lcp_ongoing = false;
+  m_num_ldm_completed_lcp = 0;
+  m_max_pageout_rate = Uint64(0);
 }
 
 Pgman::~Pgman()
 {
+  NdbMutex_Destroy(m_access_extent_page_mutex);
+  m_access_extent_page_mutex = 0;
   for (Uint32 k = 0; k < Page_entry::SUBLIST_COUNT; k++)
     delete m_page_sublist[k];
 }
@@ -181,6 +313,16 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  Uint32 max_dd_latency = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DD_LATENCY, &max_dd_latency);
+  m_max_dd_latency_ms = max_dd_latency;
+
+  Uint32 dd_using_same_disk = 1;
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_DD_USING_SAME_DISK,
+                            &dd_using_same_disk);
+  m_dd_using_same_disk = dd_using_same_disk;
 
   Uint64 page_buffer = 64*1024*1024;
   ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
@@ -276,14 +418,23 @@ Pgman::execSTTOR(Signal* signal)
   case 1:
     {
       jam();
-      if (!isNdbMtLqh()) {
+      if (!isNdbMtLqh())
+      {
         c_tup = (Dbtup*)globalData.getBlock(DBTUP);
-      } else if (instance() <= getLqhWorkers()) {
+        c_backup = (Backup*)globalData.getBlock(BACKUP);
+      }
+      else if (instance() <= getLqhWorkers())
+      {
         c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+        c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
         ndbrequire(c_tup != 0);
-      } else {
+        ndbrequire(c_backup != 0);
+      }
+      else
+      {
         // extra worker
         c_tup = 0;
+        c_backup = 0;
       }
       c_lgman = (Lgman*)globalData.getBlock(LGMAN);
       c_tsman = (Tsman*)globalData.getBlock(TSMAN);
@@ -297,6 +448,10 @@ Pgman::execSTTOR(Signal* signal)
       do_cleanup_loop(signal);
       m_stats_loop_on = true;
       m_cleanup_loop_on = true;
+      NDB_TICKS now = NdbTick_getCurrentTicks();
+      m_last_time_calc_stats_loop = now.getUint64();
+      signal->theData[0] = PgmanContinueB::CALC_STATS_LOOP;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
     }
     break;
   default:
@@ -351,8 +506,18 @@ Pgman::execCONTINUEB(Signal* signal)
     jam();
     ndbrequire(m_lcp_loop_ongoing);
     m_lcp_loop_ongoing = false;
-    check_restart_lcp(signal);
+    check_restart_lcp(signal, true);
     return;
+  }
+  case PgmanContinueB::CALC_STATS_LOOP:
+  {
+    do_calc_stats_loop(signal);
+    break;
+  }
+  case PgmanContinueB::TRACK_LCP_SPEED_LOOP:
+  {
+    do_track_handle_lcp_speed_loop(signal);
+    break;
   }
   default:
     ndbabort();
@@ -440,10 +605,12 @@ Pgman::set_page_state(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr,
     if (old_state != 0)
     {
       thrjam(jamBuf);
+      thrjamLineDebug(jamBuf, Uint16(old_list_no));
       ndbrequire(old_list_no != ZNIL);
       if (old_list_no != new_list_no)
       {
         thrjam(jamBuf);
+        thrjamLineDebug(jamBuf, Uint16(new_list_no));
         Page_sublist& old_list = *m_page_sublist[old_list_no];
         old_list.remove(ptr);
       }
@@ -451,10 +618,12 @@ Pgman::set_page_state(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr,
     if (new_state != 0)
     {
       thrjam(jamBuf);
+      thrjamLineDebug(jamBuf, Uint16(new_list_no));
       ndbrequire(new_list_no != ZNIL);
       if (old_list_no != new_list_no)
       {
         thrjam(jamBuf);
+        thrjamLineDebug(jamBuf, Uint16(old_list_no));
         Page_sublist& new_list = *m_page_sublist[new_list_no];
         new_list.addLast(ptr);
       }
@@ -1285,6 +1454,15 @@ Pgman::process_callback(Signal* signal,
         ptr.p->m_dirty_count--;
       }
 
+      NDB_TICKS now = getHighResTimer();
+      NDB_TICKS start = req_ptr.p->m_start_time;
+      Uint64 micros = NdbTick_Elapsed(start, now).microSec();
+      add_histogram(micros, &m_time_track_get_page[0]);
+      m_get_page_reqs_completed++;
+      m_total_dd_latency_us += micros;
+      m_num_dd_accesses++;
+      ndbassert(m_outstanding_dd_requests > 0);
+      m_outstanding_dd_requests--;
       req_list.releaseFirst(/* req_ptr */);
     }
     ndbrequire(state & Page_entry::BOUND);
@@ -1349,12 +1527,12 @@ Pgman::process_cleanup(Signal* signal)
         c_tup->disk_page_unmap_callback(0, 
                                         ptr.p->m_real_page_i, 
                                         ptr.p->m_dirty_count);
-      DEB_PGMAN(("(%u)pageout():cleanup, page(%u,%u):%u:%x",
-                 instance(),
-                 ptr.p->m_file_no,
-                 ptr.p->m_page_no,
-                 ptr.i,
-                 (unsigned int)state));
+      DEB_PGMAN_PAGE(("(%u)pageout():cleanup, page(%u,%u):%u:%x",
+                      instance(),
+                      ptr.p->m_file_no,
+                      ptr.p->m_page_no,
+                      ptr.i,
+                      (unsigned int)state));
 
       pageout(signal, ptr);
       max_count--;
@@ -1411,7 +1589,7 @@ Pgman::sendSYNC_EXTENT_PAGES_REQ(Signal *signal)
   SyncExtentPagesReq *req = (SyncExtentPagesReq*)signal->getDataPtrSend();
   req->senderData = 0;
   req->senderRef = reference();
-  req->lcpOrder = SyncExtentPagesReq::FIRST_LCP;
+  req->lcpOrder = SyncExtentPagesReq::RESTART_SYNC;
   sendSignal(reference(), GSN_SYNC_EXTENT_PAGES_REQ, signal,
              SyncExtentPagesReq::SignalLength, JBA);
 }
@@ -1419,6 +1597,7 @@ Pgman::sendSYNC_EXTENT_PAGES_REQ(Signal *signal)
 void
 Pgman::sendEND_LCPCONF(Signal *signal)
 {
+  DEB_PGMAN_LCP(("(%u)sendEND_LCPCONF", instance()));
   EndLcpConf *conf = (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = m_end_lcp_req.senderData;
   sendSignal(m_end_lcp_req.senderRef, GSN_END_LCPCONF, signal,
@@ -1437,8 +1616,8 @@ Pgman::execEND_LCPREQ(Signal *signal)
    */
   FragmentRecordPtr fragPtr;
   m_end_lcp_req = *req;
-  m_fragmentRecordList.first(fragPtr);
-  if (fragPtr.i == RNIL)
+  ndbrequire(!m_lcp_ongoing);
+  if (!get_first_ordered_fragment(fragPtr))
   {
     if (m_extra_pgman || !isNdbMtLqh())
     {
@@ -1455,6 +1634,7 @@ Pgman::execEND_LCPREQ(Signal *signal)
      * There are no table objects in the proxy block.
      */
     ndbrequire(!m_extra_pgman);
+    lcp_start_point(signal, 0, 0);
     sendSYNC_PAGE_CACHE_REQ(signal, fragPtr);
   }
 }
@@ -1467,13 +1647,14 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
 
   fragPtr.i = conf->senderData;
   m_fragmentRecordPool.getPtr(fragPtr);
-  m_fragmentRecordList.next(fragPtr);
-  if (fragPtr.i == RNIL)
+  if (!get_next_ordered_fragment(fragPtr))
   {
     if (isNdbMtLqh())
     {
       jam();
-      DEB_PGMAN_LCP(("sendEND_LCPCONF: instance(): %u", instance()));
+      NDB_TICKS now = getHighResTimer();
+      Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
+      lcp_end_point(Uint32(lcp_time));
       sendEND_LCPCONF(signal);
       return;
     }
@@ -1490,7 +1671,6 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
 void
 Pgman::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
 {
-  DEB_PGMAN_LCP(("sendEND_LCPCONF: instance(): %u", instance()));
   sendEND_LCPCONF(signal);
 }
 
@@ -1530,12 +1710,11 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
   }
   ndbrequire(fragPtr.i != RNIL);
   ndbrequire(!m_sync_extent_pages_ongoing);
-  ndbrequire(!m_lcp_loop_ongoing);
   ndbrequire(m_lcp_outstanding == 0);
   ndbrequire(!m_extra_pgman);
   ndbrequire(m_lcp_table_id == RNIL);
 
-  DEB_PGMAN_LCP(("execSYNC_PAGE_CACHE_REQ: instance(): %u", instance()));
+  DEB_PGMAN_LCP_EXTRA(("(%u)execSYNC_PAGE_CACHE_REQ", instance()));
   /**
    * Switch over active list to the other list. This means that we are
    * ready to send all the dirty pages of the previously active list to
@@ -1564,38 +1743,47 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
   }
   m_lcp_table_id = req->tableId;
   m_lcp_fragment_id = req->fragmentId;
-  DEB_PGMAN(("(%u)Move page_entries from dirty list to lcp list of tab(%u,%u)"
-             ", list is %s",
-             instance(),
-             m_lcp_table_id,
-             m_lcp_fragment_id,
-             fragPtr.p->m_dirty_list.isEmpty() ?
-               "empty" : "not empty"));
+  DEB_PGMAN_LCP_EXTRA(("(%u)Move page_entries from dirty list to lcp list of"
+                       " tab(%u,%u), list is %s",
+                       instance(),
+                       m_lcp_table_id,
+                       m_lcp_fragment_id,
+                       fragPtr.p->m_dirty_list.isEmpty() ?
+                       "empty" : "not empty"));
   ndbrequire(m_dirty_list_lcp.isEmpty());
+  ndbrequire(m_dirty_list_lcp_out.isEmpty());
   m_dirty_list_lcp.swapList(fragPtr.p->m_dirty_list);
-  check_restart_lcp(signal);
+  start_lcp_loop(signal);
 }
 
 void
 Pgman::finish_lcp(Signal *signal,
                   FragmentRecord *fragPtrP)
 {
+  ndbrequire(m_lcp_outstanding == 0);
+  /**
+   * It is possible that we still have outstanding page writes
+   * for Prepare LCP pages since we look ahead more than one
+   * fragment. So we can only verify that this is 0 at the
+   * end point of LCPs (lcp_end_point).
+   */
+  m_prev_lcp_table_id = m_lcp_table_id;
+  m_prev_lcp_fragment_id = m_lcp_fragment_id;
+  m_lcp_table_id = RNIL;
+  m_lcp_fragment_id = 0;
+  start_lcp_loop(signal);
+  ndbrequire(m_dirty_list_lcp.isEmpty());
+  ndbrequire(m_dirty_list_lcp_out.isEmpty());
+  DEB_PGMAN_LCP(("(%u)finish_lcp tab(%u,%u), ref: %x",
+                 instance(),
+                 m_sync_page_cache_req.tableId,
+                 m_sync_page_cache_req.fragmentId,
+                 m_sync_page_cache_req.senderRef));
   SyncPageCacheConf* conf = (SyncPageCacheConf*)signal->getDataPtr();
   conf->senderData = m_sync_page_cache_req.senderData;
   conf->tableId = m_sync_page_cache_req.tableId;
   conf->fragmentId = m_sync_page_cache_req.fragmentId;
   conf->diskDataExistFlag = fragPtrP == NULL ? 0 : 1;
-  ndbrequire(m_lcp_outstanding == 0);
-  ndbrequire(!m_lcp_loop_ongoing);
-  m_lcp_table_id = RNIL;
-  m_lcp_fragment_id = 0;
-  ndbrequire(m_dirty_list_lcp.isEmpty());
-  ndbrequire(m_dirty_list_lcp_out.isEmpty());
-  DEB_PGMAN(("(%u)finish_lcp tab(%u,%u), ref: %x",
-             instance(),
-             m_sync_page_cache_req.tableId,
-             m_sync_page_cache_req.fragmentId,
-             m_sync_page_cache_req.senderRef));
   sendSignal(m_sync_page_cache_req.senderRef,
              GSN_SYNC_PAGE_CACHE_CONF,
              signal,
@@ -1625,6 +1813,12 @@ Pgman::start_lcp_loop(Signal *signal)
   if (m_lcp_loop_ongoing)
   {
     jam();
+    return;
+  }
+  if (!m_lcp_ongoing)
+  {
+    jam();
+    m_lcp_loop_ongoing = false;
     return;
   }
   jam();
@@ -1689,8 +1883,9 @@ Pgman::sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages)
   }
 }
 
+#define MAX_PREPARE_LCP_SEARCH_DEPTH 4
 void
-Pgman::check_restart_lcp(Signal *signal)
+Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
 {
   if (m_lcp_loop_ongoing)
   {
@@ -1702,6 +1897,7 @@ Pgman::check_restart_lcp(Signal *signal)
      */
     return;
   }
+  jam();
   if (m_sync_extent_pages_ongoing &&
       m_sync_extent_next_page_entry != RNIL)
   {
@@ -1712,6 +1908,7 @@ Pgman::check_restart_lcp(Signal *signal)
      * that we were blocked by too much IO, so we'll start up the
      * process again here.
      */
+    ndbrequire(m_lcp_ongoing == true);
     Ptr<Page_entry> ptr;
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
     pl.getPtr(ptr, m_sync_extent_next_page_entry);
@@ -1729,22 +1926,107 @@ Pgman::check_restart_lcp(Signal *signal)
      * writing when no more pages remain to be written.
      */
     jam();
+    ndbrequire(m_lcp_ongoing == true);
     handle_lcp(signal, m_lcp_table_id, m_lcp_fragment_id);
+  }
+  else if (m_prev_lcp_table_id != RNIL && check_prepare_lcp)
+  {
+    jam();
+    /**
+     * Currently we only do a look ahead a constant number of fragments
+     * ahead of the next fragment to LCP. Looking ahead too much can
+     * be costly since it could lead to writing pages too
+     * early and thus waste disk bandwidth. Not looking ahead
+     * at all means that we write the minimum amount, but we
+     * tend to be a bit bursty in our writing and thus not
+     * use the full bandwidth of the disk subsystem.
+     *
+     * Striking a balance between those two extremes is
+     * important, for now we look ahead up to four fragments.
+     */
+    ndbrequire(m_lcp_ongoing == true);
+    FragmentRecordPtr fragPtr;
+    fragPtr.p = 0; //Silence compiler
+    if (m_prev_lcp_table_id == 0)
+    {
+      /**
+       * We have started a new LCP, so far we haven't performed
+       * any fragment LCP. In this state we will start doing
+       * preparation of work for LCPs by starting to write pages
+       * from the dirty list of the first fragment to perform
+       * an LCP on.
+       */
+      if (get_first_ordered_fragment(fragPtr) &&
+          !fragPtr.p->m_dirty_list.isEmpty())
+      {
+        jam();
+        handle_prepare_lcp(signal, fragPtr);
+        return;
+      }
+      if (fragPtr.i == RNIL)
+      {
+        jam();
+        /* No disk data tables exists */
+        return;
+      }
+    }
+    else
+    {
+      FragmentRecord key(*this,
+                         m_prev_lcp_table_id,
+                         m_prev_lcp_fragment_id);
+      if (!m_fragmentRecordHash.find(fragPtr, key))
+      {
+        jam();
+        /**
+         * The current fragment is part of a dropped table, we
+         * will get back on track as soon as the next fragment is
+         * performing its LCP for disk data. So no need to do
+         * anything advanced for this rare event.
+         */
+        return;
+      }
+    }
+    Uint32 loop = 0;
+    do
+    {
+      jam();
+      if (!get_next_ordered_fragment(fragPtr))
+      {
+        jam();
+        /**
+         * We found no easy way to discover a next fragment. We will stop
+         * here and return later.
+         */
+        return;
+      }
+      if (!fragPtr.p->m_dirty_list.isEmpty())
+      {
+        jam();
+        handle_prepare_lcp(signal, fragPtr);
+        return;
+      }
+      loop++;
+    } while (loop < MAX_PREPARE_LCP_SEARCH_DEPTH);
+    m_prev_lcp_table_id = RNIL;
   }
 }
 
-#define MAX_LCP_PAGES_OUTSTANDING 32
 Uint32
-Pgman::get_num_lcp_pages_to_write(void)
+Pgman::get_num_lcp_pages_to_write(bool is_prepare_phase)
 {
-  Uint32 max_count = 0;
+  Uint64 lcp_outstanding = m_lcp_outstanding + m_prep_lcp_outstanding;
+  Uint64 max_count = 0;
+  Uint64 max_lcp_pages_outstanding = is_prepare_phase ?
+         m_prep_max_lcp_pages_outstanding :
+         m_max_lcp_pages_outstanding;
   if (m_param.m_max_io_waits > m_stats.m_current_io_waits &&
-      m_lcp_outstanding < MAX_LCP_PAGES_OUTSTANDING)
+      lcp_outstanding < max_lcp_pages_outstanding)
   {
     jam();
     max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
     max_count = max_count / 2 + 1;
-    if (max_count > (MAX_LCP_PAGES_OUTSTANDING - m_lcp_outstanding))
+    if (max_count > (max_lcp_pages_outstanding - lcp_outstanding))
     {
       /**
        * Never more than 1 MByte of outstanding LCP pages at any time.
@@ -1752,7 +2034,7 @@ Pgman::get_num_lcp_pages_to_write(void)
        * writing out the LCP.
        */
       jam();
-      max_count = MAX_LCP_PAGES_OUTSTANDING - m_lcp_outstanding;
+      max_count = m_max_lcp_pages_outstanding - lcp_outstanding;
     }
     return max_count;
   }
@@ -1769,6 +2051,115 @@ Pgman::get_num_lcp_pages_to_write(void)
 }
 
 void
+Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
+{
+  Ptr<Page_entry> ptr;
+  Uint32 max_count = get_num_lcp_pages_to_write(true);
+  if (max_count == 0 ||
+      m_available_lcp_pageouts_used >= m_prep_available_lcp_pageouts)
+  {
+    jam();
+    DEB_PGMAN_EXTRA(("(%u)No LCP pages available to write with for Prep LCP"
+                     instance()));
+    jam();
+    return;
+  }
+  {
+    LocalPage_dirty_list list(m_page_entry_pool, fragPtr.p->m_dirty_list);
+    list.first(ptr);
+  }
+  bool break_flag = false;
+  Uint64 synced_lsn;
+  {
+    Logfile_client lgman(this, c_lgman, RNIL);
+    synced_lsn = lgman.pre_sync_lsn(ptr.p->m_lsn);
+  }
+  for (Uint32 i = 0; i < max_count; i++)
+  {
+    if (ptr.i == RNIL)
+    {
+      jam();
+      return;
+    }
+    Page_state state = ptr.p->m_state;
+    /* See comments in handle_lcp on state handling */ 
+    if ((! (state & Page_entry::DIRTY)) ||
+        (state & Page_entry::LOCKED) ||
+        (! (state & Page_entry::BOUND)))
+    {
+      ndbout << ptr << endl;
+      ndbrequire(false);
+    }
+    if (state & Page_entry::PAGEOUT ||
+        state & Page_entry::BUSY)
+    {
+      jam();
+      /* Ignore since we are in prepare LCP state */
+    }
+    else
+    {
+      Uint32 no = get_sublist_no(state);
+      if (no != Page_entry::SL_CALLBACK &&
+          ptr.p->m_lsn < synced_lsn)
+      {
+        jam();
+        DEB_PGMAN_PREP_PAGE((
+                        "(%u)pageout():prepare LCP, page(%u,%u):%u:%x"
+                        ", m_prep_lcp_outstanding = %u",
+                        instance(),
+                        ptr.p->m_file_no,
+                        ptr.p->m_page_no,
+                        ptr.i,
+                        (unsigned int)state,
+                        m_prep_lcp_outstanding + 1));
+        ptr.p->m_state |= Page_entry::PREP_LCP;
+
+        if (c_tup != 0)
+        {
+          c_tup->disk_page_unmap_callback(0,
+                                          ptr.p->m_real_page_i, 
+                                          ptr.p->m_dirty_count);
+        }
+        pageout(signal, ptr, false);
+        break_flag = true;
+        m_current_lcp_pageouts++;
+        m_prep_lcp_outstanding++;
+        m_available_lcp_pageouts_used++;
+      }
+      else
+      {
+        jam();
+        /**
+         * We will never write anything that is in SL_CALLBACK list.
+         * We are only in Prepare LCP phase, so it is not very vital
+         * to write the page at this time. It is more important to
+         * allow the waiting operation to be able to read the page.
+         * We will break and move the page last.
+         *
+         * We will also not write anything that would generate a wait
+         * to force the UNDO log in the prepare LCP phase.
+         */
+      }
+    }
+    if (break_flag)
+    {
+      jam();
+      break;
+    }
+    {
+      LocalPage_dirty_list list(m_page_entry_pool, fragPtr.p->m_dirty_list);
+      list.next(ptr);
+    }
+  }
+  if (break_flag)
+  {
+    jam();
+    start_lcp_loop(signal);
+  }
+}
+
+#define MAX_SKIPPED_CALLBACK 32
+void
 Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
 {
   FragmentRecord key(*this, tableId, fragmentId);
@@ -1778,21 +2169,24 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
   ndbrequire(m_fragmentRecordHash.find(fragPtr, key));
   FragmentRecord *fragPtrP = fragPtr.p;
 
-  if ((max_count = get_num_lcp_pages_to_write()) == 0)
-  {
-    jam();
-    DEB_PGMAN(("No LCP pages available to write with, instance(): %u",
-               instance()));
-    return;
-  }
   if (m_dirty_list_lcp.isEmpty() && m_dirty_list_lcp_out.isEmpty())
   {
     jam();
-    DEB_PGMAN(("instance(): %u, handle_lcp finished", instance()));
+    DEB_PGMAN(("(%u)handle_lcp finished", instance()));
     finish_lcp(signal, fragPtrP);
     return;
   }
+  if ((max_count = get_num_lcp_pages_to_write(false)) == 0 ||
+       m_available_lcp_pageouts_used >= m_available_lcp_pageouts)
+  {
+    jam();
+    DEB_PGMAN_EXTRA(("No LCP pages available to write with, instance(): %u",
+               instance()));
+    return;
+  }
   bool break_flag = false;
+  Uint32 skipped_callbacks = 0;
+  bool last_was_callback = false;
   for (Uint32 i = 0; i < max_count; i++)
   {
     m_dirty_list_lcp.first(ptr);
@@ -1806,8 +2200,8 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
        */
       m_dirty_list_lcp_out.first(ptr);
       ndbrequire(ptr.i != RNIL);
-      DEB_PGMAN(("instance(): %u, LCP wait for write out to disk",
-                 instance()));
+      DEB_PGMAN_LCP_EXTRA(("(%u)LCP wait for write out to disk",
+                           instance()));
       return;
     }
     Page_state state = ptr.p->m_state;
@@ -1830,30 +2224,36 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
        * BUSY state to be completed. We simply wait for PAGEOUT to
        * be completed.
        */
-      DEB_PGMAN(("(%u)PAGEOUT state in LCP, page(%u,%u):%u:%x",
-                 instance(),
-                 ptr.p->m_file_no,
-                 ptr.p->m_page_no,
-                 ptr.i,
-                 (unsigned int)state));
+      DEB_PGMAN_PAGE(("(%u)PAGEOUT state in LCP, page(%u,%u):%u:%x",
+                      instance(),
+                      ptr.p->m_file_no,
+                      ptr.p->m_page_no,
+                      ptr.i,
+                      (unsigned int)state));
 
       ndbrequire(ptr.p->m_dirty_state != fragPtrP->m_current_lcp_dirty_state);
-      ndbrequire((state & Page_entry::DIRTY) == Page_entry::DIRTY);
       m_dirty_list_lcp.removeFirst(ptr);
       m_dirty_list_lcp_out.addLast(ptr);
       ptr.p->m_dirty_state = Pgman::IN_LCP_OUT_LIST;
-      set_page_state(jamBuffer(), ptr, state | Page_entry::LCP);
+      last_was_callback = false;
+      if (!(state & Page_entry::LCP ||
+            state & Page_entry::PREP_LCP))
+      {
+        jam();
+        m_lcp_outstanding++;
+        m_current_lcp_pageouts++;
+        set_page_state(jamBuffer(), ptr, state | Page_entry::LCP);
+      }
     }
     else if (state & Page_entry::BUSY)
     {
       jam();
-
-      DEB_PGMAN(("(%u)BUSY state in LCP, page(%u,%u):%u:%x",
-                instance(),
-                ptr.p->m_file_no,
-                ptr.p->m_page_no,
-                ptr.i,
-                (unsigned int)state));
+      DEB_PGMAN_EXTRA(("(%u)BUSY state in LCP, page(%u,%u):%u:%x",
+                       instance(),
+                       ptr.p->m_file_no,
+                       ptr.p->m_page_no,
+                       ptr.i,
+                       (unsigned int)state));
 
       set_page_state(jamBuffer(), ptr, state | Page_entry::WAIT_LCP);
       /**
@@ -1880,30 +2280,66 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
     }
     else
     {
-      jam();
-
-      DEB_PGMAN(("(%u)pageout():LCP, page(%u,%u):%u:%x",
-                 instance(),
-                 ptr.p->m_file_no,
-                 ptr.p->m_page_no,
-                 ptr.i,
-                 (unsigned int)state));
-
-      ndbrequire(ptr.p->m_dirty_state != fragPtrP->m_current_lcp_dirty_state);
-      m_dirty_list_lcp.removeFirst(ptr);
-      m_dirty_list_lcp_out.addLast(ptr);
-      ptr.p->m_dirty_state = Pgman::IN_LCP_OUT_LIST;
-      ptr.p->m_state |= Page_entry::LCP;
-      if (c_tup != 0)
+      Uint32 no = get_sublist_no(state);
+      if (no != Page_entry::SL_CALLBACK ||
+          !m_dirty_list_lcp.hasNext(ptr) ||
+          skipped_callbacks > MAX_SKIPPED_CALLBACK ||
+          last_was_callback)
       {
-        c_tup->disk_page_unmap_callback(0,
-                                        ptr.p->m_real_page_i, 
-                                        ptr.p->m_dirty_count);
+        jam();
+        DEB_PGMAN_PAGE(("(%u)pageout():LCP, page(%u,%u):%u:%x",
+                        instance(),
+                        ptr.p->m_file_no,
+                        ptr.p->m_page_no,
+                        ptr.i,
+                        (unsigned int)state));
+
+        ndbrequire(ptr.p->m_dirty_state !=
+                   fragPtrP->m_current_lcp_dirty_state);
+        m_dirty_list_lcp.removeFirst(ptr);
+        m_dirty_list_lcp_out.addLast(ptr);
+        ptr.p->m_dirty_state = Pgman::IN_LCP_OUT_LIST;
+        ptr.p->m_state |= Page_entry::LCP;
+        if (c_tup != 0)
+        {
+          c_tup->disk_page_unmap_callback(0,
+                                          ptr.p->m_real_page_i, 
+                                          ptr.p->m_dirty_count);
+        }
+        pageout(signal, ptr);
+        break_flag = true;
+        m_current_lcp_pageouts++;
+        m_lcp_outstanding++;
+        m_available_lcp_pageouts_used++;
       }
-      pageout(signal, ptr);
-      break_flag = true;
+      else
+      {
+        /**
+         * We try to skip this page for now since it is in SL_CALLBACK
+         * list. This means that very soon it will reply to a get_page
+         * call. We try to avoid the extra latency from now sending it
+         * to the disk. The get_page call has already waited for at
+         * least one round already. We do however only move it one
+         * step forward to avoid messing up the list that wants the
+         * latest dirtied pages at the end. This should in most cases
+         * work fine.
+         *
+         * We don't even attempt to skip if the page is the last in the
+         * dirty list to write.
+         *
+         * We don't skip two pages after each other since this could easily
+         * lead to eternal loop where we skip two pages.
+         */
+        jam();
+        skipped_callbacks++;
+        max_count++;
+        Ptr<Page_entry> move_ptr;
+        m_dirty_list_lcp.removeFirst(ptr);
+        m_dirty_list_lcp.first(move_ptr);
+        m_dirty_list_lcp.insertAfter(ptr, move_ptr);
+        last_was_callback = true;
+      }
     }
-    m_lcp_outstanding++;
     if (break_flag)
     {
       jam();
@@ -1911,6 +2347,620 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
     }
   }
   start_lcp_loop(signal);
+}
+
+void
+Pgman::set_redo_alert_state(RedoStateRep::RedoAlertState new_state)
+{
+  if (new_state != m_redo_alert_state)
+  {
+    jam();
+    if (new_state != RedoStateRep::NO_REDO_ALERT)
+    {
+      jam();
+      m_raise_redo_alert_state = 2;
+    }
+  }
+  m_redo_alert_factor = 100;
+  m_redo_alert_state = new_state;
+  switch (new_state)
+  {
+    case RedoStateRep::NO_REDO_ALERT:
+    {
+      if (m_raise_redo_alert_state > 0)
+      {
+        jam();
+        m_raise_redo_alert_state = 1;
+        m_redo_alert_factor = 101;
+      }
+      break;
+    }
+    case RedoStateRep::REDO_ALERT_LOW:
+    {
+      m_redo_alert_factor = 120;
+      break;
+    }
+    case RedoStateRep::REDO_ALERT_HIGH:
+    {
+      m_redo_alert_factor = 140;
+      break;
+    }
+    case RedoStateRep::REDO_ALERT_CRITICAL:
+    {
+      m_redo_alert_factor = 170;
+      break;
+    }
+    default:
+    {
+      ndbrequire(false);
+      break;
+    }
+  }
+}
+
+void
+Pgman::set_lcp_dd_percentage(Uint32 dd_percentage)
+{
+  m_lcp_dd_percentage = Uint64(dd_percentage);
+}
+
+void
+Pgman::set_current_disk_write_speed(Uint64 disk_write_speed)
+{
+  /**
+   * Set current speed of checkpointing for in-memory data.
+   * The value is in bytes per second in this particular
+   * LDM thread.
+   */
+  m_mm_curr_disk_write_speed = disk_write_speed;
+}
+
+Uint64
+Pgman::get_current_lcp_made_dirty()
+{
+  return (m_tot_pages_made_dirty - m_start_lcp_made_dirty);
+}
+
+void
+Pgman::lcp_start_point(Signal *signal,
+                       Uint32 max_undo_log_level,
+                       Uint32 max_redo_log_level)
+{
+  Uint32 max_log_level = MAX(max_undo_log_level, max_redo_log_level);
+  ndbrequire(!m_lcp_ongoing);
+  m_lcp_ongoing = true;
+  m_prev_lcp_table_id = 0;
+  NDB_TICKS lcp_start_time = getHighResTimer();
+  if (m_lcp_time_in_ms > 0)
+  {
+    Uint64 tot_millis = NdbTick_Elapsed(m_lcp_start_time,
+                                        lcp_start_time).milliSec();
+    m_lcp_start_time = lcp_start_time;
+    if (m_lcp_time_in_ms > tot_millis)
+    {
+      jam();
+      tot_millis = m_lcp_time_in_ms;
+    }
+    Uint64 percent_lcp = m_lcp_time_in_ms * Uint64(100);
+    percent_lcp /= tot_millis;
+    if (percent_lcp < 67)
+    {
+      /**
+       * We never speed up more than 50% due to a long
+       * time waiting for a new LCP to start up. Most likely
+       * a long wait is simply an indication of an idle period
+       * and this can be quickly followed by a busy period and
+       * in this case it is not so good to increase the
+       * checkpoint speed too much.
+       */
+      jam();
+      m_percent_spent_in_checkpointing = 67;
+    }
+    else
+    {
+      jam();
+      m_percent_spent_in_checkpointing = percent_lcp;
+    }
+
+    lock_access_extent_page();
+    m_last_lcp_made_dirty = get_current_lcp_made_dirty();
+    m_dirty_page_rate_per_sec = m_last_lcp_made_dirty * Uint64(1000) /
+                                tot_millis;
+    m_start_lcp_made_dirty = m_tot_pages_made_dirty;
+    unlock_access_extent_page();
+    Uint64 writes_since_last_lcp_start =
+      m_tot_writes_completed - m_last_lcp_writes_completed;
+    Uint64 latency_since_last_lcp_start =
+      m_total_write_latency_us - m_last_lcp_total_write_latency_us;
+    if (writes_since_last_lcp_start < 10)
+    {
+      /* Too small number to estimate, keep old estimate */
+      jam();
+    }
+    else
+    {
+      jam();
+      m_last_lcp_write_latency_us = latency_since_last_lcp_start /
+                                    writes_since_last_lcp_start;
+    }
+
+    /**
+     * We don't want checkpoint rate to be fast. This causes LCPs to
+     * complete in a very short time, doing so means that we write
+     * extent pages too quickly and we don't give the application any
+     * chance to write the same page more than once. At the same time
+     * we don't want the LCPs to take too long time either. Fast
+     * checkpoints means fast recovery as well. We try to increase
+     * the checkpoint time if it is below 10 seconds, otherwise we
+     * don't make any changes to the checkpoint speed.
+     *
+     * As with all adaptive algorithms it is important to not change
+     * the control parameters too fast. Therefore we only give small
+     * changes to checkpoint speed to increase length of LCPs.
+     *
+     * We calculate whether it is ok to increase checkpoint time. If
+     * it is we multiply the checkpoint speed by 90%. This means that
+     * after a number of checkpoints we will have increased the
+     * checkpoint time.
+     *
+     * We don't want to increase checkpoint speed such that gives any
+     * risk of running out of UNDO log. We try to always keep UNDO log
+     * below 25%. In addition we ignore any caps from this part if
+     * the REDO log reports any type of overload problem.
+     *
+     * max undo log level set to 0 means it is a local call.
+     */
+    if (m_lcp_time_in_ms < 10000 &&
+        max_log_level < 25 &&
+        max_log_level > 0 &&
+        m_redo_alert_factor == 100)
+    {
+      jam();
+      if (m_lcp_time_in_ms < 2000 &&
+          max_log_level < 20)
+      {
+        jam();
+        m_max_pageout_rate = Uint64(67);
+      }
+      else if (m_lcp_time_in_ms < 4000 &&
+               max_log_level < 22)
+      {
+        jam();
+        m_max_pageout_rate = Uint64(75);
+      }
+      else if (m_lcp_time_in_ms < 8000 &&
+               max_log_level < 23)
+      {
+        jam();
+        m_max_pageout_rate = Uint64(83);
+      }
+      else
+      {
+        jam();
+        m_max_pageout_rate = Uint64(90);
+      }
+    }
+    else
+    {
+      jam();
+      m_max_pageout_rate = Uint64(100);
+    }
+
+    DEB_PGMAN_LCP_STAT(("(%u)LCP Start: dirty rate: %llu pages/sec,"
+                        " time since last LCP start: %llu ms, "
+                        "total pages made dirty: %llu, "
+                        "Writes since last LCP: %llu, "
+                        "Write latency last LCP: %llu, "
+                        "percent spent in checkpointing: %llu, "
+                        "max pageout rate: %llu",
+                        instance(),
+                        m_dirty_page_rate_per_sec,
+                        tot_millis,
+                        m_last_lcp_made_dirty,
+                        writes_since_last_lcp_start,
+                        m_last_lcp_write_latency_us,
+                        percent_lcp,
+                        m_max_pageout_rate));
+    m_last_lcp_total_write_latency_us = m_total_write_latency_us;
+    m_last_lcp_writes_completed = m_tot_writes_completed;
+  }
+  else
+  {
+    jam();
+    m_lcp_start_time = lcp_start_time;
+    m_percent_spent_in_checkpointing = Uint64(100);
+  }
+  start_lcp_loop(signal);
+  if (!m_track_lcp_speed_loop_ongoing)
+  {
+    jam();
+    m_track_lcp_speed_loop_ongoing = true;
+    m_last_track_lcp_speed_call = getHighResTimer();
+    signal->theData[0] = PgmanContinueB::TRACK_LCP_SPEED_LOOP;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
+  }
+}
+
+void
+Pgman::lcp_end_point(Uint32 lcp_time_in_ms)
+{
+  ndbrequire(m_lcp_ongoing == true);
+  if (m_prep_lcp_outstanding > 0)
+  {
+    FragmentRecordPtr tmpFragPtr;
+    if (m_prev_lcp_table_id != 0 &&
+        m_prev_lcp_table_id != RNIL)
+    {
+      FragmentRecord key(*this,
+                         m_prev_lcp_table_id,
+                         m_prev_lcp_fragment_id);
+      if (m_fragmentRecordHash.find(tmpFragPtr, key) &&
+          get_next_ordered_fragment(tmpFragPtr))
+      {
+        g_eventLogger->info("(%u) isEmpty: %u, tab(%u,%u)",
+                            instance(),
+                            tmpFragPtr.p->m_dirty_list.isEmpty(),
+                            tmpFragPtr.p->m_table_id,
+                            tmpFragPtr.p->m_fragment_id);
+      }
+      else
+      {
+        g_eventLogger->info("(%u) not found, prev tab(%u,%u)",
+                            instance(),
+                            m_prev_lcp_table_id,
+                            m_prev_lcp_fragment_id);
+      }
+    }
+    else
+    {
+      g_eventLogger->info("(%u)m_prev_lcp_table_id = %u",
+                          instance(),
+                          m_prev_lcp_table_id);
+    }
+  }
+  ndbrequire(m_prep_lcp_outstanding == 0);
+  m_lcp_ongoing = false;
+  m_prev_lcp_table_id = RNIL;
+  Uint32 last_lcp_pageouts = m_current_lcp_pageouts;
+  m_current_lcp_pageouts = Uint64(0);
+  m_last_pageouts = Uint64(0);
+  m_current_lcp_flushes = Uint64(0);
+  m_last_flushes = Uint64(0);
+  m_lcp_time_in_ms = Uint64(lcp_time_in_ms);
+  Uint64 page_out_rate = Uint64(0);
+  if (lcp_time_in_ms > 0)
+  {
+    lock_access_extent_page();
+    m_dirty_page_rate_per_sec = get_current_lcp_made_dirty() * Uint64(1000) /
+                                m_lcp_time_in_ms;
+    unlock_access_extent_page();
+    page_out_rate = last_lcp_pageouts * Uint64(1000) / m_lcp_time_in_ms;
+  }
+  else
+  {
+    m_dirty_page_rate_per_sec = Uint64(0);
+  }
+  (void)page_out_rate;
+  DEB_PGMAN_LCP_STAT(("(%u)LCP End: page out rate: %llu, "
+                      "dirty rate: %llu pages/sec,"
+                      " LCP time: %llu ms",
+                      instance(),
+                      page_out_rate,
+                      m_dirty_page_rate_per_sec,
+                      m_lcp_time_in_ms));
+  if (m_redo_alert_state == RedoStateRep::NO_REDO_ALERT)
+  {
+    jam();
+    m_raise_redo_alert_state = 0;
+  }
+  m_redo_alert_state_last_lcp = m_redo_alert_state;
+}
+
+void
+Pgman::do_track_handle_lcp_speed_loop(Signal *signal)
+{
+  NDB_TICKS now = getHighResTimer();
+  Uint64 millis = NdbTick_Elapsed(m_last_track_lcp_speed_call,now).milliSec();
+  Uint64 millis_since_lcp_start =
+    NdbTick_Elapsed(m_lcp_start_time, now).milliSec();
+
+  if (millis > 90)
+  {
+    jam();
+    lock_access_extent_page();
+    Uint64 num_dirty_pages = m_num_dirty_pages;
+    (void)num_dirty_pages;
+    Uint64 dirty_rate_since_lcp = get_current_lcp_made_dirty();
+    Uint64 dirty_rate = m_tot_pages_made_dirty - m_last_made_dirty;
+    m_last_made_dirty = m_tot_pages_made_dirty;
+    unlock_access_extent_page();
+    Uint64 pageout_rate = m_current_lcp_pageouts - m_last_pageouts;
+    m_last_pageouts = m_current_lcp_pageouts;
+    Uint64 flush_rate = m_current_lcp_flushes - m_last_flushes;
+    m_last_flushes = m_current_lcp_flushes;
+
+    dirty_rate_since_lcp *= Uint64(1000);
+    dirty_rate *= Uint64(1000);
+    pageout_rate *= Uint64(1000);
+    flush_rate *= Uint64(1000);
+    if (millis_since_lcp_start < 90)
+    {
+      jam();
+      dirty_rate_since_lcp = Uint64(0);
+    }
+    else
+    {
+      jam();
+      dirty_rate_since_lcp /= millis_since_lcp_start;
+    }
+    dirty_rate /= millis;
+    flush_rate /= millis;
+    pageout_rate /= millis;
+
+    /**
+     * We will always allow at least 200 pageouts per second.
+     * This is handled in the very last step of the calculations.
+     *
+     * We calculate the average number of pages made dirty per second in
+     * previous LCP and multiply this by the factor of how much disk data
+     * checkpointing takes of the total LCP time. This is one estimate of
+     * required pageout rate.
+     *
+     * Next we calculate the same thing with the average number of pages
+     * made dirty since the last LCP started, also multiplied by the same
+     * factor.
+     *
+     * We also take the last 100 millisecond into account, but here we
+     * decrease it to a maximum of 67% of this value. The idea with this
+     * is to react quickly to changes in workload, but not too much.
+     *
+     * Finally we take the maximum of all those to create a desired pageout
+     * rate for the next 100 millisecond.
+     *
+     * Given that we will not always use this pageout rate we increase it
+     * by 10%.
+     *
+     * If dirty rate since last LCP divided by 1.3 is higher than dirty rate
+     * in last LCP then use that instead.
+     * If dirty rate last second divided by 1.5 is higher than previously
+     * calculated pageouts per second we use this instead.
+     *
+     * The final step takes into account that we need to speed things up
+     * if we are close to running out of UNDO or REDO log.
+     *
+     * Finally we turn the number into maximum number of pageouts for the
+     * next 100 milliseconds.
+     */
+    Uint64 available_lcp_pageouts_per_sec = 0;
+    Uint64 prep_available_lcp_pageouts_per_sec = 0;
+    available_lcp_pageouts_per_sec = MAX(available_lcp_pageouts_per_sec,
+                                         m_dirty_page_rate_per_sec);
+
+    available_lcp_pageouts_per_sec = MAX(available_lcp_pageouts_per_sec,
+             (dirty_rate_since_lcp * Uint64(100) / Uint64(130)));
+
+    available_lcp_pageouts_per_sec = MAX(available_lcp_pageouts_per_sec,
+                                (dirty_rate * Uint64(100) / Uint64(150)));
+
+    available_lcp_pageouts_per_sec *= Uint64(110);
+    available_lcp_pageouts_per_sec /= Uint64(100);
+
+    available_lcp_pageouts_per_sec *= Uint64(m_redo_alert_factor);
+    available_lcp_pageouts_per_sec /= Uint64(100);
+
+    /**
+     * We have calculated the disk data checkpoint speed required to keep
+     * up with the current dirty rate. However a few points have to be
+     * taken into account. We don't do any checkpoint between stop of LCP
+     * and start of the next LCP. This time is normally around 1-2 seconds
+     * only, but this can still be substantial if the total checkpoint
+     * time is measured in single digit seconds as well.
+     *
+     * So we have to multiply the available LCP speed by this factor.
+     */
+    available_lcp_pageouts_per_sec *= Uint64(100);
+    available_lcp_pageouts_per_sec /= m_percent_spent_in_checkpointing;
+
+     /**
+     * Calculate how many percent of the disk write bandwidth for LCPs that
+     * currently is for disk data checkpointing.
+     * We use this during Prepare LCP phase to ensure that we always have
+     * about the same disk bandwidth used for checkpoints. This avoids
+     * causing unnecessary speed bumps for disk data usage where latency
+     * spikes would be seen otherwise when checkpointing has heavier load.
+     *
+     * We only use this calculation if the in-memory checkpoints and the
+     * disk data checkpoints are using the same disks. We have a special
+     * configuration parameter that the user can set to specify that the
+     * disk data and in-memory checkpoints are using different disks.
+     *
+     * In addition we have to run a bit slower during in-memory checkpoints
+     * and thus a bit faster during disk data checkpoints. Thus we have to
+     * calculate one measurement for prepare LCP phase and one for disk
+     * data checkpoint phase. Here we use calculations of how large part of
+     * the time is spent in disk data checkpoints and how much time is spent
+     * performing in-memory checkpoints.
+     */
+    Uint64 mm_curr_disk_write_speed = m_mm_curr_disk_write_speed;
+    if (!m_dd_using_same_disk)
+    {
+      /**
+       * The Disk data is running on different disk drives. Thus no need to
+       * decrease speed of disk data checkpointing to avoid disk drive
+       * overload. We can use a constant speed both during actual disk data
+       * checkpoints and in between those checkpoints.
+       */
+      jam();
+      mm_curr_disk_write_speed = Uint64(0);
+    }
+    {
+      /**
+       * We need to decrease the speed during in-memory checkpoints to even
+       * out the load on the disk drive. We calculate the total disk speed
+       * required in total and assign the full total to the time when we are
+       * only performing disk data checkpoints and we share the load between
+       * disk data and in-memory checkpoints when in-memory checkpoints are
+       * executed.
+       *
+       * The Backup block informs us of how many percent of the time we are
+       * spending in disk data checkpoints, it also informs us of the current
+       * disk write speed. The current disk write speed for in-memory is
+       * calculated based on how much time is spent in doing in-memory
+       * checkpoints, so the average in-memory disk write speed needs to
+       * be multiplied by the percentage of time spent in in-memory
+       * checkpointing.
+       */
+      Uint64 dd_disk_write_speed = available_lcp_pageouts_per_sec *
+                                   sizeof(Tup_page);
+      mm_curr_disk_write_speed *= (Uint64(100) - m_lcp_dd_percentage);
+
+      Uint64 tot_disk_write_speed =
+        dd_disk_write_speed + mm_curr_disk_write_speed;
+
+      if (m_mm_curr_disk_write_speed > tot_disk_write_speed)
+      {
+        /**
+         * We write faster than the average disk write speed during
+         * in-memory checkpoints. So no bandwidth available for
+         * Prepare LCP checkpoint writes. Calculate the speed during
+         * disk data checkpoints to handle the load in the time spent
+         * on disk data checkpoints.
+         */
+        if (m_lcp_dd_percentage > 10)
+        {
+          jam();
+          available_lcp_pageouts_per_sec *= Uint64(100);
+          available_lcp_pageouts_per_sec /= m_lcp_dd_percentage;
+        }
+        else
+        {
+          jam();
+          available_lcp_pageouts_per_sec *= Uint64(10);
+        }
+        prep_available_lcp_pageouts_per_sec = Uint64(0);
+      }
+      else
+      {
+        jam();
+        available_lcp_pageouts_per_sec = tot_disk_write_speed /
+                                         sizeof(Tup_page);
+        prep_available_lcp_pageouts_per_sec =
+          (tot_disk_write_speed - m_mm_curr_disk_write_speed) /
+           sizeof(Tup_page);
+      }
+    }
+    Uint64 available_lcp_pageouts_used = m_available_lcp_pageouts_used;
+    (void)available_lcp_pageouts_used;
+    m_available_lcp_pageouts_used = Uint64(0);
+
+    /**
+     * We will try to ensure LCPs don't run faster than once per 10
+     * second if it is safe to do so. We avoid it when LCPs are already
+     * longer than 10 seconds, when we have problems in keeping up with
+     * LCPs anyways and when dirty rate have more than doubled since
+     * last LCP (transient state that is better to handle with
+     * calculated speed).
+     */
+    Uint64 limit = Uint64(2) *
+                   MAX(dirty_rate, dirty_rate_since_lcp) / Uint64(3);
+    if (m_redo_alert_state == RedoStateRep::NO_REDO_ALERT &&
+        limit < m_dirty_page_rate_per_sec)
+    {
+      jam();
+      available_lcp_pageouts_per_sec =
+        available_lcp_pageouts_per_sec * m_max_pageout_rate / Uint64(100);
+      prep_available_lcp_pageouts_per_sec =
+        prep_available_lcp_pageouts_per_sec * m_max_pageout_rate / Uint64(100);
+    }
+
+    if (available_lcp_pageouts_per_sec < Uint64(200))
+    {
+      jam();
+      available_lcp_pageouts_per_sec = Uint64(200);
+    }
+
+    m_available_lcp_pageouts = (available_lcp_pageouts_per_sec / Uint64(10));
+    m_prep_available_lcp_pageouts =
+      (prep_available_lcp_pageouts_per_sec / Uint64(10));
+
+    /**
+     * Now it is time to calculate the IO parallelism to get a smooth LCP
+     * writing. It is not good to allow the LCPs to become bursty. This will
+     * create higher latency for operations. We need to set the parallelism
+     * sufficiently high to handle the desired speed, but not much higher.
+     *
+     * First calculate the IO rate with a single thread of writing LCPs.
+     * Next multiply by 50% to get a bit of safety level, but not too safe.
+     * Finally divide this by the desired pageouts per second due to LCPs.
+     * This we will use to set the desired LCP IO parallelism. It can however
+     * not be set higher than 192. Add one to the parallelism to ensure that
+     * we don't lose anything in integer calculations.
+     */
+    Uint64 io_rate_single_thread = Uint64(1000) * Uint64(1000) /
+                                   m_last_lcp_write_latency_us;
+    if (io_rate_single_thread == Uint64(0))
+    {
+      jam();
+      io_rate_single_thread = 1;
+    }
+    io_rate_single_thread *= Uint64(150);
+    io_rate_single_thread /= Uint64(100);
+    {
+      Uint64 parallelism = available_lcp_pageouts_per_sec /
+                           io_rate_single_thread;
+      parallelism++;
+      if (parallelism > 192)
+      {
+        jam();
+        parallelism = 192;
+      }
+      m_max_lcp_pages_outstanding = parallelism;
+    }
+    if (prep_available_lcp_pageouts_per_sec == Uint64(0))
+    {
+      jam();
+      m_prep_max_lcp_pages_outstanding = Uint64(0);
+    }
+    else
+    {
+      jam();
+      Uint64 parallelism = prep_available_lcp_pageouts_per_sec /
+                           io_rate_single_thread;
+      parallelism++;
+      if (parallelism > 192)
+      {
+        jam();
+        parallelism = 192;
+      }
+      m_prep_max_lcp_pages_outstanding = parallelism;
+    }
+
+    DEB_PGMAN_LCP_TIME_STAT(("(%u)Current pageout rate/sec: %llu,"
+                             " dirty rate: %llu, "
+                             " dirty_rate_since_lcp: %llu, "
+                             "flush_rate: %llu, "
+                             "available_lcp_pageouts_used: %llu, "
+                             "available_lcp_pageouts: %llu, "
+                             "number of dirty pages: %llu, "
+                             "max_lcp_pages_outstanding: %llu, "
+                             "prep_max_lcp_pages_outstanding: %llu, "
+                             "millis since last call: %llu",
+                             instance(),
+                             pageout_rate,
+                             dirty_rate,
+                             dirty_rate_since_lcp,
+                             flush_rate,
+                             available_lcp_pageouts_used,
+                             m_available_lcp_pageouts,
+                             num_dirty_pages,
+                             m_max_lcp_pages_outstanding,
+                             m_prep_max_lcp_pages_outstanding,
+                             millis));
+    m_last_track_lcp_speed_call = now;
+    start_lcp_loop(signal);
+  }
+  signal->theData[0] = PgmanContinueB::TRACK_LCP_SPEED_LOOP;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
 void
@@ -1937,18 +2987,59 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
                         1, SyncExtentPagesReq::SignalLength);
     return;
   }
-  DEB_PGMAN_LCP(("SYNC_EXTENT_PAGES_REQ: instance(): %u", instance()));
-  ndbrequire(!m_lcp_loop_ongoing);
+  DEB_PGMAN_LCP(("(%u)SYNC_EXTENT_PAGES_REQ, order: %u",
+                 instance(),
+                 req->lcpOrder));
   m_sync_extent_order = req->lcpOrder;
   m_sync_extent_pages_ongoing = true;
   m_sync_extent_pages_req = *req;
   m_locked_pages_written = 0;
+  if ((m_sync_extent_order == SyncExtentPagesReq::FIRST_LCP ||
+       m_sync_extent_order == SyncExtentPagesReq::FIRST_AND_END_LCP) &&
+      !m_lcp_ongoing)
+  {
+    /**
+     * We are the extra PGMAN worker responsible to write extent
+     * pages and this is the first SYNC_EXTENT_PAGES_REQ with
+     * FIRST_LCP order set. Thus it is a start of a new LCP.
+     */
+    jam();
+    lcp_start_point(signal, 0, 0);
+    ndbrequire(m_num_ldm_completed_lcp == 0);
+  }
+  else if (m_sync_extent_order == SyncExtentPagesReq::RESTART_SYNC)
+  {
+    jam();
+    /**
+     * We are synchronising extent pages as part of restart.
+     */
+    ndbrequire(!m_lcp_ongoing);
+    lcp_start_point(signal, 0, 0);
+    ndbrequire(m_num_ldm_completed_lcp == 0);
+  }
+  else if (m_sync_extent_order == SyncExtentPagesReq::FIRST_AND_END_LCP)
+  {
+    jam();
+    /**
+     * A completely empty LCP, no need to anything, we can skip
+     * both LCP start and LCP end.
+     */
+  }
+  else
+  {
+    ndbrequire(m_sync_extent_order == SyncExtentPagesReq::END_LCP ||
+               ((m_sync_extent_order == SyncExtentPagesReq::FIRST_LCP ||
+                 m_sync_extent_order ==
+                   SyncExtentPagesReq::FIRST_AND_END_LCP) &&
+                m_lcp_ongoing));
+  }
+
   Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
   if (pl.first(ptr))
   {
     jam();
     m_sync_extent_next_page_entry = ptr.i;
-    check_restart_lcp(signal);
+    start_lcp_loop(signal);
     return;
   }
   finish_sync_extent_pages(signal);
@@ -1957,11 +3048,32 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
 void
 Pgman::finish_sync_extent_pages(Signal *signal)
 {
-  DEB_PGMAN_LCP(("SYNC_EXTENT_PAGES_CONF: instance(): %u", instance()));
+  DEB_PGMAN_LCP(("(%u)SYNC_EXTENT_PAGES_CONF", instance()));
   SyncExtentPagesConf *conf = (SyncExtentPagesConf*)signal->getDataPtr();
   m_sync_extent_pages_ongoing = false;
-  ndbrequire(!m_lcp_loop_ongoing);
   m_sync_extent_next_page_entry = RNIL;
+  if (m_sync_extent_order == SyncExtentPagesReq::END_LCP ||
+      m_sync_extent_order == SyncExtentPagesReq::FIRST_AND_END_LCP ||
+      m_sync_extent_order == SyncExtentPagesReq::RESTART_SYNC)
+  {
+    m_num_ldm_completed_lcp++;
+    jam();
+    if (m_num_ldm_completed_lcp == globalData.ndbMtLqhThreads ||
+        m_sync_extent_order == SyncExtentPagesReq::RESTART_SYNC)
+    {
+      jam();
+      /**
+       * We are the extra PGMAN worker and we have completed the
+       * last sync of the extent pages in this LCP. We call
+       * lcp_end_point to finish up the LCP.
+       */
+      NDB_TICKS now = getHighResTimer();
+      Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
+      lcp_end_point(Uint32(lcp_time));
+      m_num_ldm_completed_lcp = 0;
+    }
+  }
+
   BlockReference ref = m_sync_extent_pages_req.senderRef;
   conf->senderRef = reference();
   conf->senderData = m_sync_extent_pages_req.senderData;
@@ -1977,7 +3089,7 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
   Uint32 max_count;
   CRASH_INSERTION(11006);
 
-  if ((max_count = get_num_lcp_pages_to_write()) == 0)
+  if ((max_count = get_num_lcp_pages_to_write(false)) == 0)
   {
     jam();
     m_sync_extent_next_page_entry = ptr.i;
@@ -1990,32 +3102,40 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
    * So by locking tsman we ensure that those accesses
    * doesn't conflict with our write of extent pages.
    */
-  Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
   do
   {
+    jam();
     bool break_flag = false;
-    if ((ptr.p->m_state & Page_entry::DIRTY) &&
-        !(ptr.p->m_state & Page_entry::PAGEOUT))
     {
+      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
       jam();
-      Ptr<GlobalPage> org, copy;
-      ndbrequire(m_global_page_pool.seize(copy));
-      m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
-      memcpy(copy.p, org.p, sizeof(GlobalPage));
-      ptr.p->m_copy_page_i = copy.i;
+      tsman.lock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
+      if ((ptr.p->m_state & Page_entry::DIRTY) &&
+          !(ptr.p->m_state & Page_entry::PAGEOUT))
+      {
+        jam();
+        Ptr<GlobalPage> org, copy;
+        ndbrequire(m_global_page_pool.seize(copy));
+        m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+        memcpy(copy.p, org.p, sizeof(GlobalPage));
+        ptr.p->m_copy_page_i = copy.i;
 
-      m_lcp_outstanding++;
-      ptr.p->m_state |= Page_entry::LCP;
+        ptr.p->m_state |= Page_entry::LCP;
 
-      DEB_PGMAN(("(%u)pageout():extent, page(%u,%u):%u:%x",
-                 instance(),
-                 ptr.p->m_file_no,
-                 ptr.p->m_page_no,
-                 ptr.i,
-                 (unsigned int)ptr.p->m_state));
+        DEB_PGMAN_PAGE(("(%u)pageout():extent, page(%u,%u):%u:%x",
+                        instance(),
+                        ptr.p->m_file_no,
+                        ptr.p->m_page_no,
+                        ptr.i,
+                        (unsigned int)ptr.p->m_state));
 
-      pageout(signal, ptr);
-      break_flag = true;
+        pageout(signal, ptr);
+        m_lcp_outstanding++;
+        m_current_lcp_pageouts++;
+        m_available_lcp_pageouts_used++;
+        break_flag = true;
+      }
+      tsman.unlock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
     }
   
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
@@ -2038,12 +3158,13 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
       break;
     }
   } while (loopCount++ < 32);
+  jam();
   m_sync_extent_next_page_entry = ptr.i;
   start_lcp_loop(signal);
 }
 
 void
-Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
+Pgman::copy_back_page(Ptr<Page_entry> ptr)
 {
   Ptr<GlobalPage> org, copy;
   m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
@@ -2051,7 +3172,11 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   memcpy(org.p, copy.p, sizeof(GlobalPage));
   m_global_page_pool.release(copy);
   ptr.p->m_copy_page_i = RNIL;
+}
 
+void
+Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
+{
   if (m_sync_extent_pages_ongoing)
   {
     jam();
@@ -2061,9 +3186,14 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
      * Important that this is sent before we send SYNC_EXTENT_PAGES_CONF
      * to ensure Backup block is prepared for receiving the signal.
      */
+    DEB_PGMAN_LCP_EXTRA(("(%u) Written an extent page to disk, "
+                         "m_locked_pages_written: %u",
+                         instance(),
+                         m_locked_pages_written));
     m_locked_pages_written++;
     sendSYNC_PAGE_WAIT_REP(signal, false);
   }
+  ndbrequire(m_lcp_ongoing);
   if (!m_lcp_loop_ongoing)
   {
     if (m_sync_extent_next_page_entry == RNIL)
@@ -2078,7 +3208,8 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
       return;
     }
     jam();
-    check_restart_lcp(signal);
+    /* Restart before busy loop to keep up in busy system. */
+    check_restart_lcp(signal, true);
   }
   jam();
   return;
@@ -2093,15 +3224,18 @@ Pgman::pagein(Signal* signal, Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
   D("pagein");
   D(ptr);
 
-  DEB_PGMAN(("(%u)pagein() start: page(%u,%u):%u:%x",
-            instance(),
-            ptr.p->m_file_no,
-            ptr.p->m_page_no,
-            ptr.i,
-            (unsigned int)ptr.p->m_state));
+  DEB_PGMAN_PAGE(("(%u)pagein() start: page(%u,%u):%u:%x",
+                  instance(),
+                  ptr.p->m_file_no,
+                  ptr.p->m_page_no,
+                  ptr.i,
+                  (unsigned int)ptr.p->m_state));
 
   ndbrequire(! (ptr.p->m_state & Page_entry::PAGEIN));
   set_page_state(jamBuf, ptr, ptr.p->m_state | Page_entry::PAGEIN);
+
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  ptr.p->m_time_tracking = now.getUint64();
 
   fsreadreq(signal, ptr);
   m_stats.m_current_io_waits++;
@@ -2112,6 +3246,8 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
 {
   D("fsreadconf");
   D(ptr);
+
+  handle_reads_time_tracking(ptr);
 
   Page_state state = ptr.p->m_state;
 
@@ -2155,12 +3291,12 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
    * we make progress on LCP even in systems with very high IO
    * read rates.
    */
-  check_restart_lcp(signal);
+  check_restart_lcp(signal, false);
   do_busy_loop(signal, true, jamBuffer());
 }
 
 void
-Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
+Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr, bool check_sync_lsn)
 {
   D("pageout");
   D(ptr);
@@ -2181,7 +3317,8 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   page->m_page_header.m_page_lsn_hi = (Uint32)(ptr.p->m_lsn >> 32);
   page->m_page_header.m_page_lsn_lo = (Uint32)(ptr.p->m_lsn & 0xFFFFFFFF);
 
-  int ret;
+  int ret = 1;
+  if (check_sync_lsn)
   {
     // undo WAL, release LGMAN lock ASAP
     Logfile_client::Request req;
@@ -2191,6 +3328,8 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
     Logfile_client lgman(this, c_lgman, RNIL);
     ret = lgman.sync_lsn(signal, ptr.p->m_lsn, &req, 0);
   }
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  ptr.p->m_time_tracking = now.getUint64();
   if (ret > 0)
   {
     fswritereq(signal, ptr);
@@ -2199,10 +3338,57 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   else
   {
     ndbrequire(ret == 0);
+    m_log_writes_issued++;
     m_stats.m_log_waits++;
     state |= Page_entry::LOGSYNC;
   }
   set_page_state(jamBuffer(), ptr, state);
+}
+
+void
+Pgman::add_histogram(Uint64 elapsed_time, Uint64 *histogram)
+{
+  for (Uint32 i = 0; i < PGMAN_TIME_TRACK_NUM_RANGES; i++)
+  {
+    if (elapsed_time <= m_time_track_histogram_upper_bound[i])
+    {
+      histogram[i]++;
+      return;
+    }
+  }
+  ndbrequire(false);
+  return;
+}
+
+void
+Pgman::handle_reads_time_tracking(Ptr<Page_entry> ptr)
+{
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  NDB_TICKS old(ptr.p->m_time_tracking);
+  Uint64 elapsed_time = NdbTick_Elapsed(old, now).microSec();
+  add_histogram(elapsed_time, &m_time_track_reads[0]);
+  m_reads_completed++;
+}
+
+void
+Pgman::handle_writes_time_tracking(Ptr<Page_entry> ptr)
+{
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  NDB_TICKS old(ptr.p->m_time_tracking);
+  Uint64 elapsed_time = NdbTick_Elapsed(old, now).microSec();
+  m_total_write_latency_us += elapsed_time;
+  add_histogram(elapsed_time, &m_time_track_writes[0]);
+  m_writes_completed++;
+  m_tot_writes_completed++;
+}
+
+void
+Pgman::handle_log_waits_time_tracking(Ptr<Page_entry> ptr)
+{
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  NDB_TICKS old(ptr.p->m_time_tracking);
+  Uint64 elapsed_time = NdbTick_Elapsed(old, now).microSec();
+  add_histogram(elapsed_time, &m_time_track_log_waits[0]);
 }
 
 void
@@ -2214,6 +3400,8 @@ Pgman::logsync_callback(Signal* signal, Uint32 ptrI, Uint32 res)
   D("logsync_callback");
   D(ptr);
 
+  handle_log_waits_time_tracking(ptr);
+
   // it is OK to be "busy" at this point (the commit is queued)
   Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::PAGEOUT);
@@ -2221,7 +3409,10 @@ Pgman::logsync_callback(Signal* signal, Uint32 ptrI, Uint32 res)
   state &= ~ Page_entry::LOGSYNC;
   set_page_state(jamBuffer(), ptr, state);
 
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  ptr.p->m_time_tracking = now.getUint64();
   fswritereq(signal, ptr);
+  m_log_writes_completed++;
   m_stats.m_current_io_waits++;
 }
 
@@ -2230,6 +3421,8 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 {
   D("fswriteconf");
   D(ptr);
+
+  handle_writes_time_tracking(ptr);
 
   Page_state state = ptr.p->m_state;
 
@@ -2241,15 +3434,22 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
                state));
 
   ndbrequire(state & Page_entry::PAGEOUT);
+  ndbrequire(state & Page_entry::DIRTY);
 
   if (c_tup != 0)
   {
     jam();
+    ndbrequire(!m_extra_pgman);
     c_tup->disk_page_unmap_callback(1, 
                                     ptr.p->m_real_page_i, 
                                     ptr.p->m_dirty_count);
   }
-  
+
+  if (!m_extra_pgman)
+  {
+    jam();
+    m_num_dirty_pages--;
+  }
   state &= ~ Page_entry::PAGEOUT;
   state &= ~ Page_entry::EMPTY;
   state &= ~ Page_entry::DIRTY;
@@ -2276,22 +3476,69 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
        * the copy page in all get_page calls during the pageout).
        */
       jam();
-      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
-      process_lcp_locked_fswriteconf(signal, ptr);
-      if (ptr.p->m_dirty_during_pageout)
       {
-        jam();
-        ptr.p->m_dirty_during_pageout = false;
-        state |= Page_entry::DIRTY;
+        bool made_dirty = false;
+        {
+          Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
+          tsman.lock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
+          copy_back_page(ptr);
+          if (ptr.p->m_dirty_during_pageout)
+          {
+            jam();
+            made_dirty = true;
+            ptr.p->m_dirty_during_pageout = false;
+            state |= Page_entry::DIRTY;
+          }
+          set_page_state(jamBuffer(), ptr, state);
+          tsman.unlock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
+        }
+        lock_access_extent_page();
+        if (made_dirty)
+        {
+          jam();
+          m_tot_pages_made_dirty++;
+          m_pages_made_dirty++;
+        }
+        else
+        {
+          m_num_dirty_pages--;
+        }
+        unlock_access_extent_page();
       }
-      set_page_state(jamBuffer(), ptr, state);
+      process_lcp_locked_fswriteconf(signal, ptr);
       do_busy_loop(signal, true, jamBuffer());
       return;
     }
+    else
+    {
+      jam();
+      ndbrequire(!m_extra_pgman);
+      m_current_lcp_flushes++;
+    }
+  }
+  else if (state & Page_entry::PREP_LCP)
+  {
+    jam();
+    ndbrequire(!m_extra_pgman);
+    state &= ~ Page_entry::PREP_LCP;
+    ndbrequire(m_prep_lcp_outstanding > 0);
+    m_prep_lcp_outstanding--;
+    DEB_PGMAN_PREP_PAGE((
+                    "(%u)fswriteconf():prepare LCP, page(%u,%u):%u:%x"
+                    ", m_prep_lcp_outstanding = %u",
+                    instance(),
+                    ptr.p->m_file_no,
+                    ptr.p->m_page_no,
+                    ptr.i,
+                    (unsigned int)state,
+                    m_prep_lcp_outstanding));
+    m_stats.m_pages_written_lcp++;
+    m_current_lcp_flushes++;
   }
   else
   {
     jam();
+    ndbrequire(!m_extra_pgman);
     m_stats.m_pages_written++;
   }
   
@@ -2301,7 +3548,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
    * we make progress on LCP even in systems with very high IO
    * read rates.
    */
-  check_restart_lcp(signal);
+  check_restart_lcp(signal, true);
   do_busy_loop(signal, true, jamBuffer());
 }
 
@@ -2320,6 +3567,8 @@ Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
   Uint32 fd = file_ptr.p->m_fd;
 
   ndbrequire(ptr.p->m_page_no > 0);
+
+  m_reads_issued++;
 
   FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = fd;
@@ -2416,6 +3665,8 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
 
   ndbrequire(ptr.p->m_page_no > 0);
 
+  m_writes_issued++;
+
   FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = fd;
   req->userReference = reference();
@@ -2454,8 +3705,94 @@ Pgman::execFSWRITEREF(Signal* signal)
   ndbabort();
 }
 
+/**
+ * When we perform some operations in the extra PGMAN we do it on
+ * behalf of the extent pages. This extra PGMAN block resides in
+ * the rep thread block, but the extra PGMAN block is also accessed
+ * directly from other threads through TSMAN and through the
+ * method get_extent_page. This mutex thus protects the variables:
+ * m_num_dirty_pages
+ * m_tot_pages_made_dirty
+ * m_pages_made_dirty
+ */
+void
+Pgman::lock_access_extent_page()
+{
+  if (m_extra_pgman)
+    NdbMutex_Lock(m_access_extent_page_mutex);
+}
+
+void
+Pgman::unlock_access_extent_page()
+{
+  if (m_extra_pgman)
+    NdbMutex_Unlock(m_access_extent_page_mutex);
+}
+
 // client methods
 
+/**
+ * This method is called from the TSMAN block, but the calls may happen
+ * from any of the LDM threads and from the REP thread. This function
+ * keeps track of the number of dirty pages and update the count of
+ * dirty pages to make the calculations of pageout speed correct for
+ * the extra PGMAN block. We protect this through a mutex.
+ */
+Uint32
+Pgman::get_extent_page(EmulatedJamBuffer* jamBuf,
+                       Signal* signal,
+                       Ptr<Page_entry> ptr,
+                       Page_request page_req)
+{
+  thrjam(jamBuf);
+  Page_state state = ptr.p->m_state;
+  Uint32 req_flags = page_req.m_flags;
+  const Page_state LOCKED = Page_entry::LOCKED | Page_entry::MAPPED;
+  const Page_state DIRTY = Page_entry::DIRTY;
+  ndbrequire((state & LOCKED) == LOCKED);
+  if (req_flags & Page_request::COMMIT_REQ)
+  {
+    thrjam(jamBuf);
+    thrjamLine(jamBuf, Uint16(ptr.p->m_file_no));
+    thrjamLine(jamBuf, Uint16(ptr.p->m_page_no));
+    /**
+     * We ignore setting the state to BUSY since this call will always
+     * be immediately followed by a call to update_lsn that will remove
+     * the busy state if set and thus will also have to update the lists.
+     * We want to ensure that the SL_LOCKED list always contains a full
+     * list of all LOCKED pages. Thus we don't change the state to BUSY
+     * here since that would impact calling set_page_state in update_lsn.
+     */
+  }
+
+  if (req_flags & DIRTY_FLAGS && ((state & DIRTY) != DIRTY))
+  {
+    thrjam(jamBuf);
+    ptr.p->m_state |= Page_entry::DIRTY;
+    lock_access_extent_page();
+    m_num_dirty_pages++;
+    m_tot_pages_made_dirty++;
+    m_pages_made_dirty++;
+    unlock_access_extent_page();
+  }
+  if (ptr.p->m_copy_page_i != RNIL)
+  {
+    thrjam(jamBuf);
+    if (req_flags & DIRTY_FLAGS)
+    {
+      thrjam(jamBuf);
+      ptr.p->m_dirty_during_pageout = true;
+    }
+    return ptr.p->m_copy_page_i;
+  }
+  else
+  {
+    thrjam(jamBuf);
+    return ptr.p->m_real_page_i;
+  }
+}
+
+// client methods
 int
 Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
                         Ptr<Page_entry> ptr, Page_request page_req)
@@ -2470,6 +3807,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   D(tmp);
 #endif
 
+  m_get_page_calls_issued++;
   Uint32 req_flags = page_req.m_flags;
 
   if (req_flags & Page_request::EMPTY_PAGE)
@@ -2482,28 +3820,110 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   Page_state state = ptr.p->m_state;
   bool is_new = (state == 0);
   Uint32 busy_count = 0;
+  bool check_overload = false;
 
   if (req_flags & Page_request::LOCK_PAGE)
   {
+    /**
+     * Request to read a page locked in page cache, no reason
+     * to abort this request.
+     */
     thrjam(jamBuf);
     state |= Page_entry::LOCKED;
   }
   
   if (req_flags & Page_request::ALLOC_REQ)
   {
+    /**
+     * Request to allocate a new page in prepare
+     * phase, this request is abortable.
+     */
+    thrjam(jamBuf);
+    check_overload = true;
+  }
+  else if (req_flags & Page_request::UNDO_REQ ||
+           req_flags & Page_request::UNDO_GET_REQ)
+  {
+    /* UNDOs cannot be aborted. */
+    thrjam(jamBuf);
+  }
+  else if (req_flags & Page_request::ABORT_REQ)
+  {
+    /* Aborts cannot be aborted, but also perform no commit handling. */
     thrjam(jamBuf);
   }
   else if (req_flags & Page_request::COMMIT_REQ)
   {
+    /**
+     * Request to commit a change to a page, this request isn't
+     * abortable.
+     */
     thrjam(jamBuf);
+    thrjamLine(jamBuf, Uint16(ptr.p->m_file_no));
+    thrjamLine(jamBuf, Uint16(ptr.p->m_page_no));
     busy_count = 1;
     state |= Page_entry::BUSY;
   }
-  else if ((req_flags & Page_request::OP_MASK) != ZREAD)
+  else if (req_flags == 0)
   {
+    /**
+     * Request as part of a scan in TUP or ACC order, this happens
+     * in prepare phase and is abortable.
+     */
     thrjam(jamBuf);
+    check_overload = true;
   }
-
+  else if (req_flags & Page_request::DISK_SCAN)
+  {
+    /**
+     * Request as part of a scan in disk order, this happens
+     * in prepare phase and is abortable.
+     */
+    thrjam(jamBuf);
+    check_overload = true;
+  }
+  else if ((req_flags & Page_request::OP_MASK) != ZREAD &&
+           (req_flags & Page_request::OP_MASK) != ZREAD_EX)
+  {
+    /**
+     * Request as part of write key request of some sort, this
+     * happens in prepare phase and is abortable.
+     */
+    thrjam(jamBuf);
+    check_overload = true;
+  }
+  else if ((req_flags & Page_request::OP_MASK) == ZREAD)
+  {
+    /**
+     * Request as part of read key request, this happens in
+     * prepare phase and is abortable.
+     */
+    thrjam(jamBuf);
+    check_overload = true;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+  if (req_flags & DIRTY_FLAGS &&
+      !(ptr.p->m_state & Page_entry::DIRTY))
+  {
+    if (check_overload && (m_abort_level > 0) && check_overload_error())
+    {
+      jam();
+      /**
+       * The disk subsystem is overloaded, we will abort the transaction
+       * and report IO overload as the error code.
+       * Since continuing here will make page dirty, even if in page cache,
+       * the request is aborted since it will later force a disk access to
+       * clean the page.
+       *
+       * It is ok to continue if the page is already dirty, this will not
+       * create any additional burden on the disk susbsystem.
+       */
+      return -1518;
+    }
+  }
   const Page_state LOCKED = Page_entry::LOCKED | Page_entry::MAPPED;
   if ((state & LOCKED) == LOCKED && 
       ! (req_flags & Page_request::UNLOCK_PAGE))
@@ -2536,7 +3956,11 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
        */
       thrjam(jamBuf);
       D("<get_page: immediate copy_page");
-      ptr.p->m_dirty_during_pageout = true;
+      if (req_flags & DIRTY_FLAGS)
+      {
+        thrjam(jamBuf);
+        ptr.p->m_dirty_during_pageout = true;
+      }
       return ptr.p->m_copy_page_i;
     }
     
@@ -2622,6 +4046,21 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
     }
   }
 
+  /**
+   * A disk access is required to get the page, we will only perform
+   * such an action if we can verify that we should not abort due to
+   * overload.
+   */
+  if (check_overload && (m_abort_level > 0) && check_overload_error())
+  {
+    jam();
+    /**
+     * The disk subsystem is overloaded, we will abort the transaction
+     * and report IO overload as the error code.
+     */
+    return -1518;
+  }
+
   if (! (req_flags & (Page_request::LOCK_PAGE | Page_request::UNLOCK_PAGE)))
   {
     ndbrequire(! (state & Page_entry::LOCKED));
@@ -2667,6 +4106,9 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
     return -1;
   }
 
+  m_get_page_reqs_issued++;
+  m_outstanding_dd_requests++;
+  req_ptr.p->m_start_time = getHighResTimer();
   req_ptr.p->m_block = page_req.m_block;
   req_ptr.p->m_flags = page_req.m_flags;
   req_ptr.p->m_callback = page_req.m_callback;
@@ -2703,10 +4145,10 @@ Pgman::get_page(EmulatedJamBuffer* jamBuf,
                 Page_request page_req)
 {
   int i = get_page_no_lirs(jamBuf, signal, ptr, page_req);
-  if (unlikely(i == -1))
+  if (unlikely(i <= (int)-1))
   {
     thrjam(jamBuf);
-    return -1;
+    return i;
   }
 
   Uint32 req_flags = page_req.m_flags;
@@ -2730,6 +4172,21 @@ Pgman::get_page(EmulatedJamBuffer* jamBuf,
   return i;
 }
 
+/**
+ * This method can be called from any thread, for normal pages
+ * it is always called from the same thread that the PGMAN instance
+ * belongs to, so for these pages there is no risk of interaction.
+ * For extent pages the pages are owned by the extra PGMAN block
+ * and thus this can be accessed in parallel.
+ *
+ * To protect the pages in the extra PGMAN block every access to an
+ * extent page goes through TSMAN and TSMAN must lock the extent page
+ * before accessing it here.
+ *
+ * Currently calls from TSMAN do not access any block variables in
+ * this function. If this is added it must be protected in a proper
+ * manner to avoid concurrency issues.
+ */
 void
 Pgman::update_lsn(Signal *signal,
                   EmulatedJamBuffer* jamBuf,
@@ -2748,6 +4205,8 @@ Pgman::update_lsn(Signal *signal,
   if (state & Page_entry::BUSY)
   {
     thrjam(jamBuf);
+    thrjamLine(jamBuf, Uint16(ptr.p->m_file_no));
+    thrjamLine(jamBuf, Uint16(ptr.p->m_page_no));
     ndbrequire(ptr.p->m_busy_count != 0);
     if (--ptr.p->m_busy_count == 0)
     {
@@ -2759,6 +4218,10 @@ Pgman::update_lsn(Signal *signal,
         busy_lcp = true;
         state &= ~ Page_entry::WAIT_LCP;
       }
+    }
+    else
+    {
+      thrjam(jamBuf);
     }
   }
   
@@ -2784,7 +4247,7 @@ Pgman::update_lsn(Signal *signal,
      */
      ndbassert(signal != NULL);
      ndbrequire(ptr.p->m_table_id != RNIL);
-     ndbassert((state & Page_entry::LOCKED) == 0);
+     ndbrequire((state & Page_entry::LOCKED) == 0);
      start_lcp_loop(signal);
   }
   D(ptr);
@@ -2988,6 +4451,9 @@ Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
     if (state & Page_entry::DIRTY)
     {
       thrjam(jamBuf);
+      lock_access_extent_page();
+      m_num_dirty_pages--;
+      unlock_access_extent_page();
       state &= ~ Page_entry::DIRTY;
     }
 
@@ -3831,6 +5297,43 @@ Page_cache_client::init_page_entry(Request& req)
  *    and fragmentid is the real table and fragment ids that own the page.
  *
  */
+void
+Page_cache_client::get_extent_page(Signal* signal,
+                                   Request& req,
+                                   Uint32 flags)
+{
+  if (m_pgman_proxy != 0)
+  {
+    thrjam(m_jamBuf);
+    assert(req.m_table_id == RNIL);
+    m_pgman_proxy->get_extent_page(*this, signal, req, flags);
+    return;
+  }
+  Ptr<Pgman::Page_entry> entry_ptr;
+  Uint32 file_no = req.m_page.m_file_no;
+  Uint32 page_no = req.m_page.m_page_no;
+
+  thrjam(m_jamBuf);
+  // make sure TUP does not peek at obsolete data
+  m_ptr.i = RNIL;
+  m_ptr.p = 0;
+
+  // find page entry
+  require(m_pgman->find_page_entry(entry_ptr, file_no, page_no));
+  require(entry_ptr.p->m_state != 0);
+  require(entry_ptr.p->m_table_id == req.m_table_id);
+  require(entry_ptr.p->m_fragment_id == req.m_fragment_id);
+
+  Pgman::Page_request page_req;
+  page_req.m_block = m_block;
+  page_req.m_flags = flags;
+  Uint32 page = m_pgman->get_extent_page(m_jamBuf,
+                                         signal,
+                                         entry_ptr,
+                                         page_req);
+  m_pgman->m_global_page_pool.getPtr(m_ptr, page);
+}
+
 int
 Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
 {
@@ -4015,8 +5518,149 @@ Pgman::add_fragment(Uint32 tableId, Uint32 fragmentId)
   new (fragPtr.p) FragmentRecord(*this, tableId, fragmentId);
   ndbrequire(!m_fragmentRecordHash.find(check, *fragPtr.p));
   m_fragmentRecordHash.add(fragPtr);
-  m_fragmentRecordList.addFirst(fragPtr);
+  insert_ordered_fragment_list(fragPtr);
   return 0;
+}
+
+void
+Pgman::insert_ordered_fragment_list(FragmentRecordPtr fragPtr)
+{
+  /**
+   * To enable us to know the order of LCPs we keep the fragments
+   * in sorted order based on table and fragment id. This insert is a
+   * rather heavy operation since we could potentially have 20.000
+   * tables and each such table could have up to 8 fragments in the
+   * absolute worst case.
+   *
+   * To avoid serious issues with this we divide the list based on
+   * table id and have thus a two-level ordered list, we keep 16 lists
+   * with current max of 20320 tables, thus about 1280 tables per list
+   * and normally we should not have more than about 2500 fragments per
+   * list thus. A list with 2500 fragments can be searched within about
+   * 250 microseconds which should be ok since it is a rare event.
+   *
+   * Splitting the list too much introduces too many gaps that affect
+   * Prepare LCP handling negatively, so it is a trade off how many lists
+   * to keep.
+   */
+  Uint32 table_id = fragPtr.p->m_table_id;
+  Uint32 fragment_id = fragPtr.p->m_fragment_id;
+  Uint32 list = get_ordered_list_from_table_id(table_id);
+  FragmentRecordPtr searchFragPtr;
+  Local_FragmentRecord_list fragList(m_fragmentRecordPool,
+                                     m_fragmentRecordList[list]);
+  if (fragList.last(searchFragPtr))
+  {
+    jam();
+    bool found = false;
+    while (searchFragPtr.p->m_table_id > table_id ||
+           (searchFragPtr.p->m_table_id == table_id &&
+           searchFragPtr.p->m_fragment_id > fragment_id))
+    {
+      jam();
+      if (!fragList.prev(searchFragPtr))
+      {
+        jam();
+        found = true;
+        fragList.addFirst(fragPtr);
+      }
+    }
+    if (!found)
+    {
+      jam();
+      fragList.insertAfter(fragPtr, searchFragPtr);
+    }
+  }
+  else
+  {
+    jam();
+    fragList.addFirst(fragPtr);
+  }
+  return;
+}
+
+/**
+ * The ordered list of fragments is used to process some dirty writes
+ * before the actual LCP of the fragments is performed. This will enable
+ * a more smooth load on the disk subsystem. This means that the fragment
+ * selected is not important for correctness, it is only important for
+ * getting the proper load on the disk subsystem.
+ */
+bool
+Pgman::get_next_ordered_fragment(FragmentRecordPtr & fragPtr)
+{
+  Uint32 table_id = fragPtr.p->m_table_id;
+  Uint32 list = get_ordered_list_from_table_id(table_id);
+  {
+    Local_FragmentRecord_list fragList(m_fragmentRecordPool,
+                                       m_fragmentRecordList[list]);
+    if (fragList.next(fragPtr))
+    {
+      jam();
+      ndbrequire(fragPtr.p->m_table_id >= table_id);
+      return true;
+    }
+  }
+  for (Uint32 i = list + 1; i < NUM_ORDERED_LISTS; i++)
+  {
+    Local_FragmentRecord_list fragList(m_fragmentRecordPool,
+                                       m_fragmentRecordList[i]);
+    if (fragList.isEmpty())
+    {
+      continue;
+    }
+    jamLine(Uint16(i));
+    jam();
+    fragList.first(fragPtr);
+    if (fragPtr.p->m_table_id < table_id)
+    {
+      jam();
+      /**
+       * We skipped to the next list and found a table with a lower
+       * table id, this makes it take too much computational power
+       * to find the next fragment, so we will skip it for now.
+       * It is only used for prepare LCP handling.
+       */
+      fragPtr.p = 0;
+      fragPtr.i = RNIL;
+      return false;
+    }
+    return true;
+  }
+  jam();
+  fragPtr.p = 0;
+  fragPtr.i = RNIL;
+  return false;
+}
+
+bool
+Pgman::get_first_ordered_fragment(FragmentRecordPtr & fragPtr)
+{
+  for (Uint32 i = 0; i < NUM_ORDERED_LISTS; i++)
+  {
+    Local_FragmentRecord_list fragList(m_fragmentRecordPool,
+                                       m_fragmentRecordList[i]);
+    if (fragList.isEmpty())
+    {
+      continue;
+    }
+    jamLine(Uint16(i));
+    jam();
+    fragList.first(fragPtr);
+    return true;
+  }
+  jam();
+  fragPtr.p = 0;
+  fragPtr.i = RNIL;
+  return false;
+}
+
+Uint32
+Pgman::get_ordered_list_from_table_id(Uint32 table_id)
+{
+  Uint32 divisor = NDB_MAX_TABLES / NUM_ORDERED_LISTS;
+  Uint32 list = table_id / divisor;
+  return list;
 }
 
 void
@@ -4035,7 +5679,10 @@ Pgman::drop_fragment(Uint32 tableId, Uint32 fragmentId)
   if (fragPtr.i != RNIL)
   {
     jam();
-    m_fragmentRecordList.remove(fragPtr);
+    Uint32 list = get_ordered_list_from_table_id(tableId);
+    Local_FragmentRecord_list fragList(m_fragmentRecordPool,
+                                       m_fragmentRecordList[list]);
+    fragList.remove(fragPtr);
     m_fragmentRecordHash.remove(fragPtr);
     m_fragmentRecordPool.release(fragPtr);
   }
@@ -4060,21 +5707,61 @@ Pgman::insert_fragment_dirty_list(Ptr<Page_entry> ptr,
      * it is because we are in the LCP list. We should remain in the
      * LCP list until we have been made not dirty and thus also
      * removed from the dirty list altogether.
+     *
+     * To ensure that we minimise the risk of having to apply the
+     * WAL rule and invoke an extra wait for the page before it is
+     * written we always move the page to be the last in the dirty
+     * list it is currently residing in. This ensures that all
+     * newly written pages are at the end and thus as far away from
+     * being written as is possible.
+     *
+     * Using this scheme we avoid to skip pages due to the WAL rule
+     * in handle_lcp. It invokes an extra cost of reorganising the lists.
+     * The reason to take this cost is to minimise the latency in accessing
+     * pages in the page cache. Adding a wait for a log wait call can have
+     * substantial negative effect on the latency of disk operations.
+     *
+     * We should not be able to come here when the page is in the dirty
+     * list pageout list.
      */
-    thrjam(jamBuf);
+    ndbrequire(ptr.p->m_dirty_state == Pgman::IN_FIRST_FRAG_DIRTY_LIST ||
+               ptr.p->m_dirty_state == Pgman::IN_SECOND_FRAG_DIRTY_LIST);
+    FragmentRecordPtr fragPtr;
+    FragmentRecord key(*this, ptr.p->m_table_id, ptr.p->m_fragment_id);
+    ndbrequire(m_fragmentRecordHash.find(fragPtr, key));
+    if (ptr.p->m_dirty_state == fragPtr.p->m_current_lcp_dirty_state)
+    {
+      thrjam(jamBuf);
+      /* Page is in fragment dirty list */
+      LocalPage_dirty_list list(m_page_entry_pool, fragPtr.p->m_dirty_list);
+      list.remove(ptr);
+      list.addLast(ptr);
+    }
+    else
+    {
+      thrjam(jamBuf);
+      /* Page is in dirty list currently being written in LCP */
+      m_dirty_list_lcp.remove(ptr);
+      m_dirty_list_lcp.addLast(ptr);
+    }
     return;
   }
 
-  DEB_PGMAN(("(%u)Insert page(%u,%u):%u:%x into dirty list of tab(%u,%u)"
-             ", dirty_state: %u",
-              instance(),
-              ptr.p->m_file_no,
-              ptr.p->m_page_no,
-              ptr.i,
-              (unsigned int)state,
-              ptr.p->m_table_id,
-              ptr.p->m_fragment_id,
-              ptr.p->m_dirty_state));
+  ndbrequire(!m_extra_pgman);
+  m_tot_pages_made_dirty++;
+  m_pages_made_dirty++;
+  m_num_dirty_pages++;
+
+  DEB_PGMAN_EXTRA(("(%u)Insert page(%u,%u):%u:%x into dirty list of tab(%u,%u)"
+                   ", dirty_state: %u",
+                   instance(),
+                   ptr.p->m_file_no,
+                   ptr.p->m_page_no,
+                   ptr.i,
+                   (unsigned int)state,
+                   ptr.p->m_table_id,
+                   ptr.p->m_fragment_id,
+                   ptr.p->m_dirty_state));
 
   Ptr<GlobalPage> gpage;
   Dbtup::PagePtr pagePtr;
@@ -4082,12 +5769,17 @@ Pgman::insert_fragment_dirty_list(Ptr<Page_entry> ptr,
   FragmentRecord key(*this, ptr.p->m_table_id, ptr.p->m_fragment_id);
   ndbrequire(m_fragmentRecordHash.find(fragPtr, key));
   /**
-   * Add the page entry as first item in the dirty list.
+   * Add the page entry as last item in the dirty list.
+   * We write starting at first and write towards the last.
+   * So by putting it last we ensure that the page will
+   * be written not shortly. Writing it shortly would
+   * increase the risk of having to apply the WAL rule
+   * to force the UNDO log.
    */
   ptr.p->m_dirty_state = fragPtr.p->m_current_lcp_dirty_state;
   {
     LocalPage_dirty_list list(m_page_entry_pool, fragPtr.p->m_dirty_list);
-    list.addFirst(ptr);
+    list.addLast(ptr);
   }
 }
 
@@ -4111,15 +5803,15 @@ Pgman::remove_fragment_dirty_list(Signal *signal,
      * Not in any dirty list, so we need not remove it.
      */
     jam();
-    DEB_PGMAN(("(%u)remove_fragment_dirty_list not in any list: "
-               "page:(%u,%u):%u:%x, tab(%u,%u)",
-               instance(),
-               ptr.p->m_file_no,
-               ptr.p->m_page_no,
-               ptr.i,
-               (unsigned int)state,
-               ptr.p->m_table_id,
-               ptr.p->m_fragment_id));
+    DEB_PGMAN_EXTRA(("(%u)remove_fragment_dirty_list not in any list: "
+                     "page:(%u,%u):%u:%x, tab(%u,%u)",
+                     instance(),
+                     ptr.p->m_file_no,
+                     ptr.p->m_page_no,
+                     ptr.i,
+                     (unsigned int)state,
+                     ptr.p->m_table_id,
+                     ptr.p->m_fragment_id));
     return;
   }
 
@@ -4142,15 +5834,15 @@ Pgman::remove_fragment_dirty_list(Signal *signal,
     {
       jam();
 
-      DEB_PGMAN(("(%u)Remove page page(%u,%u):%u:%x from dirty list"
-                 " of tab(%u,%u)",
-                 instance(),
-                 ptr.p->m_file_no,
-                 ptr.p->m_page_no,
-                 ptr.i,
-                 (unsigned int)state,
-                 ptr.p->m_table_id,
-                 ptr.p->m_fragment_id));
+      DEB_PGMAN_EXTRA(("(%u)Remove page page(%u,%u):%u:%x from dirty list"
+                       " of tab(%u,%u)",
+                       instance(),
+                       ptr.p->m_file_no,
+                       ptr.p->m_page_no,
+                       ptr.i,
+                       (unsigned int)state,
+                       ptr.p->m_table_id,
+                       ptr.p->m_fragment_id));
 
       LocalPage_dirty_list list(m_page_entry_pool, fragPtr.p->m_dirty_list);
       list.remove(ptr);
@@ -4159,15 +5851,15 @@ Pgman::remove_fragment_dirty_list(Signal *signal,
     {
       jam();
 
-      DEB_PGMAN(("(%u)Remove page(%u,%u):%u:%x from dirty lcp"
-                 " list of tab(%u,%u)",
-                 instance(),
-                 ptr.p->m_file_no,
-                 ptr.p->m_page_no,
-                 ptr.i,
-                 (unsigned int)state,
-                 ptr.p->m_table_id,
-                 ptr.p->m_fragment_id));
+      DEB_PGMAN_EXTRA(("(%u)Remove page(%u,%u):%u:%x from dirty lcp"
+                       " list of tab(%u,%u)",
+                       instance(),
+                       ptr.p->m_file_no,
+                       ptr.p->m_page_no,
+                       ptr.i,
+                       (unsigned int)state,
+                       ptr.p->m_table_id,
+                       ptr.p->m_fragment_id));
 
       m_dirty_list_lcp.remove(ptr);
       sendSYNC_PAGE_WAIT_REP(signal, true);
@@ -4176,15 +5868,15 @@ Pgman::remove_fragment_dirty_list(Signal *signal,
   else if (ptr.p->m_dirty_state == Pgman::IN_LCP_OUT_LIST)
   {
     jam();
-    DEB_PGMAN(("(%u)Remove page(%u,%u):%u:%x from dirty out"
-               " list of tab(%u,%u)",
-               instance(),
-               ptr.p->m_file_no,
-               ptr.p->m_page_no,
-               ptr.i,
-               (unsigned int)state,
-               ptr.p->m_table_id,
-               ptr.p->m_fragment_id));
+    DEB_PGMAN_EXTRA(("(%u)Remove page(%u,%u):%u:%x from dirty out"
+                     " list of tab(%u,%u)",
+                     instance(),
+                     ptr.p->m_file_no,
+                     ptr.p->m_page_no,
+                     ptr.i,
+                     (unsigned int)state,
+                     ptr.p->m_table_id,
+                     ptr.p->m_fragment_id));
     m_dirty_list_lcp_out.remove(ptr);
     sendSYNC_PAGE_WAIT_REP(signal, true);
   }
@@ -4528,6 +6220,12 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
       out << ",alloc_req";
     if (pr.m_flags & Pgman::Page_request::COMMIT_REQ)
       out << ",commit_req";
+    if (pr.m_flags & Pgman::Page_request::ABORT_REQ)
+      out << ",abort_req";
+    if (pr.m_flags & Pgman::Page_request::UNDO_REQ)
+      out << ",undo_req";
+    if (pr.m_flags & Pgman::Page_request::UNDO_GET_REQ)
+      out << ",undo_get_req";
     if (pr.m_flags & Pgman::Page_request::DIRTY_REQ)
       out << ",dirty_req";
     if (pr.m_flags & Pgman::Page_request::CORR_REQ)
@@ -4749,14 +6447,174 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   }
 }
 
+bool
+Pgman::check_overload_error()
+{
+  if (m_abort_level > 5)
+  {
+    jam();
+    return true;
+  }
+  m_abort_counter++;
+  if (m_abort_counter % (m_abort_level + 1) == 0)
+  {
+    jam();
+    return false;
+  }
+  jam();
+  return true;
+
+}
+
+void
+Pgman::do_calc_stats_loop(Signal *signal)
+{
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  NDB_TICKS old(m_last_time_calc_stats_loop);
+  Uint64 elapsed_ms = NdbTick_Elapsed(old, now).milliSec();
+  if (elapsed_ms < 10)
+  {
+    jam();
+    signal->theData[0] = PgmanContinueB::CALC_STATS_LOOP;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+    return;
+  }
+  m_last_time_calc_stats_loop = now.getUint64();
+
+  Uint32 index = m_last_stat_index;
+  index++;
+
+  if (index == NUM_STAT_HISTORY)
+  {
+    jam();
+    index = 0;
+  }
+  m_last_stat_index = index;
+
+  lock_access_extent_page();
+  m_pages_made_dirty *= Uint64(1000);
+  m_pages_made_dirty /= elapsed_ms;
+  m_pages_made_dirty_history[index] = Uint32(m_pages_made_dirty);
+  m_pages_made_dirty = Uint64(0);
+  unlock_access_extent_page();
+
+  m_reads_completed *= Uint64(1000);
+  m_reads_completed /= elapsed_ms;
+  m_reads_completed_history[index] = Uint32(m_reads_completed);
+  m_reads_completed = Uint64(0);
+
+  m_reads_issued *= Uint64(1000);
+  m_reads_issued /= elapsed_ms;
+  m_reads_issued_history[index] = Uint32(m_reads_issued);
+  m_reads_issued = Uint64(0);
+
+  m_writes_issued *= Uint64(1000);
+  m_writes_issued /= elapsed_ms;
+  m_writes_issued_history[index] = Uint32(m_writes_issued);
+  m_writes_issued = Uint64(0);
+
+  m_writes_completed *= Uint64(1000);
+  m_writes_completed /= elapsed_ms;
+  m_writes_completed_history[index] = Uint32(m_writes_completed);
+  m_writes_completed = Uint64(0);
+
+  m_log_writes_issued *= Uint64(1000);
+  m_log_writes_issued /= elapsed_ms;
+  m_log_writes_issued_history[index] = Uint32(m_log_writes_issued);
+  m_log_writes_issued = Uint64(0);
+
+  m_log_writes_completed *= Uint64(1000);
+  m_log_writes_completed /= elapsed_ms;
+  m_log_writes_completed_history[index] = Uint32(m_log_writes_completed);
+  m_log_writes_completed = Uint64(0);
+
+  m_get_page_calls_issued *= Uint64(1000);
+  m_get_page_calls_issued /= elapsed_ms;
+  m_get_page_calls_issued_history[index] = Uint32(m_get_page_calls_issued);
+  m_get_page_calls_issued = Uint64(0);
+
+  m_get_page_reqs_issued *= Uint64(1000);
+  m_get_page_reqs_issued /= elapsed_ms;
+  m_get_page_reqs_issued_history[index] = Uint32(m_get_page_reqs_issued);
+  m_get_page_reqs_issued = Uint64(0);
+
+  m_get_page_reqs_completed *= Uint64(1000);
+  m_get_page_reqs_completed /= elapsed_ms;
+  m_get_page_reqs_completed_history[index] = Uint32(m_get_page_reqs_completed);
+  m_get_page_reqs_completed = Uint64(0);
+
+  m_stat_time_delay[index] = elapsed_ms;
+
+  m_abort_level = 0;
+  m_abort_counter = 0;
+  Uint64 dd_latency = 0;
+  if (m_num_dd_accesses > Uint64(0))
+  {
+    jam();
+    m_total_dd_latency_us /= Uint64(1000); // Convert to milliseconds
+    dd_latency = m_total_dd_latency_us / m_num_dd_accesses;
+    m_num_dd_accesses = Uint64(0);
+    m_total_dd_latency_us = Uint64(0);
+    if (dd_latency >= m_max_dd_latency_ms &&
+        m_max_dd_latency_ms > 0)
+    {
+      jam();
+      Uint64 abort_level = dd_latency / m_max_dd_latency_ms;
+      m_abort_level = abort_level;
+      g_eventLogger->info("Setting DD abort level to %u, dd_latency: %llu",
+                          m_abort_level,
+                          dd_latency);
+    }
+  }
+  else
+  {
+    if (m_outstanding_dd_requests > 0 &&
+        m_max_dd_latency_ms > 0)
+    {
+      g_eventLogger->info("Setting DD abort level to 1, no completed req");
+      m_abort_level = 1;
+    }
+  }
+  signal->theData[0] = PgmanContinueB::CALC_STATS_LOOP;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+}
+
 void
 Pgman::execDBINFO_SCANREQ(Signal *signal)
 {
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
 
   jamEntry();
   switch(req.tableId) {
+  case Ndbinfo::PGMAN_TIME_TRACK_STATS_TABLEID:
+  {
+    jam();
+    Uint32 start_i = cursor->data[0];
+    for (Uint32 i = start_i; i < PGMAN_TIME_TRACK_NUM_RANGES; i++)
+    {
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(NDBFS);
+      row.write_uint32(instance());   // block instance
+      row.write_uint32(m_time_track_histogram_upper_bound[i]);
+      row.write_uint64(m_time_track_reads[i]);
+      row.write_uint64(m_time_track_writes[i]);
+      row.write_uint64(m_time_track_log_waits[i]);
+      row.write_uint64(m_time_track_get_page[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      if (rl.need_break(req))
+      {
+        Uint32 save = i + 1;
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, save);
+        return;
+      }
+    }
+    break;
+  }
   case Ndbinfo::DISKPAGEBUFFER_TABLEID:
   {
     jam();
@@ -4772,6 +6630,54 @@ Pgman::execDBINFO_SCANREQ(Signal *signal)
     row.write_uint64(m_stats.m_page_requests_wait_io);
 
     ndbinfo_send_row(signal, req, row, rl);
+    break;
+  }
+  case Ndbinfo::DISKSTAT_TABLEID:
+  {
+    jam();
+    Uint32 index = m_last_stat_index;
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(instance());   // block instance
+    row.write_uint32(m_pages_made_dirty_history[index]);
+    row.write_uint32(m_reads_issued_history[index]);
+    row.write_uint32(m_reads_completed_history[index]);
+    row.write_uint32(m_writes_issued_history[index]);
+    row.write_uint32(m_writes_completed_history[index]);
+    row.write_uint32(m_log_writes_issued_history[index]);
+    row.write_uint32(m_log_writes_completed_history[index]);
+    row.write_uint32(m_get_page_calls_issued_history[index]);
+    row.write_uint32(m_get_page_reqs_issued_history[index]);
+    row.write_uint32(m_get_page_reqs_completed_history[index]);
+    ndbinfo_send_row(signal, req, row, rl);
+    break;
+  }
+  case Ndbinfo::DISKSTATS_1SEC_TABLEID:
+  {
+    jam();
+    Uint32 index = m_last_stat_index;
+    for (Uint32 i = 0; i < NUM_STAT_HISTORY; i++)
+    {
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(instance());   // block instance
+      row.write_uint32(m_pages_made_dirty_history[index]);
+      row.write_uint32(m_reads_issued_history[index]);
+      row.write_uint32(m_reads_completed_history[index]);
+      row.write_uint32(m_writes_issued_history[index]);
+      row.write_uint32(m_writes_completed_history[index]);
+      row.write_uint32(m_log_writes_issued_history[index]);
+      row.write_uint32(m_log_writes_completed_history[index]);
+      row.write_uint32(m_get_page_calls_issued_history[index]);
+      row.write_uint32(m_get_page_reqs_issued_history[index]);
+      row.write_uint32(m_get_page_reqs_completed_history[index]);
+      row.write_uint32(i);
+      ndbinfo_send_row(signal, req, row, rl);
+      index++;
+      if (index == NUM_STAT_HISTORY)
+        index = 0;
+    }
+    break;
   }
   default:
     break;

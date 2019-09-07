@@ -12192,6 +12192,12 @@ void Dblqh::execNEXT_SCANREF(Signal* signal)
 {
   jamEntry();
   ndbrequire(refToMain(signal->getSendersBlockRef()) == DBTUX);
+  exec_next_scan_ref(signal);
+}
+
+void Dblqh::exec_next_scan_ref(Signal *signal)
+{
+  jamEntry();
   const NextScanRef refCopy = *(const NextScanRef*)signal->getDataPtr();
   const NextScanRef* ref = &refCopy;
   ndbrequire(ref->errorCode != 0);
@@ -18703,6 +18709,8 @@ Dblqh::execUNDO_LOG_LEVEL_REP(Signal *signal)
 #define OVERLOAD_LEVEL 90
   UndoLogLevelRep *rep = (UndoLogLevelRep*)signal->getDataPtr();
   Uint32 levelUsed = rep->levelUsed;
+
+  c_backup->set_undo_log_level(levelUsed);
 
   DEB_LOCAL_LCP_EXTRA(("(%u)UNDO_LOG_LEVEL: %u percent, copy in progress: %u",
                        instance(),

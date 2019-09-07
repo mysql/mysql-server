@@ -246,6 +246,19 @@ public:
     Uint32 m_callback_buffer_words; // buffer words that has been
                                     // returned to user, but not yet consumed
     Log_waiter_list::Head m_log_buffer_waiters;
+    /**
+     * Each page range consists of up to 64 pages == 2 MByte.
+     * m_current_page.m_ptr_i points to position in Page_map (m_buffer_pages)
+     * m_current_page.m_idx indicates how many pages are left in range
+     * m_current_pos.m_ptr_i points to i-value of current page
+     * m_current_pos.m_idx indicates how many words are used in current page
+     * For PRODUCER m_current_pos.m_idx is updated when we write the UNDO log
+     * record from the get_log_buffer call. get_log_buffer also calls next_page
+     * to move to next page in range OR first page in next range.
+     * For CONSUMER m_current_pos.m_idx is only used during recovery, it is set
+     * to 0 when running in normal operation.
+     * 0 is reader == CONSUMER, 1 is writer == PRODUCER
+     */
     Page_map::Head m_buffer_pages; // Pairs of { ptr.i, count }
     struct Position {
       Buffer_idx m_current_page;   // { m_buffer_pages.i, left in range }
@@ -364,7 +377,10 @@ private:
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
   void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);
 
-  void flush_log(Signal*, Ptr<Logfile_group>, Uint32 force);
+  void flush_log(Signal*,
+                 Ptr<Logfile_group>,
+                 Uint32 force,
+                 bool issue_continueb);
   Uint32 write_log_pages(Signal*, Ptr<Logfile_group>, 
 			 Uint32 pageId, Uint32 pages);
 

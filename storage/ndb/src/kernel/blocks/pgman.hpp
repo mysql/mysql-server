@@ -31,6 +31,7 @@
 #include <IntrusiveList.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/RedoStateRep.hpp>
 #include "lgman.hpp"
 
 #include <NdbOut.hpp>
@@ -289,6 +290,7 @@ private:
   struct Page_request {
     enum Flags {
       OP_MASK       = 0x000F // 4 bits for TUP operation
+      ,UNDO_GET_REQ = 0x0010 // Get page to get table id and fragment id
       ,LOCK_PAGE    = 0x0020 // lock page in memory
       ,EMPTY_PAGE   = 0x0040 // empty (new) page
       ,ALLOC_REQ    = 0x0080 // part of alloc
@@ -301,6 +303,7 @@ private:
 #endif
       ,UNDO_REQ     = 0x2000 // Request from UNDO processing
       ,DISK_SCAN    = 0x4000 // Request from Disk scan
+      ,ABORT_REQ    = 0x8000 // Part of ABORT will not update LSN
     };
     
     Uint16 m_block; // includes instance
@@ -312,6 +315,7 @@ private:
 #endif
     Uint32 nextList;
     Uint32 m_magic;
+    NDB_TICKS m_start_time;
   };
 
   typedef RecordPool<WOPool<Page_request> > Page_request_pool;
@@ -353,6 +357,7 @@ private:
       ,ONSTACK = 0x4000 // page is on LIRS stack
       ,ONQUEUE = 0x8000 // page is on LIRS queue
       ,WAIT_LCP= 0x10000 //BUSY page holding up LCP
+      ,PREP_LCP= 0x20000 //Page is flushed as part of prepare LCP
     };
     
     enum Sublist {
@@ -416,6 +421,7 @@ private:
 #ifdef VM_TRACE
     Pgman* m_this;
 #endif
+    Uint64 m_time_tracking;
   };
 
   typedef ArrayPool<Page_entry> Page_entry_pool;
@@ -478,7 +484,15 @@ private:
   typedef Ptr<FragmentRecord> FragmentRecordPtr;
   typedef ArrayPool<FragmentRecord> FragmentRecord_pool;
   FragmentRecord_pool m_fragmentRecordPool;
-  DLFifoList<FragmentRecord_pool> m_fragmentRecordList;
+#define NUM_ORDERED_LISTS 128
+  typedef LocalDLFifoList<FragmentRecord_pool> Local_FragmentRecord_list;
+  DLFifoList<FragmentRecord_pool>::Head
+    m_fragmentRecordList[NUM_ORDERED_LISTS];
+  void insert_ordered_fragment_list(FragmentRecordPtr);
+  bool get_first_ordered_fragment(FragmentRecordPtr&);
+  bool get_next_ordered_fragment(FragmentRecordPtr&);
+  Uint32 get_ordered_list_from_table_id(Uint32 table_id);
+
   DLHashTable<FragmentRecord_pool, FragmentRecord> m_fragmentRecordHash;
 
   Page_dirty_list m_dirty_list_lcp;
@@ -487,9 +501,14 @@ private:
   Uint32 m_lcp_table_id;
   Uint32 m_lcp_fragment_id;
 
+  Uint32 m_prev_lcp_table_id;
+  Uint32 m_prev_lcp_fragment_id;
   bool m_lcp_loop_ongoing;
+  bool m_lcp_ongoing;
+  Uint32 m_num_ldm_completed_lcp;
   Uint32 m_locked_pages_written;
   Uint32 m_lcp_outstanding;     // remaining i/o waits
+  Uint32 m_prep_lcp_outstanding;
   SyncExtentPagesReq::LcpOrder m_sync_extent_order;
   bool m_sync_extent_pages_ongoing;
   bool m_sync_extent_continueb_ongoing;
@@ -504,16 +523,18 @@ private:
   void sendSYNC_EXTENT_PAGES_REQ(Signal*);
   void sendEND_LCPCONF(Signal*);
 
-  void check_restart_lcp(Signal*);
+  void check_restart_lcp(Signal*, bool check_prepare_lcp);
   void start_lcp_loop(Signal*);
   void handle_lcp(Signal*, Uint32 tableId, Uint32 fragmentId);
   void handle_lcp(Signal*, FragmentRecord*);
+  void handle_prepare_lcp(Signal*, FragmentRecordPtr);
   void finish_lcp(Signal*, FragmentRecord*);
   void finish_sync_extent_pages(Signal*);
-  Uint32 get_num_lcp_pages_to_write(void);
+  Uint32 get_num_lcp_pages_to_write(bool);
 
   void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
   void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
+  void copy_back_page(Ptr<Page_entry> ptr);
 
   /**
    * In ndbmtd, there is an extra pgman instance not associated with
@@ -536,15 +557,121 @@ private:
   class Dbtup *c_tup;
   class Lgman *c_lgman;
   class Tsman *c_tsman;
+  class Backup *c_backup;
 
   // loop status
   bool m_stats_loop_on;
   bool m_busy_loop_on;
   bool m_cleanup_loop_on;
 
+  // LCP counters
+  Uint64 m_tot_pages_made_dirty;
+  Uint64 m_current_lcp_pageouts;
+  Uint64 m_current_lcp_flushes;
+  Uint64 m_last_flushes;
+  Uint64 m_start_lcp_made_dirty;
+  Uint64 m_last_lcp_made_dirty;
+  Uint64 m_dirty_page_rate_per_sec;
+  Uint64 m_last_pageouts;
+  Uint64 m_last_made_dirty;
+
+  Uint64 m_num_dirty_pages;
+  Uint64 m_available_lcp_pageouts;
+  Uint64 m_prep_available_lcp_pageouts;
+  Uint64 m_available_lcp_pageouts_used;
+
+  NDB_TICKS m_last_track_lcp_speed_call;
+  NDB_TICKS m_lcp_start_time;
+
+  Uint64 m_lcp_dd_percentage;
+  Uint64 m_max_lcp_pages_outstanding;
+  Uint64 m_prep_max_lcp_pages_outstanding;
+
+  Uint64 m_lcp_time_in_ms;
+  Uint64 m_mm_curr_disk_write_speed;
+  Uint64 m_percent_spent_in_checkpointing;
+  Uint64 m_max_pageout_rate;
+
+  bool m_track_lcp_speed_loop_ongoing;
+public:
+  void lcp_end_point(Uint32 lcp_time_in_ms);
+  void set_lcp_dd_percentage(Uint32 dd_percentage);
+  void set_current_disk_write_speed(Uint64);
+  void lcp_start_point(Signal*, Uint32, Uint32);
+private:
+  void do_track_handle_lcp_speed_loop(Signal*);
+  Uint64 get_current_lcp_made_dirty();
+
+#define PGMAN_TIME_TRACK_NUM_RANGES 20
+  Uint64 m_time_track_histogram_upper_bound[PGMAN_TIME_TRACK_NUM_RANGES];
+  Uint64 m_time_track_reads[PGMAN_TIME_TRACK_NUM_RANGES];
+  Uint64 m_time_track_writes[PGMAN_TIME_TRACK_NUM_RANGES];
+  Uint64 m_time_track_log_waits[PGMAN_TIME_TRACK_NUM_RANGES];
+  Uint64 m_time_track_get_page[PGMAN_TIME_TRACK_NUM_RANGES];
+
+  Uint64 m_pages_made_dirty;
+  Uint64 m_reads_issued;
+  Uint64 m_reads_completed;
+  Uint64 m_writes_issued;
+  Uint64 m_writes_completed;
+  Uint64 m_tot_writes_completed;
+  Uint64 m_log_writes_issued;
+  Uint64 m_log_writes_completed;
+  Uint64 m_get_page_calls_issued;
+  Uint64 m_get_page_reqs_issued;
+  Uint64 m_get_page_reqs_completed;
+
+#define NUM_STAT_HISTORY 20
+  Uint32 m_pages_made_dirty_history[NUM_STAT_HISTORY];
+  Uint32 m_reads_issued_history[NUM_STAT_HISTORY];
+  Uint32 m_reads_completed_history[NUM_STAT_HISTORY];
+  Uint32 m_writes_issued_history[NUM_STAT_HISTORY];
+  Uint32 m_writes_completed_history[NUM_STAT_HISTORY];
+  Uint32 m_log_writes_issued_history[NUM_STAT_HISTORY];
+  Uint32 m_log_writes_completed_history[NUM_STAT_HISTORY];
+  Uint32 m_get_page_calls_issued_history[NUM_STAT_HISTORY];
+  Uint32 m_get_page_reqs_issued_history[NUM_STAT_HISTORY];
+  Uint32 m_get_page_reqs_completed_history[NUM_STAT_HISTORY];
+  Uint32 m_stat_time_delay[NUM_STAT_HISTORY];
+
+  Uint32 m_last_stat_index;
+  Uint32 m_max_dd_latency_ms;
+  Uint32 m_dd_using_same_disk;
+  RedoStateRep::RedoAlertState m_redo_alert_state;
+  RedoStateRep::RedoAlertState m_redo_alert_state_last_lcp;
+  Uint32 m_raise_redo_alert_state;
+  Uint64 m_redo_alert_factor;
+  Uint64 m_last_time_calc_stats_loop;
+
+  Uint64 m_num_dd_accesses;
+  Uint64 m_total_dd_latency_us;
+  Uint64 m_total_write_latency_us;
+  Uint64 m_last_lcp_writes_completed;
+  Uint64 m_last_lcp_total_write_latency_us;
+  Uint64 m_last_lcp_write_latency_us;
+
+  Uint64 m_outstanding_dd_requests;
+
+  Uint32 m_abort_counter;
+  Uint32 m_abort_level;
+
+public:
+  void set_redo_alert_state(RedoStateRep::RedoAlertState new_state);
+private:
+  void do_calc_stats_loop(Signal*);
+  bool check_overload_error();
+
+  void add_histogram(Uint64 elapsed_time, Uint64 *histogram);
+  void handle_reads_time_tracking(Ptr<Page_entry>);
+  void handle_writes_time_tracking(Ptr<Page_entry>);
+  void handle_log_waits_time_tracking(Ptr<Page_entry>);
+
   // clean-up variables
   Ptr<Page_entry> m_cleanup_ptr;
- 
+
+  NdbMutex *m_access_extent_page_mutex;
+  void lock_access_extent_page();
+  void unlock_access_extent_page();
   // file map
   typedef DataBuffer<15,ArrayPool<DataBufferSegment<15> > > File_map;
   File_map m_file_map;
@@ -681,15 +808,21 @@ private:
   void pagein(Signal*, Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   void fsreadreq(Signal*, Ptr<Page_entry>);
   void fsreadconf(Signal*, Ptr<Page_entry>);
-  void pageout(Signal*, Ptr<Page_entry>);
+  void pageout(Signal*, Ptr<Page_entry>, bool check_sync_lsn = true);
   void logsync_callback(Signal*, Uint32 ptrI, Uint32 res);
   void fswritereq(Signal*, Ptr<Page_entry>);
   void fswriteconf(Signal*, Ptr<Page_entry>);
 
   int get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal*, Ptr<Page_entry>, 
                        Page_request page_req);
-  int get_page(EmulatedJamBuffer* jamBuf, Signal*, Ptr<Page_entry>, 
+  int get_page(EmulatedJamBuffer* jamBuf,
+               Signal*,
+               Ptr<Page_entry>, 
                Page_request page_req);
+  Uint32 get_extent_page(EmulatedJamBuffer* jamBuf,
+                         Signal*,
+                         Ptr<Page_entry>, 
+                         Page_request page_req);
   void update_lsn(Signal *signal,
                   EmulatedJamBuffer* jamBuf,
                   Ptr<Page_entry>,
@@ -762,6 +895,8 @@ public:
 #endif
     ,UNDO_REQ = Pgman::Page_request::UNDO_REQ
     ,DISK_SCAN = Pgman::Page_request::DISK_SCAN
+    ,ABORT_REQ = Pgman::Page_request::ABORT_REQ
+    ,UNDO_GET_REQ = Pgman::Page_request::UNDO_GET_REQ
   };
   
   /**
@@ -773,6 +908,13 @@ public:
    *         >0, real_page_id
    */
   int get_page(Signal*, Request&, Uint32 flags);
+
+  /**
+   * Get an extent page
+   * Given that these pages are always locked in memory this function
+   * cannot return any failures, it will crash if it fails.
+   */
+  void get_extent_page(Signal*, Request&, Uint32 flags);
 
   /**
    * When reading the UNDO log we don't have access to the table id and

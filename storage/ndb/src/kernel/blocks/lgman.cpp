@@ -53,6 +53,7 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_DROP_LG 1
 //#define DEBUG_LGMAN_LCP 1
 #endif
+#define DEBUG_UNDO_SPACE 1
 
 #ifdef DEBUG_LGMAN
 #define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -64,6 +65,12 @@ extern EventLogger * g_eventLogger;
 #define DEB_LGMAN_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LGMAN_LCP(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_UNDO_SPACE
+#define DEB_UNDO_SPACE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_UNDO_SPACE(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_DROP_LG
@@ -841,7 +848,7 @@ Lgman::execCONTINUEB(Signal* signal)
     jam();
     Ptr<Logfile_group> lg_ptr;
     m_logfile_group_pool.getPtr(lg_ptr, ptrI);
-    flush_log(signal, lg_ptr, signal->theData[2]);
+    flush_log(signal, lg_ptr, signal->theData[2], true);
     break;
   }
   case LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS:
@@ -988,12 +995,14 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
     {
       BaseString::snprintf(tmp, sizeof(tmp),
                            "lfg %u state: %x fs: %u lsn "
-                           " [ next: %llu s(req): %llu s:ed: %llu lcp: %llu ] "
+                           " [ next: %llu s(req): %llu s:ed: %llu lcp: %llu"
+                           " req: %llu ] "
                            " waiters: %d %d",
                            ptr.p->m_logfile_group_id, ptr.p->m_state,
                            ptr.p->m_outstanding_fs,
                            ptr.p->m_next_lsn, ptr.p->m_last_sync_req_lsn,
                            ptr.p->m_last_synced_lsn, ptr.p->m_last_lcp_lsn,
+                           ptr.p->m_max_sync_req_lsn,
                            !ptr.p->m_log_buffer_waiters.isEmpty(),
                            !ptr.p->m_log_sync_waiters.isEmpty());
       if (clusterLog)
@@ -2435,6 +2444,7 @@ int
 Logfile_client::sync_lsn(Signal* signal, 
 			 Uint64 lsn, Request* req, Uint32 flags)
 {
+  bool send_force_flush = false;
   Ptr<Lgman::Logfile_group> ptr;
   if(m_lgman->m_logfile_group_list.first(ptr))
   {
@@ -2445,13 +2455,11 @@ Logfile_client::sync_lsn(Signal* signal,
       return 1;
     }
     
-    bool empty= false;
     Ptr<Lgman::Log_waiter> wait;
     {
       Lgman::Local_log_waiter_list
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_sync_waiters);
       
-      empty= list.isEmpty();
       if (!list.seizeLast(wait))
       {
         jamBlock(m_client_block);
@@ -2463,21 +2471,32 @@ Logfile_client::sync_lsn(Signal* signal,
       memcpy(&wait.p->m_callback, &req->m_callback, 
 	     sizeof(SimulatedBlock::CallbackPtr));
 
-      ptr.p->m_max_sync_req_lsn = lsn > ptr.p->m_max_sync_req_lsn ?
-	lsn : ptr.p->m_max_sync_req_lsn;
+      if (lsn > ptr.p->m_max_sync_req_lsn)
+      {
+        jamBlock(m_client_block);
+        ptr.p->m_max_sync_req_lsn = lsn;
+        /**
+         * This is the highest sync_lsn performed so far, this will
+         * generate a signal to LGMAN to force a log flush if the
+         * flush_log hasn't already generated a write for this
+         * LSN.
+         */
+        if (lsn > ptr.p->m_last_sync_req_lsn)
+        {
+          jamBlock(m_client_block);
+          send_force_flush = true;
+        }
+      }
     }
-    
-    if (ptr.p->m_last_sync_req_lsn < lsn && 
-        ! (ptr.p->m_state & Lgman::Logfile_group::LG_FORCE_SYNC_THREAD))
+    if (send_force_flush)
     {
       jamBlock(m_client_block);
-      ptr.p->m_state |= Lgman::Logfile_group::LG_FORCE_SYNC_THREAD;
       signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
       signal->theData[1] = ptr.i;
       signal->theData[2] = (Uint32)(lsn >> 32);
       signal->theData[3] = (Uint32)(lsn & 0xFFFFFFFF);
-      m_client_block->sendSignalWithDelay(m_lgman->reference(), 
-                                          GSN_CONTINUEB, signal, 10, 4);
+      m_client_block->sendSignal(m_lgman->reference(), GSN_CONTINUEB,
+                                 signal, 4, JBB);
     }
     return 0;
   }
@@ -2497,7 +2516,6 @@ Lgman::force_log_sync(Signal* signal,
 		      Ptr<Logfile_group> ptr, 
 		      Uint32 lsn_hi, Uint32 lsn_lo)
 {
-  Local_log_waiter_list list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
   Uint64 force_lsn = lsn_hi; force_lsn <<= 32; force_lsn += lsn_lo;
 
   if(ptr.p->m_last_sync_req_lsn < force_lsn)
@@ -2556,26 +2574,32 @@ Lgman::force_log_sync(Signal* signal,
 
       next_page(ptr.p, PRODUCER, jamBuffer());
       ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 0;
+      if (ptr.p->m_outstanding_fs == 0)
+      {
+        jam();
+        /**
+         * If no file operations are outstanding we will attempt to
+         * start a new file operation immediately to ensure we are
+         * not letting user operations wait for a long time when they
+         * are waiting for a page to be cleansed or waiting for a page
+         * to complete its write such that we can write to it again.
+         *
+         * If file operations are already ongoing we will start a new
+         * file operation immediately when returning from the
+         * outstanding ones.
+         */
+        flush_log(signal, ptr, 2, false);
+      }
     }
-  }
-
-  
-  
-  Uint64 max_req_lsn = ptr.p->m_max_sync_req_lsn;
-  if(max_req_lsn > force_lsn && 
-     max_req_lsn > ptr.p->m_last_sync_req_lsn)
-  {
-    jam();
-    ndbrequire(ptr.p->m_state & Lgman::Logfile_group::LG_FORCE_SYNC_THREAD);
-    signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
-    signal->theData[1] = ptr.i;
-    signal->theData[2] = (Uint32)(max_req_lsn >> 32);
-    signal->theData[3] = (Uint32)(max_req_lsn & 0xFFFFFFFF);
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
-  }
-  else
-  {
-    ptr.p->m_state &= ~(Uint32)Lgman::Logfile_group::LG_FORCE_SYNC_THREAD;
+    else if (ptr.p->m_outstanding_fs == 0)
+    {
+      /**
+       * No need to flush last page, but could still be useful
+       * to flush any logs waiting to be flushed to shorten the
+       * latency waiting for sync_lsn to complete.
+       */
+      flush_log(signal, ptr, 2, false);
+    }
   }
 }
 
@@ -2740,7 +2764,8 @@ Lgman::next_page(Logfile_group* ptrP,
       Lgman::Buffer_idx range;
     };
     
-    tmp[0] = *it.data; map.next(it);
+    tmp[0] = *it.data;
+    map.next(it);
     tmp[1] = *it.data;
     
     ptrP->m_pos[i].m_current_page.m_ptr_i = pos;           // New index in map
@@ -2817,7 +2842,10 @@ operator<<(NdbOut& out, const Lgman::Logfile_group::Position& pos)
 }
 
 void
-Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
+Lgman::flush_log(Signal* signal,
+                 Ptr<Logfile_group> ptr,
+                 Uint32 force,
+                 bool issue_continueb)
 {
   Logfile_group::Position consumer= ptr.p->m_pos[CONSUMER];
   Logfile_group::Position producer= ptr.p->m_pos[PRODUCER];
@@ -2827,6 +2855,12 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   if (consumer.m_current_page == producer.m_current_page)
   {
     jam();
+    /**
+     * Producer and consumer is in the same page range AND
+     * Producer and consumer has same amount of pages left
+     * in range. This means we're only at the beginning of
+     * the UNDO log.
+     */
     Buffer_idx pos = producer.m_current_pos;
 
 #if 0
@@ -2855,12 +2889,16 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
       if (force < 2 || ptr.p->m_outstanding_fs)
       {
         jam();
-	signal->theData[0] = LgmanContinueB::FLUSH_LOG;
-	signal->theData[1] = ptr.i;
-	signal->theData[2] = force + 1;
-	sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 
-			    force ? 10 : 100, 3);
-	return;
+        if (issue_continueb)
+        {
+          jam();
+          signal->theData[0] = LgmanContinueB::FLUSH_LOG;
+          signal->theData[1] = ptr.i;
+          signal->theData[2] = force + 1;
+          sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 
+                              force ? 10 : 100, 3);
+        }
+        return;
       }
       else
       {
@@ -2868,12 +2906,12 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	GlobalPage *page = m_shared_page_pool.getPtr(pos.m_ptr_i);
 
         Uint32 free = get_undo_page_words(ptr) - pos.m_idx;
-
-	g_eventLogger->info("LGMAN: force flush %d %d outstanding: %u"
-                            " isEmpty(): %u",
-                            pos.m_idx, ptr.p->m_free_buffer_words,
-                            ptr.p->m_outstanding_fs,
-                            ptr.p->m_log_buffer_waiters.isEmpty());
+        if (issue_continueb)
+	  g_eventLogger->info("LGMAN: force flush %d %d outstanding: %u"
+                              " isEmpty(): %u",
+                              pos.m_idx, ptr.p->m_free_buffer_words,
+                              ptr.p->m_outstanding_fs,
+                              ptr.p->m_log_buffer_waiters.isEmpty());
 	
 	ndbrequire(pos.m_idx); // don't flush empty page...
 	Uint64 lsn= ptr.p->m_next_lsn - 1;
@@ -2988,6 +3026,11 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
     }
     else
     {
+      /**
+       * Producer and consumer in different chunks, we will
+       * never write last page of producer, so no need to
+       * worry about skip_pages.
+       */
       Uint32 tmp= consumer.m_current_page.m_idx + 1;
       cnt= write_log_pages(signal, ptr, page, tmp);
       assert(cnt <= tmp);
@@ -3021,7 +3064,12 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   }
 
   ptr.p->m_pos[CONSUMER]= consumer;
-  
+
+  if (!issue_continueb)
+  {
+    jam();
+    return;
+  }
   if (! (ptr.p->m_state & Logfile_group::LG_DROPPING))
   {
     jam();
@@ -3249,7 +3297,7 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
   {
     /**
      * The write will be entirely within the current file, just proceed with
-     * the write and se states accordingly.
+     * the write and set states accordingly.
      */
     jam();
     max= pages;
@@ -3396,6 +3444,21 @@ Lgman::execFSWRITECONF(Signal* signal)
       jam();
       process_log_buffer_waiters(signal, lg_ptr);
     }
+    if (lg_ptr.p->m_outstanding_fs == 0 &&
+        lg_ptr.p->m_max_sync_req_lsn > lg_ptr.p->m_last_synced_lsn &&
+        lg_ptr.p->m_outstanding_fs == 0)
+    {
+      jam();
+      /**
+       * A flush of an LSN not yet written has been requested and no
+       * file operations are outstanding for the moment. Let's start
+       * if possible a new file operation to write the requested LSN
+       * immediately. We set force to 2 to ensure that we start a
+       * flush operation even if we only have one page used in the
+       * log buffer at the moment. This avoids unnecessary long waits.
+       */
+      flush_log(signal, lg_ptr, 2, false);
+    }
   }
   else
   {
@@ -3486,6 +3549,10 @@ Lgman::level_report_thread(Signal *signal, Ptr<Logfile_group> lg_ptr)
      * thread as stopped.
      */
     lg_ptr.p->m_state &= ~(Uint32)Logfile_group::LG_LEVEL_REPORT_THREAD;
+    UndoLogLevelRep *rep = (UndoLogLevelRep*)signal->getDataPtrSend();
+    rep->levelUsed = Uint32(0);
+    sendSignal(DBLQH_REF, GSN_UNDO_LOG_LEVEL_REP, signal,
+               UndoLogLevelRep::SignalLength, JBB);
     return;
   }
   if (lg_ptr.p->m_total_log_space != Uint64(0))
@@ -3513,6 +3580,8 @@ Lgman::level_report_thread(Signal *signal, Ptr<Logfile_group> lg_ptr)
     {
       jam();
       lg_ptr.p->m_count_since_last_report = 0;
+      DEB_UNDO_SPACE(("UNDO log level reached %u percent",
+                      Uint32(free_level)));
       g_eventLogger->debug("UNDO log level reached %u percent",
                           Uint32(free_level));
       lg_ptr.p->m_last_log_level_reported = Uint32(free_level);
@@ -3746,7 +3815,8 @@ Logfile_client::add_entry_complex(const Change* src,
 {
   Uint32 tot = 0;
   require(cnt == 3);
-  Uint32 remaining_page_space = m_lgman->get_remaining_page_space(m_logfile_group_id);
+  Uint32 remaining_page_space =
+    m_lgman->get_remaining_page_space(m_logfile_group_id);
   for(Uint32 i= 0; i<cnt; i++)
   {
     tot += src[i].len;

@@ -5332,10 +5332,11 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       {
         goto timeslice;
       }
-      else if (unlikely(res == -1))
-      {
-        return -1;
-      }
+      /**
+       * We are processing node recovery and need to process a disk
+       * data page, if this fails we cannot proceed with node recovery.
+       */
+      ndbrequire(res > 0);
 
       /* Complete work on LGMAN before setting page to dirty */
       CallbackPtr cptr;

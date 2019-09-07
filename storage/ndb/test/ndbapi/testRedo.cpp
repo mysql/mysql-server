@@ -1295,8 +1295,8 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_FAILED;
   Config conf;
   NdbRestarter restarter;
-  Uint32 noOfLogFiles = ctx->getProperty("REDOLOGCOUNT", (Uint32)16);
-  Uint32 logFileSize = ctx->getProperty("REDOLOGSIZE", (Uint32)16*1024*1024);
+  Uint32 noOfLogFiles = ctx->getProperty("REDOLOGCOUNT", (Uint32)4);
+  Uint32 logFileSize = ctx->getProperty("REDOLOGSIZE", (Uint32)64*1024*1024);
   Uint32 LCPinterval = ctx->getProperty("LCPINTERVAL", (Uint32)20);
   Uint32 defaultNoOfLogFiles = 0, defaultLogFileSize = 0;
   Uint32 defaultLCPinterval = 0;

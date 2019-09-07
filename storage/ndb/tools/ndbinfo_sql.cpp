@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -290,6 +290,14 @@ struct view {
      "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
      "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskpagebuffer`"
   },
+  { "diskstat",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskstat`"
+  },
+  { "diskstats_1sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskstats_1sec`"
+  },
   { "error_messages",
     "SELECT error_code, error_description, error_status, error_classification "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>error_messages`"
@@ -438,6 +446,10 @@ struct view {
     "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
+  },
+  { "pgman_time_track_stats",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pgman_time_track_stats`"
   },
 #if 0
   { "pools",

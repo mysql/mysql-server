@@ -699,8 +699,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     c_lqh->exec_next_scan_conf(signal);
     return;
   }
-  if (scan.m_state == ScanOp::Last ||
-      scan.m_state == ScanOp::Invalid) {
+  if (scan.m_state == ScanOp::Last)
+  {
     jam();
     release_c_free_scan_lock();
     scan.m_last_seen = __LINE__;
@@ -710,6 +710,16 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     conf->fragId = RNIL;
     signal->setLength(NextScanConf::SignalLengthNoTuple);
     c_lqh->exec_next_scan_conf(signal);
+    return;
+  }
+  else if (scan.m_state == ScanOp::Invalid)
+  {
+    jam();
+    scan.m_last_seen = __LINE__;
+    NextScanRef* const ref = (NextScanRef*)signal->getDataPtrSend();
+    ref->scanPtr = scan.m_userPtr;
+    ref->errorCode = m_scan_error_code;
+    c_lqh->exec_next_scan_ref(signal);
     return;
   }
   ndbabort();
@@ -2278,6 +2288,24 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           // request queued
           pos.m_get = ScanPos::Get_tuple;
           return false;
+        }
+        else if (res < 0)
+        {
+          jam();
+          if (res == -1)
+          {
+            jam();
+            m_scan_error_code = Uint32(~0);
+          }
+          else
+          {
+            jam();
+            res = -res;
+            m_scan_error_code = res;
+          }
+          /* Flag to reply code that we have an error */
+          scan.m_state = ScanOp::Invalid;
+          return true;
         }
         ndbrequire(res > 0);
         pos.m_page = (Page*)pagePtr.p;

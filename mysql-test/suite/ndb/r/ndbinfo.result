@@ -84,9 +84,12 @@ table_id	table_name	comment
 37	stored_tables	Information about stored tables
 38	processes	Process ID and Name information for connected nodes
 39	config_nodes	All nodes of current cluster configuration
+40	pgman_time_track_stats	Time tracking of reads and writes of disk data pages
+41	diskstat	Disk data statistics for last second
+42	diskstats_1sec	Disk data statistics history for last few seconds
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-40
+43
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -126,6 +129,9 @@ table_id	table_name	comment
 37	stored_tables	Information about stored tables
 38	processes	Process ID and Name information for connected nodes
 39	config_nodes	All nodes of current cluster configuration
+40	pgman_time_track_stats	Time tracking of reads and writes of disk data pages
+41	diskstat	Disk data statistics for last second
+42	diskstats_1sec	Disk data statistics history for last few seconds
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -156,6 +162,8 @@ table_id	table_name
 25	cpustat_50ms
 16	dict_obj_info
 10	diskpagebuffer
+41	diskstat
+42	diskstats_1sec
 19	disk_write_speed_aggregate
 18	disk_write_speed_base
 29	frag_locks
@@ -166,6 +174,7 @@ table_id	table_name
 15	membership
 9	nodes
 14	operations
+40	pgman_time_track_stats
 3	pools
 38	processes
 7	resources
@@ -260,6 +269,9 @@ table_id
 37
 38
 39
+40
+41
+42
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only

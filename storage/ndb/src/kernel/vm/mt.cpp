@@ -5425,7 +5425,7 @@ read_jba_state(thr_data *selfptr)
 
 static
 inline
-void
+bool
 check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
 {
   /**
@@ -5444,9 +5444,12 @@ check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
       Uint32 instance = blockToInstance(block);
       SimulatedBlock* b = globalData.getBlock(main, instance);
       b->executeFunction_async(GSN_SEND_PACKED, signal);
-      return;
+      if (signal->theData[0] == 1)
+        return true;
+      return false;
     }
   }
+  return false;
 }
 
 /* Check all job queues, return true only if all are empty. */
@@ -5456,7 +5459,8 @@ check_queues_empty(thr_data *selfptr)
   Uint32 thr_count = g_thr_repository->m_thread_count;
   if (selfptr->m_thr_no == 0)
   {
-    check_for_input_from_ndbfs(selfptr, selfptr->m_signal);
+    if (check_for_input_from_ndbfs(selfptr, selfptr->m_signal))
+      return false;
   }
   bool empty = read_jba_state(selfptr);
   if (!empty)

@@ -177,6 +177,20 @@ PgmanProxy::sendEND_LCPCONF(Signal* signal, Uint32 ssId)
  * thread is used.  These are extent pages.
  */
 
+void
+PgmanProxy::get_extent_page(Page_cache_client& caller,
+                            Signal* signal,
+                            Page_cache_client::Request& req,
+                            Uint32 flags)
+{
+  ndbrequire(blockToInstance(caller.m_block) == 0);
+  SimulatedBlock* block = globalData.getBlock(caller.m_block);
+  Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
+  Page_cache_client pgman(block, worker);
+  pgman.get_extent_page(signal, req, flags);
+  caller.m_ptr = pgman.m_ptr;
+}
+
 int
 PgmanProxy::get_page(Page_cache_client& caller,
                      Signal* signal,

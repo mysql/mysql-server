@@ -1209,6 +1209,7 @@ int Dbtup::retrieve_data_page(Signal *signal,
     ndbrequire("NOT YET IMPLEMENTED" == 0);
     break;
   default:
+    ndbrequire(res > 0);
     jam();
   }
   {

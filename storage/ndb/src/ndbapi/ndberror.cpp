@@ -604,6 +604,7 @@ ErrorBundle ErrorCodes[] = {
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   { 1516, DMEC, SE, "File too small" },
   { 1517, DMEC, SE, "Insufficient disk page buffer memory. Increase DiskPageBufferMemory or reduce data file size." },
+  { 1518, DMEC, OL, "IO overload error" },
 
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },

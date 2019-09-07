@@ -2297,6 +2297,37 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_DB_MAX_DD_LATENCY,
+    "MaxDiskDataLatency",
+    DB_TOKEN,
+    "Maximum allowed mean latency of disk access in milliseconds."
+    "When this limit is reached we will start aborting transactions"
+    " to decrease pressure on IO susbsystem. 0 means this check is"
+    " not active",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "8000"
+  },
+
+  {
+    CFG_DB_DD_USING_SAME_DISK,
+    "DiskDataUsingSameDisk",
+    DB_TOKEN,
+    "Set this to false if Disk data tablespaces uses their own disk"
+    " drives. This means that we can push checkpoints to tablespaces"
+    " at a higher rate than if disk drives are shared.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
+  },
+
+  {
     CFG_DB_ENABLE_REDO_CONTROL,
     "EnableRedoControl",
     DB_TOKEN,

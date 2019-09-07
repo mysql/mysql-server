@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,10 @@ public:
     TABLE_REPLICAS_ALL_TABLEID = 36,
     STORED_TABLES_TABLEID =      37,
     PROCESSES_TABLEID =          38,
-    CONFIG_NODES_TABLEID =       39
+    CONFIG_NODES_TABLEID =       39,
+    PGMAN_TIME_TRACK_STATS_TABLEID = 40,
+    DISKSTAT_TABLEID =           41,
+    DISKSTATS_1SEC_TABLEID =     42
   };
 
   enum BufferId {

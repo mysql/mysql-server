@@ -249,6 +249,8 @@
 #define CFG_DB_RESERVED_TRANS_BUFFER_MEM 666
 
 #define CFG_DB_TRANSACTION_MEM        667
+#define CFG_DB_MAX_DD_LATENCY         668
+#define CFG_DB_DD_USING_SAME_DISK     669
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

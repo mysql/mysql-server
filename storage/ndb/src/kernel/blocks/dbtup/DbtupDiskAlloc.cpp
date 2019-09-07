@@ -386,19 +386,21 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
   Ptr<Extent_info> extentPtr;
   if (!c_extent_hash.find(extentPtr, key))
   {
-    g_eventLogger->info("(%u)Crash on page(%u,%u) in tab(%u,%u), extent page: %u"
-                     " restart_seq(%u,%u)",
-                     instance(),
-                     pagePtr.p->m_file_no,
-                     pagePtr.p->m_page_no,
-                     fragPtr.p->fragTableId,
-                     fragPtr.p->fragmentId,
-                     pagePtr.p->m_extent_no,
-                     pagePtr.p->m_restart_seq,
-                     globalData.m_restart_seq);
+    g_eventLogger->info("(%u)Crash on page(%u,%u) in tab(%u,%u),"
+                        " extent page: %u"
+                        " restart_seq(%u,%u)",
+                        instance(),
+                        pagePtr.p->m_file_no,
+                        pagePtr.p->m_page_no,
+                        fragPtr.p->fragTableId,
+                        fragPtr.p->fragmentId,
+                        pagePtr.p->m_extent_no,
+                        pagePtr.p->m_restart_seq,
+                        globalData.m_restart_seq);
     ndbabort();
   }
-  DEB_EXTENT_BITS(("(%u)restart_setup_page(%u,%u) in tab(%u,%u), extent page: %u.%u"
+  DEB_EXTENT_BITS(("(%u)restart_setup_page(%u,%u) in tab(%u,%u),"
+                   " extent page: %u.%u"
                    " restart_seq(%u,%u)",
                    instance(),
                    pagePtr.p->m_file_no,
@@ -546,11 +548,6 @@ Dbtup::disk_page_prealloc(Signal* signal,
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
   Uint32 idx= alloc.calc_page_free_bits(sz);
   D("Tablespace_client - disk_page_prealloc");
-  Tablespace_client tsman(signal, this, c_tsman,
-                fragPtrP->fragTableId,
-                fragPtrP->fragmentId,
-                c_lqh->getCreateSchemaVersion(fragPtrP->fragTableId),
-                fragPtrP->m_tablespace_id);
   
   /**
    * 1) search current dirty pages
@@ -624,8 +621,16 @@ Dbtup::disk_page_prealloc(Signal* signal,
   if ((ext.i = alloc.m_curr_extent_info_ptr_i) != RNIL)
   {
     jam();
-    c_extent_pool.getPtr(ext);
-    if ((pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits)) >= 0) 
+    {
+      Tablespace_client tsman(signal, this, c_tsman,
+                    fragPtrP->fragTableId,
+                    fragPtrP->fragmentId,
+                    c_lqh->getCreateSchemaVersion(fragPtrP->fragTableId),
+                    fragPtrP->m_tablespace_id);
+      c_extent_pool.getPtr(ext);
+      pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
+    }
+    if (pageBits >= 0) 
     {
       jamEntry();
       jamLine(pageBits);
@@ -672,13 +677,20 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	c_page_request_pool.release(req);
 	return -err;
       }
-      
-      if ((err= tsman.alloc_extent(&ext.p->m_key)) < 0)
+      {  
+        Tablespace_client tsman(signal, this, c_tsman,
+                      fragPtrP->fragTableId,
+                      fragPtrP->fragmentId,
+                      c_lqh->getCreateSchemaVersion(fragPtrP->fragTableId),
+                      fragPtrP->m_tablespace_id);
+        err= tsman.alloc_extent(&ext.p->m_key);
+      }
+      if (err < 0)
       {
-	jamEntry();
-	c_extent_pool.release(ext);
-	c_page_request_pool.release(req);
-	return err;
+        jamEntry();
+        c_extent_pool.release(ext);
+        c_page_request_pool.release(req);
+        return err;
       }
 
       int pages= err;
@@ -715,7 +727,14 @@ Dbtup::disk_page_prealloc(Signal* signal,
     jam(); 
     alloc.m_curr_extent_info_ptr_i= ext.i;
     ext.p->m_free_matrix_pos= RNIL;
-    pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
+    {
+      Tablespace_client tsman(signal, this, c_tsman,
+                    fragPtrP->fragTableId,
+                    fragPtrP->fragmentId,
+                    c_lqh->getCreateSchemaVersion(fragPtrP->fragTableId),
+                    fragPtrP->m_tablespace_id);
+      pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
+    }
     jamEntry();
     ddrequire(pageBits >= 0);
   }
@@ -825,9 +844,11 @@ Dbtup::disk_page_prealloc(Signal* signal,
     jam();
     break;
   case -1:
-    ndbassert(false);
     return -1604;
+  case -1518:
+    return -res;
   default:
+    ndbrequire(res > 0);
     jam();
     execute(signal, preq.m_callback, res); // run callback
   }
@@ -954,7 +975,10 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   {
     jam();
     D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
-    restart_setup_page(fragPtr, alloc, pagePtr, req.p->m_original_estimated_free_space);
+    restart_setup_page(fragPtr,
+                       alloc,
+                       pagePtr,
+                       req.p->m_original_estimated_free_space);
   }
 
   Ptr<Extent_info> extentPtr;
@@ -1609,7 +1633,7 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
   req.m_callback.m_callbackFunction = 
     safe_cast(&Dbtup::disk_page_abort_prealloc_callback);
   
-  int flags= Page_cache_client::DIRTY_REQ;
+  int flags= Page_cache_client::ABORT_REQ;
   memcpy(&req.m_page, key, sizeof(Local_key));
   req.m_table_id = fragPtrP->fragTableId;
   req.m_fragment_id = fragPtrP->fragmentId;
@@ -1626,6 +1650,7 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
     ndbabort();
   default:
     jam();
+    ndbrequire(res > 0);
     Ptr<GlobalPage> gpage;
     m_global_page_pool.getPtr(gpage, (Uint32)res);
     PagePtr pagePtr;
@@ -1926,7 +1951,7 @@ Dbtup::disk_restart_undo(Signal* signal,
     if (!isNdbMtLqh())
       disk_restart_undo_next(signal);
     
-    DEB_UNDO(("(%u)UNDO LCP [%u,%u] (%u,%u)",
+    DEB_UNDO(("(%u)UNDO LCP [%u,%u] tab(%u,%u)",
               instance(),
               lcpId,
               localLcpId,
@@ -2127,6 +2152,7 @@ Dbtup::disk_restart_undo(Signal* signal,
   case -1:
     ndbabort();
   default:
+    ndbrequire(res > 0);
     DEB_UNDO(("LDM(%u) DIRECT_EXECUTE Page:%u lsn:%llu",
                         instance(),
                         preq.m_page.m_page_no,

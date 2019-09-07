@@ -84,6 +84,11 @@ protected:
   int get_page(Page_cache_client& caller,
                Signal*, Page_cache_client::Request& req, Uint32 flags);
 
+  void get_extent_page(Page_cache_client& caller,
+                       Signal*,
+                       Page_cache_client::Request& req,
+                       Uint32 flags);
+
   void update_lsn(Signal *signal,
                   Page_cache_client& caller,
                   Local_key key, Uint64 lsn);

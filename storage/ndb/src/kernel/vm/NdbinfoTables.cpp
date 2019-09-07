@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -906,6 +906,86 @@ DECLARE_NDBINFO_TABLE(CONFIG_NODES, 4) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(PGMAN_TIME_TRACK_STATS, 8) =
+{ { "pgman_time_track_stats", 8, 0,
+    "Time tracking of reads and writes of disk data pages" },
+  {
+    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"block_number",                Ndbinfo::Number, "Block number"},
+    {"block_instance",              Ndbinfo::Number, "Block instance"},
+    {"upper_bound",                 Ndbinfo::Number,
+       "Upper bound in microseconds" },
+    {"page_reads",                  Ndbinfo::Number64,
+       "Number of disk reads in this range" },
+    {"page_writes",                      Ndbinfo::Number64,
+       "Number of disk writes in this range" },
+    {"log_waits",                   Ndbinfo::Number64,
+       "Number of waits due to WAL rule in this range (log waits)" },
+    {"get_page",                   Ndbinfo::Number64,
+       "Number of waits for get_page in this range" },
+  }
+};
+
+DECLARE_NDBINFO_TABLE(DISKSTAT, 12) =
+{ { "diskstat", 12, 0,
+    "Disk data statistics for last second"},
+  {
+    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"block_instance",              Ndbinfo::Number, "Block instance"},
+    {"pages_made_dirty",            Ndbinfo::Number,
+       "Pages made dirty last second"},
+    {"reads_issued",                Ndbinfo::Number,
+       "Reads issued last second"},
+    {"reads_completed",             Ndbinfo::Number,
+       "Reads completed last second"},
+    {"writes_issued",               Ndbinfo::Number,
+       "Writes issued last second"},
+    {"writes_completed",            Ndbinfo::Number,
+       "Writes completed last second"},
+    {"log_writes_issued",           Ndbinfo::Number,
+       "Log writes issued last second"},
+    {"log_writes_completed",        Ndbinfo::Number,
+       "Log writes completed last second"},
+    {"get_page_calls_issued",       Ndbinfo::Number,
+       "get_page calls issued last second"},
+    {"get_page_reqs_issued",       Ndbinfo::Number,
+       "get_page calls that triggered disk IO issued last second"},
+    {"get_page_reqs_completed",       Ndbinfo::Number,
+       "get_page calls that triggered disk IO completed last second"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(DISKSTATS_1SEC, 13) =
+{ { "diskstats_1sec", 13, 0,
+    "Disk data statistics history for last few seconds"},
+  {
+    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"block_instance",              Ndbinfo::Number, "Block instance"},
+    {"pages_made_dirty",            Ndbinfo::Number,
+       "Pages made dirty per second"},
+    {"reads_issued",                Ndbinfo::Number,
+       "Reads issued per second"},
+    {"reads_completed",             Ndbinfo::Number,
+       "Reads completed per second"},
+    {"writes_issued",               Ndbinfo::Number,
+       "Writes issued per second"},
+    {"writes_completed",            Ndbinfo::Number,
+       "Writes completed per second"},
+    {"log_writes_issued",           Ndbinfo::Number,
+       "Log writes issued per second"},
+    {"log_writes_completed",        Ndbinfo::Number,
+       "Log writes completed per second"},
+    {"get_page_calls_issued",       Ndbinfo::Number,
+       "get_page calls issued per second"},
+    {"get_page_reqs_issued",       Ndbinfo::Number,
+       "get_page calls that triggered disk IO issued per second"},
+    {"get_page_reqs_completed",       Ndbinfo::Number,
+       "get_page calls that triggered disk IO completed per second"},
+    {"seconds_ago",                 Ndbinfo::Number,
+       "Seconds ago that this measurement was made"},
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -954,7 +1034,10 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(TABLE_REPLICAS_ALL),
   DBINFOTBL(STORED_TABLES),
   DBINFOTBL(PROCESSES),
-  DBINFOTBL(CONFIG_NODES)
+  DBINFOTBL(CONFIG_NODES),
+  DBINFOTBL(PGMAN_TIME_TRACK_STATS),
+  DBINFOTBL(DISKSTAT),
+  DBINFOTBL(DISKSTATS_1SEC)
 };
 
 static int no_ndbinfo_tables =

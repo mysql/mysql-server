@@ -1718,29 +1718,41 @@ Ndbfs::execCONTINUEB(Signal* signal)
       return;
     }
   }
-  if (scanIPC(signal)) {
+  if (scanIPC(signal))
+  {
     jam();
     scanningInProgress = true;
     signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY;    
     sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-   } else {
+  }
+  else
+  {
     jam();
     scanningInProgress = false;
-   }
-   return;
+  }
+  return;
 }
 
 void
 Ndbfs::execSEND_PACKED(Signal* signal)
 {
   jamEntryDebug();
-  if (scanningInProgress == false && scanIPC(signal))
+  if (scanIPC(signal))
   {
-    jam();
-    scanningInProgress = true;
-    signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+    if (scanningInProgress == false)
+    {
+      jam();
+      scanningInProgress = true;
+      signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+    }
+    signal->theData[0] = 1;
+    return;
   }
+  if (scanningInProgress == false)
+    signal->theData[0] = 0;
+  else
+    signal->theData[0] = 1;
 }
 
 void
@@ -1811,12 +1823,12 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       if (NdbTick_IsValid(req->m_startTime))
       {
         duration = NdbTick_Elapsed(req->m_startTime,
-                                   getHighResTimer()).milliSec();
+                                   getHighResTimer()).microSec();
       }
 
       g_eventLogger->info("Request %u action %u %s userRef 0x%x "
                           "userPtr %u filePtr %u bind %u "
-                          "duration(ms) %llu filename %s",
+                          "duration(us) %llu filename %s",
                           ridx,
                           req->action,
                           Request::actionName(req->action),

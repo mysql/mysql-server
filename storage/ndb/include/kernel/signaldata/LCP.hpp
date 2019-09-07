@@ -256,8 +256,9 @@ struct SyncExtentPagesReq
   enum LcpOrder
   {
     FIRST_LCP = 0,
-    INTERMEDIATE_LCP = 1,
-    END_LCP = 2
+    END_LCP = 1,
+    RESTART_SYNC = 2,
+    FIRST_AND_END_LCP = 3
   };
   Uint32 senderData;
   Uint32 senderRef;

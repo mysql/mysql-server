@@ -202,6 +202,9 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   m_lcp_timing_counter = Uint64(0);
   m_lcp_change_rate = Uint64(0);
   m_lcp_timing_factor = Uint64(100);
+  m_current_dd_time_us = Uint64(0);
+  m_last_lcp_dd_percentage = Uint32(0);
+  m_undo_log_level_percentage = Uint32(0);
 }
   
 Backup::~Backup()

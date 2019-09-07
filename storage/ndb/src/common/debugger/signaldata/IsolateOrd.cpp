@@ -50,7 +50,7 @@ printISOLATE_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
   }
   else
   {
-    fprintf(output, " nodesToIsolate in signal section");
+    fprintf(output, " nodesToIsolate in signal section\n");
   }
   return true;
 }

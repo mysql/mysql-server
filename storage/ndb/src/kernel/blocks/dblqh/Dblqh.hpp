@@ -2679,6 +2679,7 @@ public:
   void setup_scan_pointers_from_tc_con(TcConnectionrecPtr);
   void setup_key_pointers(Uint32 tcIndex);
   void exec_next_scan_conf(Signal *signal);
+  void exec_next_scan_ref(Signal *signal);
   void continue_next_scan_conf(Signal *signal,
                                ScanRecord::ScanState scanState,
                                ScanRecord * const scanPtr);

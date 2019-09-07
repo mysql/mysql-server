@@ -4012,6 +4012,8 @@ private:
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;
 
+  // Error code when bailing out of scan
+  Uint32 m_scan_error_code;
   void disk_restart_undo_next(Signal*,
                               Uint32 applied = 0,
                               Uint32 count_pending = 1);

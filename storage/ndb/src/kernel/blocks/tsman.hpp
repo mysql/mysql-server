@@ -26,7 +26,7 @@
 #define TSMAN_H
 
 #include <SimulatedBlock.hpp>
-
+#include <ndb_limits.h>
 #include <IntrusiveList.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/GetTabInfo.hpp>
@@ -69,6 +69,7 @@ protected:
   void execFSREADCONF(Signal*);
 
   void execFSCLOSEREF(Signal*);
+  void fscloseconf(Signal*);
   void execFSCLOSECONF(Signal*);
 
   void execALLOC_EXTENT_REQ(Signal*);
@@ -151,6 +152,9 @@ public:
       Uint32 nextPool;
     };
 
+#define NUM_EXTENT_PAGE_MUTEXES 32
+    NdbMutex m_extent_page_mutex[NUM_EXTENT_PAGE_MUTEXES];
+
     Uint32 hashValue() const {
       return m_file_no;
     }
@@ -232,14 +236,24 @@ private:
   Lgman * m_lgman;
   SimulatedBlock * m_tup;
 
-  SafeMutex m_client_mutex;
-  void client_lock(BlockNumber block, int line);
-  void client_unlock(BlockNumber block, int line);
+  NdbMutex *m_client_mutex[MAX_NDBMT_LQH_THREADS + 1];
+  NdbMutex *m_alloc_extent_mutex;
+  void client_lock();
+  void client_unlock();
+  void client_lock(Uint32 instance);
+  void client_unlock(Uint32 instance);
+  void lock_extent_page(Uint32 file_no, Uint32 page_no);
+  void unlock_extent_page(Uint32 file_no, Uint32 page_no);
+  void lock_extent_page(Datafile*, Uint32 page_no);
+  void unlock_extent_page(Datafile*, Uint32 page_no);
+  void lock_alloc_extent();
+  void unlock_alloc_extent();
   
   int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*,
 		SectionHandle* handle);
   void load_extent_pages(Signal* signal, Ptr<Datafile> ptr);
   void load_extent_page_callback(Signal*, Uint32, Uint32);
+  void load_extent_page_callback_direct(Signal*, Uint32, Uint32);
   void create_file_ref(Signal*, Ptr<Tablespace>, Ptr<Datafile>, 
 		       Uint32,Uint32,Uint32);
   int update_page_free_bits(Signal*, Local_key*, unsigned committed_bits);
@@ -261,6 +275,7 @@ private:
 
   void release_extent_pages(Signal* signal, Ptr<Datafile> ptr);
   void release_extent_pages_callback(Signal*, Uint32, Uint32);
+  void release_extent_pages_callback_direct(Signal*, Uint32, Uint32);
 
   struct req
   {
@@ -319,7 +334,6 @@ public:
   Uint32 m_fragment_id;
   Uint32 m_create_table_version;
   Uint32 m_tablespace_id;
-  bool m_lock;
   DEBUG_OUT_DEFINES(TSMAN);
 
 public:
@@ -329,8 +343,8 @@ public:
                     Uint32 table,
                     Uint32 fragment,
                     Uint32 create_table_version,
-                    Uint32 tablespaceId,
-                    bool lock = true) {
+                    Uint32 tablespaceId)
+  {
     Uint32 bno = block->number();
     Uint32 ino = block->instance();
     m_block= numberToBlock(bno, ino);
@@ -340,24 +354,16 @@ public:
     m_fragment_id= fragment;
     m_create_table_version = create_table_version;
     m_tablespace_id= tablespaceId;
-    m_lock = lock;
 
-    D("client ctor " << bno << "/" << ino
-      << V(m_table_id) << V(m_fragment_id) << V(m_tablespace_id));
-    if (m_lock)
-      m_tsman->client_lock(m_block, 0);
+    m_tsman->client_lock(ino);
   }
 
   Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);//undef
 
-  ~Tablespace_client() {
-#ifdef VM_TRACE
-    Uint32 bno = blockToMain(m_block);
+  ~Tablespace_client()
+  {
     Uint32 ino = blockToInstance(m_block);
-#endif
-    D("client dtor " << bno << "/" << ino);
-    if (m_lock)
-      m_tsman->client_unlock(m_block, 0);
+    m_tsman->client_unlock(ino);
   }
   
   /**
@@ -365,7 +371,7 @@ public:
    *        <0 if failure, -error code
    */
   int alloc_extent(Local_key* key);
-  
+ 
   /**
    * Allocated a page from an extent
    *   performs linear search in extent free bits until it find 
@@ -406,7 +412,14 @@ public:
    * Update unlogged page free bit
    */
   int unmap_page(Local_key*, Uint32 bits);
-  
+
+  /**
+   * Lock/Unlock extent page to ensure that access to this extent
+   * page is serialised.
+   */
+  void lock_extent_page(Uint32 file_no, Uint32 page_no);
+  void unlock_extent_page(Uint32 file_no, Uint32 page_no);
+
   /**
    * Undo handling of page bits
    */
@@ -538,6 +551,20 @@ Tablespace_client::get_page_free_bits(Local_key *key,
 				      unsigned* commited)
 {
   return m_tsman->get_page_free_bits(m_signal, key, uncommited, commited);
+}
+
+inline
+void
+Tablespace_client::lock_extent_page(Uint32 file_no, Uint32 page_no)
+{
+  m_tsman->lock_extent_page(file_no, page_no);
+}
+
+inline
+void
+Tablespace_client::unlock_extent_page(Uint32 file_no, Uint32 page_no)
+{
+  m_tsman->unlock_extent_page(file_no, page_no);
 }
 
 inline

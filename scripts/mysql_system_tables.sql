@@ -690,6 +690,16 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`diskstat`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`diskstats_1sec`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`error_messages`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -731,6 +741,11 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`operations_per_fragment`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`pgman_time_track_stats`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -985,6 +1000,28 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.ndb$diskstat
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$diskstat`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$diskstat` (`node_id` INT UNSIGNED COMMENT "node_id",`block_instance` INT UNSIGNED COMMENT "Block instance",`pages_made_dirty` INT UNSIGNED COMMENT "Pages made dirty last second",`reads_issued` INT UNSIGNED COMMENT "Reads issued last second",`reads_completed` INT UNSIGNED COMMENT "Reads completed last second",`writes_issued` INT UNSIGNED COMMENT "Writes issued last second",`writes_completed` INT UNSIGNED COMMENT "Writes completed last second",`log_writes_issued` INT UNSIGNED COMMENT "Log writes issued last second",`log_writes_completed` INT UNSIGNED COMMENT "Log writes completed last second",`get_page_calls_issued` INT UNSIGNED COMMENT "get_page calls issued last second",`get_page_reqs_issued` INT UNSIGNED COMMENT "get_page calls that triggered disk IO issued last second",`get_page_reqs_completed` INT UNSIGNED COMMENT "get_page calls that triggered disk IO completed last second") COMMENT="Disk data statistics for last second" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$diskstats_1sec
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$diskstats_1sec`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$diskstats_1sec` (`node_id` INT UNSIGNED COMMENT "node_id",`block_instance` INT UNSIGNED COMMENT "Block instance",`pages_made_dirty` INT UNSIGNED COMMENT "Pages made dirty per second",`reads_issued` INT UNSIGNED COMMENT "Reads issued per second",`reads_completed` INT UNSIGNED COMMENT "Reads completed per second",`writes_issued` INT UNSIGNED COMMENT "Writes issued per second",`writes_completed` INT UNSIGNED COMMENT "Writes completed per second",`log_writes_issued` INT UNSIGNED COMMENT "Log writes issued per second",`log_writes_completed` INT UNSIGNED COMMENT "Log writes completed per second",`get_page_calls_issued` INT UNSIGNED COMMENT "get_page calls issued per second",`get_page_reqs_issued` INT UNSIGNED COMMENT "get_page calls that triggered disk IO issued per second",`get_page_reqs_completed` INT UNSIGNED COMMENT "get_page calls that triggered disk IO completed per second",`seconds_ago` INT UNSIGNED COMMENT "Seconds ago that this measurement was made") COMMENT="Disk data statistics history for last few seconds" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.ndb$frag_locks
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$frag_locks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -1069,6 +1106,17 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$operations` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`objid` INT UNSIGNED COMMENT "Object id of operation object",`tcref` INT UNSIGNED COMMENT "TC reference",`apiref` INT UNSIGNED COMMENT "API reference",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`tableid` INT UNSIGNED COMMENT "Table id",`fragmentid` INT UNSIGNED COMMENT "Fragment id",`op` INT UNSIGNED COMMENT "Operation type",`state` INT UNSIGNED COMMENT "Operation state",`flags` INT UNSIGNED COMMENT "Operation flags") COMMENT="operations" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$pgman_time_track_stats
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$pgman_time_track_stats`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$pgman_time_track_stats` (`node_id` INT UNSIGNED COMMENT "node_id",`block_number` INT UNSIGNED COMMENT "Block number",`block_instance` INT UNSIGNED COMMENT "Block instance",`upper_bound` INT UNSIGNED COMMENT "Upper bound in microseconds",`page_reads` BIGINT UNSIGNED COMMENT "Number of disk reads in this range",`page_writes` BIGINT UNSIGNED COMMENT "Number of disk writes in this range",`log_waits` BIGINT UNSIGNED COMMENT "Number of waits due to WAL rule in this range (log waits)",`get_page` BIGINT UNSIGNED COMMENT "Number of waits for get_page in this range") COMMENT="Time tracking of reads and writes of disk data pages" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1470,6 +1518,18 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.diskstat
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`diskstat` AS SELECT * FROM `ndbinfo`.`ndb$diskstat`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.diskstats_1sec
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`diskstats_1sec` AS SELECT * FROM `ndbinfo`.`ndb$diskstats_1sec`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.error_messages
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`error_messages` AS SELECT error_code, error_description, error_status, error_classification FROM `ndbinfo`.`ndb$error_messages`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -1520,6 +1580,12 @@ DROP PREPARE stmt;
 
 # ndbinfo.operations_per_fragment
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`operations_per_fragment` AS SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, types.type_name AS type, table_id, node_id, block_instance, fragment_num, tot_key_reads, tot_key_inserts, tot_key_updates, tot_key_writes, tot_key_deletes, tot_key_refs, tot_key_attrinfo_bytes,tot_key_keyinfo_bytes, tot_key_prog_bytes, tot_key_inst_exec, tot_key_bytes_returned, tot_frag_scans, tot_scan_rows_examined, tot_scan_rows_returned, tot_scan_bytes_returned, tot_scan_prog_bytes, tot_scan_bound_bytes, tot_scan_inst_exec, tot_qd_frag_scans, conc_frag_scans,conc_qd_plain_frag_scans+conc_qd_tup_frag_scans+conc_qd_acc_frag_scans AS conc_qd_frag_scans, tot_commits FROM ndbinfo.ndb$frag_operations AS ops JOIN ndbinfo.ndb$dict_obj_info AS name ON name.id=ops.table_id AND name.type<=6 JOIN `ndbinfo`.`ndb$dict_obj_types` AS types ON name.type=types.type_id LEFT JOIN `ndbinfo`.`ndb$dict_obj_info` AS parent_name ON name.parent_obj_id=parent_name.id AND name.parent_obj_type=parent_name.type','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.pgman_time_track_stats
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`pgman_time_track_stats` AS SELECT * FROM `ndbinfo`.`ndb$pgman_time_track_stats`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

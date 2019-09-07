@@ -452,8 +452,9 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
       req.m_callback.m_callbackData = 0;
       req.m_callback.m_callbackFunction =
         safe_cast(&DbtupProxy::disk_restart_undo_callback);
+      int flags = Page_cache_client::UNDO_GET_REQ;
 
-      int ret = pgman.get_page(signal, req, 0);
+      int ret = pgman.get_page(signal, req, flags);
       ndbrequire(ret >= 0);
       if (ret > 0) {
         jam();
