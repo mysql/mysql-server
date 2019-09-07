@@ -50,6 +50,9 @@ struct Property {
   Property(const char* name, Uint64 val);
   Property(const char* name, const char * value);
   Property(const char* name, const class Properties * value);
+  // We have no copy or move constructors so delete also assignment operator.
+  Property& operator=(const Property&) = delete;
+  Property& operator=(Property&&) = delete;
   ~Property();
 private:
   friend class Properties;
@@ -68,6 +71,7 @@ public:
   Properties(bool case_insensitive= false);
   Properties(const Properties &);
   Properties(const Property *, int len);
+  Properties& operator=(const Properties&);
   virtual ~Properties();
 
   /**
