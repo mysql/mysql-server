@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,7 @@ public:
   Properties(bool case_insensitive= false);
   Properties(const Properties &);
   Properties(const Property *, int len);
+  Properties& operator=(const Properties&);
   virtual ~Properties();
 
   /**
