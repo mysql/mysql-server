@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,17 +132,6 @@ struct EpochRange
 struct EpochRangeSet
 {
   Vector<EpochRange> m_ranges;
-
-  EpochRangeSet()
-    {};
-  
-  EpochRangeSet(const EpochRangeSet& other)
-  {
-    for (Uint32 i=0; i < other.m_ranges.size(); i++)
-    {
-      m_ranges.push_back(other.m_ranges[i]);
-    }
-  }
 
   /**
    * Add an epochRange to an EpochRangeSet
