@@ -637,7 +637,9 @@ void Parallel_reader::worker(size_t thread_id) {
   }
 
   if (m_finish_callback) {
-    err = m_finish_callback(thread_id);
+    dberr_t finish_err = m_finish_callback(thread_id);
+    /* Keep the err status from previous failed operations */
+    if (unlikely(finish_err != DB_SUCCESS)) err = finish_err;
   }
 
   if (err != DB_SUCCESS) {
