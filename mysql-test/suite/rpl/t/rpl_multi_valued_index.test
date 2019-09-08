@@ -2,50 +2,6 @@
 --source include/master-slave.inc
 
 
-# Procedure to test metadata replication error against several types of data
-#
---write_file $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc PROCEDURE
-  if ($cast_type == '') {
-    --die !!!ERROR IN TEST: you must set $cast_type
-  }
-  if ($array_on == '') {
-    --die !!!ERROR IN TEST: you must set $array_on
-  }
-  if ($insert_value == '') {
-    --die !!!ERROR IN TEST: you must set $insert_value
-  }
-
-  if ($array_on == master) {
-    --let $type_on_master = $cast_type array
-    --let $type_on_slave = $cast_type
-  }
-
-  if ($array_on == slave) {
-    --let $type_on_master = $cast_type
-    --let $type_on_slave = $cast_type array
-  }
-
-  --source include/rpl_connection_master.inc
-  set @@session.sql_log_bin = 0;
-  --eval create table t1(j json, key mvi((cast(j as $type_on_master))))
-  set @@session.sql_log_bin = 1;
-
-  --source include/rpl_connection_slave.inc
-  --eval create table t1(j json, key mvi((cast(j as $type_on_slave))))
-  --source include/rpl_connection_master.inc
-  --eval insert into t1 values ($insert_value)
-
-  --source include/rpl_connection_slave.inc
-  --let $slave_sql_errno = convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
-  --source include/wait_for_slave_sql_error.inc
-  --let $rpl_only_running_threads= 1
-  --source include/rpl_reset.inc
-  --source include/rpl_connection_master.inc
-  drop table t1;
-  --source include/sync_slave_sql_with_master.inc
-# END OF
-PROCEDURE
-
 # Procedure to test metadata replication success against several types of data
 #
 --write_file $MYSQLTEST_VARDIR/tmp/metadata_replication_success.inc PROCEDURE
@@ -123,57 +79,6 @@ explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]"
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
---echo # Test correctness of metadata replication
-
---let $cast_type = char(10)
---let $array_on = slave
---let $insert_value = '"asd"'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
---let $array_on = master
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = decimal(64,1)
---let $array_on = slave
---let $insert_value = '123'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = decimal
---let $array_on = master
---let $insert_value = '123'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = unsigned
---let $array_on = slave
---let $insert_value = '123'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = signed
---let $array_on = master
---let $insert_value = '123'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = datetime(6)
---let $array_on = slave
---let $insert_value = '"01-01-01 01:01:01.0"'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
---let $array_on = master
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = date
---let $array_on = slave
---let $insert_value = '"01-01-01"'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
---let $array_on = master
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---let $cast_type = time(6)
---let $array_on = slave
---let $insert_value = '"01:01:01.0"'
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
---let $array_on = master
---source $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
-
---source include/rpl_connection_master.inc
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
 
@@ -325,7 +230,6 @@ FLUSH LOGS;
 --replace_result $initial_slave_rows_search INTITAL_ROW_SEARCH_CONF
 --eval SET @@global.slave_rows_search_algorithms= "$initial_slave_rows_search"
 
---remove_file $MYSQLTEST_VARDIR/tmp/metadata_replication_error.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/metadata_replication_success.inc
 --source include/rpl_end.inc
 # End:

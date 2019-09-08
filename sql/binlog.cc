@@ -10650,101 +10650,99 @@ class Row_data_memory {
   size_t max_row_length(TABLE *table, const uchar *data,
                         ulonglong value_options = 0) {
     TABLE_SHARE *table_s = table->s;
+    Replicated_columns_view fields{table, Replicated_columns_view::OUTBOUND};
     /*
-      The server stores rows using "records".  A record is a
-      sequence of bytes which contains values or pointers to values
-      for all fields (columns).  The server uses table_s->reclength
-      bytes for a row record.
+      The server stores rows using "records".  A record is a sequence of bytes
+      which contains values or pointers to values for all fields (columns).  The
+      server uses table_s->reclength bytes for a row record.
 
       The layout of a record is roughly:
 
-      - N+1+B bits, packed into CEIL((N+1+B)/8) bytes, where N is
-        the number of nullable columns in the table, and B is the
-        sum of the number of bits of all BIT columns.
+      - N+1+B bits, packed into CEIL((N+1+B)/8) bytes, where N is the number of
+        nullable columns in the table, and B is the sum of the number of bits of
+        all BIT columns.
 
-      - A sequence of serialized fields, each corresponding to a
-        non-BIT, non-NULL column in the table.
+      - A sequence of serialized fields, each corresponding to a non-BIT,
+        non-NULL column in the table.
 
-        For variable-length columns, the first component of the
-        serialized field is a length, stored using 1, 2, 3, or 4
-        bytes depending on the maximum length for the data type.
+        For variable-length columns, the first component of the serialized field
+        is a length, stored using 1, 2, 3, or 4 bytes depending on the maximum
+        length for the data type.
 
-        For most data types, the next component of the serialized
-        field is the actual data.  But for for VARCHAR, VARBINARY,
-        TEXT, BLOB, and JSON, the next component of the serialized
-        field is a serialized pointer, i.e. sizeof(pointer) bytes,
-        which point to another memory area where the actual data is
-        stored.
+        For most data types, the next component of the serialized field is the
+        actual data.  But for for VARCHAR, VARBINARY, TEXT, BLOB, and JSON, the
+        next component of the serialized field is a serialized pointer,
+        i.e. sizeof(pointer) bytes, which point to another memory area where the
+        actual data is stored.
 
       The layout of a row image in the binary log is roughly:
 
-      - If this is an after-image and partial JSON is enabled, 1
-        byte containing value_options.  If the PARTIAL_JSON bit of
-        value_options is set, this is followed by P bits (the
-        "partial_bits"), packed into CEIL(P) bytes, where P is the
-        number of JSON columns in the table.
+      - If this is an after-image and partial JSON is enabled, 1 byte containing
+        value_options.  If the PARTIAL_JSON bit of value_options is set, this is
+        followed by P bits (the "partial_bits"), packed into CEIL(P) bytes,
+        where P is the number of JSON columns in the table.
 
-      - M bits (the "null_bits"), packed into CEIL(M) bytes, where M
-        is the number of columns in the image.
+      - M bits (the "null_bits"), packed into CEIL(M) bytes, where M is the
+        number of columns in the image.
 
-      - A sequence of serialized fields, each corresponding to a
-        non-NULL column in the row image.
+      - A sequence of serialized fields, each corresponding to a non-NULL column
+        in the row image.
 
-        For variable-length columns, the first component of the
-        serialized field is a length, stored using 1, 2, 3, or 4
-        bytes depending on the maximum length for the data type.
+        For variable-length columns, the first component of the serialized field
+        is a length, stored using 1, 2, 3, or 4 bytes depending on the maximum
+        length for the data type.
 
-        For most data types, the next component of the serialized
-        field is the actual field data.  But for JSON fields where
-        the corresponding bit of the partial_bits is 1, this is a
-        sequence of diffs instead.
+        For most data types, the next component of the serialized field is the
+        actual field data.  But for JSON fields where the corresponding bit of
+        the partial_bits is 1, this is a sequence of diffs instead.
 
-      Now we try to use table_s->reclength to estimate how much
-      memory to allocate for a row image in the binlog.  Due to the
-      differences this will only be an upper bound.  Notice the
-      differences:
+      Now we try to use table_s->reclength to estimate how much memory to
+      allocate for a row image in the binlog.  Due to the differences this will
+      only be an upper bound.  Notice the differences:
 
-      - The binlog may only include a subset of the fields (the row
-        image), whereas reclength contains space for all fields.
+      - The binlog may only include a subset of the fields (the row image),
+        whereas reclength contains space for all fields.
 
-      - BIT columns are not packed together with NULL bits in the
-        binlog, so up to 1 more byte per BIT column may be needed.
+      - BIT columns are not packed together with NULL bits in the binlog, so up
+        to 1 more byte per BIT column may be needed.
 
-      - The binlog has a null bit even for non-nullable fields,
-        whereas the reclength only contains space nullable fields,
-        so the binlog may need up to CEIL(table_s->fields/8) more
-        bytes.
+      - The binlog has a null bit even for non-nullable fields, whereas the
+        reclength only contains space nullable fields, so the binlog may need up
+        to CEIL(table_s->fields/8) more bytes.
 
-      - The binlog only has a null bit for fields in the image,
-        whereas the reclength contains space for all fields.
+      - The binlog only has a null bit for fields in the image, whereas the
+        reclength contains space for all fields.
 
-      - The binlog contains the full blob whereas the record only
-        contains sizeof(pointer) bytes.
+      - The binlog contains the full blob whereas the record only contains
+        sizeof(pointer) bytes.
 
-      - The binlog contains value_options and partial_bits.  So this
-        may use up to 1+CEIL(table_s->fields/8) more bytes.
+      - The binlog contains value_options and partial_bits.  So this may use up
+        to 1+CEIL(table_s->fields/8) more bytes.
 
-      - The binlog may contain partial JSON.  This is guaranteed to
-        be smaller than the size of the full value.
+      - The binlog may contain partial JSON.  This is guaranteed to be smaller
+        than the size of the full value.
 
-      For those data types that are not stored using a pointer, the
-      size of the field in the binary log is at most 2 bytes more
-      than what the field contributes to in table_s->reclength,
-      because those data types use at most 1 byte for the length and
-      waste less than a byte on extra padding and extra bits in
-      null_bits or BIT columns.
+      - There may exist columns that, due to their nature, are not replicated,
+        for instance, hidden generated columns used for functional indexes.
 
-      For those data types that are stored using a pointer, the size
-      of the field in the binary log is at most 2 bytes more than
-      what the field contributes to in table_s->reclength, plus the
-      size of the data.  The size of the pointer is at least 4 on
-      all supported platforms, so it is bigger than what is used by
-      partial_bits, value_format, or any waste due to extra padding
-      and extra bits in null_bits.
+      For those data types that are not stored using a pointer, the size of the
+      field in the binary log is at most 2 bytes more than what the field
+      contributes to in table_s->reclength, because those data types use at most
+      1 byte for the length and waste less than a byte on extra padding and
+      extra bits in null_bits or BIT columns.
+
+      For those data types that are stored using a pointer, the size of the
+      field in the binary log is at most 2 bytes more than what the field
+      contributes to in table_s->reclength, plus the size of the data.  The size
+      of the pointer is at least 4 on all supported platforms, so it is bigger
+      than what is used by partial_bits, value_format, or any waste due to extra
+      padding and extra bits in null_bits.
     */
-    size_t length = table_s->reclength + 2 * table_s->fields;
+    size_t length = table_s->reclength + 2 * (fields.filtered_size());
 
     for (uint i = 0; i < table_s->blob_fields; i++) {
+      if (fields.is_excluded(table_s->blob_field[i])) continue;
+
       Field *field = table->field[table_s->blob_field[i]];
       Field_blob *field_blob = down_cast<Field_blob *>(field);
 

@@ -825,6 +825,57 @@ static void print_set_option(IO_CACHE *file, uint32 bits_changed, uint32 option,
   }
 }
 #endif
+
+#ifdef MYSQL_SERVER
+Replicated_columns_view::Replicated_columns_view(
+    Replicated_columns_view::enum_replication_flow direction, THD const *thd)
+    : Replicated_columns_view{nullptr, direction, thd} {}
+
+Replicated_columns_view::Replicated_columns_view(
+    TABLE const *target,
+    Replicated_columns_view::enum_replication_flow direction, THD const *thd)
+    : Table_columns_view{} {
+  filter_fn_type filter{nullptr};
+
+  if (direction == Replicated_columns_view::OUTBOUND)
+    filter = [this](TABLE const *table, size_t column_index) -> bool {
+      return this->outbound_filtering(table, column_index);
+    };
+  else
+    filter = [this](TABLE const *table, size_t column_index) -> bool {
+      return this->inbound_filtering(table, column_index);
+    };
+
+  this->set_thd(thd)       //
+      .set_filter(filter)  //
+      .set_table(target);
+}
+
+Replicated_columns_view &Replicated_columns_view::set_thd(THD const *thd) {
+  this->m_thd = thd;
+  this->init_fields_bitmaps();
+  return (*this);
+}
+
+bool Replicated_columns_view::is_inbound_filtering_enabled() {
+  return (this->m_thd == nullptr ||
+          this->m_thd->variables.immediate_server_version ==
+              UNDEFINED_SERVER_VERSION ||
+          this->m_thd->variables.immediate_server_version >= 80018);
+}
+
+bool Replicated_columns_view::inbound_filtering(TABLE const *table,
+                                                size_t column_index) {
+  if (!this->is_inbound_filtering_enabled()) return false;
+  return bitmap_is_set(&table->fields_for_functional_indexes, column_index);
+}
+
+bool Replicated_columns_view::outbound_filtering(TABLE const *table,
+                                                 size_t column_index) {
+  return bitmap_is_set(&table->fields_for_functional_indexes, column_index);
+}
+#endif
+
 /**************************************************************************
         Log_event methods (= the parent class of all events)
 **************************************************************************/
@@ -7499,12 +7550,13 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
       m_key(nullptr),
       m_key_info(nullptr),
       m_distinct_keys(Key_compare(&m_key_info)),
-      m_distinct_key_spare_buf(nullptr) {
+      m_distinct_key_spare_buf(nullptr),
+      m_fields{tbl_arg, Replicated_columns_view::OUTBOUND} {
   DBUG_TRACE;
   common_header->type_code = event_type;
   m_row_count = 0;
   m_table_id = tid;
-  m_width = tbl_arg ? tbl_arg->s->fields : 1;
+  m_width = tbl_arg ? this->m_fields.filtered_size() : 1;
   m_rows_buf = nullptr;
   m_rows_cur = nullptr;
   m_rows_end = nullptr;
@@ -7545,9 +7597,6 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     if (likely(cols != nullptr)) {
       memcpy(m_cols.bitmap, cols->bitmap, no_bytes_in_map(cols));
       create_last_word_mask(&m_cols);
-
-      // Hidden generated columns should not be included in the binlog.
-      bitmap_subtract(&m_cols, &tbl_arg->fields_for_functional_indexes);
     }
   } else {
     // Needed because bitmap_init() does not set it to null on failure
@@ -7587,7 +7636,8 @@ Rows_log_event::Rows_log_event(
       m_key(nullptr),
       m_key_info(nullptr),
       m_distinct_keys(Key_compare(&m_key_info)),
-      m_distinct_key_spare_buf(nullptr)
+      m_distinct_key_spare_buf(nullptr),
+      m_fields(Replicated_columns_view::INBOUND)
 #endif
 {
   DBUG_TRACE;
@@ -7692,6 +7742,13 @@ Rows_log_event::~Rows_log_event() {
     if (m_cols.bitmap == m_bitbuf)  // no my_malloc happened
       m_cols.bitmap = 0;            // so no my_free in bitmap_free
     bitmap_free(&m_cols);           // To pair with bitmap_init().
+  }
+  if (this->m_local_cols_ai.bitmap != nullptr &&
+      this->m_local_cols_ai.bitmap != this->m_local_cols.bitmap) {
+    bitmap_free(&this->m_local_cols_ai);
+  }
+  if (this->m_local_cols.bitmap != nullptr) {
+    bitmap_free(&this->m_local_cols);
   }
 
   if (write_set_backup.bitmap) {
@@ -8259,7 +8316,8 @@ err:
 bool Rows_log_event::is_auto_inc_in_extra_columns() {
   DBUG_ASSERT(m_table);
   return (m_table->next_number_field &&
-          m_table->next_number_field->field_index >= m_width);
+          this->m_fields.translate_position(
+              m_table->next_number_field->field_index) >= m_width);
 }
 
 /*
@@ -8690,7 +8748,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli) {
     Todo: fix wl3228 hld that requires defaults for all types of events
   */
 
-  prepare_record(m_table, &m_cols, false);
+  prepare_record(m_table, &this->m_local_cols, false);
   if ((error = unpack_current_row(rli, &m_cols, false /*is not AI*/))) goto end;
 
   /*
@@ -8828,7 +8886,7 @@ INDEX_SCAN:
    */
   DBUG_PRINT("info", ("non-unique index, scanning it to find matching record"));
 
-  while (record_compare(m_table, &m_cols)) {
+  while (record_compare(m_table, &this->m_local_cols)) {
     while ((error = next_record_scan(false))) {
       /* We just skip records that has already been deleted */
       if (error == HA_ERR_RECORD_DELETED) continue;
@@ -8930,7 +8988,7 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
 
   /* Prepare the record, unpack and save positions. */
   entry->positions->bi_start = m_curr_row;  // save the bi start pos
-  prepare_record(m_table, &m_cols, false);
+  prepare_record(m_table, &this->m_local_cols, false);
   if ((error = unpack_current_row(rli, &m_cols, false /*is not AI*/))) {
     hash_slave_rows_free_entry freer;
     freer(entry);
@@ -8943,7 +9001,7 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
     to the hash table. Note that the put operation calculates the
     key based on record[0] contents (including BLOB fields).
    */
-  m_hash.put(m_table, &m_cols, entry);
+  m_hash.put(m_table, &this->m_local_cols, entry);
 
   if (m_key_index < MAX_KEY) add_key_to_distinct_keyset();
 
@@ -8968,7 +9026,7 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
     m_curr_row = m_curr_row_end;
 
     /* We shouldn't need this, but lets not leave loose ends */
-    prepare_record(m_table, &m_cols, false);
+    prepare_record(m_table, &this->m_local_cols, false);
     error =
         unpack_current_row(rli, &m_cols_ai, true /*is AI*/, true /*only_seek*/);
 
@@ -9021,7 +9079,7 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
     if (error) DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
     switch (error) {
       case 0: {
-        entry = m_hash.get(table, &m_cols);
+        entry = m_hash.get(table, &this->m_local_cols);
         /**
           The do..while loop takes care of the scenario of same row being
           updated more than once within a single Update_rows_log_event by
@@ -9050,11 +9108,11 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
             m_curr_row = entry->positions->bi_start;
             m_curr_row_end = entry->positions->bi_ends;
 
-            prepare_record(table, &m_cols, false);
+            prepare_record(table, &this->m_local_cols, false);
             if ((error = unpack_current_row(rli, &m_cols, false /*is not AI*/)))
               goto close_table;
 
-            if (record_compare(table, &m_cols))
+            if (record_compare(table, &this->m_local_cols))
               m_hash.next(&entry);
             else
               break;  // we found a match
@@ -9187,7 +9245,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli) {
   saved_m_curr_row = m_curr_row;
 
   /** unpack the before image */
-  prepare_record(table, &m_cols, false);
+  prepare_record(table, &this->m_local_cols, false);
   if (!(error = unpack_current_row(rli, &m_cols, false /*is not AI*/))) {
     /** save a copy so that we can compare against it later */
     store_record(m_table, record[1]);
@@ -9226,7 +9284,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli) {
           // exception
           goto end;
       }
-    } while (restart_count < 2 && record_compare(m_table, &m_cols));
+    } while (restart_count < 2 && record_compare(m_table, &this->m_local_cols));
   }
 
 end:
@@ -9512,6 +9570,19 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     table = nullptr;
 
   if (table) {
+    this->m_fields.set_thd(thd).set_table(table);
+
+    /*
+     Translate received replicated column bitmaps into local table column
+     bitmaps. This is needed when the table has columns that are to be excluded
+     from replication - hidden generated columns, for instance.
+    */
+    this->m_fields.translate_bitmap(this->m_cols, this->m_local_cols);
+    if (this->m_cols.bitmap != this->m_cols_ai.bitmap)
+      this->m_fields.translate_bitmap(this->m_cols_ai, this->m_local_cols_ai);
+    else
+      this->m_local_cols_ai.bitmap = this->m_local_cols.bitmap;
+
     /*
       table == NULL means that this table should not be replicated
       (this was set up by Table_map_log_event::do_apply_event()
@@ -9592,7 +9663,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
      */
     const_cast<Relay_log_info *>(rli)->set_flag(Relay_log_info::IN_STMT);
 
-    if (m_width == table->s->fields && bitmap_is_set_all(&m_cols))
+    if (m_width == this->m_fields.filtered_size() && bitmap_is_set_all(&m_cols))
       set_flags(COMPLETE_ROWS_F);
 
     /*
@@ -9626,17 +9697,17 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     */
     switch (get_general_type_code()) {
       case binary_log::DELETE_ROWS_EVENT:
-        bitmap_intersect(table->read_set, &m_cols);
+        bitmap_intersect(table->read_set, &this->m_local_cols);
         stage = &stage_rpl_apply_row_evt_delete;
         if (m_table->vfield) m_table->mark_generated_columns(false);
         break;
       case binary_log::UPDATE_ROWS_EVENT:
-        bitmap_intersect(table->read_set, &m_cols);
-        bitmap_intersect(table->write_set, &m_cols_ai);
+        bitmap_intersect(table->read_set, &this->m_local_cols);
+        bitmap_intersect(table->write_set, &this->m_local_cols_ai);
         if (m_table->vfield) m_table->mark_generated_columns(true);
         /* Skip update rows events that don't have data for this server's table.
          */
-        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
+        if (!is_any_column_signaled_for_table(table, &this->m_local_cols_ai))
           no_columns_to_update = true;
         stage = &stage_rpl_apply_row_evt_update;
         break;
@@ -9666,7 +9737,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         */
         /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
         if (m_table->vfield) m_table->mark_generated_columns(false);
-        bitmap_intersect(table->write_set, &m_cols);
+        bitmap_intersect(table->write_set, &this->m_local_cols);
         stage = &stage_rpl_apply_row_evt_write;
         break;
       default:
@@ -9719,7 +9790,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
      */
 
     if ((m_rows_lookup_algorithm != ROW_LOOKUP_NOT_NEEDED) &&
-        !is_any_column_signaled_for_table(table, &m_cols)) {
+        !is_any_column_signaled_for_table(table, &this->m_local_cols)) {
       error = HA_ERR_END_OF_FILE;
       goto AFTER_MAIN_EXEC_ROW_LOOP;
     }
@@ -10212,13 +10283,14 @@ void Rows_log_event::print_helper(FILE *,
 int Table_map_log_event::save_field_metadata() {
   DBUG_TRACE;
   int index = 0;
-  for (unsigned int i = 0; i < m_table->s->fields; i++) {
-    DBUG_PRINT("debug", ("field_type: %d", m_coltype[i]));
-    index +=
-        m_table->s->field[i]->save_field_metadata(&m_field_metadata[index]);
+  for (auto it = this->m_fields.begin(); it != this->m_fields.end(); ++it) {
+    Field *field = *it;
+    DBUG_PRINT("debug", ("field_type: %d", m_coltype[it.filtered_pos()]));
+    index += field->save_field_metadata(&m_field_metadata[index]);
 
     DBUG_EXECUTE_IF("inject_invalid_blob_size", {
-      if (m_coltype[i] == MYSQL_TYPE_BLOB) m_field_metadata[index - 1] = 5;
+      if (m_coltype[it.filtered_pos()] == MYSQL_TYPE_BLOB)
+        m_field_metadata[index - 1] = 5;
     });
   }
   return index;
@@ -10242,10 +10314,15 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
       Log_event(thd_arg, 0,
                 using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE
                             : Log_event::EVENT_STMT_CACHE,
-                Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
+                Log_event::EVENT_NORMAL_LOGGING, header(), footer()),
+      m_fields{tbl, Replicated_columns_view::OUTBOUND} {
   common_header->type_code = binary_log::TABLE_MAP_EVENT;
   m_table = tbl;
   m_flags = TM_BIT_LEN_EXACT_F;
+
+  this->m_colcnt =
+      this->m_fields.filtered_size() +
+      DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event", -1, 0);
 
   uchar cbuf[sizeof(m_colcnt) + 1];
   uchar *cbuf_end;
@@ -10271,12 +10348,18 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   m_coltype = (uchar *)my_malloc(key_memory_log_event, m_colcnt, MYF(MY_WME));
 
   DBUG_ASSERT(m_colcnt ==
-              m_table->s->fields +
+              this->m_fields.filtered_size() +
                   DBUG_EVALUATE_IF(
                       "binlog_omit_last_column_from_table_map_event", -1, 0));
-  for (unsigned int i = 0; i < m_colcnt; ++i)
-    m_coltype[i] = m_table->field[i]->binlog_type();
 
+  for (auto it = this->m_fields.begin();
+       it != this->m_fields.end() &&
+       DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event",
+                        it.filtered_pos() != this->m_colcnt, true);
+       ++it) {
+    Field *field = *it;
+    m_coltype[it.filtered_pos()] = field->binlog_type();
+  }
   DBUG_EXECUTE_IF("inject_invalid_column_type", m_coltype[1] = 230;);
 
   /*
@@ -10318,8 +10401,8 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
     m_data_size += m_field_metadata_size + 3;
 
   memset(m_null_bits, 0, num_null_bytes);
-  for (unsigned int i = 0; i < m_colcnt; ++i)
-    if (m_table->field[i]->maybe_null()) m_null_bits[(i / 8)] += 1 << (i % 8);
+  Bit_writer bit_writer{this->m_null_bits};
+  for (auto field : this->m_fields) bit_writer.set(field->maybe_null());
   /*
     Marking event to require sequential execution in MTS
     if the query might have updated FK-referenced db.
@@ -10348,7 +10431,8 @@ Table_map_log_event::Table_map_log_event(
       Log_event(header(), footer())
 #ifdef MYSQL_SERVER
       ,
-      m_table(nullptr)
+      m_table(nullptr),
+      m_fields(Replicated_columns_view::INBOUND)
 #endif
 {
   DBUG_TRACE;
@@ -10797,9 +10881,10 @@ bool Table_map_log_event::init_signedness_field() {
   unsigned char flag = 0;
   unsigned char mask = 0x80;
 
-  for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-    if (is_numeric_field(m_table->field[i])) {
-      if (m_table->field[i]->unsigned_flag) flag |= mask;
+  for (auto field : this->m_fields) {
+    if (is_numeric_field(field)) {
+      Field_num *field_num = dynamic_cast<Field_num *>(field);
+      if (field_num->unsigned_flag) flag |= mask;
 
       mask >>= 1;
 
@@ -10832,11 +10917,11 @@ bool Table_map_log_event::init_charset_field(
   uint char_col_cnt = 0;
 
   /* Find the collation number used by most fields */
-  for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-    if (include_type(m_table->field[i])) {
-      Field_str *field = dynamic_cast<Field_str *>(m_table->field[i]);
+  for (auto field : this->m_fields) {
+    if (include_type(field)) {
+      Field_str *field_str = dynamic_cast<Field_str *>(field);
 
-      collation_map[field->charset()->number]++;
+      collation_map[field_str->charset()->number]++;
       char_col_cnt++;
     }
   }
@@ -10875,11 +10960,11 @@ bool Table_map_log_event::init_charset_field(
       | Charset number | .... |Charset number |
       -----------------------------------------
     */
-    for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-      if (include_type(m_table->field[i])) {
-        Field_str *field = dynamic_cast<Field_str *>(m_table->field[i]);
+    for (auto field : this->m_fields) {
+      if (include_type(field)) {
+        Field_str *field_str = dynamic_cast<Field_str *>(field);
 
-        store_compressed_length(buf, field->charset()->number);
+        store_compressed_length(buf, field_str->charset()->number);
       }
     }
     return write_tlv_field(m_metadata_buf, column_charset_type, buf);
@@ -10900,13 +10985,13 @@ bool Table_map_log_event::init_charset_field(
     // Store the default collation number
     store_compressed_length(buf, default_collation);
 
-    for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-      if (include_type(m_table->field[i])) {
-        Field_str *field = dynamic_cast<Field_str *>(m_table->field[i]);
+    for (auto field : this->m_fields) {
+      if (include_type(field)) {
+        Field_str *field_str = dynamic_cast<Field_str *>(field);
 
-        if (field->charset()->number != default_collation) {
+        if (field_str->charset()->number != default_collation) {
           store_compressed_length(buf, char_column_index);
-          store_compressed_length(buf, field->charset()->number);
+          store_compressed_length(buf, field_str->charset()->number);
         }
         char_column_index++;
       }
@@ -10918,11 +11003,11 @@ bool Table_map_log_event::init_charset_field(
 bool Table_map_log_event::init_column_name_field() {
   StringBuffer<2048> buf;
 
-  for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-    size_t len = strlen(m_table->field[i]->field_name);
+  for (auto field : this->m_fields) {
+    size_t len = strlen(field->field_name);
 
     store_compressed_length(buf, len);
-    buf.append(m_table->field[i]->field_name, len);
+    buf.append(field->field_name, len);
   }
   return write_tlv_field(m_metadata_buf, COLUMN_NAME, buf);
 }
@@ -10938,9 +11023,9 @@ bool Table_map_log_event::init_set_str_value_field() {
     | Value number | value1 len | value 1|  .... |  // second SET column
     ----------------------------------------------
    */
-  for (unsigned int ix = 0; ix < m_table->s->fields; ++ix) {
-    if (is_set_field(m_table->field[ix])) {
-      TYPELIB *typelib = dynamic_cast<Field_set *>(m_table->field[ix])->typelib;
+  for (auto field : this->m_fields) {
+    if (is_set_field(field)) {
+      TYPELIB *typelib = dynamic_cast<Field_set *>(field)->typelib;
 
       store_compressed_length(buf, typelib->count);
       for (unsigned int i = 0; i < typelib->count; i++) {
@@ -10958,9 +11043,9 @@ bool Table_map_log_event::init_enum_str_value_field() {
   StringBuffer<1024> buf;
 
   /* ENUM is same to SET columns, see comment in init_set_str_value_field */
-  for (unsigned int ix = 0; ix < m_table->s->fields; ++ix) {
-    if (is_enum_field(m_table->field[ix])) {
-      TYPELIB *typelib = down_cast<Field_enum *>(m_table->field[ix])->typelib;
+  for (auto field : this->m_fields) {
+    if (is_enum_field(field)) {
+      TYPELIB *typelib = dynamic_cast<Field_enum *>(field)->typelib;
 
       store_compressed_length(buf, typelib->count);
       for (unsigned int i = 0; i < typelib->count; i++) {
@@ -10979,9 +11064,9 @@ bool Table_map_log_event::init_geometry_type_field() {
   StringBuffer<256> buf;
 
   /* Geometry type of geometry columns is stored one by one as packed length */
-  for (unsigned int i = 0; i < m_table->s->fields; ++i) {
-    if (is_geometry_field(m_table->field[i])) {
-      int type = dynamic_cast<Field_geom *>(m_table->field[i])->geom_type;
+  for (auto field : this->m_fields) {
+    if (is_geometry_field(field)) {
+      int type = dynamic_cast<Field_geom *>(field)->geom_type;
       DBUG_EXECUTE_IF("inject_invalid_geometry_type", type = 100;);
       store_compressed_length(buf, type);
     }
@@ -11668,7 +11753,7 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
   int keynum = 0;
   char *key = nullptr;
 
-  prepare_record(table, &m_cols,
+  prepare_record(table, &this->m_local_cols,
                  table->file->ht->db_type != DB_TYPE_NDBCLUSTER);
 
   /* unpack row into table->record[0] */
@@ -12043,7 +12128,7 @@ Update_rows_log_event::Update_rows_log_event(
   DBUG_TRACE;
   DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str()));
   common_header->type_code = m_type;
-  init(tbl_arg->write_set, tbl_arg->fields_for_functional_indexes);
+  init(tbl_arg->write_set);
   common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
 }
 
@@ -12054,8 +12139,7 @@ bool Update_rows_log_event::binlog_row_logging_function(
                                     after_record, nullptr);
 }
 
-void Update_rows_log_event::init(MY_BITMAP const *cols,
-                                 const MY_BITMAP &cols_to_subtract) {
+void Update_rows_log_event::init(MY_BITMAP const *cols) {
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(
           &m_cols_ai,
@@ -12065,7 +12149,6 @@ void Update_rows_log_event::init(MY_BITMAP const *cols,
     if (likely(cols != nullptr)) {
       memcpy(m_cols_ai.bitmap, cols->bitmap, no_bytes_in_map(cols));
       create_last_word_mask(&m_cols_ai);
-      bitmap_subtract(&m_cols_ai, &cols_to_subtract);
     }
   }
 }
