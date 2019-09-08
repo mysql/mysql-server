@@ -480,7 +480,7 @@ int Clone_Handle::check_space() {
   auto data_dir = get_datadir();
 
   if (replace_datadir()) {
-    auto &abs_path = MySQL_datadir_path.abs_path();
+    auto abs_path = MySQL_datadir_path.abs_path();
     data_dir = abs_path.c_str();
   }
 

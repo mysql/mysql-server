@@ -16871,7 +16871,7 @@ static bool innobase_get_tablespace_statistics(
 
     Fil_path::normalize(name);
 
-    if (Fil_path::equal(f.name, name)) {
+    if (Fil_path::is_same_as(f.name, name)) {
       file = &f;
       break;
 

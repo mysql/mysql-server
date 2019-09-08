@@ -404,64 +404,122 @@ class Fil_path {
     return (m_path.length());
   }
 
+  /** Return the absolute path by value. If m_abs_path is null, calculate
+  it and return it by value without trying to reset this const object.
+  m_abs_path can be empty if the path did not exist when this object
+  was constructed.
+  @return the absolute path by value. */
+  const std::string abs_path() const MY_ATTRIBUTE((warn_unused_result)) {
+    if (m_abs_path.empty()) {
+      return (get_real_path(m_path));
+    }
+
+    return (m_abs_path);
+  }
+
   /** @return the length of m_abs_path */
   size_t abs_len() const MY_ATTRIBUTE((warn_unused_result)) {
     return (m_abs_path.length());
   }
 
-  /** Determine if this path is equal to the other path.
-  @param[in]	lhs		Path to compare to
-  @return true if the paths are the same */
-  bool operator==(const Fil_path &lhs) const {
-    return (m_path.compare(lhs.m_path));
-  }
-
-  /** Check if m_path is the same as path.
-  @param[in]	other	directory path to compare to
-  @return true if m_path is the same as path */
-  bool is_same_as(const std::string &other) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty() || other.empty()) {
-      return (false);
-    }
-
-    return (m_abs_path == get_real_path(other));
-  }
-
   /** Check if m_path is the same as this other path.
-  @param[in]	other	directory path to compare to
+  @param[in]  other  directory path to compare to
   @return true if m_path is the same as path */
   bool is_same_as(const Fil_path &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty() || other.m_path.empty()) {
+    if (path().empty() || other.path().empty()) {
       return (false);
     }
 
-    return (m_abs_path == get_real_path(other.m_path));
+    return (abs_path() == other.abs_path());
   }
 
-  /** Check if m_path is the parent of name.
-  @param[in]	other		Path to compare to
-  @return true if m_path is an ancestor of name */
-  bool is_ancestor(const std::string &other) const
+  /** Determine if this path is equal to the other path.
+  @param[in]  other		path to compare to
+  @return true if the paths are the same */
+  bool operator==(const Fil_path &other) const { return (is_same_as(other)); }
+
+  /** Check if this path is the same as the other path.
+  @param[in]  other  directory path to compare to
+  @return true if this path is the same as the other path */
+  bool is_same_as(const std::string &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty() || other.empty()) {
+    if (path().empty() || other.empty()) {
       return (false);
     }
 
-    return (is_ancestor(m_abs_path, get_real_path(other)));
+    Fil_path other_path(other);
+
+    return (abs_path() == other_path.abs_path());
   }
 
-  /** Check if m_path is the parent of other.m_path.
-  @param[in]	other		Path to compare to
+  /** Check if two path strings are equal. Put them into Fil_path objects
+  so that they can be compared correctly.
+  @param[in]  first   first path to check
+  @param[in]  second  socond path to check
+  @return true if these two paths are the same */
+  static bool is_same_as(const std::string &first, const std::string &second)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    if (first.empty() || second.empty()) {
+      return (false);
+    }
+
+    Fil_path first_path(first);
+    Fil_path second_path(second);
+
+    return (first_path == second_path);
+  }
+
+  /** Check if m_path is the parent of the other path.
+  @param[in]  other  path to compare to
   @return true if m_path is an ancestor of name */
   bool is_ancestor(const Fil_path &other) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty() || other.m_path.empty()) {
+    if (path().empty() || other.path().empty()) {
       return (false);
     }
 
-    return (is_ancestor(m_abs_path, other.m_abs_path));
+    const std::string ancestor = abs_path();
+    const std::string descendant = other.abs_path();
+
+    if (descendant.length() <= ancestor.length()) {
+      return (false);
+    }
+
+    return (std::equal(ancestor.begin(), ancestor.end(), descendant.begin()));
+  }
+
+  /** Check if this Fil_path is an ancestor of the other path.
+  @param[in]  other  path to compare to
+  @return true if this Fil_path is an ancestor of the other path */
+  bool is_ancestor(const std::string &other) const
+      MY_ATTRIBUTE((warn_unused_result)) {
+    if (path().empty() || other.empty()) {
+      return (false);
+    }
+
+    Fil_path descendant(other);
+
+    return (is_ancestor(descendant));
+  }
+
+  /** Check if the first path is an ancestor of the second.
+  Do not assume that these paths have been converted to real paths
+  and are ready to compare. If the two paths are the same
+  we will return false.
+  @param[in]  first   Parent path to check
+  @param[in]  second  Descendent path to check
+  @return true if the first path is an ancestor of the second */
+  static bool is_ancestor(const std::string &first, const std::string &second)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    if (first.empty() || second.empty()) {
+      return (false);
+    }
+
+    Fil_path ancestor(first);
+    Fil_path descendant(second);
+
+    return (ancestor.is_ancestor(descendant));
   }
 
   /** @return true if m_path exists and is a file. */
@@ -469,11 +527,6 @@ class Fil_path {
 
   /** @return true if m_path exists and is a directory. */
   bool is_directory_and_exists() const MY_ATTRIBUTE((warn_unused_result));
-
-  /** Return the absolute path */
-  const std::string &abs_path() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_abs_path);
-  }
 
   /** This validation is only for ':'.
   @return true if the path is valid. */
@@ -521,20 +574,6 @@ class Fil_path {
     }
 
     return (path);
-  }
-
-  /** Convert the paths into absolute paths and compare them. The
-  paths to compare must be valid paths, otherwise the result is
-  undefined.
-  @param[in]	lhs		Filename to compare
-  @param[in]	rhs		Filename to compare
-  @return true if they are the same */
-  static bool equal(const std::string &lhs, const std::string &rhs)
-      MY_ATTRIBUTE((warn_unused_result)) {
-    Fil_path path1(lhs);
-    Fil_path path2(rhs);
-
-    return (path1.abs_path().compare(path2.abs_path()) == 0);
   }
 
   /** @return true if the path is an absolute path. */
@@ -625,32 +664,29 @@ class Fil_path {
   static os_file_type_t get_file_type(const std::string &path)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Get the real path for a directory or a file name, useful for
-  comparing symlinked files.
-  @param[in]	path		Directory or filename
-  @return the absolute path of dir + filename, or "" on error.  */
-  static std::string get_real_path(const std::string &path)
+  /** Return a string to display the file type of a path.
+  @param[in]  path  path name
+  @return true if the path exists and is a file . */
+  static const char *get_file_type_string(const std::string &path);
+
+  /** Return a string to display the file type of a path.
+  @param[in]  type  OS file type
+  @return true if the path exists and is a file . */
+  static const char *get_file_type_string(os_file_type_t type);
+
+  /** Get the real path for a directory or a file name. This path can be
+  used to compare with another absolute path. It will be converted to
+  lower case on case insensitive file systems and if it is a directory,
+  it will end with a directory separator. The call to my_realpath() may
+  fail on non-Windows platforms if the path does not exist. If so, the
+  parameter 'force' determines what to return.
+  @param[in]  path   directory or filename to convert to a real path
+  @param[in]  force  if true and my_realpath() fails, use the path provided.
+                     if false and my_realpath() fails, return a null string.
+  @return  the absolute path prepared for making comparisons with other real
+           paths. */
+  static std::string get_real_path(const std::string &path, bool force = true)
       MY_ATTRIBUTE((warn_unused_result));
-
-  /** Check if lhs is the ancestor of rhs. If the two paths are the
-  same it will return false.
-  @param[in]	lhs		Parent path to check
-  @param[in]	rhs		Descendent path to check
-  @return true if lhs is an ancestor of rhs */
-  static bool is_ancestor(const std::string &lhs, const std::string &rhs)
-      MY_ATTRIBUTE((warn_unused_result)) {
-    /* We assume that both lhs and rhs have been previously converted by
-    get_real_path() which not only converts both paths to absolute paths,
-    but also converts to lower case on case insensitive file systems. */
-    ut_ad(lhs == get_real_path(lhs));
-    ut_ad(rhs == get_real_path(rhs));
-
-    if (lhs.empty() || rhs.empty() || rhs.length() <= lhs.length()) {
-      return (false);
-    }
-
-    return (std::equal(lhs.begin(), lhs.end(), rhs.begin()));
-  }
 
   /** Check if the name is an undo tablespace name.
   @param[in]	name		Tablespace name
@@ -750,11 +786,6 @@ class Fil_path {
   @param[in,out]	data_dir_path	Full path/data_dir_path */
   static void make_data_dir_path(char *data_dir_path);
 
-  /** @return the null path */
-  static const Fil_path &null() MY_ATTRIBUTE((warn_unused_result)) {
-    return (s_null_path);
-  }
-
 #ifndef UNIV_HOTBACKUP
   /** Check if the filepath provided is in a valid placement.
   1) File-per-table must be in a dir named for the schema.
@@ -782,9 +813,6 @@ class Fil_path {
 
   /** A full absolute path to the same file. */
   std::string m_abs_path;
-
-  /** Empty (null) path. */
-  static Fil_path s_null_path;
 };
 
 /** The MySQL server --datadir value */

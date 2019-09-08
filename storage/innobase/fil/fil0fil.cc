@@ -240,9 +240,6 @@ Fil_path MySQL_datadir_path;
 /** Reference to the server undo directory. */
 Fil_path MySQL_undo_path;
 
-/** Sentinel value to check for "NULL" Fil_path. */
-Fil_path Fil_path::s_null_path;
-
 /** Common InnoDB file extentions */
 const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu"};
 
@@ -418,9 +415,6 @@ class Tablespace_files {
   /** @return the directory path specified by the user. */
   const std::string &path() const { return (m_dir.path()); }
 
-  /** @return the real path of the directory searched. */
-  const std::string &real_path() const { return (m_dir.abs_path()); }
-
  private:
   /* Note:  The file names in m_ibd_paths and m_undo_paths are relative
   to m_real_path. */
@@ -507,22 +501,20 @@ class Tablespace_dirs {
     return (Result{"", nullptr});
   }
 
-  /** @return the directory that contains path */
-  const Fil_path &contains(const std::string &path) const
+  /** Determine if this Fil_path contains the path provided.
+  @param[in]  path  file or directory path to compare.
+  @return true if this Fil_path contains path */
+  bool contains(const std::string &path) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    Fil_path file{path};
+    const Fil_path descendant{path};
 
     for (const auto &dir : m_dirs) {
-      const auto &d = dir.root().abs_path();
-      auto abs_path = Fil_path::get_real_path(d);
-
-      if (dir.root().is_ancestor(file) ||
-          abs_path.compare(file.abs_path()) == 0) {
-        return (dir.root());
+      if (dir.root().is_ancestor(descendant) ||
+          dir.root().is_same_as(descendant)) {
+        return (true);
       }
     }
-
-    return (Fil_path::null());
+    return (false);
   }
 
   /** Get the list of directories that InnoDB knows about.
@@ -1389,9 +1381,7 @@ class Fil_system {
   @param[in]	path		Path to check
   @return true if path is known to InnoDB */
   bool check_path(const std::string &path) const {
-    const auto &dir = m_dirs.contains(path);
-
-    return (dir != Fil_path::null());
+    return (m_dirs.contains(path));
   }
 
   /** Get the list of directories that InnoDB knows about.
@@ -3835,28 +3825,30 @@ dberr_t Fil_shard::space_check_pending_operations(space_id_t space_id,
   return (DB_SUCCESS);
 }
 
-/** Get the real path for a directory or a file name, useful for comparing
-symlinked files. If path doesn't exist it will be ignored.
-@param[in]	path		Directory or filename
-@return the absolute path of path, or "" on error.  */
-std::string Fil_path::get_real_path(const std::string &path) {
-  char abspath[FN_REFLEN + 2];
-
-  /* FIXME: This should be an assertion eventually. */
+std::string Fil_path::get_real_path(const std::string &path, bool force) {
   if (path.empty()) {
-    return (path);
+    return (std::string(""));
   }
 
+  char abspath[OS_FILE_MAX_PATH];
   int ret = my_realpath(abspath, path.c_str(), MYF(0));
 
   if (ret == -1) {
-    ib::info(ER_IB_MSG_289) << "my_realpath(" << path << ") failed!";
+    /* It is common for this to fail on non-Windows platforms if the
+    path does not yet exist. If so, do not report this failure. */
+    if (!force) {
+      if (get_file_type(path) != OS_FILE_TYPE_MISSING) {
+        ib::info(ER_IB_MSG_289)
+            << "my_realpath('" << path << "') failed for path type "
+            << get_file_type_string(path);
+      }
+      return (std::string(""));
+    }
 
-    /* Use the path as given. Copy it to local abspath. */
-    ut_ad(path.length() < sizeof(abspath));
-    size_t len = ut_min(path.length(), sizeof(abspath) - 1);
-    memcpy(abspath, path.c_str(), len);
-    abspath[len] = 0;
+    /* Use the given path and make it comparable. */
+    ut_a(path.length() < sizeof(abspath));
+    memcpy(abspath, path.c_str(), path.length());
+    abspath[path.length()] = 0;
   }
 
   if (is_file_system_case_insensitive()) {
@@ -3872,8 +3864,6 @@ std::string Fil_path::get_real_path(const std::string &path) {
       get_file_type(real_path) == OS_FILE_TYPE_DIR) {
     real_path.push_back(OS_SEPARATOR);
   }
-
-  ut_a(real_path.length() < sizeof(abspath));
 
   return (real_path);
 }
@@ -5588,7 +5578,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
     const auto &file = space->files.front();
 
     /* Compare the real paths. */
-    if (Fil_path::equal(filename, file.name)) {
+    if (Fil_path::is_same_as(filename, file.name)) {
       return (FIL_LOAD_OK);
     }
 
@@ -8811,7 +8801,8 @@ Fil_path::Fil_path(const std::string &path, bool normalize_path)
   if (normalize_path) {
     normalize(m_path);
   }
-  m_abs_path = get_real_path(m_path);
+
+  m_abs_path = get_real_path(m_path, false);
 }
 
 /** Constructor
@@ -8822,7 +8813,8 @@ Fil_path::Fil_path(const char *path, bool normalize_path) : m_path(path) {
   if (normalize_path) {
     normalize(m_path);
   }
-  m_abs_path = get_real_path(m_path);
+
+  m_abs_path = get_real_path(m_path, false);
 }
 
 /** Constructor
@@ -8835,7 +8827,8 @@ Fil_path::Fil_path(const char *path, size_t len, bool normalize_path)
   if (normalize_path) {
     normalize(m_path);
   }
-  m_abs_path = get_real_path(m_path);
+
+  m_abs_path = get_real_path(m_path, false);
 }
 
 /** Default constructor. */
@@ -8895,14 +8888,47 @@ os_file_type_t Fil_path::get_file_type(const std::string &path) {
   return (type);
 }
 
+/** Return a string to display the file type of a path.
+@param[in]  path  path name
+@return true if the path exists and is a file . */
+const char *Fil_path::get_file_type_string(const std::string &path) {
+  return (get_file_type_string(Fil_path::get_file_type(path)));
+}
+
+/** Return a string to display the file type of a path.
+@param[in]  type  OS file type
+@return true if the path exists and is a file . */
+const char *Fil_path::get_file_type_string(os_file_type_t type) {
+  switch (type) {
+    case OS_FILE_TYPE_FILE:
+      return ("file");
+    case OS_FILE_TYPE_LINK:
+      return ("symbolic link");
+    case OS_FILE_TYPE_DIR:
+      return ("directory");
+    case OS_FILE_TYPE_BLOCK:
+      return ("block device");
+    case OS_FILE_TYPE_NAME_TOO_LONG:
+      return ("name too long");
+    case OS_FILE_PERMISSION_ERROR:
+      return ("permission error");
+    case OS_FILE_TYPE_MISSING:
+      return ("missing");
+    case OS_FILE_TYPE_UNKNOWN:
+    case OS_FILE_TYPE_FAILED:
+      break;
+  }
+  return ("unknown");
+}
+
 /** @return true if the path exists and is a file . */
 bool Fil_path::is_file_and_exists() const {
-  return (get_file_type(m_abs_path) == OS_FILE_TYPE_FILE);
+  return (get_file_type(abs_path()) == OS_FILE_TYPE_FILE);
 }
 
 /** @return true if the path exists and is a directory. */
 bool Fil_path::is_directory_and_exists() const {
-  return (get_file_type(m_abs_path) == OS_FILE_TYPE_DIR);
+  return (get_file_type(abs_path()) == OS_FILE_TYPE_DIR);
 }
 
 /** This validation is only for ':'.
@@ -10198,74 +10224,47 @@ void Tablespace_dirs::add_path(const std::string &path_in, bool is_undo_dir) {
     return;
   }
 
-  std::array<char, OS_FILE_MAX_PATH> path_array;
-  ut_a(path_in.length() < path_array.max_size());
-
-  path_array.fill(0);
-
-  std::copy(path_in.begin(), path_in.end(), path_array.data());
-
-  Fil_path::normalize(path_array.data());
-
-  std::string normal_path = path_array.data();
-
-  /* Assume this path is a directory and try to get the absolute path.
-  if get_real_path() fails it will return the path as provided. */
-  std::string abs_path = Fil_path::get_real_path(normal_path);
-  if (!Fil_path::is_separator(normal_path.back())) {
-    normal_path.push_back(Fil_path::OS_SEPARATOR);
+  /* Assume this path is a directory and put a trailing slash on it. */
+  std::string dir_in(path_in);
+  if (!Fil_path::is_separator(dir_in.back())) {
+    dir_in.push_back(Fil_path::OS_SEPARATOR);
   }
-  if (!Fil_path::is_separator(abs_path.back())) {
-    abs_path.push_back(Fil_path::OS_SEPARATOR);
-  }
+
+  Fil_path found_path(dir_in, true);
 
   /* Exclude this path if it is a duplicate of a path already stored or
   if a previously stored path is an ancestor.  Remove any previously stored
   path that is a descendant of this path. */
   for (auto it = m_dirs.cbegin(); it != m_dirs.cend(); /* No op */) {
-    const auto &dir_abs_path = it->real_path();
-
-    bool same_paths = (dir_abs_path == abs_path);
-    if (same_paths) {
+    if (it->root().is_same_as(found_path)) {
       /* The exact same path is obviously ignored, so there is no need to
       log a warning. */
       return;
     }
 
-    /* Check if these two paths are the same except for case. If
-    dir_abs_path is equal to this path, we do not need to check any
-    other. This path will not be inserted since it is not unique.*/
-    if (is_file_system_case_insensitive() &&
-        (0 == innobase_nocase_compare(&my_charset_filename,
-                                      dir_abs_path.c_str(),
-                                      abs_path.c_str()))) {
-      warn_ignore(path_in, "it is a duplicate path.");
-      return;
-    }
-
     /* Check if dir_abs_path is an ancestor of this path */
-    if (Fil_path::is_ancestor(dir_abs_path, abs_path)) {
+    if (it->root().is_ancestor(found_path)) {
       /* Descendant directories will be scanned recursively, so don't
       add it to the scan list.  Log a warning unless this descendant
       is the undo directory since it must be supplied even if it is
       a descendant of another data location. */
       if (!is_undo_dir) {
         std::string reason = "it is a sub-directory of '";
-        reason += dir_abs_path;
+        reason += it->root().abs_path();
         warn_ignore(path_in, reason.c_str());
       }
       return;
     }
 
-    if (Fil_path::is_ancestor(abs_path, dir_abs_path)) {
+    if (found_path.is_ancestor(it->root())) {
       /* This path is an ancestor of an existing dir in fil_system::m_dirs.
       The settings have overlapping locations.  Put a note about it to
       the error log. The undo_dir is added last, so if it is an ancestor,
       the descendant was listed as a datafile directory. So always issue
       this message*/
       std::string reason = "it is a sub-directory of '";
-      reason += abs_path;
-      warn_ignore(dir_abs_path, reason.c_str());
+      reason += found_path;
+      warn_ignore(it->root().path(), reason.c_str());
 
       /* It might also be an ancestor to another dir as well, so keep looking.
       We must delete this descendant because we know that this ancestor path
@@ -10276,7 +10275,7 @@ void Tablespace_dirs::add_path(const std::string &path_in, bool is_undo_dir) {
     }
   }
 
-  m_dirs.push_back(Tablespace_files{normal_path});
+  m_dirs.push_back(Tablespace_files{found_path.path()});
   return;
 }
 
@@ -10714,7 +10713,7 @@ dberr_t Tablespace_dirs::scan() {
 
   /* Should be trivial to parallelize the scan and ID check. */
   for (const auto &dir : m_dirs) {
-    const auto &real_path_dir = dir.real_path();
+    const auto real_path_dir = dir.root().abs_path();
 
     ut_a(Fil_path::is_separator(dir.path().back()));
 

@@ -990,7 +990,7 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   std::string scanned_name = fil_system_open_fetch(space_id);
 
   if (scanned_name.length() != 0 &&
-      !Fil_path::equal(undo_space.file_name(), scanned_name.c_str())) {
+      !Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
     ib::error(ER_IB_MSG_FOUND_WRONG_UNDO_SPACE, undo_space.file_name(),
               ulong{space_id}, scanned_name.c_str());
 
@@ -1033,7 +1033,7 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   must match the default undo filename and must be found in
   srv_undo_directory. */
   bool has_implicit_name =
-      Fil_path::equal(undo_space.file_name(), scanned_name.c_str());
+      Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str());
 
   if (is_default || has_implicit_name) {
     if (!has_implicit_name) {
