@@ -1249,6 +1249,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> MASTER_COMPRESSION_ALGORITHM_SYM /* MYSQL */
 %token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
 %token<lexer.keyword> PRIVILEGE_CHECKS_USER_SYM     /* MYSQL */
+%token<lexer.keyword> MASTER_TLS_CIPHERSUITES_SYM   /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -2548,6 +2549,7 @@ master_def:
           {
             Lex->mi.tls_version= $3.str;
           }
+        | MASTER_TLS_CIPHERSUITES_SYM EQ master_tls_ciphersuites_def
         | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_cert= $3.str;
@@ -2663,6 +2665,19 @@ privilege_check_def:
             Lex->mi.privilege_checks_none= true;
             Lex->mi.privilege_checks_username= NULL;
             Lex->mi.privilege_checks_hostname= NULL;
+          }
+        ;
+
+master_tls_ciphersuites_def:
+          TEXT_STRING_sys_nonewline
+          {
+            Lex->mi.tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_STRING;
+            Lex->mi.tls_ciphersuites_string= $1.str;
+          }
+        | NULL_SYM
+          {
+            Lex->mi.tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_NULL;
+            Lex->mi.tls_ciphersuites_string = NULL;
           }
         ;
 
@@ -14386,6 +14401,7 @@ ident_keywords_unambiguous:
         | MASTER_SSL_KEY_SYM
         | MASTER_SSL_SYM
         | MASTER_SYM
+        | MASTER_TLS_CIPHERSUITES_SYM
         | MASTER_TLS_VERSION_SYM
         | MASTER_USER_SYM
         | MASTER_ZSTD_COMPRESSION_LEVEL_SYM

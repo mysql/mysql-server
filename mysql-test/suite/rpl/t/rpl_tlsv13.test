@@ -1,0 +1,129 @@
+################################################################################
+# Base test to verify the basic TLS 1.3 support on Asynchronous Replication.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Check replication with TLSv1.3 and some default ciphersuite.
+# 2. Check replication with TLSv1.3 and a non-default ciphersuite.
+# 3. RESET SLAVE does not clean MASTER_TLS_CIPHERSUITES.
+# 4. Check replication with TLSv1.3 and different ciphersuite on master
+#    and slave will fail.
+# 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
+#    fail.
+# 6. Clean up.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/have_tlsv13.inc
+--source include/have_slave_repository_type_table.inc
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo ########################################################################
+--echo # 1. Check replication with TLSv1.3 and some default ciphersuite.
+SET SESSION sql_log_bin=0;
+CREATE USER 'replssl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
+GRANT REPLICATION SLAVE ON *.* TO 'replssl'@'%';
+SET SESSION sql_log_bin=1;
+
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+
+--source include/rpl_connection_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='replssl', MASTER_PASSWORD='password', MASTER_SSL=1 FOR CHANNEL 'my_channel'
+--let $rpl_channel_name= 'my_channel'
+--source include/start_slave.inc
+
+--let $tls_ciphersuites= query_get_value(SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'my_channel', TLS_CIPHERSUITES, 1)
+--let $assert_text = TLS_CIPHERSUITES has the default NULL value
+--let $assert_cond = "$tls_ciphersuites" = "NULL"
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # 2. Check replication with TLSv1.3 and a non-default ciphersuite.
+--let $rpl_channel_name= 'my_channel'
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
+SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+ALTER INSTANCE RELOAD TLS;
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
+--source include/start_slave.inc
+
+--let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256
+--let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_CCM_8_SHA256"
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # 3. RESET SLAVE does not clean MASTER_TLS_CIPHERSUITES.
+--source include/rpl_connection_slave.inc
+--let $rpl_channel_name= 'my_channel'
+--source include/stop_slave.inc
+
+RESET SLAVE FOR CHANNEL 'my_channel';
+
+--let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256
+--let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_CCM_8_SHA256"
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # 4. Check replication with TLSv1.3 and different ciphersuite on master
+--echo #    and slave will fail.
+CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', MASTER_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
+START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
+
+#CR_SSL_CONNECTION_ERROR
+--let $slave_io_errno= 2026
+--source include/wait_for_slave_io_error.inc
+
+--echo ########################################################################
+--echo # 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
+--echo #    fail.
+--source include/rpl_connection_master.inc
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+ALTER INSTANCE RELOAD TLS;
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
+--let $assert_text = TLS_CIPHERSUITES has the value ""
+--let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = ""
+--source include/assert.inc
+
+START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
+#CR_SSL_CONNECTION_ERROR
+--let $slave_io_errno= 2026
+--source include/wait_for_slave_io_error.inc
+
+--echo ########################################################################
+--echo # 6. Clean-up.
+# Clean error state.
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
+
+--let $tls_ciphersuites= query_get_value(SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'my_channel', TLS_CIPHERSUITES, 1)
+--let $assert_text = TLS_CIPHERSUITES has the default NULL value
+--let $assert_cond = "$tls_ciphersuites" = "NULL"
+--source include/assert.inc
+
+--source include/start_slave.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+SET @@GLOBAL.tls_version= @tls_version_saved;
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+ALTER INSTANCE RELOAD TLS;
+
+SET SESSION sql_log_bin=0;
+DROP USER 'replssl';
+SET SESSION sql_log_bin=1;
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc
+
+--source include/rpl_connection_slave.inc
+RESET SLAVE ALL FOR CHANNEL 'my_channel';

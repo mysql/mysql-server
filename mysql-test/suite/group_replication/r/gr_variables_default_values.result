@@ -25,9 +25,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 53 group replication variables.
+# Curently there are 55 group replication variables.
 #
-include/assert.inc [There are 53 GR variables at present.]
+include/assert.inc [There are 55 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -77,6 +77,8 @@ SET @@GLOBAL.group_replication_autorejoin_tries= default;
 SET @@GLOBAL.group_replication_message_cache_size= default;
 SET @@GLOBAL.group_replication_recovery_compression_algorithms= default;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
+SET @@GLOBAL.group_replication_recovery_tls_version= default;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
 SET @@SESSION.group_replication_consistency= default;
 #
 # Test Unit#2
@@ -121,6 +123,8 @@ include/assert.inc [Default group_replication_autorejoin_tries is 0]
 include/assert.inc [Default group_replication_message_cache_size is 1073741824]
 include/assert.inc [Default group_replication_recovery_compression_algorithms is "uncompressed"]
 include/assert.inc [Default group_replication_recovery_zstd_compression_level is 3]
+include/assert.inc [Default group_replication_recovery_tls_version is "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"]
+include/assert.inc [Default group_replication_recovery_tls_ciphersuites is NULL]
 #
 # Clean up
 #

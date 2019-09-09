@@ -117,6 +117,10 @@ SET GLOBAL group_replication_recovery_ssl_key = @@GLOBAL.group_replication_recov
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert = @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_recovery_tls_ciphersuites = @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_recovery_tls_version = @@GLOBAL.group_replication_recovery_tls_version;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_use_ssl = @@GLOBAL.group_replication_recovery_use_ssl;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_recovery_zstd_compression_level = @@GLOBAL.group_replication_recovery_zstd_compression_level;
@@ -192,6 +196,8 @@ SET GLOBAL group_replication_recovery_ssl_crl = @@GLOBAL.group_replication_recov
 SET GLOBAL group_replication_recovery_ssl_crlpath = @@GLOBAL.group_replication_recovery_ssl_crlpath;
 SET GLOBAL group_replication_recovery_ssl_key = @@GLOBAL.group_replication_recovery_ssl_key;
 SET GLOBAL group_replication_recovery_ssl_verify_server_cert = @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;
+SET GLOBAL group_replication_recovery_tls_ciphersuites = @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+SET GLOBAL group_replication_recovery_tls_version = @@GLOBAL.group_replication_recovery_tls_version;
 SET GLOBAL group_replication_recovery_use_ssl = @@GLOBAL.group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_zstd_compression_level = @@GLOBAL.group_replication_recovery_zstd_compression_level;
 SET GLOBAL group_replication_single_primary_mode = @@GLOBAL.group_replication_single_primary_mode;

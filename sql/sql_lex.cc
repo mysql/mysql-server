@@ -4666,6 +4666,8 @@ void LEX_MASTER_INFO::initialize() {
   ssl_crl = ssl_crlpath = NULL;
   public_key_path = NULL;
   tls_version = NULL;
+  tls_ciphersuites = UNSPECIFIED;
+  tls_ciphersuites_string = NULL;
   relay_log_name = NULL;
   relay_log_pos = 0;
   repl_ignore_server_ids.clear();

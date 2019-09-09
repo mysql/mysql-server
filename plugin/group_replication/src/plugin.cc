@@ -424,7 +424,10 @@ int plugin_group_replication_start(char **) {
       check_recovery_ssl_string(ov.recovery_ssl_crlpath_var,
                                 "ssl_crlpath_pointer") ||
       check_recovery_ssl_string(ov.recovery_public_key_path_var,
-                                "public_key_path")) {
+                                "public_key_path") ||
+      check_recovery_ssl_string(ov.recovery_tls_version_var, "tls_version") ||
+      check_recovery_ssl_string(ov.recovery_tls_ciphersuites_var,
+                                "tls_ciphersuites")) {
     error = GROUP_REPLICATION_CONFIGURATION_ERROR;
     goto err;
   }
@@ -548,7 +551,7 @@ int initialize_plugin_and_join(
     gr_channel.initialize_channel(const_cast<char *>("<NULL>"), 0, NULL, NULL,
                                   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                                   NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false,
-                                  NULL, false, NULL, 0);
+                                  NULL, false, NULL, 0, NULL, NULL);
   }
 
   Sql_service_command_interface *sql_command_interface =
@@ -2147,7 +2150,8 @@ int initialize_recovery_module() {
       ov.recovery_ssl_capath_var, ov.recovery_ssl_cert_var,
       ov.recovery_ssl_cipher_var, ov.recovery_ssl_key_var,
       ov.recovery_ssl_crl_var, ov.recovery_ssl_crlpath_var,
-      ov.recovery_ssl_verify_server_cert_var);
+      ov.recovery_ssl_verify_server_cert_var, ov.recovery_tls_version_var,
+      ov.recovery_tls_ciphersuites_var);
   recovery_module->set_recovery_completion_policy(
       (enum_recovery_completion_policies)ov.recovery_completion_policy_var);
   recovery_module->set_recovery_donor_retry_count(ov.recovery_retry_count_var);
@@ -2613,7 +2617,7 @@ static int check_recovery_ssl_string(const char *str, const char *var_name,
                                      bool is_var_update) {
   DBUG_TRACE;
 
-  if (strlen(str) > FN_REFLEN) {
+  if (str != NULL && strlen(str) > FN_REFLEN) {
     if (!is_var_update)
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING,
                    var_name);
@@ -2642,7 +2646,8 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void *save,
   int length = sizeof(buff);
   if ((str = value->val_str(value, buff, &length)))
     str = thd->strmake(str, length);
-  else {
+  /* group_replication_tls_ciphersuites option can be set to NULL */
+  else if (strcmp(var->name, "group_replication_recovery_tls_ciphersuites")) {
     mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
     return 1;                                     /* purecov: inspected */
   }
@@ -2700,6 +2705,14 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
     case ov.RECOVERY_SSL_PUBLIC_KEY_PATH_OPT:
       if (recovery_module != NULL)
         recovery_module->set_recovery_public_key_path(new_option_val);
+      break;
+    case ov.RECOVERY_TLS_VERSION_OPT:
+      if (recovery_module != NULL)
+        recovery_module->set_recovery_tls_version(new_option_val);
+      break;
+    case ov.RECOVERY_TLS_CIPHERSUITES_OPT:
+      if (recovery_module != NULL)
+        recovery_module->set_recovery_tls_ciphersuites(new_option_val);
       break;
     default:
       DBUG_ASSERT(0); /* purecov: inspected */
@@ -3821,6 +3834,26 @@ static MYSQL_SYSVAR_BOOL(recovery_ssl_verify_server_cert,        /* name */
                          update_ssl_server_cert_verification, /* update func*/
                          0);                                  /* default*/
 
+static MYSQL_SYSVAR_STR(
+    recovery_tls_version,        /* name */
+    ov.recovery_tls_version_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
+    "A list of permissible versions to use for TLS encryption.",
+    check_recovery_ssl_option,        /* check func*/
+    update_recovery_ssl_option,       /* update func*/
+    "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"); /* default*/
+
+static MYSQL_SYSVAR_STR(
+    recovery_tls_ciphersuites,        /* name */
+    ov.recovery_tls_ciphersuites_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
+    "A list of permissible ciphersuites to use for TLS 1.3 encryption.",
+    check_recovery_ssl_option,  /* check func*/
+    update_recovery_ssl_option, /* update func*/
+    NULL);                      /* default*/
+
 // Public key path information
 
 static MYSQL_SYSVAR_STR(
@@ -3863,6 +3896,11 @@ static void initialize_ssl_option_map() {
   SYS_VAR *public_key_path_var = MYSQL_SYSVAR(recovery_public_key_path);
   ov.recovery_ssl_opt_map[public_key_path_var->name] =
       ov.RECOVERY_SSL_PUBLIC_KEY_PATH_OPT;
+  SYS_VAR *tls_version_var = MYSQL_SYSVAR(recovery_tls_version);
+  ov.recovery_ssl_opt_map[tls_version_var->name] = ov.RECOVERY_TLS_VERSION_OPT;
+  SYS_VAR *tls_ciphersuites_var = MYSQL_SYSVAR(recovery_tls_ciphersuites);
+  ov.recovery_ssl_opt_map[tls_ciphersuites_var->name] =
+      ov.RECOVERY_TLS_CIPHERSUITES_OPT;
 }
 
 // Recovery threshold options
@@ -4336,6 +4374,8 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(member_expel_timeout),
     MYSQL_SYSVAR(message_cache_size),
     MYSQL_SYSVAR(clone_threshold),
+    MYSQL_SYSVAR(recovery_tls_version),
+    MYSQL_SYSVAR(recovery_tls_ciphersuites),
     NULL,
 };
 

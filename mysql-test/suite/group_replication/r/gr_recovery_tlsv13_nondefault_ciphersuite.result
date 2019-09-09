@@ -1,0 +1,53 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup the first member with a recovery user that requires TLS 1.3
+#
+[connection server1]
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+SET SESSION sql_log_bin=1;
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
+SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+ALTER INSTANCE RELOAD TLS;
+#
+# Add some data and start the member
+#
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/start_and_bootstrap_group_replication.inc
+#
+# Configure a joining member to use SSL options on recovery and start it
+#
+[connection server2]
+CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_use_ssl=1;
+SET @group_replication_recovery_tls_ciphersuites_saved= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+SET GLOBAL group_replication_recovery_tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+include/start_group_replication.inc
+#
+# Check the data is there
+#
+include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+#
+# Clean up
+#
+[connection server2]
+SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_saved;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_saved;
+[connection server1]
+SET @@GLOBAL.tls_version= @tls_version_saved;
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+ALTER INSTANCE RELOAD TLS;
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+DROP TABLE t1;
+include/group_replication_end.inc

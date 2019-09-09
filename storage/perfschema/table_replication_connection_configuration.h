@@ -106,6 +106,14 @@ struct st_row_connect_config {
   char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
   uint compression_algorithm_length;
   uint zstd_compression_level;
+  /*
+    tls_ciphersuites = NULL means that TLS 1.3 default ciphersuites
+    are enabled. To allow a value that can either be NULL or a string,
+    it is represented by the pair:
+      first:  true if tls_ciphersuites is set to NULL
+      second: the string value when first is false
+  */
+  std::pair<bool, std::string> tls_ciphersuites = {true, ""};
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index {

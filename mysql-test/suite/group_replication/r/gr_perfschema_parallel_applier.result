@@ -62,6 +62,7 @@ GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -260,6 +261,7 @@ GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

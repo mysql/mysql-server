@@ -89,12 +89,15 @@ class Recovery_state_transfer {
      @param ssl_crl                 SSL revocation list file
      @param ssl_crlpath             path with revocation list files
      @param ssl_verify_server_cert  verify the hostname against the certificate
+     @param tls_version             the list of TLS versions to use
+     @param tls_ciphersuites        the list of TLS ciphersuites to use
   */
   void set_recovery_ssl_options(bool use_ssl, const char *ssl_ca,
                                 const char *ssl_capath, const char *ssl_cert,
                                 const char *ssl_cipher, const char *ssl_key,
                                 const char *ssl_crl, const char *ssl_crlpath,
-                                bool ssl_verify_server_cert) {
+                                bool ssl_verify_server_cert, char *tls_version,
+                                char *tls_ciphersuites) {
     recovery_use_ssl = use_ssl;
     if (ssl_ca != NULL) set_recovery_ssl_ca(ssl_ca);
     if (ssl_capath != NULL) set_recovery_ssl_capath(ssl_capath);
@@ -104,6 +107,8 @@ class Recovery_state_transfer {
     if (ssl_crl != NULL) set_recovery_ssl_crl(ssl_crl);
     if (ssl_crlpath != NULL) set_recovery_ssl_crl(ssl_crlpath);
     recovery_ssl_verify_server_cert = ssl_verify_server_cert;
+    if (tls_version != NULL) set_recovery_tls_version(tls_version);
+    set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
   /** Set the option that forces the use of SSL on recovery connections */
@@ -147,6 +152,22 @@ class Recovery_state_transfer {
   /** Set if recovery shall compare the used hostname against the certificate */
   void set_recovery_ssl_verify_server_cert(char ssl_verify_server_cert) {
     this->recovery_ssl_verify_server_cert = ssl_verify_server_cert;
+  }
+
+  /** Set a TLS versions to be used */
+  void set_recovery_tls_version(const char *tls_version) {
+    memcpy(recovery_tls_version, tls_version, strlen(tls_version) + 1);
+  }
+
+  /** Set a TLS ciphersuites to be used */
+  void set_recovery_tls_ciphersuites(const char *tls_ciphersuites) {
+    if (nullptr == tls_ciphersuites) {
+      recovery_tls_ciphersuites_null = true;
+    } else {
+      recovery_tls_ciphersuites_null = false;
+      memcpy(recovery_tls_ciphersuites, tls_ciphersuites,
+             strlen(tls_ciphersuites) + 1);
+    }
   }
 
   /**
@@ -407,6 +428,11 @@ class Recovery_state_transfer {
   bool recovery_ssl_verify_server_cert;
   /** Public key information */
   char recovery_public_key_path[FN_REFLEN];
+  /** Permitted TLS versions. */
+  char recovery_tls_version[FN_REFLEN];
+  /** Permitted TLS 1.3 ciphersuites. */
+  bool recovery_tls_ciphersuites_null;
+  char recovery_tls_ciphersuites[FN_REFLEN];
 
   /* The lock for the recovery wait condition */
   mysql_mutex_t recovery_lock;

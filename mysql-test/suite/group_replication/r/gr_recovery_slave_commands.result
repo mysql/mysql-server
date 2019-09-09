@@ -16,6 +16,8 @@ include/start_and_bootstrap_group_replication.inc
 # MASTER_USER and MASTER_PASSWORD
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
+CHANGE MASTER TO MASTER_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
+ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 
 # ERROR when executing STOP SLAVE on GR recovery channel
 STOP SLAVE FOR CHANNEL 'group_replication_recovery';

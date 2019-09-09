@@ -110,11 +110,11 @@ include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: Failed to flush master info.'
 include/stop_slave_sql.inc
 START SLAVE SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 30, found 29. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 31, found 30. The table is probably corrupted
 RESET SLAVE ALL;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 30, found 29. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 31, found 30. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 30, found 29. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 31, found 30. The table is probably corrupted
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 RESET SLAVE ALL;
@@ -175,6 +175,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Network_namespace` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.',
   `Master_compression_algorithm` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
   `Master_zstd_compression_level` int(10) unsigned NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.',
+  `Tls_ciphersuites` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;

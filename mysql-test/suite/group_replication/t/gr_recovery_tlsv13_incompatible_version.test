@@ -1,0 +1,109 @@
+################################################################################
+# Validate Group Replication behavior when members have disjoint TLS versions.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup the first member (M1) with a recovery user that requires TLS 1.3.
+# 2. Add some data and bootstrap start a group on M1.
+# 3. Configure a joining member (M2) to use SSL options and a different
+#    TLS version on recovery. Member will not be able to join.
+# 4. Configure a joining member to use SSL options and the same
+#    TLS version on recovery. Member will be able to join.
+# 5. Clean up.
+################################################################################
+
+--source include/have_tlsv13.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo #
+--echo # Setup the first member with a recovery user that requires TLS 1.3
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# create a user for replication that requires ssl encryption
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+SET SESSION sql_log_bin=1;
+
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+
+--echo #
+--echo # Add some data and start the member
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # Configure a joining member to use SSL options and a different
+--echo # TLS version on recovery. Member will not be able to join.
+--echo #
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
+call mtr.add_suppression("Plugin group_replication reported: 'For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Plugin group_replication reported: 'Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+--enable_warnings
+
+SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_use_ssl=1;
+SET @group_replication_recovery_tls_version_saved= @@GLOBAL.group_replication_recovery_tls_version;
+SET GLOBAL group_replication_recovery_tls_version= 'TLSv1.2';
+
+SET @group_replication_recovery_retry_count_saved= @@GLOBAL.group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_retry_count= 1;
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--let $assert_text = incremental recovery connection failed with error CR_SSL_CONNECTION_ERROR
+--let $assert_cond = "[SELECT LAST_ERROR_NUMBER FROM performance_schema.replication_connection_status where CHANNEL_NAME = \'group_replication_recovery\']" = "2026"
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Configure a joining member to use SSL options and the same
+--echo # TLS version on recovery. Member will be able to join.
+--echo #
+SET GLOBAL group_replication_recovery_tls_version= 'TLSv1.3';
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_saved;
+SET @@GLOBAL.group_replication_recovery_tls_version= @group_replication_recovery_tls_version_saved;
+SET @@GLOBAL.group_replication_recovery_retry_count= @group_replication_recovery_retry_count_saved;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.tls_version= @tls_version_saved;
+ALTER INSTANCE RELOAD TLS;
+
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

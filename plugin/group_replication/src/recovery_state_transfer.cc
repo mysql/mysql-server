@@ -51,6 +51,7 @@ Recovery_state_transfer::Recovery_state_transfer(
       recovery_use_ssl(false),
       recovery_get_public_key(false),
       recovery_ssl_verify_server_cert(false),
+      recovery_tls_ciphersuites_null(true),
       max_connection_attempts_to_donors(0),
       donor_reconnect_interval(0) {
   // set the recovery SSL options to 0
@@ -62,6 +63,8 @@ Recovery_state_transfer::Recovery_state_transfer(
   (void)strncpy(recovery_ssl_crl, "", 1);
   (void)strncpy(recovery_ssl_crlpath, "", 1);
   (void)strncpy(recovery_public_key_path, "", 1);
+  (void)strncpy(recovery_tls_version, "", 1);
+  (void)strncpy(recovery_tls_ciphersuites, "", 1);
 
   this->member_uuid = member_uuid;
 
@@ -481,7 +484,9 @@ int Recovery_state_transfer::initialize_donor_connection() {
       recovery_ssl_key, recovery_ssl_crl, recovery_ssl_crlpath,
       recovery_ssl_verify_server_cert, DEFAULT_THREAD_PRIORITY, 1, false,
       recovery_public_key_path, recovery_get_public_key,
-      recovery_compression_algorithm, recovery_zstd_compression_level);
+      recovery_compression_algorithm, recovery_zstd_compression_level,
+      recovery_tls_version,
+      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
@@ -604,7 +609,7 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
   error = donor_connection_interface.initialize_channel(
       const_cast<char *>("<NULL>"), 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false, NULL, false,
-      NULL, 0);
+      NULL, 0, NULL, NULL);
 
   return error;
 }

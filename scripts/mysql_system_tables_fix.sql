@@ -820,6 +820,8 @@ ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLL
 ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
                               ADD Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.';
 
+ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -833,6 +835,11 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin
   COMMENT 'Network namespace used for communication with the master server.'
   AFTER Get_public_key;
+
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL
+  COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.'
+  AFTER Master_zstd_compression_level;
 
 # Columns added to keep information about the replication applier thread
 # privilege context user

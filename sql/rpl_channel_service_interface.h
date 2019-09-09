@@ -74,6 +74,7 @@ struct Channel_ssl_info {
   char *ssl_cipher;            // list of permissible ciphers to use for SSL
   int ssl_verify_server_cert;  // check the server's Common Name value
   char *tls_version;           // TLS version to use for SSL
+  char *tls_ciphersuites;      // list of permissible ciphersuites for TLS 1.3
 };
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info);

@@ -341,6 +341,16 @@ struct LEX_MASTER_INFO {
       retry_count_opt, auto_position, port_opt, get_public_key;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
+  /*
+    Ciphersuites used for TLS 1.3 communication with the master server.
+  */
+  enum enum_tls_ciphersuites {
+    UNSPECIFIED = 0,
+    SPECIFIED_NULL,
+    SPECIFIED_STRING
+  };
+  enum enum_tls_ciphersuites tls_ciphersuites;
+  char *tls_ciphersuites_string;
   char *public_key_path;
   char *relay_log_name;
   ulong relay_log_pos;

@@ -196,6 +196,7 @@ void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
   channel_ssl_info->ssl_cipher = 0;
   channel_ssl_info->tls_version = 0;
   channel_ssl_info->ssl_verify_server_cert = 0;
+  channel_ssl_info->tls_ciphersuites = 0;
 }
 
 void initialize_channel_connection_info(Channel_connection_info *channel_info) {
@@ -239,6 +240,13 @@ static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
 
   if (channel_ssl_info->ssl_cipher != nullptr) {
     lex_mi->ssl_cipher = channel_ssl_info->ssl_cipher;
+  }
+
+  if (channel_ssl_info->tls_ciphersuites != nullptr) {
+    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_STRING;
+    lex_mi->tls_ciphersuites_string = channel_ssl_info->tls_ciphersuites;
+  } else {
+    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_NULL;
   }
 
   lex_mi->ssl_verify_server_cert = (channel_ssl_info->ssl_verify_server_cert)

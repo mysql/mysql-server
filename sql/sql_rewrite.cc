@@ -1253,6 +1253,13 @@ bool Rewriter_change_master::rewrite() const {
       lex->mi.ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   comma = append_str(rlb, comma, "MASTER_TLS_VERSION =", lex->mi.tls_version);
+  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
+    comma_maybe(rlb, &comma);
+    rlb->append(STRING_WITH_LEN("MASTER_TLS_CIPHERSUITES = NULL"));
+  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
+    comma = append_str(rlb, comma, "MASTER_TLS_CIPHERSUITES =",
+                       lex->mi.tls_ciphersuites_string);
+  }
 
   // Public key
   comma = append_str(rlb, comma,

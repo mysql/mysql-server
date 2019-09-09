@@ -159,12 +159,15 @@ class Recovery_module {
      @param ssl_crl                 SSL revocation list file
      @param ssl_crlpath             path with revocation list files
      @param ssl_verify_server_cert  verify the hostname against the certificate
+     @param tls_version             the list of TLS versions to use
+     @param tls_ciphersuites        the list of TLS ciphersuites to use
   */
   void set_recovery_ssl_options(bool use_ssl, const char *ssl_ca,
                                 const char *ssl_capath, const char *ssl_cert,
                                 const char *ssl_cipher, const char *ssl_key,
                                 const char *ssl_crl, const char *ssl_crlpath,
-                                bool ssl_verify_server_cert) {
+                                bool ssl_verify_server_cert, char *tls_version,
+                                char *tls_ciphersuites) {
     recovery_state_transfer.set_recovery_use_ssl(use_ssl);
     if (ssl_ca != NULL) recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
     if (ssl_capath != NULL)
@@ -179,6 +182,9 @@ class Recovery_module {
       recovery_state_transfer.set_recovery_ssl_crlpath(ssl_crlpath);
     recovery_state_transfer.set_recovery_ssl_verify_server_cert(
         ssl_verify_server_cert);
+    if (tls_version != NULL)
+      recovery_state_transfer.set_recovery_tls_version(tls_version);
+    recovery_state_transfer.set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
   /** Set the option that forces the use of SSL on recovery connections */
@@ -225,6 +231,16 @@ class Recovery_module {
   void set_recovery_ssl_verify_server_cert(char ssl_verify_server_cert) {
     recovery_state_transfer.set_recovery_ssl_verify_server_cert(
         ssl_verify_server_cert);
+  }
+
+  /** Set TLS version to be used */
+  void set_recovery_tls_version(const char *tls_version) {
+    recovery_state_transfer.set_recovery_tls_version(tls_version);
+  }
+
+  /** Set TLS ciphersuites to be used */
+  void set_recovery_tls_ciphersuites(const char *tls_ciphersuites) {
+    recovery_state_transfer.set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
   /**

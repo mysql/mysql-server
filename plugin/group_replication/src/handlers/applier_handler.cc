@@ -62,7 +62,7 @@ int Applier_handler::initialize_repositories(bool reset_logs,
   error = channel_interface.initialize_channel(
       const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, false, GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
-      0, true, NULL, false, NULL, 0);
+      0, true, NULL, false, NULL, 0, NULL, NULL);
 
   if (error) {
     LogPluginErr(ERROR_LEVEL,

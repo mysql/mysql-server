@@ -80,9 +80,11 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size;`
 --let $saved_gr_recovery_compression_algorithms = `SELECT @@GLOBAL.group_replication_recovery_compression_algorithms;`
 --let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
+--let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version;`
+--let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites;`
 
 # Total number of GR variables.
---let $total_gr_vars= 53
+--let $total_gr_vars= 55
 
 --echo #
 --echo # Test Unit#1
@@ -147,6 +149,8 @@ SET @@GLOBAL.group_replication_autorejoin_tries= default;
 SET @@GLOBAL.group_replication_message_cache_size= default;
 SET @@GLOBAL.group_replication_recovery_compression_algorithms= default;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
+SET @@GLOBAL.group_replication_recovery_tls_version= default;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -350,6 +354,17 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level]" = 3
 --source include/assert.inc
 
+# group_replication_recovery_tls_version
+--let $assert_text= Default group_replication_recovery_tls_version is "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_tls_version]" = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"
+--source include/assert.inc
+
+# group_replication_recovery_tls_ciphersuites
+--let $recovery_tls_ciphersuites= query_get_value(SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites, @@GLOBAL.group_replication_recovery_tls_ciphersuites, 1)
+--let $assert_text= Default group_replication_recovery_tls_ciphersuites is NULL
+--let $assert_cond= "$recovery_tls_ciphersuites" = "NULL"
+--source include/assert.inc
+
 --echo #
 --echo # Clean up
 --echo #
@@ -400,6 +415,8 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_message_cache_size= $saved_gr_message_cache_size
 --eval SET @@GLOBAL.group_replication_recovery_compression_algorithms= "$saved_gr_recovery_compression_algorithms"
 --eval SET @@GLOBAL.group_replication_recovery_zstd_compression_level= $saved_gr_recovery_compression_level
+--eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
+--eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --enable_query_log
 
 --let $total_gr_vars=

@@ -7952,6 +7952,9 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
     mysql_options(mysql, MYSQL_OPT_SSL_CRL, mi->ssl_crl[0] ? mi->ssl_crl : 0);
     mysql_options(mysql, MYSQL_OPT_TLS_VERSION,
                   mi->tls_version[0] ? mi->tls_version : 0);
+    mysql_options(
+        mysql, MYSQL_OPT_TLS_CIPHERSUITES,
+        mi->tls_ciphersuites.first ? 0 : mi->tls_ciphersuites.second.c_str());
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     if (mi->ssl_verify_server_cert)
@@ -8992,8 +8995,9 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO *lex_mi) {
       lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->ssl_key || lex_mi->ssl_cert || lex_mi->ssl_ca ||
-      lex_mi->ssl_capath || lex_mi->tls_version || lex_mi->ssl_cipher ||
-      lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
+      lex_mi->ssl_capath || lex_mi->tls_version ||
+      lex_mi->tls_ciphersuites != LEX_MASTER_INFO::UNSPECIFIED ||
+      lex_mi->ssl_cipher || lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->public_key_path ||
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
@@ -9248,6 +9252,15 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath) - 1);
   if (lex_mi->tls_version)
     strmake(mi->tls_version, lex_mi->tls_version, sizeof(mi->tls_version) - 1);
+
+  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex_mi->tls_ciphersuites) {
+    mi->tls_ciphersuites.first = true;
+    mi->tls_ciphersuites.second.clear();
+  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex_mi->tls_ciphersuites) {
+    mi->tls_ciphersuites.first = false;
+    mi->tls_ciphersuites.second.assign(lex_mi->tls_ciphersuites_string);
+  }
+
   if (lex_mi->ssl_cert)
     strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert) - 1);
   if (lex_mi->ssl_cipher)
@@ -9261,7 +9274,8 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath || lex_mi->ssl_cert ||
       lex_mi->ssl_cipher || lex_mi->ssl_key || lex_mi->ssl_verify_server_cert ||
-      lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->tls_version)
+      lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->tls_version ||
+      lex_mi->tls_ciphersuites_null || lex_mi->tls_ciphersuites)
     push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_IGNORED_SSL_PARAMS,
                  ER_THD(thd, ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
@@ -9859,8 +9873,9 @@ static bool is_invalid_change_master_for_group_replication_recovery(
       lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->ssl_key || lex_mi->ssl_cert || lex_mi->ssl_ca ||
-      lex_mi->ssl_capath || lex_mi->tls_version || lex_mi->ssl_cipher ||
-      lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
+      lex_mi->ssl_capath || lex_mi->tls_version ||
+      lex_mi->tls_ciphersuites != LEX_MASTER_INFO::UNSPECIFIED ||
+      lex_mi->ssl_cipher || lex_mi->ssl_crl || lex_mi->ssl_crlpath ||
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->public_key_path ||

@@ -97,8 +97,11 @@ enum {
   /* line for master_zstd_compression_level */
   LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL = 30,
 
+  /* line for tls_ciphersuites */
+  LINE_FOR_TLS_CIPHERSUITES = 31,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_MASTER_ZSTD_COMPRESSION_LEVEL
+  LINES_IN_MASTER_INFO = LINE_FOR_TLS_CIPHERSUITES
 
 };
 
@@ -136,7 +139,8 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "get_public_key",
                                 "network_namespace",
                                 "master_compression_algorithm",
-                                "master_zstd_compression_level"};
+                                "master_zstd_compression_level",
+                                "tls_ciphersuites"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -438,6 +442,8 @@ void Master_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
   bitmap_init(nullable_fields, nullptr,
               Master_info::get_number_info_mi_fields());
   bitmap_clear_all(nullable_fields);
+  /* Identify which fields can store a NULL value. */
+  bitmap_set_bit(nullable_fields, LINE_FOR_TLS_CIPHERSUITES - 1);
 }
 
 bool Master_info::read_info(Rpl_info_handler *from) {
@@ -623,6 +629,28 @@ bool Master_info::read_info(Rpl_info_handler *from) {
       zstd_compression_level = default_level;
     }
   }
+
+  if (lines >= LINE_FOR_TLS_CIPHERSUITES) {
+    char buffer[FN_REFLEN_SE] = {0};
+
+    Rpl_info_handler::enum_field_get_status status =
+        from->get_info(buffer, sizeof(buffer), nullptr);
+
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+
+    if (status ==
+        Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL) {
+      tls_ciphersuites.first = true;
+      tls_ciphersuites.second.clear();
+    } else {
+      DBUG_ASSERT(
+          status ==
+          Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL);
+      tls_ciphersuites.first = false;
+      tls_ciphersuites.second.assign(buffer);
+    }
+  }
+
   return false;
 }
 
@@ -659,7 +687,9 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info(channel) || to->set_info(tls_version) ||
       to->set_info(public_key_path) || to->set_info(get_public_key) ||
       to->set_info(network_namespace) || to->set_info(compression_algorithm) ||
-      to->set_info((int)zstd_compression_level))
+      to->set_info((int)zstd_compression_level) ||
+      to->set_info(tls_ciphersuites.first ? nullptr
+                                          : tls_ciphersuites.second.c_str()))
     return true;
 
   return false;

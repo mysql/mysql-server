@@ -146,6 +146,8 @@ struct plugin_options_variables {
   static const int RECOVERY_SSL_CRL_OPT = 6;
   static const int RECOVERY_SSL_CRLPATH_OPT = 7;
   static const int RECOVERY_SSL_PUBLIC_KEY_PATH_OPT = 8;
+  static const int RECOVERY_TLS_VERSION_OPT = 9;
+  static const int RECOVERY_TLS_CIPHERSUITES_OPT = 10;
   // The option map <SSL var_name, SSL var code>
   std::map<const char *, int> recovery_ssl_opt_map;
 
@@ -164,6 +166,8 @@ struct plugin_options_variables {
   bool recovery_get_public_key_var;
   char *recovery_compression_algorithm_var;
   uint recovery_zstd_compression_level_var;
+  char *recovery_tls_version_var;
+  char *recovery_tls_ciphersuites_var;
 
   const char *recovery_policies[3] = {"TRANSACTIONS_CERTIFIED",
                                       "TRANSACTIONS_APPLIED", (char *)0};

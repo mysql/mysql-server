@@ -277,7 +277,17 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
 
   bool ssl;  // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
-  char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN], tls_version[FN_REFLEN];
+  char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
+  char tls_version[FN_REFLEN];
+  /*
+    Ciphersuites used for TLS 1.3 communication with the master server.
+    tls_ciphersuites = NULL means that TLS 1.3 default ciphersuites
+    are enabled. To allow a value that can either be NULL or a string,
+    it is represented by the pair:
+      first:  true if tls_ciphersuites is set to NULL
+      second: the string value when first is false
+  */
+  std::pair<bool, std::string> tls_ciphersuites = {true, ""};
   char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
   char public_key_path[FN_REFLEN];
   bool ssl_verify_server_cert;

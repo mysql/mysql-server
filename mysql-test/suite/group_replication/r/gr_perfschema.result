@@ -52,12 +52,13 @@ SSL_CRL_PATH
 CONNECTION_RETRY_INTERVAL	60
 CONNECTION_RETRY_COUNT	1
 HEARTBEAT_INTERVAL	30.000
-TLS_VERSION	
+TLS_VERSION	TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 #group_replication_applier channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -84,6 +85,7 @@ GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -186,12 +188,13 @@ SSL_CRL_PATH
 CONNECTION_RETRY_INTERVAL	60
 CONNECTION_RETRY_COUNT	1
 HEARTBEAT_INTERVAL	30.000
-TLS_VERSION	
+TLS_VERSION	TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 #group_replication_applier channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -218,6 +221,7 @@ GET_PUBLIC_KEY	NO
 NETWORK_NAMESPACE	
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
