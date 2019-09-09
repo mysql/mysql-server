@@ -33,6 +33,7 @@
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+--source include/not_mts_slave_parallel_workers.inc
 
 --echo #
 --echo # TC1. Apply OLD-generated relay log on NEW server
