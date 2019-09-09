@@ -53,8 +53,11 @@ SET(ZSTD_SRCS
   ${ZSTD_LIB_DIR}/common/xxhash.c
   ${ZSTD_LIB_DIR}/common/zstd_common.c
   ${ZSTD_LIB_DIR}/compress/fse_compress.c
+  ${ZSTD_LIB_DIR}/compress/hist.c
   ${ZSTD_LIB_DIR}/compress/huf_compress.c
   ${ZSTD_LIB_DIR}/compress/zstd_compress.c
+  ${ZSTD_LIB_DIR}/compress/zstd_compress_literals.c
+  ${ZSTD_LIB_DIR}/compress/zstd_compress_sequences.c
   ${ZSTD_LIB_DIR}/compress/zstd_double_fast.c
   ${ZSTD_LIB_DIR}/compress/zstd_fast.c
   ${ZSTD_LIB_DIR}/compress/zstd_lazy.c
@@ -63,6 +66,8 @@ SET(ZSTD_SRCS
   ${ZSTD_LIB_DIR}/compress/zstd_opt.c
   ${ZSTD_LIB_DIR}/decompress/huf_decompress.c
   ${ZSTD_LIB_DIR}/decompress/zstd_decompress.c
+  ${ZSTD_LIB_DIR}/decompress/zstd_decompress_block.c
+  ${ZSTD_LIB_DIR}/decompress/zstd_ddict.c
   ${ZSTD_LIB_DIR}/deprecated/zbuff_common.c
   ${ZSTD_LIB_DIR}/deprecated/zbuff_compress.c
   ${ZSTD_LIB_DIR}/deprecated/zbuff_decompress.c

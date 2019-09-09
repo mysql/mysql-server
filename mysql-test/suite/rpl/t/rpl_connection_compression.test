@@ -298,7 +298,7 @@ EOF
   if ($level_it != 1) {
     --let $better_than_last = `SELECT position > $last_position FROM levels WHERE id = $level_it`
     if ($better_than_last) {
-      --let $assert_cond = $bytes_sent < $last_bytes_sent
+      --let $assert_cond = $bytes_sent <= $last_bytes_sent
       --let $assert_text = Compression ratio should be better than previous algorithm
     }
     if (!$better_than_last) {
@@ -348,7 +348,7 @@ EOF
 
 # Generate some binlog data. This will be more than 10000 bytes
 # uncompressed, and less than 10000 bytes compressed.
---let $data_size = 10000
+--let $data_size = 1000000
 CREATE TABLE t (a LONGTEXT);
 eval INSERT INTO t VALUES (REPEAT('a', $data_size));
 
