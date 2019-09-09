@@ -1827,7 +1827,6 @@ static bool is_skipped_ndb_table(const char *db_name, const char *table_name) {
 
 bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
                            bool is_fix_view_cols_and_deps) {
-  uint i;
   MY_DIR *a;
   String_type path;
   bool error = false;
@@ -1841,15 +1840,16 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
     LogErr(ERROR_LEVEL, ER_CANT_OPEN_DIR, path.c_str());
     return true;
   }
-  for (i = 0; i < (uint)a->number_off_files &&
-              !dd::upgrade::Syntax_error_handler::has_too_many_errors();
-       i++) {
+
+  for (unsigned int idx = a->number_off_files;
+       idx > 0 && !dd::upgrade::Syntax_error_handler::has_too_many_errors();
+       idx--) {
     String_type file;
 
-    file.assign(a->dir_entry[i].name);
+    file.assign(a->dir_entry[idx - 1].name);
     if (file.at(0) == '.') continue;
 
-    if (!MY_S_ISDIR(a->dir_entry[i].mystat->st_mode)) {
+    if (!MY_S_ISDIR(a->dir_entry[idx - 1].mystat->st_mode)) {
       String_type file_ext;
       char schema_name[NAME_LEN + 1];
       char table_name[NAME_LEN + 1];
