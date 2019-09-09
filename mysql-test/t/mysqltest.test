@@ -4864,3 +4864,25 @@ SELECT $val AS res;
 --let $val = 200
 SELECT $val AS res;
 --reap
+
+--echo #
+--echo # Bug#29901754: ADD SUPORT FOR COLUMN MASKING TO DIFF_TABLES.INC
+--echo #
+
+CREATE TABLE t1(col1 INT, col2 INT, col3 INT);
+INSERT INTO t1 VALUES(1, RAND(), 4);
+INSERT INTO t1 VALUES(2, RAND(), 5);
+INSERT INTO t1 VALUES(3, RAND(), 6);
+
+CREATE TABLE t2(col1 INT, col2 INT, col3 INT);
+INSERT INTO t2 VALUES(1, RAND(), 4);
+INSERT INTO t2 VALUES(2, RAND(), 5);
+INSERT INTO t2 VALUES(3, RAND(), 6);
+
+# Check if the two tables are identical, while
+# masking col2, which could vary.
+--let $mask_column_list=col2
+--let $diff_tables=default:t1, default:t2
+--source include/diff_tables.inc
+
+DROP TABLE t1, t2;
