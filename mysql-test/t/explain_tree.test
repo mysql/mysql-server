@@ -428,6 +428,25 @@ EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 
 
 DROP TABLE t1;
 
+# EXPLAIN ANALYZE on a query the iterator executor doesn't support should give an error.
+CREATE TABLE t1 (
+  c1 INTEGER,
+  c2 INTEGER
+);
+CREATE TABLE t2 (
+  c1 INTEGER,
+  c2 INTEGER
+);
+CREATE TABLE t3 (
+  c1 INTEGER,
+  c2 INTEGER
+);
+set optimizer_switch='block_nested_loop=on';
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c2 JOIN t3 ON t2.c2 > t3.c2;
+set optimizer_switch='block_nested_loop=off';
+DROP TABLE t1, t2, t3;
+
 #
 # Bug #30220791: INCORRECT RESULT WHEN THE ITERATOR EXECUTOR IS USED
 #

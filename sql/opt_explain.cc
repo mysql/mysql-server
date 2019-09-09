@@ -2203,6 +2203,13 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
         unit->set_executed();
         return true;
       }
+      if (unit->root_iterator() == nullptr) {
+        // TODO(sgunders): Remove when the iterator executor supports
+        // all queries.
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXPLAIN ANALYZE on this query");
+        unit->set_executed();
+        return true;
+      }
 
       // Run the query, but with the result suppressed.
       Query_result_null null_result;
